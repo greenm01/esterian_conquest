@@ -3,9 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_default_input_at, draw_command_line_text_at,
-    draw_dismiss_prompt, draw_title_bar, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    dismiss_prompt_row, draw_command_line_default_input, draw_command_line_default_input_at,
+    draw_command_line_text_at, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -269,7 +269,7 @@ impl PlanetTransportScreen {
         draw_title_bar(&mut buffer, 0, mode.title());
         buffer.write_text(3, 0, status, classic::status_value_style());
         let _ = prompt_label;
-        draw_dismiss_prompt(&mut buffer, 19);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(3));
         Ok(buffer)
     }
 }

@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::PlayfieldBuffer;
 use crate::screen::layout::{
-    draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    dismiss_prompt_row, draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield,
 };
 use crate::theme::classic;
 
@@ -63,7 +63,7 @@ impl StarmapScreen {
             "Turn off screen capture in your telnet client now.",
             classic::status_value_style(),
         );
-        draw_dismiss_prompt(&mut buffer, 8);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(5));
         Ok(buffer)
     }
 

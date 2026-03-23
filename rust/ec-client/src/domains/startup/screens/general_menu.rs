@@ -7,8 +7,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_expert_menu, draw_menu_notice,
-    menu_prompt_row, new_playfield,
+    draw_command_center, draw_expert_menu, draw_inline_planet_info_prompt,
+    draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row, new_playfield, MenuEntry,
+    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -19,8 +20,8 @@ const TOP_ROW: [MenuEntry<'static>; 2] = [
     MenuEntry::new(51, "C", "ommunicate (send message)"),
 ];
 
-const ROW_1_RIGHT: [MenuEntry<'static>; 2] = [
-    MenuEntry::new(CMD_COL_2, "A", ""),
+const ROW_1: [MenuEntry<'static>; 2] = [
+    MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
     MenuEntry::new(51, "R", "eview messages/results"),
 ];
 
@@ -52,26 +53,54 @@ impl GeneralMenuScreen {
         frame: &ScreenFrame<'_>,
         notice: Option<&str>,
         expert_mode: bool,
+        inline_planet_info: bool,
+        info_default_coords: [u8; 2],
+        info_input: &str,
+        info_notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            draw_expert_menu(
-                &mut buffer,
-                "GENERAL COMMAND",
-                "H,Q,X,V,I,A,S,P,M,C,R,D,O,E",
-                notice,
-            );
+            if inline_planet_info {
+                draw_inline_planet_info_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    info_default_coords,
+                    info_input,
+                    info_notice,
+                    notice,
+                );
+            } else {
+                draw_expert_menu(
+                    &mut buffer,
+                    "GENERAL COMMAND",
+                    "H,Q,X,V,I,A,S,P,M,C,R,D,O,E",
+                    notice,
+                );
+            }
             return Ok(buffer);
         }
         draw_command_center(
             &mut buffer,
             "GENERAL COMMAND CENTER:",
             &TOP_ROW,
-            &[&autopilot_row(frame), &ROW_2, &ROW_3, &ROW_4],
+            &[&ROW_1, &ROW_2, &ROW_3, &ROW_4],
             "GENERAL COMMAND",
             "H,Q,X,V,I,A,S,P,M,C,R,D,O,E",
         );
-        if let Some(notice) = notice {
+        let autopilot_on = frame.game_data.player.records[frame.player.record_index_1_based - 1]
+            .autopilot_flag()
+            != 0;
+        draw_menu_entry_with_toggle(&mut buffer, 1, CMD_COL_2, "A", "utopilot ", autopilot_on);
+        if inline_planet_info {
+            draw_inline_planet_info_prompt(
+                &mut buffer,
+                menu_prompt_row(4),
+                info_default_coords,
+                info_input,
+                info_notice,
+                notice,
+            );
+        } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, menu_prompt_row(4), notice);
         }
         Ok(buffer)
@@ -83,7 +112,7 @@ impl Screen for GeneralMenuScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(frame, None, false)
+        self.render_with_notice(frame, None, false, false, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -115,12 +144,4 @@ impl Screen for GeneralMenuScreen {
             _ => Action::Noop,
         }
     }
-}
-
-fn autopilot_row(_frame: &ScreenFrame<'_>) -> [MenuEntry<'static>; 3] {
-    [
-        MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
-        MenuEntry::new(CMD_COL_2, "A", "utopilot ON/OFF"),
-        ROW_1_RIGHT[1],
-    ]
 }

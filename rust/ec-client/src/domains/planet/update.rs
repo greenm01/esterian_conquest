@@ -33,6 +33,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::SubmitListSort(mode, sort) => app.submit_planet_list_sort(mode, sort),
         PlanetAction::CloseListSortPrompt(mode) => app.close_planet_list_sort_prompt(mode),
         PlanetAction::OpenTaxPrompt => app.open_planet_tax_prompt(),
+        PlanetAction::CloseTaxPrompt => app.close_planet_tax_prompt(),
         PlanetAction::OpenDatabase => app.open_planet_database(),
         PlanetAction::OpenDatabaseFilterPrompt => app.open_planet_database_filter_prompt(),
         PlanetAction::OpenDatabaseDetail => app.open_planet_database_detail(),
@@ -110,6 +111,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
             }
         }
         PlanetAction::OpenInfoPrompt(menu) => app.open_planet_info_prompt(menu),
+        PlanetAction::CloseInfoPrompt => app.close_planet_info_prompt(),
         PlanetAction::AppendInfoChar(ch) => app.append_planet_info_char(ch),
         PlanetAction::BackspaceInfoInput => app.backspace_planet_info_input(),
         PlanetAction::SubmitInfoPrompt => app.submit_planet_info_prompt(),

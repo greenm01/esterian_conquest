@@ -1,7 +1,9 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_dismiss_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_dismiss_prompt, draw_title_bar, new_playfield, table_dismiss_prompt_row,
+};
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window};
 use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
@@ -52,7 +54,7 @@ impl RankingsScreen {
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "OTHER EMPIRES (RANKINGS):");
-        write_table_window(
+        let metrics = write_table_window(
             &mut buffer,
             2,
             &RANKINGS_COLUMNS,
@@ -64,7 +66,7 @@ impl RankingsScreen {
         );
 
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, 19);
+        draw_dismiss_prompt(&mut buffer, table_dismiss_prompt_row(metrics.bottom_row));
         Ok(buffer)
     }
     pub fn handle_key(&self, _key: KeyEvent) -> Action {

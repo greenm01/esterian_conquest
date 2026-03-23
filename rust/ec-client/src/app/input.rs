@@ -20,6 +20,12 @@ impl App {
         {
             return Action::Quit;
         }
+        if self.inline_planet_tax_active_on_current_screen() {
+            return self.planet_tax.handle_inline_key(key);
+        }
+        if self.inline_planet_info_active_on_current_screen() {
+            return self.handle_planet_info_prompt_key(key);
+        }
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Splash)
                 if self.startup_state.splash_page > 0
@@ -195,8 +201,6 @@ impl App {
             ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
             ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
             ScreenId::PlanetDetailList(_) => self.planet_list.handle_detail_key(key),
-            ScreenId::PlanetTaxPrompt => self.planet_tax.handle_prompt_key(key),
-            ScreenId::PlanetTaxDone => self.planet_tax.handle_done_key(key),
             ScreenId::Starmap if self.starmap_state.capture_complete => {
                 self.starmap.handle_complete_key(key)
             }
@@ -210,7 +214,6 @@ impl App {
                 self.planet_database.handle_filter_prompt_key(key)
             }
             ScreenId::PlanetDatabaseDetail => self.planet_database.handle_detail_key(key),
-            ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
             ScreenId::DeleteReviewables => self.delete_reviewables.handle_key(key),

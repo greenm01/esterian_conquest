@@ -1,3 +1,4 @@
+use crate::screen::format_sector_coords_default;
 use crate::screen::{PlayfieldBuffer, StyledSpan};
 use crate::theme::classic;
 
@@ -21,6 +22,15 @@ pub const fn menu_prompt_row(last_content_row: usize) -> usize {
     }
 }
 
+pub const fn dismiss_prompt_row(last_content_row: usize) -> usize {
+    let desired = last_content_row + 2;
+    if desired > COMMAND_LINE_ROW {
+        COMMAND_LINE_ROW
+    } else {
+        desired
+    }
+}
+
 pub const fn menu_notice_row(command_row: usize) -> usize {
     let desired = command_row + 4;
     if desired > last_body_row() {
@@ -30,7 +40,25 @@ pub const fn menu_notice_row(command_row: usize) -> usize {
     }
 }
 
+pub const fn menu_general_message_row(command_row: usize) -> usize {
+    let desired = command_row + 2;
+    if desired > last_body_row() {
+        last_body_row()
+    } else {
+        desired
+    }
+}
+
 pub const fn table_prompt_row(table_bottom_row: usize) -> usize {
+    let desired = table_bottom_row + 1;
+    if desired > COMMAND_LINE_ROW {
+        COMMAND_LINE_ROW
+    } else {
+        desired
+    }
+}
+
+pub const fn table_dismiss_prompt_row(table_bottom_row: usize) -> usize {
     let desired = table_bottom_row + 1;
     if desired > COMMAND_LINE_ROW {
         COMMAND_LINE_ROW
@@ -134,6 +162,46 @@ pub fn draw_menu_entry(
     );
 }
 
+/// Draw a menu entry with an inline `[ON] [OFF]` toggle indicator.
+///
+/// The active state is highlighted with `indicator_on_style()` and the
+/// inactive state is dimmed with `indicator_off_style()`.  Brackets stay
+/// in the normal `menu_style()`.
+pub fn draw_menu_entry_with_toggle(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    hotkey: &str,
+    label: &str,
+    is_on: bool,
+) {
+    let menu = classic::menu_style();
+    let on_style = if is_on {
+        classic::indicator_on_style()
+    } else {
+        classic::indicator_off_style()
+    };
+    let off_style = if is_on {
+        classic::indicator_off_style()
+    } else {
+        classic::indicator_on_style()
+    };
+    buffer.write_spans(
+        row,
+        col,
+        &[
+            StyledSpan::new(hotkey, classic::menu_hotkey_style()),
+            StyledSpan::new(">", menu),
+            StyledSpan::new(label, menu),
+            StyledSpan::new("[", menu),
+            StyledSpan::new("ON", on_style),
+            StyledSpan::new("] [", menu),
+            StyledSpan::new("OFF", off_style),
+            StyledSpan::new("]", menu),
+        ],
+    );
+}
+
 pub fn draw_status_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
     buffer.write_spans(
         row,
@@ -151,6 +219,28 @@ pub fn draw_notice_line(buffer: &mut PlayfieldBuffer, row: usize, value: &str) {
         0,
         &[
             StyledSpan::new("Notice: ", classic::notice_style()),
+            StyledSpan::new(value, classic::status_value_style()),
+        ],
+    );
+}
+
+pub fn draw_alert_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    buffer.write_spans(
+        row,
+        0,
+        &[
+            StyledSpan::new(label, classic::error_style()),
+            StyledSpan::new(value, classic::status_value_style()),
+        ],
+    );
+}
+
+pub fn draw_message_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    buffer.write_spans(
+        row,
+        0,
+        &[
+            StyledSpan::new(label, classic::status_label_style()),
             StyledSpan::new(value, classic::status_value_style()),
         ],
     );
@@ -203,7 +293,73 @@ pub fn draw_wrapped_notice(
                 start_row + idx,
                 0,
                 &[
+                    StyledSpan::new(&continuation, classic::error_style()),
+                    StyledSpan::new(&line, classic::status_value_style()),
+                ],
+            );
+        }
+    }
+    rows_to_draw
+}
+
+pub fn draw_wrapped_alert(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    if max_rows == 0 {
+        return 0;
+    }
+    let label_width = label.chars().count();
+    let continuation = " ".repeat(label_width);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let lines = wrap_text(value, first_width, continuation_width);
+    let rows_to_draw = lines.len().min(max_rows);
+    for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
+        if idx == 0 {
+            draw_alert_line(buffer, start_row + idx, label, &line);
+        } else {
+            buffer.write_spans(
+                start_row + idx,
+                0,
+                &[
                     StyledSpan::new(&continuation, classic::notice_style()),
+                    StyledSpan::new(&line, classic::status_value_style()),
+                ],
+            );
+        }
+    }
+    rows_to_draw
+}
+
+pub fn draw_wrapped_message(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    if max_rows == 0 {
+        return 0;
+    }
+    let label_width = label.chars().count();
+    let continuation = " ".repeat(label_width);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let lines = wrap_text(value, first_width, continuation_width);
+    let rows_to_draw = lines.len().min(max_rows);
+    for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
+        if idx == 0 {
+            draw_message_line(buffer, start_row + idx, label, &line);
+        } else {
+            buffer.write_spans(
+                start_row + idx,
+                0,
+                &[
+                    StyledSpan::new(&continuation, classic::status_label_style()),
                     StyledSpan::new(&line, classic::status_value_style()),
                 ],
             );
@@ -216,6 +372,110 @@ pub fn draw_menu_notice(buffer: &mut PlayfieldBuffer, command_row: usize, notice
     let row = menu_notice_row(command_row);
     let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
     draw_wrapped_notice(buffer, row, max_rows, notice)
+}
+
+pub fn draw_menu_notice_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    notice: &str,
+) -> usize {
+    let row = (previous_end_row + 2).min(last_body_row());
+    let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
+    draw_wrapped_notice(buffer, row, max_rows, notice)
+}
+
+pub fn draw_menu_alert_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    let row = (previous_end_row + 2).min(last_body_row());
+    let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
+    draw_wrapped_alert(buffer, row, max_rows, label, value)
+}
+
+pub fn draw_menu_general_message(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    let row = menu_general_message_row(command_row);
+    let max_rows = last_body_row().saturating_sub(row) + 1;
+    let drawn = draw_wrapped_message(buffer, row, max_rows, label, value);
+    row + drawn.saturating_sub(1)
+}
+
+pub fn draw_inline_planet_info_prompt(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    default_coords: [u8; 2],
+    input: &str,
+    error: Option<&str>,
+    notice: Option<&str>,
+) -> usize {
+    draw_command_line_default_input_at(
+        buffer,
+        command_row,
+        "COMMAND",
+        "Planet coords ",
+        &format_sector_coords_default(default_coords),
+        input,
+    );
+    let message_end_row = draw_menu_general_message(
+        buffer,
+        command_row,
+        "PLANET INFO: ",
+        "Enter coordinates of the planet to view.",
+    );
+    let mut end_row = message_end_row;
+    if let Some(error) = error {
+        end_row = draw_menu_alert_after(buffer, end_row, "Error: ", error);
+    }
+    if let Some(notice) = notice {
+        draw_menu_notice_after(buffer, end_row, notice)
+    } else {
+        end_row
+    }
+}
+
+pub fn draw_inline_tax_prompt(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    current_tax: &str,
+    input: &str,
+    error: Option<&str>,
+    notice: Option<&str>,
+) -> usize {
+    draw_command_line_default_input_at(
+        buffer,
+        command_row,
+        "PLANET COMMAND",
+        "Empire tax rate (0 - 100) ",
+        current_tax,
+        input,
+    );
+    let message_end_row =
+        draw_menu_general_message(buffer, command_row, "PLANET TAX: ", "Set empire tax rate.");
+    let warning_row = (message_end_row + 2).min(last_body_row());
+    let warning_max_rows = last_body_row().saturating_sub(warning_row) + 1;
+    let warning_drawn = draw_wrapped_alert(
+        buffer,
+        warning_row,
+        warning_max_rows,
+        "Warning: ",
+        "Taxes in excess of 65% may actually REDUCE your planets' productivity!",
+    );
+    let mut end_row = warning_row + warning_drawn.saturating_sub(1);
+    if let Some(error) = error {
+        end_row = draw_menu_alert_after(buffer, end_row, "Error: ", error);
+    }
+    if let Some(notice) = notice {
+        draw_menu_notice_after(buffer, end_row, notice)
+    } else {
+        end_row
+    }
 }
 
 pub fn draw_centered_text(
@@ -465,14 +725,17 @@ pub fn draw_help_panel(
     for row in 3..COMMAND_LINE_ROW {
         buffer.fill_row(row, classic::help_panel_style());
     }
+    let mut last_content_row = 2;
     for (idx, line) in lines.iter().enumerate() {
-        if 3 + idx >= COMMAND_LINE_ROW {
+        let row = 3 + idx;
+        if row >= COMMAND_LINE_ROW - 1 {
             break;
         }
-        buffer.write_text(3 + idx, 0, line, classic::help_panel_style());
+        buffer.write_text(row, 0, line, classic::help_panel_style());
+        last_content_row = row;
     }
     let _ = prompt_label;
-    draw_dismiss_prompt(buffer, COMMAND_LINE_ROW);
+    draw_dismiss_prompt(buffer, dismiss_prompt_row(last_content_row));
 }
 
 pub fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {

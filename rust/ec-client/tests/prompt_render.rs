@@ -1,8 +1,9 @@
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_notice,
-    draw_command_line_prompt_text, draw_command_prompt, draw_plain_prompt,
-    draw_table_command_prompt,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
+    draw_command_line_notice, draw_command_line_prompt_text, draw_command_prompt, draw_help_panel,
+    draw_inline_planet_info_prompt, draw_plain_prompt, draw_table_command_prompt,
+    table_dismiss_prompt_row,
 };
 use ec_client::theme::classic;
 
@@ -218,6 +219,15 @@ fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
 }
 
 #[test]
+fn inline_planet_info_prompt_zero_pads_default_coords() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_inline_planet_info_prompt(&mut buffer, COMMAND_LINE_ROW, [3, 3], "", None, None);
+
+    let line = row_text(&buffer, COMMAND_LINE_ROW);
+    assert!(line.contains("COMMAND <- Planet coords [03,03] <Q> -> "));
+}
+
+#[test]
 fn draw_command_line_notice_uses_themed_notice_label_style() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     draw_command_line_notice(&mut buffer, "No fleets are ready.");
@@ -227,4 +237,27 @@ fn draw_command_line_notice_uses_themed_notice_label_style() {
     for idx in notice..notice + "Notice: ".len() {
         assert_eq!(row[idx].style, classic::notice_style());
     }
+}
+
+#[test]
+fn dismiss_prompt_row_leaves_one_blank_row_above_prompt() {
+    assert_eq!(dismiss_prompt_row(16), 18);
+    assert_eq!(dismiss_prompt_row(0), 2);
+}
+
+#[test]
+fn table_dismiss_prompt_row_attaches_prompt_to_table_bottom() {
+    assert_eq!(table_dismiss_prompt_row(10), 11);
+    assert_eq!(table_dismiss_prompt_row(23), 24);
+}
+
+#[test]
+fn help_panel_reserves_one_blank_row_above_dismiss_prompt() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    let lines = vec!["line"; 40];
+    draw_help_panel(&mut buffer, "HELP:", "Header", &lines, "GENERAL COMMAND");
+
+    assert!(!row_text(&buffer, COMMAND_LINE_ROW - 2).trim().is_empty());
+    assert!(row_text(&buffer, COMMAND_LINE_ROW - 1).trim().is_empty());
+    assert!(row_text(&buffer, COMMAND_LINE_ROW).contains("(slap a key)"));
 }

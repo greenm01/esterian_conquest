@@ -6,46 +6,15 @@ use ec_data::{
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_dismiss_prompt, draw_status_line, draw_title_bar,
-    new_playfield,
+    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{
-    CommandMenu, PlayfieldBuffer, ScreenFrame, command_menu_label, format_sector_coords,
-};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, format_sector_coords};
 
 pub struct PlanetInfoScreen;
 
 impl PlanetInfoScreen {
     pub fn new() -> Self {
         Self
-    }
-
-    pub fn render_prompt(
-        &mut self,
-        default_coords: [u8; 2],
-        input: &str,
-        error: Option<&str>,
-        menu: CommandMenu,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
-        buffer.write_text(
-            2,
-            0,
-            "Enter coordinates of the planet to view.",
-            crate::theme::classic::body_style(),
-        );
-        if let Some(error) = error {
-            draw_status_line(&mut buffer, 4, "Error: ", error);
-        }
-        draw_command_line_default_input(
-            &mut buffer,
-            command_menu_label(menu),
-            "Planet coords ",
-            &format!("{},{}", default_coords[0], default_coords[1]),
-            input,
-        );
-        Ok(buffer)
     }
 
     pub fn render_detail(
@@ -132,7 +101,7 @@ impl PlanetInfoScreen {
             "Starbase in Orbit: ",
             if has_starbase { "YES" } else { "NO" },
         );
-        draw_dismiss_prompt(&mut buffer, 17);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(15));
         Ok(buffer)
     }
 
@@ -234,7 +203,7 @@ impl PlanetInfoScreen {
             "Intel Tier: ",
             intel_tier_label(intel_snapshot, &world),
         );
-        draw_dismiss_prompt(&mut buffer, 17);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(16));
         Ok(buffer)
     }
 

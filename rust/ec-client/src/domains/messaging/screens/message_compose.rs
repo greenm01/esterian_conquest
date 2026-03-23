@@ -4,9 +4,9 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text_at, draw_command_prompt,
-    draw_dismiss_prompt, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    dismiss_prompt_row, draw_command_line_default_input, draw_command_line_text_at,
+    draw_command_prompt, draw_dismiss_prompt, draw_table_command_bar_at, draw_title_bar,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -287,7 +287,7 @@ impl MessageComposeScreen {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
         buffer.write_text(3, 0, status, classic::status_value_style());
-        draw_dismiss_prompt(&mut buffer, 6);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(3));
         Ok(buffer)
     }
 

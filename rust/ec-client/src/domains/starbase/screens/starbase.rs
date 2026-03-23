@@ -6,7 +6,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt_at, draw_dismiss_prompt, draw_expert_menu, draw_help_panel,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt,
     draw_menu_entry, draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar,
     menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
@@ -67,10 +68,25 @@ impl StarbaseMenuScreen {
         &mut self,
         notice: Option<&str>,
         expert_mode: bool,
+        inline_planet_info: bool,
+        info_default_coords: [u8; 2],
+        info_input: &str,
+        info_notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            draw_expert_menu(&mut buffer, "STARBASE COMMAND", "H,Q,X,S,R,V,I,M", notice);
+            if inline_planet_info {
+                draw_inline_planet_info_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    info_default_coords,
+                    info_input,
+                    info_notice,
+                    notice,
+                );
+            } else {
+                draw_expert_menu(&mut buffer, "STARBASE COMMAND", "H,Q,X,S,R,V,I,M", notice);
+            }
             return Ok(buffer);
         }
         draw_title_bar(&mut buffer, 0, "STARBASE CONTROL:");
@@ -90,15 +106,26 @@ impl StarbaseMenuScreen {
             }
         }
         let command_row = menu_prompt_row(2);
-        if let Some(notice) = notice {
+        if inline_planet_info {
+            draw_inline_planet_info_prompt(
+                &mut buffer,
+                command_row,
+                info_default_coords,
+                info_input,
+                info_notice,
+                notice,
+            );
+        } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        draw_command_prompt_at(
-            &mut buffer,
-            command_row,
-            "STARBASE COMMAND",
-            "H,Q,X,S,R,V,I,M",
-        );
+        if !inline_planet_info {
+            draw_command_prompt_at(
+                &mut buffer,
+                command_row,
+                "STARBASE COMMAND",
+                "H,Q,X,S,R,V,I,M",
+            );
+        }
         Ok(buffer)
     }
 }
@@ -108,7 +135,7 @@ impl Screen for StarbaseMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false)
+        self.render_with_notice(None, false, false, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -374,7 +401,7 @@ impl StarbaseReviewScreen {
         draw_status_line(&mut buffer, 7, "ETA:         ", &eta_text);
         draw_status_line(&mut buffer, 8, "Escort:      ", &row.escort_label);
         buffer.write_text(10, 0, &"-".repeat(79), classic::help_panel_style());
-        draw_dismiss_prompt(&mut buffer, 19);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(10));
         Ok(buffer)
     }
 }

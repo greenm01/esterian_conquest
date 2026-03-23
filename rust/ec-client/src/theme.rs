@@ -27,6 +27,7 @@ struct Theme {
     stardate_label: CellStyle,
     stardate_week: CellStyle,
     stardate_year: CellStyle,
+    error: CellStyle,
     notice: CellStyle,
     status_label: CellStyle,
     status_value: CellStyle,
@@ -44,6 +45,8 @@ struct Theme {
     quote: CellStyle,
     quote_author: CellStyle,
     report_header: CellStyle,
+    indicator_on: CellStyle,
+    indicator_off: CellStyle,
     star_colors: [AnsiColor; 6],
 }
 
@@ -70,6 +73,7 @@ impl Theme {
             stardate_label: require_style("stardate_label")?,
             stardate_week: require_style("stardate_week")?,
             stardate_year: require_style("stardate_year")?,
+            error: require_style("error")?,
             notice: require_style("notice")?,
             status_label: require_style("status_label")?,
             status_value: require_style("status_value")?,
@@ -87,6 +91,8 @@ impl Theme {
             quote: require_style("quote")?,
             quote_author: require_style("quote_author")?,
             report_header: require_style("report_header")?,
+            indicator_on: require_style("indicator_on")?,
+            indicator_off: require_style("indicator_off")?,
             star_colors: parse_star_colors(&document)?,
         })
     }
@@ -112,6 +118,7 @@ impl Theme {
         theme.stardate_label = mono_bright(theme.stardate_label);
         theme.stardate_week = mono_bright(theme.stardate_week);
         theme.stardate_year = mono_bright(theme.stardate_year);
+        theme.error = mono_bright(theme.error);
         theme.notice = mono_bright(theme.notice);
         theme.status_label = mono_dim(theme.status_label);
         theme.status_value = mono_normal(theme.status_value);
@@ -129,6 +136,8 @@ impl Theme {
         theme.quote = mono_dim(theme.quote);
         theme.quote_author = mono_normal(theme.quote_author);
         theme.report_header = mono_bright(theme.report_header);
+        theme.indicator_on = mono_bright(theme.indicator_on);
+        theme.indicator_off = mono_dim(theme.indicator_off);
         theme.star_colors = [AnsiColor::BrightWhite; 6];
 
         theme
@@ -496,6 +505,10 @@ pub mod classic {
         active_theme().notice
     }
 
+    pub fn error_style() -> CellStyle {
+        active_theme().error
+    }
+
     pub fn status_value_style() -> CellStyle {
         active_theme().status_value
     }
@@ -554,6 +567,14 @@ pub mod classic {
 
     pub fn report_header_style() -> CellStyle {
         active_theme().report_header
+    }
+
+    pub fn indicator_on_style() -> CellStyle {
+        active_theme().indicator_on
+    }
+
+    pub fn indicator_off_style() -> CellStyle {
+        active_theme().indicator_off
     }
 
     pub fn app_background() -> AnsiColor {

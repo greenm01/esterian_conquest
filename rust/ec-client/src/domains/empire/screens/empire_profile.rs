@@ -2,7 +2,7 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_centered_text, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    dismiss_prompt_row, draw_centered_text, draw_dismiss_prompt, draw_title_bar, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -153,7 +153,7 @@ impl EmpireProfileScreen {
             classic::status_value_style(),
         );
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, 19);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(18));
         Ok(buffer)
     }
 }

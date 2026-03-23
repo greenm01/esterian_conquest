@@ -98,14 +98,25 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             let (coords, _, _) = app.colony_world_summary()?;
             crate::screen::render_colony_world_confirm(coords, &app.startup_state.colony_world_name)
         }
-        ScreenId::MainMenu => app
-            .main_menu
-            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
+        ScreenId::MainMenu => app.main_menu.render_with_notice(
+            app.command_menu_notice.as_deref(),
+            app.expert_mode,
+            app.planet.info_prompt_active
+                && app.command_return_menu == crate::screen::CommandMenu::Main,
+            app.default_planet_prompt_coords(),
+            &app.planet.info_input,
+            app.planet.info_error.as_deref(),
+        ),
         ScreenId::MainHelp => app.main_help.render(&frame),
         ScreenId::GeneralMenu => app.general_menu.render_with_notice(
             &frame,
             app.command_menu_notice.as_deref(),
             app.expert_mode,
+            app.planet.info_prompt_active
+                && app.command_return_menu == crate::screen::CommandMenu::General,
+            app.default_planet_prompt_coords(),
+            &app.planet.info_input,
+            app.planet.info_error.as_deref(),
         ),
         ScreenId::GeneralHelp => app.general_help.render(&frame),
         ScreenId::Reports => app

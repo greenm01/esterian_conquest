@@ -1,7 +1,7 @@
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, draw_plain_prompt,
-    last_body_row, new_playfield,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, dismiss_prompt_row,
+    draw_plain_prompt, last_body_row, new_playfield,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -373,9 +373,11 @@ pub fn render_game_intro_page(
         .unwrap_or(INTRO_PAGES.last().copied().unwrap_or(&[]));
 
     let is_tribute = intro_page == 1;
+    let mut last_content_row = 0usize;
 
     for (row, line) in lines.iter().enumerate() {
         let y = row + text_start_row;
+        last_content_row = y;
         if is_tribute {
             buffer.write_text(y, 1, line, classic::intro_tribute_style());
         } else if INTRO_ACCENT_PHRASES.iter().any(|p| line.contains(p)) {
@@ -395,7 +397,7 @@ pub fn render_game_intro_page(
     } else {
         final_prompt
     };
-    draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, prompt);
+    draw_plain_prompt(&mut buffer, dismiss_prompt_row(last_content_row), prompt);
     Ok(buffer)
 }
 

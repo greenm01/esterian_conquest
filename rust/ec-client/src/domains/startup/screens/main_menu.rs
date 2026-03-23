@@ -7,8 +7,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_expert_menu, draw_menu_notice,
-    draw_menu_row, draw_title_bar, last_body_row, new_playfield, wrap_text,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_expert_menu,
+    draw_inline_planet_info_prompt, draw_menu_notice, draw_menu_row, draw_title_bar, last_body_row,
+    new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -42,15 +43,30 @@ impl MainMenuScreen {
         &mut self,
         notice: Option<&str>,
         expert_mode: bool,
+        inline_planet_info: bool,
+        info_default_coords: [u8; 2],
+        info_input: &str,
+        info_notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            draw_expert_menu(
-                &mut buffer,
-                "MAIN COMMAND",
-                "H,Q,X,V,A,G,P,F,T,I,B,D",
-                notice,
-            );
+            if inline_planet_info {
+                draw_inline_planet_info_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    info_default_coords,
+                    info_input,
+                    info_notice,
+                    notice,
+                );
+            } else {
+                draw_expert_menu(
+                    &mut buffer,
+                    "MAIN COMMAND",
+                    "H,Q,X,V,A,G,P,F,T,I,B,D",
+                    notice,
+                );
+            }
             return Ok(buffer);
         }
         draw_title_bar(&mut buffer, 0, "MAIN MENU: ");
@@ -90,7 +106,16 @@ impl MainMenuScreen {
                 MenuEntry::new(51, "D", "etailed Empire Report"),
             ],
         );
-        if let Some(notice) = notice {
+        if inline_planet_info {
+            draw_inline_planet_info_prompt(
+                &mut buffer,
+                MENU_PROMPT_ROW,
+                info_default_coords,
+                info_input,
+                info_notice,
+                notice,
+            );
+        } else if let Some(notice) = notice {
             draw_command_prompt_at(
                 &mut buffer,
                 MENU_PROMPT_ROW,
@@ -150,7 +175,7 @@ impl Screen for MainMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false)
+        self.render_with_notice(None, false, false, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

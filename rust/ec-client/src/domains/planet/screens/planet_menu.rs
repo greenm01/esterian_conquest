@@ -4,7 +4,8 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt_at, draw_expert_menu, draw_menu_entry, draw_menu_notice,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_prompt_at, draw_expert_menu,
+    draw_inline_planet_info_prompt, draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice,
     draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
@@ -55,15 +56,44 @@ impl PlanetMenuScreen {
         &mut self,
         notice: Option<&str>,
         expert_mode: bool,
+        inline_planet_info: bool,
+        info_default_coords: [u8; 2],
+        info_input: &str,
+        info_notice: Option<&str>,
+        inline_tax: bool,
+        current_tax: &str,
+        tax_input: &str,
+        tax_error: Option<&str>,
+        tax_notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            draw_expert_menu(
-                &mut buffer,
-                "PLANET COMMAND",
-                "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
-                notice,
-            );
+            if inline_planet_info {
+                draw_inline_planet_info_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    info_default_coords,
+                    info_input,
+                    info_notice,
+                    notice,
+                );
+            } else if inline_tax {
+                draw_inline_tax_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    current_tax,
+                    tax_input,
+                    tax_error,
+                    tax_notice,
+                );
+            } else {
+                draw_expert_menu(
+                    &mut buffer,
+                    "PLANET COMMAND",
+                    "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
+                    notice,
+                );
+            }
             return Ok(buffer);
         }
         draw_title_bar(&mut buffer, 0, "PLANET COMMANDS:");
@@ -86,15 +116,35 @@ impl PlanetMenuScreen {
             }
         }
         let command_row = menu_prompt_row(3);
-        if let Some(notice) = notice {
+        if inline_planet_info {
+            draw_inline_planet_info_prompt(
+                &mut buffer,
+                command_row,
+                info_default_coords,
+                info_input,
+                info_notice,
+                notice,
+            );
+        } else if inline_tax {
+            draw_inline_tax_prompt(
+                &mut buffer,
+                command_row,
+                current_tax,
+                tax_input,
+                tax_error,
+                tax_notice,
+            );
+        } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        draw_command_prompt_at(
-            &mut buffer,
-            command_row,
-            "PLANET COMMAND",
-            "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
-        );
+        if !inline_planet_info && !inline_tax {
+            draw_command_prompt_at(
+                &mut buffer,
+                command_row,
+                "PLANET COMMAND",
+                "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
+            );
+        }
         Ok(buffer)
     }
 }
@@ -104,7 +154,19 @@ impl Screen for PlanetMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false)
+        self.render_with_notice(
+            None,
+            false,
+            false,
+            [0, 0],
+            "",
+            None,
+            false,
+            "0",
+            "",
+            None,
+            None,
+        )
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

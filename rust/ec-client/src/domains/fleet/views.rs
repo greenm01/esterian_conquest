@@ -11,9 +11,15 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     };
     match app.current_screen {
         ScreenId::FleetHelp => app.fleet_help.render(&frame),
-        ScreenId::FleetMenu => app
-            .fleet_menu
-            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
+        ScreenId::FleetMenu => app.fleet_menu.render_with_notice(
+            app.command_menu_notice.as_deref(),
+            app.expert_mode,
+            app.planet.info_prompt_active
+                && app.command_return_menu == crate::screen::CommandMenu::Fleet,
+            app.default_planet_prompt_coords(),
+            &app.planet.info_input,
+            app.planet.info_error.as_deref(),
+        ),
         ScreenId::FleetList(mode) => app.fleet_list.render(
             mode,
             &app.fleet_rows(),

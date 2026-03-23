@@ -10,9 +10,15 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
     match app.current_screen {
-        ScreenId::StarbaseMenu => app
-            .starbase_menu
-            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
+        ScreenId::StarbaseMenu => app.starbase_menu.render_with_notice(
+            app.command_menu_notice.as_deref(),
+            app.expert_mode,
+            app.planet.info_prompt_active
+                && app.command_return_menu == crate::screen::CommandMenu::Starbase,
+            app.default_planet_prompt_coords(),
+            &app.planet.info_input,
+            app.planet.info_error.as_deref(),
+        ),
         ScreenId::StarbaseHelp => app.starbase_help.render(&frame),
         ScreenId::StarbaseList => app.starbase_list.render(
             &app.starbase_rows(),

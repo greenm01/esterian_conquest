@@ -4,8 +4,8 @@ use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::{ReportsPreview, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_dismiss_prompt, draw_status_line, draw_title_bar,
-    new_playfield,
+    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row, draw_dismiss_prompt, draw_status_line,
+    draw_title_bar, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -73,7 +73,7 @@ impl ReportsScreen {
         row += 1;
         row += write_section(&mut buffer, row, &message_rows, visible_message_rows)?;
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, row);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(row.saturating_sub(1)));
         Ok(buffer)
     }
 }

@@ -3,11 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::PlayfieldBuffer;
-use crate::screen::layout::{
-    draw_command_line_default_input, draw_dismiss_prompt, draw_status_line, draw_title_bar,
-    new_playfield,
-};
-use crate::theme::classic;
+use crate::screen::layout::draw_inline_tax_prompt;
 
 pub struct PlanetTaxScreen;
 
@@ -16,50 +12,22 @@ impl PlanetTaxScreen {
         Self
     }
 
-    pub fn render_prompt(
+    pub fn render_inline(
         &mut self,
+        buffer: &mut PlayfieldBuffer,
+        command_row: usize,
         current_tax: &str,
         input: &str,
-        status: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
-        draw_centered_warning(&mut buffer, 3, "Warning:");
-        draw_centered_warning(
-            &mut buffer,
-            5,
-            "Taxes in excess of 65% may actually REDUCE your planets'",
-        );
-        draw_centered_warning(&mut buffer, 6, "productivities!");
-        buffer.write_text(10, 0, "Set empire tax rate.", classic::body_style());
-        if let Some(status) = status {
-            draw_status_line(&mut buffer, 12, "Error: ", status);
-        }
-        draw_command_line_default_input(
-            &mut buffer,
-            "PLANET COMMAND",
-            "Empire tax rate (0 - 100) ",
-            current_tax,
-            input,
-        );
-        Ok(buffer)
+        error: Option<&str>,
+        notice: Option<&str>,
+    ) {
+        draw_inline_tax_prompt(buffer, command_row, current_tax, input, error, notice);
     }
 
-    pub fn render_done(
-        &mut self,
-        status: &str,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
-        draw_status_line(&mut buffer, 8, "", status);
-        draw_dismiss_prompt(&mut buffer, 19);
-        Ok(buffer)
-    }
-
-    pub fn handle_prompt_key(&self, key: KeyEvent) -> Action {
+    pub fn handle_inline_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Planet(PlanetAction::OpenMenu)
+                Action::Planet(PlanetAction::CloseTaxPrompt)
             }
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitTax),
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceTaxInput),
@@ -69,13 +37,4 @@ impl PlanetTaxScreen {
             _ => Action::Noop,
         }
     }
-
-    pub fn handle_done_key(&self, _key: KeyEvent) -> Action {
-        Action::Planet(PlanetAction::OpenMenu)
-    }
-}
-
-fn draw_centered_warning(buffer: &mut PlayfieldBuffer, row: usize, text: &str) {
-    let col = buffer.width().saturating_sub(text.chars().count()) / 2;
-    buffer.write_text(row, col, text, classic::alert_style());
 }

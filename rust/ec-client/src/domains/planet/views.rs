@@ -10,9 +10,22 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
     match app.current_screen {
-        ScreenId::PlanetMenu => app
-            .planet_menu
-            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
+        ScreenId::PlanetMenu => app.planet_menu.render_with_notice(
+            app.command_menu_notice.as_deref(),
+            app.expert_mode,
+            app.planet.info_prompt_active
+                && app.command_return_menu == crate::screen::CommandMenu::Planet,
+            app.default_planet_prompt_coords(),
+            &app.planet.info_input,
+            app.planet.info_error.as_deref(),
+            app.planet.tax_prompt_active,
+            &app.game_data.player.records[app.player.record_index_1_based - 1]
+                .tax_rate()
+                .to_string(),
+            &app.planet.tax_input,
+            app.planet.tax_error.as_deref(),
+            app.planet.tax_notice.as_deref(),
+        ),
         ScreenId::PlanetHelp => app.planet_help.render(&frame),
         ScreenId::PlanetAutoCommissionConfirm => app.planet_auto_commission.render_confirm(),
         ScreenId::PlanetAutoCommissionDone => app.planet_auto_commission.render_done(
@@ -71,6 +84,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.current_planet_build_view()?,
             app.planet.build_status.as_deref(),
             app.expert_mode,
+            app.planet.info_prompt_active
+                && app.command_return_menu == crate::screen::CommandMenu::PlanetBuild,
+            app.default_planet_prompt_coords(),
+            &app.planet.info_input,
+            app.planet.info_error.as_deref(),
         ),
         ScreenId::PlanetBuildReview => app.planet_build.render_review(
             &app.current_planet_build_view()?,
@@ -134,22 +152,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.sorted_planet_rows(sort),
             app.planet.detail_index,
         ),
-        ScreenId::PlanetTaxPrompt => {
-            let current_tax = app.game_data.player.records[app.player.record_index_1_based - 1]
-                .tax_rate()
-                .to_string();
-            app.planet_tax.render_prompt(
-                &current_tax,
-                &app.planet.tax_input,
-                app.planet.tax_status.as_deref(),
-            )
-        }
-        ScreenId::PlanetTaxDone => app.planet_tax.render_done(
-            app.planet
-                .tax_status
-                .as_deref()
-                .unwrap_or("Tax rate updated."),
-        ),
         ScreenId::PlanetDatabaseList => app.planet_database.render_list(
             &app.planet_database_rows(),
             app.planet.database_scroll_offset,
@@ -176,12 +178,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet_database
                 .render_detail(row, app.planet.database_detail_index, rows.len())
         }
-        ScreenId::PlanetInfoPrompt => app.planet_info.render_prompt(
-            app.default_planet_prompt_coords(),
-            &app.planet.info_input,
-            app.planet.info_error.as_deref(),
-            app.command_return_menu,
-        ),
         ScreenId::PlanetInfoDetail => app.planet_info.render_detail(
             &frame,
             app.planet

@@ -556,19 +556,7 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::Planet(PlanetAction::OpenTaxPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetTaxPrompt);
-
-    assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
-
-    assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseDetail)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::BackspaceTaxInput)),
@@ -590,7 +578,19 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::Planet(PlanetAction::SubmitTax)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetTaxDone);
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseDetail)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
 
     assert_eq!(
         apply_action(
@@ -635,7 +635,7 @@ fn apply_action_switches_between_client_screens() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
     assert_eq!(app.planet_info_input(), "");
 
     assert_eq!(
@@ -1769,13 +1769,13 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::ReturnToCommandMenu
+        Action::Planet(PlanetAction::CloseInfoPrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::ReturnToCommandMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::CloseInfoPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -1958,13 +1958,13 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::ReturnToCommandMenu
+        Action::Planet(PlanetAction::CloseInfoPrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::ReturnToCommandMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::CloseInfoPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1976,7 +1976,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::SubmitInfoPrompt)),
         AppOutcome::Continue
@@ -2344,7 +2344,7 @@ fn general_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results"
+        "  H>elp with commands     A>utopilot [ON] [OFF]    R>eview messages/results"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
@@ -6975,6 +6975,197 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     );
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
+}
+
+#[test]
+fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
+        "COMMAND <- Planet coords [16,13] <Q> ->"
+    );
+    assert_eq!(terminal.line(7).trim_end(), "");
+    assert_eq!(
+        line_containing(&terminal, "PLANET INFO: ").trim_end(),
+        "PLANET INFO: Enter coordinates of the planet to view."
+    );
+}
+
+#[test]
+fn main_menu_planet_info_prompt_renders_error_below_message() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    for ch in ['9', '9', ',', '9', '9'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Planet(PlanetAction::AppendInfoChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitInfoPrompt)),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(terminal.line(7).trim_end(), "");
+    assert_eq!(
+        line_containing(&terminal, "PLANET INFO: ").trim_end(),
+        "PLANET INFO: Enter coordinates of the planet to view."
+    );
+    assert_eq!(terminal.line(9).trim_end(), "");
+    assert!(
+        line_containing(&terminal, "Error: ").contains("No world found at [99,99]"),
+        "expected inline error below the general message"
+    );
+}
+
+#[test]
+fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+    let current_tax = app.game_data.player.records[app.player.record_index_1_based - 1].tax_rate();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenTaxPrompt)),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "PLANET COMMAND <- Empire tax rate").trim_end(),
+        format!("PLANET COMMAND <- Empire tax rate (0 - 100) [{current_tax}] <Q> ->")
+    );
+    assert_eq!(terminal.line(6).trim_end(), "");
+    assert_eq!(
+        line_containing(&terminal, "PLANET TAX: ").trim_end(),
+        "PLANET TAX: Set empire tax rate."
+    );
+    assert!(
+        line_containing(&terminal, "Warning: ")
+            .contains("Taxes in excess of 65% may actually REDUCE"),
+        "expected inline tax warning block below the helper message"
+    );
+}
+
+#[test]
+fn planet_menu_tax_prompt_stays_inline_for_errors_and_success() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenTaxPrompt)),
+        AppOutcome::Continue
+    );
+    for ch in ['9', '9', '9'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Planet(PlanetAction::AppendTaxChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitTax)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(&terminal, "Error: ").contains("Enter an integer tax rate from 0 to 100."),
+        "expected inline tax validation error"
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceTaxInput)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceTaxInput)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceTaxInput)),
+        AppOutcome::Continue
+    );
+    for ch in ['6', '5'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Planet(PlanetAction::AppendTaxChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitTax)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "PLANET COMMAND <- Empire tax rate").trim_end(),
+        "PLANET COMMAND <- Empire tax rate (0 - 100) [65] <Q> ->"
+    );
+    assert!(
+        line_containing(&terminal, "Notice: ").contains("Empire tax rate set to 65%."),
+        "expected inline success notice after saving tax"
+    );
 }
 
 #[test]

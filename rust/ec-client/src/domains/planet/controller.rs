@@ -12,6 +12,7 @@ use ec_data::{
 impl App {
     pub fn open_planet_menu(&mut self) {
         self.clear_command_menu_notice();
+        self.close_planet_tax_prompt();
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;
     }
@@ -23,9 +24,19 @@ impl App {
 
     pub fn open_planet_tax_prompt(&mut self) {
         self.clear_command_menu_notice();
+        self.close_planet_info_prompt();
+        self.planet.tax_prompt_active = true;
         self.planet.tax_input = String::new();
-        self.planet.tax_status = None;
-        self.current_screen = ScreenId::PlanetTaxPrompt;
+        self.planet.tax_error = None;
+        self.planet.tax_notice = None;
+        self.current_screen = ScreenId::PlanetMenu;
+    }
+
+    pub fn close_planet_tax_prompt(&mut self) {
+        self.planet.tax_prompt_active = false;
+        self.planet.tax_input.clear();
+        self.planet.tax_error = None;
+        self.planet.tax_notice = None;
     }
 
     pub fn open_planet_database(&mut self) {
@@ -342,20 +353,25 @@ impl App {
     }
 
     pub fn append_planet_tax_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::PlanetTaxPrompt && self.planet.tax_input.len() < 3 {
+        if self.inline_planet_tax_active_on_current_screen() && self.planet.tax_input.len() < 3 {
             self.planet.tax_input.push(ch);
-            self.planet.tax_status = None;
+            self.planet.tax_error = None;
+            self.planet.tax_notice = None;
         }
     }
 
     pub fn backspace_planet_tax_input(&mut self) {
-        if self.current_screen == ScreenId::PlanetTaxPrompt {
+        if self.inline_planet_tax_active_on_current_screen() {
             self.planet.tax_input.pop();
-            self.planet.tax_status = None;
+            self.planet.tax_error = None;
+            self.planet.tax_notice = None;
         }
     }
 
     pub fn submit_planet_tax(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.inline_planet_tax_active_on_current_screen() {
+            return Ok(());
+        }
         let raw = self.planet.tax_input.trim();
         let parsed = if raw.is_empty() {
             self.game_data.player.records[self.player.record_index_1_based - 1].tax_rate()
@@ -363,32 +379,48 @@ impl App {
             match raw.parse::<u8>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.planet.tax_status =
+                    self.planet.tax_error =
                         Some("Enter an integer tax rate from 0 to 100.".to_string());
                     return Ok(());
                 }
             }
         };
         if parsed > 100 {
-            self.planet.tax_status = Some("Enter an integer tax rate from 0 to 100.".to_string());
+            self.planet.tax_error = Some("Enter an integer tax rate from 0 to 100.".to_string());
             return Ok(());
         }
         self.game_data
             .set_player_tax_rate(self.player.record_index_1_based, parsed)?;
         self.save_game_data()?;
-        self.planet.tax_input = parsed.to_string();
-        self.planet.tax_status = Some(format!("Empire tax rate set to {parsed}%."));
-        self.current_screen = ScreenId::PlanetTaxDone;
+        self.planet.tax_input.clear();
+        self.planet.tax_error = None;
+        self.planet.tax_notice = Some(format!("Empire tax rate set to {parsed}%."));
         Ok(())
     }
 
     pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
+        self.close_planet_tax_prompt();
         self.command_return_menu = menu;
         self.return_screen = None;
+        self.clear_command_menu_notice();
+        self.planet.info_prompt_active = true;
         self.planet.info_input.clear();
         self.planet.info_error = None;
         self.planet.info_selected = None;
-        self.current_screen = ScreenId::PlanetInfoPrompt;
+        self.current_screen = match menu {
+            CommandMenu::Main => ScreenId::MainMenu,
+            CommandMenu::General => ScreenId::GeneralMenu,
+            CommandMenu::Fleet => ScreenId::FleetMenu,
+            CommandMenu::Starbase => ScreenId::StarbaseMenu,
+            CommandMenu::Planet => ScreenId::PlanetMenu,
+            CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
+        };
+    }
+
+    pub fn close_planet_info_prompt(&mut self) {
+        self.planet.info_prompt_active = false;
+        self.planet.info_input.clear();
+        self.planet.info_error = None;
     }
 
     pub fn append_planet_info_char(&mut self, ch: char) {
@@ -427,10 +459,28 @@ impl App {
         };
 
         self.return_screen = return_screen;
+        self.planet.info_prompt_active = false;
         self.planet.info_selected = Some(planet_idx);
         self.planet.info_error = None;
         self.current_screen = ScreenId::PlanetInfoDetail;
         Ok(())
+    }
+
+    pub(crate) fn inline_planet_tax_active_on_current_screen(&self) -> bool {
+        self.planet.tax_prompt_active && self.current_screen == ScreenId::PlanetMenu
+    }
+
+    pub(crate) fn inline_planet_info_active_on_current_screen(&self) -> bool {
+        self.planet.info_prompt_active
+            && matches!(
+                self.current_screen,
+                ScreenId::MainMenu
+                    | ScreenId::GeneralMenu
+                    | ScreenId::FleetMenu
+                    | ScreenId::StarbaseMenu
+                    | ScreenId::PlanetMenu
+                    | ScreenId::PlanetBuildMenu
+            )
     }
 
     pub fn planet_info_input(&self) -> &str {
@@ -526,7 +576,7 @@ impl App {
 
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::ReturnToCommandMenu
+                crate::app::Action::Planet(PlanetAction::CloseInfoPrompt)
             }
             KeyCode::Enter => crate::app::Action::Planet(PlanetAction::SubmitInfoPrompt),
             KeyCode::Backspace => crate::app::Action::Planet(PlanetAction::BackspaceInfoInput),

@@ -3,9 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text,
-    draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_menu_notice,
-    draw_plain_prompt, draw_status_line, draw_title_bar, menu_prompt_row, new_playfield,
+    COMMAND_LINE_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input,
+    draw_command_line_prompt_text, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
+    draw_menu_notice, draw_plain_prompt, draw_status_line, draw_title_bar, menu_prompt_row,
+    new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -290,7 +291,7 @@ pub fn render_first_time_join_summary(
         classic::body_style(),
     );
     buffer.write_text(10, 0, "Autopilot is off.", classic::body_style());
-    draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, "(Slap a key)");
+    draw_plain_prompt(&mut buffer, dismiss_prompt_row(10), "(Slap a key)");
     Ok(buffer)
 }
 
@@ -299,7 +300,7 @@ pub fn render_first_time_join_no_pending() -> Result<PlayfieldBuffer, Box<dyn st
     draw_title_bar(&mut buffer, 0, "JOIN COMPLETE:");
     buffer.write_text(2, 0, "You have no reports pending.", classic::body_style());
     buffer.write_text(4, 0, "You have no messages pending.", classic::body_style());
-    draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, "(Slap a key)");
+    draw_plain_prompt(&mut buffer, dismiss_prompt_row(4), "(Slap a key)");
     Ok(buffer)
 }
 
@@ -486,11 +487,16 @@ impl FirstTimeEmpiresScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "CURRENT EMPIRES:");
-        let visible_rows = COMMAND_LINE_ROW.saturating_sub(2);
+        let start_row = 2usize;
+        let visible_rows = COMMAND_LINE_ROW.saturating_sub(start_row + 2);
+        let mut last_content_row = 0usize;
         for (idx, row) in rows.iter().take(visible_rows).enumerate() {
-            buffer.write_text(idx + 2, 0, row, classic::body_style());
+            let render_row = start_row + idx;
+            buffer.write_text(render_row, 0, row, classic::body_style());
+            last_content_row = render_row;
         }
-        draw_dismiss_prompt(&mut buffer, 19);
+        let last_content_row = if rows.is_empty() { 0 } else { last_content_row };
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(last_content_row));
         Ok(buffer)
     }
 }

@@ -7,8 +7,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_line_default_input_at, draw_command_line_text_at, draw_command_prompt,
-    draw_command_prompt_at, draw_expert_menu, draw_menu_entry, draw_menu_notice, draw_status_line,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
+    draw_command_line_text_at, draw_command_prompt, draw_command_prompt_at, draw_expert_menu,
+    draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice, draw_status_line,
     draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
     standard_table_visible_rows, table_prompt_row,
 };
@@ -274,15 +275,30 @@ impl FleetMenuScreen {
         &mut self,
         notice: Option<&str>,
         expert_mode: bool,
+        inline_planet_info: bool,
+        info_default_coords: [u8; 2],
+        info_input: &str,
+        info_notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            draw_expert_menu(
-                &mut buffer,
-                "FLEET COMMAND",
-                "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
-                notice,
-            );
+            if inline_planet_info {
+                draw_inline_planet_info_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    info_default_coords,
+                    info_input,
+                    info_notice,
+                    notice,
+                );
+            } else {
+                draw_expert_menu(
+                    &mut buffer,
+                    "FLEET COMMAND",
+                    "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
+                    notice,
+                );
+            }
             return Ok(buffer);
         }
         buffer.fill_row(0, classic::menu_style());
@@ -311,15 +327,26 @@ impl FleetMenuScreen {
             }
         }
         let command_row = menu_prompt_row(4);
-        if let Some(notice) = notice {
+        if inline_planet_info {
+            draw_inline_planet_info_prompt(
+                &mut buffer,
+                command_row,
+                info_default_coords,
+                info_input,
+                info_notice,
+                notice,
+            );
+        } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        draw_command_prompt_at(
-            &mut buffer,
-            command_row,
-            "FLEET COMMAND",
-            "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
-        );
+        if !inline_planet_info {
+            draw_command_prompt_at(
+                &mut buffer,
+                command_row,
+                "FLEET COMMAND",
+                "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
+            );
+        }
         Ok(buffer)
     }
 }
@@ -329,7 +356,7 @@ impl Screen for FleetMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false)
+        self.render_with_notice(None, false, false, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

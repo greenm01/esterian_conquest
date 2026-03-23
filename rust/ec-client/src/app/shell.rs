@@ -120,8 +120,6 @@ impl App {
             | ScreenId::PlanetListSortPrompt(_)
             | ScreenId::PlanetBriefList(_)
             | ScreenId::PlanetDetailList(_)
-            | ScreenId::PlanetTaxPrompt
-            | ScreenId::PlanetTaxDone
             | ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)
@@ -149,7 +147,6 @@ impl App {
             | ScreenId::ColonyWorldName
             | ScreenId::ColonyWorldConfirm
             | ScreenId::PartialStarmapView
-            | ScreenId::PlanetInfoPrompt
             | ScreenId::PlanetInfoDetail => self.command_return_menu,
         }
     }

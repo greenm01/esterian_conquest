@@ -1,7 +1,9 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 pub struct EmpireStatusScreen;
 
@@ -89,7 +91,7 @@ impl EmpireStatusScreen {
             },
         );
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, 13);
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(11));
         Ok(buffer)
     }
 }
