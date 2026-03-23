@@ -3,6 +3,7 @@ use std::io::{self, IsTerminal, Write};
 use crate::screen::{CellStyle, PlayfieldBuffer};
 use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::terminal::Terminal;
+use crate::theme::classic;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyEvent},
@@ -22,14 +23,16 @@ impl StdoutTerminal {
 impl Terminal for StdoutTerminal {
     fn render(&mut self, playfield: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
+        let bg = color_from_rgb(classic::app_background());
+        let fg = color_from_rgb(classic::terminal_foreground());
         if stdout.is_terminal() {
             let (term_width, term_height) = terminal::size()?;
             let offset_x = term_width.saturating_sub(PLAYFIELD_WIDTH as u16) / 2;
             let offset_y = term_height.saturating_sub(PLAYFIELD_HEIGHT as u16) / 2;
             execute!(
                 stdout,
-                SetBackgroundColor(Color::Black),
-                SetForegroundColor(Color::Grey),
+                SetBackgroundColor(bg),
+                SetForegroundColor(fg),
                 Clear(ClearType::All),
                 MoveTo(0, 0)
             )?;
@@ -75,11 +78,13 @@ impl Terminal for StdoutTerminal {
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
+        let bg = color_from_rgb(classic::app_background());
+        let fg = color_from_rgb(classic::terminal_foreground());
         if stdout.is_terminal() {
             execute!(
                 stdout,
-                SetBackgroundColor(Color::Black),
-                SetForegroundColor(Color::Grey),
+                SetBackgroundColor(bg),
+                SetForegroundColor(fg),
                 Clear(ClearType::All),
                 MoveTo(0, 0),
                 Show
@@ -96,11 +101,13 @@ impl Terminal for StdoutTerminal {
 
     fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
+        let bg = color_from_rgb(classic::app_background());
+        let fg = color_from_rgb(classic::terminal_foreground());
         if stdout.is_terminal() {
             execute!(
                 stdout,
-                SetBackgroundColor(Color::Black),
-                SetForegroundColor(Color::Grey),
+                SetBackgroundColor(bg),
+                SetForegroundColor(fg),
                 Clear(ClearType::All),
                 MoveTo(0, 0),
                 Show
@@ -133,4 +140,12 @@ fn ansi_style(style: CellStyle) -> String {
         "\x1b[{weight};38;2;{};{};{};48;2;{};{};{}m",
         style.fg.red, style.fg.green, style.fg.blue, style.bg.red, style.bg.green, style.bg.blue
     )
+}
+
+fn color_from_rgb(color: crate::screen::RgbColor) -> Color {
+    Color::Rgb {
+        r: color.red,
+        g: color.green,
+        b: color.blue,
+    }
 }

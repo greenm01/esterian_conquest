@@ -110,14 +110,23 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.build_quantity_input,
             app.planet.build_quantity_status.as_deref(),
         ),
-        ScreenId::PlanetListSortPrompt(mode) => app
-            .planet_list
-            .render_sort_prompt(mode, app.planet.list_sort_status.as_deref()),
+        ScreenId::PlanetListSortPrompt(mode) => app.planet_list.render_sort_prompt(
+            &frame,
+            mode,
+            &app.sorted_planet_rows(app.planet.list_sort),
+            app.planet.list_sort,
+            app.planet.brief_scroll_offset,
+            app.planet.brief_cursor,
+            &app.planet.brief_input,
+            app.planet.list_sort_status.as_deref(),
+        ),
         ScreenId::PlanetBriefList(sort) => app.planet_list.render_brief_list(
+            &frame,
             &app.sorted_planet_rows(sort),
             sort,
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
+            &app.planet.brief_input,
         ),
         ScreenId::PlanetDetailList(sort) => app.planet_list.render_detail(
             &frame,
@@ -141,6 +150,15 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .unwrap_or("Tax rate updated."),
         ),
         ScreenId::PlanetDatabaseList => app.planet_database.render_list(
+            &app.planet_database_rows(),
+            app.planet.database_scroll_offset,
+            app.planet.database_cursor,
+            app.default_planet_prompt_coords(),
+            &app.planet.database_input,
+            app.status_if_no_modal(app.planet.database_status.as_deref()),
+            app.command_return_menu,
+        ),
+        ScreenId::PlanetDatabaseFilterPrompt => app.planet_database.render_filter_prompt(
             &app.planet_database_rows(),
             app.planet.database_scroll_offset,
             app.planet.database_cursor,

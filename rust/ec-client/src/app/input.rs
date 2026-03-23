@@ -210,6 +210,9 @@ impl App {
             ScreenId::PartialStarmapPrompt => self.partial_starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
             ScreenId::PlanetDatabaseList => self.planet_database.handle_list_key(key),
+            ScreenId::PlanetDatabaseFilterPrompt => {
+                self.planet_database.handle_filter_prompt_key(key)
+            }
             ScreenId::PlanetDatabaseDetail => self.planet_database.handle_detail_key(key),
             ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),

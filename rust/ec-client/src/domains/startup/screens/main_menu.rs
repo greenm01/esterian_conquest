@@ -7,16 +7,16 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt, draw_menu_row, draw_title_bar,
-    draw_wrapped_status, new_playfield, wrap_text,
+    MenuEntry, PLAYFIELD_WIDTH, centered_row, draw_command_prompt, draw_menu_row, draw_title_bar,
+    draw_wrapped_status, last_body_row, new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 use crate::util::Lcg;
 
-/// Rows available for the quote display (between menu row 4 and prompt row 19).
+/// Rows available for the quote display below the menu and above the command line.
 const QUOTE_FIRST_ROW: usize = 5;
-const QUOTE_LAST_ROW: usize = 18;
+const QUOTE_LAST_ROW: usize = last_body_row();
 const QUOTE_RNG_TAG: u64 = 0xEC15_434C_4951_5445;
 
 /// Compute how many rows a quote block occupies: wrapped text + blank + author.
@@ -82,7 +82,13 @@ impl MainMenuScreen {
             ],
         );
         if let Some(notice) = notice {
-            draw_wrapped_status(&mut buffer, 7, 11, "Notice: ", notice);
+            draw_wrapped_status(
+                &mut buffer,
+                7,
+                last_body_row().saturating_sub(7) + 1,
+                "Notice: ",
+                notice,
+            );
         } else {
             self.draw_quote(&mut buffer, campaign_seed);
         }
@@ -105,14 +111,14 @@ impl MainMenuScreen {
         let wrapped = wrap_text(&quote.text, max_text_width, max_text_width);
         let author_line = format!("-- {}", quote.author);
 
-        let available_rows = QUOTE_LAST_ROW - QUOTE_FIRST_ROW + 1; // 14 rows
+        let available_rows = QUOTE_LAST_ROW - QUOTE_FIRST_ROW + 1;
         let text_lines = if quote_block_height(wrapped.len()) > available_rows {
             available_rows.saturating_sub(2) // leave room for blank + author
         } else {
             wrapped.len()
         };
         let block_height = quote_block_height(text_lines);
-        let start_row = QUOTE_FIRST_ROW + (available_rows.saturating_sub(block_height)) / 2;
+        let start_row = centered_row(QUOTE_FIRST_ROW, QUOTE_LAST_ROW, block_height);
 
         for (i, line) in wrapped.iter().take(text_lines).enumerate() {
             buffer.write_text(start_row + i, QUOTE_LEFT_COL, line, classic::quote_style());

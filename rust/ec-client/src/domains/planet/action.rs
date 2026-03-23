@@ -1,4 +1,6 @@
-use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode};
+use crate::screen::{
+    CommandMenu, PlanetDatabaseFilterMode, PlanetListMode, PlanetListSort, PlanetTransportMode,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetAction {
@@ -18,11 +20,17 @@ pub enum PlanetAction {
     OpenBuildSpecify,
     OpenListSortPrompt(PlanetListMode),
     SubmitListSort(PlanetListMode, PlanetListSort),
+    CloseListSortPrompt(PlanetListMode),
     OpenTaxPrompt,
     OpenDatabase,
+    OpenDatabaseFilterPrompt,
     OpenDatabaseDetail,
+    SubmitDatabaseFilter(PlanetDatabaseFilterMode),
     ScrollBrief(i8),
     MoveBrief(i8),
+    AppendBriefChar(char),
+    BackspaceBriefInput,
+    SubmitBriefInput,
     ScrollBuildList(i8),
     MoveBuildList(i8),
     DeleteBuildSlotRequest,

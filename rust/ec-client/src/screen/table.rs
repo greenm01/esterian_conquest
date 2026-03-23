@@ -1,4 +1,5 @@
 use crate::screen::PlayfieldBuffer;
+use crate::theme::classic;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableAlign {
@@ -62,7 +63,14 @@ pub fn write_table_header(
     columns: &[TableColumn<'_>],
     style: crate::screen::CellStyle,
 ) {
-    write_table_header_at(buffer, row, 0, columns, style);
+    write_table_header_at(buffer, row, 0, columns, style, style);
+}
+
+pub fn table_column_start(columns: &[TableColumn<'_>], index: usize) -> Option<usize> {
+    if index >= columns.len() {
+        return None;
+    }
+    Some(column_start(columns, index))
 }
 
 pub fn write_table_row(
@@ -72,7 +80,7 @@ pub fn write_table_row(
     cells: &[&str],
     style: crate::screen::CellStyle,
 ) {
-    write_table_row_at(buffer, row, 0, columns, cells, style);
+    write_table_row_at(buffer, row, 0, columns, cells, style, style);
 }
 
 #[allow(dead_code)]
@@ -133,30 +141,48 @@ pub fn write_table_window_with_states<'a>(
     rows: &[Vec<String>],
     scroll_offset: usize,
     visible_rows: usize,
-    header_style: crate::screen::CellStyle,
-    body_style: crate::screen::CellStyle,
+    _header_style: crate::screen::CellStyle,
+    _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
 ) {
     let area = TableArea::new(start_row, 0, buffer.width());
-    write_table_header_at(buffer, area.row, area.col, columns, header_style);
-    buffer.write_text(
+    let header_style = classic::table_header_style();
+    let chrome_style = classic::table_chrome_style();
+    let body_style = classic::table_body_style();
+    buffer.write_text(area.row, area.col, &table_top_border(columns), chrome_style);
+    write_table_header_at(
+        buffer,
         area.row + 1,
         area.col,
+        columns,
+        header_style,
+        chrome_style,
+    );
+    buffer.write_text(
+        area.row + 2,
+        area.col,
         &table_divider(columns),
-        crate::theme::classic::menu_style(),
+        chrome_style,
     );
 
-    render_standard_body(
+    let displayed_rows = render_standard_body(
         buffer,
-        TableArea::new(area.row + 2, area.col, area.width),
+        TableArea::new(area.row + 3, area.col, area.width),
         columns,
         rows,
         scroll_offset,
         visible_rows,
         body_style,
+        chrome_style,
         selected,
         row_states,
+    );
+    buffer.write_text(
+        area.row + 3 + displayed_rows,
+        area.col,
+        &table_bottom_border(columns),
+        chrome_style,
     );
 }
 
@@ -168,31 +194,54 @@ pub fn write_stacked_table_window_with_states<'a>(
     rows: &[Vec<String>],
     scroll_offset: usize,
     visible_rows: usize,
-    header_style: crate::screen::CellStyle,
-    body_style: crate::screen::CellStyle,
+    _header_style: crate::screen::CellStyle,
+    _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
 ) {
     let area = TableArea::new(start_row, 0, buffer.width());
+    let header_style = classic::table_header_style();
+    let chrome_style = classic::table_chrome_style();
+    let body_style = classic::table_body_style();
     buffer.write_text(area.row, area.col, top_header_line, header_style);
-    write_table_header_at(buffer, area.row + 1, area.col, columns, header_style);
     buffer.write_text(
+        area.row + 1,
+        area.col,
+        &table_top_border(columns),
+        chrome_style,
+    );
+    write_table_header_at(
+        buffer,
         area.row + 2,
         area.col,
+        columns,
+        header_style,
+        chrome_style,
+    );
+    buffer.write_text(
+        area.row + 3,
+        area.col,
         &table_divider(columns),
-        crate::theme::classic::menu_style(),
+        chrome_style,
     );
 
-    render_standard_body(
+    let displayed_rows = render_standard_body(
         buffer,
-        TableArea::new(area.row + 3, area.col, area.width),
+        TableArea::new(area.row + 4, area.col, area.width),
         columns,
         rows,
         scroll_offset,
         visible_rows,
         body_style,
+        chrome_style,
         selected,
         row_states,
+    );
+    buffer.write_text(
+        area.row + 4 + displayed_rows,
+        area.col,
+        &table_bottom_border(columns),
+        chrome_style,
     );
 }
 
@@ -202,16 +251,40 @@ pub fn write_split_table(
     left_columns: &[TableColumn<'_>],
     right_columns: &[TableColumn<'_>],
     rows: &[SplitTableRow],
-    style: crate::screen::CellStyle,
+    _style: crate::screen::CellStyle,
 ) {
     let left_width = table_width(left_columns);
     let gap = 10;
     let right_col = left_width + gap;
+    let chrome_style = classic::table_chrome_style();
+    let header_style = classic::table_header_style();
+    let body_style = classic::table_body_style();
 
-    write_table_header_at(buffer, start_row, 0, left_columns, style);
-    write_table_header_at(buffer, start_row, right_col, right_columns, style);
+    buffer.write_text(start_row, 0, &table_top_border(left_columns), chrome_style);
     buffer.write_text(
+        start_row,
+        right_col,
+        &table_top_border(right_columns),
+        chrome_style,
+    );
+    write_table_header_at(
+        buffer,
         start_row + 1,
+        0,
+        left_columns,
+        header_style,
+        chrome_style,
+    );
+    write_table_header_at(
+        buffer,
+        start_row + 1,
+        right_col,
+        right_columns,
+        header_style,
+        chrome_style,
+    );
+    buffer.write_text(
+        start_row + 2,
         0,
         &format!(
             "{}{}{}",
@@ -219,7 +292,7 @@ pub fn write_split_table(
             " ".repeat(gap),
             table_divider(right_columns)
         ),
-        crate::theme::classic::menu_style(),
+        chrome_style,
     );
 
     for (idx, row) in rows.iter().enumerate() {
@@ -235,43 +308,59 @@ pub fn write_split_table(
             .collect::<Vec<_>>();
         write_table_row_at(
             buffer,
-            start_row + 2 + idx,
+            start_row + 3 + idx,
             0,
             left_columns,
             &left_refs,
-            style,
+            body_style,
+            chrome_style,
         );
         write_table_row_at(
             buffer,
-            start_row + 2 + idx,
+            start_row + 3 + idx,
             right_col,
             right_columns,
             &right_refs,
-            style,
+            body_style,
+            chrome_style,
         );
     }
 
     buffer.write_text(
-        start_row + 2 + rows.len(),
+        start_row + 3 + rows.len(),
         0,
         &format!(
             "{}{}{}",
-            table_divider(left_columns),
+            table_bottom_border(left_columns),
             " ".repeat(gap),
-            table_divider(right_columns)
+            table_bottom_border(right_columns)
         ),
-        crate::theme::classic::menu_style(),
+        chrome_style,
     );
 }
 
 pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
+    table_rule(columns, '├', '┼', '┤')
+}
+
+fn table_top_border(columns: &[TableColumn<'_>]) -> String {
+    table_rule(columns, '┌', '┬', '┐')
+}
+
+fn table_bottom_border(columns: &[TableColumn<'_>]) -> String {
+    table_rule(columns, '└', '┴', '┘')
+}
+
+fn table_rule(columns: &[TableColumn<'_>], left: char, join: char, right: char) -> String {
     let mut out = String::new();
+    out.push(left);
     for (idx, column) in columns.iter().enumerate() {
         if idx != 0 {
-            out.push(' ');
+            out.push(join);
         }
-        out.push_str(&"-".repeat(column.width));
+        out.push_str(&"─".repeat(column.width));
     }
+    out.push(right);
     out
 }
 
@@ -311,7 +400,7 @@ fn write_scroll_indicator(
 
     let col = area.col + area.width - 1;
     let last_row = area.row + displayed_rows - 1;
-    let track_style = crate::theme::classic::menu_style();
+    let track_style = crate::theme::classic::body_style();
     let track_top = area.row + 1;
     let track_bottom = last_row.saturating_sub(1);
 
@@ -343,14 +432,11 @@ fn write_table_header_at(
     row: usize,
     col: usize,
     columns: &[TableColumn<'_>],
-    style: crate::screen::CellStyle,
+    cell_style: crate::screen::CellStyle,
+    chrome_style: crate::screen::CellStyle,
 ) {
-    buffer.write_text(
-        row,
-        col,
-        &format_table_row(columns, &header_cells(columns)),
-        style,
-    );
+    let cells = header_cells(columns);
+    write_table_row_at(buffer, row, col, columns, &cells, cell_style, chrome_style);
 }
 
 fn write_table_row_at(
@@ -359,9 +445,15 @@ fn write_table_row_at(
     col: usize,
     columns: &[TableColumn<'_>],
     cells: &[&str],
-    style: crate::screen::CellStyle,
+    cell_style: crate::screen::CellStyle,
+    chrome_style: crate::screen::CellStyle,
 ) {
-    buffer.write_text(row, col, &format_table_row(columns, cells), style);
+    buffer.write_text(row, col, &format_table_row(columns, cells), chrome_style);
+    for (idx, column) in columns.iter().enumerate() {
+        let start = col + column_start(columns, idx);
+        let cell = cells.get(idx).copied().unwrap_or("");
+        buffer.write_text(row, start, &format_cell(cell, *column), cell_style);
+    }
 }
 
 fn render_standard_body(
@@ -372,9 +464,11 @@ fn render_standard_body(
     scroll_offset: usize,
     visible_rows: usize,
     body_style: crate::screen::CellStyle,
+    chrome_style: crate::screen::CellStyle,
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
-) {
+) -> usize {
+    let mut displayed_rows = 0usize;
     for (idx, row_cells) in rows
         .iter()
         .skip(scroll_offset)
@@ -382,22 +476,28 @@ fn render_standard_body(
         .enumerate()
     {
         let abs_idx = scroll_offset + idx;
-        let style = match row_states
+        let base_style = match row_states
             .and_then(|states| states.get(abs_idx))
             .copied()
             .unwrap_or(TableRowState::Normal)
         {
-            TableRowState::Disabled if selected == Some(abs_idx) => {
-                crate::theme::classic::selected_row_style()
-            }
             TableRowState::Disabled => crate::theme::classic::disabled_row_style(),
-            TableRowState::Normal if selected == Some(abs_idx) => {
-                crate::theme::classic::selected_row_style()
-            }
             TableRowState::Normal => body_style,
         };
         let refs = row_cells.iter().map(String::as_str).collect::<Vec<_>>();
-        write_table_row_at(buffer, area.row + idx, area.col, columns, &refs, style);
+        write_table_row_at(
+            buffer,
+            area.row + idx,
+            area.col,
+            columns,
+            &refs,
+            base_style,
+            chrome_style,
+        );
+        if selected == Some(abs_idx) {
+            highlight_identity_cell(buffer, area.row + idx, area.col, columns, &refs);
+        }
+        displayed_rows = idx + 1;
     }
 
     write_scroll_indicator(
@@ -406,21 +506,52 @@ fn render_standard_body(
         visible_rows,
         rows.len(),
         scroll_offset,
-        body_style,
+        chrome_style,
     );
+    displayed_rows
+}
+
+fn highlight_identity_cell(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    columns: &[TableColumn<'_>],
+    cells: &[&str],
+) {
+    let Some(first_column) = columns.first().copied() else {
+        return;
+    };
+    let first_cell = cells.first().copied().unwrap_or("");
+    let rendered = format_cell(first_cell, first_column);
+    buffer.write_text(
+        row,
+        col + 1,
+        &rendered,
+        crate::theme::classic::selected_row_style(),
+    );
+}
+
+fn column_start(columns: &[TableColumn<'_>], index: usize) -> usize {
+    let mut start = 1;
+    for column in columns.iter().take(index) {
+        start += column.width + 1;
+    }
+    start
 }
 
 fn format_table_row(columns: &[TableColumn<'_>], cells: &[&str]) -> String {
     let mut out = String::new();
+    out.push('│');
 
     for (idx, column) in columns.iter().enumerate() {
         if idx != 0 {
-            out.push(' ');
+            out.push('│');
         }
         let cell = cells.get(idx).copied().unwrap_or("");
         out.push_str(&format_cell(cell, *column));
     }
 
+    out.push('│');
     out
 }
 
@@ -437,5 +568,5 @@ fn truncate_to_width(value: &str, width: usize) -> String {
 }
 
 fn table_width(columns: &[TableColumn<'_>]) -> usize {
-    columns.iter().map(|column| column.width).sum::<usize>() + columns.len().saturating_sub(1)
+    columns.iter().map(|column| column.width).sum::<usize>() + columns.len() + 1
 }

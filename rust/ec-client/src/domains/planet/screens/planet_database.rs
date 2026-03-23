@@ -3,16 +3,25 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_status_line,
-    draw_title_bar, new_playfield,
+    draw_command_line_text, draw_status_line, draw_table_command_bar, draw_table_command_prompt,
+    draw_title_bar, new_playfield, standard_table_visible_rows,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, command_menu_label, format_sector_coords,
-    format_sector_coords_padded,
+    CommandMenu, PlayfieldBuffer, format_sector_coords, format_sector_coords_default,
+    format_sector_coords_table,
 };
-use crate::theme::classic;
 
-pub const PLANET_DATABASE_VISIBLE_ROWS: usize = 20;
+pub const PLANET_DATABASE_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
+
+const DATABASE_FILTER_PROMPT: &str =
+    "Filter by <L>ocation, <R>ange, <E>mpire, <M>ax Prod, or <Q>uit? [L] ->";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetDatabaseFilterMode {
+    Range,
+    Empire,
+    MaxProduction,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetDatabaseRow {
@@ -32,22 +41,20 @@ pub struct PlanetDatabaseRow {
 
 pub struct PlanetDatabaseScreen;
 
-// Column widths for the 11-column layout (71 chars data + spaces + scroll indicator = 80).
-// Coord(7) Planet(14) Own(3) Prod(4) Seen(5) ARs(3) GBs(3) Prod(4) Points(6) Scout(5) Intel(7)
-use crate::screen::table::{TableColumn, write_stacked_table_window_with_states};
+use crate::screen::table::{TableColumn, write_table_window_with_states};
 
 const DATABASE_COLUMNS: [TableColumn<'static>; 11] = [
-    TableColumn::left("Coord", 7),
-    TableColumn::left("Planet", 14),
-    TableColumn::right("Own", 3),
-    TableColumn::right("Prod", 4),
-    TableColumn::right("Seen", 5),
+    TableColumn::left("(X,Y)", 8),
+    TableColumn::left("Planet Name", 19),
+    TableColumn::left("Owner", 5),
+    TableColumn::right("Max", 4),
+    TableColumn::right("Seen", 4),
     TableColumn::right("ARs", 3),
     TableColumn::right("GBs", 3),
-    TableColumn::right("Prod", 4),
+    TableColumn::right("Curr", 4),
     TableColumn::right("Points", 6),
     TableColumn::right("Scout", 5),
-    TableColumn::left("Intel", 7),
+    TableColumn::left("Intel", 6),
 ];
 
 impl PlanetDatabaseScreen {
@@ -60,10 +67,10 @@ impl PlanetDatabaseScreen {
         rows: &[PlanetDatabaseRow],
         scroll_offset: usize,
         cursor: usize,
-        default_coords: [u8; 2],
+        _default_coords: [u8; 2],
         input: &str,
         status: Option<&str>,
-        menu: CommandMenu,
+        _menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "TOTAL PLANET DATABASE:");
@@ -72,7 +79,7 @@ impl PlanetDatabaseScreen {
             .iter()
             .map(|row| {
                 vec![
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     row.name_label.clone(),
                     row.owner_label.clone(),
                     row.max_prod_label.clone(),
@@ -91,16 +98,15 @@ impl PlanetDatabaseScreen {
         } else {
             Some(cursor)
         };
-        write_stacked_table_window_with_states(
+        write_table_window_with_states(
             &mut buffer,
             1,
-            "                                Max  Year             Curr Stored  Year        ",
             &DATABASE_COLUMNS,
             &table_rows,
             scroll_offset,
             PLANET_DATABASE_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
+            crate::theme::classic::status_value_style(),
+            crate::theme::classic::status_value_style(),
             selected,
             None,
         );
@@ -108,20 +114,41 @@ impl PlanetDatabaseScreen {
         if rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                command_menu_label(menu),
+                "COMMANDS",
                 "No planets are in your database. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, command_menu_label(menu), status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
-            draw_command_line_default_input(
-                &mut buffer,
-                command_menu_label(menu),
-                "",
-                &format!("{},{}", default_coords[0], default_coords[1]),
-                input,
-            );
+            let default = rows
+                .get(cursor)
+                .map(|row| format_sector_coords_default(row.coords))
+                .unwrap_or_else(|| "00,00".to_string());
+            draw_table_command_bar(&mut buffer, "<ARROWS J K F Q>", Some(&default), input);
         }
+        Ok(buffer)
+    }
+
+    pub fn render_filter_prompt(
+        &mut self,
+        rows: &[PlanetDatabaseRow],
+        scroll_offset: usize,
+        cursor: usize,
+        default_coords: [u8; 2],
+        input: &str,
+        status: Option<&str>,
+        menu: CommandMenu,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = self.render_list(
+            rows,
+            scroll_offset,
+            cursor,
+            default_coords,
+            input,
+            status,
+            menu,
+        )?;
+        draw_table_command_prompt(&mut buffer, DATABASE_FILTER_PROMPT);
         Ok(buffer)
     }
 
@@ -155,13 +182,7 @@ impl PlanetDatabaseScreen {
         draw_status_line(&mut buffer, 8, "Ground Batteries: ", &row.batteries_label);
         draw_status_line(&mut buffer, 10, "Last Intel: ", &row.year_seen_label);
         draw_status_line(&mut buffer, 11, "Known Intel: ", &row.intel_label);
-        buffer.write_text(
-            13,
-            0,
-            "Use arrows or HJKL to browse other known planets in the database.",
-            classic::body_style(),
-        );
-        draw_command_prompt(&mut buffer, 19, "PLANET DATABASE", "ARROWS H J K L Q");
+        draw_table_command_bar(&mut buffer, "<ARROWS H J K L Q>", None, "");
         Ok(buffer)
     }
 
@@ -178,9 +199,33 @@ impl PlanetDatabaseScreen {
             KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
                 Action::Planet(PlanetAction::AppendDatabaseChar(ch))
             }
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)
+            }
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseLookup),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
+            _ => Action::Noop,
+        }
+    }
+
+    pub fn handle_filter_prompt_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Planet(PlanetAction::OpenDatabase)
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
+                PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Range),
+            ),
+            KeyCode::Char('e') | KeyCode::Char('E') => Action::Planet(
+                PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Empire),
+            ),
+            KeyCode::Char('m') | KeyCode::Char('M') => Action::Planet(
+                PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::MaxProduction),
+            ),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::OpenDatabase)
+            }
             _ => Action::Noop,
         }
     }

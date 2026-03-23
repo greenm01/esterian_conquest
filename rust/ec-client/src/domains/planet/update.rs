@@ -1,9 +1,19 @@
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
+use crate::screen::ScreenId;
 
 pub fn update(app: &mut App, action: PlanetAction) {
     match action {
-        PlanetAction::OpenMenu => app.open_planet_menu(),
+        PlanetAction::OpenMenu => {
+            if let ScreenId::PlanetDetailList(sort) = app.current_screen
+                && app.planet.detail_return_to_brief
+            {
+                app.planet.detail_return_to_brief = false;
+                app.current_screen = ScreenId::PlanetBriefList(sort);
+            } else {
+                app.open_planet_menu();
+            }
+        }
         PlanetAction::OpenHelp => app.open_planet_help(),
         PlanetAction::OpenAutoCommissionConfirm => app.open_planet_auto_commission_confirm(),
         PlanetAction::OpenCommissionMenu => app.open_planet_commission_menu(),
@@ -21,11 +31,17 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::OpenBuildSpecify => app.open_planet_build_specify(),
         PlanetAction::OpenListSortPrompt(mode) => app.open_planet_list_sort_prompt(mode),
         PlanetAction::SubmitListSort(mode, sort) => app.submit_planet_list_sort(mode, sort),
+        PlanetAction::CloseListSortPrompt(mode) => app.close_planet_list_sort_prompt(mode),
         PlanetAction::OpenTaxPrompt => app.open_planet_tax_prompt(),
         PlanetAction::OpenDatabase => app.open_planet_database(),
+        PlanetAction::OpenDatabaseFilterPrompt => app.open_planet_database_filter_prompt(),
         PlanetAction::OpenDatabaseDetail => app.open_planet_database_detail(),
+        PlanetAction::SubmitDatabaseFilter(mode) => app.submit_planet_database_filter(mode),
         PlanetAction::ScrollBrief(delta) => app.scroll_planet_brief(delta),
         PlanetAction::MoveBrief(delta) => app.move_planet_brief_cursor(delta),
+        PlanetAction::AppendBriefChar(ch) => app.append_planet_brief_char(ch),
+        PlanetAction::BackspaceBriefInput => app.backspace_planet_brief_input(),
+        PlanetAction::SubmitBriefInput => app.submit_planet_brief_input(),
         PlanetAction::ScrollBuildList(delta) => app.scroll_planet_build_list(delta),
         PlanetAction::MoveBuildList(delta) => app.move_planet_build_list_cursor(delta),
         PlanetAction::DeleteBuildSlotRequest => app.delete_planet_build_slot_request(),

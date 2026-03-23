@@ -73,6 +73,7 @@ impl App {
             | ScreenId::PlanetTaxPrompt
             | ScreenId::PlanetTaxDone
             | ScreenId::PlanetDatabaseList
+            | ScreenId::PlanetDatabaseFilterPrompt
             | ScreenId::PlanetDatabaseDetail
             | ScreenId::PlanetInfoPrompt
             | ScreenId::PlanetInfoDetail => domains::planet::views::render(self)?,

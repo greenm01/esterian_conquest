@@ -6,14 +6,14 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_help_panel,
-    draw_menu_entry, draw_status_line, draw_title_bar, new_playfield,
+    MenuEntry, draw_command_prompt, draw_help_panel, draw_menu_entry, draw_status_line,
+    draw_table_command_bar, draw_title_bar, new_playfield, standard_table_visible_rows,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
 use crate::theme::classic;
 
-pub const STARBASE_VISIBLE_ROWS: usize = 19;
+pub const STARBASE_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StarbaseRow {
@@ -213,7 +213,7 @@ impl StarbaseListScreen {
                 Some(cursor)
             },
         );
-        draw_command_prompt(&mut buffer, 19, "STARBASE COMMAND", "ARROWS J K ENTER Q");
+        draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", None, "");
         Ok(buffer)
     }
 
@@ -290,19 +290,13 @@ impl StarbaseReviewScreen {
         );
         if let Some(status) = status {
             draw_status_line(&mut buffer, 17, "Notice: ", status);
-            draw_command_prompt(&mut buffer, 19, "STARBASE COMMAND", "ARROWS J K ENTER Q");
+            draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", None, "");
         } else {
             let default_base = rows
                 .get(cursor)
                 .map(|row| row.base_id.to_string())
                 .unwrap_or_else(|| "1".to_string());
-            draw_command_line_default_input(
-                &mut buffer,
-                "STARBASE COMMAND",
-                "Starbase # ",
-                &default_base,
-                input,
-            );
+            draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", Some(&default_base), input);
         }
         Ok(buffer)
     }

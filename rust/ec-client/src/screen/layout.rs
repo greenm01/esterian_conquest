@@ -7,6 +7,23 @@ pub const COMMAND_LINE_ROW: usize = PLAYFIELD_HEIGHT - 1;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
 
+pub const fn last_body_row() -> usize {
+    COMMAND_LINE_ROW - 1
+}
+
+pub const fn centered_row(first_row: usize, last_row: usize, block_height: usize) -> usize {
+    let available_rows = last_row.saturating_sub(first_row) + 1;
+    first_row + available_rows.saturating_sub(block_height) / 2
+}
+
+pub const fn standard_table_visible_rows(start_row: usize) -> usize {
+    COMMAND_LINE_ROW.saturating_sub(start_row + 4)
+}
+
+pub const fn stacked_table_visible_rows(start_row: usize) -> usize {
+    COMMAND_LINE_ROW.saturating_sub(start_row + 5)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MenuEntry<'a> {
     pub col: usize,
@@ -224,6 +241,58 @@ pub fn draw_command_line_default_input(
     cursor_col
 }
 
+pub fn draw_table_command_bar(
+    buffer: &mut PlayfieldBuffer,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    let mut col = buffer.write_spans(
+        COMMAND_LINE_ROW,
+        0,
+        &[
+            StyledSpan::new("COMMANDS", classic::title_style()),
+            StyledSpan::new(" ", classic::prompt_style()),
+        ],
+    );
+    col = write_prompt_markup(buffer, COMMAND_LINE_ROW, col, hotkeys_markup);
+    if let Some(default) = default {
+        col += buffer.write_spans(
+            COMMAND_LINE_ROW,
+            col,
+            &[
+                StyledSpan::new(" [", classic::prompt_style()),
+                StyledSpan::new(default, classic::prompt_hotkey_style()),
+                StyledSpan::new("] -> ", classic::prompt_style()),
+            ],
+        );
+        let written =
+            buffer.write_text(COMMAND_LINE_ROW, col, input, classic::prompt_hotkey_style());
+        let cursor_col = col + written;
+        buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
+        cursor_col
+    } else {
+        buffer.write_text(COMMAND_LINE_ROW, col, " ->", classic::prompt_style());
+        0
+    }
+}
+
+pub fn draw_table_command_prompt(buffer: &mut PlayfieldBuffer, prompt: &str) -> usize {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    let prefix = buffer.write_spans(
+        COMMAND_LINE_ROW,
+        0,
+        &[
+            StyledSpan::new("COMMANDS", classic::title_style()),
+            StyledSpan::new(" <- ", classic::prompt_style()),
+        ],
+    );
+    let cursor_col = write_prompt_markup(buffer, COMMAND_LINE_ROW, prefix, prompt);
+    buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
+    cursor_col
+}
+
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
     buffer.fill_row(row, classic::prompt_style());
     let cursor_col = write_prompt_markup(buffer, row, 0, prompt);
@@ -350,13 +419,17 @@ fn write_prompt_markup(
             && let Some(close_idx) = chars[idx + 1..].iter().position(|&ch| ch == '>')
         {
             let close_idx = idx + 1 + close_idx;
-            if is_prompt_bracket_hotkey(&chars[idx + 1..close_idx]) {
+            if is_prompt_angle_hotkey(&chars[idx + 1..close_idx]) {
                 if !plain.is_empty() {
                     col += buffer.write_text(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                let segment = chars[idx..=close_idx].iter().collect::<String>();
-                col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
+                col += buffer.write_text(row, col, "<", classic::prompt_style());
+                if close_idx > idx + 1 {
+                    let segment = chars[idx + 1..close_idx].iter().collect::<String>();
+                    col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
+                }
+                col += buffer.write_text(row, col, ">", classic::prompt_style());
                 idx = close_idx + 1;
                 continue;
             }
@@ -420,6 +493,13 @@ fn is_prompt_slash_hotkey_token(chars: &[char], start: usize, end: usize) -> boo
 
 fn is_prompt_bracket_hotkey(chars: &[char]) -> bool {
     !chars.is_empty() && chars.len() <= 5 && chars.iter().all(|ch| ch.is_ascii_alphanumeric())
+}
+
+fn is_prompt_angle_hotkey(chars: &[char]) -> bool {
+    !chars.is_empty()
+        && chars
+            .iter()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch.is_ascii_whitespace())
 }
 
 fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usize)> {

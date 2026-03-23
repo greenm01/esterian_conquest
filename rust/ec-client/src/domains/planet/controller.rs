@@ -1,7 +1,10 @@
 use crate::app::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
-use crate::screen::{CommandMenu, PlanetDatabaseRow, PlanetListMode, PlanetListSort, ScreenId};
+use crate::screen::{
+    CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseRow, PlanetListMode, PlanetListSort,
+    ScreenId,
+};
 use ec_data::{
     PlanetIntelSnapshot, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
 };
@@ -28,15 +31,12 @@ impl App {
     pub fn open_planet_database(&mut self) {
         if !matches!(
             self.current_screen,
-            ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail
+            ScreenId::PlanetDatabaseList
+                | ScreenId::PlanetDatabaseFilterPrompt
+                | ScreenId::PlanetDatabaseDetail
         ) {
             self.command_return_menu = self.origin_command_menu();
-            let default_coords = self.default_planet_prompt_coords();
-            let rows = self.planet_database_rows();
-            let default_index = rows
-                .iter()
-                .position(|row| row.coords == default_coords)
-                .unwrap_or(0);
+            let default_index = 0usize;
             self.planet.database_cursor = default_index;
             self.planet.database_detail_index = default_index;
             self.planet.database_scroll_offset =
@@ -45,6 +45,14 @@ impl App {
             self.planet.database_status = None;
         }
         self.current_screen = ScreenId::PlanetDatabaseList;
+    }
+
+    pub fn open_planet_database_filter_prompt(&mut self) {
+        if self.current_screen != ScreenId::PlanetDatabaseList {
+            return;
+        }
+        self.planet.database_status = None;
+        self.current_screen = ScreenId::PlanetDatabaseFilterPrompt;
     }
 
     pub fn open_planet_database_detail(&mut self) {
@@ -80,13 +88,25 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
+        self.planet.list_sort = sort;
         self.planet.list_sort_status = None;
         self.planet.brief_scroll_offset = 0;
         self.planet.brief_cursor = 0;
+        self.planet.brief_input.clear();
         self.planet.detail_index = 0;
+        self.planet.detail_return_to_brief = false;
         self.current_screen = match mode {
             PlanetListMode::Brief => ScreenId::PlanetBriefList(sort),
             PlanetListMode::Detail => ScreenId::PlanetDetailList(sort),
+            PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
+        };
+    }
+
+    pub fn close_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
+        self.planet.list_sort_status = None;
+        self.current_screen = match mode {
+            PlanetListMode::Brief => ScreenId::PlanetBriefList(self.planet.list_sort),
+            PlanetListMode::Detail => ScreenId::PlanetDetailList(self.planet.list_sort),
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
@@ -140,6 +160,72 @@ impl App {
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
+    }
+
+    pub fn append_planet_brief_char(&mut self, ch: char) {
+        let ScreenId::PlanetBriefList(_) = self.current_screen else {
+            return;
+        };
+        if self.planet.brief_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ') {
+            self.planet.brief_input.push(ch);
+            self.planet.list_sort_status = None;
+        }
+    }
+
+    pub fn backspace_planet_brief_input(&mut self) {
+        let ScreenId::PlanetBriefList(_) = self.current_screen else {
+            return;
+        };
+        self.planet.brief_input.pop();
+        self.planet.list_sort_status = None;
+    }
+
+    pub fn submit_planet_brief_input(&mut self) {
+        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+            return;
+        };
+        let rows = self.sorted_planet_rows(sort);
+        if rows.is_empty() {
+            return;
+        }
+
+        let default_coords = rows
+            .get(self.planet.brief_cursor)
+            .map(|row| row.coords)
+            .unwrap_or([0, 0]);
+
+        if self.planet.brief_input.trim().is_empty() {
+            self.planet.detail_index = self.planet.brief_cursor.min(rows.len() - 1);
+            self.planet.detail_return_to_brief = true;
+            self.current_screen = ScreenId::PlanetDetailList(sort);
+            return;
+        }
+
+        let Some(coords) = resolve_default_coords_input(&self.planet.brief_input, default_coords)
+        else {
+            self.planet.list_sort_status = Some("Enter coordinates like 5,2".to_string());
+            return;
+        };
+
+        let Some(index) = rows.iter().position(|row| row.coords == coords) else {
+            self.planet.list_sort_status = Some(format!(
+                "No world found at ({:02},{:02})",
+                coords[0], coords[1]
+            ));
+            return;
+        };
+
+        self.planet.brief_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.planet.brief_scroll_offset,
+            self.planet.brief_cursor,
+            crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+        );
+        self.planet.detail_index = index;
+        self.planet.detail_return_to_brief = true;
+        self.planet.brief_input.clear();
+        self.planet.list_sort_status = None;
+        self.current_screen = ScreenId::PlanetDetailList(sort);
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
@@ -235,6 +321,24 @@ impl App {
         self.planet.database_status = None;
         self.planet.database_input.clear();
         self.open_planet_database_detail();
+    }
+
+    pub fn submit_planet_database_filter(&mut self, mode: PlanetDatabaseFilterMode) {
+        if self.current_screen != ScreenId::PlanetDatabaseFilterPrompt {
+            return;
+        }
+        self.planet.database_status = Some(match mode {
+            PlanetDatabaseFilterMode::Range => {
+                "Range filtering is not implemented yet.".to_string()
+            }
+            PlanetDatabaseFilterMode::Empire => {
+                "Empire filtering is not implemented yet.".to_string()
+            }
+            PlanetDatabaseFilterMode::MaxProduction => {
+                "Max-production filtering is not implemented yet.".to_string()
+            }
+        });
+        self.current_screen = ScreenId::PlanetDatabaseList;
     }
 
     pub fn append_planet_tax_char(&mut self, ch: char) {

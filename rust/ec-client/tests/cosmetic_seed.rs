@@ -62,10 +62,10 @@ fn main_menu_quote_is_deterministic_for_campaign_seed() {
         .render_with_notice(None, Some(seed))
         .expect("render right menu");
 
-    let left_rows = (5..=18)
+    let left_rows = (5..=23)
         .map(|row| left_buffer.plain_line(row))
         .collect::<Vec<_>>();
-    let right_rows = (5..=18)
+    let right_rows = (5..=23)
         .map(|row| right_buffer.plain_line(row))
         .collect::<Vec<_>>();
     assert_eq!(left_rows, right_rows);

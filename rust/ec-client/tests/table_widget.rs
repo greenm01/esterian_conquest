@@ -1,3 +1,7 @@
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+use ec_client::model::{ClassicLoginState, PlayerContext};
 use ec_client::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_client::screen::table::{
     SplitTableRow, TableColumn, TableRowState, write_split_table,
@@ -5,13 +9,27 @@ use ec_client::screen::table::{
 };
 use ec_client::screen::{
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow,
-    PlanetDatabaseScreen, PlayfieldBuffer,
+    PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer, ScreenFrame,
 };
 use ec_client::theme::classic;
-use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
+use ec_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
     buffer.row(row).iter().map(|cell| cell.ch).collect()
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn joined_player_context() -> PlayerContext {
+    PlayerContext {
+        record_index_1_based: 1,
+        is_joined: true,
+        classic_login_state: ClassicLoginState::ReturningPlayer,
+        empire_name: "Player 1".to_string(),
+        handle: "P1".to_string(),
+    }
 }
 
 #[test]
@@ -52,10 +70,13 @@ fn standard_table_uses_right_edge_scroll_gutter() {
         Some(&row_states),
     );
 
-    assert_eq!(buffer.row(4)[79].ch, '^');
-    assert_eq!(buffer.row(6)[79].ch, 'v');
-    assert!(row_text(&buffer, 4).contains("Beta"));
-    assert!(row_text(&buffer, 5).contains("Gamma"));
+    assert_eq!(buffer.row(5)[79].ch, '^');
+    assert_eq!(buffer.row(7)[79].ch, 'v');
+    assert_eq!(buffer.row(2)[0].style, classic::table_chrome_style());
+    assert_eq!(buffer.row(4)[0].style, classic::table_chrome_style());
+    assert_eq!(buffer.row(5)[79].style, classic::table_chrome_style());
+    assert!(row_text(&buffer, 5).contains("Beta"));
+    assert!(row_text(&buffer, 6).contains("Gamma"));
 }
 
 #[test]
@@ -86,8 +107,8 @@ fn stacked_header_table_renders_top_and_bottom_headers() {
     );
 
     assert!(buffer.plain_line(1).contains("Meta"));
-    assert!(buffer.plain_line(2).starts_with("Coord"));
-    assert!(buffer.plain_line(4).contains("Aurora"));
+    assert!(buffer.plain_line(3).contains("Coord"));
+    assert!(buffer.plain_line(5).contains("Aurora"));
 }
 
 #[test]
@@ -122,10 +143,10 @@ fn split_table_renders_both_halves() {
         classic::status_value_style(),
     );
 
-    let header = row_text(&buffer, 5);
+    let header = row_text(&buffer, 6);
     assert_eq!(header.matches("NO.").count(), 2);
-    assert!(buffer.plain_line(7).contains("DONE"));
-    assert!(buffer.plain_line(7).contains("Scouts"));
+    assert!(buffer.plain_line(8).contains("DONE"));
+    assert!(buffer.plain_line(8).contains("Scouts"));
 }
 
 #[test]
@@ -158,9 +179,61 @@ fn planet_database_screen_uses_stacked_header_table() {
         )
         .expect("render database list");
 
-    assert!(buffer.plain_line(1).contains("Max  Year"));
-    assert!(buffer.plain_line(2).starts_with("Coord"));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(2).contains("(X,Y)"));
+    assert!(buffer.plain_line(2).contains("Planet Name"));
+    assert!(buffer.plain_line(2).contains("Curr"));
+    assert!(buffer.plain_line(2).contains("Intel"));
     assert!(buffer.plain_line(4).contains("Aurora"));
+}
+
+#[test]
+fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns() {
+    let mut screen = PlanetListScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+    };
+    let rows = vec![EmpirePlanetEconomyRow {
+        planet_record_index_1_based: 1,
+        coords: [3, 3],
+        planet_name: "Player 1 HW".to_string(),
+        present_production: 100,
+        potential_production: 100,
+        stored_production_points: 165,
+        yearly_tax_revenue: 65,
+        yearly_growth_delta: 0,
+        build_capacity: 100,
+        has_friendly_starbase: false,
+        armies: 10,
+        ground_batteries: 4,
+        is_homeworld_seed: true,
+    }];
+
+    let buffer = screen
+        .render_brief_list(&frame, &rows, PlanetListSort::CurrentProduction, 0, 0, "")
+        .expect("render brief list");
+
+    assert!(buffer.plain_line(0).contains("PLANET COMMAND:"));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(2).contains("(X,Y)"));
+    assert!(buffer.plain_line(2).contains("Name"));
+    assert!(buffer.plain_line(2).contains("Curr"));
+    assert!(buffer.plain_line(2).contains("Max"));
+    assert!(buffer.plain_line(2).contains("Docked"));
+    assert!(buffer.plain_line(2).contains("SB"));
+    assert!(buffer.plain_line(4).contains("Player 1 HW"));
+    assert!(buffer.plain_line(4).contains("165"));
+    assert!(buffer.plain_line(4).contains("N"));
+    assert_eq!(buffer.row(4)[1].style, classic::selected_row_style());
+    assert_ne!(buffer.row(4)[10].style, classic::selected_row_style());
 }
 
 #[test]
@@ -199,8 +272,8 @@ fn planet_build_specify_screen_uses_split_table() {
         .render_specify(&view, &orders, "", None)
         .expect("render specify");
 
-    assert_eq!(buffer.plain_line(5).matches("NO.").count(), 2);
-    assert!(buffer.plain_line(7).contains("DONE"));
-    assert!(buffer.plain_line(7).contains("<5>"));
-    assert!(buffer.plain_line(8).contains("Destroyers"));
+    assert_eq!(buffer.plain_line(6).matches("NO.").count(), 2);
+    assert!(buffer.plain_line(8).contains("DONE"));
+    assert!(buffer.plain_line(8).contains("<5>"));
+    assert!(buffer.plain_line(9).contains("Destroyers"));
 }

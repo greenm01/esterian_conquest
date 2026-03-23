@@ -4,14 +4,15 @@ use ec_data::DiplomaticRelation;
 use crate::app::Action;
 use crate::domains::empire::EmpireAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text, draw_title_bar, new_playfield,
+    draw_command_line_text, draw_table_command_bar, draw_title_bar, new_playfield,
+    standard_table_visible_rows,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EnemiesScreen;
-pub(crate) const ENEMIES_VISIBLE_ROWS: usize = 19;
+pub(crate) const ENEMIES_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
 
 const ENEMIES_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::right("ID", 3),
@@ -91,20 +92,14 @@ impl EnemiesScreen {
         );
 
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             let default_empire = rows
                 .get(cursor)
                 .and_then(|row| row.first())
                 .map(String::as_str)
                 .unwrap_or("");
-            draw_command_line_default_input(
-                &mut buffer,
-                "GENERAL COMMAND",
-                "Empire # ",
-                default_empire,
-                input,
-            );
+            draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", Some(default_empire), input);
         }
         Ok(buffer)
     }

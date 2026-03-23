@@ -1,6 +1,7 @@
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, new_playfield,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, draw_plain_prompt,
+    last_body_row, new_playfield,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -62,7 +63,8 @@ pub struct StartupScreen {
     message_blocks: Vec<ReviewBlock>,
 }
 
-pub(crate) const STARTUP_REVIEW_VISIBLE_LINES: usize = PLAYFIELD_HEIGHT - 4;
+const STARTUP_TRANSCRIPT_LAST_ROW: usize = COMMAND_LINE_ROW - 2;
+pub(crate) const STARTUP_REVIEW_VISIBLE_LINES: usize = PLAYFIELD_HEIGHT - 5;
 const ITEM_PREFIX: &str = " -> ";
 
 impl StartupScreen {
@@ -408,7 +410,7 @@ fn render_splash(
         let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
         let logo_left = 80usize.saturating_sub(logo_width) / 2;
         let block_height = INTRO_LOGO.len() + 4 + 1;
-        let start_row = (COMMAND_LINE_ROW.saturating_sub(block_height)) / 2;
+        let start_row = centered_row(0, last_body_row(), block_height);
 
         // Render logo with randomized star-decoration colors.
         let mut rng = campaign_seed
@@ -543,7 +545,9 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
         .len()
         .saturating_sub(STARTUP_REVIEW_VISIBLE_LINES);
     let visible_rows = &transcript_rows[visible_start..];
-    let first_row = 18usize.saturating_sub(visible_rows.len());
+    let first_row = STARTUP_TRANSCRIPT_LAST_ROW
+        .saturating_add(1)
+        .saturating_sub(visible_rows.len());
     for (i, line) in visible_rows.iter().enumerate() {
         let y = first_row + i;
         let line_style = if is_report_header(line) {
@@ -659,8 +663,6 @@ fn completed_review_history_rows(
         transcript_rows.push(String::new());
         transcript_rows.push(format!("{} deleted.", capitalize(plural)));
     }
-    transcript_rows.push(String::new());
-    transcript_rows.push(format!("All {plural} seen."));
     transcript_rows
 }
 

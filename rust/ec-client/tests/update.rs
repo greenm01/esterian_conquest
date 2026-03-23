@@ -2194,9 +2194,9 @@ fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
     assert_eq!(terminal.line(2).trim_end(), "Selected fleets: 0");
     assert_eq!(
         terminal.line(3).trim_end(),
-        "Sel ID Location       Spd ROE Ord Target     Ships"
+        "┌──┬───┬──────────┬───────┬───┬───┬──────────┬───────────────────────────┐"
     );
-    let same_sector_rows = (5..16)
+    let same_sector_rows = (6..17)
         .filter(|idx| terminal.line(*idx).contains("[ 6, 5]"))
         .count();
     assert!(same_sector_rows >= 2);
@@ -3510,7 +3510,7 @@ fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
             .line(19)
             .contains("There are more reports. Continue?")
     );
-    assert!(terminal.line(18).trim().is_empty());
+    assert!(terminal.line(COMMAND_LINE_ROW - 1).trim().is_empty());
     assert!(
         terminal
             .lines
@@ -3837,8 +3837,8 @@ fn fleet_review_opens_with_a_selection_table_first() {
             .line(1)
             .contains("Select a fleet, then press ENTER to review its status")
     );
-    assert!(terminal.line(19).contains("Fleet # ["));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(terminal.line(19).contains("->"));
 }
 
 #[test]
@@ -3902,8 +3902,8 @@ fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render after move");
-    assert!(terminal.line(19).contains("Fleet # ["));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(terminal.line(19).contains("->"));
 }
 
 #[test]
@@ -4288,10 +4288,10 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order screen should render");
-    assert!(terminal.line(3).contains("Sel"));
-    assert!(terminal.line(3).contains("Ord"));
-    assert!(terminal.line(3).contains("Target"));
-    assert!(!terminal.line(5).contains(" X "));
+    assert!(terminal.line(4).contains("Sel"));
+    assert!(terminal.line(4).contains("Ord"));
+    assert!(terminal.line(4).contains("Target"));
+    assert!(!terminal.line(6).contains(" X "));
 
     assert_eq!(
         apply_action(
@@ -4302,7 +4302,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     );
     app.render(&mut terminal)
         .expect("fleet group order selection should render");
-    assert!(terminal.line(5).contains("X"));
+    assert!(terminal.line(6).contains("X"));
 }
 
 #[test]
@@ -4345,9 +4345,9 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     app.render(&mut terminal)
         .expect("fleet mission picker should render");
     assert_eq!(terminal.line(0), "FLEET MISSION ORDERS:");
-    assert!(terminal.line(1).contains("No."));
-    assert!(terminal.line(18).contains("15"));
-    assert!(terminal.line(19).contains("Mission # ["));
+    assert!(terminal.line(2).contains("No."));
+    assert!(terminal.lines.iter().any(|line| line.contains("15")));
+    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
     assert!(terminal.line(19).contains("->"));
 
     assert_eq!(
@@ -4393,8 +4393,8 @@ fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet order screen should render");
-    assert!(terminal.line(19).contains("Fleet # ["));
-    assert!(terminal.line(19).contains("<Q>"));
+    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(terminal.line(19).contains("->"));
 
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
@@ -4842,9 +4842,9 @@ fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render");
-    assert!(terminal.line(5).contains(" 3 "));
-    assert!(terminal.line(6).contains(" 1 "));
-    assert!(terminal.line(7).contains(" 2 "));
+    assert!(terminal.line(6).starts_with("│ 3│"));
+    assert!(terminal.line(7).starts_with("│ 1│"));
+    assert!(terminal.line(8).starts_with("│ 2│"));
 }
 
 #[test]
@@ -6285,7 +6285,7 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert_eq!(terminal.line(19), "FLEET COMMAND <- Fleet # [4] <Q> ->");
+    assert_eq!(terminal.line(19), "COMMANDS <ARROWS J K Q> [4] ->");
 }
 
 #[test]
@@ -6307,16 +6307,19 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    // Two-line stacked header: row 1 has "Year", row 2 has column labels.
-    assert!(terminal.line(1).contains("Year"));
-    assert!(terminal.line(2).contains("Coord"));
-    assert!(terminal.line(2).contains("Planet"));
+    assert!(terminal.line(1).starts_with("┌"));
+    assert!(terminal.line(2).contains("(X,Y)"));
+    assert!(terminal.line(2).contains("Planet Name"));
+    assert!(terminal.line(2).contains("Max"));
+    assert!(terminal.line(2).contains("Curr"));
     assert!(terminal.line(2).contains("Seen"));
     assert!(terminal.line(2).contains("Scout"));
+    assert!(terminal.line(2).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
-    assert!(terminal.line(19).starts_with("MAIN COMMAND <- ["));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    assert!(terminal.line(COMMAND_LINE_ROW).starts_with("COMMANDS <"));
+    assert!(terminal.line(COMMAND_LINE_ROW).contains("["));
+    assert!(terminal.line(COMMAND_LINE_ROW).contains("->"));
 }
 
 #[test]
@@ -6379,9 +6382,11 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
     assert_eq!(buffer.plain_line(17), "");
     assert_eq!(
         buffer.plain_line(COMMAND_LINE_ROW),
-        "FLEET COMMAND <- Fleet # [1] <Q> ->"
+        "COMMANDS <ARROWS J K Q> [1] ->"
     );
-    assert_eq!(buffer.cursor(), Some((36, COMMAND_LINE_ROW as u16)));
+    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor on command row");
+    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
+    assert!(cursor_col < 80);
 }
 
 #[test]
@@ -6468,9 +6473,9 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
         .render(FleetListMode::Brief, &rows, 0, 0)
         .expect("fleet list renders");
 
-    assert!(buffer.plain_line(5).starts_with("001 "));
-    assert!(buffer.plain_line(6).starts_with("010 "));
-    assert!(buffer.plain_line(7).starts_with("100 "));
+    assert!(buffer.plain_line(6).contains("│001│"));
+    assert!(buffer.plain_line(7).contains("│010│"));
+    assert!(buffer.plain_line(8).contains("│100│"));
 }
 
 #[test]
@@ -6505,16 +6510,15 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         .expect("fleet eta screen renders");
 
     assert_eq!(buffer.plain_line(0), "CALCULATE FLEET ETA:");
-    assert!(buffer.plain_line(3).contains("Ord"));
-    assert!(buffer.plain_line(3).contains("Target"));
-    assert!(buffer.plain_line(5).contains("  1"));
-    assert!(buffer.plain_line(5).contains("[19,13]"));
+    assert!(buffer.plain_line(4).contains("Ord"));
+    assert!(buffer.plain_line(4).contains("Target"));
+    assert!(buffer.plain_line(6).contains("│  1│"));
+    assert!(buffer.plain_line(6).contains("[19,13]"));
     assert!(
         buffer
             .plain_line(COMMAND_LINE_ROW)
-            .contains("Calculate time for fleet #")
+            .contains("COMMANDS <ARROWS J K Q> [7] ->")
     );
-    assert!(buffer.plain_line(COMMAND_LINE_ROW).contains("[7] <Q> ->"));
 }
 
 #[test]

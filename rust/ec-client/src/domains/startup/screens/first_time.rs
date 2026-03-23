@@ -3,8 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text, draw_command_prompt,
-    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    COMMAND_LINE_ROW, MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text,
+    draw_command_prompt, draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -283,7 +284,7 @@ pub fn render_first_time_join_summary(
         classic::body_style(),
     );
     buffer.write_text(10, 0, "Autopilot is off.", classic::body_style());
-    draw_plain_prompt(&mut buffer, 12, "(Slap a key)");
+    draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, "(Slap a key)");
     Ok(buffer)
 }
 
@@ -292,7 +293,7 @@ pub fn render_first_time_join_no_pending() -> Result<PlayfieldBuffer, Box<dyn st
     draw_title_bar(&mut buffer, 0, "JOIN COMPLETE:");
     buffer.write_text(2, 0, "You have no reports pending.", classic::body_style());
     buffer.write_text(4, 0, "You have no messages pending.", classic::body_style());
-    draw_plain_prompt(&mut buffer, 6, "(Slap a key)");
+    draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, "(Slap a key)");
     Ok(buffer)
 }
 
@@ -479,7 +480,8 @@ impl FirstTimeEmpiresScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "CURRENT EMPIRES:");
-        for (idx, row) in rows.iter().take(16).enumerate() {
+        let visible_rows = COMMAND_LINE_ROW.saturating_sub(2);
+        for (idx, row) in rows.iter().take(visible_rows).enumerate() {
             buffer.write_text(idx + 2, 0, row, classic::body_style());
         }
         draw_command_prompt(&mut buffer, 19, "FIRST TIME COMMAND", "SLAP A KEY");

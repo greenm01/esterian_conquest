@@ -8,7 +8,8 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     MenuEntry, draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
-    draw_menu_entry, draw_status_line, draw_title_bar, draw_wrapped_status, new_playfield,
+    draw_menu_entry, draw_status_line, draw_table_command_bar, draw_title_bar, draw_wrapped_status,
+    new_playfield, standard_table_visible_rows,
 };
 use crate::screen::table::{
     TableColumn, TableRowState, fleet_id_column_width, format_fleet_number,
@@ -19,7 +20,7 @@ use crate::screen::{
 };
 use crate::theme::classic;
 
-pub const FLEET_VISIBLE_ROWS: usize = 19;
+pub const FLEET_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
@@ -427,7 +428,7 @@ impl FleetListScreen {
         if table_rows.is_empty() {
             draw_status_line(&mut buffer, 17, "Notice: ", "You have no active fleets.");
         }
-        draw_command_prompt(&mut buffer, 19, "FLEET COMMAND", "ARROWS J K ENTER Q");
+        draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", None, "");
         Ok(buffer)
     }
 
@@ -504,17 +505,19 @@ impl FleetReviewScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "FLEET COMMAND",
+                "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
-            draw_command_line_default_input(
+            draw_table_command_bar(
                 &mut buffer,
-                "FLEET COMMAND",
-                "Fleet # ",
-                &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                "<ARROWS J K Q>",
+                Some(&format_fleet_number(
+                    rows[cursor].fleet_number,
+                    max_fleet_number,
+                )),
                 input,
             );
         }
@@ -642,7 +645,7 @@ impl FleetRoeScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "FLEET COMMAND",
+                "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
         } else if editing && status.is_some() {
@@ -660,13 +663,15 @@ impl FleetRoeScreen {
                 input,
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
-            draw_command_line_default_input(
+            draw_table_command_bar(
                 &mut buffer,
-                "FLEET COMMAND",
-                "Fleet # ",
-                &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                "<ARROWS J K Q>",
+                Some(&format_fleet_number(
+                    rows[cursor].fleet_number,
+                    max_fleet_number,
+                )),
                 select_input,
             );
         }
@@ -770,19 +775,21 @@ impl FleetSingleOrderScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "FLEET COMMAND",
+                "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             match mode {
                 FleetSingleOrderMode::SelectingFleet => {
-                    draw_command_line_default_input(
+                    draw_table_command_bar(
                         &mut buffer,
-                        "FLEET COMMAND",
-                        "Fleet # ",
-                        &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                        "<ARROWS J K Q>",
+                        Some(&format_fleet_number(
+                            rows[cursor].fleet_number,
+                            max_fleet_number,
+                        )),
                         input,
                     );
                 }
@@ -861,7 +868,7 @@ impl FleetEtaScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "FLEET COMMAND",
+                "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
             return Ok(buffer);
@@ -869,13 +876,15 @@ impl FleetEtaScreen {
         match mode {
             FleetEtaMode::SelectingFleet => {
                 if let Some(status) = status {
-                    draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+                    draw_command_line_text(&mut buffer, "COMMANDS", status);
                 } else {
-                    draw_command_line_default_input(
+                    draw_table_command_bar(
                         &mut buffer,
-                        "FLEET COMMAND",
-                        "Calculate time for fleet # ",
-                        &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                        "<ARROWS J K Q>",
+                        Some(&format_fleet_number(
+                            rows[cursor].fleet_number,
+                            max_fleet_number,
+                        )),
                         select_input,
                     );
                 }
@@ -970,17 +979,19 @@ impl FleetMergeScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "FLEET COMMAND",
+                "COMMANDS",
                 "At least two fleets are required. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
-            draw_command_line_default_input(
+            draw_table_command_bar(
                 &mut buffer,
-                "FLEET COMMAND",
-                "Fleet # ",
-                &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                "<ARROWS J K Q>",
+                Some(&format_fleet_number(
+                    rows[cursor].fleet_number,
+                    max_fleet_number,
+                )),
                 input,
             );
         }
@@ -1011,8 +1022,8 @@ impl FleetGroupScreen {
         buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
         let max_fleet_number = max_fleet_number(rows);
         let columns = [
-            TableColumn::left("Sel", 3),
             TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+            TableColumn::left("Sel", 3),
             TableColumn::left("Location", 10),
             TableColumn::right("Spd", 7),
             TableColumn::right("ROE", 3),
@@ -1041,12 +1052,12 @@ impl FleetGroupScreen {
             .iter()
             .map(|row| {
                 vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
                     if selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based) {
                         "X".to_string()
                     } else {
                         "".to_string()
                     },
-                    format_fleet_number(row.fleet_number, max_fleet_number),
                     format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
@@ -1074,20 +1085,15 @@ impl FleetGroupScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "FLEET COMMAND",
+                "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             match mode {
                 FleetGroupOrderMode::SelectingFleets => {
-                    draw_command_prompt(
-                        &mut buffer,
-                        19,
-                        "FLEET COMMAND",
-                        "J K SPACE ENTER ARROWS Q",
-                    );
+                    draw_table_command_bar(&mut buffer, "<ARROWS J K SPACE Q>", None, "");
                 }
                 FleetGroupOrderMode::EnteringTarget => {
                     draw_command_line_default_input(
@@ -1126,8 +1132,8 @@ impl FleetTransferScreen {
         let mut buffer = new_playfield();
         let max_fleet_number = max_fleet_number(rows);
         let columns = [
-            TableColumn::left("Sel", 3),
             TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+            TableColumn::left("Sel", 3),
             TableColumn::left("Location", 10),
             TableColumn::right("Spd", 7),
             TableColumn::right("ROE", 3),
@@ -1170,12 +1176,12 @@ impl FleetTransferScreen {
             .iter()
             .map(|row| {
                 vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
                     if selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based) {
                         "X".to_string()
                     } else {
                         "".to_string()
                     },
-                    format_fleet_number(row.fleet_number, max_fleet_number),
                     format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
@@ -1201,17 +1207,12 @@ impl FleetTransferScreen {
             },
         );
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             match mode {
                 FleetTransferMode::SelectingFleets => {
                     if !table_rows.is_empty() {
-                        draw_command_prompt(
-                            &mut buffer,
-                            19,
-                            "FLEET COMMAND",
-                            "J K SPACE ENTER ARROWS Q",
-                        );
+                        draw_table_command_bar(&mut buffer, "<ARROWS J K SPACE Q>", None, "");
                     }
                 }
                 _ => {
@@ -1282,19 +1283,13 @@ impl FleetMissionPickerScreen {
             Some(&row_states),
         );
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             let default = FLEET_MISSION_OPTIONS
                 .get(cursor)
                 .map(|option| option.code.to_string())
                 .unwrap_or_else(|| "1".to_string());
-            draw_command_line_default_input(
-                &mut buffer,
-                "FLEET COMMAND",
-                "Mission # ",
-                &default,
-                input,
-            );
+            draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", Some(&default), input);
         }
         Ok(buffer)
     }

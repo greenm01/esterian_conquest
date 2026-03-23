@@ -3,14 +3,17 @@ use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
-use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_status_line, draw_table_command_bar, draw_title_bar, new_playfield,
+    standard_table_visible_rows,
+};
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
 
 pub struct PlanetCommissionScreen;
 
-pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = 17;
+pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = standard_table_visible_rows(5);
 
 const COMMISSION_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("#", 2),
@@ -115,12 +118,7 @@ impl PlanetCommissionScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 17, "", status);
         }
-        draw_command_prompt(
-            &mut buffer,
-            19,
-            "PLANET COMMAND",
-            "J K H L SPACE ENTER ARROWS Q",
-        );
+        draw_table_command_bar(&mut buffer, "<ARROWS H J K L SPACE Q>", None, "");
         Ok(buffer)
     }
 }

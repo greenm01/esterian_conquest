@@ -89,14 +89,15 @@ fn build_list_renders_queue_and_stardock_columns() {
         .render_list(&view, &rows, 0, 0, false)
         .expect("render list");
 
-    assert_eq!(
-        buffer.plain_line(4),
-        "Unit                     Points Queue Dock"
-    );
-    assert!(buffer.plain_line(6).contains("Destroyers"));
-    assert!(buffer.plain_line(6).contains("3"));
-    assert!(buffer.plain_line(7).contains("Armies"));
-    assert!(buffer.plain_line(7).contains("N/A"));
+    assert!(buffer.plain_line(4).starts_with("┌"));
+    assert!(buffer.plain_line(5).contains("Unit"));
+    assert!(buffer.plain_line(5).contains("Points"));
+    assert!(buffer.plain_line(5).contains("Queue"));
+    assert!(buffer.plain_line(5).contains("Dock"));
+    assert!(buffer.plain_line(7).contains("Destroyers"));
+    assert!(buffer.plain_line(7).contains("3"));
+    assert!(buffer.plain_line(8).contains("Armies"));
+    assert!(buffer.plain_line(8).contains("N/A"));
 }
 
 #[test]
@@ -113,10 +114,12 @@ fn build_change_renders_pp_and_spent_columns() {
 
     let buffer = screen.render_change(&rows, 0, 0).expect("render change");
 
-    assert_eq!(
-        buffer.plain_line(4),
-        "Planet Name          Location  Production         PP Spent"
-    );
-    assert!(buffer.plain_line(6).contains("50"));
-    assert!(buffer.plain_line(6).contains("20"));
+    assert!(buffer.plain_line(4).starts_with("┌"));
+    assert!(buffer.plain_line(5).contains("Planet Name"));
+    assert!(buffer.plain_line(5).contains("Location"));
+    assert!(buffer.plain_line(5).contains("Production"));
+    assert!(buffer.plain_line(5).contains("PP"));
+    assert!(buffer.plain_line(5).contains("Spent"));
+    assert!(buffer.plain_line(7).contains("50"));
+    assert!(buffer.plain_line(7).contains("20"));
 }

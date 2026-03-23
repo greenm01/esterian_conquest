@@ -1,4 +1,5 @@
 use crate::domains::planet::screens::planet_transport::PlanetTransportMode;
+use crate::screen::PlanetListSort;
 use ec_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -7,7 +8,10 @@ pub struct PlanetState {
     pub intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
     pub brief_scroll_offset: usize,
     pub brief_cursor: usize,
+    pub brief_input: String,
     pub detail_index: usize,
+    pub detail_return_to_brief: bool,
+    pub list_sort: PlanetListSort,
     pub database_scroll_offset: usize,
     pub database_cursor: usize,
     pub database_detail_index: usize,
@@ -58,7 +62,10 @@ impl PlanetState {
             intel_snapshots,
             brief_scroll_offset: 0,
             brief_cursor: 0,
+            brief_input: String::new(),
             detail_index: 0,
+            detail_return_to_brief: false,
+            list_sort: PlanetListSort::CurrentProduction,
             database_scroll_offset: 0,
             database_cursor: 0,
             database_detail_index: 0,

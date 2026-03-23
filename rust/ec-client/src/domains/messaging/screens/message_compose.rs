@@ -4,16 +4,16 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_title_bar,
-    new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
+    draw_table_command_bar, draw_title_bar, new_playfield, standard_table_visible_rows,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct MessageComposeScreen;
-pub(crate) const RECIPIENT_VISIBLE_ROWS: usize = 17;
-pub(crate) const OUTBOX_VISIBLE_ROWS: usize = 18;
+pub(crate) const RECIPIENT_VISIBLE_ROWS: usize = standard_table_visible_rows(5);
+pub(crate) const OUTBOX_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
 pub(crate) const COMPOSE_SUBJECT_LIMIT: usize = 60;
 pub(crate) const COMPOSE_BODY_LIMIT: usize = 1000;
 
@@ -76,20 +76,14 @@ impl MessageComposeScreen {
             selected,
         );
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             let default_empire = rows
                 .get(cursor)
                 .and_then(|row| row.first())
                 .map(String::as_str)
                 .unwrap_or("");
-            draw_command_line_default_input(
-                &mut buffer,
-                "GENERAL COMMAND",
-                "Recipient empire # ",
-                default_empire,
-                input,
-            );
+            draw_table_command_bar(&mut buffer, "<ARROWS J K D Q>", Some(default_empire), input);
         }
         Ok(buffer)
     }
@@ -259,18 +253,17 @@ impl MessageComposeScreen {
             selected,
         );
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
+            draw_command_line_text(&mut buffer, "COMMANDS", status);
         } else {
             let default_queue_no = if rows.is_empty() {
                 String::new()
             } else {
                 format!("{:02}", cursor + 1)
             };
-            draw_command_line_default_input(
+            draw_table_command_bar(
                 &mut buffer,
-                "GENERAL COMMAND",
-                "Queued message # ",
-                &default_queue_no,
+                "<ARROWS J K Q>",
+                Some(&default_queue_no),
                 input,
             );
         }

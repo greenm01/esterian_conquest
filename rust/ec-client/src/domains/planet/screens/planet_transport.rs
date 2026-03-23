@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_title_bar,
-    new_playfield,
+    new_playfield, standard_table_visible_rows,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -14,7 +14,7 @@ use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
 
-pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = 18;
+pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetTransportMode {

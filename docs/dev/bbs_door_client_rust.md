@@ -198,8 +198,15 @@ widget-layout TUI frameworks:
 - let each screen write exact rows/columns into that buffer
 - centralize terminal painting, palette handling, and cursor placement
 - keep screen geometry screen-specific when the original layout is exact
-- keep one shared internal table widget for all tabular screens, with small
-  explicit variants for standard headers, stacked headers, and split tables
+- keep one shared internal table widget for all tabular screens, with the
+  standard presentation defined in
+  [ec-client-table-standard.md](ec-client-table-standard.md)
+- keep table browse/prompt rows on the shared `COMMANDS` grammar rather than
+  per-screen command labels
+- use one restrained Tokyo Night-inspired dark theme across the whole client
+  instead of mixing bright inverse DOS bars with dark-body screens
+- use split tables only when a screen genuinely needs two synchronized halves;
+  grouped or stacked headers are not the normal list standard
 
 In other words: DRY the rendering pipeline, not the classic screen geometry.
 

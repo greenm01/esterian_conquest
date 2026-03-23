@@ -6,7 +6,7 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     CMD_COL_1, MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_menu_row,
-    draw_status_line, draw_title_bar, new_playfield,
+    draw_status_line, draw_title_bar, new_playfield, standard_table_visible_rows,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -19,8 +19,8 @@ use crate::theme::classic;
 
 pub struct PlanetBuildScreen;
 
-pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 18;
-pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = 18;
+pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
+pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
 
 const CHANGE_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::left("Planet Name", 20),

@@ -125,7 +125,7 @@ pub use crate::domains::planet::screens::planet_commission::{
 };
 pub(crate) use crate::domains::planet::screens::planet_database::PLANET_DATABASE_VISIBLE_ROWS;
 pub use crate::domains::planet::screens::planet_database::{
-    PlanetDatabaseRow, PlanetDatabaseScreen,
+    PlanetDatabaseFilterMode, PlanetDatabaseRow, PlanetDatabaseScreen,
 };
 pub use crate::domains::planet::screens::planet_help::PlanetHelpScreen;
 pub use crate::domains::planet::screens::planet_info::{PlanetInfoScreen, parse_planet_coords};
@@ -239,6 +239,7 @@ pub enum ScreenId {
     PartialStarmapPrompt,
     PartialStarmapView,
     PlanetDatabaseList,
+    PlanetDatabaseFilterPrompt,
     PlanetDatabaseDetail,
     PlanetInfoPrompt,
     PlanetInfoDetail,
@@ -284,6 +285,14 @@ pub fn format_sector_coords(coords: [u8; 2]) -> String {
 
 pub fn format_sector_coords_padded(coords: [u8; 2]) -> String {
     format!("[{:>2},{:>2}]", coords[0], coords[1])
+}
+
+pub fn format_sector_coords_table(coords: [u8; 2]) -> String {
+    format!("({:02},{:02})", coords[0], coords[1])
+}
+
+pub fn format_sector_coords_default(coords: [u8; 2]) -> String {
+    format!("{:02},{:02}", coords[0], coords[1])
 }
 
 pub struct ScreenFrame<'a> {

@@ -71,6 +71,7 @@ impl App {
             ScreenId::MainMenu
             | ScreenId::MainHelp
             | ScreenId::PlanetDatabaseList
+            | ScreenId::PlanetDatabaseFilterPrompt
             | ScreenId::PlanetDatabaseDetail => CommandMenu::Main,
             ScreenId::FleetHelp
             | ScreenId::FleetMenu
@@ -171,7 +172,9 @@ impl App {
             ScreenId::FleetEta if self.fleet.eta_mode != FleetEtaMode::ShowingResult => {
                 self.fleet.eta_status.as_deref()
             }
-            ScreenId::PlanetDatabaseList => self.planet.database_status.as_deref(),
+            ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseFilterPrompt => {
+                self.planet.database_status.as_deref()
+            }
             ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_) => self.planet.transport_status.as_deref(),
@@ -246,7 +249,7 @@ impl App {
                     FleetEtaMode::ShowingResult => {}
                 }
             }
-            ScreenId::PlanetDatabaseList => {
+            ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseFilterPrompt => {
                 self.planet.database_status = None;
                 self.planet.database_input.clear();
             }

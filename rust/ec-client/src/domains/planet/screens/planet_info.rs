@@ -1,5 +1,8 @@
 use crossterm::event::KeyEvent;
-use ec_data::{IntelTier, PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
+use ec_data::{
+    IntelTier, PlanetIntelSnapshot, STARDOCK_SLOT_COUNT,
+    build_player_starmap_projection_from_snapshots,
+};
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -72,7 +75,7 @@ impl PlanetInfoScreen {
         } else {
             (present as f64 / potential as f64) * 100.0
         };
-        let stardock_units: u32 = (0..10)
+        let stardock_units: u32 = (0..STARDOCK_SLOT_COUNT)
             .map(|slot| u32::from(planet.stardock_count_raw(slot)))
             .sum();
         let has_starbase = owner_empire_raw != 0
