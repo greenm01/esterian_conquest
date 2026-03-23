@@ -60,6 +60,11 @@ style "stardate_year" {
     fg "yellow"
     bg "black"
 }
+style "notice" {
+    fg "bright_red"
+    bg "black"
+    bold #true
+}
 style "status_label" {
     fg "bright_black"
     bg "black"

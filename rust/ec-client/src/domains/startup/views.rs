@@ -1,9 +1,9 @@
 use crate::app::state::App;
 use crate::screen::{
-    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
-    render_first_time_join_name, render_first_time_join_name_confirm,
-    render_first_time_join_no_pending, render_first_time_join_summary, PlayfieldBuffer, Screen,
-    ScreenFrame, ScreenId,
+    PlayfieldBuffer, Screen, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
+    render_first_time_homeworld_name, render_first_time_join_name,
+    render_first_time_join_name_confirm, render_first_time_join_no_pending,
+    render_first_time_join_summary,
 };
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {

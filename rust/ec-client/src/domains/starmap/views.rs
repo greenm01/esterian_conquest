@@ -17,13 +17,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::Starmap => app
             .starmap
             .render_prompt(app.starmap_state.status.as_deref()),
-        ScreenId::PartialStarmapView => app
-            .partial_starmap
-            .render_view(
-                &frame,
-                app.starmap_state.partial_center,
-                app.starmap_state.partial_status.as_deref(),
-            ),
+        ScreenId::PartialStarmapView => app.partial_starmap.render_view(
+            &frame,
+            app.starmap_state.partial_center,
+            app.starmap_state.partial_status.as_deref(),
+        ),
         _ => unreachable!("starmap views called for non-starmap screen"),
     }
 }

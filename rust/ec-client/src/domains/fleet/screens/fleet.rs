@@ -8,8 +8,8 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     MenuEntry, draw_command_line_default_input_at, draw_command_line_text_at, draw_command_prompt,
-    draw_command_prompt_at, draw_menu_entry, draw_status_line, draw_table_command_bar_at,
-    draw_title_bar, draw_wrapped_status, menu_prompt_row, new_playfield,
+    draw_command_prompt_at, draw_menu_entry, draw_menu_notice, draw_status_line,
+    draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
     standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
@@ -300,14 +300,13 @@ impl FleetMenuScreen {
                 );
             }
         }
-        let mut last_content_row = 4;
+        let command_row = menu_prompt_row(4);
         if let Some(notice) = notice {
-            let rows_used = draw_wrapped_status(&mut buffer, 16, 3, "Notice: ", notice);
-            last_content_row = 16 + rows_used.saturating_sub(1);
+            draw_menu_notice(&mut buffer, command_row, notice);
         }
         draw_command_prompt_at(
             &mut buffer,
-            menu_prompt_row(last_content_row),
+            command_row,
             "FLEET COMMAND",
             "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
         );

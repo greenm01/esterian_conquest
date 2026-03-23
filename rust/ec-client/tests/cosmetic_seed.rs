@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::app::{App, AppConfig};
-use ec_client::screen::{MainMenuScreen, ScreenId, PLAYFIELD_HEIGHT};
+use ec_client::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
 use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 

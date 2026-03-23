@@ -2,22 +2,31 @@ use std::io::{self, IsTerminal, Write};
 
 use crate::screen::{AnsiColor, CellStyle, PlayfieldBuffer};
 use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+use crate::terminal::cp437;
+use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
 use crate::theme::classic;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyEvent},
-    execute,
-    queue,
+    execute, queue,
     style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
     terminal::{self, Clear, ClearType},
 };
 
-pub struct StdoutTerminal;
+pub struct StdoutTerminal {
+    encoding: OutputEncoding,
+}
 
 impl StdoutTerminal {
     pub fn new() -> Self {
-        Self
+        Self {
+            encoding: OutputEncoding::Utf8,
+        }
+    }
+
+    pub fn with_encoding(encoding: OutputEncoding) -> Self {
+        Self { encoding }
     }
 }
 
@@ -47,7 +56,7 @@ impl Terminal for StdoutTerminal {
                 execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
                 stdout.write_all(blank_playfield.as_bytes())?;
                 execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
-                write_styled_row(&mut stdout, playfield.row(row))?;
+                write_styled_row(&mut stdout, playfield.row(row), self.encoding)?;
             }
             match playfield.cursor() {
                 Some((column, row)) => {
@@ -123,13 +132,14 @@ impl Terminal for StdoutTerminal {
 fn write_styled_row(
     stdout: &mut io::Stdout,
     row: &[crate::screen::Cell],
+    encoding: OutputEncoding,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut current_style = None;
     let mut run = String::new();
     for cell in row {
         if current_style != Some(cell.style) {
             if !run.is_empty() {
-                queue!(stdout, Print(&run))?;
+                flush_run(stdout, &run, encoding)?;
                 run.clear();
             }
             apply_style(stdout, cell.style)?;
@@ -138,7 +148,7 @@ fn write_styled_row(
         run.push(cell.ch);
     }
     if !run.is_empty() {
-        queue!(stdout, Print(&run))?;
+        flush_run(stdout, &run, encoding)?;
     }
     queue!(
         stdout,
@@ -149,7 +159,33 @@ fn write_styled_row(
     Ok(())
 }
 
-fn apply_style(stdout: &mut io::Stdout, style: CellStyle) -> Result<(), Box<dyn std::error::Error>> {
+/// Write a text run to stdout, encoding it according to the output mode.
+///
+/// In UTF-8 mode, the run is emitted via crossterm `Print` (standard UTF-8).
+/// In CP437 mode, each character is translated to its single-byte CP437
+/// equivalent and written as raw bytes, bypassing crossterm's UTF-8 `Print`.
+/// The surrounding SGR/CSI escape sequences are pure ASCII and identical in
+/// both encodings, so only the content bytes need translation.
+fn flush_run(
+    stdout: &mut io::Stdout,
+    run: &str,
+    encoding: OutputEncoding,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match encoding {
+        OutputEncoding::Utf8 => {
+            queue!(stdout, Print(run))?;
+        }
+        OutputEncoding::Cp437 => {
+            stdout.write_all(&cp437::str_to_cp437(run))?;
+        }
+    }
+    Ok(())
+}
+
+fn apply_style(
+    stdout: &mut io::Stdout,
+    style: CellStyle,
+) -> Result<(), Box<dyn std::error::Error>> {
     queue!(
         stdout,
         SetForegroundColor(color_from_ansi(style.fg)),

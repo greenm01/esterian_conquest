@@ -1,15 +1,15 @@
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::screen::AnsiColor;
-use ec_client::theme::{
-    PlatformKind, ThemeEnv, ansi_mode, bundled_theme_kdl, ensure_theme_file_for,
-    initialize_theme_for, load_theme_from_path, toggle_ansi_mode, AnsiMode,
-};
 use ec_client::theme::classic;
+use ec_client::theme::{
+    AnsiMode, PlatformKind, ThemeEnv, ansi_mode, bundled_theme_kdl, ensure_theme_file_for,
+    initialize_theme_for, load_theme_from_path, toggle_ansi_mode,
+};
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
 static THEME_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -44,7 +44,10 @@ fn linux_theme_path_uses_xdg_config_home() {
 
     let theme_file =
         ec_client::theme::resolve_theme_file_for(PlatformKind::Unix, &env).expect("resolve path");
-    assert_eq!(theme_file, PathBuf::from("/tmp/ec-theme-config/ec-rust/theme.kdl"));
+    assert_eq!(
+        theme_file,
+        PathBuf::from("/tmp/ec-theme-config/ec-rust/theme.kdl")
+    );
 }
 
 #[test]
@@ -75,8 +78,7 @@ fn ensure_theme_file_bootstraps_default_once() {
         appdata: None,
     };
 
-    let theme_file =
-        ensure_theme_file_for(PlatformKind::Unix, &env).expect("bootstrap theme file");
+    let theme_file = ensure_theme_file_for(PlatformKind::Unix, &env).expect("bootstrap theme file");
     assert!(theme_file.exists());
     assert_eq!(
         fs::read_to_string(&theme_file).expect("read bootstrapped theme"),
@@ -126,6 +128,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     initialize_theme_for(PlatformKind::Unix, &env).expect("initialize theme and ui");
     assert_eq!(ansi_mode(), AnsiMode::On);
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
+    assert_eq!(classic::notice_style().fg, AnsiColor::BrightRed);
 
     let next_mode = toggle_ansi_mode().expect("toggle ansi mode off");
     assert_eq!(next_mode, AnsiMode::Off);
@@ -133,6 +136,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::body_style().fg, AnsiColor::BrightBlack);
     assert_eq!(classic::menu_hotkey_style().fg, AnsiColor::BrightBlack);
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::notice_style().fg, AnsiColor::BrightBlack);
     assert_eq!(classic::selected_row_style().fg, AnsiColor::Black);
     assert_eq!(classic::selected_row_style().bg, AnsiColor::BrightBlack);
 

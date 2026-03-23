@@ -3,7 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::PlayfieldBuffer;
-use crate::screen::layout::{draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield,
+};
 use crate::theme::classic;
 
 pub struct StarmapScreen;

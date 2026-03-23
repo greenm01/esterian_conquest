@@ -4,8 +4,8 @@ use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
     COMMAND_LINE_ROW, MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text,
-    draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_plain_prompt,
-    draw_status_line, draw_title_bar, menu_prompt_row, new_playfield,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_menu_notice,
+    draw_plain_prompt, draw_status_line, draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -49,14 +49,13 @@ impl FirstTimeMenuScreen {
         draw_title_bar(&mut buffer, 0, "FIRST TIME MENU:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
         crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
-        let mut last_content_row = 2;
+        let command_row = menu_prompt_row(2);
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 4, "Notice: ", status);
-            last_content_row = 4;
+            draw_menu_notice(&mut buffer, command_row, status);
         }
         draw_command_prompt_at(
             &mut buffer,
-            menu_prompt_row(last_content_row),
+            command_row,
             "FIRST TIME COMMAND",
             "H Q L J A V",
         );

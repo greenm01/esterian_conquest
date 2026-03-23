@@ -27,6 +27,7 @@ struct Theme {
     stardate_label: CellStyle,
     stardate_week: CellStyle,
     stardate_year: CellStyle,
+    notice: CellStyle,
     status_label: CellStyle,
     status_value: CellStyle,
     table_chrome: CellStyle,
@@ -69,6 +70,7 @@ impl Theme {
             stardate_label: require_style("stardate_label")?,
             stardate_week: require_style("stardate_week")?,
             stardate_year: require_style("stardate_year")?,
+            notice: require_style("notice")?,
             status_label: require_style("status_label")?,
             status_value: require_style("status_value")?,
             table_chrome: require_style("table_chrome")?,
@@ -110,6 +112,7 @@ impl Theme {
         theme.stardate_label = mono_bright(theme.stardate_label);
         theme.stardate_week = mono_bright(theme.stardate_week);
         theme.stardate_year = mono_bright(theme.stardate_year);
+        theme.notice = mono_bright(theme.notice);
         theme.status_label = mono_dim(theme.status_label);
         theme.status_value = mono_normal(theme.status_value);
         theme.table_chrome = mono_normal(theme.table_chrome);
@@ -254,9 +257,7 @@ fn active_theme() -> Theme {
 }
 
 fn set_active_theme(theme: Theme) {
-    *active_theme_lock()
-        .write()
-        .expect("theme lock poisoned") = theme;
+    *active_theme_lock().write().expect("theme lock poisoned") = theme;
 }
 
 fn base_theme() -> Theme {
@@ -267,9 +268,7 @@ fn base_theme() -> Theme {
 }
 
 fn set_theme_state(theme: Theme, ansi_mode: AnsiMode) {
-    *base_theme_lock()
-        .write()
-        .expect("theme lock poisoned") = theme.clone();
+    *base_theme_lock().write().expect("theme lock poisoned") = theme.clone();
     *ansi_mode_lock().write().expect("theme lock poisoned") = ansi_mode;
     let active = if ansi_mode == AnsiMode::On {
         theme
@@ -491,6 +490,10 @@ pub mod classic {
 
     pub fn status_label_style() -> CellStyle {
         active_theme().status_label
+    }
+
+    pub fn notice_style() -> CellStyle {
+        active_theme().notice
     }
 
     pub fn status_value_style() -> CellStyle {

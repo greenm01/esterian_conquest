@@ -7,8 +7,8 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     MenuEntry, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_menu_entry,
-    draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
@@ -84,14 +84,13 @@ impl StarbaseMenuScreen {
                 );
             }
         }
-        let mut last_content_row = 2;
+        let command_row = menu_prompt_row(2);
         if let Some(notice) = notice {
-            draw_status_line(&mut buffer, 16, "Notice: ", notice);
-            last_content_row = 16;
+            draw_menu_notice(&mut buffer, command_row, notice);
         }
         draw_command_prompt_at(
             &mut buffer,
-            menu_prompt_row(last_content_row),
+            command_row,
             "STARBASE COMMAND",
             "H,Q,X,S,R,V,I,M",
         );

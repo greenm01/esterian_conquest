@@ -5,9 +5,8 @@ use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_command_line_text_at, draw_command_prompt,
-    draw_dismiss_prompt,
-    draw_table_command_bar_at, draw_title_bar, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    draw_dismiss_prompt, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};

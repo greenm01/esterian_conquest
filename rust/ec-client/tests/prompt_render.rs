@@ -1,7 +1,8 @@
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_prompt_text,
-    draw_command_prompt, draw_plain_prompt, draw_table_command_prompt,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_notice,
+    draw_command_line_prompt_text, draw_command_prompt, draw_plain_prompt,
+    draw_table_command_prompt,
 };
 use ec_client::theme::classic;
 
@@ -214,4 +215,16 @@ fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
     assert!(line.contains("(slap a key)-> "));
+}
+
+#[test]
+fn draw_command_line_notice_uses_themed_notice_label_style() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_line_notice(&mut buffer, "No fleets are ready.");
+
+    let row = buffer.row(COMMAND_LINE_ROW);
+    let notice = find_in_row(&buffer, COMMAND_LINE_ROW, "Notice: ");
+    for idx in notice..notice + "Notice: ".len() {
+        assert_eq!(row[idx].style, classic::notice_style());
+    }
 }

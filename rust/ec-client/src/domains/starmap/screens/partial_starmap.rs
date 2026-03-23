@@ -4,10 +4,10 @@ use ec_data::build_player_starmap_projection_from_snapshots;
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    centered_row, draw_command_prompt_at, draw_status_line, draw_title_bar, new_playfield,
-    COMMAND_LINE_ROW, PLAYFIELD_WIDTH,
+    COMMAND_LINE_ROW, PLAYFIELD_WIDTH, centered_row, draw_command_prompt_at, draw_status_line,
+    draw_title_bar, new_playfield,
 };
-use crate::screen::{format_sector_coords, PlayfieldBuffer, ScreenFrame};
+use crate::screen::{PlayfieldBuffer, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
 
 pub struct PartialStarmapScreen;

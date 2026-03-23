@@ -3,17 +3,18 @@ use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
-use crate::app::{App, AppConfig, AppOutcome, apply_action};
-use crate::terminal::Terminal;
+use crate::app::{apply_action, App, AppConfig, AppOutcome};
 use crate::terminal::stdout::StdoutTerminal;
+use crate::terminal::OutputEncoding;
+use crate::terminal::Terminal;
 use crate::theme;
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
-    let config = parse_args(&parsed_args)?;
+    let (config, encoding) = parse_args(&parsed_args)?;
     theme::initialize_from_disk()?;
     let mut app = App::load(config)?;
-    let mut terminal = StdoutTerminal::new();
+    let mut terminal = StdoutTerminal::with_encoding(encoding);
 
     if std::io::stdout().is_terminal() {
         run_interactive(&mut app, &mut terminal)
@@ -48,11 +49,12 @@ fn run_interactive_inner(
     }
 }
 
-fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> {
+fn parse_args(args: &[String]) -> Result<(AppConfig, OutputEncoding), Box<dyn std::error::Error>> {
     let mut dir = None;
     let mut player = None;
     let mut export_root = std::env::var_os("EC_CLIENT_EXPORT_ROOT").map(PathBuf::from);
     let mut queue_dir = std::env::var_os("EC_CLIENT_QUEUE_DIR").map(PathBuf::from);
+    let mut encoding = OutputEncoding::Utf8;
 
     let mut idx = 1;
     while idx < args.len() {
@@ -85,6 +87,21 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
                 queue_dir = Some(PathBuf::from(value));
                 idx += 2;
             }
+            "--encoding" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --encoding (utf8 or cp437)".into());
+                };
+                encoding = match value.as_str() {
+                    "utf8" | "utf-8" => OutputEncoding::Utf8,
+                    "cp437" | "CP437" => OutputEncoding::Cp437,
+                    other => {
+                        return Err(
+                            format!("unknown encoding '{other}'; expected utf8 or cp437").into(),
+                        );
+                    }
+                };
+                idx += 2;
+            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -102,17 +119,20 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
         return Err("--player must be >= 1".into());
     }
 
-    Ok(AppConfig {
-        game_dir: dir,
-        player_record_index_1_based,
-        export_root,
-        queue_dir,
-    })
+    Ok((
+        AppConfig {
+            game_dir: dir,
+            player_record_index_1_based,
+            export_root,
+            queue_dir,
+        },
+        encoding,
+    ))
 }
 
 fn print_usage() {
     println!("Usage:");
     println!(
-        "  ec-client --dir <game_dir> --player <1-based empire index> [--export-root <dir>] [--queue-dir <dir>]"
+        "  ec-client --dir <game_dir> --player <1-based empire index> [--encoding <utf8|cp437>] [--export-root <dir>] [--queue-dir <dir>]"
     );
 }

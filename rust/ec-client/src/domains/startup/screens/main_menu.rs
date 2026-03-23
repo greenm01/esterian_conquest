@@ -7,8 +7,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    draw_command_prompt_at, draw_menu_row, draw_title_bar, draw_wrapped_status, last_body_row,
-    menu_prompt_row, new_playfield, wrap_text, MenuEntry, PLAYFIELD_WIDTH,
+    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_menu_notice, draw_menu_row,
+    draw_title_bar, last_body_row, new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -81,20 +81,13 @@ impl MainMenuScreen {
             ],
         );
         if let Some(notice) = notice {
-            let rows_used = draw_wrapped_status(
-                &mut buffer,
-                7,
-                last_body_row().saturating_sub(7) + 1,
-                "Notice: ",
-                notice,
-            );
-            let last_content_row = 7 + rows_used.saturating_sub(1);
             draw_command_prompt_at(
                 &mut buffer,
-                menu_prompt_row(last_content_row),
+                MENU_PROMPT_ROW,
                 "MAIN COMMAND",
                 "H,Q,X,V,A,G,P,F,T,I,B,D",
             );
+            draw_menu_notice(&mut buffer, MENU_PROMPT_ROW, notice);
         } else {
             draw_command_prompt_at(
                 &mut buffer,

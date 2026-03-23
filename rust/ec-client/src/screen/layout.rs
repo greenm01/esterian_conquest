@@ -20,6 +20,15 @@ pub const fn menu_prompt_row(last_content_row: usize) -> usize {
     }
 }
 
+pub const fn menu_notice_row(command_row: usize) -> usize {
+    let desired = command_row + 4;
+    if desired > last_body_row() {
+        last_body_row()
+    } else {
+        desired
+    }
+}
+
 pub const fn table_prompt_row(table_bottom_row: usize) -> usize {
     let desired = table_bottom_row + 1;
     if desired > COMMAND_LINE_ROW {
@@ -123,6 +132,17 @@ pub fn draw_status_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, v
     );
 }
 
+pub fn draw_notice_line(buffer: &mut PlayfieldBuffer, row: usize, value: &str) {
+    buffer.write_spans(
+        row,
+        0,
+        &[
+            StyledSpan::new("Notice: ", classic::notice_style()),
+            StyledSpan::new(value, classic::status_value_style()),
+        ],
+    );
+}
+
 pub fn draw_wrapped_status(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
@@ -144,6 +164,45 @@ pub fn draw_wrapped_status(
         draw_status_line(buffer, start_row + idx, current_label, &line);
     }
     rows_to_draw
+}
+
+pub fn draw_wrapped_notice(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    value: &str,
+) -> usize {
+    if max_rows == 0 {
+        return 0;
+    }
+    let label = "Notice: ";
+    let label_width = label.chars().count();
+    let continuation = " ".repeat(label_width);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let lines = wrap_text(value, first_width, continuation_width);
+    let rows_to_draw = lines.len().min(max_rows);
+    for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
+        if idx == 0 {
+            draw_notice_line(buffer, start_row + idx, &line);
+        } else {
+            buffer.write_spans(
+                start_row + idx,
+                0,
+                &[
+                    StyledSpan::new(&continuation, classic::notice_style()),
+                    StyledSpan::new(&line, classic::status_value_style()),
+                ],
+            );
+        }
+    }
+    rows_to_draw
+}
+
+pub fn draw_menu_notice(buffer: &mut PlayfieldBuffer, command_row: usize, notice: &str) -> usize {
+    let row = menu_notice_row(command_row);
+    let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
+    draw_wrapped_notice(buffer, row, max_rows, notice)
 }
 
 pub fn draw_centered_text(
@@ -246,7 +305,7 @@ pub fn draw_command_line_notice_at(buffer: &mut PlayfieldBuffer, row: usize, tex
     let prefix = buffer.write_spans(
         row,
         0,
-        &[StyledSpan::new("Notice: ", classic::prompt_style())],
+        &[StyledSpan::new("Notice: ", classic::notice_style())],
     );
     let suffix_width = " (slap a key)".chars().count();
     let suffix_col = PLAYFIELD_WIDTH.saturating_sub(suffix_width);
