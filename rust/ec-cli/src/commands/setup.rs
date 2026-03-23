@@ -33,22 +33,24 @@ pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::erro
 pub(crate) fn init_canonical_four_player_start(
     target: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    init_new_game(target, 4)
+    init_new_game(target, 4, 3000)
 }
 
 pub(crate) fn init_new_game(
     target: &Path,
     player_count: u8,
+    year: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    init_new_game_with_seed(target, player_count, runtime_seed())
+    init_new_game_with_seed(target, player_count, year, runtime_seed())
 }
 
 pub(crate) fn init_new_game_with_seed(
     target: &Path,
     player_count: u8,
+    year: u16,
     seed: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = build_seeded_new_game(player_count, 3000, seed)?;
+    let data = build_seeded_new_game(player_count, year, seed)?;
 
     fs::create_dir_all(target)?;
     data.save(target)?;

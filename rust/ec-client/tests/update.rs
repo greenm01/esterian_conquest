@@ -2608,10 +2608,7 @@ fn planet_menu_matches_verified_v15_command_layout() {
         terminal.line(3).trim_end(),
         "  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies"
     );
-    assert_eq!(
-        terminal.line(4).trim_end(),
-        ""
-    );
+    assert_eq!(terminal.line(4).trim_end(), "");
 }
 
 #[test]
@@ -4307,8 +4304,13 @@ fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render invalid id notice");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("(slap a key)"));
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Fleet #99 is not in your fleet list."))
+    );
 }
 
 #[test]
@@ -4354,8 +4356,8 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
-    assert!(prompt.contains("FLEET COMMAND"));
+    let prompt = line_containing(&terminal, "COMMAND <-");
+    assert!(prompt.contains("COMMAND"));
     assert!(prompt.contains("<Q> ->"));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
@@ -4381,8 +4383,8 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     );
     app.render(&mut terminal)
         .expect("fleet unload transport picker should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
-    assert!(prompt.contains("FLEET COMMAND"));
+    let prompt = line_containing(&terminal, "COMMAND <-");
+    assert!(prompt.contains("COMMAND"));
     assert!(prompt.contains("<Q> ->"));
 }
 
@@ -4462,7 +4464,7 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
+    let prompt = line_containing(&terminal, "COMMAND <-");
     let default_coords = prompt
         .split('[')
         .nth(1)
@@ -4865,8 +4867,13 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet order should render success notice");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("(slap a key)"));
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Applied move to Fleet #2 for sector [14,9]."))
+    );
 
     let state = latest_runtime_state(&fixture_dir);
     let ordered_fleet = state
@@ -5628,8 +5635,13 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("(slap a key)"));
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("That mission does not apply to all selected fleets."))
+    );
 }
 
 #[test]
@@ -5691,18 +5703,11 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("world-target validation should render");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("(slap a key)"));
-    assert_eq!(
-        app.handle_key(key(KeyCode::Enter)),
-        Action::DismissModalNotice
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::DismissModalNotice),
-        AppOutcome::Continue
-    );
-    app.render(&mut terminal)
-        .expect("world-target prompt should return after dismiss");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
+    assert!(prompt.contains("Target ["));
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("That mission requires a system with a planet at the target coordinates.")
+    }));
     let prompt = line_containing(&terminal, "Target [");
     assert!(prompt.contains("Target ["));
     assert!(prompt.contains("->"), "{prompt}");
@@ -6655,8 +6660,13 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order should render success notice");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("(slap a key)"));
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Applied move order to"))
+    );
 
     let state = latest_runtime_state(&fixture_dir);
     assert_eq!(
@@ -6938,7 +6948,7 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     assert!(terminal.line(2).contains("Scout"));
     assert!(terminal.line(2).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
-    assert!(terminal.lines.iter().any(|line| line.contains("owned")));
+    assert!(terminal.lines.iter().any(|line| line.contains("own")));
     let prompt = line_containing(&terminal, "COMMANDS <");
     assert!(prompt.starts_with("COMMANDS <"));
     assert!(prompt.contains("["));
@@ -7265,8 +7275,9 @@ fn fleet_roe_render_shows_edit_errors_on_bottom_line() {
 
     assert_eq!(
         buffer.plain_line(8),
-        "FLEET COMMAND <- Non-combat fleets must use ROE 0."
+        "FLEET COMMAND <- Fleet #6 new ROE [6] <Q> -> 1"
     );
+    assert_eq!(buffer.plain_line(10), "Non-combat fleets must use ROE 0.");
 }
 
 #[test]

@@ -9,8 +9,8 @@ use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
     draw_command_line_text_at, draw_command_prompt, draw_command_prompt_at, draw_expert_menu,
-    draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice, draw_status_line,
-    draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
+    draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry, draw_menu_notice,
+    draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
     standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
@@ -553,8 +553,6 @@ impl FleetReviewScreen {
                 "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             draw_table_command_bar_at(
                 &mut buffer,
@@ -566,6 +564,9 @@ impl FleetReviewScreen {
                 )),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -696,13 +697,6 @@ impl FleetRoeScreen {
                 "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
-        } else if editing && status.is_some() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "FLEET COMMAND",
-                status.unwrap_or(""),
-            );
         } else if editing {
             let row = &rows[cursor];
             draw_command_line_default_input_at(
@@ -716,8 +710,6 @@ impl FleetRoeScreen {
                 &row.rules_of_engagement.to_string(),
                 input,
             );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             draw_table_command_bar_at(
                 &mut buffer,
@@ -729,6 +721,11 @@ impl FleetRoeScreen {
                 )),
                 select_input,
             );
+        }
+        if !table_rows.is_empty() {
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -835,8 +832,6 @@ impl FleetSingleOrderScreen {
                 "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             match mode {
                 FleetSingleOrderMode::SelectingFleet => {
@@ -861,6 +856,9 @@ impl FleetSingleOrderScreen {
                         input,
                     );
                 }
+            }
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
             }
         }
         Ok(buffer)
@@ -936,20 +934,16 @@ impl FleetEtaScreen {
         }
         match mode {
             FleetEtaMode::SelectingFleet => {
-                if let Some(status) = status {
-                    draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
-                } else {
-                    draw_table_command_bar_at(
-                        &mut buffer,
-                        command_row,
-                        "<ARROWS J K Q>",
-                        Some(&format_fleet_number(
-                            rows[cursor].fleet_number,
-                            max_fleet_number,
-                        )),
-                        select_input,
-                    );
-                }
+                draw_table_command_bar_at(
+                    &mut buffer,
+                    command_row,
+                    "<ARROWS J K Q>",
+                    Some(&format_fleet_number(
+                        rows[cursor].fleet_number,
+                        max_fleet_number,
+                    )),
+                    select_input,
+                );
             }
             FleetEtaMode::EnteringDestination => {
                 draw_command_line_default_input_at(
@@ -978,6 +972,11 @@ impl FleetEtaScreen {
                     "FLEET COMMAND",
                     status.unwrap_or("Press ENTER to continue."),
                 );
+            }
+        }
+        if mode != FleetEtaMode::ShowingResult {
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
             }
         }
         Ok(buffer)
@@ -1049,8 +1048,6 @@ impl FleetMergeScreen {
                 "COMMANDS",
                 "At least two fleets are required. Q quits.",
             );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             draw_table_command_bar_at(
                 &mut buffer,
@@ -1062,6 +1059,9 @@ impl FleetMergeScreen {
                 )),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -1158,8 +1158,6 @@ impl FleetGroupScreen {
                 "COMMANDS",
                 "You have no active fleets. Q quits.",
             );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             match mode {
                 FleetGroupOrderMode::SelectingFleets => {
@@ -1181,6 +1179,9 @@ impl FleetGroupScreen {
                         input,
                     );
                 }
+            }
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
             }
         }
         Ok(buffer)
@@ -1284,8 +1285,8 @@ impl FleetTransferScreen {
             },
         );
         let command_row = table_prompt_row(metrics.bottom_row);
-        if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
+        if rows.is_empty() {
+            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
         } else {
             match mode {
                 FleetTransferMode::SelectingFleets => {
@@ -1309,6 +1310,9 @@ impl FleetTransferScreen {
                         input,
                     );
                 }
+            }
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
             }
         }
         Ok(buffer)
@@ -1368,9 +1372,7 @@ impl FleetMissionPickerScreen {
             Some(&row_states),
         );
         let command_row = table_prompt_row(metrics.bottom_row);
-        if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
-        } else {
+        {
             let default = FLEET_MISSION_OPTIONS
                 .get(cursor)
                 .map(|option| option.code.to_string())
@@ -1382,6 +1384,9 @@ impl FleetMissionPickerScreen {
                 Some(&default),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -1448,8 +1453,6 @@ impl FleetDetachScreen {
                 "FLEET COMMAND",
                 "You have no active fleets. Q quits.",
             );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "FLEET COMMAND", status);
         } else {
             draw_command_line_default_input_at(
                 &mut buffer,
@@ -1459,6 +1462,9 @@ impl FleetDetachScreen {
                 default,
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }

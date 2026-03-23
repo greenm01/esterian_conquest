@@ -24,12 +24,13 @@ pub fn print_usage() {
     println!("  ec-cli harness claim-turn --dir <campaign_dir> --player <record>");
     println!("  ec-cli harness scan-turn --dir <campaign_dir>");
     println!("  ec-cli harness apply-turn-batch --dir <campaign_dir>");
+    println!("  ec-cli harness seed-player1-tui-stress --dir <campaign_dir>");
     println!(
         "  ec-cli harness play-until --file <scenario.kdl> --dir <campaign_dir> --game-id <id> --turn <n> [--bundle-profile <human|llm>] [--export-classic]"
     );
     println!("  ec-cli sysop <subcommand> ...");
     println!(
-        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--config <setup.kdl>] [--seed <u64>]"
+        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--config <setup.kdl>] [--seed <u64>] [--year <3000-3100>]"
     );
     println!(
         "  ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]"

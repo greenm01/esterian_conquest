@@ -264,6 +264,28 @@ fn sysop_new_game_accepts_seed_and_reports_it() {
 }
 
 #[test]
+fn sysop_new_game_accepts_year_and_sets_runtime_year() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-year");
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--players",
+        "12",
+        "--seed",
+        "1515",
+        "--year",
+        "3012",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("year=3012"));
+
+    let game_data = ec_data::CoreGameData::load(&target).expect("generated game should load");
+    assert_eq!(game_data.conquest.game_year(), 3012);
+    cleanup_dir(&target);
+}
+
+#[test]
 fn sysop_new_game_accepts_manual_nine_player_tier() {
     let target = unique_temp_dir("ec-cli-sysop-new-game-nine");
     let stdout = run_ec_cli(&[

@@ -395,6 +395,17 @@ pub fn draw_menu_alert_after(
     draw_wrapped_alert(buffer, row, max_rows, label, value)
 }
 
+pub fn draw_inline_status_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    value: &str,
+) -> usize {
+    let row = (previous_end_row + 2).min(last_body_row());
+    let max_rows = last_body_row().saturating_sub(row) + 1;
+    let drawn = draw_wrapped_status(buffer, row, max_rows, "", value);
+    row + drawn.saturating_sub(1)
+}
+
 pub fn draw_menu_general_message(
     buffer: &mut PlayfieldBuffer,
     command_row: usize,
@@ -567,26 +578,6 @@ pub fn draw_command_line_prompt_text_at(
         ],
     );
     write_prompt_markup(buffer, row, prefix, prompt);
-}
-
-pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
-    draw_command_line_notice_at(buffer, COMMAND_LINE_ROW, text);
-}
-
-pub fn draw_command_line_notice_at(buffer: &mut PlayfieldBuffer, row: usize, text: &str) {
-    buffer.fill_row(row, classic::prompt_style());
-    let prefix = buffer.write_spans(
-        row,
-        0,
-        &[StyledSpan::new("Notice: ", classic::notice_style())],
-    );
-    let suffix_width = " (slap a key)".chars().count();
-    let suffix_col = PLAYFIELD_WIDTH.saturating_sub(suffix_width);
-    let available = suffix_col.saturating_sub(prefix);
-    let message = fit_inline_notice(text, available);
-    buffer.write_text(row, prefix, &message, classic::prompt_style());
-    buffer.write_text(row, suffix_col, " ", classic::prompt_style());
-    write_slap_a_key(buffer, row, suffix_col + 1);
 }
 
 pub fn draw_command_line_default_input(
@@ -773,21 +764,6 @@ pub fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> 
         lines.push(current);
     }
     lines
-}
-
-fn fit_inline_notice(value: &str, max_width: usize) -> String {
-    if max_width == 0 {
-        return String::new();
-    }
-    let normalized = value.split_whitespace().collect::<Vec<_>>().join(" ");
-    let chars = normalized.chars().collect::<Vec<_>>();
-    if chars.len() <= max_width {
-        return normalized;
-    }
-    if max_width <= 3 {
-        return ".".repeat(max_width);
-    }
-    chars[..max_width - 3].iter().collect::<String>() + "..."
 }
 
 fn ensure_cursor_gap(prompt: &str) -> String {

@@ -17,7 +17,6 @@ pub enum Action {
     Startup(StartupAction),
 
     // Top-level / Generic App Actions
-    DismissModalNotice,
     OpenMainMenu,
     OpenMainHelp,
     OpenGeneralMenu,

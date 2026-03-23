@@ -35,33 +35,33 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .unwrap_or("Auto-commission complete."),
         ),
         ScreenId::PlanetTransportPlanetSelect(mode) => app.planet_transport.render_planet_select(
-            crate::screen::command_menu_label(app.command_return_menu),
+            "COMMAND",
             mode,
             &app.planet_transport_planet_rows(mode),
             app.planet.transport_planet_scroll_offset,
             app.planet.transport_planet_cursor,
             &app.planet.transport_planet_input,
             app.planet_transport_planet_default_coords(mode),
-            app.status_if_no_modal(app.planet.transport_status.as_deref()),
+            app.planet.transport_status.as_deref(),
         ),
         ScreenId::PlanetTransportFleetSelect(mode) => app.planet_transport.render_fleet_select(
-            crate::screen::command_menu_label(app.command_return_menu),
+            "COMMAND",
             mode,
             &app.current_planet_transport_planet_row(mode)?,
             &app.current_planet_transport_fleet_rows(mode)?,
             app.planet.transport_fleet_scroll_offset,
             app.planet.transport_fleet_cursor,
             &app.planet.transport_qty_input,
-            app.status_if_no_modal(app.planet.transport_status.as_deref()),
+            app.planet.transport_status.as_deref(),
         ),
         ScreenId::PlanetTransportQuantityPrompt(mode) => {
             app.planet_transport.render_quantity_prompt(
-                crate::screen::command_menu_label(app.command_return_menu),
+                "COMMAND",
                 mode,
                 &app.current_planet_transport_planet_row(mode)?,
                 &app.current_planet_transport_fleet_row(mode)?,
                 &app.planet.transport_qty_input,
-                app.status_if_no_modal(app.planet.transport_status.as_deref()),
+                app.planet.transport_status.as_deref(),
             )
         }
         ScreenId::PlanetTransportDone(mode) => app.planet_transport.render_done(
@@ -153,7 +153,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.database_cursor,
             app.default_planet_prompt_coords(),
             &app.planet.database_input,
-            app.status_if_no_modal(app.planet.database_status.as_deref()),
+            app.planet.database_status.as_deref(),
             app.command_return_menu,
         ),
         ScreenId::PlanetDatabaseFilterPrompt => app.planet_database.render_filter_prompt(
@@ -162,7 +162,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.database_cursor,
             app.default_planet_prompt_coords(),
             &app.planet.database_input,
-            app.status_if_no_modal(app.planet.database_status.as_deref()),
+            app.planet.database_status.as_deref(),
             app.command_return_menu,
         ),
         ScreenId::PlanetInfoDetail => app.planet_info.render_detail(

@@ -30,7 +30,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.starbase.scroll_offset,
             app.starbase.cursor,
             &app.starbase.review_input,
-            app.status_if_no_modal(app.starbase.review_status.as_deref()),
+            app.starbase.review_status.as_deref(),
         ),
         ScreenId::StarbaseReview => {
             let rows = app.starbase_rows();

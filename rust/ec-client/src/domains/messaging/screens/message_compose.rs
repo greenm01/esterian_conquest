@@ -4,9 +4,9 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_line_default_input, draw_command_line_text_at,
-    draw_command_prompt, draw_dismiss_prompt, draw_table_command_bar_at, draw_title_bar,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    dismiss_prompt_row, draw_command_line_default_input, draw_command_prompt, draw_dismiss_prompt,
+    draw_inline_status_after, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -77,8 +77,8 @@ impl MessageComposeScreen {
             selected,
         );
         let command_row = table_prompt_row(metrics.bottom_row);
-        if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
+        if rows.is_empty() {
+            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K D Q>", None, "");
         } else {
             let default_empire = rows
                 .get(cursor)
@@ -92,6 +92,9 @@ impl MessageComposeScreen {
                 Some(default_empire),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -261,8 +264,8 @@ impl MessageComposeScreen {
             selected,
         );
         let command_row = table_prompt_row(metrics.bottom_row);
-        if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
+        if rows.is_empty() {
+            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
         } else {
             let default_queue_no = if rows.is_empty() {
                 String::new()
@@ -276,6 +279,9 @@ impl MessageComposeScreen {
                 Some(&default_queue_no),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }

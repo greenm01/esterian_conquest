@@ -572,14 +572,14 @@ fn planet_database_intel_label(
 ) -> String {
     if let Some(snapshot) = snapshot {
         return match snapshot.intel_tier {
-            ec_data::IntelTier::Owned => "owned".to_string(),
+            ec_data::IntelTier::Owned => "own".to_string(),
             ec_data::IntelTier::Full => "full".to_string(),
-            ec_data::IntelTier::Partial => "partial".to_string(),
-            ec_data::IntelTier::Unknown => "unknown".to_string(),
+            ec_data::IntelTier::Partial => "part".to_string(),
+            ec_data::IntelTier::Unknown => "unkn".to_string(),
         };
     }
     if world.known_owner_empire_id == Some(0) {
-        return "unknown".to_string();
+        return "unkn".to_string();
     }
     if world.known_armies.is_some() || world.known_ground_batteries.is_some() {
         "full".to_string()
@@ -588,8 +588,8 @@ fn planet_database_intel_label(
         || world.known_owner_empire_name.is_some()
         || world.known_potential_production.is_some()
     {
-        "partial".to_string()
+        "part".to_string()
     } else {
-        "unknown".to_string()
+        "unkn".to_string()
     }
 }

@@ -9,6 +9,7 @@ use crate::commands::harness_campaign::{
     run_apply_turn_batch_args, run_claim_turn_args, run_init_campaign_args, run_open_turn_args,
     run_play_until_args, run_scan_turn_args,
 };
+use crate::commands::harness_player1_tui_stress::run_seed_player1_tui_stress_args;
 use crate::support::paths::resolve_repo_path;
 
 pub(crate) fn run_harness_args(
@@ -76,6 +77,9 @@ pub(crate) fn run_harness_args(
         }
         "play-until" => {
             run_play_until_args(args.collect::<Vec<_>>())?;
+        }
+        "seed-player1-tui-stress" => {
+            run_seed_player1_tui_stress_args(args.collect::<Vec<_>>())?;
         }
         other => return Err(format!("unknown harness subcommand: {other}").into()),
     }

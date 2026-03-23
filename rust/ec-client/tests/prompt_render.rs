@@ -1,9 +1,9 @@
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
-    draw_command_line_notice, draw_command_line_prompt_text, draw_command_prompt, draw_help_panel,
-    draw_inline_planet_info_prompt, draw_plain_prompt, draw_table_command_prompt,
-    table_dismiss_prompt_row,
+    draw_command_line_prompt_text, draw_command_prompt, draw_help_panel,
+    draw_inline_planet_info_prompt, draw_inline_status_after, draw_plain_prompt,
+    draw_table_command_prompt, table_dismiss_prompt_row,
 };
 use ec_client::theme::classic;
 
@@ -228,15 +228,12 @@ fn inline_planet_info_prompt_zero_pads_default_coords() {
 }
 
 #[test]
-fn draw_command_line_notice_uses_themed_notice_label_style() {
+fn draw_inline_status_after_places_status_two_rows_below_command_row() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_line_notice(&mut buffer, "No fleets are ready.");
+    draw_inline_status_after(&mut buffer, 10, "No fleets are ready.");
 
-    let row = buffer.row(COMMAND_LINE_ROW);
-    let notice = find_in_row(&buffer, COMMAND_LINE_ROW, "Notice: ");
-    for idx in notice..notice + "Notice: ".len() {
-        assert_eq!(row[idx].style, classic::notice_style());
-    }
+    assert!(row_text(&buffer, 11).trim().is_empty());
+    assert!(row_text(&buffer, 12).contains("No fleets are ready."));
 }
 
 #[test]

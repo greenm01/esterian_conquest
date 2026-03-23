@@ -9,7 +9,7 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::domains;
 
-        let mut playfield = match self.current_screen {
+        let playfield = match self.current_screen {
             ScreenId::Startup(_)
             | ScreenId::FirstTimeMenu
             | ScreenId::FirstTimeHelp
@@ -91,9 +91,6 @@ impl App {
                 domains::starmap::views::render(self)?
             }
         };
-        if let Some(notice) = self.current_modal_notice() {
-            crate::screen::draw_command_line_notice(&mut playfield, notice);
-        }
         terminal.render(&playfield)
     }
 }

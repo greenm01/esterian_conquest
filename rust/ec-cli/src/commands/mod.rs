@@ -10,6 +10,7 @@ pub(crate) mod fleet_setup;
 pub(crate) mod guard_starbase;
 pub(crate) mod harness;
 pub(crate) mod harness_campaign;
+pub(crate) mod harness_player1_tui_stress;
 pub(crate) mod inspect;
 pub(crate) mod invade;
 pub(crate) mod ipbm;

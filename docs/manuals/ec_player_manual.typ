@@ -752,6 +752,7 @@ The preserved originals in `original/v1.5/` remain the primary reference:
 - `ECREADME.DOC` --- Release and package information
 - `ECGAME.EXE` --- The original 1992 player client
 - `ECMAINT.EXE` --- The original yearly maintenance oracle
+- `ECUTIL.EXE` --- The original sysop utility for game initialization and management
 
 === Preservation Policy
 
@@ -763,6 +764,22 @@ The preserved originals in `original/v1.5/` remain the primary reference:
 - When an exact classic formula remains unrecovered, this manual documents the
   current engine rule explicitly rather than pretending the original value is
   known.
+
+=== BBS Drop File Compatibility
+
+The original `ECGAME.EXE` advertises support for several BBS drop file formats
+(`DOOR.SYS`, `DORINFOx.DEF`, `CALLINFO.BBS`, `CHAIN.TXT`, etc.), but in
+practice the parser is extremely strict about field counts, line endings, and
+exact values. Modern BBS software frequently generates drop files that cause the
+original binary to exit immediately with no useful error. Getting the game
+running under a contemporary BBS stack requires a precise 32-line WWIV-style
+`CHAIN.TXT` with DOS CRLF endings and correct local-console values, plus
+`ECUTIL.EXE` to initialize game data before the first launch. The project
+repository at #link("https://github.com/greenm01/esterian_conquest") includes
+the original v1.5 package, working wrapper scripts, and setup documentation for
+running the classic binaries under DOSBox. This legacy setup friction is one of
+the motivating factors behind the Rust rewrite --- making the game accessible on
+modern systems without emulation or fragile drop file plumbing.
 
 === This Manual
 

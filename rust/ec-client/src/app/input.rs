@@ -10,9 +10,6 @@ use crate::startup::StartupPhase;
 
 impl App {
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> Action {
-        if self.current_modal_notice().is_some() {
-            return Action::DismissModalNotice;
-        }
         if key.code == crossterm::event::KeyCode::Char('c')
             && key
                 .modifiers

@@ -97,13 +97,9 @@ impl PlanetMenuScreen {
         for entry in TOP_ROW {
             draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
         }
-        for (row_idx, row) in [
-            ROW_1.as_slice(),
-            ROW_2.as_slice(),
-            ROW_3.as_slice(),
-        ]
-        .into_iter()
-        .enumerate()
+        for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice()]
+            .into_iter()
+            .enumerate()
         {
             buffer.fill_row(row_idx + 1, classic::menu_style());
             for entry in row {

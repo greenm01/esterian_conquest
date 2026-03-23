@@ -17,7 +17,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::ComposeMessageRecipient => app.message_compose.render_recipient(
             &frame,
             &app.messaging.compose_recipient_input,
-            app.status_if_no_modal(app.messaging.compose_recipient_status.as_deref()),
+            app.messaging.compose_recipient_status.as_deref(),
             app.messaging.compose_recipient_scroll_offset,
             app.messaging.compose_recipient_cursor,
         ),
@@ -36,7 +36,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::ComposeMessageOutbox => app.message_compose.render_outbox(
             &app.compose_outbox_queue()?,
             &app.messaging.compose_outbox_input,
-            app.status_if_no_modal(app.messaging.compose_outbox_status.as_deref()),
+            app.messaging.compose_outbox_status.as_deref(),
             app.messaging.compose_outbox_scroll_offset,
             app.messaging.compose_outbox_cursor,
             &app.game_data,

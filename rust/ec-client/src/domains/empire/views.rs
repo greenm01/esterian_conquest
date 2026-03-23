@@ -13,7 +13,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::Enemies => app.enemies.render(
             &frame,
             &app.empire.enemies_input,
-            app.status_if_no_modal(app.empire.enemies_status.as_deref()),
+            app.empire.enemies_status.as_deref(),
             app.empire.enemies_scroll_offset,
             app.empire.enemies_cursor,
         ),

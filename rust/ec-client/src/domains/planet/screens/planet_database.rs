@@ -3,8 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_text_at, draw_table_command_bar_at, draw_table_command_prompt_at,
-    draw_title_bar, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_command_line_text_at, draw_inline_status_after, draw_table_command_bar_at,
+    draw_table_command_prompt_at, draw_title_bar, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::{
     CommandMenu, PlayfieldBuffer, format_sector_coords_default, format_sector_coords_table,
@@ -110,19 +111,13 @@ impl PlanetDatabaseScreen {
             None,
         );
 
+        let command_row = table_prompt_row(metrics.bottom_row);
         if rows.is_empty() {
             draw_command_line_text_at(
                 &mut buffer,
-                table_prompt_row(metrics.bottom_row),
+                command_row,
                 "COMMANDS",
                 "No planets are in your database. Q quits.",
-            );
-        } else if let Some(status) = status {
-            draw_command_line_text_at(
-                &mut buffer,
-                table_prompt_row(metrics.bottom_row),
-                "COMMANDS",
-                status,
             );
         } else {
             let default = rows
@@ -131,11 +126,14 @@ impl PlanetDatabaseScreen {
                 .unwrap_or_else(|| "00,00".to_string());
             draw_table_command_bar_at(
                 &mut buffer,
-                table_prompt_row(metrics.bottom_row),
+                command_row,
                 "<ARROWS J K F Q>",
                 Some(&default),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }

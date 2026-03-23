@@ -124,12 +124,24 @@ fn parse_seed_value(value: &str) -> Result<u64, String> {
         .map_err(|_| format!("seed must be a valid unsigned integer, got {value}"))
 }
 
+fn parse_year_value(value: &str) -> Result<u16, String> {
+    let year: u16 = value
+        .parse()
+        .map_err(|_| format!("invalid year: {value}"))?;
+    if (3000..=3100).contains(&year) {
+        Ok(year)
+    } else {
+        Err(format!("year must be 3000-3100, got {year}"))
+    }
+}
+
 fn parse_new_game_options(
     args: &[String],
-) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>), String> {
+) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>, Option<u16>), String> {
     let mut player_count = None;
     let mut config_path = None;
     let mut seed = None;
+    let mut year = None;
     let mut idx = 0;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -154,16 +166,23 @@ fn parse_new_game_options(
                 seed = Some(parse_seed_value(value)?);
                 idx += 2;
             }
+            "--year" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --year".to_string());
+                };
+                year = Some(parse_year_value(value)?);
+                idx += 2;
+            }
             _ => {
                 return Err(
-                    "usage: sysop new-game <target_dir> [--players N] [--config path] [--seed N]"
+                    "usage: sysop new-game <target_dir> [--players N] [--config path] [--seed N] [--year YYYY]"
                         .to_string(),
                 );
             }
         }
     }
 
-    Ok((Some(player_count.unwrap_or(4)), config_path, seed))
+    Ok((Some(player_count.unwrap_or(4)), config_path, seed, year))
 }
 
 pub(crate) fn run_sysop_args(
@@ -182,7 +201,7 @@ pub(crate) fn run_sysop_args(
                 return Ok(());
             };
             let remaining = args.collect::<Vec<_>>();
-            let (player_count, config_path, seed) = match parse_new_game_options(&remaining) {
+            let (player_count, config_path, seed, year) = match parse_new_game_options(&remaining) {
                 Ok(options) => options,
                 Err(message) => {
                     eprintln!("Error: {message}");
@@ -191,6 +210,9 @@ pub(crate) fn run_sysop_args(
                 }
             };
             if let Some(config_path) = config_path {
+                if year.is_some() {
+                    return Err("--year is not supported with --config".into());
+                }
                 init_new_game_from_config(&target_dir, &config_path, player_count, seed)?;
                 println!(
                     "Initialized new game at: {} (config={}{}{}{}{})",
@@ -215,15 +237,17 @@ pub(crate) fn run_sysop_args(
                 );
             } else {
                 let player_count = player_count.expect("player count should be present");
+                let year = year.unwrap_or(3000);
                 if let Some(seed) = seed {
-                    init_new_game_with_seed(&target_dir, player_count, seed)?;
+                    init_new_game_with_seed(&target_dir, player_count, year, seed)?;
                 } else {
-                    init_new_game(&target_dir, player_count)?;
+                    init_new_game(&target_dir, player_count, year)?;
                 }
                 println!(
-                    "Initialized new game at: {} (players={}{}{})",
+                    "Initialized new game at: {} (players={}, year={}{}{})",
                     target_dir.display(),
                     player_count,
+                    year,
                     if seed.is_some() { ", seed=" } else { "" },
                     seed.map(|value| value.to_string()).unwrap_or_default()
                 );

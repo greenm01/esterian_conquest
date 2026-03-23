@@ -81,6 +81,48 @@ Use this when you want:
 - more meaningful general/intel screens
 - a useful maintenance test bed
 
+### `setup_player1_tui_stress_game.py`
+
+Creates a larger twelve-player campaign aimed specifically at **player 1 TUI
+coverage** without running a bot-played campaign.
+
+It currently:
+
+- creates a fresh engine-backed `sysop new-game` campaign
+- uses a fixed default map seed for reproducible placement
+- supports `--year`, `--players`, `--seed`, and `--turn`
+- names all twelve empires and assigns them varied tax rates
+- gives player 1 a large owned-colony footprint plus a much larger fleet roster
+- stages empty and loaded troop transports at Aurora Prime for load/unload testing
+- seeds player 1 with active starbases, rich unread report blocks, and queued mail
+- injects mixed foreign-world intel for player 1 so database/detail screens show
+  unknown, partial, and full scout-quality rows
+
+Example:
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force
+```
+
+Turn-4 example:
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --turn 4
+```
+
+Explicit-seed example:
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --year 3012 --seed 1515
+```
+
+Use this when you want:
+
+- a busy player 1 startup flow with unread reports and messages
+- fleet, planet, database, and rankings tables that scroll immediately
+- `INFO ABOUT A PLANET` to show both owned detail and varied foreign intel
+- starbase, transport, build, and stardock screens populated on first launch
+
 ### `setup_classic_probe_game.py`
 
 Creates a fresh four-player Rust-backed campaign aimed at classic `ECGAME`
@@ -243,6 +285,13 @@ python3 scripts/run_client.py /tmp/ec-join-test --player 1
 ```bash
 python3 scripts/setup_ui_stress_game.py /tmp/ec-ui-stress --force
 python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
+```
+
+### Player 1 TUI torture test
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force
+python3 scripts/run_client.py /tmp/ec-player1-ui --player 1
 ```
 
 ### Classic ECGAME playback test

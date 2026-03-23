@@ -31,7 +31,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet.scroll_offset,
             app.fleet.cursor,
             &app.fleet.review_select_input,
-            app.status_if_no_modal(app.fleet.review_status.as_deref()),
+            app.fleet.review_status.as_deref(),
         ),
         ScreenId::FleetReview => {
             let rows = app.fleet_rows();
@@ -48,7 +48,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet.roe_editing,
             &app.fleet.roe_select_input,
             &app.fleet.roe_input,
-            app.status_if_no_modal(app.fleet.roe_status.as_deref()),
+            app.fleet.roe_status.as_deref(),
         ),
         ScreenId::FleetOrder => app.fleet_order.render(
             &app.fleet_rows(),
@@ -59,7 +59,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet_order_target_prompt(),
             &app.fleet_order_target_default(),
             &app.fleet.order_input,
-            app.status_if_no_modal(app.fleet.order_status.as_deref()),
+            app.fleet.order_status.as_deref(),
         ),
         ScreenId::FleetGroupOrder => app.fleet_group.render(
             &app.fleet_rows(),
@@ -71,18 +71,18 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet_group_target_prompt(),
             &app.fleet_group_target_default(),
             &app.fleet.group_input,
-            app.status_if_no_modal(app.fleet.group_status.as_deref()),
+            app.fleet.group_status.as_deref(),
         ),
         ScreenId::FleetMissionPicker => app.fleet_mission_picker.render(
             app.fleet.mission_picker_cursor,
             &app.fleet.mission_picker_input,
             &app.fleet_mission_picker_enabled_flags(),
-            app.status_if_no_modal(app.fleet.mission_picker_status.as_deref()),
+            app.fleet.mission_picker_status.as_deref(),
         ),
         ScreenId::FleetMerge => {
             let rows = app.current_fleet_merge_rows();
             let input = app.current_fleet_merge_input().to_string();
-            let status = app.status_if_no_modal(app.fleet.merge_status.as_deref());
+            let status = app.fleet.merge_status.as_deref();
             app.fleet_merge.render(
                 &rows,
                 app.fleet.merge_scroll_offset,
@@ -95,7 +95,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FleetTransfer => {
             let rows = app.current_fleet_transfer_rows();
             let input = app.current_fleet_transfer_input().to_string();
-            let status = app.status_if_no_modal(app.fleet.transfer_status.as_deref());
+            let status = app.fleet.transfer_status.as_deref();
             let (prompt, default) = app.fleet_transfer_prompt_and_default(&rows);
             app.fleet_transfer.render(
                 &rows,
@@ -119,7 +119,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             let rows = app.fleet_rows();
             let (prompt, default) = app.fleet_detach_prompt_and_default(&rows);
             let input = app.fleet_detach_current_input().to_string();
-            let status = app.status_if_no_modal(app.fleet.detach_status.as_deref());
+            let status = app.fleet.detach_status.as_deref();
             app.fleet_detach.render(
                 &rows,
                 app.fleet.detach_scroll_offset,
@@ -139,7 +139,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet_eta_default_destination(),
             &app.fleet.eta_destination_input,
             &app.fleet.eta_include_system_input,
-            app.status_if_no_modal(app.fleet.eta_status.as_deref()),
+            app.fleet.eta_status.as_deref(),
         ),
         _ => unreachable!("fleet views called for non-fleet screen"),
     }

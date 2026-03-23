@@ -40,10 +40,6 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
 
         // Top-level app actions
-        Action::DismissModalNotice => {
-            app.dismiss_modal_notice();
-            AppOutcome::Continue
-        }
         Action::OpenMainMenu => {
             app.open_main_menu();
             AppOutcome::Continue

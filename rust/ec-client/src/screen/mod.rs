@@ -162,7 +162,6 @@ pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COU
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use crate::domains::startup::screens::startup::{StartupReviewMode, StartupScreen};
 pub use buffer::{AnsiColor, Cell, CellStyle, PlayfieldBuffer, StyledSpan};
-pub(crate) use layout::draw_command_line_notice;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub(crate) use table::format_fleet_number;
 

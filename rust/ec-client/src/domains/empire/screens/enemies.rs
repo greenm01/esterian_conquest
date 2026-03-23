@@ -4,8 +4,8 @@ use ec_data::DiplomaticRelation;
 use crate::app::Action;
 use crate::domains::empire::EmpireAction;
 use crate::screen::layout::{
-    draw_command_line_text_at, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    draw_command_line_text_at, draw_inline_status_after, draw_table_command_bar_at, draw_title_bar,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -92,8 +92,8 @@ impl EnemiesScreen {
         );
         let command_row = table_prompt_row(metrics.bottom_row);
 
-        if let Some(status) = status {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
+        if rows.is_empty() {
+            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", "No empires found.");
         } else {
             let default_empire = rows
                 .get(cursor)
@@ -107,6 +107,9 @@ impl EnemiesScreen {
                 Some(default_empire),
                 input,
             );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
