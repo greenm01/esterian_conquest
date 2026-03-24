@@ -10,6 +10,13 @@ use ec_data::{
 };
 
 impl App {
+    fn command_menu_for_planet_list_mode(mode: PlanetListMode) -> CommandMenu {
+        match mode {
+            PlanetListMode::Brief | PlanetListMode::Stub(_) => CommandMenu::Planet,
+            PlanetListMode::BuildSelect => CommandMenu::PlanetBuild,
+        }
+    }
+
     pub fn open_planet_menu(&mut self) {
         self.clear_command_menu_notice();
         self.close_planet_auto_commission_prompt();
@@ -98,7 +105,7 @@ impl App {
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         if self.sorted_planet_rows(PlanetListSort::Location).is_empty() {
             self.show_command_menu_notice(
-                CommandMenu::Planet,
+                Self::command_menu_for_planet_list_mode(mode),
                 "You do not currently control any planets.",
             );
             return;
@@ -112,7 +119,7 @@ impl App {
         let total = self.sorted_planet_rows(sort).len();
         if total == 0 {
             self.show_command_menu_notice(
-                CommandMenu::Planet,
+                Self::command_menu_for_planet_list_mode(mode),
                 "You do not currently control any planets.",
             );
             return;
@@ -124,7 +131,10 @@ impl App {
         self.planet.brief_cursor = 0;
         self.planet.brief_input.clear();
         self.current_screen = match mode {
-            PlanetListMode::Brief => ScreenId::PlanetBriefList(sort),
+            PlanetListMode::Brief | PlanetListMode::BuildSelect => {
+                self.select_planet_brief_origin_row(mode, sort);
+                ScreenId::PlanetBriefList(mode, sort)
+            }
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
@@ -132,13 +142,15 @@ impl App {
     pub fn close_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         self.planet.list_sort_status = None;
         self.current_screen = match mode {
-            PlanetListMode::Brief => ScreenId::PlanetBriefList(self.planet.list_sort),
+            PlanetListMode::Brief | PlanetListMode::BuildSelect => {
+                ScreenId::PlanetBriefList(mode, self.planet.list_sort)
+            }
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
 
     pub fn scroll_planet_brief(&mut self, delta: i8) {
-        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
             return;
         };
         let total = self.sorted_planet_rows(sort).len();
@@ -151,7 +163,7 @@ impl App {
     }
 
     pub fn move_planet_brief_cursor(&mut self, delta: i8) {
-        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
             return;
         };
         let total = self.sorted_planet_rows(sort).len();
@@ -169,7 +181,7 @@ impl App {
     }
 
     pub fn append_planet_brief_char(&mut self, ch: char) {
-        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
             return;
         };
         if self.planet.brief_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ') {
@@ -180,7 +192,7 @@ impl App {
     }
 
     pub fn backspace_planet_brief_input(&mut self) {
-        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
             return;
         };
         self.planet.brief_input.pop();
@@ -189,7 +201,7 @@ impl App {
     }
 
     pub fn submit_planet_brief_input(&mut self) {
-        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+        let ScreenId::PlanetBriefList(mode, sort) = self.current_screen else {
             return;
         };
         let rows = self.sorted_planet_rows(sort);
@@ -204,8 +216,18 @@ impl App {
 
         if self.planet.brief_input.trim().is_empty() {
             let coords = rows[self.planet.brief_cursor.min(rows.len() - 1)].coords;
-            let _ = self
-                .open_planet_info_detail_at_coords(coords, Some(ScreenId::PlanetBriefList(sort)));
+            match mode {
+                PlanetListMode::Brief => {
+                    let _ = self.open_planet_info_detail_at_coords(
+                        coords,
+                        Some(ScreenId::PlanetBriefList(mode, sort)),
+                    );
+                }
+                PlanetListMode::BuildSelect => {
+                    let _ = self.open_planet_build_menu_at_coords(coords);
+                }
+                PlanetListMode::Stub(_) => {}
+            }
             return;
         }
 
@@ -231,8 +253,18 @@ impl App {
         );
         self.planet.brief_input.clear();
         self.planet.list_sort_status = None;
-        let _ =
-            self.open_planet_info_detail_at_coords(coords, Some(ScreenId::PlanetBriefList(sort)));
+        match mode {
+            PlanetListMode::Brief => {
+                let _ = self.open_planet_info_detail_at_coords(
+                    coords,
+                    Some(ScreenId::PlanetBriefList(mode, sort)),
+                );
+            }
+            PlanetListMode::BuildSelect => {
+                let _ = self.open_planet_build_menu_at_coords(coords);
+            }
+            PlanetListMode::Stub(_) => {}
+        }
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
@@ -682,6 +714,50 @@ impl App {
             })
             .map(|planet| planet.coords_raw())
             .unwrap_or([8, 2])
+    }
+
+    fn select_planet_brief_origin_row(&mut self, mode: PlanetListMode, sort: PlanetListSort) {
+        if mode != PlanetListMode::BuildSelect {
+            return;
+        }
+        let Some(selected_record) = self
+            .build_planet_rows()
+            .get(self.planet.build_index)
+            .map(|row| row.planet_record_index_1_based)
+        else {
+            return;
+        };
+        let rows = self.sorted_planet_rows(sort);
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.planet_record_index_1_based == selected_record)
+        else {
+            return;
+        };
+        self.planet.brief_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.planet.brief_scroll_offset,
+            self.planet.brief_cursor,
+            crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+        );
+    }
+
+    fn open_planet_build_menu_at_coords(
+        &mut self,
+        coords: [u8; 2],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let rows = self.build_planet_rows();
+        let Some(index) = rows.iter().position(|row| row.coords == coords) else {
+            self.planet.list_sort_status = Some(format!(
+                "No build target found at ({:02},{:02})",
+                coords[0], coords[1]
+            ));
+            return Ok(());
+        };
+        self.planet.build_index = index;
+        self.planet.list_sort_status = None;
+        self.open_planet_build_menu();
+        Ok(())
     }
 }
 

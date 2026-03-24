@@ -740,7 +740,7 @@ impl PlanetBuildScreen {
             }
             KeyCode::Char('p') | KeyCode::Char('P') => {
                 Action::Planet(PlanetAction::SubmitListSort(
-                    crate::screen::PlanetListMode::Brief,
+                    crate::screen::PlanetListMode::BuildSelect,
                     crate::screen::PlanetListSort::CurrentProduction,
                 ))
             }

@@ -18,6 +18,7 @@ pub const PLANET_BRIEF_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetListMode {
     Brief,
+    BuildSelect,
     Stub(&'static str),
 }
 
@@ -144,31 +145,25 @@ impl PlanetListScreen {
         Ok(buffer)
     }
 
-    pub fn handle_sort_prompt_key(&self, key: KeyEvent) -> Action {
+    pub fn handle_sort_prompt_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
         match key.code {
-            KeyCode::Char('c') | KeyCode::Char('C') | KeyCode::Enter => {
-                Action::Planet(PlanetAction::SubmitListSort(
-                    PlanetListMode::Brief,
-                    PlanetListSort::CurrentProduction,
-                ))
-            }
-            KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
-                PlanetAction::SubmitListSort(PlanetListMode::Brief, PlanetListSort::Location),
+            KeyCode::Char('c') | KeyCode::Char('C') | KeyCode::Enter => Action::Planet(
+                PlanetAction::SubmitListSort(mode, PlanetListSort::CurrentProduction),
             ),
-            KeyCode::Char('m') | KeyCode::Char('M') => {
-                Action::Planet(PlanetAction::SubmitListSort(
-                    PlanetListMode::Brief,
-                    PlanetListSort::PotentialProduction,
-                ))
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Planet(PlanetAction::SubmitListSort(mode, PlanetListSort::Location))
             }
+            KeyCode::Char('m') | KeyCode::Char('M') => Action::Planet(
+                PlanetAction::SubmitListSort(mode, PlanetListSort::PotentialProduction),
+            ),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Planet(PlanetAction::CloseListSortPrompt(PlanetListMode::Brief))
+                Action::Planet(PlanetAction::CloseListSortPrompt(mode))
             }
             _ => Action::Noop,
         }
     }
 
-    pub fn handle_brief_key(&self, key: KeyEvent) -> Action {
+    pub fn handle_brief_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
         match key.code {
             KeyCode::Up => Action::Planet(PlanetAction::MoveBrief(-1)),
             KeyCode::Down => Action::Planet(PlanetAction::MoveBrief(1)),
@@ -177,16 +172,18 @@ impl PlanetListScreen {
             KeyCode::Char('k') | KeyCode::Char('K') => Action::Planet(PlanetAction::MoveBrief(-1)),
             KeyCode::Char('j') | KeyCode::Char('J') => Action::Planet(PlanetAction::MoveBrief(1)),
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief))
+                Action::Planet(PlanetAction::OpenListSortPrompt(mode))
             }
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitBriefInput),
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceBriefInput),
             KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
                 Action::Planet(PlanetAction::AppendBriefChar(ch))
             }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Planet(PlanetAction::OpenMenu)
-            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => match mode {
+                PlanetListMode::Brief => Action::Planet(PlanetAction::OpenMenu),
+                PlanetListMode::BuildSelect => Action::Planet(PlanetAction::OpenBuildMenu),
+                PlanetListMode::Stub(_) => Action::Planet(PlanetAction::OpenMenu),
+            },
             _ => Action::Noop,
         }
     }

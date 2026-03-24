@@ -215,7 +215,7 @@ pub enum ScreenId {
     PlanetBuildQuantity,
     PlanetCommissionMenu,
     PlanetListSortPrompt(PlanetListMode),
-    PlanetBriefList(PlanetListSort),
+    PlanetBriefList(PlanetListMode, PlanetListSort),
     PlanetTransportPlanetSelect(PlanetTransportMode),
     PlanetTransportFleetSelect(PlanetTransportMode),
     PlanetTransportQuantityPrompt(PlanetTransportMode),

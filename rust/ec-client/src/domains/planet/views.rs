@@ -131,7 +131,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.brief_input,
             app.planet.list_sort_status.as_deref(),
         ),
-        ScreenId::PlanetBriefList(sort) => app.planet_list.render_brief_list(
+        ScreenId::PlanetBriefList(_, sort) => app.planet_list.render_brief_list(
             &frame,
             &app.sorted_planet_rows(sort),
             sort,

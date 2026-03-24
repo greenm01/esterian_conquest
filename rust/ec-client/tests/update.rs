@@ -607,7 +607,7 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetBriefList(PlanetListSort::CurrentProduction)
+        ScreenId::PlanetBriefList(PlanetListMode::Brief, PlanetListSort::CurrentProduction)
     );
 
     assert_eq!(
@@ -622,7 +622,7 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetBriefList(PlanetListSort::Location)
+        ScreenId::PlanetBriefList(PlanetListMode::Brief, PlanetListSort::Location)
     );
 
     assert_eq!(
@@ -2919,8 +2919,15 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
             ec_client::screen::PlanetTransportMode::Unload,
         )),
         Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief)),
+        Action::Planet(PlanetAction::OpenListSortPrompt(
+            PlanetListMode::BuildSelect,
+        )),
         Action::Planet(PlanetAction::SubmitListSort(
             PlanetListMode::Brief,
+            PlanetListSort::Location,
+        )),
+        Action::Planet(PlanetAction::SubmitListSort(
+            PlanetListMode::BuildSelect,
             PlanetListSort::Location,
         )),
     ] {
@@ -3021,6 +3028,198 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+}
+
+#[test]
+fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    state.game_data.planets.records[extra_owned_idx].set_owner_empire_slot_raw(1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("build menu should render");
+    let build_title = terminal.line(0).trim_end().to_string();
+    assert_eq!(
+        build_title,
+        "BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('p'))),
+        Action::Planet(PlanetAction::SubmitListSort(
+            PlanetListMode::BuildSelect,
+            PlanetListSort::CurrentProduction
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitListSort(
+                PlanetListMode::BuildSelect,
+                PlanetListSort::CurrentProduction
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetBriefList(
+            PlanetListMode::BuildSelect,
+            PlanetListSort::CurrentProduction
+        )
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('s'))),
+        Action::Planet(PlanetAction::OpenListSortPrompt(
+            PlanetListMode::BuildSelect
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenListSortPrompt(
+                PlanetListMode::BuildSelect
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetListSortPrompt(PlanetListMode::BuildSelect)
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::Planet(PlanetAction::CloseListSortPrompt(
+            PlanetListMode::BuildSelect
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::CloseListSortPrompt(
+                PlanetListMode::BuildSelect
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetBriefList(
+            PlanetListMode::BuildSelect,
+            PlanetListSort::CurrentProduction
+        )
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Planet(PlanetAction::SubmitBriefInput)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitBriefInput)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("build menu should render after selecting current planet");
+    assert_eq!(terminal.line(0).trim_end(), build_title);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('p'))),
+        Action::Planet(PlanetAction::SubmitListSort(
+            PlanetListMode::BuildSelect,
+            PlanetListSort::CurrentProduction
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitListSort(
+                PlanetListMode::BuildSelect,
+                PlanetListSort::CurrentProduction
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Down)),
+        Action::Planet(PlanetAction::MoveBrief(1))
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::MoveBrief(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Planet(PlanetAction::SubmitBriefInput)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitBriefInput)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("build menu should render after choosing a new planet");
+    let selected_title = terminal.line(0).trim_end().to_string();
+    assert_ne!(selected_title, build_title);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('p'))),
+        Action::Planet(PlanetAction::SubmitListSort(
+            PlanetListMode::BuildSelect,
+            PlanetListSort::CurrentProduction
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitListSort(
+                PlanetListMode::BuildSelect,
+                PlanetListSort::CurrentProduction
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::Planet(PlanetAction::OpenBuildMenu)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("build menu should render after canceling build-select list");
+    assert_eq!(terminal.line(0).trim_end(), selected_title);
 }
 
 #[test]

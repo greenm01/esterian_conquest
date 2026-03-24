@@ -201,8 +201,10 @@ impl App {
             ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => {
                 Action::Planet(PlanetAction::OpenMenu)
             }
-            ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
-            ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
+            ScreenId::PlanetListSortPrompt(mode) => {
+                self.planet_list.handle_sort_prompt_key(key, mode)
+            }
+            ScreenId::PlanetBriefList(mode, _) => self.planet_list.handle_brief_key(key, mode),
             ScreenId::Starmap if self.starmap_state.capture_complete => {
                 self.starmap.handle_complete_key(key)
             }

@@ -1,5 +1,5 @@
 use super::state::App;
-use crate::screen::{CommandMenu, ScreenId};
+use crate::screen::{CommandMenu, PlanetListMode, ScreenId};
 
 impl App {
     pub fn current_screen(&self) -> ScreenId {
@@ -111,8 +111,10 @@ impl App {
             ScreenId::PlanetMenu
             | ScreenId::PlanetHelp
             | ScreenId::PlanetCommissionMenu
-            | ScreenId::PlanetListSortPrompt(_)
-            | ScreenId::PlanetBriefList(_)
+            | ScreenId::PlanetListSortPrompt(PlanetListMode::Brief)
+            | ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_))
+            | ScreenId::PlanetBriefList(PlanetListMode::Brief, _)
+            | ScreenId::PlanetBriefList(PlanetListMode::Stub(_), _)
             | ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)
@@ -123,7 +125,9 @@ impl App {
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange
             | ScreenId::PlanetBuildSpecify
-            | ScreenId::PlanetBuildQuantity => CommandMenu::PlanetBuild,
+            | ScreenId::PlanetBuildQuantity
+            | ScreenId::PlanetListSortPrompt(PlanetListMode::BuildSelect)
+            | ScreenId::PlanetBriefList(PlanetListMode::BuildSelect, _) => CommandMenu::PlanetBuild,
             ScreenId::Startup(_)
             | ScreenId::FirstTimeMenu
             | ScreenId::FirstTimeHelp
