@@ -60,6 +60,7 @@ impl App {
             | ScreenId::PlanetCommissionMenu
             | ScreenId::PlanetCommissionDraft
             | ScreenId::PlanetCommissionResult
+            | ScreenId::PlanetAutoCommissionReport
             | ScreenId::PlanetBuildHelp
             | ScreenId::PlanetBuildMenu
             | ScreenId::PlanetBuildReview

@@ -237,6 +237,9 @@ pub enum GameDirectoryError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameStateMutationError {
+    MissingBaseRecord {
+        index_1_based: usize,
+    },
     MissingFleetRecord {
         index_1_based: usize,
     },
@@ -364,12 +367,39 @@ impl CommissionFleetDraft {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct AutoCommissionSummary {
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AutoCommissionReport {
     pub ships_commissioned: u32,
     pub starbases_commissioned: usize,
     pub planets_used: usize,
     pub fleets_created: usize,
+    pub entries: Vec<AutoCommissionEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AutoCommissionEntry {
+    Fleet(AutoCommissionFleetEntry),
+    Starbase(AutoCommissionStarbaseEntry),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AutoCommissionFleetEntry {
+    pub fleet_number: u16,
+    pub planet_name: String,
+    pub coords: [u8; 2],
+    pub destroyers: u32,
+    pub cruisers: u32,
+    pub battleships: u32,
+    pub scouts: u32,
+    pub transports: u32,
+    pub etacs: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AutoCommissionStarbaseEntry {
+    pub starbase_number: u8,
+    pub planet_name: String,
+    pub coords: [u8; 2],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -428,6 +458,9 @@ impl std::error::Error for GameDirectoryError {
 impl std::fmt::Display for GameStateMutationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::MissingBaseRecord { index_1_based } => {
+                write!(f, "missing base record {}", index_1_based)
+            }
             Self::MissingFleetRecord { index_1_based } => {
                 write!(f, "missing fleet record {}", index_1_based)
             }

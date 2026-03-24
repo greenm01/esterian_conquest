@@ -111,6 +111,7 @@ pub use crate::domains::planet::screens::planet_build::{
 pub(crate) use crate::domains::planet::screens::planet_build::{
     PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS,
 };
+pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS;
 pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_COMMISSION_PICKER_VISIBLE_ROWS;
 pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_COMMISSION_VISIBLE_ROWS;
 pub use crate::domains::planet::screens::planet_commission::{
@@ -219,6 +220,7 @@ pub enum ScreenId {
     PlanetCommissionMenu,
     PlanetCommissionDraft,
     PlanetCommissionResult,
+    PlanetAutoCommissionReport,
     PlanetListSortPrompt(PlanetListMode),
     PlanetBriefList(PlanetListMode, PlanetListSort),
     PlanetTransportPlanetSelect(PlanetTransportMode),

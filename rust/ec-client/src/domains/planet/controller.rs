@@ -20,6 +20,7 @@ impl App {
     pub fn open_planet_menu(&mut self) {
         self.clear_command_menu_notice();
         self.close_planet_auto_commission_prompt();
+        self.clear_planet_auto_commission_report();
         self.close_planet_tax_prompt();
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;
@@ -59,12 +60,18 @@ impl App {
         self.clear_command_menu_notice();
         self.close_planet_tax_prompt();
         self.close_planet_info_prompt();
+        self.clear_planet_auto_commission_report();
         self.planet.auto_commission_prompt_active = true;
         self.current_screen = ScreenId::PlanetMenu;
     }
 
     pub fn close_planet_auto_commission_prompt(&mut self) {
         self.planet.auto_commission_prompt_active = false;
+    }
+
+    pub fn clear_planet_auto_commission_report(&mut self) {
+        self.planet.auto_commission_report_rows.clear();
+        self.planet.auto_commission_report_revealed_rows = 0;
     }
 
     pub fn open_planet_database(&mut self) {

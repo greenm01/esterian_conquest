@@ -187,6 +187,9 @@ impl App {
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_detail_key(key),
             ScreenId::PlanetCommissionDraft => self.planet_commission.handle_draft_key(key),
             ScreenId::PlanetCommissionResult => self.planet_commission.handle_result_key(key),
+            ScreenId::PlanetAutoCommissionReport => self
+                .planet_commission
+                .handle_auto_commission_report_key(key),
             ScreenId::PlanetTransportPlanetSelect(_) => {
                 self.planet_transport.handle_planet_key(key)
             }

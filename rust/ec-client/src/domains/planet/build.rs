@@ -1,14 +1,16 @@
 use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::screen::{
-    CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow,
-    PlanetCommissionView, PlanetListSort, ScreenId, build_unit_spec, build_unit_spec_by_kind,
-    format_fleet_number, format_sector_coords, max_quantity,
+    CommandMenu, PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS, PlanetBuildChangeRow, PlanetBuildListRow,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetCommissionDraftRow, PlanetCommissionPickerRow,
+    PlanetCommissionRow, PlanetCommissionView, PlanetListSort, ScreenId, build_unit_spec,
+    build_unit_spec_by_kind, format_fleet_number, format_sector_coords, format_sector_coords_table,
+    max_quantity,
 };
 use crossterm::event::KeyCode;
 use ec_data::{
-    AutoCommissionSummary, CommissionFleetDraft, CommissionResult, GameStateMutationError,
+    AutoCommissionEntry, AutoCommissionFleetEntry, AutoCommissionReport,
+    AutoCommissionStarbaseEntry, CommissionFleetDraft, CommissionResult, GameStateMutationError,
     ProductionItemKind, STARDOCK_SLOT_COUNT,
 };
 use std::collections::BTreeMap;
@@ -113,9 +115,11 @@ impl App {
         let current_planet_has_rows = self
             .current_commission_planet_row()
             .ok()
-            .map(|row| !self
-                .current_planet_commission_rows_for(row.planet_record_index_1_based)
-                .is_empty())
+            .map(|row| {
+                !self
+                    .current_planet_commission_rows_for(row.planet_record_index_1_based)
+                    .is_empty()
+            })
             .unwrap_or(false);
         if current_planet_has_rows {
             self.load_planet_commission_draft_for_current_planet();
@@ -430,9 +434,8 @@ impl App {
             .filter(|row| is_commission_ship_kind(row.kind))
             .count();
         if starbase_count > 1 || (starbase_count == 1 && ship_count > 0) {
-            self.planet.commission_status = Some(
-                "Select either ships for one fleet or one starbase by itself.".to_string(),
-            );
+            self.planet.commission_status =
+                Some("Select either ships for one fleet or one starbase by itself.".to_string());
             return Ok(());
         }
         if ship_count > 0 {
@@ -639,13 +642,77 @@ impl App {
         if !self.inline_planet_auto_commission_active_on_current_screen() {
             return Ok(());
         }
-        let summary = self
+        let report = self
             .game_data
             .auto_commission_all_stardock_units(self.player.record_index_1_based)?;
         self.save_game_data()?;
         self.close_planet_auto_commission_prompt();
-        self.show_command_menu_notice(CommandMenu::Planet, format_auto_commission_status(summary));
+        let rows = self.build_auto_commission_report_rows(&report);
+        if rows.is_empty() {
+            self.show_command_menu_notice(
+                CommandMenu::Planet,
+                "No ships or starbases are waiting in stardock.",
+            );
+            return Ok(());
+        }
+        self.planet.auto_commission_report_revealed_rows =
+            rows.len().min(PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS);
+        self.planet.auto_commission_report_rows = rows;
+        self.current_screen = ScreenId::PlanetAutoCommissionReport;
         Ok(())
+    }
+
+    pub fn advance_planet_auto_commission_report(&mut self) {
+        if self.current_screen != ScreenId::PlanetAutoCommissionReport {
+            return;
+        }
+        let total_rows = self.planet.auto_commission_report_rows.len();
+        if total_rows == 0 {
+            self.open_planet_menu();
+            return;
+        }
+        if self.planet.auto_commission_report_revealed_rows >= total_rows {
+            self.open_planet_menu();
+            return;
+        }
+        self.planet.auto_commission_report_revealed_rows = usize::min(
+            self.planet.auto_commission_report_revealed_rows
+                + PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS,
+            total_rows,
+        );
+    }
+
+    fn build_auto_commission_report_rows(&self, report: &AutoCommissionReport) -> Vec<String> {
+        let max_fleet_number = self
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .map(|fleet| fleet.local_slot_word_raw())
+            .max()
+            .unwrap_or(1);
+
+        let mut rows = Vec::new();
+        for (idx, entry) in report.entries.iter().enumerate() {
+            if idx > 0 {
+                rows.push(String::new());
+            }
+            let line = match entry {
+                AutoCommissionEntry::Fleet(entry) => {
+                    format_auto_commission_fleet_entry(entry, max_fleet_number)
+                }
+                AutoCommissionEntry::Starbase(entry) => {
+                    format_auto_commission_starbase_entry(entry)
+                }
+            };
+            rows.extend(crate::screen::layout::wrap_text(
+                &line,
+                crate::screen::layout::PLAYFIELD_WIDTH,
+                crate::screen::layout::PLAYFIELD_WIDTH,
+            ));
+        }
+        rows
     }
 
     pub fn toggle_planet_commission_selection(&mut self) {
@@ -1122,10 +1189,8 @@ impl App {
             }
         };
         if qty > row.remaining_qty {
-            self.planet.commission_draft_status = Some(format!(
-                "Enter a quantity from 0 to {}.",
-                row.remaining_qty
-            ));
+            self.planet.commission_draft_status =
+                Some(format!("Enter a quantity from 0 to {}.", row.remaining_qty));
             return Ok(false);
         }
         row.fleet_qty = qty;
@@ -1498,7 +1563,9 @@ fn build_planet_commission_draft_state(
         let entry = totals
             .entry(kind_raw)
             .or_insert_with(|| (row.kind, row.unit_label.clone(), 0));
-        entry.2 = entry.2.saturating_add(row.qty.min(u32::from(u16::MAX)) as u16);
+        entry.2 = entry
+            .2
+            .saturating_add(row.qty.min(u32::from(u16::MAX)) as u16);
     }
 
     let mut draft_rows = Vec::new();
@@ -1542,12 +1609,38 @@ fn production_item_kind_raw(kind: ProductionItemKind) -> u8 {
     }
 }
 
-fn format_auto_commission_status(summary: AutoCommissionSummary) -> String {
+fn format_auto_commission_fleet_entry(
+    entry: &AutoCommissionFleetEntry,
+    max_fleet_number: u16,
+) -> String {
+    let mut composition = Vec::new();
+    push_auto_commission_ship_code(&mut composition, "DD", entry.destroyers);
+    push_auto_commission_ship_code(&mut composition, "CA", entry.cruisers);
+    push_auto_commission_ship_code(&mut composition, "BB", entry.battleships);
+    push_auto_commission_ship_code(&mut composition, "SC", entry.scouts);
+    push_auto_commission_ship_code(&mut composition, "TT", entry.transports);
+    push_auto_commission_ship_code(&mut composition, "ETAC", entry.etacs);
     format!(
-        "Commissioned {} ships into {} new fleets and {} starbases from {} planets.",
-        summary.ships_commissioned,
-        summary.fleets_created,
-        summary.starbases_commissioned,
-        summary.planets_used
+        "Fleet {} commissioned from \"{}\" in sector {} with {}.",
+        format_fleet_number(entry.fleet_number, max_fleet_number),
+        entry.planet_name,
+        format_sector_coords_table(entry.coords),
+        composition.join(", "),
     )
+}
+
+fn format_auto_commission_starbase_entry(entry: &AutoCommissionStarbaseEntry) -> String {
+    format!(
+        "Starbase {:02} commissioned to \"{}\" in sector {}.",
+        entry.starbase_number,
+        entry.planet_name,
+        format_sector_coords_table(entry.coords),
+    )
+}
+
+fn push_auto_commission_ship_code(parts: &mut Vec<String>, code: &str, qty: u32) {
+    if qty == 0 {
+        return;
+    }
+    parts.push(format!("{code} {qty:02}"));
 }

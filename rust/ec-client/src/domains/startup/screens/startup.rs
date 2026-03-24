@@ -1,7 +1,7 @@
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, dismiss_prompt_row,
-    draw_plain_prompt, last_body_row, new_playfield,
+    draw_bottom_aligned_transcript_rows, draw_plain_prompt, last_body_row, new_playfield,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -543,77 +543,76 @@ fn is_report_header(line: &str) -> bool {
 }
 
 fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[String]) {
-    let visible_start = transcript_rows
-        .len()
-        .saturating_sub(STARTUP_REVIEW_VISIBLE_LINES);
-    let visible_rows = &transcript_rows[visible_start..];
-    let first_row = STARTUP_TRANSCRIPT_LAST_ROW
-        .saturating_add(1)
-        .saturating_sub(visible_rows.len());
-    for (i, line) in visible_rows.iter().enumerate() {
-        let y = first_row + i;
-        let line_style = if is_report_header(line) {
-            classic::report_header_style()
-        } else {
-            classic::body_style()
-        };
-        if let Some(stardate_pos) = line.find("Stardate: ") {
-            let label_end = stardate_pos + "Stardate: ".len();
-            // Parse: week digits, slash, year digits.
-            let rest = &line[label_end..];
-            let week_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
-            let after_week = label_end + week_len;
-            let has_slash = line.as_bytes().get(after_week) == Some(&b'/');
-            let year_start = if has_slash {
-                after_week + 1
+    draw_bottom_aligned_transcript_rows(
+        buffer,
+        transcript_rows,
+        transcript_rows.len(),
+        STARTUP_TRANSCRIPT_LAST_ROW + 1 - STARTUP_REVIEW_VISIBLE_LINES,
+        STARTUP_TRANSCRIPT_LAST_ROW,
+        |buffer, y, line| {
+            let line_style = if is_report_header(line) {
+                classic::report_header_style()
             } else {
-                after_week
+                classic::body_style()
             };
-            let year_len = line[year_start..]
-                .chars()
-                .take_while(|c| c.is_ascii_digit())
-                .count();
-            let value_end = year_start + year_len;
+            if let Some(stardate_pos) = line.find("Stardate: ") {
+                let label_end = stardate_pos + "Stardate: ".len();
+                // Parse: week digits, slash, year digits.
+                let rest = &line[label_end..];
+                let week_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+                let after_week = label_end + week_len;
+                let has_slash = line.as_bytes().get(after_week) == Some(&b'/');
+                let year_start = if has_slash {
+                    after_week + 1
+                } else {
+                    after_week
+                };
+                let year_len = line[year_start..]
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .count();
+                let value_end = year_start + year_len;
 
-            // Zero-pad week to 2 digits at display time.
-            let week_raw = &line[label_end..after_week];
-            let week_padded = if week_len == 1 {
-                format!("0{week_raw}")
-            } else {
-                week_raw.to_string()
-            };
+                // Zero-pad week to 2 digits at display time.
+                let week_raw = &line[label_end..after_week];
+                let week_padded = if week_len == 1 {
+                    format!("0{week_raw}")
+                } else {
+                    week_raw.to_string()
+                };
 
-            let mut col = 0;
-            if stardate_pos > 0 {
-                col += buffer.write_text(y, col, &line[..stardate_pos], line_style);
-            }
-            col += buffer.write_text(
-                y,
-                col,
-                &line[stardate_pos..label_end],
-                classic::stardate_label_style(),
-            );
-            if week_len > 0 {
-                col += buffer.write_text(y, col, &week_padded, classic::stardate_week_style());
-            }
-            if has_slash {
-                col += buffer.write_text(y, col, "/", classic::stardate_label_style());
-            }
-            if year_len > 0 {
+                let mut col = 0;
+                if stardate_pos > 0 {
+                    col += buffer.write_text(y, col, &line[..stardate_pos], line_style);
+                }
                 col += buffer.write_text(
                     y,
                     col,
-                    &line[year_start..value_end],
-                    classic::stardate_year_style(),
+                    &line[stardate_pos..label_end],
+                    classic::stardate_label_style(),
                 );
+                if week_len > 0 {
+                    col += buffer.write_text(y, col, &week_padded, classic::stardate_week_style());
+                }
+                if has_slash {
+                    col += buffer.write_text(y, col, "/", classic::stardate_label_style());
+                }
+                if year_len > 0 {
+                    col += buffer.write_text(
+                        y,
+                        col,
+                        &line[year_start..value_end],
+                        classic::stardate_year_style(),
+                    );
+                }
+                if value_end < line.len() {
+                    buffer.write_text(y, col, &line[value_end..], line_style);
+                }
+            } else {
+                buffer.write_text(y, 0, line, line_style);
             }
-            if value_end < line.len() {
-                buffer.write_text(y, col, &line[value_end..], line_style);
-            }
-        } else {
-            buffer.write_text(y, 0, line, line_style);
-        }
-    }
+        },
+    );
 }
 
 fn startup_login_summary_rows(frame: &ScreenFrame<'_>, game_year: u16) -> Vec<String> {

@@ -9,6 +9,7 @@ pub enum PlanetAction {
     OpenHelp,
     OpenAutoCommissionPrompt,
     CloseAutoCommissionPrompt,
+    AdvanceAutoCommissionReport,
     OpenCommissionMenu,
     OpenCommissionPlanet,
     CloseCommissionPlanet,

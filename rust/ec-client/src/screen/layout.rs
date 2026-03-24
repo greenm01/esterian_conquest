@@ -830,6 +830,31 @@ pub fn draw_help_panel(
     draw_dismiss_prompt(buffer, dismiss_prompt_row(last_content_row));
 }
 
+pub fn draw_bottom_aligned_transcript_rows<F>(
+    buffer: &mut PlayfieldBuffer,
+    rows: &[String],
+    revealed_rows: usize,
+    first_content_row: usize,
+    last_content_row: usize,
+    mut draw_row: F,
+) where
+    F: FnMut(&mut PlayfieldBuffer, usize, &str),
+{
+    if first_content_row > last_content_row {
+        return;
+    }
+    let page_height = last_content_row - first_content_row + 1;
+    let revealed_end = revealed_rows.min(rows.len());
+    let visible_start = revealed_end.saturating_sub(page_height);
+    let visible_rows = &rows[visible_start..revealed_end];
+    let first_row = last_content_row
+        .saturating_add(1)
+        .saturating_sub(visible_rows.len());
+    for (idx, line) in visible_rows.iter().enumerate() {
+        draw_row(buffer, first_row + idx, line);
+    }
+}
+
 pub fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {
     let normalized = value.split_whitespace().collect::<Vec<_>>();
     if normalized.is_empty() {

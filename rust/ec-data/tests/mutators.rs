@@ -453,6 +453,7 @@ fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
 
     let mut planet_one = PlanetRecord::new_zeroed();
     planet_one.set_owner_empire_slot_raw(1);
+    planet_one.set_planet_name("Aurora Prime");
     planet_one.set_coords_raw([6, 5]);
     planet_one.set_stardock_kind_raw(0, 1);
     planet_one.set_stardock_count_raw(0, 2);
@@ -463,12 +464,14 @@ fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
 
     let mut planet_two = PlanetRecord::new_zeroed();
     planet_two.set_owner_empire_slot_raw(1);
+    planet_two.set_planet_name("Bastion Reach");
     planet_two.set_coords_raw([7, 6]);
     planet_two.set_stardock_kind_raw(0, 2);
     planet_two.set_stardock_count_raw(0, 1);
 
     let mut planet_three = PlanetRecord::new_zeroed();
     planet_three.set_owner_empire_slot_raw(1);
+    planet_three.set_planet_name("Signal Keep");
     planet_three.set_coords_raw([8, 7]);
     planet_three.set_stardock_kind_raw(0, 9);
     planet_three.set_stardock_count_raw(0, 1);
@@ -487,14 +490,48 @@ fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
         conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
     };
 
-    let summary = data.auto_commission_all_stardock_units(1).unwrap();
+    let report = data.auto_commission_all_stardock_units(1).unwrap();
     assert_eq!(
-        summary,
-        AutoCommissionSummary {
+        report,
+        AutoCommissionReport {
             ships_commissioned: 6,
             starbases_commissioned: 2,
             planets_used: 3,
             fleets_created: 2,
+            entries: vec![
+                AutoCommissionEntry::Fleet(AutoCommissionFleetEntry {
+                    fleet_number: 1,
+                    planet_name: "Aurora Prime".to_string(),
+                    coords: [6, 5],
+                    destroyers: 2,
+                    cruisers: 0,
+                    battleships: 0,
+                    scouts: 3,
+                    transports: 0,
+                    etacs: 0,
+                }),
+                AutoCommissionEntry::Starbase(AutoCommissionStarbaseEntry {
+                    starbase_number: 1,
+                    planet_name: "Aurora Prime".to_string(),
+                    coords: [6, 5],
+                }),
+                AutoCommissionEntry::Fleet(AutoCommissionFleetEntry {
+                    fleet_number: 2,
+                    planet_name: "Bastion Reach".to_string(),
+                    coords: [7, 6],
+                    destroyers: 0,
+                    cruisers: 1,
+                    battleships: 0,
+                    scouts: 0,
+                    transports: 0,
+                    etacs: 0,
+                }),
+                AutoCommissionEntry::Starbase(AutoCommissionStarbaseEntry {
+                    starbase_number: 2,
+                    planet_name: "Signal Keep".to_string(),
+                    coords: [8, 7],
+                }),
+            ],
         }
     );
     assert_eq!(data.fleets.records.len(), 2);

@@ -122,6 +122,26 @@ fn temp_game_with_starbase_copy() -> PathBuf {
     root
 }
 
+fn temp_game_with_auto_commission_copy() -> PathBuf {
+    let root = temp_game_copy();
+    let mut state = latest_runtime_state(&root);
+    let homeworld = state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("owned planet exists");
+    homeworld.set_stardock_kind_raw(0, 1);
+    homeworld.set_stardock_count_raw(0, 4);
+    homeworld.set_stardock_kind_raw(1, 2);
+    homeworld.set_stardock_count_raw(1, 2);
+    homeworld.set_stardock_kind_raw(2, 9);
+    homeworld.set_stardock_count_raw(2, 1);
+    save_runtime_state(&root, &state);
+    root
+}
+
 fn temp_game_with_same_sector_fleets_copy() -> PathBuf {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
@@ -2683,6 +2703,94 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
 }
 
 #[test]
+fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
+    let fixture_dir = temp_game_with_auto_commission_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert!(app.planet.auto_commission_prompt_active);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::ConfirmAutoCommission)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetAutoCommissionReport);
+    assert!(!app.planet.auto_commission_report_rows.is_empty());
+    assert_eq!(
+        app.planet.auto_commission_report_revealed_rows,
+        app.planet.auto_commission_report_rows.len().min(23)
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("report should render");
+    assert_eq!(terminal.line(24).trim_end(), "(slap a key)");
+    assert_eq!(terminal.line(23).trim_end(), "");
+    assert!(line_containing(&terminal, "Fleet").contains("commissioned from \""));
+    assert!(line_containing(&terminal, "Starbase").contains("commissioned to \""));
+}
+
+#[test]
+fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.current_screen = ScreenId::PlanetAutoCommissionReport;
+    app.planet.auto_commission_report_rows = (1..=24)
+        .map(|idx| {
+            format!("Fleet {idx:02} commissioned from \"Foo\" in sector (08,09) with DD 01.")
+        })
+        .collect();
+    app.planet.auto_commission_report_revealed_rows = 23;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::AdvanceAutoCommissionReport)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetAutoCommissionReport);
+    assert_eq!(app.planet.auto_commission_report_revealed_rows, 24);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::AdvanceAutoCommissionReport)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+    assert!(app.planet.auto_commission_report_rows.is_empty());
+}
+
+#[test]
 fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -2863,7 +2971,10 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitCommissionDraft)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitCommissionDraft)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionResult);
@@ -2905,7 +3016,10 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitCommissionDraft)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitCommissionDraft)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionResult);
@@ -3003,7 +3117,10 @@ fn planet_commission_draft_keeps_intermediate_success_inline() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitCommissionDraft)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitCommissionDraft)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);

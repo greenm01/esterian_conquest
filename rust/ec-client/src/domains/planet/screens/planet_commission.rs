@@ -4,11 +4,11 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    CommandMessage, dismiss_prompt_row, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_message_stack, draw_dismiss_prompt,
-    draw_general_message_after_command,
-    draw_inline_status_after, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    COMMAND_LINE_ROW, CommandMessage, dismiss_prompt_row, draw_bottom_aligned_transcript_rows,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at,
+    draw_command_message_stack, draw_dismiss_prompt, draw_general_message_after_command,
+    draw_inline_status_after, draw_plain_prompt, draw_table_command_bar_at, draw_title_bar,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -22,6 +22,9 @@ pub struct PlanetCommissionScreen;
 pub(crate) const PLANET_COMMISSION_PICKER_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
 pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
 pub(crate) const PLANET_COMMISSION_DRAFT_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
+pub(crate) const PLANET_AUTO_COMMISSION_REPORT_LAST_ROW: usize = COMMAND_LINE_ROW - 2;
+pub(crate) const PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS: usize =
+    PLANET_AUTO_COMMISSION_REPORT_LAST_ROW + 1;
 
 const COMMISSION_PICKER_COLUMNS: [TableColumn<'static>; 9] = [
     TableColumn::left("(X,Y)", 7),
@@ -251,7 +254,9 @@ impl PlanetCommissionScreen {
             if rows.is_empty() { None } else { Some(cursor) },
         );
         let command_row = table_prompt_row(metrics.bottom_row);
-        let has_ship_draft = rows.iter().any(|row| row.accepts_fleet_qty() && row.fleet_qty > 0);
+        let has_ship_draft = rows
+            .iter()
+            .any(|row| row.accepts_fleet_qty() && row.fleet_qty > 0);
         let current_row = rows.get(cursor);
         let current_is_ship = current_row
             .map(PlanetCommissionDraftRow::accepts_fleet_qty)
@@ -325,6 +330,24 @@ impl PlanetCommissionScreen {
         Ok(buffer)
     }
 
+    pub fn render_auto_commission_report(
+        &mut self,
+        rows: &[String],
+        revealed_rows: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_bottom_aligned_transcript_rows(
+            &mut buffer,
+            rows,
+            revealed_rows,
+            0,
+            PLANET_AUTO_COMMISSION_REPORT_LAST_ROW,
+            |buffer, row, line| write_auto_commission_report_line(buffer, row, line),
+        );
+        draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, "(slap a key)");
+        Ok(buffer)
+    }
+
     pub fn handle_picker_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -391,6 +414,14 @@ impl PlanetCommissionScreen {
             Action::Noop
         }
     }
+
+    pub fn handle_auto_commission_report_key(&self, key: KeyEvent) -> Action {
+        if key.kind == KeyEventKind::Press {
+            Action::Planet(PlanetAction::AdvanceAutoCommissionReport)
+        } else {
+            Action::Noop
+        }
+    }
 }
 
 impl Screen for PlanetCommissionScreen {
@@ -420,12 +451,89 @@ fn format_picker_count(value: u32, width: usize) -> String {
     }
 }
 
+fn write_auto_commission_report_line(buffer: &mut PlayfieldBuffer, row: usize, line: &str) {
+    let mut col = 0;
+    if let Some(rest) = line.strip_prefix("Fleet ") {
+        col += buffer.write_text(row, col, "Fleet ", classic::body_style());
+        let digits = rest
+            .as_bytes()
+            .iter()
+            .take_while(|byte| byte.is_ascii_digit())
+            .count();
+        if digits > 0 {
+            col += buffer.write_text(row, col, &rest[..digits], classic::status_value_style());
+            write_auto_commission_body_with_coords(buffer, row, col, &rest[digits..]);
+            return;
+        }
+    }
+    if let Some(rest) = line.strip_prefix("Starbase ") {
+        col += buffer.write_text(row, col, "Starbase ", classic::body_style());
+        let digits = rest
+            .as_bytes()
+            .iter()
+            .take_while(|byte| byte.is_ascii_digit())
+            .count();
+        if digits > 0 {
+            col += buffer.write_text(row, col, &rest[..digits], classic::status_value_style());
+            write_auto_commission_body_with_coords(buffer, row, col, &rest[digits..]);
+            return;
+        }
+    }
+    write_auto_commission_body_with_coords(buffer, row, col, line);
+}
+
+fn write_auto_commission_body_with_coords(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    mut col: usize,
+    text: &str,
+) {
+    let mut remaining = text;
+    while let Some(start) = find_coord_start(remaining) {
+        col += buffer.write_text(row, col, &remaining[..start + 1], classic::body_style());
+        col += buffer.write_text(
+            row,
+            col,
+            &remaining[start + 1..start + 3],
+            classic::status_value_style(),
+        );
+        col += buffer.write_text(row, col, ",", classic::body_style());
+        col += buffer.write_text(
+            row,
+            col,
+            &remaining[start + 4..start + 6],
+            classic::status_value_style(),
+        );
+        col += buffer.write_text(row, col, ")", classic::body_style());
+        remaining = &remaining[start + 7..];
+    }
+    buffer.write_text(row, col, remaining, classic::body_style());
+}
+
+fn find_coord_start(text: &str) -> Option<usize> {
+    let bytes = text.as_bytes();
+    for idx in 0..bytes.len().saturating_sub(6) {
+        if bytes[idx] == b'('
+            && bytes[idx + 1].is_ascii_digit()
+            && bytes[idx + 2].is_ascii_digit()
+            && bytes[idx + 3] == b','
+            && bytes[idx + 4].is_ascii_digit()
+            && bytes[idx + 5].is_ascii_digit()
+            && bytes[idx + 6] == b')'
+        {
+            return Some(idx);
+        }
+    }
+    None
+}
+
 fn format_draft_qty(value: u16) -> String {
     format!("{value:02}")
 }
 
 fn format_draft_input(input: &str) -> String {
-    input.trim()
+    input
+        .trim()
         .parse::<u16>()
         .map(format_draft_qty)
         .unwrap_or_else(|_| input.trim().to_string())

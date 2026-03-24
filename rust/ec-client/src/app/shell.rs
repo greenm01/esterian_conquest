@@ -114,6 +114,7 @@ impl App {
             | ScreenId::PlanetCommissionMenu
             | ScreenId::PlanetCommissionDraft
             | ScreenId::PlanetCommissionResult
+            | ScreenId::PlanetAutoCommissionReport
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Brief)
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_))
             | ScreenId::PlanetBriefList(PlanetListMode::Brief, _)

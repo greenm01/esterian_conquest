@@ -8,8 +8,8 @@ use ec_client::screen::PlanetMenuScreen;
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
-    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
+    draw_bottom_aligned_transcript_rows, draw_command_line_prompt_text_at, draw_command_prompt_at,
+    draw_help_panel, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
     draw_inline_status_after, draw_plain_prompt, draw_table_command_prompt,
     table_dismiss_prompt_row,
 };
@@ -548,9 +548,13 @@ fn commission_draft_switches_prompt_for_starbase_rows() {
         .expect("commission draft renders");
 
     assert!(
-        row_text(&buffer, 8).contains("COMMAND <- ENTER commissions the highlighted starbase. <Q> -> ")
+        row_text(&buffer, 8)
+            .contains("COMMAND <- ENTER commissions the highlighted starbase. <Q> -> ")
     );
-    assert!(row_text(&buffer, 10).contains("ENTER commissions the highlighted starbase directly to the planet."));
+    assert!(
+        row_text(&buffer, 10)
+            .contains("ENTER commissions the highlighted starbase directly to the planet.")
+    );
 }
 
 #[test]
@@ -641,6 +645,56 @@ fn commission_result_renders_notice_with_dismiss_prompt() {
     assert!(row_text(&buffer, 2).contains("Notice: Commissioned selected ships into Fleet 02."));
     assert!(row_text(&buffer, 3).trim().is_empty());
     assert_eq!(row_text(&buffer, 4).trim_end(), "(slap a key)");
+}
+
+#[test]
+fn auto_commission_report_bottom_aligns_text_and_leaves_blank_row_above_prompt() {
+    let mut screen = PlanetCommissionScreen::new();
+    let rows = vec![
+        "Fleet 03 commissioned from \"Aurora Prime\" in sector (08,09) with DD 04, CA 02."
+            .to_string(),
+    ];
+
+    let buffer = screen
+        .render_auto_commission_report(&rows, rows.len())
+        .expect("auto commission report renders");
+
+    assert!(row_text(&buffer, 22).contains("Fleet 03 commissioned from"));
+    assert!(row_text(&buffer, 23).trim().is_empty());
+    assert_eq!(row_text(&buffer, 24).trim_end(), "(slap a key)");
+
+    let row = buffer.row(22);
+    let fleet_digits = find_in_row(&buffer, 22, "03 commissioned");
+    assert_eq!(row[fleet_digits].style, classic::status_value_style());
+    assert_eq!(row[fleet_digits + 1].style, classic::status_value_style());
+
+    let coords = find_in_row(&buffer, 22, "(08,09)");
+    assert_eq!(row[coords + 1].style, classic::status_value_style());
+    assert_eq!(row[coords + 2].style, classic::status_value_style());
+    assert_eq!(row[coords + 4].style, classic::status_value_style());
+    assert_eq!(row[coords + 5].style, classic::status_value_style());
+}
+
+#[test]
+fn bottom_aligned_transcript_rows_can_fill_content_through_row_22() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    let rows = (1..=23)
+        .map(|idx| format!("line {idx:02}"))
+        .collect::<Vec<_>>();
+
+    draw_bottom_aligned_transcript_rows(
+        &mut buffer,
+        &rows,
+        rows.len(),
+        0,
+        22,
+        |buffer, row, line| {
+            buffer.write_text(row, 0, line, classic::body_style());
+        },
+    );
+
+    assert!(row_text(&buffer, 0).contains("line 01"));
+    assert!(row_text(&buffer, 22).contains("line 23"));
 }
 
 #[test]

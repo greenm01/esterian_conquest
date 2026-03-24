@@ -86,9 +86,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.commission_status.as_deref(),
         ),
         ScreenId::PlanetCommissionDraft => app.planet_commission.render_draft(
-            &app.current_planet_commission_draft_title().unwrap_or_else(|_| {
-                "DRAFT COMMISSION FLEET:".to_string()
-            }),
+            &app.current_planet_commission_draft_title()
+                .unwrap_or_else(|_| "DRAFT COMMISSION FLEET:".to_string()),
             &app.planet.commission_draft_rows,
             app.planet.commission_draft_cursor,
             &app.planet.commission_draft_input,
@@ -105,6 +104,16 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .as_deref()
                 .unwrap_or("Commission completed."),
         ),
+        ScreenId::PlanetAutoCommissionReport => {
+            if app.planet.auto_commission_report_rows.is_empty() {
+                app.open_planet_menu();
+                return render(app);
+            }
+            app.planet_commission.render_auto_commission_report(
+                &app.planet.auto_commission_report_rows,
+                app.planet.auto_commission_report_revealed_rows,
+            )
+        }
         ScreenId::PlanetBuildHelp => app.build_help.render(&frame),
         ScreenId::PlanetBuildMenu => app.planet_build.render_menu(
             &app.current_planet_build_view()?,

@@ -7,6 +7,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::OpenHelp => app.open_planet_help(),
         PlanetAction::OpenAutoCommissionPrompt => app.open_planet_auto_commission_prompt(),
         PlanetAction::CloseAutoCommissionPrompt => app.close_planet_auto_commission_prompt(),
+        PlanetAction::AdvanceAutoCommissionReport => app.advance_planet_auto_commission_report(),
         PlanetAction::OpenCommissionMenu => app.open_planet_commission_menu(),
         PlanetAction::OpenCommissionPlanet => app.open_planet_commission_planet(),
         PlanetAction::CloseCommissionPlanet => app.close_planet_commission_planet(),
