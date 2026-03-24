@@ -301,7 +301,7 @@ pub fn draw_wrapped_notice(
                 start_row + idx,
                 0,
                 &[
-                    StyledSpan::new(&continuation, classic::error_style()),
+                    StyledSpan::new(&continuation, classic::notice_style()),
                     StyledSpan::new(&line, classic::status_value_style()),
                 ],
             );
@@ -334,7 +334,7 @@ pub fn draw_wrapped_alert(
                 start_row + idx,
                 0,
                 &[
-                    StyledSpan::new(&continuation, classic::notice_style()),
+                    StyledSpan::new(&continuation, classic::error_style()),
                     StyledSpan::new(&line, classic::status_value_style()),
                 ],
             );

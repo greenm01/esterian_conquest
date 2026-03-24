@@ -44,6 +44,7 @@ impl App {
         self.planet.build_status = None;
         self.planet.build_unit_input.clear();
         self.planet.build_unit_status = None;
+        self.planet.build_unit_notice = None;
         self.planet.build_quantity_input.clear();
         self.planet.build_quantity_status = None;
         self.planet.build_selected_kind = None;
@@ -148,6 +149,7 @@ impl App {
         }
         self.planet.build_unit_input.clear();
         self.planet.build_unit_status = None;
+        self.planet.build_unit_notice = None;
         self.planet.build_quantity_input.clear();
         self.planet.build_quantity_status = None;
         self.planet.build_selected_kind = None;
@@ -400,6 +402,7 @@ impl App {
         {
             self.planet.build_unit_input.push(ch);
             self.planet.build_unit_status = None;
+            self.planet.build_unit_notice = None;
         }
     }
 
@@ -407,6 +410,7 @@ impl App {
         if self.current_screen == ScreenId::PlanetBuildSpecify {
             self.planet.build_unit_input.pop();
             self.planet.build_unit_status = None;
+            self.planet.build_unit_notice = None;
         }
     }
 
@@ -422,6 +426,7 @@ impl App {
         };
 
         if number == 0 {
+            self.planet.build_unit_notice = None;
             self.current_screen = ScreenId::PlanetBuildMenu;
             return;
         }
@@ -446,6 +451,7 @@ impl App {
         self.planet.build_selected_kind = Some(unit.kind);
         self.planet.build_quantity_input.clear();
         self.planet.build_quantity_status = None;
+        self.planet.build_unit_notice = None;
         self.current_screen = ScreenId::PlanetBuildQuantity;
     }
 
@@ -481,7 +487,7 @@ impl App {
         }
 
         let qty = if self.planet.build_quantity_input.trim().is_empty() {
-            max_qty
+            1
         } else {
             match self.planet.build_quantity_input.trim().parse::<u32>() {
                 Ok(value) => value,
@@ -537,7 +543,8 @@ impl App {
         }
         self.save_game_data()?;
         self.planet.build_unit_input.clear();
-        self.planet.build_unit_status = Some(format!("Queued {} {}.", qty, unit.label));
+        self.planet.build_unit_status = None;
+        self.planet.build_unit_notice = Some(format!("Queued {} {}.", qty, unit.label));
         self.planet.build_quantity_input.clear();
         self.planet.build_quantity_status = None;
         self.planet.build_selected_kind = None;

@@ -6,11 +6,12 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     CMD_COL_1, CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, centered_row, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_message_stack_after, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_expert_menu, draw_general_message_after_command,
-    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
-    draw_inline_status_after, draw_menu_notice, draw_menu_row, draw_status_line, draw_title_bar,
-    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_command_line_default_input_at, draw_command_message_stack,
+    draw_command_message_stack_after, draw_command_prompt_at, draw_dismiss_prompt,
+    draw_expert_menu, draw_general_message_after_command, draw_inline_confirm_block,
+    draw_inline_confirm_prompt, draw_inline_planet_info_prompt, draw_inline_status_after,
+    draw_menu_notice, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -436,18 +437,6 @@ impl PlanetBuildScreen {
             ),
         );
 
-        buffer.write_text(
-            2,
-            0,
-            &format!(
-                "You have spent {} out of {} points.  You have {} points left to spend.",
-                view.committed_points.min(view.available_points),
-                view.available_points,
-                view.points_left
-            ),
-            classic::status_value_style(),
-        );
-
         let table_rows: Vec<Vec<String>> = rows
             .iter()
             .map(|row| {
@@ -465,7 +454,7 @@ impl PlanetBuildScreen {
         let selected = if rows.is_empty() { None } else { Some(cursor) };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            4,
+            2,
             &BUILD_LIST_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -478,7 +467,7 @@ impl PlanetBuildScreen {
 
         if rows.is_empty() {
             buffer.write_text(
-                6,
+                4,
                 0,
                 "No build orders are queued.",
                 classic::status_value_style(),
@@ -486,13 +475,14 @@ impl PlanetBuildScreen {
         }
 
         if confirming {
-            buffer.write_text(
-                17,
-                0,
-                "Delete queued build(s) for this unit?",
-                classic::alert_style(),
-            );
             draw_inline_confirm_prompt(&mut buffer, command_row, "BUILD COMMAND");
+            draw_command_message_stack(
+                &mut buffer,
+                command_row,
+                &[CommandMessage::Notice(
+                    "Delete queued build(s) for this unit?",
+                )],
+            );
         } else {
             draw_command_prompt_at(
                 &mut buffer,
@@ -564,7 +554,8 @@ impl PlanetBuildScreen {
         view: &PlanetBuildMenuView,
         orders: &[PlanetBuildOrder],
         input: &str,
-        status: Option<&str>,
+        error: Option<&str>,
+        notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let table_metrics = draw_specify_table(&mut buffer, view, orders);
@@ -590,12 +581,29 @@ impl PlanetBuildScreen {
             "",
             &build_points_summary(view),
         );
-        if let Some(status) = status {
-            draw_command_message_stack_after(
-                &mut buffer,
-                message_end_row,
-                &[CommandMessage::Error(status)],
-            );
+        match (notice, error) {
+            (Some(notice), Some(error)) => {
+                draw_command_message_stack_after(
+                    &mut buffer,
+                    message_end_row,
+                    &[CommandMessage::Notice(notice), CommandMessage::Error(error)],
+                );
+            }
+            (Some(notice), None) => {
+                draw_command_message_stack_after(
+                    &mut buffer,
+                    message_end_row,
+                    &[CommandMessage::Notice(notice)],
+                );
+            }
+            (None, Some(error)) => {
+                draw_command_message_stack_after(
+                    &mut buffer,
+                    message_end_row,
+                    &[CommandMessage::Error(error)],
+                );
+            }
+            (None, None) => {}
         }
         Ok(buffer)
     }
@@ -621,7 +629,7 @@ impl PlanetBuildScreen {
                 "How many new {} to build (0 - {}) ",
                 unit.singular_label, max_qty
             ),
-            &max_qty.to_string(),
+            "1",
             input,
         );
         let message_end_row = draw_general_message_after_command(
@@ -901,25 +909,13 @@ fn draw_specify_table(
         }
     };
 
-    let done_tag = "<00>".to_string();
-    let right_units = [4usize, 5, 6, 7, 8];
-    let left_units = [0usize, 1, 2, 3];
+    let left_units = [0usize, 1, 2, 3, 4];
+    let right_units = [5usize, 6, 7, 8];
 
     let mut rows = Vec::with_capacity(5);
-    let first_right = entry(&BUILD_UNITS[right_units[0]]);
-    rows.push(SplitTableRow {
-        left_cells: vec![done_tag, "DONE".to_string(), String::new(), String::new()],
-        right_cells: vec![
-            first_right.tag,
-            first_right.name.to_string(),
-            format_build_cost(first_right.cost),
-            format!("({})", first_right.qty),
-        ],
-    });
-
-    for i in 0..4 {
+    for i in 0..left_units.len() {
         let left = entry(&BUILD_UNITS[left_units[i]]);
-        let right = entry(&BUILD_UNITS[right_units[i + 1]]);
+        let right = right_units.get(i).map(|idx| entry(&BUILD_UNITS[*idx]));
         rows.push(SplitTableRow {
             left_cells: vec![
                 left.tag,
@@ -927,12 +923,18 @@ fn draw_specify_table(
                 format_build_cost(left.cost),
                 format!("({})", left.qty),
             ],
-            right_cells: vec![
-                right.tag,
-                right.name.to_string(),
-                format_build_cost(right.cost),
-                format!("({})", right.qty),
-            ],
+            right_cells: right
+                .map(|right| {
+                    vec![
+                        right.tag,
+                        right.name.to_string(),
+                        format_build_cost(right.cost),
+                        format!("({})", right.qty),
+                    ]
+                })
+                .unwrap_or_else(|| {
+                    vec![String::new(), String::new(), String::new(), String::new()]
+                }),
         });
     }
 

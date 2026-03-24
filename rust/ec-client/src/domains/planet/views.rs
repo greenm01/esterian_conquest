@@ -107,6 +107,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.current_planet_build_orders(),
             &app.planet.build_unit_input,
             app.planet.build_unit_status.as_deref(),
+            app.planet.build_unit_notice.as_deref(),
         ),
         ScreenId::PlanetBuildQuantity => app.planet_build.render_quantity_prompt(
             &app.current_planet_build_view()?,

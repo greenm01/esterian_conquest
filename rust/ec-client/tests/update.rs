@@ -2876,7 +2876,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         terminal.lines[0].trim_end(),
         "BUILD LIST: \"Codex Prime\" AT [16,13]:"
     );
-    assert!(terminal.lines[4].contains("┌"));
+    assert!(terminal.lines[2].contains("┌"));
 }
 
 #[test]
@@ -7868,7 +7868,7 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
     }];
 
     let buffer = screen
-        .render_specify(&view, &orders, "", None)
+        .render_specify(&view, &orders, "", None, None)
         .expect("build specify renders");
 
     assert!(
@@ -7932,12 +7932,56 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
             .plain_line(11)
             .contains("BUILD COMMAND <- How many new destroyers to build")
     );
-    assert!(buffer.plain_line(11).contains("[6] <Q> ->"));
+    assert!(buffer.plain_line(11).contains("[1] <Q> ->"));
     assert!(
         buffer
             .plain_line(13)
             .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
     );
+}
+
+#[test]
+fn planet_build_specify_renders_success_as_notice_not_error() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            planet_name: "Loki".to_string(),
+            coords: [16, 13],
+            present_production: 50,
+            potential_production: 75,
+            stored_production_points: 40,
+            build_capacity: 50,
+            yearly_tax_revenue: 10,
+            yearly_growth_delta: 5,
+            armies: 10,
+            ground_batteries: 5,
+            has_friendly_starbase: false,
+            is_homeworld_seed: false,
+        },
+        committed_points: 10,
+        available_points: 40,
+        points_left: 30,
+        queue_used: 1,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+    let orders = vec![PlanetBuildOrder {
+        kind: ProductionItemKind::Destroyer,
+        points_remaining: 10,
+    }];
+
+    let buffer = screen
+        .render_specify(&view, &orders, "", None, Some("Queued 2 Destroyers."))
+        .expect("build specify renders with notice");
+
+    assert!(
+        buffer
+            .plain_line(15)
+            .contains("Notice: Queued 2 Destroyers.")
+    );
+    assert!(!buffer.plain_line(15).contains("Error:"));
 }
 
 #[test]

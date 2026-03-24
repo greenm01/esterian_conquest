@@ -288,21 +288,23 @@ fn planet_build_specify_screen_uses_split_table() {
     }];
 
     let buffer = screen
-        .render_specify(&view, &orders, "", None)
+        .render_specify(&view, &orders, "", None, None)
         .expect("render specify");
 
     assert_eq!(buffer.plain_line(1), "");
     assert!(buffer.plain_line(2).starts_with("┌"));
     assert_eq!(buffer.plain_line(3).matches("NO.").count(), 2);
     assert!(buffer.plain_line(3).contains("QTY."));
-    assert!(buffer.plain_line(5).contains("<00>"));
-    assert!(buffer.plain_line(5).contains("<05>"));
+    assert!(buffer.plain_line(5).contains("<01>"));
+    assert!(buffer.plain_line(5).contains("<06>"));
+    assert!(buffer.plain_line(5).contains("Destroyers"));
     assert!(buffer.plain_line(5).contains("05"));
-    assert!(buffer.plain_line(6).contains("Destroyers"));
-    assert!(buffer.plain_line(8).contains("<09>"));
-    assert!(buffer.plain_line(8).contains("02"));
-    assert!(buffer.plain_line(9).contains("<10>"));
-    assert!(buffer.plain_line(9).contains("20"));
+    assert!(buffer.plain_line(7).contains("<09>"));
+    assert!(buffer.plain_line(7).contains("02"));
+    assert!(buffer.plain_line(8).contains("<10>"));
+    assert!(buffer.plain_line(8).contains("20"));
+    assert!(buffer.plain_line(9).contains("<05>"));
+    assert!(!buffer.plain_line(5).contains("DONE"));
     assert!(
         buffer
             .plain_line(13)
