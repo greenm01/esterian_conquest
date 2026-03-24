@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::domains::fleet::FleetAction;
+use crate::domains::fleet::state::FleetMenuPromptMode;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
@@ -100,12 +101,6 @@ pub enum FleetTransferMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetGroupOrderMode {
     SelectingFleets,
-    EnteringTarget,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FleetSingleOrderMode {
-    SelectingFleet,
     EnteringTarget,
 }
 
@@ -254,6 +249,13 @@ fn fleet_selector_columns(max_fleet_number: u16) -> [TableColumn<'static>; 7] {
     ]
 }
 
+fn fleet_menu_prompt_label(mode: FleetMenuPromptMode) -> &'static str {
+    match mode {
+        FleetMenuPromptMode::Review => "Review Fleet # ",
+        FleetMenuPromptMode::Order => "Order Fleet # ",
+    }
+}
+
 impl FleetMenuScreen {
     pub fn new() -> Self {
         Self
@@ -264,6 +266,10 @@ impl FleetMenuScreen {
         notice: Option<&str>,
         expert_mode: bool,
         inline_planet_info: bool,
+        menu_prompt_mode: Option<FleetMenuPromptMode>,
+        menu_prompt_default: Option<u16>,
+        menu_prompt_input: &str,
+        menu_prompt_status: Option<&str>,
         info_default_coords: [u8; 2],
         info_input: &str,
         info_notice: Option<&str>,
@@ -279,6 +285,20 @@ impl FleetMenuScreen {
                     info_notice,
                     notice,
                 );
+            } else if let Some(prompt_mode) = menu_prompt_mode {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    "FLEET COMMAND",
+                    fleet_menu_prompt_label(prompt_mode),
+                    &menu_prompt_default
+                        .map(|value| value.to_string())
+                        .unwrap_or_default(),
+                    menu_prompt_input,
+                );
+                if let Some(status) = menu_prompt_status {
+                    draw_inline_status_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
+                }
             } else {
                 draw_expert_menu(
                     &mut buffer,
@@ -324,10 +344,24 @@ impl FleetMenuScreen {
                 info_notice,
                 notice,
             );
+        } else if let Some(prompt_mode) = menu_prompt_mode {
+            draw_command_line_default_input_at(
+                &mut buffer,
+                command_row,
+                "FLEET COMMAND",
+                fleet_menu_prompt_label(prompt_mode),
+                &menu_prompt_default
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
+                menu_prompt_input,
+            );
+            if let Some(status) = menu_prompt_status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        if !inline_planet_info {
+        if !inline_planet_info && menu_prompt_mode.is_none() {
             draw_command_prompt_at(
                 &mut buffer,
                 command_row,
@@ -344,7 +378,7 @@ impl Screen for FleetMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false, false, [0, 0], "", None)
+        self.render_with_notice(None, false, false, None, None, "", None, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -352,7 +386,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('f') | KeyCode::Char('F') => {
                 Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
             }
-            KeyCode::Char('r') | KeyCode::Char('R') => Action::Fleet(FleetAction::OpenReviewSelect),
+            KeyCode::Char('r') | KeyCode::Char('R') => Action::Fleet(FleetAction::OpenReviewPrompt),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             KeyCode::Char('h') | KeyCode::Char('H') => Action::Fleet(FleetAction::OpenHelp),
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Starbase(StarbaseAction::OpenMenu),
@@ -473,7 +507,7 @@ impl FleetListScreen {
             KeyCode::PageDown => Action::Fleet(FleetAction::MoveList(8)),
             KeyCode::Enter => Action::Fleet(FleetAction::OpenReview),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Fleet(FleetAction::OpenReviewSelect)
+                Action::Fleet(FleetAction::OpenMenu)
             }
             _ => Action::Noop,
         }
@@ -483,78 +517,6 @@ impl FleetListScreen {
 impl FleetReviewScreen {
     pub fn new() -> Self {
         Self
-    }
-
-    pub fn render_select(
-        &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
-        input: &str,
-        status: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "REVIEW A FLEET:", classic::title_style());
-        let max_fleet_number = max_fleet_number(rows);
-        let brief_columns = brief_columns(max_fleet_number);
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Select a fleet, then press ENTER to review its status and composition.",
-        );
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            3,
-            &brief_columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if table_rows.is_empty() {
-                None
-            } else {
-                Some(cursor)
-            },
-        );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if table_rows.is_empty() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "COMMANDS",
-                "You have no active fleets. Q quits.",
-            );
-        } else {
-            draw_table_command_bar_at(
-                &mut buffer,
-                command_row,
-                "<ARROWS J K Q>",
-                Some(&format_fleet_number(
-                    rows[cursor].fleet_number,
-                    max_fleet_number,
-                )),
-                input,
-            );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
-        }
-        Ok(buffer)
     }
 
     pub fn render(
@@ -620,7 +582,7 @@ impl FleetReviewScreen {
                 Action::Fleet(FleetAction::MoveReview(1))
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Fleet(FleetAction::OpenReviewSelect)
+                Action::Fleet(FleetAction::CloseReview)
             }
             _ => Action::Noop,
         }
@@ -747,10 +709,8 @@ impl FleetSingleOrderScreen {
 
     pub fn render(
         &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
-        mode: FleetSingleOrderMode,
+        row: &FleetRow,
+        mission_label: &str,
         target_status_line: &str,
         target_prompt: &str,
         target_default: &str,
@@ -759,98 +719,45 @@ impl FleetSingleOrderScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "ORDER A FLEET:", classic::title_style());
-        let max_fleet_number = max_fleet_number(rows);
-        let columns = [
-            TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-            TableColumn::left("Location", 10),
-            TableColumn::right("Spd", 7),
-            TableColumn::right("ROE", 3),
-            TableColumn::right("Ord", 3),
-            TableColumn::left("Target", 10),
-            TableColumn::left("Ships", 31),
-        ];
+        buffer.write_text(
+            0,
+            0,
+            &format!("ORDER FLEET #{}:", row.fleet_number),
+            classic::title_style(),
+        );
+        draw_status_line(&mut buffer, 1, "", target_status_line);
         draw_status_line(
             &mut buffer,
-            1,
-            "",
-            match mode {
-                FleetSingleOrderMode::SelectingFleet => {
-                    "Select a fleet, then press ENTER to give it a mission."
-                }
-                FleetSingleOrderMode::EnteringTarget => target_status_line,
-            },
-        );
-        let selected_fleet_label = rows
-            .get(cursor)
-            .map(|row| row.fleet_number.to_string())
-            .unwrap_or_else(|| "?".to_string());
-        draw_status_line(&mut buffer, 2, "Selected fleet: ", &selected_fleet_label);
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.order_code.to_string(),
-                    format_sector_coords_table(row.target_coords),
-                    row.composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
             3,
-            &columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if table_rows.is_empty() {
-                None
-            } else {
-                Some(cursor)
-            },
+            "Location: ",
+            &format_sector_coords(row.coords),
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if table_rows.is_empty() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "COMMANDS",
-                "You have no active fleets. Q quits.",
-            );
-        } else {
-            match mode {
-                FleetSingleOrderMode::SelectingFleet => {
-                    draw_table_command_bar_at(
-                        &mut buffer,
-                        command_row,
-                        "<ARROWS J K Q>",
-                        Some(&format_fleet_number(
-                            rows[cursor].fleet_number,
-                            max_fleet_number,
-                        )),
-                        input,
-                    );
-                }
-                FleetSingleOrderMode::EnteringTarget => {
-                    draw_command_line_default_input_at(
-                        &mut buffer,
-                        command_row,
-                        "FLEET COMMAND",
-                        target_prompt,
-                        target_default,
-                        input,
-                    );
-                }
-            }
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
+        draw_status_line(
+            &mut buffer,
+            4,
+            "Current / Max Speed: ",
+            &format!("{}/{}", row.current_speed, row.max_speed),
+        );
+        draw_status_line(
+            &mut buffer,
+            5,
+            "Rules of Engagement: ",
+            &row.rules_of_engagement.to_string(),
+        );
+        draw_status_line(&mut buffer, 6, "Selected mission: ", mission_label);
+        draw_status_line(&mut buffer, 7, "Standing order: ", &row.order_label);
+        draw_status_line(&mut buffer, 8, "Ships: ", &row.composition_label);
+        let command_row = menu_prompt_row(8);
+        draw_command_line_default_input_at(
+            &mut buffer,
+            command_row,
+            "FLEET COMMAND",
+            target_prompt,
+            target_default,
+            input,
+        );
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }

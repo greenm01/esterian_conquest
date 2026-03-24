@@ -7,17 +7,85 @@ use crate::app::helpers::{
 };
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
+use crate::domains::fleet::state::FleetMenuPromptMode;
 use crate::screen::{CommandMenu, FleetEtaMode, FleetListMode, FleetRow, ScreenId};
+use std::cmp::Reverse;
 
 impl App {
     pub fn open_fleet_menu(&mut self) {
         self.clear_command_menu_notice();
+        self.clear_fleet_menu_prompt();
         self.current_screen = ScreenId::FleetMenu;
     }
 
     pub fn open_fleet_help(&mut self) {
         self.clear_command_menu_notice();
+        self.clear_fleet_menu_prompt();
         self.current_screen = ScreenId::FleetHelp;
+    }
+
+    fn clear_fleet_menu_prompt(&mut self) {
+        self.fleet.menu_prompt_mode = None;
+        self.fleet.menu_prompt_input.clear();
+        self.fleet.menu_prompt_status = None;
+        self.fleet.menu_prompt_default_fleet_number = None;
+    }
+
+    fn strongest_owned_fleet_number(&self) -> Option<u16> {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .max_by_key(|fleet| {
+                (
+                    fleet.battleship_count(),
+                    fleet.cruiser_count(),
+                    fleet.destroyer_count(),
+                    fleet.troop_transport_count(),
+                    fleet.scout_count(),
+                    fleet.etac_count(),
+                    Reverse(fleet.local_slot_word_raw()),
+                )
+            })
+            .map(|fleet| fleet.local_slot_word_raw())
+    }
+
+    pub(crate) fn fleet_menu_prompt_default_fleet_number(&self) -> Option<u16> {
+        self.fleet
+            .menu_prompt_default_fleet_number
+            .filter(|fleet_number| {
+                self.fleet_rows()
+                    .iter()
+                    .any(|row| row.fleet_number == *fleet_number)
+            })
+            .or_else(|| self.strongest_owned_fleet_number())
+    }
+
+    pub(crate) fn open_fleet_menu_prompt(
+        &mut self,
+        mode: FleetMenuPromptMode,
+        default_fleet_number: Option<u16>,
+    ) {
+        if self.fleet_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::FleetMenu;
+        self.fleet.menu_prompt_mode = Some(mode);
+        self.fleet.menu_prompt_input.clear();
+        self.fleet.menu_prompt_status = None;
+        self.fleet.menu_prompt_default_fleet_number =
+            default_fleet_number.or_else(|| self.strongest_owned_fleet_number());
+    }
+
+    pub fn open_fleet_review_prompt(&mut self) {
+        self.open_fleet_menu_prompt(FleetMenuPromptMode::Review, None);
+    }
+
+    pub(crate) fn inline_fleet_menu_prompt_active_on_current_screen(&self) -> bool {
+        self.current_screen == ScreenId::FleetMenu && self.fleet.menu_prompt_mode.is_some()
     }
 
     pub fn open_fleet_list(&mut self, mode: FleetListMode) {
@@ -26,6 +94,7 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
+        self.clear_fleet_menu_prompt();
         self.fleet.list_mode = mode;
         self.fleet.scroll_offset = 0;
         self.fleet.cursor = 0;
@@ -39,66 +108,36 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
+        self.clear_fleet_menu_prompt();
+        self.fleet.review_return_to_list = matches!(self.current_screen, ScreenId::FleetList(_));
         self.fleet.review_index = self.fleet.cursor.min(total - 1);
         self.current_screen = ScreenId::FleetReview;
     }
 
-    pub fn submit_fleet_review_select(&mut self) {
-        if self.current_screen != ScreenId::FleetReviewSelect {
+    pub fn close_fleet_review(&mut self) {
+        if self.current_screen != ScreenId::FleetReview {
             return;
         }
-        let rows = self.fleet_rows();
-        let Some(_) = rows.get(self.fleet.cursor) else {
-            self.current_screen = ScreenId::FleetMenu;
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.open_fleet_menu();
             return;
-        };
-        if !self.fleet.review_select_input.trim().is_empty() {
-            let target_fleet_id = match self.fleet.review_select_input.trim().parse::<u16>() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.fleet.review_status =
-                        Some("Enter a fleet number from the table.".to_string());
-                    return;
-                }
-            };
-            let Some(index) = rows
-                .iter()
-                .position(|row| row.fleet_number == target_fleet_id)
-            else {
-                self.fleet.review_status = Some(format!(
-                    "Fleet #{target_fleet_id} is not in your fleet list."
-                ));
-                return;
-            };
-            self.fleet.cursor = index;
+        }
+        self.fleet.cursor = self.fleet.review_index.min(total - 1);
+        if self.fleet.review_return_to_list {
             sync_scroll_to_cursor(
                 &mut self.fleet.scroll_offset,
                 self.fleet.cursor,
                 crate::screen::FLEET_VISIBLE_ROWS,
             );
+            self.current_screen = ScreenId::FleetList(self.fleet.list_mode);
+        } else {
+            let default_fleet_number = self
+                .fleet_rows()
+                .get(self.fleet.review_index)
+                .map(|row| row.fleet_number);
+            self.open_fleet_menu_prompt(FleetMenuPromptMode::Review, default_fleet_number);
         }
-        self.fleet.review_select_input.clear();
-        self.fleet.review_status = None;
-        self.open_fleet_review();
-    }
-
-    pub fn open_fleet_review_select(&mut self) {
-        let total = self.fleet_rows().len();
-        if total == 0 {
-            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
-            return;
-        }
-        self.clear_command_menu_notice();
-        self.fleet.cursor = self.fleet.cursor.min(total - 1);
-        self.fleet.review_select_input.clear();
-        self.fleet.review_status = None;
-        center_scroll_to_cursor(
-            &mut self.fleet.scroll_offset,
-            self.fleet.cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
-            total,
-        );
-        self.current_screen = ScreenId::FleetReviewSelect;
     }
 
     pub fn open_fleet_roe_select(&mut self) {
@@ -167,26 +206,6 @@ impl App {
             self.fleet.cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-    }
-
-    pub fn move_fleet_review_select(&mut self, delta: i8) {
-        if self.current_screen != ScreenId::FleetReviewSelect {
-            return;
-        }
-        let total = self.fleet_rows().len();
-        if total == 0 {
-            self.fleet.cursor = 0;
-            return;
-        }
-        let next = self.fleet.cursor as isize + delta as isize;
-        self.fleet.cursor = next.rem_euclid(total as isize) as usize;
-        sync_scroll_to_cursor(
-            &mut self.fleet.scroll_offset,
-            self.fleet.cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
-        );
-        self.fleet.review_select_input.clear();
-        self.fleet.review_status = None;
     }
 
     pub fn move_fleet_review(&mut self, delta: i8) {
@@ -275,16 +294,15 @@ impl App {
         }
     }
 
-    pub fn append_fleet_review_char(&mut self, ch: char) {
-        if self.current_screen != ScreenId::FleetReviewSelect || !ch.is_ascii_digit() {
+    pub fn append_fleet_menu_prompt_char(&mut self, ch: char) {
+        if !self.inline_fleet_menu_prompt_active_on_current_screen() || !ch.is_ascii_digit() {
             return;
         }
-        if self.fleet.review_select_input.len() >= 4 {
+        if self.fleet.menu_prompt_input.len() >= 4 {
             return;
         }
-        self.fleet.review_select_input.push(ch);
-        self.sync_fleet_review_cursor_to_input();
-        self.fleet.review_status = None;
+        self.fleet.menu_prompt_input.push(ch);
+        self.fleet.menu_prompt_status = None;
     }
 
     pub fn append_fleet_eta_char(&mut self, ch: char) {
@@ -333,13 +351,12 @@ impl App {
         }
     }
 
-    pub fn backspace_fleet_review_input(&mut self) {
-        if self.current_screen != ScreenId::FleetReviewSelect {
+    pub fn backspace_fleet_menu_prompt_input(&mut self) {
+        if !self.inline_fleet_menu_prompt_active_on_current_screen() {
             return;
         }
-        self.fleet.review_select_input.pop();
-        self.sync_fleet_review_cursor_to_input();
-        self.fleet.review_status = None;
+        self.fleet.menu_prompt_input.pop();
+        self.fleet.menu_prompt_status = None;
     }
 
     pub fn backspace_fleet_eta_input(&mut self) {
@@ -638,33 +655,6 @@ impl App {
         }
     }
 
-    pub(crate) fn handle_fleet_review_select_key(
-        &self,
-        key: crossterm::event::KeyEvent,
-    ) -> crate::app::Action {
-        use crossterm::event::KeyCode;
-
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                crate::app::Action::Fleet(FleetAction::MoveReviewSelect(-1))
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                crate::app::Action::Fleet(FleetAction::MoveReviewSelect(1))
-            }
-            KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveReviewSelect(-8)),
-            KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveReviewSelect(8)),
-            KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitReviewSelect),
-            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceReviewInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                crate::app::Action::Fleet(FleetAction::AppendReviewChar(ch))
-            }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::Fleet(FleetAction::OpenMenu)
-            }
-            _ => crate::app::Action::Noop,
-        }
-    }
-
     fn sync_fleet_roe_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetRoeSelect || self.fleet.roe_editing {
             return;
@@ -687,26 +677,76 @@ impl App {
         );
     }
 
-    fn sync_fleet_review_cursor_to_input(&mut self) {
-        if self.current_screen != ScreenId::FleetReviewSelect {
+    pub fn cancel_fleet_menu_prompt(&mut self) {
+        if self.inline_fleet_menu_prompt_active_on_current_screen() {
+            self.open_fleet_menu();
+        }
+    }
+
+    fn resolve_fleet_menu_prompt_selection(&self) -> Result<(usize, FleetRow), String> {
+        let rows = self.fleet_rows();
+        let default_fleet_number = self
+            .fleet_menu_prompt_default_fleet_number()
+            .ok_or_else(|| "You have no active fleets.".to_string())?;
+        let fleet_number = if self.fleet.menu_prompt_input.trim().is_empty() {
+            default_fleet_number
+        } else {
+            self.fleet
+                .menu_prompt_input
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "Enter one of your fleet numbers.".to_string())?
+        };
+        let index = rows
+            .iter()
+            .position(|row| row.fleet_number == fleet_number)
+            .ok_or_else(|| format!("Fleet #{fleet_number} is not in your fleet list."))?;
+        Ok((index, rows[index].clone()))
+    }
+
+    pub fn submit_fleet_menu_prompt(&mut self) {
+        if !self.inline_fleet_menu_prompt_active_on_current_screen() {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet.review_select_input.trim().parse::<u16>() else {
+        let Some(mode) = self.fleet.menu_prompt_mode else {
             return;
         };
-        let rows = self.fleet_rows();
-        let Some(index) = rows
-            .iter()
-            .position(|row| row.fleet_number == target_fleet_id)
-        else {
-            return;
+        let (index, row) = match self.resolve_fleet_menu_prompt_selection() {
+            Ok(selection) => selection,
+            Err(err) => {
+                self.fleet.menu_prompt_status = Some(err);
+                return;
+            }
         };
         self.fleet.cursor = index;
-        sync_scroll_to_cursor(
-            &mut self.fleet.scroll_offset,
-            self.fleet.cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
-        );
+        self.fleet.menu_prompt_input.clear();
+        self.fleet.menu_prompt_status = None;
+        self.fleet.menu_prompt_default_fleet_number = Some(row.fleet_number);
+        match mode {
+            FleetMenuPromptMode::Review => self.open_fleet_review(),
+            FleetMenuPromptMode::Order => {
+                self.open_fleet_order_with_selected_record(row.fleet_record_index_1_based)
+            }
+        }
+    }
+
+    pub(crate) fn handle_fleet_menu_prompt_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitMenuPrompt),
+            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceMenuPromptInput),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                crate::app::Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::Fleet(FleetAction::CancelMenuPrompt)
+            }
+            _ => crate::app::Action::Noop,
+        }
     }
 
     pub(crate) fn handle_fleet_eta_key(

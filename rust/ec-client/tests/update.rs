@@ -323,6 +323,63 @@ fn advance_to_first_time_menu(app: &mut App) {
     panic!("startup did not reach first-time menu");
 }
 
+fn strongest_owned_fleet_number(root: &Path) -> u16 {
+    latest_runtime_state(root)
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+        .max_by_key(|fleet| {
+            (
+                fleet.battleship_count(),
+                fleet.cruiser_count(),
+                fleet.destroyer_count(),
+                fleet.troop_transport_count(),
+                fleet.scout_count(),
+                fleet.etac_count(),
+                std::cmp::Reverse(fleet.local_slot_word_raw()),
+            )
+        })
+        .expect("owned fleet exists")
+        .local_slot_word_raw()
+}
+
+fn submit_fleet_menu_prompt(app: &mut App, fleet_number: Option<u16>) {
+    if let Some(fleet_number) = fleet_number {
+        for ch in fleet_number.to_string().chars() {
+            assert_eq!(
+                apply_action(
+                    &mut *app,
+                    Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
+                ),
+                AppOutcome::Continue
+            );
+        }
+    }
+    assert_eq!(
+        apply_action(&mut *app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
+        AppOutcome::Continue
+    );
+}
+
+fn open_review_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::OpenReviewPrompt)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(app, fleet_number);
+}
+
+fn open_order_mission_picker_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(app, fleet_number);
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+}
+
 struct CaptureTerminal {
     lines: Vec<String>,
 }
@@ -486,10 +543,10 @@ fn apply_action_switches_between_client_screens() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
         AppOutcome::Continue
@@ -1932,38 +1989,46 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     assert_eq!(
+        app.handle_key(key(KeyCode::Esc)),
+        Action::Fleet(FleetAction::CloseReview)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CloseReview)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FleetList(FleetListMode::Full)
+    );
+    assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('r'))),
-        Action::Fleet(FleetAction::OpenReviewSelect)
+        Action::Fleet(FleetAction::OpenReviewPrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
-    assert_eq!(
-        app.handle_key(key(KeyCode::Down)),
-        Action::Fleet(FleetAction::MoveReviewSelect(1))
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('7'))),
-        Action::Fleet(FleetAction::AppendReviewChar('7'))
+        Action::Fleet(FleetAction::AppendMenuPromptChar('7'))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Backspace)),
-        Action::Fleet(FleetAction::BackspaceReviewInput)
+        Action::Fleet(FleetAction::BackspaceMenuPromptInput)
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::Fleet(FleetAction::SubmitReviewSelect)
+        Action::Fleet(FleetAction::SubmitMenuPrompt)
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::Fleet(FleetAction::OpenMenu)
+        Action::Fleet(FleetAction::CancelMenuPrompt)
     );
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
@@ -2118,23 +2183,23 @@ fn fleet_review_detail_q_returns_to_review_picker() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::Fleet(FleetAction::OpenReviewSelect)
+        Action::Fleet(FleetAction::CloseReview)
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::CloseReview)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 }
 
 #[test]
@@ -3409,7 +3474,7 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Fleet(FleetAction::OpenMenu),
         Action::Fleet(FleetAction::OpenList(FleetListMode::Brief)),
         Action::Fleet(FleetAction::OpenList(FleetListMode::Full)),
-        Action::Fleet(FleetAction::OpenReviewSelect),
+        Action::Fleet(FleetAction::OpenReviewPrompt),
         Action::Fleet(FleetAction::OpenReview),
         Action::Fleet(FleetAction::OpenRoeSelect),
         Action::Fleet(FleetAction::OpenDetach),
@@ -4902,10 +4967,10 @@ fn returning_player_reviews_reports_before_colony_naming() {
 }
 
 #[test]
-fn fleet_review_opens_with_a_selection_table_first() {
+fn fleet_review_opens_with_an_inline_prompt_first() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -4917,27 +4982,77 @@ fn fleet_review_opens_with_a_selection_table_first() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet review select should render");
-    assert_eq!(terminal.line(0).trim_end(), "REVIEW A FLEET:");
-    assert!(
-        terminal
-            .line(1)
-            .contains("Select a fleet, then press ENTER to review its status")
-    );
-    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
-    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
-    assert!(prompt.contains("->"));
+        .expect("fleet menu prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Review Fleet #");
+    assert!(prompt.contains("Review Fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
 }
 
 #[test]
-fn fleet_review_select_accepts_typed_fleet_id_and_opens_that_fleet() {
+fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let strongest = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    strongest.set_battleship_count(9);
+    save_runtime_state(&fixture_dir, &state);
+    assert_eq!(strongest_owned_fleet_number(&fixture_dir), 2);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("review prompt should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Review Fleet #")
+            .contains("Review Fleet # [2] <Q> ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("order prompt should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Order Fleet #")
+            .contains("Order Fleet # [2] <Q> ->")
+    );
+}
+
+#[test]
+fn fleet_review_prompt_accepts_typed_fleet_id_and_opens_that_fleet() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4951,18 +5066,7 @@ fn fleet_review_select_accepts_typed_fleet_id_and_opens_that_fleet() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendReviewChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitReviewSelect)),
-        AppOutcome::Continue
-    );
+    open_review_from_fleet_menu(&mut app, Some(1));
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -4971,7 +5075,7 @@ fn fleet_review_select_accepts_typed_fleet_id_and_opens_that_fleet() {
 }
 
 #[test]
-fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
+fn fleet_review_close_returns_to_prompt_for_the_current_fleet() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4985,25 +5089,26 @@ fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
+    open_review_from_fleet_menu(&mut app, Some(2));
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveReview(-1))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::MoveReviewSelect(1))),
+        apply_action(&mut app, Action::Fleet(FleetAction::CloseReview)),
         AppOutcome::Continue
     );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet review select should render after move");
-    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
-    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
-    assert!(prompt.contains("->"));
+        .expect("fleet menu prompt should render after closing review");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Review Fleet #");
+    assert!(prompt.contains("Review Fleet # [3] <Q> ->"), "{prompt}");
 }
 
 #[test]
-fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
+fn fleet_review_prompt_shows_invalid_fleet_message_on_unknown_typed_id() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -5018,23 +5123,28 @@ fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
         AppOutcome::Continue
     );
     for ch in ['9', '9'] {
         assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendReviewChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitReviewSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet review select should render invalid id notice");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
+        .expect("fleet menu prompt should render invalid id notice");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Review Fleet #").contains("Review Fleet #")
+    );
     assert!(
         terminal
             .lines
@@ -5509,7 +5619,7 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
 }
 
 #[test]
-fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
+fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -5531,28 +5641,27 @@ fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
-    assert_eq!(
-        app.handle_key(key(KeyCode::PageDown)),
-        Action::Fleet(FleetAction::MoveOrderSelect(8))
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet order screen should render");
+        .expect("fleet order prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Order Fleet #");
+    assert!(prompt.contains("Order Fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
+
+    submit_fleet_menu_prompt(&mut app, Some(2));
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        app.handle_key(key(KeyCode::PageDown)),
+        Action::Fleet(FleetAction::MoveMissionPicker(8))
+    );
+    app.render(&mut terminal)
+        .expect("fleet mission picker should render");
+    assert_eq!(terminal.line(0), "FLEET MISSION ORDERS:");
     let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
     assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
     assert!(prompt.contains("->"));
-
-    assert_eq!(
-        app.handle_key(key(KeyCode::Enter)),
-        Action::Fleet(FleetAction::SubmitOrder)
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
@@ -5562,7 +5671,10 @@ fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    app.render(&mut terminal)
+        .expect("fleet order prompt should render after cancel");
+    assert!(line_containing(&terminal, "FLEET COMMAND <- Order Fleet #").contains("[2]"));
 }
 
 #[test]
@@ -5580,19 +5692,7 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
     assert_eq!(
         apply_action(
             &mut app,
@@ -5615,12 +5715,12 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet order should render success notice");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
+        .expect("fleet menu should render success notice");
+    assert!(line_containing(&terminal, "FLEET COMMAND <- Order Fleet #").contains("[2]"));
     assert!(
         terminal
             .lines
@@ -5675,19 +5775,7 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
     assert_eq!(
         apply_action(
             &mut app,
@@ -5747,19 +5835,7 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
     assert_eq!(
         apply_action(
             &mut app,
@@ -5771,7 +5847,7 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -5797,19 +5873,7 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
     assert_eq!(
         apply_action(
             &mut app,
@@ -5884,18 +5948,7 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
     assert_eq!(
         apply_action(
             &mut app,
@@ -5917,7 +5970,7 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let persisted = latest_runtime_state(&fixture_dir);
     assert_eq!(
@@ -5942,21 +5995,17 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut reloaded, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
         apply_action(
             &mut reloaded,
-            Action::Fleet(FleetAction::AppendOrderChar('2'))
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
         ),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
     reloaded
         .render(&mut terminal)
-        .expect("reloaded fleet order table should render");
-    let table_text = (5..16)
+        .expect("reloaded fleet list should render");
+    let table_text = (3..16)
         .map(|row| terminal.line(row).to_string())
         .collect::<Vec<_>>()
         .join("\n");
@@ -5988,12 +6037,14 @@ fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+        ),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal)
-        .expect("fleet review select should render");
+    app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(6).starts_with("│ 3│"));
     assert!(terminal.line(7).starts_with("│ 1│"));
     assert!(terminal.line(8).starts_with("│ 2│"));
@@ -6703,18 +6754,7 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
     assert_eq!(
         apply_action(
             &mut app,
@@ -6758,18 +6798,7 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
     assert_eq!(
         apply_action(
             &mut app,
@@ -6857,18 +6886,7 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
     assert_eq!(
         apply_action(
             &mut app,
@@ -6935,18 +6953,7 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
     assert_eq!(
         apply_action(
             &mut app,

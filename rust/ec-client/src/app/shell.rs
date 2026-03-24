@@ -78,7 +78,6 @@ impl App {
             ScreenId::FleetHelp
             | ScreenId::FleetMenu
             | ScreenId::FleetList(_)
-            | ScreenId::FleetReviewSelect
             | ScreenId::FleetReview
             | ScreenId::FleetRoeSelect
             | ScreenId::FleetOrder

@@ -16,6 +16,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.expert_mode,
             app.planet.info_prompt_active
                 && app.command_return_menu == crate::screen::CommandMenu::Fleet,
+            app.fleet.menu_prompt_mode,
+            app.fleet_menu_prompt_default_fleet_number(),
+            &app.fleet.menu_prompt_input,
+            app.fleet.menu_prompt_status.as_deref(),
             app.default_planet_prompt_coords(),
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
@@ -25,13 +29,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet_rows(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
-        ),
-        ScreenId::FleetReviewSelect => app.fleet_review.render_select(
-            &app.fleet_rows(),
-            app.fleet.scroll_offset,
-            app.fleet.cursor,
-            &app.fleet.review_select_input,
-            app.fleet.review_status.as_deref(),
         ),
         ScreenId::FleetReview => {
             let rows = app.fleet_rows();
@@ -51,10 +48,9 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet.roe_status.as_deref(),
         ),
         ScreenId::FleetOrder => app.fleet_order.render(
-            &app.fleet_rows(),
-            app.fleet.order_scroll_offset,
-            app.fleet.order_cursor,
-            app.fleet.order_mode,
+            &app.fleet_order_selected_row()
+                .ok_or("fleet order row missing")?,
+            &app.fleet_order_mission_label(),
             &app.fleet_order_target_status_line(),
             &app.fleet_order_target_prompt(),
             &app.fleet_order_target_default(),

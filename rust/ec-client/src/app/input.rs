@@ -35,6 +35,9 @@ impl App {
         if self.inline_planet_info_active_on_current_screen() {
             return self.handle_planet_info_prompt_key(key);
         }
+        if self.inline_fleet_menu_prompt_active_on_current_screen() {
+            return self.handle_fleet_menu_prompt_key(key);
+        }
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Splash)
                 if self.startup_state.splash_page > 0
@@ -171,7 +174,6 @@ impl App {
             ScreenId::StarbaseReview => Action::Starbase(StarbaseAction::OpenReviewSelect),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
-            ScreenId::FleetReviewSelect => self.handle_fleet_review_select_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
             ScreenId::FleetOrder => self.handle_fleet_order_key(key),

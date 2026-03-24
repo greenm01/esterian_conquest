@@ -1,10 +1,15 @@
 use crate::domains::fleet::screens::fleet::{
-    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetMergeMode, FleetSingleOrderMode,
-    FleetTransferMode,
+    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetMergeMode, FleetTransferMode,
 };
 use crate::screen::FleetListMode;
 use ec_data::FleetDetachSelection;
 use std::collections::BTreeSet;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetMenuPromptMode {
+    Review,
+    Order,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetMissionPickerCaller {
@@ -16,18 +21,18 @@ pub struct FleetState {
     pub scroll_offset: usize,
     pub cursor: usize,
     pub list_mode: FleetListMode,
+    pub menu_prompt_mode: Option<FleetMenuPromptMode>,
+    pub menu_prompt_input: String,
+    pub menu_prompt_status: Option<String>,
+    pub menu_prompt_default_fleet_number: Option<u16>,
     pub review_index: usize,
-    pub review_select_input: String,
-    pub review_status: Option<String>,
+    pub review_return_to_list: bool,
     pub roe_scroll_offset: usize,
     pub roe_cursor: usize,
     pub roe_editing: bool,
     pub roe_select_input: String,
     pub roe_input: String,
     pub roe_status: Option<String>,
-    pub order_scroll_offset: usize,
-    pub order_cursor: usize,
-    pub order_mode: FleetSingleOrderMode,
     pub order_fleet_record_index_1_based: Option<usize>,
     pub order_input: String,
     pub order_status: Option<String>,
@@ -83,18 +88,18 @@ impl Default for FleetState {
             scroll_offset: 0,
             cursor: 0,
             list_mode: FleetListMode::Brief,
+            menu_prompt_mode: None,
+            menu_prompt_input: String::new(),
+            menu_prompt_status: None,
+            menu_prompt_default_fleet_number: None,
             review_index: 0,
-            review_select_input: String::new(),
-            review_status: None,
+            review_return_to_list: false,
             roe_scroll_offset: 0,
             roe_cursor: 0,
             roe_editing: false,
             roe_select_input: String::new(),
             roe_input: String::new(),
             roe_status: None,
-            order_scroll_offset: 0,
-            order_cursor: 0,
-            order_mode: FleetSingleOrderMode::SelectingFleet,
             order_fleet_record_index_1_based: None,
             order_input: String::new(),
             order_status: None,
