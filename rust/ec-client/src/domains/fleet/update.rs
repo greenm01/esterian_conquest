@@ -54,6 +54,8 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::BackspaceDetachInput => app.backspace_fleet_detach_input(),
         FleetAction::BackspaceEtaInput => app.backspace_fleet_eta_input(),
         FleetAction::CancelMenuPrompt => app.cancel_fleet_menu_prompt(),
+        FleetAction::CancelOrder => app.cancel_fleet_order(),
+        FleetAction::CancelGroupOrder => app.cancel_fleet_group_order(),
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),
         FleetAction::SubmitRoe => {
             if let Err(err) = app.submit_fleet_roe() {

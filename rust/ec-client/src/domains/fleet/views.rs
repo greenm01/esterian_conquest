@@ -47,28 +47,63 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet.roe_input,
             app.fleet.roe_status.as_deref(),
         ),
-        ScreenId::FleetOrder => app.fleet_order.render(
-            &app.fleet_order_selected_row()
-                .ok_or("fleet order row missing")?,
-            &app.fleet_order_mission_label(),
-            &app.fleet_order_target_status_line(),
-            &app.fleet_order_target_prompt(),
-            &app.fleet_order_target_default(),
-            &app.fleet.order_input,
-            app.fleet.order_status.as_deref(),
-        ),
-        ScreenId::FleetGroupOrder => app.fleet_group.render(
-            &app.fleet_rows(),
-            app.fleet.group_scroll_offset,
-            app.fleet.group_cursor,
-            &app.fleet.group_selected_fleets,
-            app.fleet.group_mode,
-            &app.fleet_group_target_status_line(),
-            &app.fleet_group_target_prompt(),
-            &app.fleet_group_target_default(),
-            &app.fleet.group_input,
-            app.fleet.group_status.as_deref(),
-        ),
+        ScreenId::FleetOrder => {
+            let row = app
+                .fleet_order_selected_row()
+                .ok_or("fleet order row missing")?;
+            let current_order_label = app.fleet_order_current_order_label();
+            let new_order_label = app.fleet_order_new_order_label();
+            let status_line = app.fleet_order_target_status_line();
+            let target_prompt = app.fleet_order_target_prompt();
+            let target_default = app.fleet_order_target_default();
+            let target_x_default = app.fleet_order_target_x_default();
+            let target_x_input = app.fleet_order_target_x_display_input();
+            let target_y_default = app.fleet_order_target_y_default();
+            let target_y_input = app.fleet_order_target_y_display_input();
+            app.fleet_order.render(
+                &row,
+                &current_order_label,
+                &new_order_label,
+                app.fleet.order_mode,
+                &status_line,
+                &target_prompt,
+                &target_default,
+                &app.fleet.order_input,
+                &target_x_default,
+                &target_x_input,
+                &target_y_default,
+                &target_y_input,
+                &app.fleet.order_confirm_input,
+                app.fleet.order_status.as_deref(),
+            )
+        }
+        ScreenId::FleetGroupOrder => {
+            let rows = app.fleet_rows();
+            let status_line = app.fleet_group_target_status_line();
+            let target_prompt = app.fleet_group_target_prompt();
+            let target_default = app.fleet_group_target_default();
+            let target_x_default = app.fleet_group_target_x_default_value();
+            let target_x_input = app.fleet_group_target_x_display_input();
+            let target_y_default = app.fleet_group_target_y_default_value();
+            let target_y_input = app.fleet_group_target_y_display_input();
+            app.fleet_group.render(
+                &rows,
+                app.fleet.group_scroll_offset,
+                app.fleet.group_cursor,
+                &app.fleet.group_selected_fleets,
+                app.fleet.group_mode,
+                &status_line,
+                &target_prompt,
+                &target_default,
+                &app.fleet.group_input,
+                &target_x_default,
+                &target_x_input,
+                &target_y_default,
+                &target_y_input,
+                &app.fleet.group_confirm_input,
+                app.fleet.group_status.as_deref(),
+            )
+        }
         ScreenId::FleetMissionPicker => app.fleet_mission_picker.render(
             app.fleet.mission_picker_cursor,
             &app.fleet.mission_picker_input,

@@ -845,6 +845,16 @@ impl App {
     }
 
     pub(crate) fn fleet_group_target_status_line(&self) -> String {
+        if self.fleet.group_mode == crate::screen::FleetGroupOrderMode::ConfirmingTarget
+            && let (Some(mission_code), Ok(destination)) = (
+                self.fleet.group_mission_code,
+                self.resolve_fleet_group_split_target(),
+            )
+            && let Some(message) =
+                self.fleet_group_confirmation_eta_message(mission_code, destination)
+        {
+            return message;
+        }
         fleet_target_status_line(self.fleet.group_mission_code)
     }
 

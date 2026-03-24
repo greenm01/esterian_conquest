@@ -94,8 +94,8 @@ pub use crate::domains::fleet::screens::fleet::{
     FLEET_MISSION_OPTIONS, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
     FleetGroupOrderMode, FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
     FleetMergeMode, FleetMergeScreen, FleetMissionOption, FleetMissionPickerScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetRow, FleetSingleOrderScreen, FleetTransferMode,
-    FleetTransferScreen,
+    FleetReviewScreen, FleetRoeScreen, FleetRow, FleetSingleOrderMode, FleetSingleOrderScreen,
+    FleetTransferMode, FleetTransferScreen,
 };
 pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;

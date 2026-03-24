@@ -1,20 +1,35 @@
-use crate::app::helpers::{
-    center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
-};
+use crate::app::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetMenuPromptMode, FleetMissionPickerCaller};
 use crate::screen::{
-    CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, ScreenId, StarbaseRow,
+    CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, FleetSingleOrderMode,
+    ScreenId, StarbaseRow,
 };
 use ec_data::build_player_starmap_projection_from_snapshots;
+use ec_data::map_size_for_player_count;
 use std::collections::BTreeSet;
 
 impl App {
+    fn clear_fleet_order_target_inputs(&mut self) {
+        self.fleet.order_input.clear();
+        self.fleet.order_target_x_input.clear();
+        self.fleet.order_target_y_input.clear();
+        self.fleet.order_confirm_input.clear();
+    }
+
+    fn clear_fleet_group_target_inputs(&mut self) {
+        self.fleet.group_input.clear();
+        self.fleet.group_target_x_input.clear();
+        self.fleet.group_target_y_input.clear();
+        self.fleet.group_confirm_input.clear();
+    }
+
     pub fn open_fleet_order(&mut self) {
         self.fleet.order_status = None;
         self.fleet.order_mission_code = None;
-        self.fleet.order_input.clear();
+        self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
+        self.clear_fleet_order_target_inputs();
         self.fleet.mission_picker_caller = None;
         self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, None);
     }
@@ -25,7 +40,8 @@ impl App {
     ) {
         self.fleet.order_status = None;
         self.fleet.order_mission_code = None;
-        self.fleet.order_input.clear();
+        self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
+        self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(fleet_record_index_1_based);
         self.fleet.mission_picker_caller = None;
         self.open_fleet_mission_picker();
@@ -37,7 +53,7 @@ impl App {
         {
             self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
             self.fleet.group_mission_code = None;
-            self.fleet.group_input.clear();
+            self.clear_fleet_group_target_inputs();
             self.fleet.group_status = None;
             return;
         }
@@ -50,7 +66,7 @@ impl App {
         self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet.group_status = None;
         self.fleet.group_mission_code = None;
-        self.fleet.group_input.clear();
+        self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
         self.fleet.group_cursor = self.fleet.group_cursor.min(total - 1);
         center_scroll_to_cursor(
@@ -177,15 +193,40 @@ impl App {
         if self.current_screen != ScreenId::FleetOrder {
             return;
         }
-        let allow_char = match fleet_target_input_kind(self.fleet.order_mission_code) {
-            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+        match self.fleet.order_mode {
+            FleetSingleOrderMode::EnteringTarget => {
+                let allow_char = match fleet_target_input_kind(self.fleet.order_mission_code) {
+                    FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+                    }
+                    FleetTargetInputKind::StarbaseId | FleetTargetInputKind::FleetId => {
+                        ch.is_ascii_digit()
+                    }
+                };
+                if self.fleet.order_input.len() < 16 && allow_char {
+                    self.fleet.order_input.push(ch);
+                    self.fleet.order_status = None;
+                }
             }
-            FleetTargetInputKind::StarbaseId | FleetTargetInputKind::FleetId => ch.is_ascii_digit(),
-        };
-        if self.fleet.order_input.len() < 16 && allow_char {
-            self.fleet.order_input.push(ch);
-            self.fleet.order_status = None;
+            FleetSingleOrderMode::EnteringTargetX => {
+                if self.fleet.order_target_x_input.len() < 2 && ch.is_ascii_digit() {
+                    self.fleet.order_target_x_input.push(ch);
+                    self.fleet.order_status = None;
+                }
+            }
+            FleetSingleOrderMode::EnteringTargetY => {
+                if self.fleet.order_target_y_input.len() < 2 && ch.is_ascii_digit() {
+                    self.fleet.order_target_y_input.push(ch);
+                    self.fleet.order_status = None;
+                }
+            }
+            FleetSingleOrderMode::ConfirmingTarget => {
+                if self.fleet.order_confirm_input.is_empty() && matches!(ch, 'y' | 'Y' | 'n' | 'N')
+                {
+                    self.fleet.order_confirm_input.push(ch.to_ascii_uppercase());
+                    self.fleet.order_status = None;
+                }
+            }
         }
     }
 
@@ -193,7 +234,20 @@ impl App {
         if self.current_screen != ScreenId::FleetOrder {
             return;
         }
-        self.fleet.order_input.pop();
+        match self.fleet.order_mode {
+            FleetSingleOrderMode::EnteringTarget => {
+                self.fleet.order_input.pop();
+            }
+            FleetSingleOrderMode::EnteringTargetX => {
+                self.fleet.order_target_x_input.pop();
+            }
+            FleetSingleOrderMode::EnteringTargetY => {
+                self.fleet.order_target_y_input.pop();
+            }
+            FleetSingleOrderMode::ConfirmingTarget => {
+                self.fleet.order_confirm_input.pop();
+            }
+        }
         self.fleet.order_status = None;
     }
 
@@ -240,6 +294,25 @@ impl App {
                     self.fleet.group_status = None;
                 }
             }
+            FleetGroupOrderMode::EnteringTargetX => {
+                if self.fleet.group_target_x_input.len() < 2 && ch.is_ascii_digit() {
+                    self.fleet.group_target_x_input.push(ch);
+                    self.fleet.group_status = None;
+                }
+            }
+            FleetGroupOrderMode::EnteringTargetY => {
+                if self.fleet.group_target_y_input.len() < 2 && ch.is_ascii_digit() {
+                    self.fleet.group_target_y_input.push(ch);
+                    self.fleet.group_status = None;
+                }
+            }
+            FleetGroupOrderMode::ConfirmingTarget => {
+                if self.fleet.group_confirm_input.is_empty() && matches!(ch, 'y' | 'Y' | 'n' | 'N')
+                {
+                    self.fleet.group_confirm_input.push(ch.to_ascii_uppercase());
+                    self.fleet.group_status = None;
+                }
+            }
         }
     }
 
@@ -259,9 +332,63 @@ impl App {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
-        if self.fleet.group_mode != FleetGroupOrderMode::SelectingFleets {
-            self.fleet.group_input.pop();
-            self.fleet.group_status = None;
+        match self.fleet.group_mode {
+            FleetGroupOrderMode::SelectingFleets => {}
+            FleetGroupOrderMode::EnteringTarget => {
+                self.fleet.group_input.pop();
+                self.fleet.group_status = None;
+            }
+            FleetGroupOrderMode::EnteringTargetX => {
+                self.fleet.group_target_x_input.pop();
+                self.fleet.group_status = None;
+            }
+            FleetGroupOrderMode::EnteringTargetY => {
+                self.fleet.group_target_y_input.pop();
+                self.fleet.group_status = None;
+            }
+            FleetGroupOrderMode::ConfirmingTarget => {
+                self.fleet.group_confirm_input.pop();
+                self.fleet.group_status = None;
+            }
+        }
+    }
+
+    pub fn cancel_fleet_order(&mut self) {
+        if self.current_screen != ScreenId::FleetOrder {
+            return;
+        }
+        self.fleet.order_status = None;
+        match self.fleet.order_mode {
+            FleetSingleOrderMode::EnteringTargetY => {
+                self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetX
+            }
+            FleetSingleOrderMode::ConfirmingTarget => {
+                self.fleet.order_confirm_input.clear();
+                self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetY;
+            }
+            FleetSingleOrderMode::EnteringTarget | FleetSingleOrderMode::EnteringTargetX => {
+                self.open_fleet_mission_picker();
+            }
+        }
+    }
+
+    pub fn cancel_fleet_group_order(&mut self) {
+        if self.current_screen != ScreenId::FleetGroupOrder {
+            return;
+        }
+        self.fleet.group_status = None;
+        match self.fleet.group_mode {
+            FleetGroupOrderMode::SelectingFleets => {}
+            FleetGroupOrderMode::EnteringTargetY => {
+                self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetX;
+            }
+            FleetGroupOrderMode::ConfirmingTarget => {
+                self.fleet.group_confirm_input.clear();
+                self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetY;
+            }
+            FleetGroupOrderMode::EnteringTarget | FleetGroupOrderMode::EnteringTargetX => {
+                self.open_fleet_mission_picker();
+            }
         }
     }
 
@@ -272,6 +399,173 @@ impl App {
         self.fleet.mission_picker_input.pop();
         self.sync_fleet_mission_picker_cursor_to_input();
         self.fleet.mission_picker_status = None;
+    }
+
+    fn resolve_target_axis_input(
+        &self,
+        input: &str,
+        default: u8,
+        axis_label: &str,
+    ) -> Result<u8, String> {
+        let max = map_size_for_player_count(self.game_data.conquest.player_count());
+        let raw = input.trim();
+        let value = if raw.is_empty() {
+            default
+        } else {
+            raw.parse::<u8>()
+                .map_err(|_| format!("Enter {axis_label} from 1 to {max}."))?
+        };
+        if value == 0 || value > max {
+            return Err(format!("Enter {axis_label} from 1 to {max}."));
+        }
+        Ok(value)
+    }
+
+    fn resolve_fleet_order_split_target(&self) -> Result<[u8; 2], String> {
+        let default = self.fleet_order_default_target();
+        Ok([
+            self.resolve_target_axis_input(&self.fleet.order_target_x_input, default[0], "XX")?,
+            self.resolve_target_axis_input(&self.fleet.order_target_y_input, default[1], "YY")?,
+        ])
+    }
+
+    pub(crate) fn resolve_fleet_group_split_target(&self) -> Result<[u8; 2], String> {
+        let default = self.fleet_group_default_target();
+        Ok([
+            self.resolve_target_axis_input(&self.fleet.group_target_x_input, default[0], "XX")?,
+            self.resolve_target_axis_input(&self.fleet.group_target_y_input, default[1], "YY")?,
+        ])
+    }
+
+    fn validate_fleet_target_for_mission(
+        &self,
+        mission_code: u8,
+        destination: [u8; 2],
+        single: bool,
+    ) -> Result<(), String> {
+        let target_planet = self
+            .game_data
+            .planets
+            .records
+            .iter()
+            .find(|planet| planet.coords_raw() == destination);
+        if fleet_order_target_requires_planet_system(mission_code) && target_planet.is_none() {
+            return Err(if single {
+                "That mission needs a system with a planet at the target.".to_string()
+            } else {
+                "That mission requires a system with a planet at the target coordinates."
+                    .to_string()
+            });
+        }
+        if fleet_order_target_rejects_owned_planet(mission_code)
+            && target_planet
+                .map(|planet| {
+                    planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
+                })
+                .unwrap_or(false)
+        {
+            return Err(if single {
+                "You cannot send that mission to your own world.".to_string()
+            } else {
+                "You cannot order that combat mission against your own planet.".to_string()
+            });
+        }
+        if fleet_order_target_requires_owned_planet(mission_code)
+            && target_planet
+                .map(|planet| {
+                    planet.owner_empire_slot_raw() as usize != self.player.record_index_1_based
+                })
+                .unwrap_or(true)
+        {
+            return Err("That mission requires one of your owned planets.".to_string());
+        }
+        Ok(())
+    }
+
+    fn fleet_target_eta_estimate(
+        &self,
+        row: &FleetRow,
+        mission_code: u8,
+        destination: [u8; 2],
+    ) -> ec_engine::FleetEtaEstimate {
+        ec_engine::estimate_fleet_eta_to_destination(
+            &self.game_data,
+            row.fleet_record_index_1_based - 1,
+            destination,
+            fleet_order_target_requires_planet_system(mission_code),
+            true,
+        )
+    }
+
+    fn fleet_target_eta_sort_key(estimate: ec_engine::FleetEtaEstimate) -> (u8, u16) {
+        match estimate {
+            ec_engine::FleetEtaEstimate::Arrived => (0, 0),
+            ec_engine::FleetEtaEstimate::Years(years) => (1, years),
+            ec_engine::FleetEtaEstimate::Stopped => (2, 0),
+            ec_engine::FleetEtaEstimate::Unreachable => (3, 0),
+        }
+    }
+
+    fn format_target_eta_message(
+        &self,
+        subject: &str,
+        destination: [u8; 2],
+        estimate: ec_engine::FleetEtaEstimate,
+    ) -> String {
+        let target = format!("({:02},{:02})", destination[0], destination[1]);
+        match estimate {
+            ec_engine::FleetEtaEstimate::Arrived => format!(
+                "{subject} reaches {target} in 0 year(s), arriving in {}.",
+                self.game_data.conquest.game_year()
+            ),
+            ec_engine::FleetEtaEstimate::Years(years) => format!(
+                "{subject} reaches {target} in {years} year(s), arriving in {}.",
+                self.game_data.conquest.game_year() + years
+            ),
+            ec_engine::FleetEtaEstimate::Stopped => {
+                format!("{subject} is stopped and cannot reach {target}.")
+            }
+            ec_engine::FleetEtaEstimate::Unreachable => {
+                format!("No route found for {subject} to {target}.")
+            }
+        }
+    }
+
+    fn fleet_order_confirmation_eta_message(
+        &self,
+        mission_code: u8,
+        destination: [u8; 2],
+    ) -> Option<String> {
+        let row = self.fleet_order_selected_row()?;
+        let estimate = self.fleet_target_eta_estimate(&row, mission_code, destination);
+        Some(self.format_target_eta_message(
+            &format!("Fleet {}", row.fleet_number),
+            destination,
+            estimate,
+        ))
+    }
+
+    pub(crate) fn fleet_group_confirmation_eta_message(
+        &self,
+        mission_code: u8,
+        destination: [u8; 2],
+    ) -> Option<String> {
+        let selected = self.fleet_group_selected_rows();
+        let (row, estimate) = selected
+            .iter()
+            .map(|row| {
+                (
+                    row,
+                    self.fleet_target_eta_estimate(row, mission_code, destination),
+                )
+            })
+            .max_by_key(|(_, estimate)| Self::fleet_target_eta_sort_key(*estimate))?;
+        let subject = if selected.len() == 1 {
+            format!("Fleet {}", row.fleet_number)
+        } else {
+            format!("Slowest selected fleet (Fleet {})", row.fleet_number)
+        };
+        Some(self.format_target_eta_message(&subject, destination, estimate))
     }
 
     pub fn submit_fleet_group_order(&mut self) {
@@ -290,18 +584,8 @@ impl App {
                 };
                 let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                        let destination = match resolve_default_coords_input(
-                            &self.fleet.group_input,
-                            self.fleet_group_default_target(),
-                        ) {
-                            Some(coords) => coords,
-                            None => {
-                                self.fleet.group_status =
-                                    Some("Enter a sector as [x,y].".to_string());
-                                return;
-                            }
-                        };
-                        (destination, 0, 0)
+                        self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetX;
+                        return;
                     }
                     FleetTargetInputKind::StarbaseId => {
                         let Some(base) =
@@ -328,52 +612,91 @@ impl App {
                         return;
                     }
                 };
-                let target_planet = self
-                    .game_data
-                    .planets
-                    .records
-                    .iter()
-                    .find(|planet| planet.coords_raw() == destination);
-                if fleet_order_target_requires_planet_system(mission_code)
-                    && target_planet.is_none()
+                if let Err(err) =
+                    self.validate_fleet_target_for_mission(mission_code, destination, false)
                 {
-                    self.fleet.group_input.clear();
-                    self.fleet.group_status = Some(
-                        "That mission requires a system with a planet at the target coordinates."
-                            .to_string(),
-                    );
-                    return;
-                }
-                if fleet_order_target_rejects_owned_planet(mission_code)
-                    && target_planet
-                        .map(|planet| {
-                            planet.owner_empire_slot_raw() as usize
-                                == self.player.record_index_1_based
-                        })
-                        .unwrap_or(false)
-                {
-                    self.fleet.group_input.clear();
-                    self.fleet.group_status = Some(
-                        "You cannot order that combat mission against your own planet.".to_string(),
-                    );
-                    return;
-                }
-                if fleet_order_target_requires_owned_planet(mission_code)
-                    && target_planet
-                        .map(|planet| {
-                            planet.owner_empire_slot_raw() as usize
-                                != self.player.record_index_1_based
-                        })
-                        .unwrap_or(true)
-                {
-                    self.fleet.group_input.clear();
-                    self.fleet.group_status =
-                        Some("That mission requires one of your owned planets.".to_string());
+                    self.fleet.group_status = Some(err);
                     return;
                 }
                 if let Err(err) =
                     self.apply_fleet_group_order(mission_code, destination, aux0, aux1)
                 {
+                    self.fleet.group_status = Some(err.to_string());
+                }
+            }
+            FleetGroupOrderMode::EnteringTargetX => {
+                let default = self.fleet_group_default_target();
+                match self.resolve_target_axis_input(
+                    &self.fleet.group_target_x_input,
+                    default[0],
+                    "XX",
+                ) {
+                    Ok(value) => {
+                        if self.fleet.group_target_x_input.trim().is_empty() {
+                            self.fleet.group_target_x_input = format!("{value:02}");
+                        }
+                        self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetY;
+                        self.fleet.group_status = None;
+                    }
+                    Err(err) => self.fleet.group_status = Some(err),
+                }
+            }
+            FleetGroupOrderMode::EnteringTargetY => {
+                let Some(mission_code) = self.fleet.group_mission_code else {
+                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                    self.fleet.group_status = Some("Choose a group mission first.".to_string());
+                    return;
+                };
+                let destination = match self.resolve_fleet_group_split_target() {
+                    Ok(coords) => coords,
+                    Err(err) => {
+                        self.fleet.group_status = Some(err);
+                        return;
+                    }
+                };
+                if self.fleet.group_target_y_input.trim().is_empty() {
+                    self.fleet.group_target_y_input = format!("{:02}", destination[1]);
+                }
+                if let Err(err) =
+                    self.validate_fleet_target_for_mission(mission_code, destination, false)
+                {
+                    self.fleet.group_status = Some(err);
+                    return;
+                }
+                self.fleet.group_confirm_input.clear();
+                self.fleet.group_mode = FleetGroupOrderMode::ConfirmingTarget;
+                self.fleet.group_status = None;
+            }
+            FleetGroupOrderMode::ConfirmingTarget => {
+                if !resolve_yes_no_input(&self.fleet.group_confirm_input, true) {
+                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                    self.fleet.group_mission_code = None;
+                    self.clear_fleet_group_target_inputs();
+                    self.fleet.group_selected_fleets.clear();
+                    self.open_fleet_menu();
+                    return;
+                }
+                let Some(mission_code) = self.fleet.group_mission_code else {
+                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                    self.fleet.group_status = Some("Choose a group mission first.".to_string());
+                    return;
+                };
+                let destination = match self.resolve_fleet_group_split_target() {
+                    Ok(coords) => coords,
+                    Err(err) => {
+                        self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetY;
+                        self.fleet.group_status = Some(err);
+                        return;
+                    }
+                };
+                if let Err(err) =
+                    self.validate_fleet_target_for_mission(mission_code, destination, false)
+                {
+                    self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetY;
+                    self.fleet.group_status = Some(err);
+                    return;
+                }
+                if let Err(err) = self.apply_fleet_group_order(mission_code, destination, 0, 0) {
                     self.fleet.group_status = Some(err.to_string());
                 }
             }
@@ -388,79 +711,115 @@ impl App {
             self.fleet.order_status = Some("Choose a fleet mission first.".to_string());
             return Ok(());
         };
-        let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
-            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                let destination = match resolve_default_coords_input(
-                    &self.fleet.order_input,
-                    self.fleet_order_default_target(),
-                ) {
-                    Some(coords) => coords,
-                    None => {
-                        self.fleet.order_status = Some("Enter a sector as [x,y].".to_string());
+        match self.fleet.order_mode {
+            FleetSingleOrderMode::EnteringTarget => {
+                let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
+                    FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                        self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetX;
+                        return Ok(());
+                    }
+                    FleetTargetInputKind::StarbaseId => {
+                        let Some(base) =
+                            self.resolve_fleet_order_starbase_target_for_current_mission()
+                        else {
+                            self.fleet.order_status = Some(
+                                "Enter a starbase number from your starbase list.".to_string(),
+                            );
+                            return Ok(());
+                        };
+                        (base.coords, base.base_id, 1)
+                    }
+                    FleetTargetInputKind::FleetId => {
+                        let Some(host) = self.resolve_fleet_order_host_fleet_for_current_mission()
+                        else {
+                            self.fleet.order_status = Some(
+                                "Enter another fleet number from your fleet list.".to_string(),
+                            );
+                            return Ok(());
+                        };
+                        if let Err(err) = self.apply_fleet_single_join_order(host) {
+                            self.fleet.order_status = Some(err.to_string());
+                        }
                         return Ok(());
                     }
                 };
-                (destination, 0, 0)
-            }
-            FleetTargetInputKind::StarbaseId => {
-                let Some(base) = self.resolve_fleet_order_starbase_target_for_current_mission()
-                else {
-                    self.fleet.order_status =
-                        Some("Enter a starbase number from your starbase list.".to_string());
+                if let Err(err) =
+                    self.validate_fleet_target_for_mission(mission_code, destination, true)
+                {
+                    self.fleet.order_status = Some(err);
                     return Ok(());
-                };
-                (base.coords, base.base_id, 1)
-            }
-            FleetTargetInputKind::FleetId => {
-                let Some(host) = self.resolve_fleet_order_host_fleet_for_current_mission() else {
-                    self.fleet.order_status =
-                        Some("Enter another fleet number from your fleet list.".to_string());
-                    return Ok(());
-                };
-                if let Err(err) = self.apply_fleet_single_join_order(host) {
+                }
+                if let Err(err) =
+                    self.apply_fleet_single_order(mission_code, destination, aux0, aux1)
+                {
                     self.fleet.order_status = Some(err.to_string());
                 }
-                return Ok(());
             }
-        };
-        let target_planet = self
-            .game_data
-            .planets
-            .records
-            .iter()
-            .find(|planet| planet.coords_raw() == destination);
-        if fleet_order_target_requires_planet_system(mission_code) && target_planet.is_none() {
-            self.fleet.order_input.clear();
-            self.fleet.order_status =
-                Some("That mission needs a system with a planet at the target.".to_string());
-            return Ok(());
-        }
-        if fleet_order_target_rejects_owned_planet(mission_code)
-            && target_planet
-                .map(|planet| {
-                    planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
-                })
-                .unwrap_or(false)
-        {
-            self.fleet.order_input.clear();
-            self.fleet.order_status =
-                Some("You cannot send that mission to your own world.".to_string());
-            return Ok(());
-        }
-        if fleet_order_target_requires_owned_planet(mission_code)
-            && target_planet
-                .map(|planet| {
-                    planet.owner_empire_slot_raw() as usize != self.player.record_index_1_based
-                })
-                .unwrap_or(true)
-        {
-            self.fleet.order_input.clear();
-            self.fleet.order_status =
-                Some("That mission requires one of your owned planets.".to_string());
-            return Ok(());
-        }
-        if let Err(err) = self.apply_fleet_single_order(mission_code, destination, aux0, aux1) {
-            self.fleet.order_status = Some(err.to_string());
+            FleetSingleOrderMode::EnteringTargetX => {
+                let default = self.fleet_order_default_target();
+                match self.resolve_target_axis_input(
+                    &self.fleet.order_target_x_input,
+                    default[0],
+                    "XX",
+                ) {
+                    Ok(value) => {
+                        if self.fleet.order_target_x_input.trim().is_empty() {
+                            self.fleet.order_target_x_input = format!("{value:02}");
+                        }
+                        self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetY;
+                        self.fleet.order_status = None;
+                    }
+                    Err(err) => self.fleet.order_status = Some(err),
+                }
+            }
+            FleetSingleOrderMode::EnteringTargetY => {
+                let destination = match self.resolve_fleet_order_split_target() {
+                    Ok(coords) => coords,
+                    Err(err) => {
+                        self.fleet.order_status = Some(err);
+                        return Ok(());
+                    }
+                };
+                if self.fleet.order_target_y_input.trim().is_empty() {
+                    self.fleet.order_target_y_input = format!("{:02}", destination[1]);
+                }
+                if let Err(err) =
+                    self.validate_fleet_target_for_mission(mission_code, destination, true)
+                {
+                    self.fleet.order_status = Some(err);
+                    return Ok(());
+                }
+                self.fleet.order_confirm_input.clear();
+                self.fleet.order_mode = FleetSingleOrderMode::ConfirmingTarget;
+                self.fleet.order_status = None;
+            }
+            FleetSingleOrderMode::ConfirmingTarget => {
+                if !resolve_yes_no_input(&self.fleet.order_confirm_input, true) {
+                    self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
+                    self.fleet.order_mission_code = None;
+                    self.clear_fleet_order_target_inputs();
+                    self.open_fleet_menu();
+                    return Ok(());
+                }
+                let destination = match self.resolve_fleet_order_split_target() {
+                    Ok(coords) => coords,
+                    Err(err) => {
+                        self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetY;
+                        self.fleet.order_status = Some(err);
+                        return Ok(());
+                    }
+                };
+                if let Err(err) =
+                    self.validate_fleet_target_for_mission(mission_code, destination, true)
+                {
+                    self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetY;
+                    self.fleet.order_status = Some(err);
+                    return Ok(());
+                }
+                if let Err(err) = self.apply_fleet_single_order(mission_code, destination, 0, 0) {
+                    self.fleet.order_status = Some(err.to_string());
+                }
+            }
         }
         Ok(())
     }
@@ -519,7 +878,13 @@ impl App {
                         return;
                     }
                     self.fleet.mission_picker_caller = None;
-                    self.fleet.order_input.clear();
+                    self.fleet.order_mode = match fleet_target_input_kind(Some(mission_code)) {
+                        FleetTargetInputKind::Coordinates => FleetSingleOrderMode::EnteringTargetX,
+                        FleetTargetInputKind::StarbaseId
+                        | FleetTargetInputKind::FleetId
+                        | FleetTargetInputKind::None => FleetSingleOrderMode::EnteringTarget,
+                    };
+                    self.clear_fleet_order_target_inputs();
                     self.fleet.order_status = None;
                     self.current_screen = ScreenId::FleetOrder;
                 } else if let Err(err) = self.apply_fleet_single_order(mission_code, [0, 0], 0, 0) {
@@ -544,7 +909,13 @@ impl App {
                         });
                         return;
                     }
-                    self.fleet.group_mode = FleetGroupOrderMode::EnteringTarget;
+                    self.clear_fleet_group_target_inputs();
+                    self.fleet.group_mode = match fleet_target_input_kind(Some(mission_code)) {
+                        FleetTargetInputKind::Coordinates => FleetGroupOrderMode::EnteringTargetX,
+                        FleetTargetInputKind::StarbaseId
+                        | FleetTargetInputKind::FleetId
+                        | FleetTargetInputKind::None => FleetGroupOrderMode::EnteringTarget,
+                    };
                 } else if let Err(err) = self.apply_fleet_group_order(mission_code, [0, 0], 0, 0) {
                     self.current_screen = ScreenId::FleetMissionPicker;
                     self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
@@ -564,18 +935,46 @@ impl App {
     ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match key.code {
-            KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitOrder),
-            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceOrderInput),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::Fleet(FleetAction::OpenMissionPicker)
+        match self.fleet.order_mode {
+            FleetSingleOrderMode::EnteringTarget => match key.code {
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitOrder),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceOrderInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::Fleet(FleetAction::CancelOrder)
+                }
+                KeyCode::Char(ch)
+                    if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
+                {
+                    crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetSingleOrderMode::EnteringTargetX | FleetSingleOrderMode::EnteringTargetY => {
+                match key.code {
+                    KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitOrder),
+                    KeyCode::Backspace => {
+                        crate::app::Action::Fleet(FleetAction::BackspaceOrderInput)
+                    }
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                        crate::app::Action::Fleet(FleetAction::CancelOrder)
+                    }
+                    KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                        crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
+                    }
+                    _ => crate::app::Action::Noop,
+                }
             }
-            KeyCode::Char(ch)
-                if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
-            {
-                crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
-            }
-            _ => crate::app::Action::Noop,
+            FleetSingleOrderMode::ConfirmingTarget => match key.code {
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitOrder),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceOrderInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::Fleet(FleetAction::CancelOrder)
+                }
+                KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
+                    crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
+                }
+                _ => crate::app::Action::Noop,
+            },
         }
     }
 
@@ -615,7 +1014,35 @@ impl App {
                     crate::app::Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::Fleet(FleetAction::OpenGroupOrder)
+                    crate::app::Action::Fleet(FleetAction::CancelGroupOrder)
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetGroupOrderMode::EnteringTargetX | FleetGroupOrderMode::EnteringTargetY => {
+                match key.code {
+                    KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitGroupOrder),
+                    KeyCode::Backspace => {
+                        crate::app::Action::Fleet(FleetAction::BackspaceGroupOrderInput)
+                    }
+                    KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                        crate::app::Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
+                    }
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                        crate::app::Action::Fleet(FleetAction::CancelGroupOrder)
+                    }
+                    _ => crate::app::Action::Noop,
+                }
+            }
+            FleetGroupOrderMode::ConfirmingTarget => match key.code {
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitGroupOrder),
+                KeyCode::Backspace => {
+                    crate::app::Action::Fleet(FleetAction::BackspaceGroupOrderInput)
+                }
+                KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
+                    crate::app::Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::Fleet(FleetAction::CancelGroupOrder)
                 }
                 _ => crate::app::Action::Noop,
             },
@@ -681,16 +1108,21 @@ impl App {
             .find(|row| row.fleet_record_index_1_based == record_index)
     }
 
-    pub(crate) fn fleet_order_mission_label(&self) -> String {
+    pub(crate) fn fleet_order_current_order_label(&self) -> String {
+        self.fleet_order_selected_row()
+            .map(|row| {
+                crate::domains::fleet::screens::fleet::fleet_list_order_label(row.order_code)
+            })
+            .unwrap_or("Unknown")
+            .to_string()
+    }
+
+    pub(crate) fn fleet_order_new_order_label(&self) -> String {
         self.fleet
             .order_mission_code
-            .and_then(|code| {
-                FLEET_MISSION_OPTIONS
-                    .iter()
-                    .find(|option| option.code == code)
-                    .map(|option| option.mission.to_string())
-            })
-            .unwrap_or_else(|| "None".to_string())
+            .map(crate::domains::fleet::screens::fleet::fleet_list_order_label)
+            .unwrap_or("Unknown")
+            .to_string()
     }
 
     fn fleet_order_default_target(&self) -> [u8; 2] {
@@ -710,6 +1142,16 @@ impl App {
     }
 
     pub(crate) fn fleet_order_target_status_line(&self) -> String {
+        if self.fleet.order_mode == FleetSingleOrderMode::ConfirmingTarget
+            && let (Some(mission_code), Ok(destination)) = (
+                self.fleet.order_mission_code,
+                self.resolve_fleet_order_split_target(),
+            )
+            && let Some(message) =
+                self.fleet_order_confirmation_eta_message(mission_code, destination)
+        {
+            return message;
+        }
         fleet_target_status_line(self.fleet.order_mission_code)
     }
 
@@ -736,6 +1178,54 @@ impl App {
                 let target = self.fleet_order_default_target();
                 format!("{},{}", target[0], target[1])
             }
+        }
+    }
+
+    pub(crate) fn fleet_order_target_x_default(&self) -> String {
+        format!("{:02}", self.fleet_order_default_target()[0])
+    }
+
+    pub(crate) fn fleet_order_target_y_default(&self) -> String {
+        format!("{:02}", self.fleet_order_default_target()[1])
+    }
+
+    pub(crate) fn fleet_order_target_x_display_input(&self) -> String {
+        if self.fleet.order_target_x_input.trim().is_empty() {
+            self.fleet_order_target_x_default()
+        } else {
+            self.fleet.order_target_x_input.clone()
+        }
+    }
+
+    pub(crate) fn fleet_order_target_y_display_input(&self) -> String {
+        if self.fleet.order_target_y_input.trim().is_empty() {
+            self.fleet_order_target_y_default()
+        } else {
+            self.fleet.order_target_y_input.clone()
+        }
+    }
+
+    pub(crate) fn fleet_group_target_x_default_value(&self) -> String {
+        format!("{:02}", self.fleet_group_default_target()[0])
+    }
+
+    pub(crate) fn fleet_group_target_y_default_value(&self) -> String {
+        format!("{:02}", self.fleet_group_default_target()[1])
+    }
+
+    pub(crate) fn fleet_group_target_x_display_input(&self) -> String {
+        if self.fleet.group_target_x_input.trim().is_empty() {
+            self.fleet_group_target_x_default_value()
+        } else {
+            self.fleet.group_target_x_input.clone()
+        }
+    }
+
+    pub(crate) fn fleet_group_target_y_display_input(&self) -> String {
+        if self.fleet.group_target_y_input.trim().is_empty() {
+            self.fleet_group_target_y_default_value()
+        } else {
+            self.fleet.group_target_y_input.clone()
         }
     }
 
@@ -818,6 +1308,25 @@ impl App {
             })
     }
 
+    fn friendly_scout_target_claimed_elsewhere(
+        &self,
+        coords: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> bool {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .any(|(idx, fleet)| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                    && !selected_records.contains(&(idx + 1))
+                    && fleet.scout_count() > 0
+                    && fleet.standing_order_kind() == ec_data::Order::ScoutSolarSystem
+                    && fleet.standing_order_target_coords_raw() == coords
+            })
+    }
+
     fn fleet_group_selected_rows(&self) -> Vec<FleetRow> {
         self.fleet_rows()
             .into_iter()
@@ -847,6 +1356,9 @@ impl App {
         }
         if mission_code == 12 {
             return self.closest_colonize_target_from(anchor, &selected_records);
+        }
+        if mission_code == 11 {
+            return self.closest_scout_system_target_from(anchor, &selected_records);
         }
         if mission_code == 15 {
             return self.closest_owned_planet_target_from(anchor);
@@ -981,19 +1493,56 @@ impl App {
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
     ) -> Option<[u8; 2]> {
-        build_player_starmap_projection_from_snapshots(
+        let projection = build_player_starmap_projection_from_snapshots(
             &self.game_data,
             &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
-        )
-        .worlds
-        .into_iter()
-        .filter(|world| {
-            world.known_owner_empire_id.is_none()
-                && !self.friendly_colonize_target_claimed_elsewhere(world.coords, selected_records)
-        })
-        .min_by_key(|world| sector_distance_sq(anchor, world.coords))
-        .map(|world| world.coords)
+        );
+        projection
+            .worlds
+            .iter()
+            .filter(|world| {
+                world.known_owner_empire_id.is_none()
+                    && !self
+                        .friendly_colonize_target_claimed_elsewhere(world.coords, selected_records)
+            })
+            .min_by_key(|world| sector_distance_sq(anchor, world.coords))
+            .map(|world| world.coords)
+            .or_else(|| {
+                projection
+                    .worlds
+                    .iter()
+                    .filter(|world| world.known_owner_empire_id.is_none())
+                    .min_by_key(|world| sector_distance_sq(anchor, world.coords))
+                    .map(|world| world.coords)
+            })
+    }
+
+    fn closest_scout_system_target_from(
+        &self,
+        anchor: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> Option<[u8; 2]> {
+        let projection = build_player_starmap_projection_from_snapshots(
+            &self.game_data,
+            &self.planet_intel_snapshots,
+            self.player.record_index_1_based as u8,
+        );
+        projection
+            .worlds
+            .iter()
+            .filter(|world| {
+                !self.friendly_scout_target_claimed_elsewhere(world.coords, selected_records)
+            })
+            .min_by_key(|world| sector_distance_sq(anchor, world.coords))
+            .map(|world| world.coords)
+            .or_else(|| {
+                projection
+                    .worlds
+                    .iter()
+                    .min_by_key(|world| sector_distance_sq(anchor, world.coords))
+                    .map(|world| world.coords)
+            })
     }
 
     fn fleet_row_supports_mission(&self, row: &FleetRow, order_code: u8) -> bool {
@@ -1112,7 +1661,7 @@ impl App {
         let selected_count = selected_rows.len();
         self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet.group_mission_code = None;
-        self.fleet.group_input.clear();
+        self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
         self.current_screen = ScreenId::FleetGroupOrder;
         self.fleet.group_status = Some(if fleet_group_order_requires_target(mission_code) {
@@ -1154,7 +1703,7 @@ impl App {
         let selected_count = selected_rows.len();
         self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet.group_mission_code = None;
-        self.fleet.group_input.clear();
+        self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
         self.current_screen = ScreenId::FleetGroupOrder;
         self.fleet.group_status = Some(format!(
@@ -1178,8 +1727,9 @@ impl App {
             return Ok(());
         };
         self.apply_fleet_orders_to_rows(&[selected_row.clone()], mission_code, target, aux0, aux1)?;
+        self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
         self.fleet.order_mission_code = None;
-        self.fleet.order_input.clear();
+        self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, Some(selected_row.fleet_number));
         self.fleet.menu_prompt_status = Some(if fleet_group_order_requires_target(mission_code) {
@@ -1216,8 +1766,9 @@ impl App {
             host.fleet_record_index_1_based,
         )?;
         self.save_game_data()?;
+        self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
         self.fleet.order_mission_code = None;
-        self.fleet.order_input.clear();
+        self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, Some(selected_row.fleet_number));
         self.fleet.menu_prompt_status = Some(format!(

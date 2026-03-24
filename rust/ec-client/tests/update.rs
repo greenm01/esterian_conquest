@@ -380,6 +380,78 @@ fn open_order_mission_picker_from_fleet_menu(app: &mut App, fleet_number: Option
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
 }
 
+fn enter_fleet_order_target(app: &mut App, coords: [u8; 2]) {
+    for ch in format!("{:02}", coords[0]).chars() {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    for ch in format!("{:02}", coords[1]).chars() {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+}
+
+fn confirm_fleet_order(app: &mut App, confirm: bool) {
+    if !confirm {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendOrderChar('N'))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+}
+
+fn enter_fleet_group_order_target(app: &mut App, coords: [u8; 2]) {
+    for ch in format!("{:02}", coords[0]).chars() {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut *app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    for ch in format!("{:02}", coords[1]).chars() {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut *app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+}
+
+fn confirm_fleet_group_order(app: &mut App, confirm: bool) {
+    if !confirm {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendGroupOrderChar('N'))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut *app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+}
+
 struct CaptureTerminal {
     lines: Vec<String>,
 }
@@ -5705,16 +5777,8 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
-    for ch in ['1', '4', ',', '9'] {
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_order_target(&mut app, [14, 9]);
+    confirm_fleet_order(&mut app, true);
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
@@ -5960,16 +6024,8 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
-    for ch in ['1', '4', ',', '9'] {
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_order_target(&mut app, [14, 9]);
+    confirm_fleet_order(&mut app, true);
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let persisted = latest_runtime_state(&fixture_dir);
@@ -6013,6 +6069,81 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
 }
 
 #[test]
+fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let bombard_target = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() != 1)
+        .expect("fixture should have a foreign world")
+        .coords_raw();
+    state.game_data.fleets.records[1].set_standing_order_code_raw(5);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('6'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("compact fleet order screen should render");
+    assert!(line_containing(&terminal, "Location: ").contains("Location: ("));
+    assert!(line_containing(&terminal, "Current / Max Speed: ").contains("Current / Max Speed: "));
+    assert!(line_containing(&terminal, "ROE: ").contains("ROE: "));
+    assert!(line_containing(&terminal, "Order: ").contains("Order: "));
+    assert!(line_containing(&terminal, "Ships: ").contains("Ships: "));
+    assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Selected mission:"))
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Standing order:"))
+    );
+
+    enter_fleet_order_target(&mut app, bombard_target);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet order confirm should render");
+    assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("arriving in"))
+    );
+}
+
+#[test]
 fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
@@ -6048,6 +6179,117 @@ fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
     assert!(terminal.line(6).starts_with("│ 3│"));
     assert!(terminal.line(7).starts_with("│ 1│"));
     assert!(terminal.line(8).starts_with("│ 2│"));
+}
+
+#[test]
+fn fleet_order_scout_system_defaults_avoid_worlds_targeted_by_other_friendly_scouts() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
+    let home_coords = state.game_data.planets.records
+        [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
+        .coords_raw();
+    let mut candidates = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(_, coords)| {
+        let dx = i32::from(home_coords[0]) - i32::from(coords[0]);
+        let dy = i32::from(home_coords[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let claimed_coords = candidates[0].1;
+    let fallback_coords = candidates[1].1;
+    state.game_data.planets.records[candidates[0].0].set_owner_empire_slot_raw(2);
+    state.game_data.planets.records[candidates[1].0].set_owner_empire_slot_raw(2);
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    let selected_fleet_number = state.game_data.fleets.records[0].local_slot_word_raw();
+    state.game_data.fleets.records[0].set_scout_count(1);
+    state.game_data.fleets.records[0].set_standing_order_code_raw(0);
+    state.game_data.fleets.records[1].set_scout_count(1);
+    state.game_data.fleets.records[1].set_standing_order_kind(ec_data::Order::ScoutSolarSystem);
+    state.game_data.fleets.records[1].set_standing_order_target_coords_raw(claimed_coords);
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].clear();
+    planet_intel_by_viewer[viewer_index].insert(
+        candidates[0].0 + 1,
+        partial_known_world_snapshot(
+            candidates[0].0 + 1,
+            &state.game_data.planets.records[candidates[0].0],
+            2,
+            year,
+        ),
+    );
+    planet_intel_by_viewer[viewer_index].insert(
+        candidates[1].0 + 1,
+        partial_known_world_snapshot(
+            candidates[1].0 + 1,
+            &state.game_data.planets.records[candidates[1].0],
+            2,
+            year,
+        ),
+    );
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(selected_fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("scout system target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0]))
+    );
 }
 
 #[test]
@@ -6151,10 +6393,10 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("combat target prompt should render");
-    assert!(line_containing(&terminal, "Target [").contains(&format!(
-        "Target [{},{}] <Q> ->",
-        closest_coords[0], closest_coords[1]
-    )));
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", closest_coords[0]))
+    );
 }
 
 #[test]
@@ -6263,10 +6505,10 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(line_containing(&terminal, "Target [").contains(&format!(
-        "Target [{},{}] <Q> ->",
-        fallback_coords[0], fallback_coords[1]
-    )));
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0]))
+    );
 }
 
 #[test]
@@ -6369,9 +6611,9 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(line_containing(&terminal, "Target [").contains(&format!(
-        "Target [{},{}] <Q> ->",
-        hidden_colonized_coords[0], hidden_colonized_coords[1]
+    assert!(line_containing(&terminal, "Target XX [").contains(&format!(
+        "Target XX [{:02}] <Q> ->",
+        hidden_colonized_coords[0]
     )));
 }
 
@@ -6490,32 +6732,18 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    for ch in ['1', ',', '1'] {
-        assert_eq!(
-            apply_action(
-                &mut app,
-                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
-            ),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_group_order_target(&mut app, [1, 1]);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("world-target validation should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
-    assert!(prompt.contains("Target ["));
     assert!(terminal.lines.iter().any(|line| {
         line.contains("That mission requires a system with a planet at the target coordinates.")
     }));
-    let prompt = line_containing(&terminal, "Target [");
-    assert!(prompt.contains("Target ["));
+    let prompt = line_containing(&terminal, "Target YY [");
+    assert!(prompt.contains("Target YY ["));
     assert!(prompt.contains("->"), "{prompt}");
-    assert!(!prompt.contains("1,1"));
+    assert!(!prompt.contains("[00]"));
 }
 
 #[test]
@@ -6573,19 +6801,8 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    for ch in format!("{},{}", owned_target[0], owned_target[1]).chars() {
-        assert_eq!(
-            apply_action(
-                &mut app,
-                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
-            ),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_group_order_target(&mut app, owned_target);
+    confirm_fleet_group_order(&mut app, true);
 
     let state = latest_runtime_state(&fixture_dir);
     let ordered_fleet = state
@@ -6684,19 +6901,8 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    for ch in format!("{},{}", owned_target[0], owned_target[1]).chars() {
-        assert_eq!(
-            apply_action(
-                &mut app,
-                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
-            ),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_group_order_target(&mut app, owned_target);
+    confirm_fleet_group_order(&mut app, true);
 
     let state = latest_runtime_state(&fixture_dir);
     let ordered_fleet = state
@@ -6777,10 +6983,21 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage target prompt should render");
-    assert!(line_containing(&terminal, "Target [").contains(&format!(
-        "Target [{},{}] <Q> ->",
-        nearest_owned[0], nearest_owned[1]
-    )));
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", nearest_owned[0]))
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("salvage target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", nearest_owned[1]))
+    );
 }
 
 #[test]
@@ -6817,16 +7034,7 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
-    for ch in ['1', ',', '1'] {
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_order_target(&mut app, [1, 1]);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -6905,16 +7113,7 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
-    for ch in format!("{},{}", foreign_target[0], foreign_target[1]).chars() {
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_order_target(&mut app, foreign_target);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -6972,16 +7171,7 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
-    for ch in format!("{},{}", unowned_target[0], unowned_target[1]).chars() {
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_order_target(&mut app, unowned_target);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -7262,8 +7452,8 @@ fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
     app.render(&mut terminal)
         .expect("combat target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    let prompt = line_containing(&terminal, "Target [");
-    assert!(prompt.contains("Target ["));
+    let prompt = line_containing(&terminal, "Target XX [");
+    assert!(prompt.contains("Target XX ["));
     assert!(!prompt.contains("Notice:"));
 }
 
@@ -7335,8 +7525,8 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
     app.render(&mut terminal)
         .expect("scout target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    let prompt = line_containing(&terminal, "Target [");
-    assert!(prompt.contains("Target ["));
+    let prompt = line_containing(&terminal, "Target XX [");
+    assert!(prompt.contains("Target XX ["));
     assert!(!prompt.contains("Notice:"));
 }
 
@@ -7402,19 +7592,8 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
-    for ch in ['1', '0', ',', '1', '3'] {
-        assert_eq!(
-            apply_action(
-                &mut app,
-                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
-            ),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
-        AppOutcome::Continue
-    );
+    enter_fleet_group_order_target(&mut app, [10, 13]);
+    confirm_fleet_group_order(&mut app, true);
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
 
     let mut terminal = CaptureTerminal::new();
