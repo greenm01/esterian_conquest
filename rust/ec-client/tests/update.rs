@@ -1906,20 +1906,21 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.handle_key(key(KeyCode::Char('b'))), Action::Noop);
     assert_eq!(
-        app.handle_key(key(KeyCode::Char('b'))),
-        Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+        app.handle_key(key(KeyCode::Char('f'))),
+        Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
         ),
         AppOutcome::Continue
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::FleetList(FleetListMode::Brief)
+        ScreenId::FleetList(FleetListMode::Full)
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
@@ -2156,7 +2157,7 @@ fn fleet_menu_matches_verified_v15_command_layout() {
     app.render(&mut terminal).expect("fleet menu should render");
     assert_eq!(
         terminal.line(0).trim_end(),
-        "FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet"
+        "FLEET COMMAND CENTER:                                        O>rder a Fleet"
     );
     assert_eq!(
         terminal.line(1).trim_end(),
@@ -2164,11 +2165,11 @@ fn fleet_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(2).trim_end(),
-        "  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet"
+        "  Q>uit: Main Menu   E>TA Calc           I>nfo about Planet  M>erge a Fleet"
     );
     assert_eq!(
         terminal.line(3).trim_end(),
-        "  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies"
+        "  X>pert Mode        F>leet List         D>etach Ships       L>oad TTs w/Armies"
     );
     assert_eq!(
         terminal.line(4).trim_end(),
@@ -5270,7 +5271,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         .expect("fleet menu should render wrapped notice");
     assert_eq!(
         terminal.lines[6].trim_end(),
-        "FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U->"
+        "FLEET COMMAND <-H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U->"
     );
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
@@ -5323,7 +5324,7 @@ fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert fleet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U->"
+        "FLEET COMMAND <-H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 }
@@ -5374,7 +5375,7 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
         .expect("fleet menu should render merge success notice");
     assert_eq!(
         terminal.lines[6].trim_end(),
-        "FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U->"
+        "FLEET COMMAND <-H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U->"
     );
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
@@ -8163,6 +8164,38 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
     assert!(buffer.plain_line(6).contains("│001│"));
     assert!(buffer.plain_line(7).contains("│010│"));
     assert!(buffer.plain_line(8).contains("│100│"));
+}
+
+#[test]
+fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
+    let mut screen = ec_client::screen::FleetListScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 4,
+        coords: [8, 9],
+        target_coords: [16, 13],
+        order_code: 5,
+        current_speed: 0,
+        max_speed: 6,
+        eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        order_label: "Guard/blockade world in System (16,13)".to_string(),
+        composition_label: "DD=1".to_string(),
+    }];
+
+    let buffer = screen
+        .render(FleetListMode::Full, &rows, 0, 0)
+        .expect("full fleet list renders");
+
+    assert_eq!(buffer.plain_line(0), "FLEET LIST:");
+    assert!(buffer.plain_line(3).starts_with("┌"));
+    assert!(buffer.plain_line(3).ends_with("┐"));
+    assert!(buffer.plain_line(4).contains("│ID│Location│Order"));
+    assert!(buffer.plain_line(4).contains("│Target  │"));
+    assert!(buffer.plain_line(4).contains("│  Spd│ ETA│ROE│Ships"));
+    assert!(buffer.plain_line(6).contains("Guard/blockade"));
+    assert!(buffer.plain_line(6).contains("[16,13]"));
+    assert!(buffer.plain_line(6).contains("│  0/6│   0│  6│DD=1"));
 }
 
 #[test]

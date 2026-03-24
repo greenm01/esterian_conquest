@@ -346,7 +346,7 @@ pub fn render_first_time_homeworld_name(
         &mut buffer,
         command_row,
         "HOMEWORLD",
-        "Name this world (20 characters or less) ",
+        "Name this world (20 chars or less) ",
         "",
         input,
     );
@@ -438,7 +438,7 @@ pub fn render_colony_world_name(
         &mut buffer,
         command_row,
         "WORLD NAME",
-        "Name this world (20 characters or less) ",
+        "Name this world (20 chars or less) ",
         "",
         input,
     );

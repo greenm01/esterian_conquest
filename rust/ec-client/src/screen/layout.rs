@@ -700,20 +700,23 @@ pub fn draw_command_line_default_input_at(
     input: &str,
 ) -> usize {
     buffer.fill_row(row, classic::prompt_style());
-    let prefix = buffer.write_spans(
-        row,
-        0,
-        &[
-            StyledSpan::new(label, classic::title_style()),
-            StyledSpan::new(" <- ", classic::prompt_style()),
-            StyledSpan::new(prompt, classic::prompt_style()),
+    let mut spans = vec![
+        StyledSpan::new(label, classic::title_style()),
+        StyledSpan::new(" <- ", classic::prompt_style()),
+        StyledSpan::new(prompt, classic::prompt_style()),
+    ];
+    if !default.is_empty() {
+        spans.extend([
             StyledSpan::new("[", classic::prompt_style()),
             StyledSpan::new(default, classic::prompt_hotkey_style()),
             StyledSpan::new("] ", classic::prompt_style()),
-            StyledSpan::new("<Q>", classic::prompt_hotkey_style()),
-            StyledSpan::new(" -> ", classic::prompt_style()),
-        ],
-    );
+        ]);
+    }
+    spans.extend([
+        StyledSpan::new("<Q>", classic::prompt_hotkey_style()),
+        StyledSpan::new(" -> ", classic::prompt_style()),
+    ]);
+    let prefix = buffer.write_spans(row, 0, &spans);
     let written = buffer.write_text(row, prefix, input, classic::prompt_hotkey_style());
     let cursor_col = prefix + written;
     buffer.set_cursor(cursor_col as u16, row as u16);

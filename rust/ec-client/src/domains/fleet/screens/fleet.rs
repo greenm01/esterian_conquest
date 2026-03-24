@@ -121,10 +121,7 @@ const FLEET_COL_2: usize = 21;
 const FLEET_COL_3: usize = 41;
 const FLEET_COL_4: usize = 61;
 
-const TOP_ROW: [MenuEntry<'static>; 2] = [
-    MenuEntry::new(FLEET_COL_3, "E", "TA Calculation"),
-    MenuEntry::new(FLEET_COL_4, "O", "rder a Fleet"),
-];
+const TOP_ROW: [MenuEntry<'static>; 1] = [MenuEntry::new(FLEET_COL_4, "O", "rder a Fleet")];
 
 const ROW_1: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_1, "H", "elp on Options"),
@@ -135,14 +132,14 @@ const ROW_1: [MenuEntry<'static>; 4] = [
 
 const ROW_2: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_1, "Q", "uit: Main Menu"),
-    MenuEntry::new(FLEET_COL_2, "B", "rief Fleet List"),
+    MenuEntry::new(FLEET_COL_2, "E", "TA Calc"),
     MenuEntry::new(FLEET_COL_3, "I", "nfo about Planet"),
     MenuEntry::new(FLEET_COL_4, "M", "erge a Fleet"),
 ];
 
 const ROW_3: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_1, "X", "pert Mode"),
-    MenuEntry::new(FLEET_COL_2, "F", "ull Fleet List"),
+    MenuEntry::new(FLEET_COL_2, "F", "leet List"),
     MenuEntry::new(FLEET_COL_3, "D", "etach Ships"),
     MenuEntry::new(FLEET_COL_4, "L", "oad TTs w/Armies"),
 ];
@@ -160,15 +157,6 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::right("Spd", 7),
     TableColumn::right("ROE", 3),
     TableColumn::left("Ships", 52),
-];
-
-const FULL_COLUMNS: [TableColumn<'static>; 6] = [
-    TableColumn::right("ID", 2),
-    TableColumn::left("Location", 10),
-    TableColumn::right("Spd", 7),
-    TableColumn::right("ROE", 3),
-    TableColumn::left("Order", 26),
-    TableColumn::left("Ships", 26),
 ];
 
 pub const FLEET_MISSION_OPTIONS: [FleetMissionOption; 16] = [
@@ -295,7 +283,7 @@ impl FleetMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "FLEET COMMAND",
-                    "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
+                    "H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U",
                     notice,
                 );
             }
@@ -344,7 +332,7 @@ impl FleetMenuScreen {
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
-                "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
+                "H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U",
             );
         }
         Ok(buffer)
@@ -361,9 +349,6 @@ impl Screen for FleetMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('b') | KeyCode::Char('B') => {
-                Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
-            }
             KeyCode::Char('f') | KeyCode::Char('F') => {
                 Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
             }
@@ -414,7 +399,7 @@ impl FleetListScreen {
         let full_columns = full_columns(max_fleet_number);
         let title = match mode {
             FleetListMode::Brief => "BRIEF FLEET LIST:",
-            FleetListMode::Full => "FULL FLEET LIST:",
+            FleetListMode::Full => "FLEET LIST:",
         };
         draw_status_line(
             &mut buffer,
@@ -437,9 +422,11 @@ impl FleetListScreen {
                 FleetListMode::Full => vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
                     format_sector_coords_padded(row.coords),
+                    fleet_list_order_label(row.order_code).to_string(),
+                    fleet_list_target_label(row.target_coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
+                    row.eta_label.clone(),
                     row.rules_of_engagement.to_string(),
-                    row.order_label.clone(),
                     row.composition_label.clone(),
                 ],
             })
@@ -1488,13 +1475,47 @@ fn brief_columns(max_fleet_number: u16) -> [TableColumn<'static>; 5] {
     ]
 }
 
-fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 6] {
+fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 8] {
+    let id_width = fleet_id_column_width(max_fleet_number);
+    let ships_width = 71usize.saturating_sub(id_width + 8 + 15 + 8 + 5 + 4 + 3);
     [
-        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-        FULL_COLUMNS[1],
-        FULL_COLUMNS[2],
-        FULL_COLUMNS[3],
-        FULL_COLUMNS[4],
-        FULL_COLUMNS[5],
+        TableColumn::right("ID", id_width),
+        TableColumn::left("Location", 8),
+        TableColumn::left("Order", 15),
+        TableColumn::left("Target", 8),
+        TableColumn::right("Spd", 5),
+        TableColumn::right("ETA", 4),
+        TableColumn::right("ROE", 3),
+        TableColumn::left("Ships", ships_width),
     ]
+}
+
+fn fleet_list_order_label(order_code: u8) -> &'static str {
+    match ec_data::Order::from_raw(order_code) {
+        ec_data::Order::HoldPosition => "Hold",
+        ec_data::Order::MoveOnly => "Move",
+        ec_data::Order::SeekHome => "Seek home",
+        ec_data::Order::PatrolSector => "Patrol",
+        ec_data::Order::GuardStarbase => "Guard starbase",
+        ec_data::Order::GuardBlockadeWorld => "Guard/blockade",
+        ec_data::Order::BombardWorld => "Bombard",
+        ec_data::Order::InvadeWorld => "Invade",
+        ec_data::Order::BlitzWorld => "Blitz",
+        ec_data::Order::ViewWorld => "View",
+        ec_data::Order::ScoutSector => "Scout sector",
+        ec_data::Order::ScoutSolarSystem => "Scout system",
+        ec_data::Order::ColonizeWorld => "Colonize",
+        ec_data::Order::JoinAnotherFleet => "Join fleet",
+        ec_data::Order::RendezvousSector => "Rendezvous",
+        ec_data::Order::Salvage => "Salvage",
+        ec_data::Order::Unknown(_) => "Unknown",
+    }
+}
+
+fn fleet_list_target_label(target_coords: [u8; 2]) -> String {
+    if target_coords[0] == 0 || target_coords[1] == 0 {
+        String::new()
+    } else {
+        format_sector_coords_padded(target_coords)
+    }
 }
