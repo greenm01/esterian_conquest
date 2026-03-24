@@ -189,6 +189,57 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
 }
 
 #[test]
+fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            coords: [6, 5],
+            planet_name: "Not Named Yet".to_string(),
+            present_production: 100,
+            potential_production: 100,
+            stored_production_points: 50,
+            yearly_tax_revenue: 50,
+            yearly_growth_delta: 0,
+            build_capacity: 100,
+            has_friendly_starbase: false,
+            armies: 10,
+            ground_batteries: 4,
+            is_homeworld_seed: true,
+        },
+        committed_points: 0,
+        available_points: 50,
+        points_left: 50,
+        queue_used: 0,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+
+    let buffer = screen
+        .render_list(&view, &[], 0, 0, false)
+        .expect("render empty build list");
+
+    assert!(buffer.plain_line(2).starts_with("┌"));
+    assert!(buffer.plain_line(3).contains("Unit"));
+    assert!(buffer.plain_line(4).contains("├"));
+    assert!(buffer.plain_line(5).contains("└"));
+    let command_row = (0..25)
+        .find(|&row| {
+            buffer
+                .plain_line(row)
+                .contains("BUILD COMMAND <-ARROWS D(elete queued) Q->")
+        })
+        .expect("build list command row should render");
+    assert_eq!(buffer.plain_line(command_row + 1), "");
+    assert!(
+        buffer
+            .plain_line(command_row + 2)
+            .contains("Notice: No build orders are queued.")
+    );
+}
+
+#[test]
 fn build_change_renders_pp_and_spent_columns() {
     let mut screen = PlanetBuildScreen::new();
     let rows = vec![PlanetBuildChangeRow {

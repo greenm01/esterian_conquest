@@ -407,6 +407,9 @@ impl App {
         self.close_planet_auto_commission_prompt();
         self.close_planet_build_abort_prompt();
         self.messaging.delete_reviewables_prompt_active = false;
+        if menu == CommandMenu::PlanetBuild {
+            self.planet.build_status = None;
+        }
         self.command_return_menu = menu;
         self.return_screen = None;
         self.clear_command_menu_notice();

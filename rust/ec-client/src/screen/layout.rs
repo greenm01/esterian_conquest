@@ -525,7 +525,7 @@ pub fn draw_inline_planet_info_prompt(
         input,
     );
     let mut messages = vec![CommandMessage::General {
-        label: "PLANET INFO: ",
+        label: "",
         value: "Enter coordinates of the planet to view.",
     }];
     if let Some(error) = error {

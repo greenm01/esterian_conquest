@@ -7324,8 +7324,8 @@ fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
     );
     assert_eq!(terminal.line(7).trim_end(), "");
     assert_eq!(
-        line_containing(&terminal, "PLANET INFO: ").trim_end(),
-        "PLANET INFO: Enter coordinates of the planet to view."
+        line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
+        "Enter coordinates of the planet to view."
     );
 }
 
@@ -7361,15 +7361,63 @@ fn main_menu_planet_info_prompt_renders_error_below_message() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert_eq!(terminal.line(7).trim_end(), "");
     assert_eq!(
-        line_containing(&terminal, "PLANET INFO: ").trim_end(),
-        "PLANET INFO: Enter coordinates of the planet to view."
+        line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
+        "COMMAND <- Planet coords [16,13] <Q> -> 99,99"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
+        "Enter coordinates of the planet to view."
     );
     assert_eq!(terminal.line(9).trim_end(), "");
     assert!(
         line_containing(&terminal, "Error: ").contains("No world found at [99,99]"),
         "expected inline error below the general message"
+    );
+}
+
+#[test]
+fn build_menu_planet_info_prompt_clears_stale_build_notice() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+    app.planet.build_status = Some("Build orders aborted.".to_string());
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::PlanetBuild))
+        ),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
+        "COMMAND <- Planet coords [16,13] <Q> ->"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
+        "Enter coordinates of the planet to view."
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Build orders aborted.")),
+        "stale build notice should not leak into the inline planet info prompt"
     );
 }
 

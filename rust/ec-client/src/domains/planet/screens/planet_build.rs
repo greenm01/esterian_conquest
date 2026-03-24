@@ -465,15 +465,6 @@ impl PlanetBuildScreen {
         );
         let command_row = table_prompt_row(metrics.bottom_row);
 
-        if rows.is_empty() {
-            buffer.write_text(
-                4,
-                0,
-                "No build orders are queued.",
-                classic::status_value_style(),
-            );
-        }
-
         if confirming {
             draw_inline_confirm_prompt(&mut buffer, command_row, "BUILD COMMAND");
             draw_command_message_stack(
@@ -490,6 +481,13 @@ impl PlanetBuildScreen {
                 "BUILD COMMAND",
                 "ARROWS D(elete queued) Q",
             );
+            if rows.is_empty() {
+                draw_command_message_stack(
+                    &mut buffer,
+                    command_row,
+                    &[CommandMessage::Notice("No build orders are queued.")],
+                );
+            }
         }
         Ok(buffer)
     }
@@ -834,11 +832,7 @@ impl PlanetBuildScreen {
 }
 
 fn build_abort_lines(view: &PlanetBuildMenuView, orders: &[PlanetBuildOrder]) -> Vec<String> {
-    let mut lines = vec![format!(
-        "Abort all build orders for \"{}\" at {}.",
-        view.row.planet_name,
-        format_sector_coords(view.row.coords)
-    )];
+    let mut lines = Vec::new();
     lines.push("Queued orders to be cancelled:".to_string());
     for order in orders {
         lines.push(format!("  - {}", build_order_summary(*order)));

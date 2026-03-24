@@ -428,13 +428,10 @@ fn build_menu_inline_abort_uses_standard_confirm_layout() {
     assert!(row_text(&buffer, 7).contains("COMMAND <- Y/[N] -> "));
     assert!(row_text(&buffer, 8).trim().is_empty());
     assert!(row_text(&buffer, 9).contains("ABORT BUILD ORDERS:"));
-    assert!(
-        row_text(&buffer, 10).contains("Abort all build orders for \"Not Named Yet\" at [6,5].")
-    );
-    assert!(row_text(&buffer, 11).contains("Queued orders to be cancelled:"));
-    assert!(row_text(&buffer, 12).contains("Destroyers"));
-    assert!(row_text(&buffer, 13).contains("Troop transports"));
-    assert!(row_text(&buffer, 14).contains("All 10 committed points will be fully refunded."));
+    assert!(row_text(&buffer, 10).contains("Queued orders to be cancelled:"));
+    assert!(row_text(&buffer, 11).contains("Destroyers"));
+    assert!(row_text(&buffer, 12).contains("Troop transports"));
+    assert!(row_text(&buffer, 13).contains("All 10 committed points will be fully refunded."));
 }
 
 #[test]
