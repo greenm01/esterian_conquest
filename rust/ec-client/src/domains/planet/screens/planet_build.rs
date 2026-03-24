@@ -18,7 +18,7 @@ use crate::screen::table::{
 };
 use crate::screen::{
     CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
-    format_sector_coords_padded,
+    format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -694,7 +694,7 @@ impl PlanetBuildScreen {
             .map(|row| {
                 vec![
                     row.planet_name.clone(),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!(
                         "{:>3} of {:>3}",
                         row.present_production, row.potential_production

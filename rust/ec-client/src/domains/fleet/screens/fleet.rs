@@ -18,7 +18,7 @@ use crate::screen::table::{
     write_table_window_with_cursor, write_table_window_with_states,
 };
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_padded,
+    PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -414,14 +414,14 @@ impl FleetListScreen {
             .map(|row| match mode {
                 FleetListMode::Brief => vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
                 ],
                 FleetListMode::Full => vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     fleet_list_order_label(row.order_code).to_string(),
                     fleet_list_target_label(row.target_coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
@@ -509,7 +509,7 @@ impl FleetReviewScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
@@ -658,7 +658,7 @@ impl FleetRoeScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
@@ -791,11 +791,11 @@ impl FleetSingleOrderScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
-                    format_sector_coords_padded(row.target_coords),
+                    format_sector_coords_table(row.target_coords),
                     row.composition_label.clone(),
                 ]
             })
@@ -889,11 +889,11 @@ impl FleetEtaScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
-                    format_sector_coords_padded(row.target_coords),
+                    format_sector_coords_table(row.target_coords),
                     row.composition_label.clone(),
                 ]
             })
@@ -1009,7 +1009,7 @@ impl FleetMergeScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
@@ -1117,11 +1117,11 @@ impl FleetGroupScreen {
                     } else {
                         "".to_string()
                     },
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
-                    format_sector_coords_padded(row.target_coords),
+                    format_sector_coords_table(row.target_coords),
                     row.composition_label.clone(),
                 ]
             })
@@ -1251,11 +1251,11 @@ impl FleetTransferScreen {
                     } else {
                         "".to_string()
                     },
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
-                    format_sector_coords_padded(row.target_coords),
+                    format_sector_coords_table(row.target_coords),
                     row.composition_label.clone(),
                 ]
             })
@@ -1414,7 +1414,7 @@ impl FleetDetachScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
@@ -1516,6 +1516,6 @@ fn fleet_list_target_label(target_coords: [u8; 2]) -> String {
     if target_coords[0] == 0 || target_coords[1] == 0 {
         String::new()
     } else {
-        format_sector_coords_padded(target_coords)
+        format_sector_coords_table(target_coords)
     }
 }

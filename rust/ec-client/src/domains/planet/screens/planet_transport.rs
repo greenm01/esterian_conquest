@@ -10,7 +10,7 @@ use crate::screen::layout::{
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
-use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_padded};
+use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_table};
 use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
@@ -94,7 +94,7 @@ impl PlanetTransportScreen {
             .map(|row| {
                 vec![
                     row.planet_name.clone(),
-                    format_sector_coords_padded(row.coords),
+                    format_sector_coords_table(row.coords),
                     row.planet_armies.to_string(),
                     row.transport_capacity.to_string(),
                 ]

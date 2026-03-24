@@ -13,7 +13,9 @@ use crate::screen::layout::{
     standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
+use crate::screen::{
+    PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded, format_sector_coords_table,
+};
 use crate::theme::classic;
 
 pub const STARBASE_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
@@ -226,10 +228,10 @@ impl StarbaseListScreen {
                 vec![
                     row.base_id.to_string(),
                     row.escort_label.clone(),
-                    format!("System{}", format_sector_coords_padded(row.coords)),
+                    format!("System{}", format_sector_coords_table(row.coords)),
                     format!(
                         "System{}",
-                        format_sector_coords_padded(row.destination_coords)
+                        format_sector_coords_table(row.destination_coords)
                     ),
                     row.eta_label.clone(),
                     starbase_list_operation_label(&row.operation_label),
@@ -307,10 +309,10 @@ impl StarbaseReviewScreen {
                 vec![
                     row.base_id.to_string(),
                     row.escort_label.clone(),
-                    format!("System{}", format_sector_coords_padded(row.coords)),
+                    format!("System{}", format_sector_coords_table(row.coords)),
                     format!(
                         "System{}",
-                        format_sector_coords_padded(row.destination_coords)
+                        format_sector_coords_table(row.destination_coords)
                     ),
                     row.eta_label.clone(),
                     starbase_list_operation_label(&row.operation_label),

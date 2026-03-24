@@ -2308,7 +2308,7 @@ fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
         "┌──┬───┬──────────┬───────┬───┬───┬──────────┬───────────────────────────┐"
     );
     let same_sector_rows = (6..17)
-        .filter(|idx| terminal.line(*idx).contains("[ 6, 5]"))
+        .filter(|idx| terminal.line(*idx).contains("(06,05)"))
         .count();
     assert!(same_sector_rows >= 2);
 }
@@ -5960,7 +5960,7 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         .map(|row| terminal.line(row).to_string())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(table_text.contains("[14, 9]"));
+    assert!(table_text.contains("(14,09)"));
 }
 
 #[test]
@@ -8194,7 +8194,7 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
     assert!(buffer.plain_line(4).contains("│Target  │"));
     assert!(buffer.plain_line(4).contains("│  Spd│ ETA│ROE│Ships"));
     assert!(buffer.plain_line(6).contains("Guard/blockade"));
-    assert!(buffer.plain_line(6).contains("[16,13]"));
+    assert!(buffer.plain_line(6).contains("(16,13)"));
     assert!(buffer.plain_line(6).contains("│  0/6│   0│  6│DD=1"));
 }
 
@@ -8233,7 +8233,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert!(buffer.plain_line(4).contains("Ord"));
     assert!(buffer.plain_line(4).contains("Target"));
     assert!(buffer.plain_line(6).contains("│  1│"));
-    assert!(buffer.plain_line(6).contains("[19,13]"));
+    assert!(buffer.plain_line(6).contains("(19,13)"));
     assert!(
         buffer
             .plain_line(8)
