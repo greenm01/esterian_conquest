@@ -8184,7 +8184,7 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
         order_code: 5,
         current_speed: 0,
         max_speed: 6,
-        eta_label: "0".to_string(),
+        eta_label: "3000".to_string(),
         rules_of_engagement: 6,
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "DD=1".to_string(),
@@ -8202,7 +8202,57 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
     assert!(buffer.plain_line(4).contains("│  Spd│ ETA│ROE│Ships"));
     assert!(buffer.plain_line(6).contains("Guard/blockade"));
     assert!(buffer.plain_line(6).contains("(16,13)"));
-    assert!(buffer.plain_line(6).contains("│  0/6│   0│  6│DD=1"));
+    assert!(buffer.plain_line(6).contains("│  0/6│3000│  6│DD=1"));
+}
+
+#[test]
+fn fleet_list_eta_column_shows_current_year_for_fleets_already_at_target() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.conquest.set_game_year(3007);
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_current_location_coords_raw([16, 13]);
+        fleet.set_standing_order_target_coords_raw([16, 13]);
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
+        ),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .filter(|line| line.contains("(16,13)"))
+            .any(|line| line.contains("│3007│")),
+        "{:#?}",
+        terminal.lines
+    );
 }
 
 #[test]

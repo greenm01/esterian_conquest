@@ -1282,9 +1282,13 @@ fn format_fleet_number_for_rows(fleet_number: u16, rows: &[FleetRow]) -> String 
 
 pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
     match estimate_fleet_eta(game_data, fleet_idx) {
-        FleetEtaEstimate::Arrived => "0".to_string(),
+        FleetEtaEstimate::Arrived => game_data.conquest.game_year().to_string(),
         FleetEtaEstimate::Stopped => "STOP".to_string(),
         FleetEtaEstimate::Unreachable => "N/A".to_string(),
-        FleetEtaEstimate::Years(years) => years.to_string(),
+        FleetEtaEstimate::Years(years) => game_data
+            .conquest
+            .game_year()
+            .saturating_add(years)
+            .to_string(),
     }
 }
