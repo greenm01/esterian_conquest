@@ -1,11 +1,9 @@
-use std::collections::BTreeSet;
-
 use ec_client::screen::MessageComposeScreen;
 use ec_client::screen::PlanetBuildOrder;
 use ec_client::screen::PlanetBuildScreen;
-use ec_client::screen::PlanetCommissionRow;
+use ec_client::screen::PlanetCommissionDraftRow;
+use ec_client::screen::PlanetCommissionPickerRow;
 use ec_client::screen::PlanetCommissionScreen;
-use ec_client::screen::PlanetCommissionView;
 use ec_client::screen::PlanetMenuScreen;
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
@@ -435,43 +433,214 @@ fn build_menu_inline_abort_uses_standard_confirm_layout() {
 }
 
 #[test]
-fn commission_screen_starts_table_under_title_and_centers_selection_marker() {
+fn commission_picker_renders_planets_with_stardock_counts() {
     let mut screen = PlanetCommissionScreen::new();
-    let view = PlanetCommissionView {
-        planet_name: "Aurora Prime".to_string(),
-        coords: [8, 9],
-        rows: vec![
-            PlanetCommissionRow {
-                slot_0_based: 0,
-                unit_label: "Destroyers".to_string(),
-                qty: 4,
-            },
-            PlanetCommissionRow {
-                slot_0_based: 1,
-                unit_label: "Cruisers".to_string(),
-                qty: 2,
-            },
-            PlanetCommissionRow {
-                slot_0_based: 2,
-                unit_label: "Troop transports".to_string(),
-                qty: 3,
-            },
-        ],
-    };
-    let selected_slots = BTreeSet::from([2usize]);
+    let rows = vec![
+        PlanetCommissionPickerRow {
+            coords: [8, 9],
+            planet_name: "Aurora Prime".to_string(),
+            destroyers: 4,
+            cruisers: 2,
+            battleships: 0,
+            scouts: 0,
+            troop_transports: 3,
+            etacs: 0,
+            starbases: 1,
+        },
+        PlanetCommissionPickerRow {
+            coords: [11, 22],
+            planet_name: "Cobalt Rise".to_string(),
+            destroyers: 0,
+            cruisers: 0,
+            battleships: 1,
+            scouts: 0,
+            troop_transports: 0,
+            etacs: 1,
+            starbases: 0,
+        },
+    ];
 
     let buffer = screen
-        .render_menu(&view, 0, 2, &selected_slots, None)
-        .expect("commission screen renders");
+        .render_picker(&rows, 0, 0)
+        .expect("commission picker renders");
 
     assert!(row_text(&buffer, 1).trim().is_empty());
     assert!(row_text(&buffer, 2).starts_with("┌"));
-    assert!(!row_text(&buffer, 2).contains("UP/DOWN or J/K"));
-    assert!(!row_text(&buffer, 3).contains("SPACE selects rows"));
-    assert!(row_text(&buffer, 7).contains("│ 3│ X │Troop transports"));
-    assert!(row_text(&buffer, 9).contains("COMMANDS <ARROWS H J K L SPACE Q> ->"));
-    assert!(row_text(&buffer, 10).trim().is_empty());
-    assert!(row_text(&buffer, 11).contains("ENTER commissions the current selection."));
+    assert!(row_text(&buffer, 3).contains("Planet Name"));
+    assert!(row_text(&buffer, 3).contains("ETAC"));
+    assert!(row_text(&buffer, 5).contains("(08,09)"));
+    assert!(row_text(&buffer, 5).contains("Aurora Prime"));
+    assert!(row_text(&buffer, 5).contains("│04│02│  │  │03│    │01│"));
+    assert!(row_text(&buffer, 6).contains("│  │  │01│  │  │  01│  │"));
+}
+
+#[test]
+fn commission_draft_starts_table_under_title_and_zero_defaults_ship_rows() {
+    let mut screen = PlanetCommissionScreen::new();
+    let rows = vec![
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: None,
+            kind: ProductionItemKind::Destroyer,
+            unit_label: "Destroyers".to_string(),
+            remaining_qty: 4,
+            fleet_qty: 0,
+        },
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: Some(5),
+            kind: ProductionItemKind::Starbase,
+            unit_label: "Starbases".to_string(),
+            remaining_qty: 1,
+            fleet_qty: 0,
+        },
+    ];
+
+    let buffer = screen
+        .render_draft(
+            "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
+            &rows,
+            0,
+            "",
+            None,
+            None,
+        )
+        .expect("commission draft renders");
+
+    assert!(row_text(&buffer, 1).trim().is_empty());
+    assert!(row_text(&buffer, 2).starts_with("┌"));
+    assert!(row_text(&buffer, 5).contains("│Destroyers"));
+    assert!(row_text(&buffer, 5).contains("│       04│         00│"));
+    assert!(row_text(&buffer, 6).contains("│Starbases"));
+    assert!(row_text(&buffer, 6).contains("│       01│           │"));
+    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Destroyers [00] <Q> ->"));
+    assert!(row_text(&buffer, 9).trim().is_empty());
+    assert!(row_text(&buffer, 10).contains("Set quantities for the ships you want in this fleet."));
+}
+
+#[test]
+fn commission_draft_switches_prompt_for_starbase_rows() {
+    let mut screen = PlanetCommissionScreen::new();
+    let rows = vec![
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: None,
+            kind: ProductionItemKind::Destroyer,
+            unit_label: "Destroyers".to_string(),
+            remaining_qty: 4,
+            fleet_qty: 0,
+        },
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: Some(5),
+            kind: ProductionItemKind::Starbase,
+            unit_label: "Starbases".to_string(),
+            remaining_qty: 1,
+            fleet_qty: 0,
+        },
+    ];
+
+    let buffer = screen
+        .render_draft(
+            "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
+            &rows,
+            1,
+            "",
+            None,
+            None,
+        )
+        .expect("commission draft renders");
+
+    assert!(
+        row_text(&buffer, 8).contains("COMMAND <- ENTER commissions the highlighted starbase. <Q> -> ")
+    );
+    assert!(row_text(&buffer, 10).contains("ENTER commissions the highlighted starbase directly to the planet."));
+}
+
+#[test]
+fn commission_draft_renders_inline_notice_below_command_row() {
+    let mut screen = PlanetCommissionScreen::new();
+    let rows = vec![
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: None,
+            kind: ProductionItemKind::Battleship,
+            unit_label: "Battleships".to_string(),
+            remaining_qty: 3,
+            fleet_qty: 2,
+        },
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: None,
+            kind: ProductionItemKind::Destroyer,
+            unit_label: "Destroyers".to_string(),
+            remaining_qty: 5,
+            fleet_qty: 5,
+        },
+    ];
+
+    let buffer = screen
+        .render_draft(
+            "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
+            &rows,
+            0,
+            "",
+            None,
+            Some("Commissioned selected ships into Fleet 02."),
+        )
+        .expect("commission draft renders");
+
+    assert!(row_text(&buffer, 2).starts_with("┌"));
+    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Battleships [02] <Q> ->"));
+    assert!(row_text(&buffer, 9).trim().is_empty());
+    assert!(row_text(&buffer, 10).contains("ENTER commissions the current fleet draft."));
+    assert!(row_text(&buffer, 11).trim().is_empty());
+    assert!(row_text(&buffer, 12).contains("Notice: Commissioned selected ships into Fleet 02."));
+}
+
+#[test]
+fn commission_draft_zero_pads_live_input_in_this_fleet_column() {
+    let mut screen = PlanetCommissionScreen::new();
+    let rows = vec![
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: None,
+            kind: ProductionItemKind::Destroyer,
+            unit_label: "Destroyers".to_string(),
+            remaining_qty: 4,
+            fleet_qty: 1,
+        },
+        PlanetCommissionDraftRow {
+            direct_slot_0_based: None,
+            kind: ProductionItemKind::Cruiser,
+            unit_label: "Cruisers".to_string(),
+            remaining_qty: 2,
+            fleet_qty: 2,
+        },
+    ];
+
+    let buffer = screen
+        .render_draft(
+            "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
+            &rows,
+            0,
+            "3",
+            None,
+            None,
+        )
+        .expect("commission draft renders");
+
+    assert!(row_text(&buffer, 5).contains("│Destroyers              │       04│         03│"));
+}
+
+#[test]
+fn commission_result_renders_notice_with_dismiss_prompt() {
+    let mut screen = PlanetCommissionScreen::new();
+
+    let buffer = screen
+        .render_result(
+            "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
+            "Commissioned selected ships into Fleet 02.",
+        )
+        .expect("commission result renders");
+
+    assert!(row_text(&buffer, 0).contains("DRAFT COMMISSION FLEET:"));
+    assert!(row_text(&buffer, 2).contains("Notice: Commissioned selected ships into Fleet 02."));
+    assert!(row_text(&buffer, 3).trim().is_empty());
+    assert_eq!(row_text(&buffer, 4).trim_end(), "(slap a key)");
 }
 
 #[test]

@@ -56,7 +56,10 @@ impl App {
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)
             | ScreenId::PlanetTransportDone(_)
+            | ScreenId::PlanetCommissionPicker
             | ScreenId::PlanetCommissionMenu
+            | ScreenId::PlanetCommissionDraft
+            | ScreenId::PlanetCommissionResult
             | ScreenId::PlanetBuildHelp
             | ScreenId::PlanetBuildMenu
             | ScreenId::PlanetBuildReview

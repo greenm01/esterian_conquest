@@ -1,6 +1,7 @@
 use crate::screen::{
     CommandMenu, PlanetDatabaseFilterMode, PlanetListMode, PlanetListSort, PlanetTransportMode,
 };
+use crossterm::event::KeyCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetAction {
@@ -9,6 +10,15 @@ pub enum PlanetAction {
     OpenAutoCommissionPrompt,
     CloseAutoCommissionPrompt,
     OpenCommissionMenu,
+    OpenCommissionPlanet,
+    CloseCommissionPlanet,
+    MoveCommissionDraftRow(i8),
+    AppendCommissionDraftChar(char),
+    BackspaceCommissionDraftInput,
+    SubmitCommissionDraft,
+    CloseCommissionDraft,
+    DismissCommissionResult(KeyCode),
+    ClearCommissionDismissKey,
     OpenTransportPlanetSelect(PlanetTransportMode),
     OpenBuildMenu,
     OpenBuildHelp,

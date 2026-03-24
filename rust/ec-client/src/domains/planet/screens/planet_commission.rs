@@ -1,19 +1,39 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_general_message_after_command, draw_inline_status_after, draw_table_command_bar_at,
-    draw_title_bar, new_playfield, standard_table_visible_rows, table_prompt_row,
+    CommandMessage, dismiss_prompt_row, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_message_stack, draw_dismiss_prompt,
+    draw_general_message_after_command,
+    draw_inline_status_after, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
+use crate::screen::{
+    PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_table,
+};
 use crate::theme::classic;
+use ec_data::ProductionItemKind;
 
 pub struct PlanetCommissionScreen;
 
+pub(crate) const PLANET_COMMISSION_PICKER_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
 pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
+pub(crate) const PLANET_COMMISSION_DRAFT_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
+
+const COMMISSION_PICKER_COLUMNS: [TableColumn<'static>; 9] = [
+    TableColumn::left("(X,Y)", 7),
+    TableColumn::left("Planet Name", 18),
+    TableColumn::right("DD", 2),
+    TableColumn::right("CA", 2),
+    TableColumn::right("BB", 2),
+    TableColumn::right("SC", 2),
+    TableColumn::right("TT", 2),
+    TableColumn::right("ETAC", 4),
+    TableColumn::right("SB", 2),
+];
 
 const COMMISSION_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("#", 2),
@@ -22,11 +42,40 @@ const COMMISSION_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("Qty", 4),
 ];
 
+const COMMISSION_DRAFT_COLUMNS: [TableColumn<'static>; 3] = [
+    TableColumn::left("Unit", 24),
+    TableColumn::right("Remaining", 9),
+    TableColumn::right("This Fleet", 11),
+];
+
+#[derive(Debug, Clone)]
+pub struct PlanetCommissionPickerRow {
+    pub coords: [u8; 2],
+    pub planet_name: String,
+    pub destroyers: u32,
+    pub cruisers: u32,
+    pub battleships: u32,
+    pub scouts: u32,
+    pub troop_transports: u32,
+    pub etacs: u32,
+    pub starbases: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct PlanetCommissionRow {
     pub slot_0_based: usize,
+    pub kind: ProductionItemKind,
     pub unit_label: String,
     pub qty: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlanetCommissionDraftRow {
+    pub direct_slot_0_based: Option<usize>,
+    pub kind: ProductionItemKind,
+    pub unit_label: String,
+    pub remaining_qty: u16,
+    pub fleet_qty: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +88,58 @@ pub struct PlanetCommissionView {
 impl PlanetCommissionScreen {
     pub fn new() -> Self {
         Self
+    }
+
+    pub fn render_picker(
+        &mut self,
+        rows: &[PlanetCommissionPickerRow],
+        scroll_offset: usize,
+        cursor: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, "COMMISSION SHIPS:");
+
+        let table_rows: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_sector_coords_table(row.coords),
+                    row.planet_name.clone(),
+                    format_picker_count(row.destroyers, 2),
+                    format_picker_count(row.cruisers, 2),
+                    format_picker_count(row.battleships, 2),
+                    format_picker_count(row.scouts, 2),
+                    format_picker_count(row.troop_transports, 2),
+                    format_picker_count(row.etacs, 2),
+                    format_picker_count(row.starbases, 2),
+                ]
+            })
+            .collect();
+
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        let metrics = write_table_window_with_cursor(
+            &mut buffer,
+            2,
+            &COMMISSION_PICKER_COLUMNS,
+            &table_rows,
+            scroll_offset,
+            PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            selected,
+        );
+
+        let default = rows
+            .get(cursor.min(rows.len().saturating_sub(1)))
+            .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
+        draw_table_command_bar_at(
+            &mut buffer,
+            table_prompt_row(metrics.bottom_row),
+            "<ARROWS J K Q>",
+            default.as_deref(),
+            "",
+        );
+        Ok(buffer)
     }
 
     pub fn render_menu(
@@ -94,33 +195,201 @@ impl PlanetCommissionScreen {
             selected,
         );
 
-        if view.rows.is_empty() {
-            buffer.write_text(
-                5,
-                0,
-                "This planet has no units waiting in stardock.",
-                classic::status_value_style(),
-            );
-        }
-
         let command_row = table_prompt_row(metrics.bottom_row);
-        draw_table_command_bar_at(
-            &mut buffer,
-            command_row,
-            "<ARROWS H J K L SPACE Q>",
-            None,
-            "",
-        );
+        draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
         let message_end_row = draw_general_message_after_command(
             &mut buffer,
             command_row,
             "",
-            "ENTER commissions the current selection.",
+            "ENTER drafts a fleet from the current selection.",
         );
         if let Some(status) = status {
             draw_inline_status_after(&mut buffer, message_end_row, status);
         }
         Ok(buffer)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_draft(
+        &mut self,
+        title: &str,
+        rows: &[PlanetCommissionDraftRow],
+        cursor: usize,
+        input: &str,
+        status: Option<&str>,
+        notice: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, title);
+        let table_rows: Vec<Vec<String>> = rows
+            .iter()
+            .enumerate()
+            .map(|(idx, row)| {
+                let fleet_qty = if !row.accepts_fleet_qty() {
+                    String::new()
+                } else if idx == cursor && !input.trim().is_empty() {
+                    format_draft_input(input)
+                } else {
+                    format_draft_qty(row.fleet_qty)
+                };
+                vec![
+                    row.unit_label.clone(),
+                    format_draft_qty(row.remaining_qty),
+                    fleet_qty,
+                ]
+            })
+            .collect();
+        let metrics = write_table_window_with_cursor(
+            &mut buffer,
+            2,
+            &COMMISSION_DRAFT_COLUMNS,
+            &table_rows,
+            0,
+            PLANET_COMMISSION_DRAFT_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if rows.is_empty() { None } else { Some(cursor) },
+        );
+        let command_row = table_prompt_row(metrics.bottom_row);
+        let has_ship_draft = rows.iter().any(|row| row.accepts_fleet_qty() && row.fleet_qty > 0);
+        let current_row = rows.get(cursor);
+        let current_is_ship = current_row
+            .map(PlanetCommissionDraftRow::accepts_fleet_qty)
+            .unwrap_or(false);
+        if current_is_ship {
+            let prompt_label = current_row
+                .map(|row| format!("Qty for {} ", row.unit_label))
+                .unwrap_or_else(|| "Qty ".to_string());
+            let default_qty = current_row
+                .map(|row| format_draft_qty(row.fleet_qty))
+                .unwrap_or_else(|| "00".to_string());
+            draw_command_line_default_input_at(
+                &mut buffer,
+                command_row,
+                "COMMAND",
+                &prompt_label,
+                &default_qty,
+                input,
+            );
+        } else if has_ship_draft {
+            draw_command_line_prompt_text_at(
+                &mut buffer,
+                command_row,
+                "COMMAND",
+                "ENTER commissions the drafted fleet. <Q> -> ",
+            );
+        } else {
+            draw_command_line_prompt_text_at(
+                &mut buffer,
+                command_row,
+                "COMMAND",
+                "ENTER commissions the highlighted starbase. <Q> -> ",
+            );
+        }
+        let mut messages = vec![CommandMessage::General {
+            label: "",
+            value: if has_ship_draft {
+                "ENTER commissions the current fleet draft."
+            } else if current_is_ship {
+                "Set quantities for the ships you want in this fleet."
+            } else {
+                "ENTER commissions the highlighted starbase directly to the planet."
+            },
+        }];
+        if let Some(status) = status {
+            messages.push(CommandMessage::Error(status));
+        }
+        if let Some(notice) = notice {
+            messages.push(CommandMessage::Notice(notice));
+        }
+        draw_command_message_stack(&mut buffer, command_row, &messages);
+        Ok(buffer)
+    }
+
+    pub fn render_result(
+        &mut self,
+        title: &str,
+        notice: &str,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, title);
+        buffer.write_spans(
+            2,
+            0,
+            &[
+                crate::screen::StyledSpan::new("Notice: ", classic::notice_style()),
+                crate::screen::StyledSpan::new(notice, classic::status_value_style()),
+            ],
+        );
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(2));
+        Ok(buffer)
+    }
+
+    pub fn handle_picker_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Planet(PlanetAction::MoveCommissionPlanet(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Planet(PlanetAction::MoveCommissionPlanet(1))
+            }
+            KeyCode::PageUp => Action::Planet(PlanetAction::MoveCommissionPlanet(-8)),
+            KeyCode::PageDown => Action::Planet(PlanetAction::MoveCommissionPlanet(8)),
+            KeyCode::Enter => Action::Planet(PlanetAction::OpenCommissionPlanet),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::OpenMenu)
+            }
+            _ => Action::Noop,
+        }
+    }
+
+    pub fn handle_detail_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Planet(PlanetAction::MoveCommissionRow(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Planet(PlanetAction::MoveCommissionRow(1))
+            }
+            KeyCode::PageUp => Action::Planet(PlanetAction::MoveCommissionRow(-8)),
+            KeyCode::PageDown => Action::Planet(PlanetAction::MoveCommissionRow(8)),
+            KeyCode::Char(' ') => Action::Planet(PlanetAction::ToggleCommissionSelection),
+            KeyCode::Enter => Action::Planet(PlanetAction::CommissionStardockSelection),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::CloseCommissionPlanet)
+            }
+            _ => Action::Noop,
+        }
+    }
+
+    pub fn handle_draft_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Planet(PlanetAction::MoveCommissionDraftRow(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Planet(PlanetAction::MoveCommissionDraftRow(1))
+            }
+            KeyCode::PageUp => Action::Planet(PlanetAction::MoveCommissionDraftRow(-8)),
+            KeyCode::PageDown => Action::Planet(PlanetAction::MoveCommissionDraftRow(8)),
+            KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceCommissionDraftInput),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Planet(PlanetAction::AppendCommissionDraftChar(ch))
+            }
+            KeyCode::Enter => Action::Planet(PlanetAction::SubmitCommissionDraft),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::CloseCommissionDraft)
+            }
+            _ => Action::Noop,
+        }
+    }
+
+    pub fn handle_result_key(&self, key: KeyEvent) -> Action {
+        if key.kind == KeyEventKind::Press {
+            Action::Planet(PlanetAction::DismissCommissionResult(key.code))
+        } else {
+            Action::Noop
+        }
     }
 }
 
@@ -133,27 +402,43 @@ impl Screen for PlanetCommissionScreen {
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                Action::Planet(PlanetAction::MoveCommissionRow(-1))
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                Action::Planet(PlanetAction::MoveCommissionRow(1))
-            }
-            KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
-                Action::Planet(PlanetAction::MoveCommissionPlanet(-1))
-            }
-            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
-                Action::Planet(PlanetAction::MoveCommissionPlanet(1))
-            }
-            KeyCode::PageUp => Action::Planet(PlanetAction::MoveCommissionRow(-8)),
-            KeyCode::PageDown => Action::Planet(PlanetAction::MoveCommissionRow(8)),
-            KeyCode::Char(' ') => Action::Planet(PlanetAction::ToggleCommissionSelection),
-            KeyCode::Enter => Action::Planet(PlanetAction::CommissionStardockSelection),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Planet(PlanetAction::OpenMenu)
-            }
-            _ => Action::Noop,
-        }
+        self.handle_detail_key(key)
     }
+}
+
+impl PlanetCommissionDraftRow {
+    pub fn accepts_fleet_qty(&self) -> bool {
+        self.direct_slot_0_based.is_none() && is_commission_ship_kind(self.kind)
+    }
+}
+
+fn format_picker_count(value: u32, width: usize) -> String {
+    if value == 0 {
+        String::new()
+    } else {
+        format!("{value:0width$}")
+    }
+}
+
+fn format_draft_qty(value: u16) -> String {
+    format!("{value:02}")
+}
+
+fn format_draft_input(input: &str) -> String {
+    input.trim()
+        .parse::<u16>()
+        .map(format_draft_qty)
+        .unwrap_or_else(|_| input.trim().to_string())
+}
+
+fn is_commission_ship_kind(kind: ProductionItemKind) -> bool {
+    matches!(
+        kind,
+        ProductionItemKind::Destroyer
+            | ProductionItemKind::Cruiser
+            | ProductionItemKind::Battleship
+            | ProductionItemKind::Scout
+            | ProductionItemKind::Transport
+            | ProductionItemKind::Etac
+    )
 }

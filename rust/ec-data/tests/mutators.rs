@@ -317,6 +317,59 @@ fn commission_ship_reuses_lowest_available_owned_fleet_number() {
 }
 
 #[test]
+fn commission_ship_draft_can_split_selected_stardock_rows() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 5);
+    planet.set_stardock_kind_raw(1, 3);
+    planet.set_stardock_count_raw(1, 3);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data
+        .commission_planet_stardock_slots_with_draft(
+            1,
+            1,
+            &[0, 1],
+            CommissionFleetDraft {
+                destroyers: 2,
+                battleships: 1,
+                ..CommissionFleetDraft::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        result,
+        CommissionResult::Fleet {
+            fleet_record_index_1_based: 1
+        }
+    );
+    assert_eq!(data.planets.records[0].stardock_count_raw(0), 3);
+    assert_eq!(data.planets.records[0].stardock_count_raw(1), 2);
+    let fleet = &data.fleets.records[0];
+    assert_eq!(fleet.destroyer_count(), 2);
+    assert_eq!(fleet.battleship_count(), 1);
+    assert_eq!(fleet.current_location_coords_raw(), [6, 5]);
+}
+
+#[test]
 fn commission_starbase_from_stardock_appends_base_and_clears_slot() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);

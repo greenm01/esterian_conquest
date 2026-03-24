@@ -8,6 +8,27 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::OpenAutoCommissionPrompt => app.open_planet_auto_commission_prompt(),
         PlanetAction::CloseAutoCommissionPrompt => app.close_planet_auto_commission_prompt(),
         PlanetAction::OpenCommissionMenu => app.open_planet_commission_menu(),
+        PlanetAction::OpenCommissionPlanet => app.open_planet_commission_planet(),
+        PlanetAction::CloseCommissionPlanet => app.close_planet_commission_planet(),
+        PlanetAction::MoveCommissionDraftRow(delta) => {
+            if let Err(err) = app.move_planet_commission_draft_row(delta) {
+                eprintln!("move commission draft row failed: {err}");
+            }
+        }
+        PlanetAction::AppendCommissionDraftChar(ch) => app.append_planet_commission_draft_char(ch),
+        PlanetAction::BackspaceCommissionDraftInput => {
+            app.backspace_planet_commission_draft_input()
+        }
+        PlanetAction::SubmitCommissionDraft => {
+            if let Err(err) = app.submit_planet_commission_draft() {
+                eprintln!("submit commission draft failed: {err}");
+            }
+        }
+        PlanetAction::CloseCommissionDraft => app.close_planet_commission_draft(),
+        PlanetAction::DismissCommissionResult(key_code) => {
+            app.dismiss_planet_commission_result(key_code)
+        }
+        PlanetAction::ClearCommissionDismissKey => app.clear_planet_commission_dismiss_key(),
         PlanetAction::OpenTransportPlanetSelect(mode) => {
             app.open_planet_transport_planet_select(mode)
         }

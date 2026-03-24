@@ -37,12 +37,13 @@ pub use config::{
     SetupOptionsConfig,
 };
 pub use directory::{
-    AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult,
-    CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
-    CurrentKnownKeyWordSummary, EmpireEconomySummary, EmpirePlanetEconomyRow,
-    EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, FleetDetachResult,
-    FleetDetachSelection, FleetOrderValidationError, FleetPlayerInputValidationError,
-    FleetTransferResult, GameDirectoryError, GameStateMutationError,
+    AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionFleetDraft,
+    CommissionResult, CoreGameData, CurrentKnownComplianceStatus,
+    CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, EmpireEconomySummary,
+    EmpirePlanetEconomyRow, EmpireProductionRankingRow, EmpireProductionRankingSort,
+    EmpireUnitSummary, FleetDetachResult, FleetDetachSelection, FleetOrderValidationError,
+    FleetPlayerInputValidationError, FleetTransferResult, GameDirectoryError,
+    GameStateMutationError,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
 };
 pub use economy::{

@@ -1,5 +1,7 @@
+use crate::domains::planet::screens::planet_commission::PlanetCommissionDraftRow;
 use crate::domains::planet::screens::planet_transport::PlanetTransportMode;
 use crate::screen::PlanetListSort;
+use crossterm::event::KeyCode;
 use ec_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -15,10 +17,21 @@ pub struct PlanetState {
     pub database_input: String,
     pub database_status: Option<String>,
     pub commission_index: usize,
+    pub commission_picker_scroll_offset: usize,
     pub commission_cursor: usize,
     pub commission_scroll_offset: usize,
     pub commission_selected_slots: BTreeSet<usize>,
     pub commission_status: Option<String>,
+    pub commission_draft_slots: Vec<usize>,
+    pub commission_draft_rows: Vec<PlanetCommissionDraftRow>,
+    pub commission_draft_cursor: usize,
+    pub commission_draft_input: String,
+    pub commission_draft_status: Option<String>,
+    pub commission_draft_notice: Option<String>,
+    pub commission_result_title: Option<String>,
+    pub commission_result_return_to_picker: bool,
+    pub commission_result_dismiss_key: Option<KeyCode>,
+    pub commission_result_notice: Option<String>,
     pub auto_commission_prompt_active: bool,
     pub transport_mode: Option<PlanetTransportMode>,
     pub transport_planet_cursor: usize,
@@ -71,10 +84,21 @@ impl PlanetState {
             database_input: String::new(),
             database_status: None,
             commission_index: 0,
+            commission_picker_scroll_offset: 0,
             commission_cursor: 0,
             commission_scroll_offset: 0,
             commission_selected_slots: BTreeSet::new(),
             commission_status: None,
+            commission_draft_slots: Vec::new(),
+            commission_draft_rows: Vec::new(),
+            commission_draft_cursor: 0,
+            commission_draft_input: String::new(),
+            commission_draft_status: None,
+            commission_draft_notice: None,
+            commission_result_title: None,
+            commission_result_return_to_picker: false,
+            commission_result_dismiss_key: None,
+            commission_result_notice: None,
             auto_commission_prompt_active: false,
             transport_mode: None,
             transport_planet_cursor: 0,

@@ -66,12 +66,44 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .as_deref()
                 .unwrap_or("Transport order completed."),
         ),
+        ScreenId::PlanetCommissionPicker => {
+            let rows = app.planet_commission_picker_rows();
+            if rows.is_empty() {
+                app.open_planet_menu();
+                return render(app);
+            }
+            app.planet_commission.render_picker(
+                &rows,
+                app.planet.commission_picker_scroll_offset,
+                app.planet.commission_index,
+            )
+        }
         ScreenId::PlanetCommissionMenu => app.planet_commission.render_menu(
             &app.current_planet_commission_view()?,
             app.planet.commission_scroll_offset,
             app.planet.commission_cursor,
             &app.planet.commission_selected_slots,
             app.planet.commission_status.as_deref(),
+        ),
+        ScreenId::PlanetCommissionDraft => app.planet_commission.render_draft(
+            &app.current_planet_commission_draft_title().unwrap_or_else(|_| {
+                "DRAFT COMMISSION FLEET:".to_string()
+            }),
+            &app.planet.commission_draft_rows,
+            app.planet.commission_draft_cursor,
+            &app.planet.commission_draft_input,
+            app.planet.commission_draft_status.as_deref(),
+            app.planet.commission_draft_notice.as_deref(),
+        ),
+        ScreenId::PlanetCommissionResult => app.planet_commission.render_result(
+            app.planet
+                .commission_result_title
+                .as_deref()
+                .unwrap_or("COMMISSION SHIPS:"),
+            app.planet
+                .commission_result_notice
+                .as_deref()
+                .unwrap_or("Commission completed."),
         ),
         ScreenId::PlanetBuildHelp => app.build_help.render(&frame),
         ScreenId::PlanetBuildMenu => app.planet_build.render_menu(

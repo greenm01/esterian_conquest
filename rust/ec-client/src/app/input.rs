@@ -17,6 +17,9 @@ impl App {
         {
             return Action::Quit;
         }
+        if let Some(action) = self.handle_planet_commission_dismiss_latch(key) {
+            return action;
+        }
         if self.inline_planet_tax_active_on_current_screen() {
             return self.planet_tax.handle_inline_key(key);
         }
@@ -180,7 +183,10 @@ impl App {
             ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
-            ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
+            ScreenId::PlanetCommissionPicker => self.planet_commission.handle_picker_key(key),
+            ScreenId::PlanetCommissionMenu => self.planet_commission.handle_detail_key(key),
+            ScreenId::PlanetCommissionDraft => self.planet_commission.handle_draft_key(key),
+            ScreenId::PlanetCommissionResult => self.planet_commission.handle_result_key(key),
             ScreenId::PlanetTransportPlanetSelect(_) => {
                 self.planet_transport.handle_planet_key(key)
             }
@@ -235,5 +241,22 @@ impl App {
             ScreenId::Rankings(_) => self.rankings.handle_key(key),
             ScreenId::Reports => self.reports.handle_key(key),
         }
+    }
+
+    fn handle_planet_commission_dismiss_latch(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> Option<Action> {
+        let latched = self.planet.commission_result_dismiss_key?;
+        let commission_screen = matches!(
+            self.current_screen,
+            ScreenId::PlanetCommissionPicker
+                | ScreenId::PlanetCommissionMenu
+                | ScreenId::PlanetCommissionDraft
+        );
+        if !commission_screen || key.code != latched {
+            return None;
+        }
+        Some(Action::Planet(PlanetAction::ClearCommissionDismissKey))
     }
 }

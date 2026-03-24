@@ -344,6 +344,27 @@ pub enum CommissionResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CommissionFleetDraft {
+    pub destroyers: u16,
+    pub cruisers: u16,
+    pub battleships: u16,
+    pub scouts: u16,
+    pub transports: u16,
+    pub etacs: u16,
+}
+
+impl CommissionFleetDraft {
+    pub fn total_ships(self) -> u32 {
+        u32::from(self.destroyers)
+            + u32::from(self.cruisers)
+            + u32::from(self.battleships)
+            + u32::from(self.scouts)
+            + u32::from(self.transports)
+            + u32::from(self.etacs)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AutoCommissionSummary {
     pub ships_commissioned: u32,
     pub starbases_commissioned: usize,

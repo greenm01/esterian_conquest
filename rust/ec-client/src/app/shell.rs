@@ -110,7 +110,10 @@ impl App {
             | ScreenId::Starmap => CommandMenu::General,
             ScreenId::PlanetMenu
             | ScreenId::PlanetHelp
+            | ScreenId::PlanetCommissionPicker
             | ScreenId::PlanetCommissionMenu
+            | ScreenId::PlanetCommissionDraft
+            | ScreenId::PlanetCommissionResult
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Brief)
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_))
             | ScreenId::PlanetBriefList(PlanetListMode::Brief, _)
