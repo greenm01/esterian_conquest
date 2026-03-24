@@ -1,5 +1,5 @@
 style "body" {
-    fg "white"
+    fg "bright_black"
     bg "black"
 }
 style "title" {
@@ -8,7 +8,7 @@ style "title" {
     bold #true
 }
 style "menu" {
-    fg "white"
+    fg "bright_black"
     bg "black"
 }
 style "menu_hotkey" {
@@ -17,7 +17,7 @@ style "menu_hotkey" {
     bold #true
 }
 style "prompt" {
-    fg "white"
+    fg "bright_black"
     bg "black"
 }
 style "prompt_hotkey" {
@@ -71,7 +71,7 @@ style "notice" {
     bold #true
 }
 style "status_label" {
-    fg "white"
+    fg "bright_black"
     bg "black"
 }
 style "status_value" {
@@ -110,7 +110,7 @@ style "help_header" {
     bold #true
 }
 style "help_panel" {
-    fg "white"
+    fg "bright_black"
     bg "black"
 }
 style "map_dot" {
@@ -128,7 +128,7 @@ style "map_center" {
     bold #true
 }
 style "quote" {
-    fg "white"
+    fg "bright_black"
     bg "black"
 }
 style "quote_author" {

@@ -400,9 +400,9 @@ fn build_menu_inline_abort_uses_standard_confirm_layout() {
             ground_batteries: 4,
             is_homeworld_seed: true,
         },
-        committed_points: 10,
+        committed_points: 50,
         available_points: 50,
-        points_left: 40,
+        points_left: 0,
         queue_used: 2,
         queue_capacity: 10,
         stardock_used: 3,
@@ -410,11 +410,15 @@ fn build_menu_inline_abort_uses_standard_confirm_layout() {
     };
     let orders = vec![
         PlanetBuildOrder {
-            kind: ProductionItemKind::Destroyer,
-            points_remaining: 5,
+            kind: ProductionItemKind::Etac,
+            points_remaining: 20,
         },
         PlanetBuildOrder {
-            kind: ProductionItemKind::Transport,
+            kind: ProductionItemKind::Etac,
+            points_remaining: 20,
+        },
+        PlanetBuildOrder {
+            kind: ProductionItemKind::Destroyer,
             points_remaining: 10,
         },
     ];
@@ -427,9 +431,9 @@ fn build_menu_inline_abort_uses_standard_confirm_layout() {
     assert!(row_text(&buffer, 8).trim().is_empty());
     assert!(row_text(&buffer, 9).contains("ABORT BUILD ORDERS:"));
     assert!(row_text(&buffer, 10).contains("Queued orders to be cancelled:"));
-    assert!(row_text(&buffer, 11).contains("Destroyers"));
-    assert!(row_text(&buffer, 12).contains("Troop transports"));
-    assert!(row_text(&buffer, 13).contains("All 10 committed points will be fully refunded."));
+    assert!(row_text(&buffer, 11).contains("2 ETACs (40 pts)"));
+    assert!(row_text(&buffer, 12).contains("2 Destroyers (10 pts)"));
+    assert!(row_text(&buffer, 13).contains("All 50 committed points will be fully refunded."));
 }
 
 #[test]

@@ -201,9 +201,11 @@ impl App {
             ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
-            ScreenId::PlanetBuildList => self
-                .planet_build
-                .handle_list_key(key, self.planet.build_list_confirming),
+            ScreenId::PlanetBuildList => self.planet_build.handle_list_key(
+                key,
+                self.planet.build_list_confirming,
+                self.planet.build_list_delete_qty_prompt_active,
+            ),
             ScreenId::PlanetBuildChange => self.planet_build.handle_change_key(key),
             ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
             ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),

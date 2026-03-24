@@ -163,6 +163,7 @@ impl App {
         self.planet.build_quantity_status = None;
         self.planet.build_selected_kind = None;
         self.planet.build_list_scroll_offset = 0;
+        self.reset_planet_build_list_delete_state();
         let total = self.build_planet_rows().len();
         if total == 0 {
             self.planet.build_index = 0;
@@ -192,7 +193,7 @@ impl App {
         }
         self.planet.build_list_scroll_offset = 0;
         self.planet.build_list_cursor = 0;
-        self.planet.build_list_confirming = false;
+        self.reset_planet_build_list_delete_state();
         self.current_screen = ScreenId::PlanetBuildList;
     }
 
@@ -785,7 +786,68 @@ impl App {
         if row.queue_qty == 0 {
             return;
         }
+        self.reset_planet_build_list_delete_state();
+        self.planet.build_list_delete_qty_prompt_active = true;
+    }
+
+    pub fn append_delete_build_qty_char(&mut self, ch: char) {
+        if !self.planet.build_list_delete_qty_prompt_active || !ch.is_ascii_digit() {
+            return;
+        }
+        let rows = self.planet_build_list_rows();
+        let max_digits = rows
+            .get(self.planet.build_list_cursor)
+            .map(|row| row.queue_qty.to_string().len())
+            .unwrap_or(1);
+        if self.planet.build_list_delete_qty_input.len() >= max_digits {
+            return;
+        }
+        self.planet.build_list_delete_qty_input.push(ch);
+        self.planet.build_list_delete_qty_status = None;
+    }
+
+    pub fn backspace_delete_build_qty_input(&mut self) {
+        if !self.planet.build_list_delete_qty_prompt_active {
+            return;
+        }
+        self.planet.build_list_delete_qty_input.pop();
+        self.planet.build_list_delete_qty_status = None;
+    }
+
+    pub fn submit_delete_build_qty(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.planet.build_list_delete_qty_prompt_active {
+            return Ok(());
+        }
+        let rows = self.planet_build_list_rows();
+        let Some(row) = rows.get(self.planet.build_list_cursor) else {
+            self.reset_planet_build_list_delete_state();
+            return Ok(());
+        };
+        let max_qty = row.queue_qty;
+        if max_qty == 0 {
+            self.reset_planet_build_list_delete_state();
+            return Ok(());
+        }
+        let input = self.planet.build_list_delete_qty_input.trim();
+        let quantity = if input.is_empty() {
+            max_qty
+        } else if let Ok(value) = input.parse::<u32>() {
+            value
+        } else {
+            self.planet.build_list_delete_qty_status =
+                Some(format!("Enter 1-{max_qty}, or press Enter for All."));
+            return Ok(());
+        };
+        if quantity == 0 || quantity > max_qty {
+            self.planet.build_list_delete_qty_status =
+                Some(format!("Enter 1-{max_qty}, or press Enter for All."));
+            return Ok(());
+        }
+        self.planet.build_list_delete_qty_pending = Some(quantity);
+        self.planet.build_list_delete_qty_prompt_active = false;
+        self.planet.build_list_delete_qty_status = None;
         self.planet.build_list_confirming = true;
+        Ok(())
     }
 
     pub fn confirm_delete_planet_build_slot(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -794,14 +856,26 @@ impl App {
         }
         let rows = self.planet_build_list_rows();
         let Some(row) = rows.get(self.planet.build_list_cursor) else {
-            self.planet.build_list_confirming = false;
+            self.reset_planet_build_list_delete_state();
             return Ok(());
         };
         let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
-        self.game_data
-            .clear_planet_build_orders_by_kind(planet_record, row.kind)?;
+        let quantity = self
+            .planet
+            .build_list_delete_qty_pending
+            .unwrap_or(row.queue_qty);
+        if let Some(unit) = build_unit_spec_by_kind(row.kind) {
+            self.game_data.remove_planet_build_points_by_kind(
+                planet_record,
+                row.kind,
+                quantity.saturating_mul(unit.cost),
+            )?;
+        } else {
+            self.game_data
+                .clear_planet_build_orders_by_kind(planet_record, row.kind)?;
+        }
         self.save_game_data()?;
-        self.planet.build_list_confirming = false;
+        self.reset_planet_build_list_delete_state();
         // Clamp cursor after deletion.
         let new_total = self.planet_build_list_rows().len();
         if new_total == 0 {
@@ -813,7 +887,7 @@ impl App {
     }
 
     pub fn cancel_delete_planet_build_slot(&mut self) {
-        self.planet.build_list_confirming = false;
+        self.reset_planet_build_list_delete_state();
     }
 
     pub fn append_planet_build_unit_char(&mut self, ch: char) {
@@ -1523,6 +1597,14 @@ impl App {
                 })
             })
             .collect()
+    }
+
+    fn reset_planet_build_list_delete_state(&mut self) {
+        self.planet.build_list_confirming = false;
+        self.planet.build_list_delete_qty_prompt_active = false;
+        self.planet.build_list_delete_qty_input.clear();
+        self.planet.build_list_delete_qty_status = None;
+        self.planet.build_list_delete_qty_pending = None;
     }
 }
 

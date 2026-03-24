@@ -6,12 +6,12 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     CMD_COL_1, CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, centered_row, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_message_stack,
-    draw_command_message_stack_after, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_expert_menu, draw_general_message_after_command, draw_inline_confirm_block,
-    draw_inline_confirm_prompt, draw_inline_planet_info_prompt, draw_inline_status_after,
-    draw_menu_notice, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at,
+    draw_command_message_stack, draw_command_message_stack_after, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_expert_menu, draw_general_message_after_command,
+    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
+    draw_inline_status_after, draw_menu_notice, draw_menu_row, draw_status_line, draw_title_bar,
+    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -35,11 +35,10 @@ const CHANGE_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::right("Spent", 5),
 ];
 
-const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
+const BUILD_LIST_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::left("Unit", 24),
     TableColumn::right("Points", 6),
     TableColumn::right("Queue", 5),
-    TableColumn::right("Dock", 4),
 ];
 
 const BUILD_HALF_COLUMNS: [TableColumn<'static>; 4] = [
@@ -425,6 +424,10 @@ impl PlanetBuildScreen {
         scroll_offset: usize,
         cursor: usize,
         confirming: bool,
+        delete_qty_prompt_active: bool,
+        delete_qty_input: &str,
+        delete_qty_status: Option<&str>,
+        pending_delete_qty: Option<u32>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(
@@ -444,9 +447,6 @@ impl PlanetBuildScreen {
                     row.unit_label.clone(),
                     row.points.to_string(),
                     row.queue_qty.to_string(),
-                    row.stardock_qty
-                        .map(|q| q.to_string())
-                        .unwrap_or_else(|| "N/A".to_string()),
                 ]
             })
             .collect();
@@ -467,19 +467,56 @@ impl PlanetBuildScreen {
 
         if confirming {
             draw_inline_confirm_prompt(&mut buffer, command_row, "BUILD COMMAND");
+            let summary = rows
+                .get(cursor)
+                .map(|row| {
+                    let quantity = pending_delete_qty.unwrap_or(row.queue_qty);
+                    format!(
+                        "Delete {} {}?",
+                        quantity,
+                        build_kind_count_label(row.kind, quantity)
+                    )
+                })
+                .unwrap_or_else(|| "Delete queued build(s) for this unit?".to_string());
             draw_command_message_stack(
                 &mut buffer,
                 command_row,
-                &[CommandMessage::Notice(
-                    "Delete queued build(s) for this unit?",
-                )],
+                &[CommandMessage::Notice(&summary)],
             );
+        } else if delete_qty_prompt_active {
+            if let Some(row) = rows.get(cursor) {
+                draw_command_line_prompt_text_at(
+                    &mut buffer,
+                    command_row,
+                    "BUILD COMMAND",
+                    &format!(
+                        "Delete how many {}? [A]ll or 1-{} <Q> -> {}",
+                        build_kind_name(row.kind),
+                        row.queue_qty,
+                        delete_qty_input
+                    ),
+                );
+                if let Some(status) = delete_qty_status {
+                    draw_command_message_stack(
+                        &mut buffer,
+                        command_row,
+                        &[CommandMessage::Notice(status)],
+                    );
+                }
+            } else {
+                draw_command_prompt_at(
+                    &mut buffer,
+                    command_row,
+                    "BUILD COMMAND",
+                    "ARROWS [D]elete Q",
+                );
+            }
         } else {
             draw_command_prompt_at(
                 &mut buffer,
                 command_row,
                 "BUILD COMMAND",
-                "ARROWS D(elete queued) Q",
+                "ARROWS [D]elete Q",
             );
             if rows.is_empty() {
                 draw_command_message_stack(
@@ -516,13 +553,8 @@ impl PlanetBuildScreen {
             buffer.write_text(4, 0, "No build orders are queued.", style);
         } else {
             buffer.write_text(4, 0, "Queued orders to be cancelled:", style);
-            for (i, order) in orders.iter().enumerate() {
-                buffer.write_text(
-                    5 + i,
-                    2,
-                    &format!("- {}", build_order_summary(*order)),
-                    style,
-                );
+            for (i, line) in build_abort_order_lines(orders).iter().enumerate() {
+                buffer.write_text(5 + i, 2, &format!("- {line}"), style);
             }
         }
 
@@ -759,13 +791,33 @@ impl PlanetBuildScreen {
         Action::Planet(PlanetAction::OpenBuildMenu)
     }
 
-    pub fn handle_list_key(&self, key: KeyEvent, confirming: bool) -> Action {
+    pub fn handle_list_key(
+        &self,
+        key: KeyEvent,
+        confirming: bool,
+        delete_qty_prompt_active: bool,
+    ) -> Action {
         if confirming {
             return match key.code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => {
                     Action::Planet(PlanetAction::ConfirmDeleteBuildSlot)
                 }
                 _ => Action::Planet(PlanetAction::CancelDeleteBuildSlot),
+            };
+        }
+        if delete_qty_prompt_active {
+            return match key.code {
+                KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Enter => {
+                    Action::Planet(PlanetAction::SubmitDeleteBuildQty)
+                }
+                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDeleteBuildQtyInput),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    Action::Planet(PlanetAction::AppendDeleteBuildQtyChar(ch))
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::CancelDeleteBuildSlot)
+                }
+                _ => Action::Noop,
             };
         }
         match key.code {
@@ -777,7 +829,7 @@ impl PlanetBuildScreen {
             }
             KeyCode::PageUp => Action::Planet(PlanetAction::MoveBuildList(-8)),
             KeyCode::PageDown => Action::Planet(PlanetAction::MoveBuildList(8)),
-            KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Delete => {
+            KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Delete | KeyCode::Enter => {
                 Action::Planet(PlanetAction::DeleteBuildSlotRequest)
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
@@ -834,14 +886,70 @@ impl PlanetBuildScreen {
 fn build_abort_lines(view: &PlanetBuildMenuView, orders: &[PlanetBuildOrder]) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push("Queued orders to be cancelled:".to_string());
-    for order in orders {
-        lines.push(format!("  - {}", build_order_summary(*order)));
+    for line in build_abort_order_lines(orders) {
+        lines.push(format!("  - {line}"));
     }
     lines.push(format!(
         "All {} committed points will be fully refunded.",
         view.committed_points
     ));
     lines
+}
+
+fn build_abort_order_lines(orders: &[PlanetBuildOrder]) -> Vec<String> {
+    #[derive(Clone, Copy)]
+    struct Aggregate {
+        kind: ProductionItemKind,
+        points: u32,
+        quantity: Option<u32>,
+    }
+
+    let mut grouped = Vec::<Aggregate>::new();
+
+    for order in orders {
+        let quantity =
+            build_unit_spec_by_kind(order.kind).and_then(|unit| infer_quantity(*order, unit.cost));
+        let index = if let Some(index) = grouped
+            .iter()
+            .position(|aggregate| aggregate.kind == order.kind)
+        {
+            index
+        } else {
+            let index = grouped.len();
+            grouped.push(Aggregate {
+                kind: order.kind,
+                points: 0,
+                quantity: Some(0),
+            });
+            index
+        };
+
+        let aggregate = &mut grouped[index];
+        aggregate.points = aggregate
+            .points
+            .saturating_add(u32::from(order.points_remaining));
+        aggregate.quantity = match (aggregate.quantity, quantity) {
+            (Some(total), Some(qty)) => Some(total.saturating_add(qty)),
+            _ => None,
+        };
+    }
+
+    grouped
+        .into_iter()
+        .map(|aggregate| match aggregate.quantity {
+            Some(quantity) => format!(
+                "{} {} ({} pts)",
+                quantity,
+                build_kind_count_label(aggregate.kind, quantity),
+                aggregate.points
+            ),
+            None => format!(
+                "{} ({} pts)",
+                build_kind_name(aggregate.kind),
+                aggregate.points
+            ),
+        })
+        .collect()
 }
 
 impl Screen for PlanetBuildScreen {
@@ -983,6 +1091,25 @@ pub fn build_kind_name(kind: ProductionItemKind) -> &'static str {
         ProductionItemKind::Army => "Armies",
         ProductionItemKind::Starbase => "Starbases",
         ProductionItemKind::Unknown(_) => "Unknown",
+    }
+}
+
+pub fn build_kind_count_label(kind: ProductionItemKind, quantity: u32) -> &'static str {
+    if quantity == 1 {
+        match kind {
+            ProductionItemKind::Destroyer => "Destroyer",
+            ProductionItemKind::Cruiser => "Cruiser",
+            ProductionItemKind::Battleship => "Battleship",
+            ProductionItemKind::Scout => "Scout",
+            ProductionItemKind::Transport => "Troop transport",
+            ProductionItemKind::Etac => "ETAC",
+            ProductionItemKind::GroundBattery => "Ground battery",
+            ProductionItemKind::Army => "Army",
+            ProductionItemKind::Starbase => "Starbase",
+            ProductionItemKind::Unknown(_) => "Unknown",
+        }
+    } else {
+        build_kind_name(kind)
     }
 }
 

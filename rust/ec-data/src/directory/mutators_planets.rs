@@ -124,6 +124,44 @@ impl CoreGameData {
         Ok(cleared)
     }
 
+    pub fn remove_planet_build_points_by_kind(
+        &mut self,
+        record_index_1_based: usize,
+        kind: ProductionItemKind,
+        points_to_remove: u32,
+    ) -> Result<u32, GameStateMutationError> {
+        let record = self
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            })?;
+        let mut remaining = points_to_remove;
+        let mut removed = 0u32;
+        for slot in (0..10).rev() {
+            if remaining == 0 {
+                break;
+            }
+            if ProductionItemKind::from_raw(record.build_kind_raw(slot)) != kind {
+                continue;
+            }
+            let slot_points = u32::from(record.build_count_raw(slot));
+            if slot_points == 0 {
+                continue;
+            }
+            let remove_here = slot_points.min(remaining);
+            let left = slot_points - remove_here;
+            record.set_build_count_raw(slot, left as u8);
+            if left == 0 {
+                record.set_build_kind_raw(slot, 0);
+            }
+            removed += remove_here;
+            remaining -= remove_here;
+        }
+        Ok(removed)
+    }
+
     pub fn planet_free_stardock_slots(
         &self,
         record_index_1_based: usize,

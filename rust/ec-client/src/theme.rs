@@ -5,6 +5,7 @@ use std::sync::{OnceLock, RwLock};
 use crate::screen::{AnsiColor, CellStyle};
 
 const DEFAULT_THEME_KDL: &str = include_str!("../config/theme.kdl");
+const LEGACY_DEFAULT_THEME_KDL: &str = include_str!("../config/theme-legacy-default.kdl");
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnsiMode {
     On,
@@ -125,7 +126,7 @@ impl Theme {
         theme.table_chrome = mono_normal(theme.table_chrome);
         theme.table_header = mono_bright(theme.table_header);
         theme.table_body = mono_normal(theme.table_body);
-        theme.disabled_row = mono_dim(theme.disabled_row);
+        theme.disabled_row = mono_muted(theme.disabled_row);
         theme.selected = mono_selected(theme.selected);
         theme.alert = mono_bright(theme.alert);
         theme.help_header = mono_bright(theme.help_header);
@@ -137,7 +138,7 @@ impl Theme {
         theme.quote_author = mono_normal(theme.quote_author);
         theme.report_header = mono_bright(theme.report_header);
         theme.indicator_on = mono_bright(theme.indicator_on);
-        theme.indicator_off = mono_dim(theme.indicator_off);
+        theme.indicator_off = mono_muted(theme.indicator_off);
         theme.star_colors = [AnsiColor::BrightWhite; 6];
 
         theme
@@ -145,15 +146,19 @@ impl Theme {
 }
 
 fn mono_dim(style: CellStyle) -> CellStyle {
+    CellStyle::new(AnsiColor::White, AnsiColor::Black, style.bold)
+}
+
+fn mono_muted(style: CellStyle) -> CellStyle {
     CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
 }
 
 fn mono_normal(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
+    CellStyle::new(AnsiColor::White, AnsiColor::Black, style.bold)
 }
 
 fn mono_bright(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
+    CellStyle::new(AnsiColor::White, AnsiColor::Black, style.bold)
 }
 
 fn mono_selected(style: CellStyle) -> CellStyle {
@@ -376,6 +381,8 @@ pub fn ensure_theme_file_for(
         fs::create_dir_all(parent)?;
     }
     if !theme_file.exists() {
+        fs::write(&theme_file, DEFAULT_THEME_KDL)?;
+    } else if fs::read_to_string(&theme_file)? == LEGACY_DEFAULT_THEME_KDL {
         fs::write(&theme_file, DEFAULT_THEME_KDL)?;
     }
     Ok(theme_file)

@@ -87,6 +87,33 @@ fn ensure_theme_file_bootstraps_default_once() {
 }
 
 #[test]
+fn ensure_theme_file_updates_untouched_legacy_default() {
+    let _guard = theme_test_guard();
+    let root = temp_dir("ec-client-theme-migrate-default");
+    let env = ThemeEnv {
+        home: Some(root.clone()),
+        xdg_config_home: Some(root.join(".config")),
+        appdata: None,
+    };
+
+    let theme_dir = root.join(".config").join("ec-rust");
+    fs::create_dir_all(&theme_dir).expect("create theme dir");
+    let theme_file = theme_dir.join("theme.kdl");
+    fs::write(
+        &theme_file,
+        include_str!("../config/theme-legacy-default.kdl"),
+    )
+    .expect("write legacy theme");
+
+    let ensured = ensure_theme_file_for(PlatformKind::Unix, &env).expect("ensure theme file");
+    assert_eq!(ensured, theme_file);
+    assert_eq!(
+        fs::read_to_string(&theme_file).expect("read migrated theme"),
+        bundled_theme_kdl()
+    );
+}
+
+#[test]
 fn invalid_user_theme_falls_back_to_bundled_default() {
     let _guard = theme_test_guard();
     let root = temp_dir("ec-client-theme-invalid");
@@ -129,14 +156,29 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(ansi_mode(), AnsiMode::On);
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
     assert_eq!(classic::notice_style().fg, AnsiColor::BrightRed);
+    assert_eq!(classic::body_style().fg, AnsiColor::White);
+    assert_eq!(classic::menu_style().fg, AnsiColor::White);
+    assert_eq!(classic::prompt_style().fg, AnsiColor::White);
+    assert_eq!(classic::status_label_style().fg, AnsiColor::White);
+    assert_eq!(classic::help_panel_style().fg, AnsiColor::White);
+    assert_eq!(classic::quote_style().fg, AnsiColor::White);
+    assert_eq!(classic::disabled_row_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::indicator_off_style().fg, AnsiColor::BrightBlack);
 
     let next_mode = toggle_ansi_mode().expect("toggle ansi mode off");
     assert_eq!(next_mode, AnsiMode::Off);
     assert_eq!(ansi_mode(), AnsiMode::Off);
-    assert_eq!(classic::body_style().fg, AnsiColor::BrightBlack);
-    assert_eq!(classic::menu_hotkey_style().fg, AnsiColor::BrightBlack);
-    assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlack);
-    assert_eq!(classic::notice_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::body_style().fg, AnsiColor::White);
+    assert_eq!(classic::menu_style().fg, AnsiColor::White);
+    assert_eq!(classic::menu_hotkey_style().fg, AnsiColor::White);
+    assert_eq!(classic::prompt_style().fg, AnsiColor::White);
+    assert_eq!(classic::status_label_style().fg, AnsiColor::White);
+    assert_eq!(classic::help_panel_style().fg, AnsiColor::White);
+    assert_eq!(classic::quote_style().fg, AnsiColor::White);
+    assert_eq!(classic::logo_style().fg, AnsiColor::White);
+    assert_eq!(classic::notice_style().fg, AnsiColor::White);
+    assert_eq!(classic::disabled_row_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::indicator_off_style().fg, AnsiColor::BrightBlack);
     assert_eq!(classic::selected_row_style().fg, AnsiColor::Black);
     assert_eq!(classic::selected_row_style().bg, AnsiColor::BrightBlack);
 

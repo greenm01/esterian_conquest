@@ -59,6 +59,13 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::ScrollBuildList(delta) => app.scroll_planet_build_list(delta),
         PlanetAction::MoveBuildList(delta) => app.move_planet_build_list_cursor(delta),
         PlanetAction::DeleteBuildSlotRequest => app.delete_planet_build_slot_request(),
+        PlanetAction::AppendDeleteBuildQtyChar(ch) => app.append_delete_build_qty_char(ch),
+        PlanetAction::BackspaceDeleteBuildQtyInput => app.backspace_delete_build_qty_input(),
+        PlanetAction::SubmitDeleteBuildQty => {
+            if let Err(err) = app.submit_delete_build_qty() {
+                eprintln!("submit delete planet build quantity failed: {err}");
+            }
+        }
         PlanetAction::ConfirmDeleteBuildSlot => {
             if let Err(err) = app.confirm_delete_planet_build_slot() {
                 eprintln!("confirm delete planet build slot failed: {err}");

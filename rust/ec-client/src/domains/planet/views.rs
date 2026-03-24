@@ -137,6 +137,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.build_list_scroll_offset,
             app.planet.build_list_cursor,
             app.planet.build_list_confirming,
+            app.planet.build_list_delete_qty_prompt_active,
+            &app.planet.build_list_delete_qty_input,
+            app.planet.build_list_delete_qty_status.as_deref(),
+            app.planet.build_list_delete_qty_pending,
         ),
         ScreenId::PlanetBuildChange => app.planet_build.render_change(
             &app.build_change_rows(),
