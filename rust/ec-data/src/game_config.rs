@@ -32,6 +32,9 @@ pub struct GameConfig {
 
     /// Inactivity policy settings.
     pub inactivity: InactivityConfig,
+
+    /// Optional BBS/dropfile seat reservations by caller alias.
+    pub reservations: Vec<SeatReservation>,
 }
 
 /// Session timeout and timing policies.
@@ -56,6 +59,13 @@ pub struct InactivityConfig {
     pub autopilot_after_turns: u8,
 }
 
+/// Reserve a player seat for a specific BBS/dropfile caller alias.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SeatReservation {
+    pub player_record_index_1_based: usize,
+    pub alias: String,
+}
+
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 impl Default for GameConfig {
@@ -66,6 +76,7 @@ impl Default for GameConfig {
             snoop: true,
             session: SessionConfig::default(),
             inactivity: InactivityConfig::default(),
+            reservations: Vec::new(),
         }
     }
 }
@@ -165,12 +176,43 @@ impl GameConfig {
             InactivityConfig::default()
         };
 
+        let reservations = if let Some(node) = document.get("reservations") {
+            let mut reservations = Vec::new();
+            if let Some(children) = node.children() {
+                for child in children.nodes() {
+                    if child.name().value() != "seat" {
+                        return Err(GameConfigError::Parse(format!(
+                            "reservations only accepts seat children, found '{}'",
+                            child.name().value()
+                        )));
+                    }
+                    let player_record_index_1_based = prop_usize(child, "player")?;
+                    let alias = prop_string(child, "alias")?;
+                    let alias = alias.trim().to_string();
+                    if alias.is_empty() {
+                        return Err(GameConfigError::Parse(
+                            "reservation alias must contain at least one visible character"
+                                .to_string(),
+                        ));
+                    }
+                    reservations.push(SeatReservation {
+                        player_record_index_1_based,
+                        alias,
+                    });
+                }
+            }
+            reservations
+        } else {
+            Vec::new()
+        };
+
         Ok(Self {
             game_name,
             theme,
             snoop,
             session,
             inactivity,
+            reservations,
         }
         .validate()?)
     }
@@ -207,7 +249,60 @@ impl GameConfig {
                 self.inactivity.autopilot_after_turns
             )));
         }
+        let mut seen_players = std::collections::BTreeSet::new();
+        let mut seen_aliases = std::collections::BTreeSet::new();
+        for reservation in &self.reservations {
+            if reservation.player_record_index_1_based == 0 {
+                return Err(GameConfigError::Parse(
+                    "reservation player must be >= 1".to_string(),
+                ));
+            }
+            if !seen_players.insert(reservation.player_record_index_1_based) {
+                return Err(GameConfigError::Parse(format!(
+                    "duplicate reservation for player {}",
+                    reservation.player_record_index_1_based
+                )));
+            }
+            let alias_key = reservation.alias.to_ascii_lowercase();
+            if !seen_aliases.insert(alias_key) {
+                return Err(GameConfigError::Parse(format!(
+                    "duplicate reservation alias '{}'",
+                    reservation.alias
+                )));
+            }
+        }
         Ok(self)
+    }
+
+    pub fn reservation_for_alias(&self, alias: &str) -> Option<&SeatReservation> {
+        let alias = alias.trim();
+        self.reservations
+            .iter()
+            .find(|reservation| reservation.alias.eq_ignore_ascii_case(alias))
+    }
+
+    pub fn reservation_for_player(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> Option<&SeatReservation> {
+        self.reservations.iter().find(|reservation| {
+            reservation.player_record_index_1_based == player_record_index_1_based
+        })
+    }
+
+    pub fn validate_reservations_for_player_count(
+        &self,
+        player_count: usize,
+    ) -> Result<(), GameConfigError> {
+        for reservation in &self.reservations {
+            if reservation.player_record_index_1_based > player_count {
+                return Err(GameConfigError::Parse(format!(
+                    "reservation player {} exceeds player count {}",
+                    reservation.player_record_index_1_based, player_count
+                )));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -216,6 +311,22 @@ impl GameConfig {
 /// Return the first positional string argument of a top-level node by name.
 fn opt_node_string(document: &kdl::KdlDocument, name: &str) -> Option<String> {
     document.get(name)?.get(0)?.as_string().map(str::to_string)
+}
+
+fn prop_string(node: &kdl::KdlNode, name: &str) -> Result<String, GameConfigError> {
+    node.get(name)
+        .and_then(|value| value.as_string())
+        .map(str::to_string)
+        .ok_or_else(|| GameConfigError::Parse(format!("{name} requires a string property")))
+}
+
+fn prop_usize(node: &kdl::KdlNode, name: &str) -> Result<usize, GameConfigError> {
+    let value = node
+        .get(name)
+        .and_then(|value| value.as_integer())
+        .ok_or_else(|| GameConfigError::Parse(format!("{name} requires an integer property")))?;
+    usize::try_from(value)
+        .map_err(|_| GameConfigError::Parse(format!("{name} out of usize range: {value}")))
 }
 
 /// Return the value of a child node's first positional argument as `u8`.

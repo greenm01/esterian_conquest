@@ -8,8 +8,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifi
 use ec_compat::{decode_report_block_rows, import_directory_snapshot};
 use ec_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot, ProductionItemKind,
-    QueuedPlayerMail,
+    EmpireProductionRankingSort, GameConfig, InactivityConfig, IntelTier, PlanetIntelSnapshot,
+    ProductionItemKind, QueuedPlayerMail, SessionConfig,
 };
 use ec_engine::yearly_tax_revenue;
 use ec_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
@@ -80,6 +80,19 @@ fn temp_joined_needs_homeworld_copy() -> PathBuf {
     data.join_player(1, "Codex Dominion")
         .expect("join player without naming homeworld");
     data.save(&root).expect("save partially joined fixture");
+    let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
+    import_directory_snapshot(&store, &root).expect("refresh sqlite snapshot");
+    root
+}
+
+fn temp_full_game_copy() -> PathBuf {
+    let root = temp_first_time_game_copy();
+    let mut data = CoreGameData::load(&root).expect("load full-game fixture");
+    for player in 1..=4 {
+        data.join_player(player, &format!("Empire {player}"))
+            .expect("join player for full-game fixture");
+    }
+    data.save(&root).expect("save full-game fixture");
     let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
     import_directory_snapshot(&store, &root).expect("refresh sqlite snapshot");
     root
@@ -1875,6 +1888,172 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
             player.tax_rate(),
         )
     );
+}
+
+#[test]
+fn first_time_join_from_reserved_dropfile_persists_caller_alias() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.caller_alias = Some("SYSOP".to_string());
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+
+    let player = &latest_runtime_state(&fixture_dir).game_data.player.records[0];
+    assert_eq!(player.assigned_player_handle_summary(), "SYSOP");
+}
+
+#[test]
+fn first_time_join_from_menu_refuses_full_game_and_displays_notice() {
+    let fixture_dir = temp_full_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    app.open_first_time_menu();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("This game is already full. No open empires remain.")
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("first-time menu should render");
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Notice: This game is already full. No open empires remain.")));
+}
+
+#[test]
+fn app_load_persists_all_setup_backed_config_fields_into_runtime_snapshot() {
+    let fixture_dir = temp_first_time_game_copy();
+    let before_setup = latest_runtime_state(&fixture_dir).game_data.setup.clone();
+    let config = GameConfig {
+        game_name: "Config Persistence Test".to_string(),
+        theme: None,
+        snoop: false,
+        session: SessionConfig {
+            max_idle_minutes: 19,
+            minimum_time_minutes: 7,
+            local_timeout: true,
+            remote_timeout: false,
+        },
+        inactivity: InactivityConfig {
+            purge_after_turns: 12,
+            autopilot_after_turns: 5,
+        },
+        reservations: Vec::new(),
+    };
+
+    let first = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: config.clone(),
+    })
+    .expect("app should load and persist config");
+    assert_ne!(
+        before_setup.snoop_enabled(),
+        first.game_data.setup.snoop_enabled()
+    );
+    assert_ne!(
+        before_setup.max_time_between_keys_minutes_raw(),
+        first.game_data.setup.max_time_between_keys_minutes_raw()
+    );
+    assert_ne!(
+        before_setup.minimum_time_granted_minutes_raw(),
+        first.game_data.setup.minimum_time_granted_minutes_raw()
+    );
+    assert_ne!(
+        before_setup.local_timeout_enabled(),
+        first.game_data.setup.local_timeout_enabled()
+    );
+    assert_ne!(
+        before_setup.remote_timeout_enabled(),
+        first.game_data.setup.remote_timeout_enabled()
+    );
+    assert_ne!(
+        before_setup.purge_after_turns_raw(),
+        first.game_data.setup.purge_after_turns_raw()
+    );
+    assert_ne!(
+        before_setup.autopilot_inactive_turns_raw(),
+        first.game_data.setup.autopilot_inactive_turns_raw()
+    );
+
+    let persisted = latest_runtime_state(&fixture_dir);
+    let setup = &persisted.game_data.setup;
+    assert!(!setup.snoop_enabled());
+    assert_eq!(setup.max_time_between_keys_minutes_raw(), 19);
+    assert_eq!(setup.minimum_time_granted_minutes_raw(), 7);
+    assert!(setup.local_timeout_enabled());
+    assert!(!setup.remote_timeout_enabled());
+    assert_eq!(setup.purge_after_turns_raw(), 12);
+    assert_eq!(setup.autopilot_inactive_turns_raw(), 5);
+
+    let second = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: config,
+    })
+    .expect("second load should reuse persisted config snapshot");
+    assert_eq!(second.game_data.setup, first.game_data.setup);
 }
 
 #[test]

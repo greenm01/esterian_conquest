@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use ec_data::DEFAULT_GAME_CONFIG_KDL;
-use ec_data::game_config::{GameConfig, GameConfigError, InactivityConfig, SessionConfig};
+use ec_data::game_config::{
+    GameConfig, GameConfigError, InactivityConfig, SeatReservation, SessionConfig,
+};
 
 // ─── Default / bundled KDL ────────────────────────────────────────────────────
 
@@ -20,6 +22,7 @@ fn bundled_config_kdl_matches_default_values() {
     assert_eq!(config.snoop, expected.snoop);
     assert_eq!(config.session, expected.session);
     assert_eq!(config.inactivity, expected.inactivity);
+    assert_eq!(config.reservations, expected.reservations);
     // theme directive may be absent in bundled KDL (commented out)
     // so we just confirm it parses cleanly; we do not assert a specific path.
 }
@@ -42,6 +45,10 @@ inactivity {
     purge_after_turns 10
     autopilot_after_turns 3
 }
+reservations {
+    seat player=1 alias="SYSOP"
+    seat player=2 alias="NightShade"
+}
 "#;
 
     let config = GameConfig::parse_kdl_str(kdl).expect("should parse");
@@ -57,6 +64,19 @@ inactivity {
 
     assert_eq!(config.inactivity.purge_after_turns, 10);
     assert_eq!(config.inactivity.autopilot_after_turns, 3);
+    assert_eq!(
+        config.reservations,
+        vec![
+            SeatReservation {
+                player_record_index_1_based: 1,
+                alias: "SYSOP".to_string()
+            },
+            SeatReservation {
+                player_record_index_1_based: 2,
+                alias: "NightShade".to_string()
+            }
+        ]
+    );
 }
 
 #[test]
@@ -124,6 +144,81 @@ fn invalid_kdl_is_rejected() {
     let err = GameConfig::parse_kdl_str("this {{ is not valid").expect_err("should reject bad KDL");
     assert!(
         matches!(err, GameConfigError::Parse(_)),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn duplicate_reservation_player_is_rejected() {
+    let kdl = r#"
+reservations {
+    seat player=1 alias="SYSOP"
+    seat player=1 alias="RIVAL"
+}
+"#;
+    let err = GameConfig::parse_kdl_str(kdl).expect_err("should reject duplicate seat");
+    assert!(
+        matches!(err, GameConfigError::Parse(ref msg) if msg.contains("duplicate reservation for player 1")),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn duplicate_reservation_alias_is_rejected_case_insensitively() {
+    let kdl = r#"
+reservations {
+    seat player=1 alias="Sysop"
+    seat player=2 alias="SYSOP"
+}
+"#;
+    let err = GameConfig::parse_kdl_str(kdl).expect_err("should reject duplicate alias");
+    assert!(
+        matches!(err, GameConfigError::Parse(ref msg) if msg.contains("duplicate reservation alias")),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn blank_reservation_alias_is_rejected() {
+    let kdl = r#"
+reservations {
+    seat player=1 alias="   "
+}
+"#;
+    let err = GameConfig::parse_kdl_str(kdl).expect_err("should reject blank alias");
+    assert!(
+        matches!(err, GameConfigError::Parse(ref msg) if msg.contains("reservation alias")),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn reservation_alias_lookup_is_trimmed_and_case_insensitive() {
+    let kdl = r#"
+reservations {
+    seat player=2 alias="NightShade"
+}
+"#;
+    let config = GameConfig::parse_kdl_str(kdl).expect("should parse");
+    let reservation = config
+        .reservation_for_alias("  nightshade ")
+        .expect("alias should resolve");
+    assert_eq!(reservation.player_record_index_1_based, 2);
+}
+
+#[test]
+fn reservation_player_count_validation_rejects_out_of_range_seat() {
+    let kdl = r#"
+reservations {
+    seat player=5 alias="SYSOP"
+}
+"#;
+    let config = GameConfig::parse_kdl_str(kdl).expect("should parse");
+    let err = config
+        .validate_reservations_for_player_count(4)
+        .expect_err("seat should exceed player count");
+    assert!(
+        matches!(err, GameConfigError::Parse(ref msg) if msg.contains("exceeds player count")),
         "unexpected error: {err}"
     );
 }

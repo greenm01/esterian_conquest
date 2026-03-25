@@ -1,6 +1,6 @@
 // Esterian Conquest — game directory runtime configuration
 // Edit this file to change sysop-facing settings.
-// Changes take effect on the next ec-client startup.
+// Changes take effect on the next ec-game startup.
 
 // Display name shown in the main menu header.
 game_name "Esterian Conquest"
@@ -31,3 +31,11 @@ inactivity {
     // Put a player on autopilot after this many inactive turns (0–100).
     autopilot_after_turns 0
 }
+
+// Optional BBS/dropfile seat reservations by caller alias.
+// Reserved aliases can omit --player when launching ec-game with --dropfile.
+//
+// reservations {
+//     seat player=1 alias="SYSOP"
+//     seat player=2 alias="NightShade"
+// }

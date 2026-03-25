@@ -10,7 +10,21 @@ use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
 use crate::terminal::stdout::StdoutTerminal;
 use crate::theme;
-use ec_data::game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig};
+use ec_data::{
+    CampaignStore,
+    game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig},
+};
+
+struct ParsedLaunchArgs {
+    game_dir: PathBuf,
+    explicit_player_record_index_1_based: Option<usize>,
+    export_root: Option<PathBuf>,
+    queue_dir: Option<PathBuf>,
+    encoding: OutputEncoding,
+    color_mode: ColorMode,
+    dropfile_alias: Option<String>,
+    session_timeout_secs: Option<u32>,
+}
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
@@ -24,20 +38,28 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     if matches!(parsed_args.get(1).map(String::as_str), Some("submit-turn")) {
         return crate::submit_turn::run_submit_turn_args(&parsed_args[2..]);
     }
-    let (config, encoding, color_mode) = parse_args(&parsed_args)?;
+    let parsed = parse_args(&parsed_args)?;
 
     // Load (or bootstrap) config.kdl before anything else.
-    let game_config = load_or_bootstrap_game_config(&config.game_dir)?;
+    let game_config = load_or_bootstrap_game_config(&parsed.game_dir)?;
+    validate_runtime_game_config(&parsed.game_dir, &game_config)?;
+    let player_record_index_1_based = resolve_player_record_index_1_based(&parsed, &game_config)?;
     let config = AppConfig {
+        game_dir: parsed.game_dir.clone(),
+        player_record_index_1_based,
+        export_root: parsed.export_root.clone(),
+        queue_dir: parsed.queue_dir.clone(),
+        session_timeout_secs: parsed.session_timeout_secs,
         game_config: game_config.clone(),
-        ..config
     };
 
     // Initialise theme; the config supplies the optional custom theme path.
     theme::initialize_from_game_dir(&config.game_dir, game_config.theme.clone())?;
 
     let mut app = App::load(config)?;
-    let mut terminal = StdoutTerminal::with_encoding_and_color_mode(encoding, color_mode);
+    app.startup_state.caller_alias = parsed.dropfile_alias.clone();
+    let mut terminal =
+        StdoutTerminal::with_encoding_and_color_mode(parsed.encoding, parsed.color_mode);
 
     if std::io::stdout().is_terminal() {
         run_interactive(&mut app, &mut terminal)
@@ -72,9 +94,7 @@ fn run_interactive_inner(
     }
 }
 
-fn parse_args(
-    args: &[String],
-) -> Result<(AppConfig, OutputEncoding, ColorMode), Box<dyn std::error::Error>> {
+fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::Error>> {
     let mut dir = None;
     let mut player: Option<usize> = None;
     let mut export_root = std::env::var_os("EC_GAME_EXPORT_ROOT")
@@ -191,7 +211,10 @@ fn parse_args(
 
     if let Some(path) = &dropfile_path {
         let info = dropfile::parse(path).map_err(|e| format!("{e}"))?;
-        dropfile_alias = info.alias;
+        dropfile_alias = info
+            .alias
+            .map(|alias| alias.trim().to_string())
+            .filter(|alias| !alias.is_empty());
         dropfile_timeout_minutes = info.timeout_minutes;
     }
 
@@ -200,23 +223,15 @@ fn parse_args(
         encoding = OutputEncoding::Cp437;
     }
 
-    let dir = dir.ok_or("usage: ec-game --dir <game_dir> --player <1-based empire index>")?;
+    let dir = dir.ok_or("usage: ec-game --dir <game_dir> [--player <1-based empire index>]")?;
 
-    // --player is required unless we can resolve a player from the dropfile alias.
-    // For now, --player is always required; alias→index resolution is a follow-up.
-    let player_record_index_1_based =
-        player.ok_or("usage: ec-game --dir <game_dir> --player <1-based empire index>")?;
-    if player_record_index_1_based == 0 {
+    if matches!(player, Some(0)) {
         return Err("--player must be >= 1".into());
     }
 
     // Explicit --timeout overrides the dropfile value.
     let timeout_minutes = explicit_timeout_minutes.or(dropfile_timeout_minutes);
     let session_timeout_secs = timeout_minutes.map(|m| m.saturating_mul(60));
-
-    // Suppress unused-variable warning for dropfile_alias until alias→player
-    // resolution is implemented.
-    let _ = dropfile_alias;
 
     // Resolve color mode: explicit flag > cp437-default > env-based detection.
     let color_mode = explicit_color_mode.unwrap_or_else(|| {
@@ -228,19 +243,16 @@ fn parse_args(
         }
     });
 
-    Ok((
-        AppConfig {
-            game_dir: dir,
-            player_record_index_1_based,
-            export_root,
-            queue_dir,
-            session_timeout_secs,
-            // Placeholder; overwritten in run() after loading config.kdl.
-            game_config: GameConfig::default(),
-        },
+    Ok(ParsedLaunchArgs {
+        game_dir: dir,
+        explicit_player_record_index_1_based: player,
+        export_root,
+        queue_dir,
         encoding,
         color_mode,
-    ))
+        dropfile_alias,
+        session_timeout_secs,
+    })
 }
 
 /// Detect the terminal's color depth from standard environment variables.
@@ -270,7 +282,7 @@ pub fn detect_color_mode() -> ColorMode {
 fn print_usage() {
     println!("Usage:");
     println!(
-        "  ec-game --dir <game_dir> --player <1-based empire index> \
+        "  ec-game --dir <game_dir> [--player <1-based empire index>] \
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
          [--dropfile <path>] [--timeout <minutes>] \
          [--export-root <dir>] [--queue-dir <dir>]"
@@ -283,6 +295,7 @@ fn print_usage() {
     println!("  --dropfile <path>   Parse a BBS dropfile (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT).");
     println!("                      Supplies alias and timeout; explicit flags always override.");
     println!("                      Defaults encoding to cp437 when no --encoding is given.");
+    println!("                      Reserved aliases in config.kdl can omit --player.");
     println!("  --timeout <minutes> Session time limit in minutes.");
     println!();
     println!("Color modes:");
@@ -306,4 +319,80 @@ fn load_or_bootstrap_game_config(
     }
     GameConfig::load_kdl(&config_path)
         .map_err(|err| format!("{}: {}", config_path.display(), err).into())
+}
+
+fn resolve_player_record_index_1_based(
+    parsed: &ParsedLaunchArgs,
+    game_config: &GameConfig,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    let alias_reservation = parsed
+        .dropfile_alias
+        .as_deref()
+        .and_then(|alias| game_config.reservation_for_alias(alias));
+
+    if let Some(reservation) = alias_reservation {
+        validate_reserved_seat_runtime(&parsed.game_dir, game_config, reservation)?;
+        if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
+            if explicit_player != reservation.player_record_index_1_based {
+                return Err(format!(
+                    "--player {} does not match reserved seat {} for alias '{}'",
+                    explicit_player, reservation.player_record_index_1_based, reservation.alias
+                )
+                .into());
+            }
+        }
+        return Ok(reservation.player_record_index_1_based);
+    }
+
+    parsed.explicit_player_record_index_1_based.ok_or_else(|| {
+        "usage: ec-game --dir <game_dir> --player <1-based empire index>\n       or reserve the dropfile alias in config.kdl and use --dropfile".into()
+    })
+}
+
+fn validate_runtime_game_config(
+    game_dir: &std::path::Path,
+    game_config: &GameConfig,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if game_config.reservations.is_empty() {
+        return Ok(());
+    }
+    let campaign_store = CampaignStore::open_default_in_dir(game_dir)?;
+    let runtime_state = campaign_store
+        .load_latest_runtime_state()?
+        .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
+    game_config
+        .validate_reservations_for_player_count(runtime_state.game_data.player.records.len())?;
+    Ok(())
+}
+
+fn validate_reserved_seat_runtime(
+    game_dir: &std::path::Path,
+    game_config: &GameConfig,
+    reservation: &ec_data::SeatReservation,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let campaign_store = CampaignStore::open_default_in_dir(game_dir)?;
+    let runtime_state = campaign_store
+        .load_latest_runtime_state()?
+        .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
+    let game_data = runtime_state.game_data;
+    game_config.validate_reservations_for_player_count(game_data.player.records.len())?;
+    let player = game_data
+        .player
+        .records
+        .get(reservation.player_record_index_1_based - 1)
+        .ok_or_else(|| {
+            format!(
+                "reserved player {} is missing from PLAYER.DAT",
+                reservation.player_record_index_1_based
+            )
+        })?;
+    let handle = player.assigned_player_handle_summary();
+    if !handle.is_empty() && !handle.eq_ignore_ascii_case(&reservation.alias) {
+        return Err(format!(
+            "reserved alias '{}' conflicts with stored player handle '{}' for seat {}; reconcile config.kdl or the campaign state",
+            reservation.alias, handle, reservation.player_record_index_1_based
+        )
+        .into());
+    }
+    Ok(())
 }

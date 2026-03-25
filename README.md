@@ -116,15 +116,17 @@ cd rust
 cargo run -q -p ec-game -- --dir /tmp/ec-game --player 1
 ```
 
-On a BBS, pass the drop file and the client handles the rest:
+On a BBS, pass the drop file directly. If the caller alias is reserved in
+`config.kdl`, `ec-game` can infer the player seat automatically:
 
 ```bash
-ec-game --dir /path/to/campaign --player 1 --dropfile /path/to/DOOR32.SYS
+ec-game --dir /path/to/campaign --dropfile /path/to/DOOR32.SYS
 ```
 
 `ec-game` auto-detects `DOOR32.SYS`, `DOOR.SYS`, and `CHAIN.TXT` — no
 wrapper scripts or format massaging required. The `--timeout <minutes>` flag
-overrides the session timeout from the command line if needed.
+overrides the session timeout from the command line if needed. Unreserved
+callers can still use `--player` explicitly.
 
 Submit a player turn from a KDL file:
 

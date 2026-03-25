@@ -235,8 +235,8 @@ directory alongside `ecgame.db`. If absent when `ec-game` starts, it is
 bootstrapped from the bundled default automatically.
 
 Changes to `config.kdl` take effect on the next `ec-game` startup. The
-settings are applied into the runtime database at that point; no manual
-database edits are required.
+runtime policy settings backed by `SETUP.DAT` bytes are applied into the
+runtime database at that point; no manual database edits are required.
 
 === Full Example
 
@@ -270,6 +270,12 @@ inactivity {
     // Put a player on autopilot after this many inactive turns (0–100).
     autopilot_after_turns 0
 }
+
+// Optional BBS/dropfile seat reservations by caller alias.
+reservations {
+    seat player=1 alias="SYSOP"
+    seat player=2 alias="NightShade"
+}
 ```
 
 === Top-Level Fields
@@ -280,6 +286,7 @@ inactivity {
   [`game_name`], [string], [`"Esterian Conquest"`], [Display name shown in the main menu header.],
   [`theme`], [string], [_(absent)_], [Theme file path, relative to the game directory. Omit to use `theme.kdl`.],
   [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
+  [`reservations`], [block], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
 )
 
 === `session` Block
@@ -300,6 +307,14 @@ inactivity {
   [*Field*], [*Type*], [*Default*], [*Description*],
   [`purge_after_turns`], [integer], [`0`], [Turns of inactivity before a player is purged. `0` = disabled. Range: 0–100.],
   [`autopilot_after_turns`], [integer], [`0`], [Turns of inactivity before autopilot engages. `0` = disabled. Range: 0–100.],
+)
+
+=== `reservations` Block
+
+#table(
+  columns: (auto, auto, auto, 1fr),
+  [*Field*], [*Type*], [*Default*], [*Description*],
+  [`seat player=<N> alias="NAME"`], [entry], [_(absent)_], [Reserve empire slot `N` for a BBS/dropfile caller alias. Alias matching is ASCII case-insensitive.],
 )
 
 #admonition("NOTE")[
@@ -490,7 +505,6 @@ color depth.
 ```
 ec-game \
   --dir /path/to/mygame \
-  --player <1-based index> \
   --dropfile /path/to/DOOR32.SYS
 ```
 
@@ -506,11 +520,20 @@ flags always override drop file values. When `--dropfile` is given and
 
 `--timeout <minutes>` sets a session time limit independently of a drop file.
 
-#admonition("NOTE")[
-  `--dropfile` currently supplies the alias and timeout only. The `--player`
-  flag is still required; alias-to-empire-index resolution is a planned
-  follow-up.
-]
+Reserve seats in `config.kdl` when you want the caller alias to determine the
+empire automatically:
+
+```kdl
+reservations {
+  seat player=1 alias="SYSOP"
+  seat player=2 alias="NightShade"
+}
+```
+
+With that in place, a reserved caller can launch with `--dropfile` alone.
+If the caller alias is not reserved, `--player` is still required. If both
+`--player` and `--dropfile` are supplied for a reserved caller, they must
+agree on the same empire slot.
 
 #admonition("NOTE")[
   The original DOS `ECGAME.EXE` v1.5 expects a strict 32-line WWIV-style
@@ -522,16 +545,16 @@ flags always override drop file values. When `--dropfile` is given and
 == Enigma BBS (Rust Client)
 
 To run the native `ec-game` as an Enigma BBS door, use the `abracadabra`
-module with `io: socket` and pass `--dir`, `--player`, `--encoding cp437`, and
-`--color-mode ansi16` as arguments. The client will inherit the socket from
-Enigma's stdio handoff.
+module with `io: socket` and pass `--dir`, `--encoding cp437`, and
+`--color-mode ansi16` as arguments. Use `--player` for unreserved callers, or
+reserve the alias in `config.kdl` and let `--dropfile` resolve the seat. The
+client will inherit the socket from Enigma's stdio handoff.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
 
 ```
 ec-game \
   --dir /path/to/mygame \
-  --player <1-based index> \
   --dropfile /path/to/DOOR32.SYS
 ```
 
@@ -623,6 +646,41 @@ block. The two public thresholds are:
 
 These values are runtime policy, not setup-time game creation input.
 
+== Reserving Seats
+
+To reserve empire slots for specific BBS users, add a `reservations` block to
+`config.kdl`:
+
+```kdl
+reservations {
+    seat player=1 alias="SYSOP"
+    seat player=2 alias="NightShade"
+}
+```
+
+Each `seat` entry binds one 1-based empire slot to one caller alias. Alias
+matching is ASCII case-insensitive, so `NightShade`, `nightshade`, and
+`NIGHTSHADE` are treated as the same reservation.
+
+With reservations in place, launch `ec-game` with `--dropfile` and let the
+caller alias choose the empire automatically:
+
+```sh
+ec-game --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
+```
+
+Important rules:
+
+- if the caller alias is reserved, `--player` becomes optional
+- if the caller alias is not reserved, `--player` is still required
+- if both `--player` and `--dropfile` are supplied for a reserved caller, they must match
+- if a reservation conflicts with an already-stored different player handle, `ec-game` will stop with a clear error so the sysop can reconcile `config.kdl` and the runtime state
+
+Reserving a seat does not by itself join or pre-name the empire. It only
+routes the caller to the intended slot. The usual first-time join flow still
+claims an open empire, and that first successful join records the caller alias
+into the player record for later logins.
+
 // ─── 13. Classic Compatibility ────────────────────────────────────────────────
 
 = Classic Compatibility
@@ -653,7 +711,7 @@ ec-sysop <subcommand> [options]
 == ec-game
 
 ```
-ec-game --dir <game_dir> --player <1-based index> [options]
+ec-game --dir <game_dir> [--player <1-based index>] [options]
 ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
 
@@ -663,10 +721,10 @@ Interactive client flags:
   columns: (auto, 1fr),
   [*Flag*], [*Description*],
   [`--dir <path>`], [Game directory containing `ecgame.db`. Required.],
-  [`--player <N>`], [1-based empire index. Required.],
+  [`--player <N>`], [1-based empire index. Required unless a reserved dropfile alias resolves the seat from `config.kdl`.],
   [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
   [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
-  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout. Defaults encoding to `cp437`. Explicit flags always override.],
+  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through `config.kdl` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
   [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
   [`--export-root <path>`], [Override export directory. Default: `<game_dir>/exports`.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],

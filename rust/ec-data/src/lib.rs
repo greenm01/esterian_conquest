@@ -49,7 +49,8 @@ pub use economy::{
     yearly_tax_revenue,
 };
 pub use game_config::{
-    DEFAULT_GAME_CONFIG_KDL, GameConfig, GameConfigError, InactivityConfig, SessionConfig,
+    DEFAULT_GAME_CONFIG_KDL, GameConfig, GameConfigError, InactivityConfig, SeatReservation,
+    SessionConfig,
 };
 pub use intel::{active_starbase_count_at, merge_player_intel_from_runtime};
 pub use maintenance_types::{

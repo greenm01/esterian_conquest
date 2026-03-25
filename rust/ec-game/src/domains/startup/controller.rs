@@ -439,6 +439,18 @@ impl App {
     }
 
     pub fn open_first_time_join_name(&mut self) {
+        if !self
+            .game_data
+            .player
+            .records
+            .iter()
+            .any(|player| player.occupied_flag() == 0)
+        {
+            self.startup_state.first_time_status =
+                Some("This game is already full. No open empires remain.".to_string());
+            self.current_screen = ScreenId::FirstTimeMenu;
+            return;
+        }
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
         self.startup_state.first_time_rename_preloaded_empire = false;
@@ -864,6 +876,16 @@ impl App {
             self.player.record_index_1_based,
             &self.startup_state.first_time_empire_name,
         )?;
+        if let Some(alias) = self.startup_state.caller_alias.as_deref() {
+            if let Some(player) = self
+                .game_data
+                .player
+                .records
+                .get_mut(self.player.record_index_1_based - 1)
+            {
+                player.set_assigned_player_handle_raw(alias);
+            }
+        }
         self.save_game_data()?;
         self.refresh_player_context()?;
         Ok(())
