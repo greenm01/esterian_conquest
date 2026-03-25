@@ -801,11 +801,19 @@ impl App {
             return Vec::new();
         };
         let donor_coords = donor_row.coords;
-        rows.into_iter()
+        let mut rows = rows
+            .into_iter()
             .filter(|row| {
                 row.fleet_record_index_1_based != donor_record_index && row.coords == donor_coords
             })
-            .collect()
+            .collect::<Vec<_>>();
+        rows.sort_by_key(|row| {
+            (
+                self.transfer_ship_total(row.fleet_record_index_1_based),
+                row.fleet_number,
+            )
+        });
+        rows
     }
 
     fn transfer_host_default_value(&self) -> String {
@@ -813,6 +821,99 @@ impl App {
             .first()
             .map(|row| row.fleet_number.to_string())
             .unwrap_or_default()
+    }
+
+    fn transfer_ship_total(&self, fleet_record_index_1_based: usize) -> u32 {
+        self.game_data
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)
+            .map(|fleet| {
+                u32::from(fleet.battleship_count())
+                    + u32::from(fleet.cruiser_count())
+                    + u32::from(fleet.destroyer_count())
+                    + u32::from(fleet.troop_transport_count())
+                    + u32::from(fleet.scout_count())
+                    + u32::from(fleet.etac_count())
+            })
+            .unwrap_or(0)
+    }
+
+    pub(crate) fn eligible_transfer_donor_fleet_number(&self) -> Option<u16> {
+        self.fleet_rows()
+            .into_iter()
+            .filter(|row| self.transfer_ship_total(row.fleet_record_index_1_based) > 1)
+            .filter(|row| {
+                self.fleet_rows().iter().any(|other| {
+                    other.fleet_record_index_1_based != row.fleet_record_index_1_based
+                        && other.coords == row.coords
+                })
+            })
+            .max_by_key(|row| {
+                (
+                    self.transfer_ship_total(row.fleet_record_index_1_based),
+                    std::cmp::Reverse(row.fleet_number),
+                )
+            })
+            .map(|row| row.fleet_number)
+    }
+
+    fn validate_transfer_donor_row(&self, row: &FleetRow) -> Result<(), String> {
+        if self.transfer_ship_total(row.fleet_record_index_1_based) <= 1 {
+            return Err(format!(
+                "Fleet #{} has only one ship and is not eligible to transfer any ships.",
+                row.fleet_number
+            ));
+        }
+        let has_host = self.fleet_rows().iter().any(|other| {
+            other.fleet_record_index_1_based != row.fleet_record_index_1_based
+                && other.coords == row.coords
+        });
+        if !has_host {
+            return Err(format!(
+                "Fleet #{} is not in a sector with another one of your fleets.",
+                row.fleet_number
+            ));
+        }
+        Ok(())
+    }
+
+    fn resolve_transfer_host_prompt_row(&self) -> Result<FleetRow, String> {
+        let donor_record_index = self
+            .fleet
+            .transfer_donor_record_index_1_based
+            .ok_or_else(|| "Select a source fleet first.".to_string())?;
+        let donor_row = self
+            .fleet_row_by_record_index(donor_record_index)
+            .ok_or_else(|| "Selected source fleet is no longer available.".to_string())?;
+        let fleet_number = if self.fleet.menu_prompt_input.trim().is_empty() {
+            self.fleet
+                .menu_prompt_default_value
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "Enter one of your fleet numbers.".to_string())?
+        } else {
+            self.fleet
+                .menu_prompt_input
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "Enter one of your fleet numbers.".to_string())?
+        };
+        let row = self
+            .fleet_rows()
+            .into_iter()
+            .find(|row| row.fleet_number == fleet_number)
+            .ok_or_else(|| format!("Fleet #{fleet_number} is not in your fleet list."))?;
+        if row.fleet_record_index_1_based == donor_record_index {
+            return Err("Choose a different destination fleet.".to_string());
+        }
+        if row.coords != donor_row.coords {
+            return Err(format!(
+                "Fleet #{} is not in the same sector as Fleet #{}.",
+                row.fleet_number, donor_row.fleet_number
+            ));
+        }
+        Ok(row)
     }
 
     pub fn submit_fleet_menu_prompt(&mut self) {
@@ -946,14 +1047,12 @@ impl App {
             FleetMenuPromptMode::TransferDonor => {
                 match self.resolve_fleet_menu_prompt_selection() {
                     Ok((_index, row)) => {
-                        self.fleet.transfer_donor_record_index_1_based =
-                            Some(row.fleet_record_index_1_based);
-                        let hosts = self.eligible_transfer_host_rows();
-                        if hosts.is_empty() {
-                            self.fleet.menu_prompt_status =
-                                Some("No other fleet shares that fleet's sector.".to_string());
+                        if let Err(err) = self.validate_transfer_donor_row(&row) {
+                            self.fleet.menu_prompt_status = Some(err);
                             return;
                         }
+                        self.fleet.transfer_donor_record_index_1_based =
+                            Some(row.fleet_record_index_1_based);
                         self.fleet.menu_prompt_mode = Some(FleetMenuPromptMode::TransferHost);
                         self.fleet.menu_prompt_input.clear();
                         self.fleet.menu_prompt_status = None;
@@ -962,25 +1061,12 @@ impl App {
                     Err(err) => self.fleet.menu_prompt_status = Some(err),
                 }
             }
-            FleetMenuPromptMode::TransferHost => {
-                let rows = self.eligible_transfer_host_rows();
-                match self.resolve_fleet_prompt_row_from_rows(
-                    &rows,
-                    self.fleet
-                        .menu_prompt_default_value
-                        .trim()
-                        .parse::<u16>()
-                        .ok(),
-                    "Enter one of your fleet numbers.",
-                ) {
-                    Ok((_index, row)) => {
-                        self.open_fleet_transfer_with_selected_records(
-                            row.fleet_record_index_1_based,
-                        );
-                    }
-                    Err(err) => self.fleet.menu_prompt_status = Some(err),
+            FleetMenuPromptMode::TransferHost => match self.resolve_transfer_host_prompt_row() {
+                Ok(row) => {
+                    self.open_fleet_transfer_with_selected_records(row.fleet_record_index_1_based);
                 }
-            }
+                Err(err) => self.fleet.menu_prompt_status = Some(err),
+            },
             FleetMenuPromptMode::TransportFleet(mode) => match self
                 .resolve_fleet_menu_prompt_selection()
             {

@@ -2680,6 +2680,14 @@ fn starbase_review_matches_verified_v15_review_content() {
 #[test]
 fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[0].set_troop_transport_count(2);
+    state.game_data.fleets.records[0].set_army_count(2);
+    state.game_data.fleets.records[0].recompute_max_speed_from_composition();
+    state.game_data.fleets.records[1].set_troop_transport_count(1);
+    state.game_data.fleets.records[1].set_army_count(1);
+    state.game_data.fleets.records[1].recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
@@ -2721,17 +2729,169 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
     app.render(&mut terminal)
         .expect("transfer quantity screen should render");
-    assert_eq!(terminal.line(0).trim_end(), "TRANSFER SHIPS:");
     assert_eq!(
-        terminal.line(1).trim_end(),
-        "Enter ship counts to transfer from the donor fleet to the host fleet."
+        terminal.line(0).trim_end(),
+        "TRANSFER SHIPS BETWEEN FLEETS:"
     );
-    assert!(terminal.line(2).contains("Donor: Fleet #1 at "));
-    assert!(terminal.line(2).contains("Ships: "));
-    assert!(terminal.line(3).contains("Host: Fleet #2 at "));
-    assert!(terminal.line(3).contains("Ships: "));
+    assert!(line_containing(&terminal, "Source Fleet: Fleet #1").contains("Source Fleet:"));
     assert!(
-        line_containing(&terminal, "Battleships [0] <Q> ->").contains("Battleships [0] <Q> ->")
+        line_containing(&terminal, "Destination Fleet: Fleet #2").contains("Destination Fleet:")
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Ships: ") && line.contains("TT*"))
+    );
+    assert!(terminal.lines.iter().all(|line| !line.contains("AR=")));
+    assert!(line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q>").contains("<Q> ->"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Staged to Transfer: none"))
+    );
+}
+
+#[test]
+fn fleet_transfer_source_prompt_defaults_to_largest_eligible_fleet() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[0].set_battleship_count(1);
+    state.game_data.fleets.records[0].set_cruiser_count(1);
+    state.game_data.fleets.records[0].set_destroyer_count(1);
+    state.game_data.fleets.records[1].set_battleship_count(0);
+    state.game_data.fleets.records[1].set_cruiser_count(0);
+    state.game_data.fleets.records[1].set_destroyer_count(0);
+    state.game_data.fleets.records[1].set_scout_count(1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.fleet.menu_prompt_default_value, "1");
+}
+
+#[test]
+fn fleet_transfer_source_prompt_rejects_one_ship_fleet() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[0].set_battleship_count(0);
+    state.game_data.fleets.records[0].set_cruiser_count(0);
+    state.game_data.fleets.records[0].set_destroyer_count(0);
+    state.game_data.fleets.records[0].set_troop_transport_count(0);
+    state.game_data.fleets.records[0].set_scout_count(1);
+    state.game_data.fleets.records[0].set_etac_count(0);
+    state.game_data.fleets.records[0].recompute_max_speed_from_composition();
+    state.game_data.fleets.records[1].set_scout_count(2);
+    state.game_data.fleets.records[1].recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("Fleet #1 has only one ship and is not eligible to transfer any ships.")
+    );
+}
+
+#[test]
+fn fleet_transfer_destination_prompt_defaults_to_smallest_colocated_fleet() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[0].set_battleship_count(1);
+    state.game_data.fleets.records[0].set_cruiser_count(1);
+    state.game_data.fleets.records[0].set_destroyer_count(2);
+    state.game_data.fleets.records[1].set_battleship_count(0);
+    state.game_data.fleets.records[1].set_cruiser_count(0);
+    state.game_data.fleets.records[1].set_destroyer_count(1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+}
+
+#[test]
+fn fleet_transfer_destination_prompt_rejects_non_colocated_fleet() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[2].set_current_location_coords_raw([1, 1]);
+    state.game_data.fleets.records[2].set_standing_order_target_coords_raw([1, 1]);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    submit_fleet_menu_prompt(&mut app, Some(3));
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("Fleet #3 is not in the same sector as Fleet #1.")
     );
 }
 

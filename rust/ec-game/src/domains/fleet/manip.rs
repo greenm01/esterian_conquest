@@ -64,11 +64,10 @@ impl App {
     }
 
     pub fn open_fleet_transfer(&mut self) {
-        let total = self.fleet_rows().len();
-        if total < 2 {
+        if self.eligible_transfer_donor_fleet_number().is_none() {
             self.show_command_menu_notice(
                 CommandMenu::Fleet,
-                "You need at least two fleets to transfer ships.",
+                "You need a fleet with more than one ship in the same sector as another one of your fleets.",
             );
             return;
         }
@@ -79,7 +78,7 @@ impl App {
         self.fleet.transfer_selection = FleetDetachSelection::default();
         self.open_fleet_menu_prompt(
             crate::domains::fleet::state::FleetMenuPromptMode::TransferDonor,
-            self.strongest_owned_fleet_number()
+            self.eligible_transfer_donor_fleet_number()
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
         );
@@ -116,11 +115,11 @@ impl App {
         self.clear_fleet_menu_prompt();
         self.fleet.transfer_status = None;
         self.fleet.transfer_host_record_index_1_based = Some(host_fleet_record_index_1_based);
-        self.fleet.transfer_mode = FleetTransferMode::EnteringBattleships;
+        self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
         self.fleet.transfer_input.clear();
         self.fleet.transfer_selection = FleetDetachSelection::default();
         if donor_record_index_1_based == host_fleet_record_index_1_based {
-            self.fleet.transfer_status = Some("Choose a different host fleet.".to_string());
+            self.fleet.transfer_status = Some("Choose a different destination fleet.".to_string());
             self.open_fleet_menu();
             return;
         }
@@ -153,13 +152,26 @@ impl App {
     }
 
     pub fn append_fleet_transfer_char(&mut self, ch: char) {
-        if self.current_screen != ScreenId::FleetTransfer || !ch.is_ascii_digit() {
+        if self.current_screen != ScreenId::FleetTransfer {
             return;
         }
-        if self.fleet.transfer_input.len() >= 3 {
-            return;
+        match self.fleet.transfer_mode {
+            FleetTransferMode::ChoosingClass => {
+                if !(ch.is_ascii_alphanumeric() || ch == '*') {
+                    return;
+                }
+                if self.fleet.transfer_input.len() >= 3 {
+                    return;
+                }
+                self.fleet.transfer_input.push(ch.to_ascii_uppercase());
+            }
+            FleetTransferMode::EnteringQuantity(_) => {
+                if !ch.is_ascii_digit() || self.fleet.transfer_input.len() >= 3 {
+                    return;
+                }
+                self.fleet.transfer_input.push(ch);
+            }
         }
-        self.fleet.transfer_input.push(ch);
         self.fleet.transfer_status = None;
     }
 
@@ -193,6 +205,33 @@ impl App {
         }
         self.fleet.transfer_input.pop();
         self.fleet.transfer_status = None;
+    }
+
+    pub fn cancel_fleet_transfer(&mut self) {
+        if self.current_screen != ScreenId::FleetTransfer {
+            return;
+        }
+        self.fleet.transfer_input.clear();
+        self.fleet.transfer_status = None;
+        match self.fleet.transfer_mode {
+            FleetTransferMode::ChoosingClass => {
+                self.reset_fleet_transfer_staging();
+                self.fleet.transfer_donor_record_index_1_based = None;
+                self.fleet.transfer_host_record_index_1_based = None;
+                self.current_screen = ScreenId::FleetMenu;
+            }
+            FleetTransferMode::EnteringQuantity(_) => {
+                self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
+            }
+        }
+    }
+
+    pub fn clear_fleet_transfer_selection(&mut self) {
+        if self.current_screen != ScreenId::FleetTransfer {
+            return;
+        }
+        self.reset_fleet_transfer_staging();
+        self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
     }
 
     pub fn backspace_fleet_detach_input(&mut self) {
@@ -242,48 +281,95 @@ impl App {
             self.open_fleet_transfer();
             return Ok(());
         }
-        let value = if self.fleet.transfer_input.trim().is_empty() {
-            0
-        } else {
-            match self.fleet.transfer_input.trim().parse::<u16>() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.fleet.transfer_status = Some("Enter a number from 0 up.".to_string());
+        match self.fleet.transfer_mode {
+            FleetTransferMode::ChoosingClass => {
+                let raw = self.fleet.transfer_input.trim().to_ascii_uppercase();
+                if raw.is_empty() {
+                    self.fleet.transfer_status = Some("Enter a ship code, C, X, or Q.".to_string());
                     return Ok(());
                 }
+                match raw.as_str() {
+                    "C" => {
+                        if self.fleet.transfer_selection.total_ships() == 0 {
+                            self.fleet.transfer_status =
+                                Some("Stage at least one ship before committing.".to_string());
+                            return Ok(());
+                        }
+                        if self.fleet_transfer_remaining_total_after_selection() == 0 {
+                            self.fleet.transfer_status = Some(
+                                "At least one ship must remain in the source fleet.".to_string(),
+                            );
+                            return Ok(());
+                        }
+                        self.finish_fleet_transfer()?;
+                    }
+                    "X" => {
+                        self.clear_fleet_transfer_selection();
+                    }
+                    "Q" => {
+                        self.cancel_fleet_transfer();
+                    }
+                    _ => {
+                        let Some(class) = self.parse_fleet_detach_class_code(&raw) else {
+                            self.fleet.transfer_status =
+                                Some("Use BB, CA, DD, TT*, TT, SC, ET, C, X, or Q.".to_string());
+                            return Ok(());
+                        };
+                        if self.fleet_transfer_available_for_class(class) == 0 {
+                            self.fleet.transfer_status =
+                                Some("That class is not available for transfer.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringQuantity(class);
+                        self.fleet.transfer_input.clear();
+                        self.fleet.transfer_status = None;
+                    }
+                }
             }
-        };
-        match self.fleet.transfer_mode {
-            FleetTransferMode::EnteringBattleships => {
-                self.fleet.transfer_selection.battleships = value;
-                self.fleet.transfer_mode = FleetTransferMode::EnteringCruisers;
-            }
-            FleetTransferMode::EnteringCruisers => {
-                self.fleet.transfer_selection.cruisers = value;
-                self.fleet.transfer_mode = FleetTransferMode::EnteringDestroyers;
-            }
-            FleetTransferMode::EnteringDestroyers => {
-                self.fleet.transfer_selection.destroyers = value;
-                self.fleet.transfer_mode = FleetTransferMode::EnteringFullTransports;
-            }
-            FleetTransferMode::EnteringFullTransports => {
-                self.fleet.transfer_selection.full_transports = value;
-                self.fleet.transfer_mode = FleetTransferMode::EnteringEmptyTransports;
-            }
-            FleetTransferMode::EnteringEmptyTransports => {
-                self.fleet.transfer_selection.empty_transports = value;
-                self.fleet.transfer_mode = FleetTransferMode::EnteringScouts;
-            }
-            FleetTransferMode::EnteringScouts => {
-                self.fleet.transfer_selection.scouts = value.min(u16::from(u8::MAX)) as u8;
-                self.fleet.transfer_mode = FleetTransferMode::EnteringEtacs;
-            }
-            FleetTransferMode::EnteringEtacs => {
-                self.fleet.transfer_selection.etacs = value;
-                self.finish_fleet_transfer()?;
+            FleetTransferMode::EnteringQuantity(class) => {
+                let default_qty = 1u16.min(self.fleet_transfer_available_for_class(class));
+                let value = self.resolve_fleet_transfer_numeric_input(default_qty)?;
+                let available = self.fleet_transfer_available_for_class(class);
+                if available == 0 {
+                    self.fleet.transfer_status =
+                        Some("That class is not available for transfer.".to_string());
+                    self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
+                    self.fleet.transfer_input.clear();
+                    return Ok(());
+                }
+                if value == 0 || value > available {
+                    self.fleet.transfer_status =
+                        Some(format!("Enter a quantity from 1 to {available}."));
+                    return Ok(());
+                }
+                match class {
+                    FleetDetachClass::Battleships => {
+                        self.fleet.transfer_selection.battleships += value
+                    }
+                    FleetDetachClass::Cruisers => self.fleet.transfer_selection.cruisers += value,
+                    FleetDetachClass::Destroyers => {
+                        self.fleet.transfer_selection.destroyers += value
+                    }
+                    FleetDetachClass::FullTransports => {
+                        self.fleet.transfer_selection.full_transports += value
+                    }
+                    FleetDetachClass::EmptyTransports => {
+                        self.fleet.transfer_selection.empty_transports += value
+                    }
+                    FleetDetachClass::Scouts => {
+                        self.fleet.transfer_selection.scouts = self
+                            .fleet
+                            .transfer_selection
+                            .scouts
+                            .saturating_add(value.min(u16::from(u8::MAX)) as u8);
+                    }
+                    FleetDetachClass::Etacs => self.fleet.transfer_selection.etacs += value,
+                }
+                self.fleet.transfer_input.clear();
+                self.fleet.transfer_status = None;
+                self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
             }
         }
-        self.fleet.transfer_input.clear();
         Ok(())
     }
 
@@ -473,9 +559,17 @@ impl App {
             KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitTransfer),
             KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceTransferInput),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::Fleet(FleetAction::OpenTransfer)
+                crate::app::Action::Fleet(FleetAction::CancelTransfer)
             }
-            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+            KeyCode::Char('x') | KeyCode::Char('X') => {
+                crate::app::Action::Fleet(FleetAction::ClearTransferSelection)
+            }
+            KeyCode::Char(ch)
+                if match self.fleet.transfer_mode {
+                    FleetTransferMode::ChoosingClass => ch.is_ascii_alphanumeric() || ch == '*',
+                    FleetTransferMode::EnteringQuantity(_) => ch.is_ascii_digit(),
+                } =>
+            {
                 crate::app::Action::Fleet(FleetAction::AppendTransferChar(ch))
             }
             _ => crate::app::Action::Noop,
@@ -806,6 +900,38 @@ impl App {
             .and_then(|idx| self.fleet_row_by_record_index(idx))
     }
 
+    pub(crate) fn fleet_transfer_source_summary(&self) -> String {
+        self.fleet
+            .transfer_donor_record_index_1_based
+            .and_then(|idx| self.game_data.fleets.records.get(idx - 1))
+            .map(|fleet| self.format_fleet_detach_summary_from_record(fleet))
+            .unwrap_or_else(|| "none".to_string())
+    }
+
+    pub(crate) fn fleet_transfer_destination_summary(&self) -> String {
+        self.fleet
+            .transfer_host_record_index_1_based
+            .and_then(|idx| self.game_data.fleets.records.get(idx - 1))
+            .map(|fleet| self.format_fleet_detach_summary_from_record(fleet))
+            .unwrap_or_else(|| "none".to_string())
+    }
+
+    pub(crate) fn fleet_transfer_staged_summary(&self) -> String {
+        self.format_fleet_detach_summary_from_selection(self.fleet.transfer_selection)
+    }
+
+    pub(crate) fn fleet_transfer_remaining_summary(&self) -> String {
+        self.fleet_transfer_donor_after_selection_record()
+            .map(|fleet| self.format_fleet_detach_summary_from_record(&fleet))
+            .unwrap_or_else(|| "none".to_string())
+    }
+
+    pub(crate) fn fleet_transfer_projected_destination_summary(&self) -> String {
+        self.fleet_transfer_host_after_selection_record()
+            .map(|fleet| self.format_fleet_detach_summary_from_record(&fleet))
+            .unwrap_or_else(|| "none".to_string())
+    }
+
     pub(crate) fn fleet_detach_donor_row(&self) -> Option<crate::screen::FleetRow> {
         self.fleet
             .detach_donor_record_index_1_based
@@ -814,17 +940,18 @@ impl App {
 
     pub(crate) fn fleet_transfer_prompt_and_default(&self) -> (String, String) {
         match self.fleet.transfer_mode {
-            FleetTransferMode::EnteringBattleships => ("Battleships ".to_string(), "0".to_string()),
-            FleetTransferMode::EnteringCruisers => ("Cruisers ".to_string(), "0".to_string()),
-            FleetTransferMode::EnteringDestroyers => ("Destroyers ".to_string(), "0".to_string()),
-            FleetTransferMode::EnteringFullTransports => {
-                ("Full transports ".to_string(), "0".to_string())
-            }
-            FleetTransferMode::EnteringEmptyTransports => {
-                ("Empty transports ".to_string(), "0".to_string())
-            }
-            FleetTransferMode::EnteringScouts => ("Scouts ".to_string(), "0".to_string()),
-            FleetTransferMode::EnteringEtacs => ("ET ships ".to_string(), "0".to_string()),
+            FleetTransferMode::ChoosingClass => (
+                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q> ".to_string(),
+                String::new(),
+            ),
+            FleetTransferMode::EnteringQuantity(class) => (
+                format!(
+                    "{} to stage (max {}) ",
+                    self.fleet_detach_class_label(class),
+                    self.fleet_transfer_available_for_class(class)
+                ),
+                "1".to_string(),
+            ),
         }
     }
 
@@ -851,7 +978,7 @@ impl App {
         let host_fleet_number = self
             .fleet_number_for_record_index(host_record_index_1_based)
             .unwrap_or(0);
-        self.fleet.transfer_mode = FleetTransferMode::EnteringBattleships;
+        self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
         self.fleet.transfer_donor_record_index_1_based = None;
         self.fleet.transfer_host_record_index_1_based = None;
         self.fleet.transfer_input.clear();
@@ -881,6 +1008,173 @@ impl App {
                 Err("invalid detach numeric input".into())
             }
         }
+    }
+
+    fn resolve_fleet_transfer_numeric_input(
+        &mut self,
+        default: u16,
+    ) -> Result<u16, Box<dyn std::error::Error>> {
+        let raw = self.fleet.transfer_input.trim();
+        if raw.is_empty() {
+            return Ok(default);
+        }
+        match raw.parse::<u16>() {
+            Ok(value) => Ok(value),
+            Err(_) => {
+                self.fleet.transfer_status = Some("Enter an integer value.".to_string());
+                Err("invalid transfer numeric input".into())
+            }
+        }
+    }
+
+    fn reset_fleet_transfer_staging(&mut self) {
+        self.fleet.transfer_input.clear();
+        self.fleet.transfer_status = None;
+        self.fleet.transfer_selection = FleetDetachSelection::default();
+    }
+
+    fn fleet_transfer_remaining_total_after_selection(&self) -> u32 {
+        let Some(donor_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based
+        else {
+            return 0;
+        };
+        self.current_fleet_detach_ship_total(donor_record_index_1_based)
+            .saturating_sub(self.fleet.transfer_selection.total_ships())
+    }
+
+    fn fleet_transfer_available_for_class(&self, class: FleetDetachClass) -> u16 {
+        let Some(fleet_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based
+        else {
+            return 0;
+        };
+        let Some(fleet) = self
+            .game_data
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)
+        else {
+            return 0;
+        };
+        let class_available = match class {
+            FleetDetachClass::Battleships => fleet
+                .battleship_count()
+                .saturating_sub(self.fleet.transfer_selection.battleships),
+            FleetDetachClass::Cruisers => fleet
+                .cruiser_count()
+                .saturating_sub(self.fleet.transfer_selection.cruisers),
+            FleetDetachClass::Destroyers => fleet
+                .destroyer_count()
+                .saturating_sub(self.fleet.transfer_selection.destroyers),
+            FleetDetachClass::FullTransports => fleet
+                .army_count()
+                .saturating_sub(self.fleet.transfer_selection.full_transports),
+            FleetDetachClass::EmptyTransports => fleet
+                .troop_transport_count()
+                .saturating_sub(fleet.army_count())
+                .saturating_sub(self.fleet.transfer_selection.empty_transports),
+            FleetDetachClass::Scouts => u16::from(
+                fleet
+                    .scout_count()
+                    .saturating_sub(self.fleet.transfer_selection.scouts),
+            ),
+            FleetDetachClass::Etacs => fleet
+                .etac_count()
+                .saturating_sub(self.fleet.transfer_selection.etacs),
+        };
+        let total_limit = self
+            .fleet_transfer_remaining_total_after_selection()
+            .saturating_sub(1);
+        class_available.min(total_limit as u16)
+    }
+
+    fn fleet_transfer_donor_after_selection_record(&self) -> Option<FleetRecord> {
+        let fleet_record_index_1_based = self.fleet.transfer_donor_record_index_1_based?;
+        let mut donor_after = self
+            .game_data
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)?
+            .clone();
+        donor_after.set_battleship_count(
+            donor_after
+                .battleship_count()
+                .saturating_sub(self.fleet.transfer_selection.battleships),
+        );
+        donor_after.set_cruiser_count(
+            donor_after
+                .cruiser_count()
+                .saturating_sub(self.fleet.transfer_selection.cruisers),
+        );
+        donor_after.set_destroyer_count(
+            donor_after
+                .destroyer_count()
+                .saturating_sub(self.fleet.transfer_selection.destroyers),
+        );
+        donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
+            self.fleet.transfer_selection.full_transports
+                + self.fleet.transfer_selection.empty_transports,
+        ));
+        donor_after.set_army_count(
+            donor_after
+                .army_count()
+                .saturating_sub(self.fleet.transfer_selection.full_transports),
+        );
+        donor_after.set_scout_count(
+            donor_after
+                .scout_count()
+                .saturating_sub(self.fleet.transfer_selection.scouts),
+        );
+        donor_after.set_etac_count(
+            donor_after
+                .etac_count()
+                .saturating_sub(self.fleet.transfer_selection.etacs),
+        );
+        Some(donor_after)
+    }
+
+    fn fleet_transfer_host_after_selection_record(&self) -> Option<FleetRecord> {
+        let fleet_record_index_1_based = self.fleet.transfer_host_record_index_1_based?;
+        let mut host_after = self
+            .game_data
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)?
+            .clone();
+        host_after.set_battleship_count(
+            host_after
+                .battleship_count()
+                .saturating_add(self.fleet.transfer_selection.battleships),
+        );
+        host_after.set_cruiser_count(
+            host_after
+                .cruiser_count()
+                .saturating_add(self.fleet.transfer_selection.cruisers),
+        );
+        host_after.set_destroyer_count(
+            host_after
+                .destroyer_count()
+                .saturating_add(self.fleet.transfer_selection.destroyers),
+        );
+        host_after.set_troop_transport_count(host_after.troop_transport_count().saturating_add(
+            self.fleet.transfer_selection.full_transports
+                + self.fleet.transfer_selection.empty_transports,
+        ));
+        host_after.set_army_count(
+            host_after
+                .army_count()
+                .saturating_add(self.fleet.transfer_selection.full_transports),
+        );
+        host_after.set_scout_count(
+            host_after
+                .scout_count()
+                .saturating_add(self.fleet.transfer_selection.scouts),
+        );
+        host_after.set_etac_count(
+            host_after
+                .etac_count()
+                .saturating_add(self.fleet.transfer_selection.etacs),
+        );
+        Some(host_after)
     }
 
     pub(super) fn calculate_fleet_eta_message(

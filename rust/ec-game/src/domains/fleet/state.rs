@@ -129,7 +129,7 @@ impl Default for FleetState {
             mission_picker_status: None,
             mission_picker_caller: None,
             merge_source_record_index_1_based: None,
-            transfer_mode: FleetTransferMode::EnteringBattleships,
+            transfer_mode: FleetTransferMode::ChoosingClass,
             transfer_donor_record_index_1_based: None,
             transfer_host_record_index_1_based: None,
             transfer_input: String::new(),

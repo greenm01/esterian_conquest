@@ -147,6 +147,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .ok_or("fleet transfer host row missing")?;
             let status = app.fleet.transfer_status.as_deref();
             let (prompt, default) = app.fleet_transfer_prompt_and_default();
+            let donor_ships = app.fleet_transfer_source_summary();
+            let host_ships = app.fleet_transfer_destination_summary();
+            let staged_summary = app.fleet_transfer_staged_summary();
+            let remaining_summary = app.fleet_transfer_remaining_summary();
+            let projected_destination_summary = app.fleet_transfer_projected_destination_summary();
             app.fleet_transfer.render(
                 &donor_row,
                 &host_row,
@@ -155,6 +160,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 status,
                 &prompt,
                 &default,
+                &donor_ships,
+                &host_ships,
+                &staged_summary,
+                &remaining_summary,
+                &projected_destination_summary,
             )
         }
         ScreenId::FleetDetach => {

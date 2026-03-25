@@ -91,13 +91,8 @@ pub enum FleetDetachMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetTransferMode {
-    EnteringBattleships,
-    EnteringCruisers,
-    EnteringDestroyers,
-    EnteringFullTransports,
-    EnteringEmptyTransports,
-    EnteringScouts,
-    EnteringEtacs,
+    ChoosingClass,
+    EnteringQuantity(FleetDetachClass),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1099,61 +1094,159 @@ impl FleetTransferScreen {
         status: Option<&str>,
         prompt: &str,
         default: &str,
+        source_ships: &str,
+        destination_ships: &str,
+        staged_summary: &str,
+        remaining_summary: &str,
+        destination_summary: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        const SOURCE_FLEET_ROW: usize = 2;
+        const SOURCE_LOCATION_ROW: usize = 3;
+        const SOURCE_ORDERS_ROW: usize = 4;
+        const SOURCE_TARGET_ROW: usize = 5;
+        const SOURCE_SPEED_ROE_ROW: usize = 6;
+        const SOURCE_SHIPS_ROW: usize = 7;
+        const DEST_FLEET_ROW: usize = 9;
+        const DEST_LOCATION_ROW: usize = 10;
+        const DEST_ORDERS_ROW: usize = 11;
+        const DEST_TARGET_ROW: usize = 12;
+        const DEST_SPEED_ROE_ROW: usize = 13;
+        const DEST_SHIPS_ROW: usize = 14;
+        const ACTION_ROW: usize = 16;
+        const COMMAND_ROW: usize = 18;
+        const STAGED_ROW: usize = 20;
+
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "TRANSFER SHIPS:", classic::title_style());
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Enter ship counts to transfer from the donor fleet to the host fleet.",
+        buffer.write_text(
+            0,
+            0,
+            "TRANSFER SHIPS BETWEEN FLEETS:",
+            classic::title_style(),
         );
         draw_status_line(
             &mut buffer,
-            2,
-            "Donor: ",
+            SOURCE_FLEET_ROW,
+            "Source Fleet: ",
+            &format!("Fleet #{}", donor_row.fleet_number),
+        );
+        draw_status_line(
+            &mut buffer,
+            SOURCE_LOCATION_ROW,
+            "Location: ",
+            &format_sector_coords_table(donor_row.coords),
+        );
+        draw_status_line(
+            &mut buffer,
+            SOURCE_ORDERS_ROW,
+            "Orders: ",
+            &donor_row.order_label,
+        );
+        draw_status_line(
+            &mut buffer,
+            SOURCE_TARGET_ROW,
+            "Target: ",
+            &fleet_list_target_label(donor_row.target_coords),
+        );
+        draw_status_line(
+            &mut buffer,
+            SOURCE_SPEED_ROE_ROW,
+            "Speed / ROE: ",
             &format!(
-                "Fleet #{} at {}  Ships: {}",
-                donor_row.fleet_number,
-                format_sector_coords_table(donor_row.coords),
-                donor_row.composition_label
+                "{} / {}",
+                donor_row.current_speed, donor_row.rules_of_engagement
             ),
         );
+        draw_status_line(&mut buffer, SOURCE_SHIPS_ROW, "Ships: ", source_ships);
+
         draw_status_line(
             &mut buffer,
-            3,
-            "Host: ",
-            &format!(
-                "Fleet #{} at {}  Ships: {}",
-                host_row.fleet_number,
-                format_sector_coords_table(host_row.coords),
-                host_row.composition_label
-            ),
+            DEST_FLEET_ROW,
+            "Destination Fleet: ",
+            &format!("Fleet #{}", host_row.fleet_number),
         );
         draw_status_line(
             &mut buffer,
-            4,
-            "Current / Max Speed: ",
+            DEST_LOCATION_ROW,
+            "Location: ",
+            &format_sector_coords_table(host_row.coords),
+        );
+        draw_status_line(
+            &mut buffer,
+            DEST_ORDERS_ROW,
+            "Orders: ",
+            &host_row.order_label,
+        );
+        draw_status_line(
+            &mut buffer,
+            DEST_TARGET_ROW,
+            "Target: ",
+            &fleet_list_target_label(host_row.target_coords),
+        );
+        draw_status_line(
+            &mut buffer,
+            DEST_SPEED_ROE_ROW,
+            "Speed / ROE: ",
             &format!(
-                "{}/{} -> {}/{}",
-                donor_row.current_speed,
-                donor_row.max_speed,
-                host_row.current_speed,
-                host_row.max_speed
+                "{} / {}",
+                host_row.current_speed, host_row.rules_of_engagement
             ),
         );
-        let command_row = menu_prompt_row(4);
+        draw_status_line(&mut buffer, DEST_SHIPS_ROW, "Ships: ", destination_ships);
+        buffer.write_spans(
+            ACTION_ROW,
+            0,
+            &[
+                StyledSpan::new("<", classic::prompt_style()),
+                StyledSpan::new("C", classic::prompt_hotkey_style()),
+                StyledSpan::new(">ommit, <", classic::prompt_style()),
+                StyledSpan::new("X", classic::prompt_hotkey_style()),
+                StyledSpan::new("> Cancel", classic::prompt_style()),
+            ],
+        );
         draw_command_line_default_input_at(
             &mut buffer,
-            command_row,
+            COMMAND_ROW,
             "FLEET COMMAND",
             prompt,
             default,
             input,
         );
+        let staged_end_row = if staged_summary != "none" {
+            draw_status_line(
+                &mut buffer,
+                STAGED_ROW,
+                "Staged to Transfer: ",
+                staged_summary,
+            );
+            draw_status_line(
+                &mut buffer,
+                STAGED_ROW + 1,
+                "Remaining on Source: ",
+                remaining_summary,
+            );
+            draw_status_line(
+                &mut buffer,
+                STAGED_ROW + 2,
+                "Destination After Transfer: ",
+                destination_summary,
+            );
+            STAGED_ROW + 2
+        } else {
+            draw_status_line(
+                &mut buffer,
+                STAGED_ROW,
+                "Staged to Transfer: ",
+                staged_summary,
+            );
+            STAGED_ROW
+        };
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            let status_row = (staged_end_row + 2).min(last_body_row());
+            let max_rows = last_body_row().saturating_sub(status_row) + 1;
+            if max_rows > 0 {
+                draw_wrapped_message(&mut buffer, status_row, max_rows, "", status);
+            }
         }
         Ok(buffer)
     }
