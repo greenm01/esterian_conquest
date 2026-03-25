@@ -96,10 +96,10 @@ pub(crate) use crate::domains::fleet::screens::fleet::{
     FLEET_LIST_VISIBLE_ROWS, FLEET_VISIBLE_ROWS,
 };
 pub use crate::domains::fleet::screens::fleet::{
-    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
-    FleetGroupScreen, FleetListScreen, FleetMenuScreen, FleetMissionPickerScreen,
-    FleetReviewScreen, FleetRow, FleetSingleOrderMode, FleetSingleOrderScreen,
-    FleetTransferMode, FleetTransferScreen,
+    FleetDetachClass, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
+    FleetGroupOrderMode, FleetGroupScreen, FleetListScreen, FleetMenuScreen,
+    FleetMissionPickerScreen, FleetReviewScreen, FleetRow, FleetSingleOrderMode,
+    FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
 };
 pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;

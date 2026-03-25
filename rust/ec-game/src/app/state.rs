@@ -19,12 +19,12 @@ use crate::screen::{
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
     FleetDetachScreen, FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListScreen,
     FleetMenuScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetSingleOrderScreen,
-    FleetTransferScreen, GeneralHelpScreen, GeneralMenuScreen,
-    MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen,
-    PlanetCommissionScreen, PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen,
-    PlanetListScreen, PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen,
-    ReportsScreen, ScreenId, StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen,
-    StarbaseReviewScreen, StarmapScreen, StartupScreen,
+    FleetTransferScreen, GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen,
+    MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen, PlanetCommissionScreen,
+    PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen,
+    PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenId,
+    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
+    StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupSequence, StartupSummary};
 

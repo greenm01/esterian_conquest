@@ -18,7 +18,9 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenTransfer => app.open_fleet_transfer(),
         FleetAction::OpenDetach => app.open_fleet_detach(),
         FleetAction::OpenEta => app.open_fleet_eta(),
-        FleetAction::OpenTransportLoad => app.open_fleet_transport_prompt(PlanetTransportMode::Load),
+        FleetAction::OpenTransportLoad => {
+            app.open_fleet_transport_prompt(PlanetTransportMode::Load)
+        }
         FleetAction::OpenTransportUnload => {
             app.open_fleet_transport_prompt(PlanetTransportMode::Unload)
         }
@@ -44,6 +46,8 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::BackspaceDetachInput => app.backspace_fleet_detach_input(),
         FleetAction::BackspaceEtaInput => app.backspace_fleet_eta_input(),
         FleetAction::CancelMenuPrompt => app.cancel_fleet_menu_prompt(),
+        FleetAction::CancelDetach => app.cancel_fleet_detach(),
+        FleetAction::ClearDetachSelection => app.clear_fleet_detach_selection(),
         FleetAction::CancelOrder => app.cancel_fleet_order(),
         FleetAction::CancelGroupOrder => app.cancel_fleet_group_order(),
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),

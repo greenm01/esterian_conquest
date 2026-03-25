@@ -38,6 +38,8 @@ pub enum FleetAction {
     BackspaceDetachInput,
     BackspaceEtaInput,
     CancelMenuPrompt,
+    CancelDetach,
+    ClearDetachSelection,
     CancelOrder,
     CancelGroupOrder,
     SubmitMenuPrompt,

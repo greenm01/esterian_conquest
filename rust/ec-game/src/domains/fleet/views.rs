@@ -142,17 +142,25 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .fleet_detach_donor_row()
                 .ok_or("fleet detach donor row missing")?;
             let (prompt, default) = app.fleet_detach_prompt_and_default();
+            let staged_summary = app.fleet_detach_staged_summary();
+            let remaining_summary = app.fleet_detach_remaining_summary();
             let status = app.fleet.detach_status.as_deref();
+            let last_commissioned = app.fleet.detach_last_commissioned.as_deref();
             app.fleet_detach.render(
                 &donor_row,
                 &prompt,
                 &default,
                 &app.fleet.detach_input,
+                &staged_summary,
+                &remaining_summary,
                 status,
+                last_commissioned,
             )
         }
         ScreenId::FleetEta => {
-            let row = app.fleet_eta_selected_row().ok_or("fleet eta row missing")?;
+            let row = app
+                .fleet_eta_selected_row()
+                .ok_or("fleet eta row missing")?;
             app.fleet_eta.render(
                 &row,
                 app.fleet.eta_mode,

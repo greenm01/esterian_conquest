@@ -56,40 +56,58 @@ impl App {
             .map(|fleet| fleet.local_slot_word_raw())
     }
 
+    pub(crate) fn largest_owned_fleet_number_by_ship_total(&self) -> Option<u16> {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .max_by_key(|fleet| {
+                (
+                    u32::from(fleet.battleship_count())
+                        + u32::from(fleet.cruiser_count())
+                        + u32::from(fleet.destroyer_count())
+                        + u32::from(fleet.troop_transport_count())
+                        + u32::from(fleet.scout_count())
+                        + u32::from(fleet.etac_count()),
+                    Reverse(fleet.local_slot_word_raw()),
+                )
+            })
+            .map(|fleet| fleet.local_slot_word_raw())
+    }
+
     pub(crate) fn fleet_menu_prompt_label(&self) -> Option<String> {
         let mode = self.fleet.menu_prompt_mode?;
-        Some(
-            match mode {
-                FleetMenuPromptMode::Review => "Review Fleet # ".to_string(),
-                FleetMenuPromptMode::Order => "Order Fleet # ".to_string(),
-                FleetMenuPromptMode::ChangeFleet => "Change Fleet # ".to_string(),
-                FleetMenuPromptMode::ChangeField => "Change [R]OE, [I]D, or [S]peed ".to_string(),
-                FleetMenuPromptMode::ChangeValue => match self.fleet.menu_prompt_change_field {
-                    Some(FleetChangeField::Roe) => "New ROE ".to_string(),
-                    Some(FleetChangeField::Id) => "New Fleet ID ".to_string(),
-                    Some(FleetChangeField::Speed) => "New Speed ".to_string(),
-                    None => "New Value ".to_string(),
-                },
-                FleetMenuPromptMode::EtaFleet => "ETA Fleet # ".to_string(),
-                FleetMenuPromptMode::DetachFleet => "Detach Fleet # ".to_string(),
-                FleetMenuPromptMode::MergeSource => "Merge Fleet # ".to_string(),
-                FleetMenuPromptMode::MergeHost => "Into Fleet # ".to_string(),
-                FleetMenuPromptMode::TransferDonor => "Transfer From Fleet # ".to_string(),
-                FleetMenuPromptMode::TransferHost => "Transfer To Fleet # ".to_string(),
-                FleetMenuPromptMode::TransportFleet(PlanetTransportMode::Load) => {
-                    "Load Fleet # ".to_string()
-                }
-                FleetMenuPromptMode::TransportFleet(PlanetTransportMode::Unload) => {
-                    "Unload Fleet # ".to_string()
-                }
-                FleetMenuPromptMode::TransportPlanet(PlanetTransportMode::Load) => {
-                    "Load Planet XX,YY ".to_string()
-                }
-                FleetMenuPromptMode::TransportPlanet(PlanetTransportMode::Unload) => {
-                    "Unload Planet XX,YY ".to_string()
-                }
+        Some(match mode {
+            FleetMenuPromptMode::Review => "Review Fleet # ".to_string(),
+            FleetMenuPromptMode::Order => "Order Fleet # ".to_string(),
+            FleetMenuPromptMode::ChangeFleet => "Change Fleet # ".to_string(),
+            FleetMenuPromptMode::ChangeField => "Change [R]OE, [I]D, or [S]peed ".to_string(),
+            FleetMenuPromptMode::ChangeValue => match self.fleet.menu_prompt_change_field {
+                Some(FleetChangeField::Roe) => "New ROE ".to_string(),
+                Some(FleetChangeField::Id) => "New Fleet ID ".to_string(),
+                Some(FleetChangeField::Speed) => "New Speed ".to_string(),
+                None => "New Value ".to_string(),
             },
-        )
+            FleetMenuPromptMode::EtaFleet => "ETA Fleet # ".to_string(),
+            FleetMenuPromptMode::DetachFleet => "Detach Fleet # ".to_string(),
+            FleetMenuPromptMode::MergeSource => "Merge Fleet # ".to_string(),
+            FleetMenuPromptMode::MergeHost => "Into Fleet # ".to_string(),
+            FleetMenuPromptMode::TransferDonor => "Transfer From Fleet # ".to_string(),
+            FleetMenuPromptMode::TransferHost => "Transfer To Fleet # ".to_string(),
+            FleetMenuPromptMode::TransportFleet(PlanetTransportMode::Load) => {
+                "Load Fleet # ".to_string()
+            }
+            FleetMenuPromptMode::TransportFleet(PlanetTransportMode::Unload) => {
+                "Unload Fleet # ".to_string()
+            }
+            FleetMenuPromptMode::TransportPlanet(PlanetTransportMode::Load) => {
+                "Load Planet XX,YY ".to_string()
+            }
+            FleetMenuPromptMode::TransportPlanet(PlanetTransportMode::Unload) => {
+                "Unload Planet XX,YY ".to_string()
+            }
+        })
     }
 
     pub(crate) fn open_fleet_menu_prompt(
@@ -244,7 +262,8 @@ impl App {
             .iter()
             .all(|row| row.fleet_record_index_1_based != fleet_record_index_1_based)
         {
-            self.fleet.menu_prompt_status = Some("Selected fleet is no longer available.".to_string());
+            self.fleet.menu_prompt_status =
+                Some("Selected fleet is no longer available.".to_string());
             return;
         }
         self.clear_command_menu_notice();
@@ -321,7 +340,10 @@ impl App {
                 self.save_game_data().map_err(|err| err.to_string())?;
                 self.show_command_menu_notice(
                     CommandMenu::Fleet,
-                    format!("Fleet #{} renumbered to Fleet #{}.", row.fleet_number, local_slot),
+                    format!(
+                        "Fleet #{} renumbered to Fleet #{}.",
+                        row.fleet_number, local_slot
+                    ),
                 );
                 self.clear_fleet_menu_prompt();
                 self.current_screen = ScreenId::FleetMenu;
@@ -569,7 +591,10 @@ impl App {
                 self.fleet.eta_destination_input.clear();
                 self.fleet.eta_include_system_input.clear();
                 self.current_screen = ScreenId::FleetMenu;
-                self.open_fleet_menu_prompt(FleetMenuPromptMode::EtaFleet, fleet_number.to_string());
+                self.open_fleet_menu_prompt(
+                    FleetMenuPromptMode::EtaFleet,
+                    fleet_number.to_string(),
+                );
             }
         }
     }
@@ -681,7 +706,11 @@ impl App {
         if self.fleet.menu_prompt_default_value.trim().is_empty() {
             self.strongest_owned_fleet_number()
         } else {
-            self.fleet.menu_prompt_default_value.trim().parse::<u16>().ok()
+            self.fleet
+                .menu_prompt_default_value
+                .trim()
+                .parse::<u16>()
+                .ok()
         }
     }
 
@@ -861,14 +890,23 @@ impl App {
                     self.fleet.cursor = index;
                     self.fleet.menu_prompt_input.clear();
                     self.fleet.menu_prompt_status = None;
-                    self.fleet.menu_prompt_default_value = row.fleet_number.to_string();
                     if let Err(err) =
                         self.open_fleet_detach_with_selected_record(row.fleet_record_index_1_based)
                     {
+                        self.fleet.menu_prompt_default_value = self
+                            .largest_owned_fleet_number_by_ship_total()
+                            .map(|value| value.to_string())
+                            .unwrap_or_default();
                         self.fleet.menu_prompt_status = Some(err);
                     }
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => {
+                    self.fleet.menu_prompt_default_value = self
+                        .largest_owned_fleet_number_by_ship_total()
+                        .map(|value| value.to_string())
+                        .unwrap_or_default();
+                    self.fleet.menu_prompt_status = Some(err);
+                }
             },
             FleetMenuPromptMode::MergeSource => match self.resolve_fleet_menu_prompt_selection() {
                 Ok((_index, row)) => {
@@ -892,11 +930,16 @@ impl App {
                     .collect::<Vec<_>>();
                 match self.resolve_fleet_prompt_row_from_rows(
                     &rows,
-                    self.fleet.menu_prompt_default_value.trim().parse::<u16>().ok(),
+                    self.fleet
+                        .menu_prompt_default_value
+                        .trim()
+                        .parse::<u16>()
+                        .ok(),
                     "Enter one of your fleet numbers.",
                 ) {
                     Ok((_index, row)) => {
-                        if let Err(err) = self.submit_inline_fleet_merge(row.fleet_record_index_1_based)
+                        if let Err(err) =
+                            self.submit_inline_fleet_merge(row.fleet_record_index_1_based)
                         {
                             self.fleet.menu_prompt_status = Some(err);
                         }
@@ -904,42 +947,51 @@ impl App {
                     Err(err) => self.fleet.menu_prompt_status = Some(err),
                 }
             }
-            FleetMenuPromptMode::TransferDonor => match self.resolve_fleet_menu_prompt_selection() {
-                Ok((_index, row)) => {
-                    self.fleet.transfer_donor_record_index_1_based =
-                        Some(row.fleet_record_index_1_based);
-                    let hosts = self.eligible_transfer_host_rows();
-                    if hosts.is_empty() {
-                        self.fleet.menu_prompt_status =
-                            Some("No other fleet shares that fleet's sector.".to_string());
-                        return;
-                    }
-                    self.fleet.menu_prompt_mode = Some(FleetMenuPromptMode::TransferHost);
-                    self.fleet.menu_prompt_input.clear();
-                    self.fleet.menu_prompt_status = None;
-                    self.fleet.menu_prompt_default_value = self.transfer_host_default_value();
-                }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
-            },
-            FleetMenuPromptMode::TransferHost => {
-                let rows = self.eligible_transfer_host_rows();
-                match self.resolve_fleet_prompt_row_from_rows(
-                    &rows,
-                    self.fleet.menu_prompt_default_value.trim().parse::<u16>().ok(),
-                    "Enter one of your fleet numbers.",
-                ) {
+            FleetMenuPromptMode::TransferDonor => {
+                match self.resolve_fleet_menu_prompt_selection() {
                     Ok((_index, row)) => {
-                        self.open_fleet_transfer_with_selected_records(row.fleet_record_index_1_based);
+                        self.fleet.transfer_donor_record_index_1_based =
+                            Some(row.fleet_record_index_1_based);
+                        let hosts = self.eligible_transfer_host_rows();
+                        if hosts.is_empty() {
+                            self.fleet.menu_prompt_status =
+                                Some("No other fleet shares that fleet's sector.".to_string());
+                            return;
+                        }
+                        self.fleet.menu_prompt_mode = Some(FleetMenuPromptMode::TransferHost);
+                        self.fleet.menu_prompt_input.clear();
+                        self.fleet.menu_prompt_status = None;
+                        self.fleet.menu_prompt_default_value = self.transfer_host_default_value();
                     }
                     Err(err) => self.fleet.menu_prompt_status = Some(err),
                 }
             }
-            FleetMenuPromptMode::TransportFleet(mode) => match self.resolve_fleet_menu_prompt_selection() {
+            FleetMenuPromptMode::TransferHost => {
+                let rows = self.eligible_transfer_host_rows();
+                match self.resolve_fleet_prompt_row_from_rows(
+                    &rows,
+                    self.fleet
+                        .menu_prompt_default_value
+                        .trim()
+                        .parse::<u16>()
+                        .ok(),
+                    "Enter one of your fleet numbers.",
+                ) {
+                    Ok((_index, row)) => {
+                        self.open_fleet_transfer_with_selected_records(
+                            row.fleet_record_index_1_based,
+                        );
+                    }
+                    Err(err) => self.fleet.menu_prompt_status = Some(err),
+                }
+            }
+            FleetMenuPromptMode::TransportFleet(mode) => match self
+                .resolve_fleet_menu_prompt_selection()
+            {
                 Ok((_index, row)) => {
-                    if let Err(err) = self.open_fleet_transport_planet_prompt(
-                        mode,
-                        row.fleet_record_index_1_based,
-                    ) {
+                    if let Err(err) = self
+                        .open_fleet_transport_planet_prompt(mode, row.fleet_record_index_1_based)
+                    {
                         self.fleet.menu_prompt_status = Some(err);
                     }
                 }

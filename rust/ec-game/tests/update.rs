@@ -28,8 +28,8 @@ use ec_game::screen::layout::COMMAND_LINE_ROW;
 use ec_game::screen::table::{TableColumn, fit_table_columns};
 use ec_game::screen::{
     CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRow, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode,
-    PlanetListSort, ScreenId,
+    PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode, PlanetListSort,
+    ScreenId,
 };
 use ec_game::startup::StartupPhase;
 use ec_game::terminal::Terminal;
@@ -408,11 +408,7 @@ fn open_order_mission_picker_from_fleet_menu(app: &mut App, fleet_number: Option
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
 }
 
-fn open_change_value_prompt_from_fleet_menu(
-    app: &mut App,
-    fleet_number: Option<u16>,
-    field: char,
-) {
+fn open_change_value_prompt_from_fleet_menu(app: &mut App, fleet_number: Option<u16>, field: char) {
     assert_eq!(
         apply_action(app, Action::Fleet(FleetAction::OpenChangePrompt)),
         AppOutcome::Continue
@@ -442,6 +438,22 @@ fn open_detach_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     submit_fleet_menu_prompt(app, fleet_number);
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+}
+
+fn enter_detach_input(app: &mut App, input: &str) {
+    for ch in input.chars() {
+        assert_eq!(
+            apply_action(app, Action::Fleet(FleetAction::AppendDetachChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+}
+
+fn submit_detach(app: &mut App) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::SubmitDetach)),
+        AppOutcome::Continue
+    );
 }
 
 fn enter_fleet_order_target(app: &mut App, coords: [u8; 2]) {
@@ -2718,7 +2730,9 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     assert!(terminal.line(2).contains("Ships: "));
     assert!(terminal.line(3).contains("Host: Fleet #2 at "));
     assert!(terminal.line(3).contains("Ships: "));
-    assert!(line_containing(&terminal, "Battleships [0] <Q> ->").contains("Battleships [0] <Q> ->"));
+    assert!(
+        line_containing(&terminal, "Battleships [0] <Q> ->").contains("Battleships [0] <Q> ->")
+    );
 }
 
 #[test]
@@ -5592,11 +5606,39 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     let homeworld_index =
         state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
     let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
-    let fleet = &mut state.game_data.fleets.records[0];
-    fleet.set_current_location_coords_raw(home_coords);
-    fleet.set_troop_transport_count(3);
-    fleet.set_army_count(1);
-    fleet.recompute_max_speed_from_composition();
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(home_coords);
+    fleet_one.set_battleship_count(0);
+    fleet_one.set_cruiser_count(0);
+    fleet_one.set_destroyer_count(0);
+    fleet_one.set_troop_transport_count(5);
+    fleet_one.set_army_count(1);
+    fleet_one.set_scout_count(0);
+    fleet_one.set_etac_count(0);
+    fleet_one.recompute_max_speed_from_composition();
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_battleship_count(4);
+    fleet_two.set_cruiser_count(0);
+    fleet_two.set_destroyer_count(0);
+    fleet_two.set_troop_transport_count(3);
+    fleet_two.set_army_count(3);
+    fleet_two.set_scout_count(0);
+    fleet_two.set_etac_count(0);
+    fleet_two.recompute_max_speed_from_composition();
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -5623,6 +5665,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.fleet.menu_prompt_default_value, "1");
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -5661,11 +5704,282 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
     app.render(&mut terminal)
         .expect("fleet unload prompt should render");
     let prompt = line_containing(&terminal, "FLEET COMMAND <- Unload Fleet #");
     assert!(prompt.contains("Unload Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
+}
+
+#[test]
+fn fleet_transport_load_prompt_rejects_fleet_not_at_owned_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw([1, 1]);
+    fleet_one.set_troop_transport_count(4);
+    fleet_one.set_army_count(0);
+    fleet_one.recompute_max_speed_from_composition();
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(2);
+    fleet_two.set_army_count(0);
+    fleet_two.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet load prompt should render owned-world warning");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("That fleet is not at one of your worlds.")
+    );
+}
+
+#[test]
+fn fleet_transport_unload_prompt_rejects_fleet_not_at_owned_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw([1, 1]);
+    fleet_one.set_troop_transport_count(4);
+    fleet_one.set_army_count(2);
+    fleet_one.recompute_max_speed_from_composition();
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(2);
+    fleet_two.set_army_count(1);
+    fleet_two.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet unload prompt should render owned-world warning");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("That fleet is not at one of your worlds.")
+    );
+}
+
+#[test]
+fn fleet_transport_load_prompt_requires_armies_on_owned_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    state.game_data.planets.records[extra_owned_idx].set_owner_empire_slot_raw(1);
+    state.game_data.planets.records[extra_owned_idx].set_army_count_raw(0);
+    let other_coords = state.game_data.planets.records[extra_owned_idx].coords_raw();
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(other_coords);
+    fleet_one.set_troop_transport_count(4);
+    fleet_one.set_army_count(0);
+    fleet_one.recompute_max_speed_from_composition();
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(2);
+    fleet_two.set_army_count(0);
+    fleet_two.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet load prompt should render no-armies warning");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("That world has no armies available to load.")
+    );
+}
+
+#[test]
+fn fleet_transport_unload_prompt_requires_room_on_owned_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    state.game_data.planets.records[extra_owned_idx].set_owner_empire_slot_raw(1);
+    state.game_data.planets.records[extra_owned_idx].set_army_count_raw(u8::MAX);
+    let other_coords = state.game_data.planets.records[extra_owned_idx].coords_raw();
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(other_coords);
+    fleet_one.set_troop_transport_count(4);
+    fleet_one.set_army_count(2);
+    fleet_one.recompute_max_speed_from_composition();
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(2);
+    fleet_two.set_army_count(1);
+    fleet_two.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet unload prompt should render no-room warning");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("That world has no room to receive unloaded armies.")
+    );
 }
 
 #[test]
@@ -5895,17 +6209,14 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
     app.render(&mut terminal)
         .expect("merge source prompt should render");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Merge Fleet #")
-            .contains("Merge Fleet # [")
+        line_containing(&terminal, "FLEET COMMAND <- Merge Fleet #").contains("Merge Fleet # [")
     );
 
     submit_fleet_menu_prompt(&mut app, Some(1));
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("merge host prompt should render");
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Into Fleet #").contains("Into Fleet # [")
-    );
+    assert!(line_containing(&terminal, "FLEET COMMAND <- Into Fleet #").contains("Into Fleet # ["));
 
     submit_fleet_menu_prompt(&mut app, Some(2));
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -5919,7 +6230,12 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
-    assert!(terminal.lines.iter().any(|line| line.contains("ordered to join Fleet #")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("ordered to join Fleet #"))
+    );
 
     let state = latest_runtime_state(&fixture_dir);
     let source = &state.game_data.fleets.records[0];
@@ -8843,7 +9159,9 @@ fn fleet_change_success_returns_to_menu_with_notice() {
     submit_fleet_menu_prompt_value(&mut app, "9");
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(line_containing(&terminal, "Fleet #4 ROE set to 9.").contains("Fleet #4 ROE set to 9."));
+    assert!(
+        line_containing(&terminal, "Fleet #4 ROE set to 9.").contains("Fleet #4 ROE set to 9.")
+    );
 }
 
 #[test]
@@ -8907,13 +9225,16 @@ fn fleet_change_id_rejects_duplicate_fleet_number_inline() {
     open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'I');
     submit_fleet_menu_prompt_value(&mut app, "1");
 
-    app.render(&mut terminal).expect("change prompt should render");
+    app.render(&mut terminal)
+        .expect("change prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert!(
-        line_containing(&terminal, "Fleet ID is already in use.").contains("Fleet ID is already in use.")
+        line_containing(&terminal, "Fleet ID is already in use.")
+            .contains("Fleet ID is already in use.")
     );
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- New Fleet ID").contains("New Fleet ID [4] <Q> ->")
+        line_containing(&terminal, "FLEET COMMAND <- New Fleet ID")
+            .contains("New Fleet ID [4] <Q> ->")
     );
 }
 
@@ -8941,8 +9262,7 @@ fn fleet_change_speed_updates_current_speed_inline() {
 
     app.render(&mut terminal).expect("fleet menu should render");
     assert!(
-        line_containing(&terminal, "Fleet #4 speed set to 0.")
-            .contains("Fleet #4 speed set to 0.")
+        line_containing(&terminal, "Fleet #4 speed set to 0.").contains("Fleet #4 speed set to 0.")
     );
 
     let state = latest_runtime_state(&fixture_dir);
@@ -9615,7 +9935,11 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert_eq!(buffer.plain_line(1).trim_end(), "Fleet ID: 7");
     assert_eq!(buffer.plain_line(2).trim_end(), "Location: (16,13)");
     assert_eq!(buffer.plain_line(4).trim_end(), "Current Target: (19,13)");
-    assert!(buffer.plain_line(7).contains("FLEET COMMAND <- Destination [19,13] <Q> ->"));
+    assert!(
+        buffer
+            .plain_line(7)
+            .contains("FLEET COMMAND <- Destination [19,13] <Q> ->")
+    );
 }
 
 #[test]
@@ -10692,20 +11016,22 @@ fn compose_body_cursor_preserves_visual_column_in_blank_canvas_space() {
 }
 
 #[test]
-fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
+fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
     let fixture_dir = temp_game_copy();
     let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
     let initial_fleet_count = game_data.fleets.records.len();
     let donor = &mut game_data.fleets.records[0];
-    donor.set_destroyer_count(2);
-    donor.set_etac_count(1);
-    donor.set_cruiser_count(0);
+    donor.set_scout_count(1);
+    donor.set_cruiser_count(1);
+    donor.set_destroyer_count(4);
     donor.set_battleship_count(0);
-    donor.set_troop_transport_count(0);
-    donor.set_army_count(0);
-    donor.set_scout_count(0);
+    donor.set_troop_transport_count(4);
+    donor.set_army_count(4);
+    donor.set_etac_count(0);
+    donor.set_current_location_coords_raw([8, 9]);
     donor.recompute_max_speed_from_composition();
     donor.set_current_speed(0);
+    donor.set_rules_of_engagement(0);
     game_data.save(&fixture_dir).expect("save fixture");
     let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
     import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
@@ -10728,60 +11054,182 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("render destroyer prompt");
+    app.render(&mut terminal).expect("render class prompt");
+    assert_eq!(terminal.line(1).trim_end(), "");
+    assert_eq!(terminal.line(2).trim_end(), "Fleet: Fleet #1");
+    assert_eq!(terminal.line(3).trim_end(), "");
+    assert_eq!(terminal.line(4).trim_end(), "Location: (08,09)");
+    assert!(terminal.line(5).starts_with("Orders: "));
+    assert!(terminal.line(6).starts_with("Target: "));
+    assert_eq!(terminal.line(7).trim_end(), "Speed: 0");
+    assert_eq!(terminal.line(8).trim_end(), "ROE: 0");
     assert!(
-        line_containing(&terminal, "Destroyers to detach [")
-            .contains("Destroyers to detach [0] <Q> ->")
+        terminal
+            .line(10)
+            .contains("Ships: SC=1 CA=1 DD=4 TT=4 AR=4")
     );
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
-        AppOutcome::Continue
-    );
-    app.render(&mut terminal).expect("render etac prompt");
+    assert_eq!(terminal.line(12).trim_end(), "<C>ommission, <X> Cancel");
     assert!(
-        line_containing(&terminal, "ET ships to detach [")
-            .contains("ET ships to detach [0] <Q> ->")
+        line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q>")
+            .contains("Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q>")
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Detach ships from the selected fleet"))
+    );
+    assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Remaining on Donor: "))
     );
 
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
-        AppOutcome::Continue
+    enter_detach_input(&mut app, "dd");
+    submit_detach(&mut app);
+    app.render(&mut terminal).expect("render quantity prompt");
+    assert!(
+        line_containing(&terminal, "DD to stage (max 4)")
+            .contains("DD to stage (max 4) [1] <Q> ->")
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
-        AppOutcome::Continue
-    );
-    app.render(&mut terminal).expect("render roe prompt");
-    assert!(line_containing(&terminal, "New fleet ROE [").contains("New fleet ROE [6] <Q> ->"));
 
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
-        AppOutcome::Continue
-    );
+    submit_detach(&mut app);
+    app.render(&mut terminal).expect("render staged summary");
+    assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("DD=1"));
+    assert!(line_containing(&terminal, "Remaining on Donor: ").contains("SC=1 CA=1 DD=3 TT*=4"));
+
+    enter_detach_input(&mut app, "c");
+    submit_detach(&mut app);
     app.render(&mut terminal)
-        .expect("render detach screen after save");
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+        .expect("render menu notice after commission");
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+    assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
     assert!(
-        line_containing(&terminal, "Notice: ")
-            .contains("Detached ships from Fleet #1 into a new fleet.")
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Remaining on Donor: "))
+    );
+    let updated = latest_runtime_state(&fixture_dir).game_data;
+    let first_commission_message = format!(
+        "Commissioned Fleet #{:02} from Fleet #01.",
+        updated
+            .fleets
+            .records
+            .last()
+            .expect("detached fleet")
+            .local_slot_word_raw()
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&first_commission_message))
     );
 
-    let updated = latest_runtime_state(&fixture_dir).game_data;
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
-    assert_eq!(updated.fleets.records[0].destroyer_count(), 1);
-    assert_eq!(updated.fleets.records[0].etac_count(), 0);
+    assert_eq!(updated.fleets.records[0].scout_count(), 1);
+    assert_eq!(updated.fleets.records[0].cruiser_count(), 1);
+    assert_eq!(updated.fleets.records[0].destroyer_count(), 3);
+    assert_eq!(updated.fleets.records[0].troop_transport_count(), 4);
+    assert_eq!(updated.fleets.records[0].army_count(), 4);
     let detached = updated.fleets.records.last().expect("detached fleet");
     assert_eq!(detached.destroyer_count(), 1);
-    assert_eq!(detached.etac_count(), 1);
+    assert_eq!(detached.scout_count(), 0);
+    assert_eq!(detached.cruiser_count(), 0);
+    assert_eq!(detached.troop_transport_count(), 0);
+    assert_eq!(detached.army_count(), 0);
+    assert_eq!(
+        detached.rules_of_engagement(),
+        updated.fleets.records[0].rules_of_engagement()
+    );
 }
 
 #[test]
-fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning() {
+fn fleet_detach_last_commissioned_message_persists_until_overwritten() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let donor = &mut game_data.fleets.records[0];
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(1);
+    donor.set_destroyer_count(4);
+    donor.set_troop_transport_count(4);
+    donor.set_army_count(4);
+    donor.set_scout_count(1);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(0);
+    donor.set_rules_of_engagement(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_detach_from_fleet_menu(&mut app, Some(1));
+
+    enter_detach_input(&mut app, "dd");
+    submit_detach(&mut app);
+    submit_detach(&mut app);
+    enter_detach_input(&mut app, "c");
+    submit_detach(&mut app);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("render after first commission");
+    let first_commission_message = line_containing(&terminal, "Commissioned Fleet #")
+        .trim_end()
+        .to_string();
+
+    enter_detach_input(&mut app, "zz");
+    submit_detach(&mut app);
+    app.render(&mut terminal)
+        .expect("render empty commission warning with pinned message");
+    assert_eq!(
+        app.fleet.detach_status.as_deref(),
+        Some("Use BB, CA, DD, TT*, TT, SC, ET, C, X, or Q.")
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&first_commission_message))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::ClearDetachSelection)),
+        AppOutcome::Continue
+    );
+    enter_detach_input(&mut app, "ca");
+    submit_detach(&mut app);
+    submit_detach(&mut app);
+    enter_detach_input(&mut app, "c");
+    submit_detach(&mut app);
+    app.render(&mut terminal)
+        .expect("render after second commission");
+    let second_commission_message = line_containing(&terminal, "Commissioned Fleet #")
+        .trim_end()
+        .to_string();
+    assert_ne!(second_commission_message, first_commission_message);
+    assert!(!terminal.lines.iter().any(|line| line.contains(&first_commission_message)));
+}
+
+#[test]
+fn fleet_detach_commission_requires_staged_ships_and_preserves_staged_block() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -10801,26 +11249,350 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
 
     let mut terminal = CaptureTerminal::new();
+    enter_detach_input(&mut app, "c");
+    submit_detach(&mut app);
     app.render(&mut terminal)
-        .expect("render first quantity prompt");
+        .expect("render empty commission warning");
 
-    for _ in 0..8 {
-        if app.current_screen() == ScreenId::FleetMenu {
-            break;
-        }
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
-            AppOutcome::Continue
-        );
-        app.render(&mut terminal)
-            .expect("advance zero-detach prompt sequence");
-    }
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+    assert!(
+        line_containing(&terminal, "Stage at least one ship before commissioning.")
+            .contains("Stage at least one ship before commissioning.")
+    );
+    assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
+}
+
+#[test]
+fn fleet_detach_x_clears_staged_selection_without_leaving_screen() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_detach_from_fleet_menu(&mut app, Some(1));
+
+    enter_detach_input(&mut app, "sc");
+    submit_detach(&mut app);
+    submit_detach(&mut app);
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::ClearDetachSelection)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("render cleared staged selection");
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+    assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
+}
+
+#[test]
+fn fleet_detach_leaves_at_least_one_ship_on_the_donor() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let donor = &mut game_data.fleets.records[0];
+    donor.set_destroyer_count(2);
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_detach_from_fleet_menu(&mut app, Some(1));
+
+    enter_detach_input(&mut app, "dd");
+    submit_detach(&mut app);
+    enter_detach_input(&mut app, "2");
+    submit_detach(&mut app);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("render donor minimum warning");
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+    assert!(
+        line_containing(&terminal, "Enter a quantity from 1 to 1.")
+            .contains("Enter a quantity from 1 to 1.")
+    );
+    assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
+}
+
+#[test]
+fn fleet_detach_final_commission_returns_to_menu_with_new_fleet_number_notice() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let donor = &mut game_data.fleets.records[0];
+    donor.set_destroyer_count(2);
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_detach_from_fleet_menu(&mut app, Some(1));
+
+    enter_detach_input(&mut app, "dd");
+    submit_detach(&mut app);
+    submit_detach(&mut app);
+    enter_detach_input(&mut app, "c");
+    submit_detach(&mut app);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("render fleet menu notice after final detach");
+    let updated = latest_runtime_state(&app.game_dir).game_data;
+    let new_fleet_number = updated
+        .fleets
+        .records
+        .last()
+        .expect("detached fleet")
+        .local_slot_word_raw();
 
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert!(
-        !terminal
+        line_containing(&terminal, "Notice: ")
+            .contains(&format!(
+                "Detached ships from Fleet #01 into Fleet #{new_fleet_number:02}."
+            ))
+    );
+}
+
+#[test]
+fn fleet_detach_prompt_reports_missing_fleet_number() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let fleet_one = game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_battleship_count(2);
+    fleet_one.set_cruiser_count(0);
+    fleet_one.set_destroyer_count(0);
+    fleet_one.set_troop_transport_count(0);
+    fleet_one.set_army_count(0);
+    fleet_one.set_scout_count(0);
+    fleet_one.set_etac_count(0);
+    let fleet_two = game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_battleship_count(0);
+    fleet_two.set_cruiser_count(0);
+    fleet_two.set_destroyer_count(6);
+    fleet_two.set_troop_transport_count(0);
+    fleet_two.set_army_count(0);
+    fleet_two.set_scout_count(0);
+    fleet_two.set_etac_count(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+    submit_fleet_menu_prompt_value(&mut app, "99");
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("render detach prompt missing fleet notice");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Detach Fleet #")
+            .contains("Detach Fleet #")
+    );
+    assert!(
+        terminal
             .lines
             .iter()
-            .any(|line| line.contains("Detach at least one ship."))
+            .any(|line| line.contains("Fleet #99 is not in your fleet list."))
     );
+}
+
+#[test]
+fn fleet_detach_prompt_reports_single_ship_fleet_as_ineligible() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let donor = &mut game_data.fleets.records[0];
+    donor.set_destroyer_count(1);
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(0);
+    let fallback = game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fallback.set_battleship_count(0);
+    fallback.set_cruiser_count(0);
+    fallback.set_destroyer_count(4);
+    fallback.set_troop_transport_count(0);
+    fallback.set_army_count(0);
+    fallback.set_scout_count(0);
+    fallback.set_etac_count(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+    submit_fleet_menu_prompt(&mut app, Some(1));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("render detach prompt single-ship notice");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("Fleet #1 has only one ship and is not eligible to detach any ships.")
+    );
+}
+
+#[test]
+fn fleet_detach_prompt_defaults_to_largest_owned_fleet_by_ship_total() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let fleet_one = game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_battleship_count(3);
+    fleet_one.set_cruiser_count(0);
+    fleet_one.set_destroyer_count(0);
+    fleet_one.set_troop_transport_count(0);
+    fleet_one.set_army_count(0);
+    fleet_one.set_scout_count(0);
+    fleet_one.set_etac_count(0);
+    let fleet_two = game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_battleship_count(0);
+    fleet_two.set_cruiser_count(0);
+    fleet_two.set_destroyer_count(5);
+    fleet_two.set_troop_transport_count(0);
+    fleet_two.set_army_count(0);
+    fleet_two.set_scout_count(0);
+    fleet_two.set_etac_count(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
 }

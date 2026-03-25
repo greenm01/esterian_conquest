@@ -1,7 +1,9 @@
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
-use crate::screen::{CommandMenu, FleetDetachMode, FleetRow, FleetTransferMode, ScreenId};
-use ec_data::{CoreGameData, FleetDetachSelection};
+use crate::screen::{
+    CommandMenu, FleetDetachClass, FleetDetachMode, FleetRow, FleetTransferMode, ScreenId,
+};
+use ec_data::{CoreGameData, FleetDetachSelection, FleetRecord};
 use ec_engine::{FleetEtaEstimate, estimate_fleet_eta, estimate_fleet_eta_to_destination};
 
 impl App {
@@ -89,12 +91,13 @@ impl App {
             return;
         }
         self.fleet.detach_status = None;
+        self.fleet.detach_last_commissioned = None;
         self.fleet.detach_input.clear();
         self.fleet.detach_selection = FleetDetachSelection::default();
         self.fleet.detach_donor_speed = None;
         self.open_fleet_menu_prompt(
             crate::domains::fleet::state::FleetMenuPromptMode::DetachFleet,
-            self.strongest_owned_fleet_number()
+            self.largest_owned_fleet_number_by_ship_total()
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
         );
@@ -104,7 +107,8 @@ impl App {
         &mut self,
         host_fleet_record_index_1_based: usize,
     ) {
-        let Some(donor_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based else {
+        let Some(donor_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based
+        else {
             self.fleet.menu_prompt_status = Some("Select a donor fleet first.".to_string());
             return;
         };
@@ -127,25 +131,23 @@ impl App {
         &mut self,
         fleet_record_index_1_based: usize,
     ) -> Result<(), String> {
-        if self
+        let row = self
             .fleet_row_by_record_index(fleet_record_index_1_based)
-            .is_none()
-        {
-            return Err("Selected fleet is no longer available.".to_string());
-        }
+            .ok_or_else(|| "Selected fleet is no longer available.".to_string())?;
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
         self.fleet.detach_status = None;
+        self.fleet.detach_last_commissioned = None;
         self.fleet.detach_input.clear();
         self.fleet.detach_donor_record_index_1_based = Some(fleet_record_index_1_based);
         if self.current_fleet_detach_ship_total(fleet_record_index_1_based) <= 1 {
-            return Err("A fleet must contain at least two ships to detach.".to_string());
+            return Err(format!(
+                "Fleet #{} has only one ship and is not eligible to detach any ships.",
+                row.fleet_number
+            ));
         }
-        self.fleet.detach_selection = FleetDetachSelection::default();
-        self.fleet.detach_donor_speed = None;
-        self.fleet.detach_mode = self
-            .next_fleet_detach_prompt_mode(fleet_record_index_1_based, None)
-            .unwrap_or(FleetDetachMode::SettingNewFleetRoe);
+        self.reset_fleet_detach_staging();
+        self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
         self.current_screen = ScreenId::FleetDetach;
         Ok(())
     }
@@ -162,13 +164,26 @@ impl App {
     }
 
     pub fn append_fleet_detach_char(&mut self, ch: char) {
-        if self.current_screen != ScreenId::FleetDetach || !ch.is_ascii_digit() {
+        if self.current_screen != ScreenId::FleetDetach {
             return;
         }
-        if self.fleet.detach_input.len() >= 3 {
-            return;
+        match self.fleet.detach_mode {
+            FleetDetachMode::ChoosingClass => {
+                if !(ch.is_ascii_alphanumeric() || ch == '*') {
+                    return;
+                }
+                if self.fleet.detach_input.len() >= 3 {
+                    return;
+                }
+                self.fleet.detach_input.push(ch.to_ascii_uppercase());
+            }
+            FleetDetachMode::EnteringQuantity(_) | FleetDetachMode::AdjustingDonorSpeed => {
+                if !ch.is_ascii_digit() || self.fleet.detach_input.len() >= 3 {
+                    return;
+                }
+                self.fleet.detach_input.push(ch);
+            }
         }
-        self.fleet.detach_input.push(ch);
         self.fleet.detach_status = None;
     }
 
@@ -188,6 +203,33 @@ impl App {
         self.fleet.detach_status = None;
     }
 
+    pub fn cancel_fleet_detach(&mut self) {
+        if self.current_screen != ScreenId::FleetDetach {
+            return;
+        }
+        self.fleet.detach_input.clear();
+        self.fleet.detach_status = None;
+        match self.fleet.detach_mode {
+            FleetDetachMode::ChoosingClass => {
+                self.reset_fleet_detach_staging();
+                self.fleet.detach_last_commissioned = None;
+                self.fleet.detach_donor_record_index_1_based = None;
+                self.current_screen = ScreenId::FleetMenu;
+            }
+            FleetDetachMode::EnteringQuantity(_) | FleetDetachMode::AdjustingDonorSpeed => {
+                self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
+            }
+        }
+    }
+
+    pub fn clear_fleet_detach_selection(&mut self) {
+        if self.current_screen != ScreenId::FleetDetach {
+            return;
+        }
+        self.reset_fleet_detach_staging();
+        self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
+    }
+
     pub fn submit_fleet_transfer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.current_screen != ScreenId::FleetTransfer {
             return Ok(());
@@ -195,7 +237,8 @@ impl App {
         if self.fleet.transfer_donor_record_index_1_based.is_none()
             || self.fleet.transfer_host_record_index_1_based.is_none()
         {
-            self.fleet.transfer_status = Some("Select transfer fleets from the command menu.".to_string());
+            self.fleet.transfer_status =
+                Some("Select transfer fleets from the command menu.".to_string());
             self.open_fleet_transfer();
             return Ok(());
         }
@@ -257,103 +300,118 @@ impl App {
             return Ok(());
         };
 
-        let Some(record) = self
+        if self
             .game_data
             .fleets
             .records
             .get(donor_record_index_1_based - 1)
-            .cloned()
-        else {
+            .is_none()
+        {
             self.current_screen = ScreenId::FleetMenu;
             return Ok(());
-        };
+        }
 
         match self.fleet.detach_mode {
-            FleetDetachMode::EnteringBattleships
-            | FleetDetachMode::EnteringCruisers
-            | FleetDetachMode::EnteringDestroyers
-            | FleetDetachMode::EnteringFullTransports
-            | FleetDetachMode::EnteringEmptyTransports
-            | FleetDetachMode::EnteringScouts
-            | FleetDetachMode::EnteringEtacs => {
-                let value = self.resolve_fleet_detach_numeric_input(0)?;
-                match self.fleet.detach_mode {
-                    FleetDetachMode::EnteringBattleships => {
-                        if value > record.battleship_count() {
+            FleetDetachMode::ChoosingClass => {
+                let raw = self.fleet.detach_input.trim().to_ascii_uppercase();
+                if raw.is_empty() {
+                    self.fleet.detach_status = Some("Enter a ship code, C, X, or Q.".to_string());
+                    return Ok(());
+                }
+                match raw.as_str() {
+                    "C" => {
+                        if self.fleet.detach_selection.total_ships() == 0 {
                             self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
+                                Some("Stage at least one ship before commissioning.".to_string());
                             return Ok(());
                         }
-                        self.fleet.detach_selection.battleships = value;
-                    }
-                    FleetDetachMode::EnteringCruisers => {
-                        if value > record.cruiser_count() {
-                            self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
+                        if self.fleet_detach_remaining_total_after_selection() == 0 {
+                            self.fleet.detach_status = Some(
+                                "At least one ship must remain in the donor fleet.".to_string(),
+                            );
                             return Ok(());
                         }
-                        self.fleet.detach_selection.cruisers = value;
+                        self.fleet.detach_input.clear();
+                        self.fleet.detach_status = None;
+                        self.fleet.detach_donor_speed = None;
+                        if self.fleet_detach_requires_speed_prompt() {
+                            self.fleet.detach_mode = FleetDetachMode::AdjustingDonorSpeed;
+                        } else {
+                            self.commit_fleet_detach_staged_selection(
+                                donor_record_index_1_based,
+                                selected_row.fleet_number,
+                            )?;
+                        }
                     }
-                    FleetDetachMode::EnteringDestroyers => {
-                        if value > record.destroyer_count() {
+                    "X" => {
+                        self.clear_fleet_detach_selection();
+                    }
+                    "Q" => {
+                        self.cancel_fleet_detach();
+                    }
+                    _ => {
+                        let Some(class) = self.parse_fleet_detach_class_code(&raw) else {
                             self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
+                                Some("Use BB, CA, DD, TT*, TT, SC, ET, C, X, or Q.".to_string());
+                            return Ok(());
+                        };
+                        if self.fleet_detach_available_for_class(class) == 0 {
+                            self.fleet.detach_status =
+                                Some("That class is not available for detach.".to_string());
                             return Ok(());
                         }
-                        self.fleet.detach_selection.destroyers = value;
+                        self.fleet.detach_mode = FleetDetachMode::EnteringQuantity(class);
+                        self.fleet.detach_input.clear();
+                        self.fleet.detach_status = None;
                     }
-                    FleetDetachMode::EnteringFullTransports => {
-                        if value > record.army_count() {
-                            self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
-                            return Ok(());
-                        }
-                        self.fleet.detach_selection.full_transports = value;
+                }
+            }
+            FleetDetachMode::EnteringQuantity(class) => {
+                let default_qty = 1u16.min(self.fleet_detach_available_for_class(class));
+                let value = self.resolve_fleet_detach_numeric_input(default_qty)?;
+                let available = self.fleet_detach_available_for_class(class);
+                if available == 0 {
+                    self.fleet.detach_status =
+                        Some("That class is not available for detach.".to_string());
+                    self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
+                    self.fleet.detach_input.clear();
+                    return Ok(());
+                }
+                if value == 0 || value > available {
+                    self.fleet.detach_status =
+                        Some(format!("Enter a quantity from 1 to {available}."));
+                    return Ok(());
+                }
+                match class {
+                    FleetDetachClass::Battleships => {
+                        self.fleet.detach_selection.battleships += value;
                     }
-                    FleetDetachMode::EnteringEmptyTransports => {
-                        let available = record
-                            .troop_transport_count()
-                            .saturating_sub(record.army_count());
-                        if value > available {
-                            self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
-                            return Ok(());
-                        }
-                        self.fleet.detach_selection.empty_transports = value;
+                    FleetDetachClass::Cruisers => {
+                        self.fleet.detach_selection.cruisers += value;
                     }
-                    FleetDetachMode::EnteringScouts => {
-                        if value > u16::from(record.scout_count()) {
-                            self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
-                            return Ok(());
-                        }
-                        self.fleet.detach_selection.scouts = value as u8;
+                    FleetDetachClass::Destroyers => {
+                        self.fleet.detach_selection.destroyers += value;
                     }
-                    FleetDetachMode::EnteringEtacs => {
-                        if value > record.etac_count() {
-                            self.fleet.detach_status =
-                                Some("Enter a value from 0 to the table limit.".to_string());
-                            return Ok(());
-                        }
-                        self.fleet.detach_selection.etacs = value;
+                    FleetDetachClass::FullTransports => {
+                        self.fleet.detach_selection.full_transports += value;
                     }
-                    _ => {}
+                    FleetDetachClass::EmptyTransports => {
+                        self.fleet.detach_selection.empty_transports += value;
+                    }
+                    FleetDetachClass::Scouts => {
+                        self.fleet.detach_selection.scouts = self
+                            .fleet
+                            .detach_selection
+                            .scouts
+                            .saturating_add(value.min(u16::from(u8::MAX)) as u8);
+                    }
+                    FleetDetachClass::Etacs => {
+                        self.fleet.detach_selection.etacs += value;
+                    }
                 }
                 self.fleet.detach_input.clear();
                 self.fleet.detach_status = None;
-                if let Some(next_mode) =
-                    self.next_fleet_detach_prompt_mode(donor_record_index_1_based, Some(self.fleet.detach_mode))
-                {
-                    self.fleet.detach_mode = next_mode;
-                } else if self.fleet.detach_selection.total_ships() == 0 {
-                    self.open_fleet_detach();
-                } else if self.fleet_detach_requires_speed_prompt() {
-                    self.fleet.detach_donor_speed = None;
-                    self.fleet.detach_mode = FleetDetachMode::AdjustingDonorSpeed;
-                } else {
-                    self.fleet.detach_donor_speed = None;
-                    self.fleet.detach_mode = FleetDetachMode::SettingNewFleetRoe;
-                }
+                self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
             }
             FleetDetachMode::AdjustingDonorSpeed => {
                 let default_speed = self.fleet_detach_donor_default_speed().max(1);
@@ -367,52 +425,10 @@ impl App {
                 self.fleet.detach_donor_speed = Some(speed);
                 self.fleet.detach_input.clear();
                 self.fleet.detach_status = None;
-                self.fleet.detach_mode = FleetDetachMode::SettingNewFleetRoe;
-            }
-            FleetDetachMode::SettingNewFleetRoe => {
-                let new_roe = self.resolve_fleet_detach_numeric_input(6)? as u8;
-                if new_roe > 10 {
-                    self.fleet.detach_status = Some("Enter an ROE from 0 to 10.".to_string());
-                    return Ok(());
-                }
-                let detached_has_combat_ships = self.fleet.detach_selection.battleships > 0
-                    || self.fleet.detach_selection.cruisers > 0
-                    || self.fleet.detach_selection.destroyers > 0;
-                if !detached_has_combat_ships && new_roe != 0 {
-                    self.fleet.detach_status =
-                        Some("Non-combat fleets must use ROE 0.".to_string());
-                    return Ok(());
-                }
-                let donor_speed = if self.fleet_detach_requires_speed_prompt() {
-                    Some(
-                        self.fleet
-                            .detach_donor_speed
-                            .unwrap_or(self.fleet_detach_donor_default_speed()),
-                    )
-                } else {
-                    None
-                };
-                self.game_data.detach_ships_to_new_fleet(
-                    self.player.record_index_1_based,
+                self.commit_fleet_detach_staged_selection(
                     donor_record_index_1_based,
-                    self.fleet.detach_selection,
-                    donor_speed,
-                    new_roe,
+                    selected_row.fleet_number,
                 )?;
-                self.save_game_data()?;
-                self.fleet.detach_input.clear();
-                self.fleet.detach_status = None;
-                self.fleet.detach_selection = FleetDetachSelection::default();
-                self.fleet.detach_donor_speed = None;
-                self.fleet.detach_donor_record_index_1_based = None;
-                self.show_command_menu_notice(
-                    CommandMenu::Fleet,
-                    format!(
-                        "Detached ships from Fleet #{} into a new fleet.",
-                        selected_row.fleet_number
-                    ),
-                );
-                self.current_screen = ScreenId::FleetMenu;
             }
         }
         Ok(())
@@ -428,9 +444,19 @@ impl App {
             KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitDetach),
             KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceDetachInput),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::Fleet(FleetAction::OpenDetach)
+                crate::app::Action::Fleet(FleetAction::CancelDetach)
             }
-            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+            KeyCode::Char('x') | KeyCode::Char('X') => {
+                crate::app::Action::Fleet(FleetAction::ClearDetachSelection)
+            }
+            KeyCode::Char(ch)
+                if match self.fleet.detach_mode {
+                    FleetDetachMode::ChoosingClass => ch.is_ascii_alphanumeric() || ch == '*',
+                    FleetDetachMode::EnteringQuantity(_) | FleetDetachMode::AdjustingDonorSpeed => {
+                        ch.is_ascii_digit()
+                    }
+                } =>
+            {
                 crate::app::Action::Fleet(FleetAction::AppendDetachChar(ch))
             }
             _ => crate::app::Action::Noop,
@@ -463,31 +489,33 @@ impl App {
             .and_then(|idx| self.fleet_number_for_record_index(idx))
             .unwrap_or(1);
         match self.fleet.detach_mode {
-            FleetDetachMode::EnteringBattleships => {
-                ("Battleships to detach ".to_string(), "0".to_string())
-            }
-            FleetDetachMode::EnteringCruisers => {
-                ("Cruisers to detach ".to_string(), "0".to_string())
-            }
-            FleetDetachMode::EnteringDestroyers => {
-                ("Destroyers to detach ".to_string(), "0".to_string())
-            }
-            FleetDetachMode::EnteringFullTransports => {
-                ("FULL transports to detach ".to_string(), "0".to_string())
-            }
-            FleetDetachMode::EnteringEmptyTransports => {
-                ("EMPTY transports to detach ".to_string(), "0".to_string())
-            }
-            FleetDetachMode::EnteringScouts => {
-                ("Scout ships to detach ".to_string(), "0".to_string())
-            }
-            FleetDetachMode::EnteringEtacs => ("ET ships to detach ".to_string(), "0".to_string()),
+            FleetDetachMode::ChoosingClass => (
+                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q> ".to_string(),
+                String::new(),
+            ),
+            FleetDetachMode::EnteringQuantity(class) => (
+                format!(
+                    "{} to stage (max {}) ",
+                    self.fleet_detach_class_label(class),
+                    self.fleet_detach_available_for_class(class)
+                ),
+                "1".to_string(),
+            ),
             FleetDetachMode::AdjustingDonorSpeed => (
                 format!("Fleet #{} new speed ", fleet_number),
                 self.fleet_detach_donor_default_speed().to_string(),
             ),
-            FleetDetachMode::SettingNewFleetRoe => ("New fleet ROE ".to_string(), "6".to_string()),
         }
+    }
+
+    pub(crate) fn fleet_detach_staged_summary(&self) -> String {
+        self.format_fleet_detach_summary_from_selection(self.fleet.detach_selection)
+    }
+
+    pub(crate) fn fleet_detach_remaining_summary(&self) -> String {
+        self.fleet_detach_donor_after_selection_record()
+            .map(|fleet| self.format_fleet_detach_summary_from_record(&fleet))
+            .unwrap_or_else(|| "none".to_string())
     }
 
     fn current_fleet_detach_ship_total(&self, fleet_record_index_1_based: usize) -> u32 {
@@ -506,53 +534,173 @@ impl App {
             .unwrap_or(0)
     }
 
-    fn next_fleet_detach_prompt_mode(
-        &self,
-        fleet_record_index_1_based: usize,
-        current: Option<FleetDetachMode>,
-    ) -> Option<FleetDetachMode> {
-        let fleet = self
+    fn reset_fleet_detach_staging(&mut self) {
+        self.fleet.detach_input.clear();
+        self.fleet.detach_status = None;
+        self.fleet.detach_selection = FleetDetachSelection::default();
+        self.fleet.detach_donor_speed = None;
+    }
+
+    fn fleet_detach_remaining_total_after_selection(&self) -> u32 {
+        let Some(donor_record_index_1_based) = self.fleet.detach_donor_record_index_1_based else {
+            return 0;
+        };
+        self.current_fleet_detach_ship_total(donor_record_index_1_based)
+            .saturating_sub(self.fleet.detach_selection.total_ships())
+    }
+
+    fn fleet_detach_available_for_class(&self, class: FleetDetachClass) -> u16 {
+        let Some(fleet_record_index_1_based) = self.fleet.detach_donor_record_index_1_based else {
+            return 0;
+        };
+        let Some(fleet) = self
             .game_data
             .fleets
             .records
-            .get(fleet_record_index_1_based - 1)?;
-        let modes = [
-            (
-                FleetDetachMode::EnteringBattleships,
-                fleet.battleship_count() > 0,
-            ),
-            (FleetDetachMode::EnteringCruisers, fleet.cruiser_count() > 0),
-            (
-                FleetDetachMode::EnteringDestroyers,
-                fleet.destroyer_count() > 0,
-            ),
-            (
-                FleetDetachMode::EnteringFullTransports,
-                fleet.army_count() > 0,
-            ),
-            (
-                FleetDetachMode::EnteringEmptyTransports,
-                fleet.troop_transport_count() > fleet.army_count(),
-            ),
-            (FleetDetachMode::EnteringScouts, fleet.scout_count() > 0),
-            (FleetDetachMode::EnteringEtacs, fleet.etac_count() > 0),
-        ];
-        let start_idx = match current {
-            None => 0,
-            Some(FleetDetachMode::EnteringBattleships) => 1,
-            Some(FleetDetachMode::EnteringCruisers) => 2,
-            Some(FleetDetachMode::EnteringDestroyers) => 3,
-            Some(FleetDetachMode::EnteringFullTransports) => 4,
-            Some(FleetDetachMode::EnteringEmptyTransports) => 5,
-            Some(FleetDetachMode::EnteringScouts) => 6,
-            Some(FleetDetachMode::EnteringEtacs)
-            | Some(FleetDetachMode::AdjustingDonorSpeed)
-            | Some(FleetDetachMode::SettingNewFleetRoe) => modes.len(),
+            .get(fleet_record_index_1_based - 1)
+        else {
+            return 0;
         };
-        modes
-            .iter()
-            .skip(start_idx)
-            .find_map(|(mode, include)| (*include).then_some(*mode))
+        let class_available = match class {
+            FleetDetachClass::Battleships => fleet
+                .battleship_count()
+                .saturating_sub(self.fleet.detach_selection.battleships),
+            FleetDetachClass::Cruisers => fleet
+                .cruiser_count()
+                .saturating_sub(self.fleet.detach_selection.cruisers),
+            FleetDetachClass::Destroyers => fleet
+                .destroyer_count()
+                .saturating_sub(self.fleet.detach_selection.destroyers),
+            FleetDetachClass::FullTransports => fleet
+                .army_count()
+                .saturating_sub(self.fleet.detach_selection.full_transports),
+            FleetDetachClass::EmptyTransports => fleet
+                .troop_transport_count()
+                .saturating_sub(fleet.army_count())
+                .saturating_sub(self.fleet.detach_selection.empty_transports),
+            FleetDetachClass::Scouts => u16::from(
+                fleet
+                    .scout_count()
+                    .saturating_sub(self.fleet.detach_selection.scouts),
+            ),
+            FleetDetachClass::Etacs => fleet
+                .etac_count()
+                .saturating_sub(self.fleet.detach_selection.etacs),
+        };
+        let total_limit = self
+            .fleet_detach_remaining_total_after_selection()
+            .saturating_sub(1);
+        class_available.min(total_limit as u16)
+    }
+
+    fn parse_fleet_detach_class_code(&self, raw: &str) -> Option<FleetDetachClass> {
+        match raw {
+            "BB" => Some(FleetDetachClass::Battleships),
+            "CA" => Some(FleetDetachClass::Cruisers),
+            "DD" => Some(FleetDetachClass::Destroyers),
+            "TT*" => Some(FleetDetachClass::FullTransports),
+            "TT" => Some(FleetDetachClass::EmptyTransports),
+            "SC" => Some(FleetDetachClass::Scouts),
+            "ET" => Some(FleetDetachClass::Etacs),
+            _ => None,
+        }
+    }
+
+    fn fleet_detach_class_label(&self, class: FleetDetachClass) -> &'static str {
+        match class {
+            FleetDetachClass::Battleships => "BB",
+            FleetDetachClass::Cruisers => "CA",
+            FleetDetachClass::Destroyers => "DD",
+            FleetDetachClass::FullTransports => "TT*",
+            FleetDetachClass::EmptyTransports => "TT",
+            FleetDetachClass::Scouts => "SC",
+            FleetDetachClass::Etacs => "ET",
+        }
+    }
+
+    fn format_fleet_detach_summary_from_selection(
+        &self,
+        selection: FleetDetachSelection,
+    ) -> String {
+        let mut parts = Vec::new();
+        for (label, count) in [
+            ("SC", u16::from(selection.scouts)),
+            ("BB", selection.battleships),
+            ("CA", selection.cruisers),
+            ("DD", selection.destroyers),
+            ("TT*", selection.full_transports),
+            ("TT", selection.empty_transports),
+            ("ET", selection.etacs),
+        ] {
+            if count > 0 {
+                parts.push(format!("{label}={count}"));
+            }
+        }
+        if parts.is_empty() {
+            "none".to_string()
+        } else {
+            parts.join(" ")
+        }
+    }
+
+    fn format_fleet_detach_summary_from_record(&self, record: &FleetRecord) -> String {
+        let empty_transports = record
+            .troop_transport_count()
+            .saturating_sub(record.army_count());
+        self.format_fleet_detach_summary_from_selection(FleetDetachSelection {
+            battleships: record.battleship_count(),
+            cruisers: record.cruiser_count(),
+            destroyers: record.destroyer_count(),
+            full_transports: record.army_count(),
+            empty_transports,
+            scouts: record.scout_count(),
+            etacs: record.etac_count(),
+        })
+    }
+
+    fn fleet_detach_donor_after_selection_record(&self) -> Option<FleetRecord> {
+        let fleet_record_index_1_based = self.fleet.detach_donor_record_index_1_based?;
+        let mut donor_after = self
+            .game_data
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)?
+            .clone();
+        donor_after.set_battleship_count(
+            donor_after
+                .battleship_count()
+                .saturating_sub(self.fleet.detach_selection.battleships),
+        );
+        donor_after.set_cruiser_count(
+            donor_after
+                .cruiser_count()
+                .saturating_sub(self.fleet.detach_selection.cruisers),
+        );
+        donor_after.set_destroyer_count(
+            donor_after
+                .destroyer_count()
+                .saturating_sub(self.fleet.detach_selection.destroyers),
+        );
+        donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
+            self.fleet.detach_selection.full_transports
+                + self.fleet.detach_selection.empty_transports,
+        ));
+        donor_after.set_army_count(
+            donor_after
+                .army_count()
+                .saturating_sub(self.fleet.detach_selection.full_transports),
+        );
+        donor_after.set_scout_count(
+            donor_after
+                .scout_count()
+                .saturating_sub(self.fleet.detach_selection.scouts),
+        );
+        donor_after.set_etac_count(
+            donor_after
+                .etac_count()
+                .saturating_sub(self.fleet.detach_selection.etacs),
+        );
+        Some(donor_after)
     }
 
     fn fleet_detach_requires_speed_prompt(&self) -> bool {
@@ -567,94 +715,75 @@ impl App {
         else {
             return false;
         };
-        let mut donor_after = fleet.clone();
-        donor_after.set_battleship_count(
-            donor_after
-                .battleship_count()
-                .saturating_sub(self.fleet.detach_selection.battleships),
-        );
-        donor_after.set_cruiser_count(
-            donor_after
-                .cruiser_count()
-                .saturating_sub(self.fleet.detach_selection.cruisers),
-        );
-        donor_after.set_destroyer_count(
-            donor_after
-                .destroyer_count()
-                .saturating_sub(self.fleet.detach_selection.destroyers),
-        );
-        donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
-            self.fleet.detach_selection.full_transports
-                + self.fleet.detach_selection.empty_transports,
-        ));
-        donor_after.set_army_count(
-            donor_after
-                .army_count()
-                .saturating_sub(self.fleet.detach_selection.full_transports),
-        );
-        donor_after.set_scout_count(
-            donor_after
-                .scout_count()
-                .saturating_sub(self.fleet.detach_selection.scouts),
-        );
-        donor_after.set_etac_count(
-            donor_after
-                .etac_count()
-                .saturating_sub(self.fleet.detach_selection.etacs),
-        );
+        let Some(mut donor_after) = self.fleet_detach_donor_after_selection_record() else {
+            return false;
+        };
         donor_after.recompute_max_speed_from_composition();
         donor_after.max_speed() > 0 && fleet.current_speed() > donor_after.max_speed()
     }
 
     fn fleet_detach_donor_default_speed(&self) -> u8 {
-        let Some(fleet_record_index_1_based) = self.fleet.detach_donor_record_index_1_based else {
+        let Some(mut donor_after) = self.fleet_detach_donor_after_selection_record() else {
             return 1;
         };
-        let Some(fleet) = self
+        donor_after.recompute_max_speed_from_composition();
+        donor_after.max_speed().max(1)
+    }
+
+    fn commit_fleet_detach_staged_selection(
+        &mut self,
+        donor_record_index_1_based: usize,
+        donor_fleet_number: u16,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let donor_roe = self
             .game_data
             .fleets
             .records
-            .get(fleet_record_index_1_based - 1)
-        else {
-            return 1;
+            .get(donor_record_index_1_based - 1)
+            .map(|fleet| fleet.rules_of_engagement())
+            .unwrap_or(0);
+        let donor_speed = if self.fleet_detach_requires_speed_prompt() {
+            Some(
+                self.fleet
+                    .detach_donor_speed
+                    .unwrap_or(self.fleet_detach_donor_default_speed()),
+            )
+        } else {
+            None
         };
-        let mut donor_after = fleet.clone();
-        donor_after.set_battleship_count(
-            donor_after
-                .battleship_count()
-                .saturating_sub(self.fleet.detach_selection.battleships),
-        );
-        donor_after.set_cruiser_count(
-            donor_after
-                .cruiser_count()
-                .saturating_sub(self.fleet.detach_selection.cruisers),
-        );
-        donor_after.set_destroyer_count(
-            donor_after
-                .destroyer_count()
-                .saturating_sub(self.fleet.detach_selection.destroyers),
-        );
-        donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
-            self.fleet.detach_selection.full_transports
-                + self.fleet.detach_selection.empty_transports,
-        ));
-        donor_after.set_army_count(
-            donor_after
-                .army_count()
-                .saturating_sub(self.fleet.detach_selection.full_transports),
-        );
-        donor_after.set_scout_count(
-            donor_after
-                .scout_count()
-                .saturating_sub(self.fleet.detach_selection.scouts),
-        );
-        donor_after.set_etac_count(
-            donor_after
-                .etac_count()
-                .saturating_sub(self.fleet.detach_selection.etacs),
-        );
-        donor_after.recompute_max_speed_from_composition();
-        donor_after.max_speed().max(1)
+        let result = self.game_data.detach_ships_to_new_fleet(
+            self.player.record_index_1_based,
+            donor_record_index_1_based,
+            self.fleet.detach_selection,
+            donor_speed,
+            donor_roe,
+        )?;
+        self.save_game_data()?;
+        self.reset_fleet_detach_staging();
+        if self.current_fleet_detach_ship_total(donor_record_index_1_based) > 1 {
+            let new_fleet_number = self
+                .fleet_number_for_record_index(result.new_fleet_record_index_1_based)
+                .unwrap_or(0);
+            self.fleet.detach_last_commissioned = Some(format!(
+                "Commissioned Fleet #{new_fleet_number:02} from Fleet #{donor_fleet_number:02}."
+            ));
+            self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
+            self.current_screen = ScreenId::FleetDetach;
+        } else {
+            let new_fleet_number = self
+                .fleet_number_for_record_index(result.new_fleet_record_index_1_based)
+                .unwrap_or(0);
+            self.fleet.detach_donor_record_index_1_based = None;
+            self.fleet.detach_last_commissioned = None;
+            self.show_command_menu_notice(
+                CommandMenu::Fleet,
+                format!(
+                    "Detached ships from Fleet #{donor_fleet_number:02} into Fleet #{new_fleet_number:02}."
+                ),
+            );
+            self.current_screen = ScreenId::FleetMenu;
+        }
+        Ok(())
     }
 
     pub(crate) fn fleet_number_for_record_index(&self, record_index_1_based: usize) -> Option<u16> {

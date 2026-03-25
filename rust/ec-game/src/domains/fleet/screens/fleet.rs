@@ -13,7 +13,8 @@ use crate::screen::layout::{
     draw_command_line_text_at, draw_command_message_stack, draw_command_prompt_at,
     draw_expert_menu, draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry,
     draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_table_command_bar_at_col,
-    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_title_bar, draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
@@ -71,16 +72,21 @@ pub enum FleetEtaMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetDetachClass {
+    Battleships,
+    Cruisers,
+    Destroyers,
+    FullTransports,
+    EmptyTransports,
+    Scouts,
+    Etacs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetDetachMode {
-    EnteringBattleships,
-    EnteringCruisers,
-    EnteringDestroyers,
-    EnteringFullTransports,
-    EnteringEmptyTransports,
-    EnteringScouts,
-    EnteringEtacs,
+    ChoosingClass,
+    EnteringQuantity(FleetDetachClass),
     AdjustingDonorSpeed,
-    SettingNewFleetRoe,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -302,9 +308,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Fleet(FleetAction::OpenMerge),
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Fleet(FleetAction::OpenOrder),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Fleet(FleetAction::OpenTransfer),
-            KeyCode::Char('c') | KeyCode::Char('C') => {
-                Action::Fleet(FleetAction::OpenChangePrompt)
-            }
+            KeyCode::Char('c') | KeyCode::Char('C') => Action::Fleet(FleetAction::OpenChangePrompt),
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::Fleet(FleetAction::OpenTransportLoad)
             }
@@ -798,7 +802,9 @@ impl FleetEtaScreen {
                 );
             }
         }
-        if mode != FleetEtaMode::ShowingResult && let Some(status) = status {
+        if mode != FleetEtaMode::ShowingResult
+            && let Some(status) = status
+        {
             draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
@@ -1109,7 +1115,13 @@ impl FleetTransferScreen {
             &mut buffer,
             4,
             "Current / Max Speed: ",
-            &format!("{}/{} -> {}/{}", donor_row.current_speed, donor_row.max_speed, host_row.current_speed, host_row.max_speed),
+            &format!(
+                "{}/{} -> {}/{}",
+                donor_row.current_speed,
+                donor_row.max_speed,
+                host_row.current_speed,
+                host_row.max_speed
+            ),
         );
         let command_row = menu_prompt_row(4);
         draw_command_line_default_input_at(
@@ -1215,47 +1227,110 @@ impl FleetDetachScreen {
         prompt: &str,
         default: &str,
         input: &str,
+        staged_summary: &str,
+        remaining_summary: &str,
         status: Option<&str>,
+        last_commissioned: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        const FLEET_ROW: usize = 2;
+        const LOCATION_ROW: usize = 4;
+        const ORDERS_ROW: usize = 5;
+        const TARGET_ROW: usize = 6;
+        const SPEED_ROW: usize = 7;
+        const ROE_ROW: usize = 8;
+        const SHIPS_ROW: usize = 10;
+        const ACTION_ROW: usize = 12;
+        const COMMAND_ROW: usize = 14;
+        const STAGED_ROW: usize = 16;
+
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "DETACH FLEET SHIPS:", classic::title_style());
         draw_status_line(
             &mut buffer,
-            1,
-            "",
-            "Detach ships from the selected fleet to create a new fleet.",
-        );
-        draw_status_line(
-            &mut buffer,
-            2,
+            FLEET_ROW,
             "Fleet: ",
             &format!("Fleet #{}", donor_row.fleet_number),
         );
         draw_status_line(
             &mut buffer,
-            3,
+            LOCATION_ROW,
             "Location: ",
             &format_sector_coords_table(donor_row.coords),
         );
+        draw_status_line(&mut buffer, ORDERS_ROW, "Orders: ", &donor_row.order_label);
         draw_status_line(
             &mut buffer,
-            4,
-            "Current / Max Speed: ",
-            &format!("{}/{}", donor_row.current_speed, donor_row.max_speed),
+            TARGET_ROW,
+            "Target: ",
+            &fleet_list_target_label(donor_row.target_coords),
         );
-        draw_status_line(&mut buffer, 5, "Ships: ", &donor_row.composition_label);
-        let command_row = menu_prompt_row(5);
+        draw_status_line(
+            &mut buffer,
+            SPEED_ROW,
+            "Speed: ",
+            &donor_row.current_speed.to_string(),
+        );
+        draw_status_line(
+            &mut buffer,
+            ROE_ROW,
+            "ROE: ",
+            &donor_row.rules_of_engagement.to_string(),
+        );
+        draw_status_line(
+            &mut buffer,
+            SHIPS_ROW,
+            "Ships: ",
+            &donor_row.composition_label,
+        );
+        buffer.write_spans(
+            ACTION_ROW,
+            0,
+            &[
+                StyledSpan::new("<", classic::prompt_style()),
+                StyledSpan::new("C", classic::prompt_hotkey_style()),
+                StyledSpan::new(">ommission, <", classic::prompt_style()),
+                StyledSpan::new("X", classic::prompt_hotkey_style()),
+                StyledSpan::new("> Cancel", classic::prompt_style()),
+            ],
+        );
         draw_command_line_default_input_at(
             &mut buffer,
-            command_row,
+            COMMAND_ROW,
             "FLEET COMMAND",
             prompt,
             default,
             input,
         );
+        let staged_rows = draw_wrapped_message(
+            &mut buffer,
+            STAGED_ROW,
+            last_body_row().saturating_sub(STAGED_ROW) + 1,
+            "Staged for New Fleet: ",
+            staged_summary,
+        );
+        let staged_end_row = if staged_summary != "none" {
+            let remaining_row = STAGED_ROW + staged_rows;
+            let remaining_rows = draw_wrapped_message(
+                &mut buffer,
+                remaining_row,
+                last_body_row().saturating_sub(remaining_row) + 1,
+                "Remaining on Donor: ",
+                remaining_summary,
+            );
+            remaining_row + remaining_rows.saturating_sub(1)
+        } else {
+            STAGED_ROW + staged_rows.saturating_sub(1)
+        };
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            let status_row = (staged_end_row + 2).min(last_body_row().saturating_sub(1));
+            let max_rows = last_body_row().saturating_sub(status_row);
+            if max_rows > 0 {
+                draw_wrapped_message(&mut buffer, status_row, max_rows, "", status);
+            }
+        }
+        if let Some(last_commissioned) = last_commissioned {
+            draw_wrapped_message(&mut buffer, last_body_row(), 1, "", last_commissioned);
         }
         Ok(buffer)
     }
