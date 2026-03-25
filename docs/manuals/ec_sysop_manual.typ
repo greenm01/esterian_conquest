@@ -10,6 +10,7 @@
 #set page(
   paper: "us-letter",
   margin: (x: 1in, y: 1in),
+  footer: none,
 )
 
 #set text(
@@ -44,17 +45,44 @@
 
 // ─── Title Page ───────────────────────────────────────────────────────────────
 
+#let manual_license_notice = [
+  This manual © 2026 Mason A. Green and is licensed under CC BY-NC-SA 4.0.
+]
+
+#let numbered_footer = context align(center)[
+  #set text(size: 9pt, fill: luma(120))
+  Page #counter(page).get().first() of #counter(page).final().first()
+]
+
 #align(center + horizon)[
   #text(size: 28pt, weight: "bold")[Esterian Conquest]
   #v(0.5em)
   #text(size: 18pt)[Sysop Manual]
   #v(2em)
-  #text(size: 12pt, fill: luma(80))[Mason A. Green]
+  #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
   #text(size: 11pt, fill: luma(120))[Draft — March 2026]
 ]
 
 #pagebreak()
+
+#align(center + horizon)[
+  #v(3em)
+  #image("assets/cc-by-nc-sa-4.0-badge.svg", width: 3.3in)
+  #v(1em)
+  #block(width: 80%)[
+    #set text(size: 9pt, fill: luma(110))
+    #manual_license_notice
+  ]
+  #v(0.5em)
+  #text(size: 9pt, fill: luma(110))[
+    License text: #link("https://creativecommons.org/licenses/by-nc-sa/4.0/")
+  ]
+]
+
+#pagebreak()
+#counter(page).update(1)
+#set page(footer: numbered_footer)
 
 // ─── Table of Contents ────────────────────────────────────────────────────────
 

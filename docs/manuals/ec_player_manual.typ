@@ -4,12 +4,13 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 22),
+  date: datetime(year: 2026, month: 3, day: 25),
 )
 
 #set page(
   paper: "us-letter",
   margin: (x: 1in, y: 1in),
+  footer: none,
 )
 
 #set text(
@@ -48,6 +49,19 @@
 
 // ─── Title Page ───────────────────────────────────────────────────────────
 
+#let manual_license_notice = [
+  New text, layout, and explanatory material in this manual
+  © 2026 Mason A. Green and are licensed under CC BY-NC-SA 4.0. Original
+  Esterian Conquest names, legacy text, and other preserved 1992 source
+  material are excluded from that grant and remain credited to their original
+  authors and rights holders.
+]
+
+#let numbered_footer = context align(center)[
+  #set text(size: 9pt, fill: luma(120))
+  Page #counter(page).get().first() of #counter(page).final().first()
+]
+
 #align(center + horizon)[
   #block(width: 100%)[
     #set text(size: 8pt, font: "IBM Plex Mono")
@@ -71,12 +85,32 @@
   #linebreak()
   #text(size: 16pt)[Player Manual]
   #v(1em)
-  #text(size: 10pt, style: "italic")[
-    Inspired by Bentley C. Griffith (1992). Rust port by Mason A. Green (2026)
+  #text(size: 10pt, style: "italic")[Copyright © 1992 Bentley C. Griffith]
+  #v(1em)
+  #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
+  #v(0.5em)
+  #text(size: 10pt, fill: luma(120))[Revision date: March 25, 2026]
+]
+
+#pagebreak()
+
+#align(center + horizon)[
+  #v(3em)
+  #image("assets/cc-by-nc-sa-4.0-badge.svg", width: 3.3in)
+  #v(1em)
+  #block(width: 80%)[
+    #set text(size: 9pt, fill: luma(110))
+    #manual_license_notice
+  ]
+  #v(0.5em)
+  #text(size: 9pt, fill: luma(110))[
+    License text: #link("https://creativecommons.org/licenses/by-nc-sa/4.0/")
   ]
 ]
 
 #pagebreak()
+#counter(page).update(1)
+#set page(footer: numbered_footer)
 
 // ─── Table of Contents ───────────────────────────────────────────────────
 
@@ -98,8 +132,6 @@ You rise as one of the new Star Masters. From a single world and a few small fle
 Each maintenance marks the passage of a year. In that span, fleets cross the dark between stars, colonies grow or starve, alliances turn cold, and wars are decided by distance, industry, mathematics, and will.
 
 In profound respect and admiration to Bentley C. Griffith and his fellow pioneers, who between 1990 and 1992 forged the enduring legend of Esterian Conquest, and to the ancient dreamers, strategists, and storytellers whose timeless visions of galactic dominion still light the way among these stars.
-
-Rust port by Mason A. Green, 2026.
 
 #pagebreak()
 
