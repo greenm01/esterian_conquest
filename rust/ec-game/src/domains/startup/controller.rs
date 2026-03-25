@@ -4,7 +4,8 @@ use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
-    FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId, StartupReviewMode,
+    CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
+    StartupReviewMode,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 
@@ -436,6 +437,120 @@ impl App {
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_intro_page = 0;
         self.current_screen = ScreenId::FirstTimeIntro;
+    }
+
+    pub fn open_theme_picker(&mut self) {
+        let return_screen = match self.current_screen {
+            ScreenId::FirstTimeMenu => ScreenId::FirstTimeMenu,
+            _ => ScreenId::MainMenu,
+        };
+        match crate::theme::discover_theme_entries(&self.game_dir) {
+            Ok(rows) => {
+                let default_key =
+                    crate::theme::current_theme_key().unwrap_or_else(|| "classic".to_string());
+                self.startup_state.theme_picker_rows = rows;
+                self.startup_state.theme_picker_cursor =
+                    self.theme_picker_cursor_for_key(&default_key);
+                self.startup_state.theme_picker_status = None;
+                self.startup_state.theme_picker_return_screen = Some(return_screen);
+                self.current_screen = ScreenId::ThemePicker;
+            }
+            Err(err) => match return_screen {
+                ScreenId::FirstTimeMenu => {
+                    self.startup_state.first_time_status =
+                        Some(format!("Unable to load themes: {err}"));
+                    self.current_screen = ScreenId::FirstTimeMenu;
+                }
+                _ => self.show_command_menu_notice(
+                    CommandMenu::Main,
+                    format!("Unable to load themes: {err}"),
+                ),
+            },
+        }
+    }
+
+    pub fn move_theme_picker_cursor(&mut self, delta: isize) {
+        if self.current_screen != ScreenId::ThemePicker {
+            return;
+        }
+        let len = self.startup_state.theme_picker_rows.len();
+        if len == 0 {
+            self.startup_state.theme_picker_cursor = 0;
+            return;
+        }
+        let current = self.startup_state.theme_picker_cursor as isize;
+        let max = len.saturating_sub(1) as isize;
+        self.startup_state.theme_picker_cursor = (current + delta).clamp(0, max) as usize;
+    }
+
+    pub fn apply_theme_picker_selection(&mut self) {
+        if self.current_screen != ScreenId::ThemePicker {
+            return;
+        }
+        let Some(entry) = self
+            .startup_state
+            .theme_picker_rows
+            .get(self.startup_state.theme_picker_cursor)
+            .cloned()
+        else {
+            self.startup_state.theme_picker_status = Some("No themes are available.".to_string());
+            return;
+        };
+        match crate::theme::apply_theme_entry(&entry) {
+            Ok(()) => {
+                if self.player.is_joined {
+                    if let Err(err) = self
+                        .planet
+                        .campaign_store
+                        .set_player_theme_preference(self.player.record_index_1_based, &entry.key)
+                    {
+                        self.startup_state.theme_picker_status = Some(format!(
+                            "Applied theme: {}. Could not save preference: {}",
+                            entry.display_name, err
+                        ));
+                    } else {
+                        self.startup_state.theme_picker_status =
+                            Some(format!("Applied theme: {}.", entry.display_name));
+                    }
+                } else {
+                    self.startup_state.prejoin_theme_key = Some(entry.key.clone());
+                    self.startup_state.theme_picker_status =
+                        Some(format!("Applied theme: {}.", entry.display_name));
+                }
+                self.startup_state.theme_picker_cursor =
+                    self.theme_picker_cursor_for_key(&entry.key);
+            }
+            Err(_) => {
+                crate::theme::apply_classic_theme();
+                let fallback_key = "classic";
+                if self.player.is_joined {
+                    let _ = self.planet.campaign_store.set_player_theme_preference(
+                        self.player.record_index_1_based,
+                        fallback_key,
+                    );
+                } else {
+                    self.startup_state.prejoin_theme_key = Some(fallback_key.to_string());
+                }
+                self.startup_state.theme_picker_status =
+                    Some("Theme unavailable. Using Classic.".to_string());
+                self.startup_state.theme_picker_cursor =
+                    self.theme_picker_cursor_for_key(fallback_key);
+            }
+        }
+    }
+
+    pub fn exit_theme_picker(&mut self) {
+        if self.current_screen != ScreenId::ThemePicker {
+            return;
+        }
+        self.startup_state.theme_picker_rows.clear();
+        self.startup_state.theme_picker_cursor = 0;
+        self.startup_state.theme_picker_status = None;
+        self.current_screen = self
+            .startup_state
+            .theme_picker_return_screen
+            .take()
+            .unwrap_or(ScreenId::MainMenu);
     }
 
     pub fn open_first_time_join_name(&mut self) {
@@ -888,6 +1003,13 @@ impl App {
         }
         self.save_game_data()?;
         self.refresh_player_context()?;
+        if self.player.is_joined {
+            if let Some(theme_key) = self.startup_state.prejoin_theme_key.take() {
+                self.planet
+                    .campaign_store
+                    .set_player_theme_preference(self.player.record_index_1_based, &theme_key)?;
+            }
+        }
         Ok(())
     }
 
@@ -1046,6 +1168,20 @@ impl App {
     fn pending_colony_world_naming_screen(&self) -> Option<ScreenId> {
         self.colony_world_target_planet_index()
             .map(|_| ScreenId::ColonyWorldName)
+    }
+
+    fn theme_picker_cursor_for_key(&self, key: &str) -> usize {
+        self.startup_state
+            .theme_picker_rows
+            .iter()
+            .position(|entry| entry.key == key)
+            .or_else(|| {
+                self.startup_state
+                    .theme_picker_rows
+                    .iter()
+                    .position(|entry| entry.key == "classic")
+            })
+            .unwrap_or(0)
     }
 
     fn colony_world_target_planet_index(&self) -> Option<usize> {

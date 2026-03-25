@@ -19,7 +19,7 @@ pub struct FirstTimeIntroScreen;
 const FIRST_TIME_ROW_1: [MenuEntry<'static>; 3] = [
     MenuEntry::new(2, "H", "elp with commands"),
     MenuEntry::new(28, "L", "ist current empires"),
-    MenuEntry::new(55, "A", "nsi color ON/OFF"),
+    MenuEntry::new(55, "A", "nsi Theme"),
 ];
 
 const FIRST_TIME_ROW_2: [MenuEntry<'static>; 3] = [
@@ -29,7 +29,7 @@ const FIRST_TIME_ROW_2: [MenuEntry<'static>; 3] = [
 ];
 
 const HELP_LINES: [&str; 6] = [
-    "<A> - toggle ANSI color mode ON/OFF",
+    "<A> - open the ANSI theme picker",
     "<H> - describe First Time Menu commands",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
@@ -83,7 +83,9 @@ impl Screen for FirstTimeMenuScreen {
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::Startup(StartupAction::OpenFirstTimeIntro)
             }
-            KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAnsiMode,
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                Action::Startup(StartupAction::OpenThemePicker)
+            }
             KeyCode::Char('j') | KeyCode::Char('J') => {
                 Action::Startup(StartupAction::OpenFirstTimeJoinName)
             }

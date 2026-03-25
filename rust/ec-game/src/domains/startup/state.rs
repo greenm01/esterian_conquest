@@ -1,4 +1,6 @@
 use crate::domains::startup::screens::startup::StartupReviewMode;
+use crate::screen::ScreenId;
+use crate::theme::ThemeEntry;
 
 pub struct StartupState {
     pub splash_page: usize,
@@ -16,6 +18,11 @@ pub struct StartupState {
     pub first_time_intro_page: usize,
     pub first_time_rename_preloaded_empire: bool,
     pub first_time_status: Option<String>,
+    pub theme_picker_rows: Vec<ThemeEntry>,
+    pub theme_picker_cursor: usize,
+    pub theme_picker_status: Option<String>,
+    pub theme_picker_return_screen: Option<ScreenId>,
+    pub prejoin_theme_key: Option<String>,
     pub caller_alias: Option<String>,
     pub first_time_input: String,
     pub first_time_empire_name: String,
@@ -42,6 +49,11 @@ impl Default for StartupState {
             first_time_intro_page: 0,
             first_time_rename_preloaded_empire: false,
             first_time_status: None,
+            theme_picker_rows: Vec::new(),
+            theme_picker_cursor: 0,
+            theme_picker_status: None,
+            theme_picker_return_screen: None,
+            prejoin_theme_key: None,
             caller_alias: None,
             first_time_input: String::new(),
             first_time_empire_name: String::new(),

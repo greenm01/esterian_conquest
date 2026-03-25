@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 use std::path::PathBuf;
 
 use ec_data::{
@@ -24,7 +25,7 @@ use crate::screen::{
     PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen,
     PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenId,
     StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
-    StarmapScreen, StartupScreen,
+    StarmapScreen, StartupScreen, ThemePickerScreen,
 };
 use crate::startup::{StartupSequence, StartupSummary};
 
@@ -53,6 +54,7 @@ pub struct App {
     pub first_time_help: FirstTimeHelpScreen,
     pub first_time_empires: FirstTimeEmpiresScreen,
     pub first_time_intro: FirstTimeIntroScreen,
+    pub theme_picker: ThemePickerScreen,
     pub main_menu: MainMenuScreen,
     pub main_help: MainHelpScreen,
     pub general_menu: GeneralMenuScreen,
@@ -116,6 +118,7 @@ impl App {
     pub fn load(config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let game_dir = config.game_dir.clone();
         let game_name = config.game_config.game_name.clone();
+        crate::theme::initialize_from_game_dir(&game_dir, config.game_config.theme.clone())?;
         let export_root = config
             .export_root
             .clone()
@@ -147,6 +150,7 @@ impl App {
             &queued_mail,
         );
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
+        apply_player_theme_preference(&campaign_store, &game_dir, &player)?;
         let planet_intel_snapshots = campaign_store
             .latest_planet_intel_for_viewer(config.player_record_index_1_based as u8)?
             .into_iter()
@@ -179,6 +183,7 @@ impl App {
             first_time_help: FirstTimeHelpScreen::new(),
             first_time_empires: FirstTimeEmpiresScreen::new(),
             first_time_intro: FirstTimeIntroScreen::new(),
+            theme_picker: ThemePickerScreen::new(),
             main_menu: MainMenuScreen::new(),
             main_help: MainHelpScreen::new(),
             general_menu: GeneralMenuScreen::new(),
@@ -241,6 +246,29 @@ impl App {
             planet_intel_snapshots,
         })
     }
+}
+
+fn apply_player_theme_preference(
+    campaign_store: &CampaignStore,
+    game_dir: &Path,
+    player: &PlayerContext,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !player.is_joined {
+        return Ok(());
+    }
+    let Some(theme_key) = campaign_store.player_theme_preference(player.record_index_1_based)?
+    else {
+        return Ok(());
+    };
+    let entries = crate::theme::discover_theme_entries(game_dir)?;
+    if let Some(entry) = entries.into_iter().find(|entry| entry.key == theme_key) {
+        if crate::theme::apply_theme_entry(&entry).is_ok() {
+            return Ok(());
+        }
+    }
+    crate::theme::apply_classic_theme();
+    campaign_store.set_player_theme_preference(player.record_index_1_based, "classic")?;
+    Ok(())
 }
 
 /// Apply `config.kdl` operational settings to `game_data.setup`.

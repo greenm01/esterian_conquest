@@ -127,9 +127,8 @@ For player-facing rules and gameplay, see the *Player Manual*.
   Rust engine.
 
 / `themes/`: Subdirectory containing theme KDL files. `themes/classic.kdl` is
-  the default and is bootstrapped on first run. `themes/tokyo_night.kdl` is
-  also shipped and can be activated via `config.kdl`. Sysops can add their own
-  theme files here.
+  the default and is bootstrapped on first run alongside the other bundled
+  themes. Sysops can add their own theme files here.
 
 / `config.kdl`: The sysop-managed runtime configuration file in the game
   directory. Bootstrapped from the bundled default on first run. Controls
@@ -166,7 +165,7 @@ looks like:
 /path/to/mygame/
   ecgame.db          runtime database (SQLite)
   config.kdl         sysop runtime config (bootstrapped on first run)
-  theme.kdl          visual theme (bootstrapped as themes/classic.kdl on first run)
+  themes/            theme directory (bootstrapped with classic plus bundled alternates)
   exports/           default export root for classic .DAT output
   queue/             default turn order queue directory
 ```
@@ -187,7 +186,7 @@ ec-sysop new-game /path/to/mygame --players 4 --seed 1515
 
 This creates a fresh campaign directory with `ecgame.db`, classic auxiliary
 files, `config.kdl`, and a `themes/` subdirectory containing the bootstrapped
-`themes/classic.kdl` and `themes/tokyo_night.kdl` theme files.
+theme files shipped with `ec-game`.
 
 `config.kdl` is the only sysop-edited KDL file in the public workflow.
 An internal `ec-cli` setup-preset format still exists for reproducible tests
@@ -212,8 +211,8 @@ The supported public creation flags are:
   edit manually; use `ec-sysop` for normal operator actions.
 
 / `themes/`: Theme KDL files for `ec-game`. Bootstrapped on first run with
-  `themes/classic.kdl` (the default) and `themes/tokyo_night.kdl`. Sysop-owned
-  once created; not silently overwritten. See @theming.
+  `themes/classic.kdl` (the default) plus the other bundled alternates.
+  Sysop-owned once created; not silently overwritten. See @theming.
 
 / `config.kdl`: Sysop runtime configuration. Bootstrapped from the bundled
   default on first run. Edit to change snoop mode, session timeouts,
@@ -248,7 +247,7 @@ runtime database at that point; no manual database edits are required.
 game_name "Esterian Conquest"
 
 // Theme file (relative to game directory, or absolute path).
-// Shipped themes: themes/classic.kdl (default), themes/tokyo_night.kdl
+// Shipped themes live under themes/. Classic is the default.
 // Omit to use themes/classic.kdl.
 // theme "themes/classic.kdl"
 
@@ -288,7 +287,7 @@ reservations {
   columns: (auto, auto, auto, 1fr),
   [*Field*], [*Type*], [*Default*], [*Description*],
   [`game_name`], [string], [`"Esterian Conquest"`], [Display name shown in the main menu header.],
-  [`theme`], [string], [_(absent)_], [Theme file path, relative to the game directory. Omit to use `themes/classic.kdl`. Example: `"themes/tokyo_night.kdl"`.],
+  [`theme`], [string], [_(absent)_], [Theme file path, relative to the game directory. Omit to use `themes/classic.kdl`. Example: `"themes/gruvbox.kdl"`.],
   [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
   [`reservations`], [block], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
 )
@@ -342,8 +341,10 @@ reservations {
 
 = Theming <theming>
 
-`ec-game` uses a file-driven theme system. The theme defines the visual
-appearance for all players connecting to this game directory.
+`ec-game` uses a file-driven theme system. `config.kdl` defines the campaign's
+default theme, while players can choose among the available themes from the
+client's `A>nsi Theme` picker. Each player's last choice is saved in
+`ecgame.db` as a per-player preference rather than by rewriting theme files.
 
 == Theme File Location
 
@@ -359,8 +360,30 @@ appearance for all players connecting to this game directory.
 present by the time this resolution runs. The `theme` directive within it is
 optional; omitting it falls through to step 2.
 
-On parse error, the bundled default is used silently so a corrupted theme never
+On parse error, the bundled default is used so a corrupted theme never
 prevents players from connecting.
+
+== Player Theme Picker
+
+From the Main Menu and First Time Menu, players can open `A>nsi Theme` to
+preview and apply the themes currently available in `<game_dir>/themes/`.
+The picker stays open after `Enter` so players can try several looks before
+returning to the menu with `Q`.
+
+The picker exposes all file-backed themes currently present in `themes/`,
+including the bundled `classic` theme and the additional shipped alternates.
+It also exposes a synthetic `Mono` option, which applies a monochrome
+projection over the current theme for players who prefer a plain white-on-black
+display.
+
+Joined players save their selected theme immediately as a per-player
+preference in `ecgame.db`. A player choosing a theme from First Time Menu
+before fully joining uses it for that session, and the preference is saved when
+the join finishes successfully.
+
+If a stored player theme key later points to a missing or invalid file,
+`ec-game` falls back to `classic` automatically. If a color theme still cannot
+be materialized, `Mono` remains the safe last-resort display.
 
 == Theme File Format
 
@@ -403,13 +426,12 @@ Three color formats are supported:
   [24-bit hex RGB], [`"#ff8800"`], [Requires `--color-mode truecolor`. Downgraded gracefully in lower color modes.],
 )
 
-Two themes ship with `ec-game`. `themes/classic.kdl` is the default: a restrained
-dark palette using named ANSI-16 colors only, safe for all terminal types
-including BBS door clients. `themes/tokyo_night.kdl` uses a full 24-bit hex
-palette (deep navy background with purple, teal, and amber accents) and is
-intended for modern local or SSH terminals. Both degrade gracefully — all hex
-colors are automatically mapped to the nearest 256-color index or 16-color name
-on terminals that do not support truecolor. Custom themes may use any of the
+`themes/classic.kdl` is the default: a restrained dark palette using named
+ANSI-16 colors only, safe for all terminal types including BBS door clients.
+The shipped alternates include both ANSI-safe and richer modern palettes for
+SSH and local terminals. All hex colors degrade gracefully — they are
+automatically mapped to the nearest 256-color index or 16-color name on
+terminals that do not support truecolor. Custom themes may use any of the
 three color formats.
 
 == Color Mode
@@ -477,12 +499,12 @@ All required style tokens:
   [`indicator_off`], [Inactive indicator.],
 )
 
-== ANSI Off Mode
+== Mono Theme
 
-Players can toggle ANSI color off within a session (a session-level preference
-only — it does not modify theme files on disk). ANSI Off applies a monochrome
-projection over the loaded theme: white/black with preserved reverse-video
-selection. A new session always starts with ANSI On.
+The old ANSI ON/OFF toggle has been replaced by the `A>nsi Theme` picker.
+`Mono` is now one of the picker entries rather than a separate toggle. It
+applies a monochrome projection over the active theme and can be selected and
+saved like any other player theme preference.
 
 // ─── 7. BBS Door Setup ────────────────────────────────────────────────────────
 

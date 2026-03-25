@@ -83,6 +83,9 @@ pub mod starmap {
 pub mod startup {
     pub use crate::domains::startup::screens::startup::*;
 }
+pub mod theme_picker {
+    pub use crate::domains::startup::screens::theme_picker::*;
+}
 
 pub use crate::domains::empire::screens::empire_profile::EmpireProfileScreen;
 pub use crate::domains::empire::screens::empire_status::EmpireStatusScreen;
@@ -160,6 +163,9 @@ pub use crate::domains::startup::screens::reports::ReportsScreen;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use crate::domains::startup::screens::startup::{StartupReviewMode, StartupScreen};
+pub use crate::domains::startup::screens::theme_picker::{
+    THEME_PICKER_VISIBLE_ROWS, ThemePickerScreen,
+};
 pub use buffer::{AnsiColor, Cell, CellStyle, GameColor, PlayfieldBuffer, StyledSpan};
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub(crate) use table::format_fleet_number;
@@ -189,6 +195,7 @@ pub enum ScreenId {
     FirstTimeHomeworldConfirm,
     ColonyWorldName,
     ColonyWorldConfirm,
+    ThemePicker,
     MainMenu,
     MainHelp,
     GeneralMenu,

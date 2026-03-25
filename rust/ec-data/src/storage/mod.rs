@@ -209,6 +209,39 @@ impl CampaignStore {
         metadata::latest_snapshot_id_and_year(&mut conn)
     }
 
+    pub fn player_theme_preference(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> Result<Option<String>, CampaignStoreError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT theme_key
+             FROM player_client_preferences
+             WHERE player_record_index = ?1",
+        )?;
+        let mut rows = stmt.query([player_record_index_1_based as i64])?;
+        let Some(row) = rows.next()? else {
+            return Ok(None);
+        };
+        Ok(Some(row.get(0)?))
+    }
+
+    pub fn set_player_theme_preference(
+        &self,
+        player_record_index_1_based: usize,
+        theme_key: &str,
+    ) -> Result<(), CampaignStoreError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "INSERT INTO player_client_preferences (player_record_index, theme_key)
+             VALUES (?1, ?2)
+             ON CONFLICT(player_record_index)
+             DO UPDATE SET theme_key = excluded.theme_key",
+            (player_record_index_1_based as i64, theme_key),
+        )?;
+        Ok(())
+    }
+
     fn initialize(&self) -> Result<(), CampaignStoreError> {
         let conn = self.connection()?;
         conn.execute_batch(
@@ -220,6 +253,10 @@ impl CampaignStore {
              CREATE TABLE IF NOT EXISTS campaign_metadata (
                  key TEXT PRIMARY KEY,
                  int_value INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS player_client_preferences (
+                 player_record_index INTEGER PRIMARY KEY,
+                 theme_key TEXT NOT NULL
              );
              CREATE TABLE IF NOT EXISTS planet_intel (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,

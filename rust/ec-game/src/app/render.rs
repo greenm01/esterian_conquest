@@ -24,6 +24,7 @@ impl App {
             | ScreenId::FirstTimeHomeworldConfirm
             | ScreenId::ColonyWorldName
             | ScreenId::ColonyWorldConfirm
+            | ScreenId::ThemePicker
             | ScreenId::MainMenu
             | ScreenId::MainHelp
             | ScreenId::GeneralMenu

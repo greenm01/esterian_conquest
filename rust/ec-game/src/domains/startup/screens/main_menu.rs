@@ -75,7 +75,7 @@ impl MainMenuScreen {
             1,
             &[
                 MenuEntry::new(2, "H", "elp with commands"),
-                MenuEntry::new(24, "A", "nsi color ON/OFF"),
+                MenuEntry::new(24, "A", "nsi Theme"),
                 MenuEntry::new(51, "T", "otal Planet Database"),
             ],
         );
@@ -181,7 +181,9 @@ impl Screen for MainMenuScreen {
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
-            KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAnsiMode,
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                Action::Startup(crate::domains::startup::StartupAction::OpenThemePicker)
+            }
             KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             KeyCode::Char('b') | KeyCode::Char('B') => Action::Empire(EmpireAction::OpenStatus),
             KeyCode::Char('d') | KeyCode::Char('D') => Action::Empire(EmpireAction::OpenProfile),

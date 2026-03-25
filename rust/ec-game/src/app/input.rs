@@ -67,6 +67,7 @@ impl App {
                 Action::Startup(StartupAction::Advance)
             }
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
+            ScreenId::ThemePicker => self.theme_picker.handle_key(key),
             ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => {
                 match key.code {
                     crossterm::event::KeyCode::Char(ch) => {

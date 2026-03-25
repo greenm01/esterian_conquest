@@ -1,15 +1,55 @@
+use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, RwLock};
 
 use crate::screen::{CellStyle, GameColor};
 
 const DEFAULT_THEME_KDL: &str = include_str!("../config/themes/classic.kdl");
+const CATPPUCCIN_MOCHA_THEME_KDL: &str = include_str!("../config/themes/catppuccin_mocha.kdl");
+const DRACULA_THEME_KDL: &str = include_str!("../config/themes/dracula.kdl");
+const EVERFOREST_THEME_KDL: &str = include_str!("../config/themes/everforest.kdl");
+const GRUVBOX_THEME_KDL: &str = include_str!("../config/themes/gruvbox.kdl");
+const KANAGAWA_THEME_KDL: &str = include_str!("../config/themes/kanagawa.kdl");
+const NORD_THEME_KDL: &str = include_str!("../config/themes/nord.kdl");
+const ONE_DARK_THEME_KDL: &str = include_str!("../config/themes/one_dark.kdl");
+const ROSE_PINE_THEME_KDL: &str = include_str!("../config/themes/rose_pine.kdl");
+const SOLARIZED_THEME_KDL: &str = include_str!("../config/themes/solarized.kdl");
+const TOKYO_NIGHT_THEME_KDL: &str = include_str!("../config/themes/tokyo_night.kdl");
+const CLASSIC_THEME_KEY: &str = "classic";
+const MONO_THEME_KEY: &str = "mono";
+
+const BUNDLED_THEME_FILES: &[(&str, &str)] = &[
+    ("catppuccin_mocha.kdl", CATPPUCCIN_MOCHA_THEME_KDL),
+    ("classic.kdl", DEFAULT_THEME_KDL),
+    ("dracula.kdl", DRACULA_THEME_KDL),
+    ("everforest.kdl", EVERFOREST_THEME_KDL),
+    ("gruvbox.kdl", GRUVBOX_THEME_KDL),
+    ("kanagawa.kdl", KANAGAWA_THEME_KDL),
+    ("nord.kdl", NORD_THEME_KDL),
+    ("one_dark.kdl", ONE_DARK_THEME_KDL),
+    ("rose_pine.kdl", ROSE_PINE_THEME_KDL),
+    ("solarized.kdl", SOLARIZED_THEME_KDL),
+    ("tokyo_night.kdl", TOKYO_NIGHT_THEME_KDL),
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnsiMode {
     On,
     Off,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ThemeEntryKind {
+    Theme,
+    Mono,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ThemeEntry {
+    pub key: String,
+    pub display_name: String,
+    pub kind: ThemeEntryKind,
+    pub path: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -279,42 +319,32 @@ fn parse_color_value(value: &str) -> Result<GameColor, String> {
     }
 }
 
-fn active_theme_lock() -> &'static RwLock<Theme> {
-    static ACTIVE_THEME: OnceLock<RwLock<Theme>> = OnceLock::new();
-    ACTIVE_THEME.get_or_init(|| RwLock::new(Theme::bundled_default()))
-}
-
-fn base_theme_lock() -> &'static RwLock<Theme> {
-    static BASE_THEME: OnceLock<RwLock<Theme>> = OnceLock::new();
-    BASE_THEME.get_or_init(|| RwLock::new(Theme::bundled_default()))
-}
-
-fn ansi_mode_lock() -> &'static RwLock<AnsiMode> {
-    static ANSI_MODE: OnceLock<RwLock<AnsiMode>> = OnceLock::new();
-    ANSI_MODE.get_or_init(|| RwLock::new(AnsiMode::On))
+thread_local! {
+    static ACTIVE_THEME: RefCell<Theme> = RefCell::new(Theme::bundled_default());
+    static BASE_THEME: RefCell<Theme> = RefCell::new(Theme::bundled_default());
+    static ANSI_MODE: RefCell<AnsiMode> = const { RefCell::new(AnsiMode::On) };
+    static CURRENT_THEME_KEY: RefCell<Option<String>> =
+        RefCell::new(Some(CLASSIC_THEME_KEY.to_string()));
 }
 
 fn active_theme() -> Theme {
-    active_theme_lock()
-        .read()
-        .expect("theme lock poisoned")
-        .clone()
+    ACTIVE_THEME.with(|theme| theme.borrow().clone())
 }
 
 fn set_active_theme(theme: Theme) {
-    *active_theme_lock().write().expect("theme lock poisoned") = theme;
+    ACTIVE_THEME.with(|active| *active.borrow_mut() = theme);
 }
 
 fn base_theme() -> Theme {
-    base_theme_lock()
-        .read()
-        .expect("theme lock poisoned")
-        .clone()
+    BASE_THEME.with(|theme| theme.borrow().clone())
 }
 
-fn set_theme_state(theme: Theme, ansi_mode: AnsiMode) {
-    *base_theme_lock().write().expect("theme lock poisoned") = theme.clone();
-    *ansi_mode_lock().write().expect("theme lock poisoned") = ansi_mode;
+fn set_theme_state(theme: Theme, ansi_mode: AnsiMode, theme_key: Option<&str>) {
+    BASE_THEME.with(|base| *base.borrow_mut() = theme.clone());
+    ANSI_MODE.with(|mode| *mode.borrow_mut() = ansi_mode);
+    CURRENT_THEME_KEY.with(|key| {
+        *key.borrow_mut() = theme_key.map(|value| value.to_string());
+    });
     let active = if ansi_mode == AnsiMode::On {
         theme
     } else {
@@ -325,6 +355,76 @@ fn set_theme_state(theme: Theme, ansi_mode: AnsiMode) {
 
 pub fn bundled_theme_kdl() -> &'static str {
     DEFAULT_THEME_KDL
+}
+
+pub fn bundled_theme_file_names() -> &'static [&'static str] {
+    &[
+        "catppuccin_mocha.kdl",
+        "classic.kdl",
+        "dracula.kdl",
+        "everforest.kdl",
+        "gruvbox.kdl",
+        "kanagawa.kdl",
+        "nord.kdl",
+        "one_dark.kdl",
+        "rose_pine.kdl",
+        "solarized.kdl",
+        "tokyo_night.kdl",
+    ]
+}
+
+pub fn current_theme_key() -> Option<String> {
+    CURRENT_THEME_KEY.with(|key| key.borrow().clone())
+}
+
+pub fn ensure_bundled_themes_in_game_dir(
+    game_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let themes_dir = game_dir.join("themes");
+    fs::create_dir_all(&themes_dir)?;
+    for (name, contents) in BUNDLED_THEME_FILES {
+        let path = themes_dir.join(name);
+        if !path.exists() {
+            fs::write(path, contents)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn discover_theme_entries(
+    game_dir: &Path,
+) -> Result<Vec<ThemeEntry>, Box<dyn std::error::Error>> {
+    ensure_bundled_themes_in_game_dir(game_dir)?;
+    let themes_dir = game_dir.join("themes");
+    let mut entries = fs::read_dir(&themes_dir)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("kdl"))
+                .unwrap_or(false)
+        })
+        .filter_map(|path| {
+            let stem = path.file_stem()?.to_str()?;
+            let key = normalize_theme_key(stem);
+            Some(ThemeEntry {
+                key,
+                display_name: humanize_theme_name(stem),
+                kind: ThemeEntryKind::Theme,
+                path: Some(path),
+            })
+        })
+        .collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.key.cmp(&right.key));
+    entries.dedup_by(|left, right| left.key == right.key);
+    entries.push(ThemeEntry {
+        key: MONO_THEME_KEY.to_string(),
+        display_name: "Mono".to_string(),
+        kind: ThemeEntryKind::Mono,
+        path: None,
+    });
+    Ok(entries)
 }
 
 /// Initialise the theme for a game directory.
@@ -345,12 +445,14 @@ pub fn initialize_from_game_dir(
     game_dir: &Path,
     config_theme_path: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    ensure_bundled_themes_in_game_dir(game_dir)?;
     let theme_file = resolve_game_dir_theme(game_dir, config_theme_path)?;
     let theme = match fs::read_to_string(&theme_file) {
         Ok(contents) => Theme::from_kdl_str(&contents).unwrap_or_else(|_| Theme::bundled_default()),
         Err(_) => Theme::bundled_default(),
     };
-    set_theme_state(theme, AnsiMode::On);
+    let theme_key = theme_key_for_path(game_dir, &theme_file);
+    set_theme_state(theme, AnsiMode::On, theme_key.as_deref());
     Ok(())
 }
 
@@ -360,6 +462,7 @@ fn resolve_game_dir_theme(
     game_dir: &Path,
     config_theme_path: Option<PathBuf>,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    ensure_bundled_themes_in_game_dir(game_dir)?;
     // 1. Explicit path from config.kdl
     if let Some(rel) = config_theme_path {
         let abs = if rel.is_absolute() {
@@ -370,26 +473,49 @@ fn resolve_game_dir_theme(
         return Ok(abs);
     }
 
-    // 2. Default: themes/classic.kdl inside the game dir
-    let themes_dir = game_dir.join("themes");
-    let theme_file = themes_dir.join("classic.kdl");
-    if !theme_file.exists() {
-        // 3. Bootstrap bundled default into themes/
-        fs::create_dir_all(&themes_dir)?;
-        fs::write(&theme_file, DEFAULT_THEME_KDL)?;
-    }
-    Ok(theme_file)
+    Ok(game_dir.join("themes").join("classic.kdl"))
 }
 
 pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let contents = fs::read_to_string(path)?;
     let theme = Theme::from_kdl_str(&contents).map_err(|err| err.to_string())?;
-    set_theme_state(theme, ansi_mode());
+    set_theme_state(theme, ansi_mode(), None);
     Ok(())
 }
 
+pub fn apply_theme_entry(entry: &ThemeEntry) -> Result<(), Box<dyn std::error::Error>> {
+    match entry.kind {
+        ThemeEntryKind::Mono => {
+            set_theme_state(
+                Theme::bundled_default(),
+                AnsiMode::Off,
+                Some(MONO_THEME_KEY),
+            );
+            Ok(())
+        }
+        ThemeEntryKind::Theme => {
+            let path = entry
+                .path
+                .as_ref()
+                .ok_or_else(|| format!("theme {:?} is missing a file path", entry.key))?;
+            let contents = fs::read_to_string(path)?;
+            let theme = Theme::from_kdl_str(&contents).map_err(|err| err.to_string())?;
+            set_theme_state(theme, AnsiMode::On, Some(&entry.key));
+            Ok(())
+        }
+    }
+}
+
+pub fn apply_classic_theme() {
+    set_theme_state(
+        Theme::bundled_default(),
+        AnsiMode::On,
+        Some(CLASSIC_THEME_KEY),
+    );
+}
+
 pub fn ansi_mode() -> AnsiMode {
-    *ansi_mode_lock().read().expect("theme lock poisoned")
+    ANSI_MODE.with(|mode| *mode.borrow())
 }
 
 pub fn ansi_enabled() -> bool {
@@ -402,8 +528,42 @@ pub fn toggle_ansi_mode() -> Result<AnsiMode, Box<dyn std::error::Error>> {
     } else {
         AnsiMode::On
     };
-    set_theme_state(base_theme(), next_mode);
+    let current_key = current_theme_key();
+    set_theme_state(base_theme(), next_mode, current_key.as_deref());
     Ok(next_mode)
+}
+
+fn normalize_theme_key(stem: &str) -> String {
+    stem.trim().to_ascii_lowercase()
+}
+
+fn humanize_theme_name(stem: &str) -> String {
+    stem.split(['_', '-'])
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => {
+                    let mut word = String::new();
+                    word.extend(first.to_uppercase());
+                    word.push_str(chars.as_str());
+                    word
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn theme_key_for_path(game_dir: &Path, path: &Path) -> Option<String> {
+    let themes_dir = game_dir.join("themes");
+    let relative = path.strip_prefix(&themes_dir).ok()?;
+    if relative.components().count() != 1 {
+        return None;
+    }
+    let stem = relative.file_stem()?.to_str()?;
+    Some(normalize_theme_key(stem))
 }
 
 pub mod classic {

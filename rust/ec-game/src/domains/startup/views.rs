@@ -42,6 +42,12 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FirstTimeIntro => app
             .first_time_intro
             .render_page(app.startup_state.first_time_intro_page),
+        ScreenId::ThemePicker => app.theme_picker.render(
+            &app.startup_state.theme_picker_rows,
+            app.startup_state.theme_picker_cursor,
+            crate::theme::current_theme_key().as_deref(),
+            app.startup_state.theme_picker_status.as_deref(),
+        ),
         ScreenId::FirstTimePreloadedRenamePrompt => {
             crate::screen::render_preloaded_first_login_rename_prompt(&app.player.empire_name)
         }

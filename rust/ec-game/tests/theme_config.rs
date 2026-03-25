@@ -7,8 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ec_game::screen::AnsiColor;
 use ec_game::theme::classic;
 use ec_game::theme::{
-    ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path, toggle_ansi_mode,
-    AnsiMode,
+    AnsiMode, ansi_mode, bundled_theme_file_names, bundled_theme_kdl, initialize_from_game_dir,
+    load_theme_from_path, toggle_ansi_mode,
 };
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -53,6 +53,12 @@ fn game_dir_bootstraps_theme_kdl_when_absent() {
         fs::read_to_string(&theme_file).expect("read bootstrapped theme"),
         bundled_theme_kdl()
     );
+    for name in bundled_theme_file_names() {
+        assert!(
+            game_dir.join("themes").join(name).exists(),
+            "bootstrapped themes should include {name}"
+        );
+    }
 }
 
 #[test]

@@ -154,8 +154,8 @@ ANSI policy:
 
 - local `ec-game` should assume ANSI/CP437 output and render in color by default
 - do not keep a plain-text local mode as a first-class UI target
-- if future door compatibility needs the historical `ANSI color ON/OFF` prompt,
-  keep that as an optional door-mode shim rather than the default EC flow
+- expose player color choice through the `A>nsi Theme` picker, including a
+  monochrome `Mono` entry, rather than reviving a separate ANSI ON/OFF toggle
 
 The client should treat the original UI as a fixed DOS playfield, not as a
 modern fluid terminal layout:
@@ -206,8 +206,8 @@ widget-layout TUI frameworks:
 - keep table browse/prompt rows on the shared `COMMANDS` grammar rather than
   per-screen command labels
 - use one restrained Tokyo Night-inspired dark theme across the whole client
-  instead of mixing bright inverse DOS bars with dark-body screens; the shipped
-  `themes/tokyo_night.kdl` is the full hex-palette version of this aesthetic
+  instead of mixing bright inverse DOS bars with dark-body screens; the
+  shipped bundle includes richer modern palettes for this aesthetic
 - bootstrap the default theme (`themes/classic.kdl`) into the game directory's
   `themes/` subdirectory on first run; sysops can switch themes via `config.kdl`
 - keep interactive styling on `crossterm` rather than hand-built ANSI escape

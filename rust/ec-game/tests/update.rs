@@ -33,6 +33,7 @@ use ec_game::screen::{
 };
 use ec_game::startup::StartupPhase;
 use ec_game::terminal::Terminal;
+use ec_game::theme;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -127,6 +128,26 @@ fn temp_joined_empty_empire_copy() -> PathBuf {
     }
     save_runtime_state(&root, &state);
     root
+}
+
+fn open_theme_picker(app: &mut App) {
+    assert_eq!(
+        apply_action(app, Action::Startup(StartupAction::OpenThemePicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ThemePicker);
+}
+
+fn theme_picker_select(app: &mut App, key: &str) {
+    let Some(cursor) = app
+        .startup_state
+        .theme_picker_rows
+        .iter()
+        .position(|row| row.key == key)
+    else {
+        panic!("theme picker should contain {key}");
+    };
+    app.startup_state.theme_picker_cursor = cursor;
 }
 
 fn temp_game_with_starbase_copy() -> PathBuf {
@@ -2924,7 +2945,7 @@ fn main_menu_matches_verified_v15_command_layout() {
     assert_eq!(terminal.line(0).trim_end(), "MAIN MENU:");
     assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database"
+        "  H>elp with commands   A>nsi Theme                T>otal Planet Database"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
@@ -3103,7 +3124,7 @@ fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
 }
 
 #[test]
-fn main_menu_a_key_maps_to_real_ansi_toggle() {
+fn main_menu_a_key_opens_theme_picker() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -3118,16 +3139,16 @@ fn main_menu_a_key_maps_to_real_ansi_toggle() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('a'))),
-        Action::ToggleAnsiMode
+        Action::Startup(StartupAction::OpenThemePicker)
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('A'))),
-        Action::ToggleAnsiMode
+        Action::Startup(StartupAction::OpenThemePicker)
     );
 }
 
 #[test]
-fn main_help_describes_the_ansi_toggle() {
+fn main_help_describes_the_theme_picker() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -3153,12 +3174,12 @@ fn main_help_describes_the_ansi_toggle() {
     app.render(&mut terminal).expect("main help should render");
     assert_eq!(
         terminal.line(3).trim_end(),
-        "<A> - toggle ANSI color mode ON/OFF"
+        "<A> - open the ANSI theme picker"
     );
 }
 
 #[test]
-fn first_time_and_main_help_share_the_same_ansi_toggle_text() {
+fn first_time_and_main_help_share_the_same_theme_picker_text() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -3182,7 +3203,288 @@ fn first_time_and_main_help_share_the_same_ansi_toggle_text() {
         .expect("first-time help should render");
     assert_eq!(
         terminal.line(3).trim_end(),
-        "<A> - toggle ANSI color mode ON/OFF"
+        "<A> - open the ANSI theme picker"
+    );
+}
+
+#[test]
+fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    open_theme_picker(&mut app);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("theme picker should render");
+    assert_eq!(terminal.line(0).trim_end(), "ANSI THEMES:");
+    assert!(
+        line_containing(&terminal, "COMMANDS <ARROWS J K ENTER Q>")
+            .contains("<ARROWS J K ENTER Q>")
+    );
+
+    theme_picker_select(&mut app, "tokyo_night");
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::ApplyThemePickerSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ThemePicker);
+    assert_eq!(theme::current_theme_key().as_deref(), Some("tokyo_night"));
+
+    app.render(&mut terminal)
+        .expect("theme picker should rerender");
+    assert!(line_containing(&terminal, "Applied theme: ").contains("Applied theme: Tokyo Night."));
+}
+
+#[test]
+fn theme_picker_q_returns_to_originating_menu() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_first_time_menu(&mut app);
+
+    open_theme_picker(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::ExitThemePicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+}
+
+#[test]
+fn joined_player_theme_preference_persists_across_reload() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    open_theme_picker(&mut app);
+    theme_picker_select(&mut app, "tokyo_night");
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::ApplyThemePickerSelection),
+    );
+    assert_eq!(theme::current_theme_key().as_deref(), Some("tokyo_night"));
+    assert_eq!(
+        CampaignStore::open_default_in_dir(&fixture_dir)
+            .expect("open store")
+            .player_theme_preference(1)
+            .expect("load preference")
+            .as_deref(),
+        Some("tokyo_night")
+    );
+
+    let reloaded = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should reload");
+    assert!(reloaded.player.is_joined);
+    assert_eq!(theme::current_theme_key().as_deref(), Some("tokyo_night"));
+}
+
+#[test]
+fn prejoin_theme_choice_stays_session_only_until_join_completes() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_first_time_menu(&mut app);
+
+    open_theme_picker(&mut app);
+    theme_picker_select(&mut app, "tokyo_night");
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::ApplyThemePickerSelection),
+    );
+    assert_eq!(theme::current_theme_key().as_deref(), Some("tokyo_night"));
+    assert_eq!(
+        CampaignStore::open_default_in_dir(&fixture_dir)
+            .expect("open store")
+            .player_theme_preference(1)
+            .expect("load preference"),
+        None
+    );
+}
+
+#[test]
+fn prejoin_theme_choice_persists_after_successful_join() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_first_time_menu(&mut app);
+
+    open_theme_picker(&mut app);
+    theme_picker_select(&mut app, "tokyo_night");
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::ApplyThemePickerSelection),
+    );
+    apply_action(&mut app, Action::Startup(StartupAction::ExitThemePicker));
+
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::OpenFirstTimeJoinName),
+    );
+    for ch in "Codex Dominion".chars() {
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AppendFirstTimeInputChar(ch)),
+        );
+    }
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::SubmitFirstTimeInput),
+    );
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::AcceptFirstTimePrompt),
+    );
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::AcceptFirstTimePrompt),
+    );
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::AcceptFirstTimePrompt),
+    );
+    for ch in "Codex Prime".chars() {
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AppendFirstTimeInputChar(ch)),
+        );
+    }
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::SubmitFirstTimeInput),
+    );
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::AcceptFirstTimePrompt),
+    );
+
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+    assert_eq!(
+        CampaignStore::open_default_in_dir(&fixture_dir)
+            .expect("open store")
+            .player_theme_preference(1)
+            .expect("load preference")
+            .as_deref(),
+        Some("tokyo_night")
+    );
+}
+
+#[test]
+fn missing_theme_file_falls_back_to_classic_and_persists_fallback() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    open_theme_picker(&mut app);
+    theme_picker_select(&mut app, "tokyo_night");
+    fs::remove_file(fixture_dir.join("themes").join("tokyo_night.kdl")).expect("remove theme");
+    apply_action(
+        &mut app,
+        Action::Startup(StartupAction::ApplyThemePickerSelection),
+    );
+
+    assert_eq!(theme::current_theme_key().as_deref(), Some("classic"));
+    assert_eq!(
+        CampaignStore::open_default_in_dir(&fixture_dir)
+            .expect("open store")
+            .player_theme_preference(1)
+            .expect("load preference")
+            .as_deref(),
+        Some("classic")
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("theme picker should render");
+    assert!(
+        line_containing(&terminal, "Theme unavailable. Using Classic.")
+            .contains("Theme unavailable. Using Classic.")
+    );
+}
+
+#[test]
+fn stale_stored_theme_preference_self_heals_to_classic_on_load() {
+    let fixture_dir = temp_game_copy();
+    CampaignStore::open_default_in_dir(&fixture_dir)
+        .expect("open store")
+        .set_player_theme_preference(1, "ghost")
+        .expect("store preference");
+
+    let app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert!(app.player.is_joined);
+    assert_eq!(theme::current_theme_key().as_deref(), Some("classic"));
+    assert_eq!(
+        CampaignStore::open_default_in_dir(&fixture_dir)
+            .expect("open store")
+            .player_theme_preference(1)
+            .expect("load preference")
+            .as_deref(),
+        Some("classic")
     );
 }
 

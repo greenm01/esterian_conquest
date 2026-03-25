@@ -23,7 +23,7 @@ Read it together with:
 - Theme configuration is file-driven and lives in the game directory alongside
   `ecgame.db`:
   - `<game_dir>/themes/classic.kdl` — the default theme, bootstrapped on first run
-  - `<game_dir>/themes/tokyo_night.kdl` — bundled alternate theme (hex RGB palette)
+  - `<game_dir>/themes/*.kdl` — bundled alternate themes plus any sysop-added custom themes
   - `<game_dir>/config.kdl` — sysop config; if present and contains a `theme`
     directive, that path (relative to `game_dir`) is used instead
 - On first run, `ec-game` bootstraps `themes/classic.kdl` into the game directory
@@ -105,10 +105,13 @@ game directory on first run, creating `themes/` as needed. The bundled file is
 the fallback if the theme file is missing or invalid, but invalid user files
 should not be rewritten automatically.
 
-ANSI ON/OFF is a session-level terminal preference in the player TUI. It should
-not rewrite `themes/classic.kdl`; ANSI OFF should apply a monochrome projection over the
-loaded theme for the current session while preserving black backgrounds and
-reverse-video selection. A new client session should default back to ANSI ON.
+The player TUI should expose theme switching through the `A>nsi Theme` picker,
+not a separate ANSI ON/OFF toggle. The picker should enumerate the available
+theme files under `themes/` plus a synthetic `Mono` entry. Persist only the
+selected theme key per player; do not store expanded color payloads in SQLite
+or rewrite theme files on disk. `Mono` should apply a monochrome projection
+over the loaded theme while preserving black backgrounds and reverse-video
+selection.
 
 The theme file supports three color formats:
 

@@ -51,6 +51,11 @@ macOS, and Windows. Standalone packages are planned so you do not need a Rust
 toolchain to play. Until those ship, the [Quick Start](#quick-start) commands
 work with `cargo run` for anyone with a Rust environment.
 
+Players can also switch between the campaign's available ANSI themes from the
+client itself. `ec-game` ships with `classic`, a larger bundle of alternate
+palettes, and a `Mono` option, and each empire's last theme choice is
+remembered in the campaign database.
+
 EC does not show you everything on one screen. The game exports your starmap
 as a printable text file and a companion CSV. Many players print the map or
 pull the CSV into a spreadsheet to track fleet positions, mark explored

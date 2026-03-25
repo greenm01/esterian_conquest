@@ -143,6 +143,7 @@ impl App {
             | ScreenId::FirstTimeHomeworldConfirm
             | ScreenId::ColonyWorldName
             | ScreenId::ColonyWorldConfirm
+            | ScreenId::ThemePicker
             | ScreenId::PartialStarmapView
             | ScreenId::PlanetInfoDetail => self.command_return_menu,
         }

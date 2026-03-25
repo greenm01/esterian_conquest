@@ -9,7 +9,6 @@ use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
 use crate::terminal::stdout::StdoutTerminal;
-use crate::theme;
 use ec_data::{
     CampaignStore,
     game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig},
@@ -52,9 +51,6 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         session_timeout_secs: parsed.session_timeout_secs,
         game_config: game_config.clone(),
     };
-
-    // Initialise theme; the config supplies the optional custom theme path.
-    theme::initialize_from_game_dir(&config.game_dir, game_config.theme.clone())?;
 
     let mut app = App::load(config)?;
     app.startup_state.caller_alias = parsed.dropfile_alias.clone();
