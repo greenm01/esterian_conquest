@@ -20,7 +20,7 @@ use ec_client::model::ClassicLoginState;
 use ec_client::screen::layout::COMMAND_LINE_ROW;
 use ec_client::screen::table::{TableColumn, fit_table_columns};
 use ec_client::screen::{
-    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetListMode, FleetRoeScreen, FleetRow,
+    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRoeScreen, FleetRow,
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow,
     PlanetListMode, PlanetListSort, ScreenId,
 };
@@ -609,16 +609,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        app.current_screen(),
-        ScreenId::FleetList(FleetListMode::Brief)
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
@@ -2044,19 +2038,13 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.handle_key(key(KeyCode::Char('b'))), Action::Noop);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('f'))),
-        Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
+        Action::Fleet(FleetAction::OpenList)
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        app.current_screen(),
-        ScreenId::FleetList(FleetListMode::Full)
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
         Action::Fleet(FleetAction::OpenReview)
@@ -2074,10 +2062,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         apply_action(&mut app, Action::Fleet(FleetAction::CloseReview)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        app.current_screen(),
-        ScreenId::FleetList(FleetListMode::Full)
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
@@ -3550,8 +3535,7 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
     let mut terminal = CaptureTerminal::new();
     for action in [
         Action::Fleet(FleetAction::OpenMenu),
-        Action::Fleet(FleetAction::OpenList(FleetListMode::Brief)),
-        Action::Fleet(FleetAction::OpenList(FleetListMode::Full)),
+        Action::Fleet(FleetAction::OpenList),
         Action::Fleet(FleetAction::OpenReviewPrompt),
         Action::Fleet(FleetAction::OpenReview),
         Action::Fleet(FleetAction::OpenRoeSelect),
@@ -3610,10 +3594,7 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -3627,15 +3608,6 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
             .iter()
             .any(|line| line.contains("You have no active fleets."))
     );
-
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 }
 
 #[test]
@@ -6268,10 +6240,7 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut reloaded,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
-        ),
+        apply_action(&mut reloaded, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
@@ -9037,7 +9006,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
     ];
 
     let buffer = screen
-        .render(FleetListMode::Brief, &rows, 0, 0, "", None)
+        .render(&rows, 0, 0, "", None)
         .expect("fleet list renders");
 
     assert!(buffer.plain_line(4).contains("│001│"));
@@ -9046,7 +9015,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
 }
 
 #[test]
-fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
+fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     let mut screen = ec_client::screen::FleetListScreen::new();
     let rows = vec![FleetRow {
         fleet_record_index_1_based: 1,
@@ -9054,7 +9023,7 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
         coords: [8, 9],
         target_coords: [16, 13],
         order_code: 5,
-        current_speed: 0,
+        current_speed: 2,
         max_speed: 6,
         eta_label: "3000".to_string(),
         list_eta_label: "0".to_string(),
@@ -9065,8 +9034,8 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
     }];
 
     let buffer = screen
-        .render(FleetListMode::Full, &rows, 0, 0, "", None)
-        .expect("full fleet list renders");
+        .render(&rows, 0, 0, "", None)
+        .expect("fleet list renders");
 
     assert_eq!(buffer.plain_line(0), "FLEET LIST:");
     assert!(!buffer.plain_line(1).contains("ENTER reviews a fleet."));
@@ -9080,7 +9049,8 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
     assert!(buffer.plain_line(2).contains("Ships"));
     assert!(buffer.plain_line(4).contains("Grd/Blkd"));
     assert!(buffer.plain_line(4).contains("(16,13)"));
-    assert!(buffer.plain_line(4).contains("0/6"));
+    assert!(buffer.plain_line(4).contains("│  2│"));
+    assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
     assert_eq!(buffer.plain_line(6), "COMMANDS <ARROWS J K Q> [4] ->");
@@ -9116,10 +9086,7 @@ fn fleet_list_eta_column_shows_turns_remaining_for_arrived_fleets() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
 
@@ -9169,10 +9136,7 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
     );
 

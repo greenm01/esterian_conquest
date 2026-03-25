@@ -32,7 +32,7 @@ impl App {
 
             ScreenId::FleetHelp
             | ScreenId::FleetMenu
-            | ScreenId::FleetList(_)
+            | ScreenId::FleetList
             | ScreenId::FleetReview
             | ScreenId::FleetRoeSelect
             | ScreenId::FleetOrder

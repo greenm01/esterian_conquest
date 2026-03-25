@@ -6,7 +6,7 @@ pub fn update(app: &mut App, action: FleetAction) {
     match action {
         FleetAction::OpenMenu => app.open_fleet_menu(),
         FleetAction::OpenHelp => app.open_fleet_help(),
-        FleetAction::OpenList(mode) => app.open_fleet_list(mode),
+        FleetAction::OpenList => app.open_fleet_list(),
         FleetAction::OpenReviewPrompt => app.open_fleet_review_prompt(),
         FleetAction::OpenReview => app.open_fleet_review(),
         FleetAction::CloseReview => app.close_fleet_review(),

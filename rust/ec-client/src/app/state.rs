@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use ec_data::{CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
+use ec_data::{
+    CampaignStore, CoreGameData, GameConfig, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
+};
 
 use crate::domains::empire::EmpireState;
 use crate::domains::fleet::FleetState;
@@ -11,18 +13,18 @@ use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
-    FleetDetachScreen, FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode,
-    FleetListScreen, FleetMenuScreen, FleetMergeScreen, FleetMissionPickerScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetSingleOrderScreen, FleetTransferScreen,
-    GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetBuildScreen, PlanetCommissionScreen, PlanetDatabaseScreen,
-    PlanetHelpScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen, PlanetTaxScreen,
-    PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenId, StarbaseHelpScreen,
-    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
+    FleetDetachScreen, FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListScreen,
+    FleetMenuScreen, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen,
+    FleetSingleOrderScreen, FleetTransferScreen, GeneralHelpScreen, GeneralMenuScreen,
+    MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen,
+    PlanetCommissionScreen, PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen,
+    PlanetListScreen, PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen,
+    ReportsScreen, ScreenId, StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen,
+    StarbaseReviewScreen, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupSequence, StartupSummary};
 
@@ -32,6 +34,8 @@ pub struct AppConfig {
     pub player_record_index_1_based: usize,
     pub export_root: Option<PathBuf>,
     pub queue_dir: Option<PathBuf>,
+    /// Runtime configuration loaded from `config.kdl`.
+    pub game_config: GameConfig,
 }
 
 pub struct App {
@@ -199,10 +203,7 @@ impl App {
             rankings: RankingsScreen::new(),
             reports: ReportsScreen::new(reports, review_summary),
 
-            fleet: FleetState {
-                list_mode: FleetListMode::Brief,
-                ..Default::default()
-            },
+            fleet: FleetState::default(),
             planet: PlanetState::new(campaign_store, planet_intel_snapshots.clone()),
             starbase: StarbaseState::default(),
             empire: EmpireState::default(),

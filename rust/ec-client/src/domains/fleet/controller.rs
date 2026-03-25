@@ -8,7 +8,7 @@ use crate::app::helpers::{
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::FleetMenuPromptMode;
-use crate::screen::{CommandMenu, FleetEtaMode, FleetListMode, FleetRow, ScreenId};
+use crate::screen::{CommandMenu, FleetEtaMode, FleetRow, ScreenId};
 use std::cmp::Reverse;
 
 impl App {
@@ -93,7 +93,7 @@ impl App {
         self.current_screen == ScreenId::FleetMenu && self.fleet.menu_prompt_mode.is_some()
     }
 
-    pub fn open_fleet_list(&mut self, mode: FleetListMode) {
+    pub fn open_fleet_list(&mut self) {
         if self.fleet_list_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
@@ -101,14 +101,13 @@ impl App {
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
         self.clear_fleet_list_input();
-        self.fleet.list_mode = mode;
         self.fleet.scroll_offset = 0;
         self.fleet.cursor = 0;
-        self.current_screen = ScreenId::FleetList(mode);
+        self.current_screen = ScreenId::FleetList;
     }
 
     pub fn open_fleet_review(&mut self) {
-        let review_return_to_list = matches!(self.current_screen, ScreenId::FleetList(_));
+        let review_return_to_list = self.current_screen == ScreenId::FleetList;
         let rows = if review_return_to_list {
             self.fleet_list_rows()
         } else {
@@ -125,7 +124,8 @@ impl App {
             let fleet_number = match self.fleet.list_input.trim().parse::<u16>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.fleet.list_status = Some("Enter a fleet number from the table.".to_string());
+                    self.fleet.list_status =
+                        Some("Enter a fleet number from the table.".to_string());
                     return;
                 }
             };
@@ -158,7 +158,7 @@ impl App {
                 self.fleet.cursor,
                 crate::screen::FLEET_LIST_VISIBLE_ROWS,
             );
-            self.current_screen = ScreenId::FleetList(self.fleet.list_mode);
+            self.current_screen = ScreenId::FleetList;
         } else {
             let default_fleet_number = self
                 .fleet_review_rows()
@@ -219,7 +219,7 @@ impl App {
     }
 
     pub fn move_fleet_list(&mut self, delta: i8) {
-        let ScreenId::FleetList(_) = self.current_screen else {
+        let ScreenId::FleetList = self.current_screen else {
             return;
         };
         let total = self.fleet_list_rows().len();
@@ -268,7 +268,7 @@ impl App {
     }
 
     pub fn append_fleet_list_char(&mut self, ch: char) {
-        if !matches!(self.current_screen, ScreenId::FleetList(_)) || !ch.is_ascii_digit() {
+        if self.current_screen != ScreenId::FleetList || !ch.is_ascii_digit() {
             return;
         }
         if self.fleet.list_input.len() >= 4 {
@@ -280,7 +280,7 @@ impl App {
     }
 
     pub fn backspace_fleet_list_input(&mut self) {
-        if !matches!(self.current_screen, ScreenId::FleetList(_)) {
+        if self.current_screen != ScreenId::FleetList {
             return;
         }
         self.fleet.list_input.pop();
@@ -685,7 +685,7 @@ impl App {
     }
 
     fn sync_fleet_list_cursor_to_input(&mut self) {
-        let ScreenId::FleetList(_) = self.current_screen else {
+        let ScreenId::FleetList = self.current_screen else {
             return;
         };
         let Ok(target_fleet_id) = self.fleet.list_input.trim().parse::<u16>() else {

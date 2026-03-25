@@ -45,12 +45,6 @@ pub struct FleetRow {
     pub table_composition_label: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FleetListMode {
-    Brief,
-    Full,
-}
-
 pub struct FleetMenuScreen;
 pub struct FleetListScreen;
 pub struct FleetReviewScreen;
@@ -328,9 +322,7 @@ impl Screen for FleetMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('f') | KeyCode::Char('F') => {
-                Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
-            }
+            KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenList),
             KeyCode::Char('r') | KeyCode::Char('R') => Action::Fleet(FleetAction::OpenReviewPrompt),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             KeyCode::Char('h') | KeyCode::Char('H') => Action::Fleet(FleetAction::OpenHelp),
@@ -367,7 +359,6 @@ impl FleetListScreen {
 
     pub fn render(
         &mut self,
-        mode: FleetListMode,
         rows: &[FleetRow],
         scroll_offset: usize,
         cursor: usize,
@@ -376,38 +367,24 @@ impl FleetListScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let max_fleet_number = max_fleet_number(rows);
-        let title = match mode {
-            FleetListMode::Brief => "BRIEF FLEET LIST:",
-            FleetListMode::Full => "FLEET LIST:",
-        };
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, title, classic::title_style());
+        buffer.write_text(0, 0, "FLEET LIST:", classic::title_style());
         let table_rows = rows
             .iter()
-            .map(|row| match mode {
-                FleetListMode::Brief => vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.table_composition_label.clone(),
-                ],
-                FleetListMode::Full => vec![
+            .map(|row| {
+                vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
                     format_sector_coords_table(row.coords),
                     fleet_table_order_label(row.order_code).to_string(),
                     fleet_list_target_label(row.target_coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.current_speed.to_string(),
                     row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
                     row.table_composition_label.clone(),
-                ],
+                ]
             })
             .collect::<Vec<_>>();
-        let columns = match mode {
-            FleetListMode::Brief => brief_columns(max_fleet_number).to_vec(),
-            FleetListMode::Full => fit_table_columns(&full_columns(max_fleet_number), &table_rows),
-        };
+        let columns = fit_table_columns(&full_columns(max_fleet_number), &table_rows);
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
@@ -462,7 +439,9 @@ impl FleetListScreen {
             KeyCode::PageDown => Action::Fleet(FleetAction::MoveList(8)),
             KeyCode::Enter => Action::Fleet(FleetAction::OpenReview),
             KeyCode::Backspace => Action::Fleet(FleetAction::BackspaceListInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Fleet(FleetAction::AppendListChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Fleet(FleetAction::AppendListChar(ch))
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::OpenMenu)
             }
@@ -1258,12 +1237,7 @@ impl FleetGroupScreen {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
-        draw_status_line(
-            &mut buffer,
-            2,
-            "Selected fleets: ",
-            selected_fleet_label,
-        );
+        draw_status_line(&mut buffer, 2, "Selected fleets: ", selected_fleet_label);
         if mode == FleetGroupOrderMode::EnteringTarget {
             draw_status_line(&mut buffer, 4, "", header_text);
         } else {
@@ -1340,12 +1314,7 @@ impl FleetGroupScreen {
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
         draw_status_line(&mut buffer, 2, "Stardate: ", &current_year.to_string());
-        draw_status_line(
-            &mut buffer,
-            3,
-            "Selected fleets: ",
-            selected_fleet_label,
-        );
+        draw_status_line(&mut buffer, 3, "Selected fleets: ", selected_fleet_label);
         draw_status_line(&mut buffer, 5, "", header_text);
         draw_status_line(&mut buffer, 7, "New Orders: ", new_order_label);
         let command_row = menu_prompt_row(7);
@@ -1679,13 +1648,13 @@ fn brief_columns(max_fleet_number: u16) -> [TableColumn<'static>; 5] {
 
 fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 8] {
     let id_width = fleet_id_column_width(max_fleet_number);
-    let ships_width = 71usize.saturating_sub(id_width + 8 + 15 + 8 + 5 + 4 + 3);
+    let ships_width = 71usize.saturating_sub(id_width + 8 + 15 + 8 + 3 + 4 + 3);
     [
         TableColumn::right("ID", id_width),
         TableColumn::left("Location", 8),
         TableColumn::left("Order", 15),
         TableColumn::left("Target", 8),
-        TableColumn::right("Spd", 5),
+        TableColumn::right("Spd", 3),
         TableColumn::right("ETA", 4),
         TableColumn::right("ROE", 3),
         TableColumn::left("Ships", ships_width),

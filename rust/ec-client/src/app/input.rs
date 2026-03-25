@@ -173,7 +173,7 @@ impl App {
             ScreenId::StarbaseReviewSelect => self.handle_starbase_review_select_key(key),
             ScreenId::StarbaseReview => Action::Starbase(StarbaseAction::OpenReviewSelect),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
-            ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
+            ScreenId::FleetList => self.fleet_list.handle_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
             ScreenId::FleetOrder => self.handle_fleet_order_key(key),

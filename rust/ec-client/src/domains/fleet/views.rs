@@ -24,8 +24,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
         ),
-        ScreenId::FleetList(mode) => app.fleet_list.render(
-            mode,
+        ScreenId::FleetList => app.fleet_list.render(
             &app.fleet_list_rows(),
             app.fleet.scroll_offset,
             app.fleet.cursor,

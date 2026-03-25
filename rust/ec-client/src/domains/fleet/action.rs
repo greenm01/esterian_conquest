@@ -1,10 +1,8 @@
-use crate::screen::FleetListMode;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetAction {
     OpenMenu,
     OpenHelp,
-    OpenList(FleetListMode),
+    OpenList,
     OpenReviewPrompt,
     OpenReview,
     CloseReview,

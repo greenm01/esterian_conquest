@@ -77,7 +77,7 @@ impl App {
             | ScreenId::PlanetDatabaseFilterPrompt => CommandMenu::Main,
             ScreenId::FleetHelp
             | ScreenId::FleetMenu
-            | ScreenId::FleetList(_)
+            | ScreenId::FleetList
             | ScreenId::FleetReview
             | ScreenId::FleetRoeSelect
             | ScreenId::FleetOrder

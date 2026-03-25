@@ -2,7 +2,6 @@ use crate::domains::fleet::screens::fleet::{
     FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetMergeMode, FleetSingleOrderMode,
     FleetTransferMode,
 };
-use crate::screen::FleetListMode;
 use ec_data::FleetDetachSelection;
 use std::collections::BTreeSet;
 
@@ -21,7 +20,6 @@ pub enum FleetMissionPickerCaller {
 pub struct FleetState {
     pub scroll_offset: usize,
     pub cursor: usize,
-    pub list_mode: FleetListMode,
     pub list_input: String,
     pub list_status: Option<String>,
     pub menu_prompt_mode: Option<FleetMenuPromptMode>,
@@ -97,7 +95,6 @@ impl Default for FleetState {
         Self {
             scroll_offset: 0,
             cursor: 0,
-            list_mode: FleetListMode::Brief,
             list_input: String::new(),
             list_status: None,
             menu_prompt_mode: None,
