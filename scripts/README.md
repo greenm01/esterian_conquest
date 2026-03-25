@@ -9,16 +9,16 @@ These scripts are intended for:
 - creating richer stress-test campaigns for UI work
 - creating classic-probe campaigns that open in original `ECGAME` with a busy
   player-1 report backlog
-- launching `ec-client` against a chosen campaign and player seat
+- launching `ec-game` against a chosen campaign and player seat
 
 The current boundary is:
 
-- `ec-client` runs from `ecgame.db`
+- `ec-game` runs from `ecgame.db`
 - `maint-rust` runs from `ecgame.db`
 - `ec-cli` is the setup and classic `.DAT` bridge/tooling surface
 
-So these scripts call `ec-cli` to build or mutate campaigns, then launch the
-Rust client directly.
+So these scripts call `ec-cli` to build or mutate campaigns, then launch
+`ec-game` directly.
 
 ## Prerequisites
 
@@ -156,7 +156,7 @@ python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force --no-l
 
 Use this when you want:
 
-- the original DOS client, not `ec-client`
+- the original DOS client, not `ec-game`
 - a busy unread-report backlog for player 1
 - multiple fleets and planets to inspect in classic menus
 - a practical hybrid-loop smoke test after Rust maint changes
@@ -257,7 +257,7 @@ Use this when you want:
 
 ### `run_client.py`
 
-Launches the Rust client against a chosen campaign directory and player seat.
+Launches `ec-game` against a chosen campaign directory and player seat.
 
 Example:
 

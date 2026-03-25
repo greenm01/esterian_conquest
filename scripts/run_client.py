@@ -29,7 +29,7 @@ def refresh_campaign_snapshot(game_dir: Path, release: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Launch the Rust EC client for a chosen campaign directory and player seat."
+        description="Launch the Rust ec-game client for a chosen campaign directory and player seat."
     )
     parser.add_argument("game_dir", help="Campaign directory that contains ecgame.db.")
     parser.add_argument(
@@ -47,7 +47,7 @@ def main() -> None:
 
     game_dir = Path(args.game_dir).resolve()
     refresh_campaign_snapshot(game_dir, args.release)
-    client_binary = build_workspace_binary("ec-client", args.release)
+    client_binary = build_workspace_binary("ec-game", args.release)
     subprocess.run(
         [
             str(client_binary),
