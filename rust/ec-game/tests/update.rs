@@ -5,6 +5,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
+use ec_compat::{decode_report_block_rows, import_directory_snapshot};
+use ec_data::{
+    CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
+    EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot, ProductionItemKind,
+    QueuedPlayerMail,
+};
+use ec_engine::yearly_tax_revenue;
 use ec_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
 use ec_game::domains::empire::EmpireAction;
 use ec_game::domains::fleet::FleetAction;
@@ -26,13 +33,6 @@ use ec_game::screen::{
 };
 use ec_game::startup::StartupPhase;
 use ec_game::terminal::Terminal;
-use ec_compat::{decode_report_block_rows, import_directory_snapshot};
-use ec_data::{
-    CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot, ProductionItemKind,
-    QueuedPlayerMail,
-};
-use ec_engine::yearly_tax_revenue;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 

@@ -1,3 +1,4 @@
+use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use ec_game::screen::MessageComposeScreen;
 use ec_game::screen::PlanetBuildOrder;
 use ec_game::screen::PlanetBuildScreen;
@@ -14,7 +15,6 @@ use ec_game::screen::layout::{
     table_dismiss_prompt_row,
 };
 use ec_game::theme::classic;
-use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
     buffer.row(row).iter().map(|cell| cell.ch).collect()

@@ -3,17 +3,27 @@ use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
-use crate::app::{apply_action, App, AppConfig, AppOutcome};
+use crate::app::{App, AppConfig, AppOutcome, apply_action};
 use crate::dropfile;
-use crate::terminal::stdout::StdoutTerminal;
 use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
+use crate::terminal::stdout::StdoutTerminal;
 use crate::theme;
-use ec_data::game_config::{GameConfig, DEFAULT_GAME_CONFIG_KDL};
+use ec_data::game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
+    if matches!(
+        parsed_args.get(1).map(String::as_str),
+        Some("--help" | "-h")
+    ) {
+        print_usage();
+        return Ok(());
+    }
+    if matches!(parsed_args.get(1).map(String::as_str), Some("submit-turn")) {
+        return crate::submit_turn::run_submit_turn_args(&parsed_args[2..]);
+    }
     let (config, encoding, color_mode) = parse_args(&parsed_args)?;
 
     // Load (or bootstrap) config.kdl before anything else.
@@ -264,6 +274,9 @@ fn print_usage() {
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
          [--dropfile <path>] [--timeout <minutes>] \
          [--export-root <dir>] [--queue-dir <dir>]"
+    );
+    println!(
+        "  ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>"
     );
     println!();
     println!("BBS door flags:");

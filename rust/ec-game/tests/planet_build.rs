@@ -1,10 +1,10 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use ec_game::app::Action;
 use ec_game::domains::planet::PlanetAction;
 use ec_game::screen::{
     PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen,
 };
-use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 #[test]
 fn build_menu_renders_compact_queue_and_stardock_counts() {

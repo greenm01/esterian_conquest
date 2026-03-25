@@ -16,8 +16,8 @@ pub use ec_data::{
     PlanetIntelSource, PlanetOwnershipChangeEvent, PlanetPlayerInputValidationError, PlanetRecord,
     PlayerDiplomacyValidationError, ProductionItemKind, RNG_TAG_COMBAT, STARDOCK_SLOT_COUNT,
     SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent, SetupConfigError, ShipLosses,
-    StarbaseDestroyedEvent, build_capacity,
-    map_size_for_player_count, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
+    StarbaseDestroyedEvent, build_capacity, map_size_for_player_count, yearly_growth_delta,
+    yearly_high_tax_penalty, yearly_tax_revenue,
 };
 pub use maint::{
     process_autopilot_ai, run_maintenance_turn, run_maintenance_turn_with_context,

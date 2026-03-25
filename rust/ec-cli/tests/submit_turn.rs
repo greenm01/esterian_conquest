@@ -3,7 +3,8 @@ mod common;
 use std::fs;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_ec_cli, run_ec_cli_failure_in_dir, unique_temp_dir,
+    cleanup_dir, copy_fixture_dir, run_ec_cli_failure_in_dir, run_ec_cli_output_in_dir,
+    unique_temp_dir,
 };
 use ec_data::CampaignStore;
 
@@ -23,19 +24,27 @@ tax rate=42
     let db_path = target.join("ecgame.db");
     assert!(!db_path.exists());
 
-    let stdout = run_ec_cli(&[
-        "submit-turn",
-        "--check",
-        "--dir",
-        target.to_str().unwrap(),
-        "--player",
-        "1",
-        "--file",
-        turn_path.to_str().unwrap(),
-    ]);
+    let output = run_ec_cli_output_in_dir(
+        &[
+            "submit-turn",
+            "--check",
+            "--dir",
+            target.to_str().unwrap(),
+            "--player",
+            "1",
+            "--file",
+            turn_path.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
 
     assert!(stdout.contains("Validated turn submission"));
     assert!(stdout.contains("mode=check-only"));
+    assert!(stderr.contains("deprecated"));
     assert!(!db_path.exists());
 
     cleanup_dir(&target);
@@ -56,17 +65,25 @@ message to=2 subject="Scout" body="Watch the lane."
     )
     .unwrap();
 
-    let stdout = run_ec_cli(&[
-        "submit-turn",
-        "--dir",
-        target.to_str().unwrap(),
-        "--player",
-        "1",
-        "--file",
-        turn_path.to_str().unwrap(),
-    ]);
+    let output = run_ec_cli_output_in_dir(
+        &[
+            "submit-turn",
+            "--dir",
+            target.to_str().unwrap(),
+            "--player",
+            "1",
+            "--file",
+            turn_path.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
 
     assert!(stdout.contains("Applied turn submission"));
+    assert!(stderr.contains("ec-game submit-turn"));
     assert!(target.join("ecgame.db").exists());
 
     let store = CampaignStore::open_default_in_dir(&target).unwrap();

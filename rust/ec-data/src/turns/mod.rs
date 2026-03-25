@@ -3,12 +3,13 @@ use std::fs;
 use std::path::Path;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, FleetDetachSelection, GameStateMutationError,
-    QueuedPlayerMail,
+    CampaignStoreError, CoreGameData, DiplomaticRelation, FleetDetachSelection, GameDirectoryError,
+    GameStateMutationError, QueuedPlayerMail,
 };
 
 mod apply;
 mod parser;
+mod runtime;
 
 pub const MAX_MESSAGE_SUBJECT_CHARS: usize = 60;
 pub const MAX_MESSAGE_BODY_CHARS: usize = 1000;
@@ -117,6 +118,8 @@ pub enum TurnSubmissionError {
     Parse(String),
     Validation(String),
     Mutation(GameStateMutationError),
+    Storage(CampaignStoreError),
+    Directory(GameDirectoryError),
 }
 
 impl fmt::Display for TurnSubmissionError {
@@ -125,6 +128,8 @@ impl fmt::Display for TurnSubmissionError {
             Self::Io(source) => write!(f, "{source}"),
             Self::Parse(message) | Self::Validation(message) => write!(f, "{message}"),
             Self::Mutation(source) => write!(f, "{source}"),
+            Self::Storage(source) => write!(f, "{source}"),
+            Self::Directory(source) => write!(f, "{source}"),
         }
     }
 }
@@ -134,6 +139,8 @@ impl std::error::Error for TurnSubmissionError {
         match self {
             Self::Io(source) => Some(source),
             Self::Mutation(source) => Some(source),
+            Self::Storage(source) => Some(source),
+            Self::Directory(source) => Some(source),
             Self::Parse(_) | Self::Validation(_) => None,
         }
     }
@@ -148,6 +155,18 @@ impl From<std::io::Error> for TurnSubmissionError {
 impl From<GameStateMutationError> for TurnSubmissionError {
     fn from(source: GameStateMutationError) -> Self {
         Self::Mutation(source)
+    }
+}
+
+impl From<CampaignStoreError> for TurnSubmissionError {
+    fn from(source: CampaignStoreError) -> Self {
+        Self::Storage(source)
+    }
+}
+
+impl From<GameDirectoryError> for TurnSubmissionError {
+    fn from(source: GameDirectoryError) -> Self {
+        Self::Directory(source)
     }
 }
 
@@ -166,5 +185,14 @@ impl TurnSubmission {
         queued_mail: &mut Vec<QueuedPlayerMail>,
     ) -> Result<TurnSubmissionReport, TurnSubmissionError> {
         apply::apply_turn_submission(self, game_data, queued_mail)
+    }
+
+    pub fn submit_kdl_file_to_campaign_dir(
+        dir: &Path,
+        player_record_index_1_based: usize,
+        file: &Path,
+        check_only: bool,
+    ) -> Result<TurnSubmissionReport, TurnSubmissionError> {
+        runtime::submit_turn_kdl_file(dir, player_record_index_1_based, file, check_only)
     }
 }

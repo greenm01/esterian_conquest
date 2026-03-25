@@ -128,9 +128,15 @@ overrides the session timeout from the command line if needed.
 
 Submit a player turn from a KDL file:
 
+Players normally use the interactive TUI, but `ec-game` also supports a
+file-based turn submission path for localhost, shared-host, and custom-client
+workflows. Validate first with `--check`, then apply the same file directly to
+the campaign runtime state:
+
 ```bash
 cd rust
-cargo run -q -p ec-cli -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
+cargo run -q -p ec-game -- submit-turn --check --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
+cargo run -q -p ec-game -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
 ```
 
 The turn file format is documented in [docs/player/turn-kdl.md](docs/player/turn-kdl.md).

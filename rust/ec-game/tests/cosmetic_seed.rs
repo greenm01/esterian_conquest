@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_game::app::{App, AppConfig};
-use ec_game::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
 use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
+use ec_game::app::{App, AppConfig};
+use ec_game::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 

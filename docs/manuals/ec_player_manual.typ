@@ -428,7 +428,63 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 #pagebreak()
 
-// ─── 8. Strategy ────────────────────────────────────────────────────────
+// ─── 8. File-Based Turn Submission ──────────────────────────────────────
+
+= File-Based Turn Submission
+
+The interactive TUI remains the normal way to play EC, but `ec-game` also supports a file-based turn submission path through `submit-turn`. This is useful when you are playing on localhost, on a shared host over a remote terminal, or through another client that wants to write a turn file and hand it to the engine.
+
+This interface applies orders directly to the Rust runtime campaign state. It is not a mail queue, upload inbox, or delayed scheduler hook.
+
+=== Basic Workflow
+
+Create a turn file, validate it, then apply it:
+
+```
+ec-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+ec-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+```
+
+The important rules are:
+
+- `--check` validates the file without mutating the campaign.
+- apply mode writes the orders into `ecgame.db`.
+- the CLI `--player` value must match the `turn player=...` header in the file.
+- if any command in the file is invalid, the entire submission is rejected and nothing is written.
+- this is a direct file-based submission path, not a queue-based upload workflow.
+
+=== Minimal Turn File
+
+At minimum, a turn file names the player and year, then lists the orders to apply:
+
+```kdl
+turn player=1 year=3000
+tax rate=37
+```
+
+=== Short Worked Example
+
+```kdl
+turn player=1 year=3000
+
+tax rate=37
+
+planet record=16 {
+  build points=4 kind="scout"
+}
+
+fleet record=1 {
+  order speed=3 kind="scout_system" x=16 y=13
+}
+
+message to=2 subject="Border" body="Watching the north lane."
+```
+
+For the full KDL node reference and schema details, see the repository's `docs/player/turn-kdl.md` reference page.
+
+#pagebreak()
+
+// ─── 9. Strategy ────────────────────────────────────────────────────────
 
 = Strategy
 
@@ -446,7 +502,7 @@ In the endgame, fleet composition and denial matter more than raw numbers. Mix d
 
 #pagebreak()
 
-// ─── 9. Historical Context ─────────────────────────────────────────────
+// ─── 10. Historical Context ────────────────────────────────────────────
 
 = Historical Context
 
@@ -742,7 +798,7 @@ Category key:
 
 This edition is a preservation project first. The goal is to keep the original
 gameplay legible and playable on modern systems while documenting the exact
-engine rules that matter to players, operators, bot authors, and future
+engine rules that matter to players, operators, client authors, and future
 maintainers.
 
 === Original References

@@ -545,7 +545,22 @@ Color mode and encoding default to `auto` / `utf8`, which is correct for
 modern terminal emulators. The client detects `COLORTERM` and `TERM`
 automatically.
 
-// ─── 10. Turn Processing and Maintenance ─────────────────────────────────────
+// ─── 10. File-Based Turn Submission ──────────────────────────────────────────
+
+= File-Based Turn Submission
+
+Players on localhost or a shared host can use either the interactive TUI or `ec-game submit-turn`.
+
+```
+ec-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+ec-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+```
+
+This is a supported file-based interface for manual workflows and custom client integration. It writes directly to `ecgame.db` after the submission validates cleanly. If any command in the file is invalid, the entire submission is rejected and nothing is written.
+
+Do not treat this as a queue processor or upload inbox. `submit-turn` is a direct command that reads one KDL file and applies it immediately to the live campaign state.
+
+// ─── 11. Turn Processing and Maintenance ─────────────────────────────────────
 
 = Turn Processing and Maintenance
 
@@ -568,7 +583,7 @@ Do not treat KDL config as a scheduler. `config.kdl` owns runtime policy such
 as theming, snoop, and inactivity thresholds. Maintenance timing belongs to
 the host.
 
-// ─── 11. Player Management ────────────────────────────────────────────────────
+// ─── 12. Player Management ────────────────────────────────────────────────────
 
 = Player Management
 
@@ -580,7 +595,7 @@ block. The two public thresholds are:
 
 These values are runtime policy, not setup-time game creation input.
 
-// ─── 12. Classic Compatibility ────────────────────────────────────────────────
+// ─── 13. Classic Compatibility ────────────────────────────────────────────────
 
 = Classic Compatibility
 
@@ -590,7 +605,7 @@ Classic `.DAT` import/export, oracle runs against the original binaries, and
 other preservation workflows still exist, but they belong to the internal
 `ec-cli` developer/compatibility surface rather than the normal sysop manual.
 
-// ─── 13. CLI Reference ────────────────────────────────────────────────────────
+// ─── 14. CLI Reference ────────────────────────────────────────────────────────
 
 = CLI Reference
 
@@ -611,7 +626,10 @@ ec-sysop <subcommand> [options]
 
 ```
 ec-game --dir <game_dir> --player <1-based index> [options]
+ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
+
+Interactive client flags:
 
 #table(
   columns: (auto, 1fr),
@@ -626,7 +644,20 @@ ec-game --dir <game_dir> --player <1-based index> [options]
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
 )
 
-// ─── 14. Theme Token Reference ────────────────────────────────────────────────
+`submit-turn` flags:
+
+#table(
+  columns: (auto, 1fr),
+  [*Flag*], [*Description*],
+  [`--check`], [Validate the KDL file without mutating the campaign.],
+  [`--dir <path>`], [Game directory containing `ecgame.db`. Required.],
+  [`--player <N>`], [1-based empire index. Required, and must match the KDL header.],
+  [`--file <path>`], [Turn submission KDL file to validate or apply. Required.],
+)
+
+#admonition("NOTE")[`ec-game submit-turn` is all-or-nothing. If any command in the file is invalid, the entire submission is rejected and nothing is written to `ecgame.db`.]
+
+// ─── 15. Theme Token Reference ────────────────────────────────────────────────
 
 = Theme Token Reference
 

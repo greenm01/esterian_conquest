@@ -240,6 +240,9 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
             export_latest_db_snapshot(&source_dir, &target_dir)?;
         }
         "submit-turn" => {
+            eprintln!(
+                "warning: `ec-cli submit-turn ...` is deprecated; use `ec-game submit-turn ...`"
+            );
             run_submit_turn_args(args.collect::<Vec<_>>())?;
         }
         "harness" => {

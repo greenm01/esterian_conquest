@@ -18,12 +18,16 @@ pub fn run_ec_cli(args: &[&str]) -> String {
     run_ec_cli_in_dir(args, rust_workspace())
 }
 
-pub fn run_ec_cli_in_dir(args: &[&str], current_dir: PathBuf) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_ec-cli"))
+pub fn run_ec_cli_output_in_dir(args: &[&str], current_dir: PathBuf) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_ec-cli"))
         .current_dir(current_dir)
         .args(args)
         .output()
-        .expect("ec-cli should run");
+        .expect("ec-cli should run")
+}
+
+pub fn run_ec_cli_in_dir(args: &[&str], current_dir: PathBuf) -> String {
+    let output = run_ec_cli_output_in_dir(args, current_dir);
 
     assert!(
         output.status.success(),
@@ -36,11 +40,7 @@ pub fn run_ec_cli_in_dir(args: &[&str], current_dir: PathBuf) -> String {
 }
 
 pub fn run_ec_cli_failure_in_dir(args: &[&str], current_dir: PathBuf) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_ec-cli"))
-        .current_dir(current_dir)
-        .args(args)
-        .output()
-        .expect("ec-cli should run");
+    let output = run_ec_cli_output_in_dir(args, current_dir);
 
     assert!(
         !output.status.success(),

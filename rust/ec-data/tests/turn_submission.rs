@@ -1,5 +1,12 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use ec_data::{CampaignStore, DiplomaticRelation, Order, TurnSubmission};
 use ec_engine::build_seeded_initialized_game;
+
+static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[test]
 fn turn_submission_applies_mixed_player_actions() {
@@ -162,4 +169,92 @@ message to=2 body="hello"
 
     let _ = CampaignStore::open_default_in_dir(&dir);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn turn_submission_runtime_helper_check_only_does_not_create_runtime_db() {
+    let dir = fixture_copy("ec-data-submit-turn-check");
+    let path = dir.join("turn.kdl");
+    fs::write(
+        &path,
+        r#"
+turn player=1 year=3000
+tax rate=42
+"#,
+    )
+    .unwrap();
+
+    let report = TurnSubmission::submit_kdl_file_to_campaign_dir(&dir, 1, &path, true).unwrap();
+
+    assert_eq!(report.player_record_index_1_based, 1);
+    assert!(report.tax_changed);
+    assert!(!dir.join("ecgame.db").exists());
+
+    cleanup_dir(&dir);
+}
+
+#[test]
+fn turn_submission_runtime_helper_apply_creates_runtime_db() {
+    let dir = fixture_copy("ec-data-submit-turn-apply");
+    let path = dir.join("turn.kdl");
+    fs::write(
+        &path,
+        r#"
+turn player=1 year=3000
+tax rate=37
+message to=2 subject="Scout" body="Watch the lane."
+"#,
+    )
+    .unwrap();
+
+    let report = TurnSubmission::submit_kdl_file_to_campaign_dir(&dir, 1, &path, false).unwrap();
+
+    assert_eq!(report.messages_queued, 1);
+    assert!(dir.join("ecgame.db").exists());
+
+    let store = CampaignStore::open_default_in_dir(&dir).unwrap();
+    let state = store.load_latest_runtime_state().unwrap().unwrap();
+    assert_eq!(state.game_data.player.records[0].tax_rate(), 37);
+    assert_eq!(state.queued_mail.len(), 1);
+
+    cleanup_dir(&dir);
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn unique_temp_dir(prefix: &str) -> PathBuf {
+    let root = std::env::temp_dir().join(format!(
+        "{prefix}-{}-{}-{}",
+        std::process::id(),
+        TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time ok")
+            .as_nanos()
+    ));
+    fs::create_dir_all(&root).expect("create temp dir");
+    root
+}
+
+fn fixture_copy(prefix: &str) -> PathBuf {
+    let root = unique_temp_dir(prefix);
+    copy_dir_files(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
+    root
+}
+
+fn copy_dir_files(source: &Path, target: &Path) {
+    fs::create_dir_all(target).expect("create target dir");
+    for entry in fs::read_dir(source).expect("read source dir") {
+        let entry = entry.expect("dir entry");
+        if !entry.file_type().expect("file type").is_file() {
+            continue;
+        }
+        fs::copy(entry.path(), target.join(entry.file_name())).expect("copy file");
+    }
+}
+
+fn cleanup_dir(path: &Path) {
+    let _ = fs::remove_dir_all(path);
 }

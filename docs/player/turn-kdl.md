@@ -1,14 +1,16 @@
 # Turn Submission KDL
 
-`ec-cli submit-turn` accepts one player turn file in KDL and applies it to the
-campaign's Rust runtime state.
+`ec-game submit-turn` accepts one player turn file in KDL and applies it to the
+campaign's Rust runtime state. It is an advanced file-based submission
+interface for localhost, shared-host, and custom-client workflows when the TUI
+is not the best fit.
 
 Command shape:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- submit-turn --check --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
-cargo run -q -p ec-cli -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
+cargo run -q -p ec-game -- submit-turn --check --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
+cargo run -q -p ec-game -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
 ```
 
 Important behavior:
@@ -16,8 +18,16 @@ Important behavior:
 - `--check` validates the file without mutating the campaign
 - apply mode updates `ecgame.db`
 - `ec-game` and `ec-sysop` continue from the updated runtime state directly
+- if any command in the file is invalid, the entire submission is rejected and nothing is written
+- this is a direct file-based submission path, not a queued upload protocol
 
 The CLI `--player` value must match the `turn player=...` header in the file.
+
+Recommended workflow:
+
+1. Draft `turn.kdl` in your editor or another client.
+2. Run `ec-game submit-turn --check ...` until validation is clean.
+3. Re-run without `--check` to apply the orders to the live campaign.
 
 ## First Schema
 

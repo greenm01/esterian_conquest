@@ -4,6 +4,9 @@ pub fn print_usage() {
     println!();
     println!("Public binaries:");
     println!("  ec-game --dir <game_dir> --player <1-based empire index>");
+    println!(
+        "  ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>"
+    );
     println!("  ec-sysop <new-game|maint> ...");
     println!();
     println!("`ec-cli` remains the internal developer/oracle/compatibility tool.");
@@ -16,6 +19,7 @@ pub fn print_usage() {
     println!("  ec-cli db-import [dir]");
     println!("  ec-cli db-export [dir] <target_dir>");
     println!("  ec-cli submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>");
+    println!("    deprecated alias; use `ec-game submit-turn ...`");
     println!("  ec-cli harness check-scenario --file <scenario.kdl>");
     println!(
         "  ec-cli harness run-scenario --file <scenario.kdl> --dir <target_dir> [--export-classic]"

@@ -13,7 +13,7 @@ use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{has_visible_runtime_messages, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,

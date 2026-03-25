@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ec_game::dropfile::{parse, DropfileError, DropfileInfo};
+use ec_game::dropfile::{DropfileError, DropfileInfo, parse};
 
 static SEQ: AtomicUsize = AtomicUsize::new(0);
 

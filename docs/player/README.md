@@ -11,7 +11,7 @@ Current recommended reading order:
 - [ec_readme.md](../manuals/ec_readme.md)
   - setup notes, release notes, and bundled guidance
 - [turn-kdl.md](turn-kdl.md)
-  - Rust-native player turn submission format for bots, scripts, and playtests
+  - Rust-native file-based turn submission reference for advanced local, shared-host, and custom-client workflows
 
 The current Rust client is still converging on full `ECGAME` coverage, so the
 classic manuals remain the authoritative gameplay guide for now.

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use ec_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 use ec_game::model::{ClassicLoginState, PlayerContext};
 use ec_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_game::screen::table::{
@@ -12,7 +13,6 @@ use ec_game::screen::{
     PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer, ScreenFrame,
 };
 use ec_game::theme::classic;
-use ec_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
     buffer.row(row).iter().map(|cell| cell.ch).collect()

@@ -2,37 +2,49 @@ use std::path::{Path, PathBuf};
 
 use ec_data::{TurnSubmission, TurnSubmissionReport};
 
-use crate::support::parse::parse_usize_1_based;
-use crate::support::paths::resolve_repo_path;
-
-pub(crate) fn run_submit_turn_args(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_submit_turn_args(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let mut dir = None;
     let mut player_record_index_1_based = None;
     let mut file = None;
     let mut check_only = false;
-    let mut remaining = args.into_iter();
+    let mut idx = 0;
 
-    while let Some(arg) = remaining.next() {
-        match arg.as_str() {
-            "--check" => check_only = true,
+    while idx < args.len() {
+        match args[idx].as_str() {
+            "--check" => {
+                check_only = true;
+                idx += 1;
+            }
             "--dir" => {
-                let Some(value) = remaining.next() else {
+                let Some(value) = args.get(idx + 1) else {
                     return Err("submit-turn requires a path after --dir".into());
                 };
-                dir = Some(resolve_repo_path(&value));
+                dir = Some(PathBuf::from(value));
+                idx += 2;
             }
             "--player" => {
-                let Some(value) = remaining.next() else {
+                let Some(value) = args.get(idx + 1) else {
                     return Err("submit-turn requires a value after --player".into());
                 };
-                player_record_index_1_based =
-                    Some(parse_usize_1_based(&value, "player record index")?);
+                let parsed = value
+                    .parse::<usize>()
+                    .map_err(|_| format!("player record index must be >= 1, got '{value}'"))?;
+                if parsed == 0 {
+                    return Err("player record index must be >= 1".into());
+                }
+                player_record_index_1_based = Some(parsed);
+                idx += 2;
             }
             "--file" => {
-                let Some(value) = remaining.next() else {
+                let Some(value) = args.get(idx + 1) else {
                     return Err("submit-turn requires a path after --file".into());
                 };
-                file = Some(resolve_repo_path(&value));
+                file = Some(PathBuf::from(value));
+                idx += 2;
+            }
+            "--help" | "-h" => {
+                print_submit_turn_usage();
+                return Ok(());
             }
             other => return Err(format!("unknown submit-turn argument: {other}").into()),
         }
@@ -48,24 +60,22 @@ pub(crate) fn run_submit_turn_args(args: Vec<String>) -> Result<(), Box<dyn std:
         return Err("submit-turn requires --file <turn.kdl>".into());
     };
 
-    submit_turn(&dir, player_record_index_1_based, &file, check_only)
-}
-
-pub(crate) fn submit_turn(
-    dir: &Path,
-    player_record_index_1_based: usize,
-    file: &Path,
-    check_only: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
     let report = TurnSubmission::submit_kdl_file_to_campaign_dir(
-        dir,
+        &dir,
         player_record_index_1_based,
-        file,
+        &file,
         check_only,
     )?;
     let verb = if check_only { "Validated" } else { "Applied" };
-    print_submit_turn_report(verb, file, &report, check_only);
+    print_submit_turn_report(verb, &file, &report, check_only);
     Ok(())
+}
+
+pub fn print_submit_turn_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>"
+    );
 }
 
 fn print_submit_turn_report(
