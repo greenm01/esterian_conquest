@@ -18,7 +18,10 @@ old-school tension — now running on a modern Rust engine.
 
 ## Screenshots
 
-**[View screenshots](docs/assets/screenshots/)**
+![Splash screen](docs/assets/screenshots/ec1.png)
+![Main menu](docs/assets/screenshots/ec2.png)
+![Interactive starmap](docs/assets/screenshots/ec3.png)
+![Planet database](docs/assets/screenshots/ec4.png)
 
 ## Play
 
