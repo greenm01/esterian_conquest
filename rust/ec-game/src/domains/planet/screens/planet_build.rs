@@ -490,7 +490,7 @@ impl PlanetBuildScreen {
                     command_row,
                     "BUILD COMMAND",
                     &format!(
-                        "Delete how many {}? [A]ll or 1-{} <Q> -> {}",
+                        "Delete how many {}? <A>ll or 1-{} <Q> -> {}",
                         build_kind_name(row.kind),
                         row.queue_qty,
                         delete_qty_input

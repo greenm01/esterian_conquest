@@ -420,6 +420,16 @@ fn open_change_value_prompt_from_fleet_menu(app: &mut App, fleet_number: Option<
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 }
 
+fn open_change_field_prompt_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::OpenChangePrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt(app, fleet_number);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+}
+
 fn open_eta_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
     assert_eq!(
         apply_action(app, Action::Fleet(FleetAction::OpenEta)),
@@ -2744,7 +2754,7 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
             .any(|line| line.contains("Ships: ") && line.contains("TT*"))
     );
     assert!(terminal.lines.iter().all(|line| !line.contains("AR=")));
-    assert!(line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q>").contains("<Q> ->"));
+    assert!(line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X>").contains("<Q> ->"));
     assert!(
         terminal
             .lines
@@ -9786,6 +9796,34 @@ fn fleet_change_roe_accepts_typed_fleet_selection_and_q_cancels_prompt() {
 }
 
 #[test]
+fn fleet_change_field_prompt_uses_angle_bracket_commands_and_default() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_change_field_prompt_from_fleet_menu(&mut app, Some(4));
+
+    app.render(&mut terminal).expect("fleet menu should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Change")
+            .contains("Change <R>OE, <I>D, or <S>peed [R] <Q> ->")
+    );
+}
+
+#[test]
 fn fleet_change_roe_empty_enter_accepts_displayed_default() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -11746,8 +11784,8 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
     );
     assert_eq!(terminal.line(12).trim_end(), "<C>ommission, <X> Cancel");
     assert!(
-        line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q>")
-            .contains("Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q>")
+        line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X>")
+            .contains("Class <BB,CA,DD,TT*,TT,SC,ET,C,X>")
     );
     assert!(
         !terminal

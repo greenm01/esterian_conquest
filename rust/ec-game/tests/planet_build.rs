@@ -298,7 +298,7 @@ fn build_list_delete_qty_prompt_renders_all_as_default() {
     assert!((0..25).any(|row| {
         buffer
             .plain_line(row)
-            .contains("Delete how many Destroyers? [A]ll or 1-2 <Q> ->")
+            .contains("Delete how many Destroyers? <A>ll or 1-2 <Q> ->")
     }));
 }
 

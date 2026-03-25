@@ -9,6 +9,7 @@ and telnet-style ANSI clients.
 Read it together with:
 
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
+- [ec-game-prompt-standard.md](ec-game-prompt-standard.md)
 - [ec-game-table-standard.md](ec-game-table-standard.md)
 
 ## Core Rules
@@ -89,6 +90,8 @@ Default semantic mapping:
 ## Prompt and Cursor Rules
 
 - Live prompts must leave a space after `-> ` before the cursor.
+- Non-table command-line prompt grammar is defined in
+  [ec-game-prompt-standard.md](ec-game-prompt-standard.md).
 - Prompt brackets keep neutral prompt coloring:
   - `<` and `>`
   - `[` and `]`

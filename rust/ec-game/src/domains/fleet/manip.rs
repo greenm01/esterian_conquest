@@ -607,7 +607,7 @@ impl App {
             .unwrap_or(1);
         match self.fleet.detach_mode {
             FleetDetachMode::ChoosingClass => (
-                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q> ".to_string(),
+                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X> ".to_string(),
                 String::new(),
             ),
             FleetDetachMode::EnteringQuantity(class) => (
@@ -964,7 +964,7 @@ impl App {
     pub(crate) fn fleet_transfer_prompt_and_default(&self) -> (String, String) {
         match self.fleet.transfer_mode {
             FleetTransferMode::ChoosingClass => (
-                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X,Q> ".to_string(),
+                "Class <BB,CA,DD,TT*,TT,SC,ET,C,X> ".to_string(),
                 String::new(),
             ),
             FleetTransferMode::EnteringQuantity(class) => (

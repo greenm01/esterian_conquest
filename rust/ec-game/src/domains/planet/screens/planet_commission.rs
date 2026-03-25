@@ -281,14 +281,14 @@ impl PlanetCommissionScreen {
                 &mut buffer,
                 command_row,
                 "COMMAND",
-                "ENTER commissions the drafted fleet. <Q> -> ",
+                "<ENTER> commissions the drafted fleet. <Q> -> ",
             );
         } else {
             draw_command_line_prompt_text_at(
                 &mut buffer,
                 command_row,
                 "COMMAND",
-                "ENTER commissions the highlighted starbase. <Q> -> ",
+                "<ENTER> commissions the highlighted starbase. <Q> -> ",
             );
         }
         let mut messages = vec![CommandMessage::General {

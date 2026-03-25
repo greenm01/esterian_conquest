@@ -9,8 +9,9 @@ use ec_game::screen::PlanetMenuScreen;
 use ec_game::screen::PlayfieldBuffer;
 use ec_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
-    draw_bottom_aligned_transcript_rows, draw_command_line_prompt_text_at, draw_command_prompt_at,
-    draw_help_panel, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
+    draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
+    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
     draw_inline_status_after, draw_plain_prompt, draw_table_command_prompt,
     table_dismiss_prompt_row,
 };
@@ -110,6 +111,40 @@ fn draw_plain_prompt_highlights_general_letter_commands() {
         classic::prompt_hotkey_style()
     );
     assert_eq!(row[default_choice + 2].style, classic::prompt_style());
+}
+
+#[test]
+fn draw_command_line_default_input_highlights_prompt_choices_and_default() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_line_default_input_at(
+        &mut buffer,
+        COMMAND_LINE_ROW,
+        "FLEET COMMAND",
+        "Change <R>OE, <I>D, or <S>peed ",
+        "R",
+        "",
+    );
+
+    let row = buffer.row(COMMAND_LINE_ROW);
+    for token in ["<R>", "<I>", "<S>"] {
+        let start = find_in_row(&buffer, COMMAND_LINE_ROW, token);
+        assert_eq!(row[start].style, classic::prompt_style());
+        assert_eq!(row[start + 1].style, classic::prompt_hotkey_style());
+        assert_eq!(row[start + 2].style, classic::prompt_style());
+    }
+
+    let default_choice = find_in_row(&buffer, COMMAND_LINE_ROW, "[R]");
+    assert_eq!(row[default_choice].style, classic::prompt_style());
+    assert_eq!(
+        row[default_choice + 1].style,
+        classic::prompt_hotkey_style()
+    );
+    assert_eq!(row[default_choice + 2].style, classic::prompt_style());
+
+    let quit = find_in_row(&buffer, COMMAND_LINE_ROW, "<Q>");
+    assert_eq!(row[quit].style, classic::prompt_style());
+    assert_eq!(row[quit + 1].style, classic::prompt_hotkey_style());
+    assert_eq!(row[quit + 2].style, classic::prompt_style());
 }
 
 #[test]
@@ -555,7 +590,7 @@ fn commission_draft_switches_prompt_for_starbase_rows() {
 
     assert!(
         row_text(&buffer, 8)
-            .contains("COMMAND <- ENTER commissions the highlighted starbase. <Q> -> ")
+            .contains("COMMAND <- <ENTER> commissions the highlighted starbase. <Q> -> ")
     );
     assert!(
         row_text(&buffer, 10)
