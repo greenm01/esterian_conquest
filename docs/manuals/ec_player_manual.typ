@@ -545,7 +545,7 @@ Esterian Conquest was created by Bentley C. Griffith between 1990 and 1992 as a 
 Most multiplayer games of the era demanded constant attention. Esterian Conquest was different. You checked in once a day, submitted your orders, and went about your life. Overnight, the engine processed every empire simultaneously --- fleets moved, economies grew, battles resolved, and alliances were tested. When you logged in the next day, a stack of reports was waiting. Campaigns ran for months, and the stories they produced --- surprise invasions, desperate blockades, betrayals at the worst possible moment --- were the kind that stuck with players for years.
 
 *The Rust Port (2026)* \
-This version is a preservation-first reimplementation of the original game, rebuilt from the ground up in Rust. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original binaries and validated against them as an acceptance oracle. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played EC on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
+This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played EC on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
 
 The immediate goal is a drop-in replacement that runs natively on modern systems without emulation, while preserving the classic experience for BBS sysops and Telnet players.
 
@@ -828,9 +828,10 @@ Category key:
 
 = Appendix D: Preservation and Original Sources <appendix-preservation>
 
-This edition is a preservation project first. The goal is to keep the original
-gameplay legible and playable on modern systems while documenting the exact
-engine rules that matter to players, operators, client authors, and future
+This edition is a playable modern Rust version of Esterian Conquest, built
+with preservation discipline. The goal is to keep the original gameplay
+legible and playable on modern systems while documenting the exact engine
+rules that matter to players, operators, client authors, and future
 maintainers.
 
 === Original References
