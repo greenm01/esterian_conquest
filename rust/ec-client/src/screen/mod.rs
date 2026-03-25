@@ -92,7 +92,9 @@ pub use crate::domains::empire::screens::rankings::RankingsScreen;
 pub use crate::domains::fleet::missions::{
     FLEET_MISSION_OPTIONS, FleetMissionOption, FleetMissionRequirement,
 };
-pub(crate) use crate::domains::fleet::screens::fleet::{FLEET_LIST_VISIBLE_ROWS, FLEET_VISIBLE_ROWS};
+pub(crate) use crate::domains::fleet::screens::fleet::{
+    FLEET_LIST_VISIBLE_ROWS, FLEET_VISIBLE_ROWS,
+};
 pub use crate::domains::fleet::screens::fleet::{
     FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
     FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,
@@ -158,7 +160,7 @@ pub use crate::domains::startup::screens::reports::ReportsScreen;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use crate::domains::startup::screens::startup::{StartupReviewMode, StartupScreen};
-pub use buffer::{AnsiColor, Cell, CellStyle, PlayfieldBuffer, StyledSpan};
+pub use buffer::{AnsiColor, Cell, CellStyle, GameColor, PlayfieldBuffer, StyledSpan};
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub(crate) use table::format_fleet_number;
 

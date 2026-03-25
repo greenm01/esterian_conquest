@@ -105,6 +105,7 @@ fn player_starmap_projection_always_marks_owned_worlds_as_owned() {
         home.known_ground_batteries,
         Some(game_data.planets.records[0].ground_batteries_raw())
     );
+    assert_eq!(home.known_starbase_count, Some(0));
 }
 
 #[test]
@@ -187,6 +188,7 @@ fn ascii_map_export_uses_printable_paged_grid() {
                     known_potential_production: None,
                     known_armies: None,
                     known_ground_batteries: None,
+                    known_starbase_count: None,
                     known_current_production: None,
                     known_stored_points: None,
                     known_docked_summary: None,
@@ -202,6 +204,7 @@ fn ascii_map_export_uses_printable_paged_grid() {
                     known_potential_production: None,
                     known_armies: None,
                     known_ground_batteries: None,
+                    known_starbase_count: None,
                     known_current_production: None,
                     known_stored_points: None,
                     known_docked_summary: None,

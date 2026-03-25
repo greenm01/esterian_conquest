@@ -75,6 +75,9 @@ fn runtime_projection_keeps_owned_worlds_visible_without_snapshot_rows() {
     game_data.planets.records[0].set_coords_raw([5, 2]);
     game_data.planets.records[0].set_owner_empire_slot_raw(1);
     game_data.planets.records[0].set_planet_name("Home");
+    game_data
+        .set_guard_starbase(1, 1, [5, 2], 1, 1)
+        .expect("guard starbase should seed");
 
     let projection =
         build_player_starmap_projection_from_snapshots(&game_data, &BTreeMap::new(), 1);
@@ -90,6 +93,7 @@ fn runtime_projection_keeps_owned_worlds_visible_without_snapshot_rows() {
         home.known_potential_production,
         Some(game_data.planets.records[0].potential_production_points())
     );
+    assert_eq!(home.known_starbase_count, Some(1));
 }
 
 #[test]
@@ -138,6 +142,9 @@ fn runtime_intel_merges_scouted_worlds_without_compat_database() {
     game_data.planets.records[4].set_stored_goods_raw(35);
     game_data.planets.records[4].set_army_count_raw(10);
     game_data.planets.records[4].set_ground_batteries_raw(6);
+    game_data
+        .set_guard_starbase(1, 4, [9, 2], 1, 1)
+        .expect("guard starbase should seed");
 
     let grants = BTreeMap::from([(5usize, PlanetIntelSource::ScoutSolarSystem)]);
     let known =
@@ -151,5 +158,6 @@ fn runtime_intel_merges_scouted_worlds_without_compat_database() {
     assert_eq!(known_world.known_stored_points, Some(35));
     assert_eq!(known_world.known_armies, Some(10));
     assert_eq!(known_world.known_ground_batteries, Some(6));
+    assert_eq!(known_world.known_starbase_count, Some(1));
     assert_eq!(known_world.last_intel_year, Some(3003));
 }

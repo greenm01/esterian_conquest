@@ -123,6 +123,7 @@ fn compat_worlds(
                 known_potential_production,
                 known_armies,
                 known_ground_batteries,
+                known_starbase_count: None,
                 known_current_production: decode_known_u8(db_record.raw[0x1d]),
                 known_stored_points: decode_known_u16_word(db_record.word_at(0x1e)),
                 known_docked_summary: None,
@@ -171,6 +172,7 @@ fn snapshot_from_world(
         known_potential_production: world.known_potential_production,
         known_armies: world.known_armies,
         known_ground_batteries: world.known_ground_batteries,
+        known_starbase_count: world.known_starbase_count,
         known_current_production: world.known_current_production,
         known_stored_points: world.known_stored_points,
         known_docked_summary: world.known_docked_summary.clone(),
@@ -220,6 +222,9 @@ fn merge_snapshot(
         if merged.known_ground_batteries.is_none() {
             merged.known_ground_batteries = previous.known_ground_batteries;
         }
+        if merged.known_starbase_count.is_none() {
+            merged.known_starbase_count = previous.known_starbase_count;
+        }
         if merged.known_current_production.is_none() {
             merged.known_current_production = previous.known_current_production;
         }
@@ -260,7 +265,7 @@ fn merge_snapshot(
             if merged.last_intel_year.is_some() {
                 merged.last_intel_year
             } else if previous
-                .map(|snapshot| snapshot_fingerprint(snapshot) == snapshot_fingerprint(&merged))
+                .map(|snapshot| snapshot_fingerprint_matches(snapshot, &merged))
                 .unwrap_or(false)
             {
                 previous_year.or(Some(compat_year))
@@ -289,36 +294,20 @@ fn merge_snapshot(
     merged
 }
 
-fn snapshot_fingerprint(
-    snapshot: &PlanetIntelSnapshot,
-) -> (
-    IntelTier,
-    bool,
-    Option<&str>,
-    Option<u8>,
-    Option<u16>,
-    Option<u8>,
-    Option<u8>,
-    Option<u8>,
-    Option<u16>,
-    Option<u16>,
-    Option<u16>,
-    Option<u16>,
-) {
-    (
-        snapshot.intel_tier,
-        snapshot.compat_is_orbit_seed,
-        snapshot.known_name.as_deref(),
-        snapshot.known_owner_empire_id,
-        snapshot.known_potential_production,
-        snapshot.known_armies,
-        snapshot.known_ground_batteries,
-        snapshot.known_current_production,
-        snapshot.known_stored_points,
-        snapshot.seen_year,
-        snapshot.scout_year,
-        snapshot.compat_word_1e,
-    )
+fn snapshot_fingerprint_matches(left: &PlanetIntelSnapshot, right: &PlanetIntelSnapshot) -> bool {
+    left.intel_tier == right.intel_tier
+        && left.compat_is_orbit_seed == right.compat_is_orbit_seed
+        && left.known_name == right.known_name
+        && left.known_owner_empire_id == right.known_owner_empire_id
+        && left.known_potential_production == right.known_potential_production
+        && left.known_armies == right.known_armies
+        && left.known_ground_batteries == right.known_ground_batteries
+        && left.known_starbase_count == right.known_starbase_count
+        && left.known_current_production == right.known_current_production
+        && left.known_stored_points == right.known_stored_points
+        && left.seen_year == right.seen_year
+        && left.scout_year == right.scout_year
+        && left.compat_word_1e == right.compat_word_1e
 }
 
 fn decode_known_name(record: &DatabaseRecord) -> Option<String> {

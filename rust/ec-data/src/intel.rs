@@ -97,6 +97,16 @@ pub(crate) fn infer_intel_tier_from_snapshot(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OrbitPresence {
+    fleet_count: u32,
+    starbase_count: u8,
+}
+
+pub fn active_starbase_count_at(game_data: &CoreGameData, coords: [u8; 2]) -> u8 {
+    orbit_presence(game_data, coords).starbase_count
+}
+
 fn snapshot_from_runtime(
     planet_record_index_1_based: usize,
     game_data: &CoreGameData,
@@ -107,6 +117,7 @@ fn snapshot_from_runtime(
 ) -> PlanetIntelSnapshot {
     let owner_empire_id = planet.owner_empire_slot_raw();
     if owner_empire_id == viewer_empire_id {
+        let starbase_count = active_starbase_count_at(game_data, planet.coords_raw());
         return PlanetIntelSnapshot {
             planet_record_index_1_based,
             intel_tier: IntelTier::Owned,
@@ -119,6 +130,7 @@ fn snapshot_from_runtime(
             known_potential_production: Some(planet.potential_production_points()),
             known_armies: Some(planet.army_count_raw()),
             known_ground_batteries: Some(planet.ground_batteries_raw()),
+            known_starbase_count: Some(starbase_count),
             known_current_production: planet
                 .present_production_points()
                 .map(|value| value.min(u16::from(u8::MAX)) as u8),
@@ -141,6 +153,7 @@ fn snapshot_from_runtime(
         known_potential_production: None,
         known_armies: None,
         known_ground_batteries: None,
+        known_starbase_count: None,
         known_current_production: None,
         known_stored_points: None,
         known_docked_summary: None,
@@ -171,16 +184,17 @@ fn snapshot_from_runtime_grant(
 
     match source {
         PlanetIntelSource::ScoutSolarSystem => {
+            let orbit_presence = orbit_presence(game_data, planet.coords_raw());
             snapshot.known_armies = Some(planet.army_count_raw());
             snapshot.known_ground_batteries = Some(planet.ground_batteries_raw());
+            snapshot.known_starbase_count = Some(orbit_presence.starbase_count);
             snapshot.known_current_production = planet
                 .present_production_points()
                 .map(|value| value.min(u16::from(u8::MAX)) as u8);
             snapshot.known_stored_points =
                 Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16);
             snapshot.known_docked_summary = Some(format_stardock_summary(planet));
-            snapshot.known_orbit_summary =
-                Some(format_orbit_summary(game_data, planet.coords_raw()));
+            snapshot.known_orbit_summary = Some(format_orbit_summary(orbit_presence));
             snapshot.compat_word_1e = Some(0x23);
             snapshot.last_intel_year = Some(compat_year);
             snapshot.seen_year = Some(compat_year);
@@ -230,6 +244,9 @@ fn merge_snapshot(
         }
         if merged.known_ground_batteries.is_none() {
             merged.known_ground_batteries = previous.known_ground_batteries;
+        }
+        if merged.known_starbase_count.is_none() {
+            merged.known_starbase_count = previous.known_starbase_count;
         }
         if merged.known_current_production.is_none() {
             merged.known_current_production = previous.known_current_production;
@@ -334,15 +351,17 @@ fn refresh_visible_snapshot_from_runtime(
     refreshed.known_potential_production = Some(planet.potential_production_points());
 
     if refreshed.intel_tier == IntelTier::Full {
+        let orbit_presence = orbit_presence(game_data, planet.coords_raw());
         refreshed.known_armies = Some(planet.army_count_raw());
         refreshed.known_ground_batteries = Some(planet.ground_batteries_raw());
+        refreshed.known_starbase_count = Some(orbit_presence.starbase_count);
         refreshed.known_current_production = planet
             .present_production_points()
             .map(|value| value.min(u16::from(u8::MAX)) as u8);
         refreshed.known_stored_points =
             Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16);
         refreshed.known_docked_summary = Some(format_stardock_summary(planet));
-        refreshed.known_orbit_summary = Some(format_orbit_summary(game_data, planet.coords_raw()));
+        refreshed.known_orbit_summary = Some(format_orbit_summary(orbit_presence));
     }
 
     refreshed
@@ -366,6 +385,7 @@ fn snapshot_fingerprint_matches(left: &PlanetIntelSnapshot, right: &PlanetIntelS
         && left.known_potential_production == right.known_potential_production
         && left.known_armies == right.known_armies
         && left.known_ground_batteries == right.known_ground_batteries
+        && left.known_starbase_count == right.known_starbase_count
         && left.known_current_production == right.known_current_production
         && left.known_stored_points == right.known_stored_points
         && left.known_docked_summary == right.known_docked_summary
@@ -467,7 +487,7 @@ fn stardock_unit_label(kind: ProductionItemKind, count: u32) -> &'static str {
     }
 }
 
-fn format_orbit_summary(game_data: &CoreGameData, coords: [u8; 2]) -> String {
+fn orbit_presence(game_data: &CoreGameData, coords: [u8; 2]) -> OrbitPresence {
     let fleet_count = game_data
         .fleets
         .records
@@ -479,7 +499,18 @@ fn format_orbit_summary(game_data: &CoreGameData, coords: [u8; 2]) -> String {
         .records
         .iter()
         .filter(|base| base.coords_raw() == coords && base.active_flag_raw() != 0)
-        .count() as u32;
+        .count()
+        .min(usize::from(u8::MAX)) as u8;
+
+    OrbitPresence {
+        fleet_count,
+        starbase_count,
+    }
+}
+
+fn format_orbit_summary(orbit_presence: OrbitPresence) -> String {
+    let fleet_count = orbit_presence.fleet_count;
+    let starbase_count = u32::from(orbit_presence.starbase_count);
 
     let mut parts = Vec::new();
     if fleet_count > 0 {

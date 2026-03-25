@@ -50,7 +50,7 @@ pub use economy::{
     build_capacity, starbase_growth_bonus_percent, yearly_growth_delta, yearly_high_tax_penalty,
     yearly_tax_revenue,
 };
-pub use intel::merge_player_intel_from_runtime;
+pub use intel::{active_starbase_count_at, merge_player_intel_from_runtime};
 pub use maintenance_types::{
     AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
     CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,

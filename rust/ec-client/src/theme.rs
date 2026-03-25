@@ -2,10 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, RwLock};
 
-use crate::screen::{AnsiColor, CellStyle};
+use crate::screen::{CellStyle, GameColor};
 
 const DEFAULT_THEME_KDL: &str = include_str!("../config/theme.kdl");
-const LEGACY_DEFAULT_THEME_KDL: &str = include_str!("../config/theme-legacy-default.kdl");
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnsiMode {
     On,
@@ -48,7 +48,7 @@ struct Theme {
     report_header: CellStyle,
     indicator_on: CellStyle,
     indicator_off: CellStyle,
-    star_colors: [AnsiColor; 6],
+    star_colors: [GameColor; 6],
 }
 
 impl Theme {
@@ -139,30 +139,30 @@ impl Theme {
         theme.report_header = mono_bright(theme.report_header);
         theme.indicator_on = mono_bright(theme.indicator_on);
         theme.indicator_off = mono_muted(theme.indicator_off);
-        theme.star_colors = [AnsiColor::BrightWhite; 6];
+        theme.star_colors = [GameColor::BrightWhite; 6];
 
         theme
     }
 }
 
 fn mono_dim(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::White, AnsiColor::Black, style.bold)
+    CellStyle::new(GameColor::White, GameColor::Black, style.bold)
 }
 
 fn mono_muted(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
+    CellStyle::new(GameColor::BrightBlack, GameColor::Black, style.bold)
 }
 
 fn mono_normal(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::White, AnsiColor::Black, style.bold)
+    CellStyle::new(GameColor::White, GameColor::Black, style.bold)
 }
 
 fn mono_bright(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::White, AnsiColor::Black, style.bold)
+    CellStyle::new(GameColor::White, GameColor::Black, style.bold)
 }
 
 fn mono_selected(style: CellStyle) -> CellStyle {
-    CellStyle::new(AnsiColor::Black, AnsiColor::BrightBlack, style.bold)
+    CellStyle::new(GameColor::Black, GameColor::BrightBlack, style.bold)
 }
 
 fn parse_named_style(document: &kdl::KdlDocument, style_name: &str) -> Result<CellStyle, String> {
@@ -206,7 +206,7 @@ fn parse_style_node(node: &kdl::KdlNode) -> Result<CellStyle, String> {
     Ok(CellStyle::new(fg, bg, bold))
 }
 
-fn parse_star_colors(document: &kdl::KdlDocument) -> Result<[AnsiColor; 6], String> {
+fn parse_star_colors(document: &kdl::KdlDocument) -> Result<[GameColor; 6], String> {
     let node = document
         .nodes()
         .iter()
@@ -215,7 +215,7 @@ fn parse_star_colors(document: &kdl::KdlDocument) -> Result<[AnsiColor; 6], Stri
             name == "star-colors" || name == "star_colors"
         })
         .ok_or_else(|| "missing star_colors".to_string())?;
-    let mut colors = [AnsiColor::BrightBlue; 6];
+    let mut colors = [GameColor::BrightBlue; 6];
     for (idx, slot) in colors.iter_mut().enumerate() {
         let value = node
             .get(idx)
@@ -226,25 +226,56 @@ fn parse_star_colors(document: &kdl::KdlDocument) -> Result<[AnsiColor; 6], Stri
     Ok(colors)
 }
 
-fn parse_color_value(value: &str) -> Result<AnsiColor, String> {
+fn parse_color_value(value: &str) -> Result<GameColor, String> {
+    // Hex RGB: "#RRGGBB"
+    if let Some(hex) = value.strip_prefix('#') {
+        if hex.len() != 6 {
+            return Err(format!(
+                "hex color {value:?} must be exactly 6 hex digits (#RRGGBB)"
+            ));
+        }
+        let parse_byte = |s: &str| -> Result<u8, String> {
+            u8::from_str_radix(s, 16)
+                .map_err(|_| format!("invalid hex byte {s:?} in color {value:?}"))
+        };
+        let r = parse_byte(&hex[0..2])?;
+        let g = parse_byte(&hex[2..4])?;
+        let b = parse_byte(&hex[4..6])?;
+        return Ok(GameColor::Rgb(r, g, b));
+    }
+
+    // 256-color index: "idx:N" or "index:N"
+    if let Some(rest) = value
+        .strip_prefix("idx:")
+        .or_else(|| value.strip_prefix("index:"))
+    {
+        let idx: u8 = rest
+            .parse()
+            .map_err(|_| format!("invalid palette index {rest:?} in color {value:?}"))?;
+        return Ok(GameColor::Indexed(idx));
+    }
+
+    // Named 16-color values (backward compatible).
     match value.replace('-', "_").to_ascii_lowercase().as_str() {
-        "black" => Ok(AnsiColor::Black),
-        "red" => Ok(AnsiColor::Red),
-        "green" => Ok(AnsiColor::Green),
-        "yellow" => Ok(AnsiColor::Yellow),
-        "blue" => Ok(AnsiColor::Blue),
-        "magenta" => Ok(AnsiColor::Magenta),
-        "cyan" => Ok(AnsiColor::Cyan),
-        "white" | "grey" | "gray" => Ok(AnsiColor::White),
-        "bright_black" | "dark_grey" | "dark_gray" => Ok(AnsiColor::BrightBlack),
-        "bright_red" => Ok(AnsiColor::BrightRed),
-        "bright_green" => Ok(AnsiColor::BrightGreen),
-        "bright_yellow" => Ok(AnsiColor::BrightYellow),
-        "bright_blue" => Ok(AnsiColor::BrightBlue),
-        "bright_magenta" => Ok(AnsiColor::BrightMagenta),
-        "bright_cyan" => Ok(AnsiColor::BrightCyan),
-        "bright_white" | "light_grey" | "light_gray" => Ok(AnsiColor::BrightWhite),
-        other => Err(format!("unknown ANSI color {other:?}")),
+        "black" => Ok(GameColor::Black),
+        "red" => Ok(GameColor::Red),
+        "green" => Ok(GameColor::Green),
+        "yellow" => Ok(GameColor::Yellow),
+        "blue" => Ok(GameColor::Blue),
+        "magenta" => Ok(GameColor::Magenta),
+        "cyan" => Ok(GameColor::Cyan),
+        "white" | "grey" | "gray" => Ok(GameColor::White),
+        "bright_black" | "dark_grey" | "dark_gray" => Ok(GameColor::BrightBlack),
+        "bright_red" => Ok(GameColor::BrightRed),
+        "bright_green" => Ok(GameColor::BrightGreen),
+        "bright_yellow" => Ok(GameColor::BrightYellow),
+        "bright_blue" => Ok(GameColor::BrightBlue),
+        "bright_magenta" => Ok(GameColor::BrightMagenta),
+        "bright_cyan" => Ok(GameColor::BrightCyan),
+        "bright_white" | "light_grey" | "light_gray" => Ok(GameColor::BrightWhite),
+        other => Err(format!(
+            "unknown color {other:?} (use a named ANSI color, #RRGGBB, or idx:N)"
+        )),
     }
 }
 
@@ -292,111 +323,23 @@ fn set_theme_state(theme: Theme, ansi_mode: AnsiMode) {
     set_active_theme(active);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlatformKind {
-    Windows,
-    MacOs,
-    Unix,
+pub fn bundled_theme_kdl() -> &'static str {
+    DEFAULT_THEME_KDL
 }
 
-impl PlatformKind {
-    fn current() -> Self {
-        #[cfg(target_os = "windows")]
-        {
-            Self::Windows
-        }
-        #[cfg(target_os = "macos")]
-        {
-            Self::MacOs
-        }
-        #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-        {
-            Self::Unix
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct ThemeEnv {
-    pub home: Option<PathBuf>,
-    pub xdg_config_home: Option<PathBuf>,
-    pub appdata: Option<PathBuf>,
-}
-
-impl ThemeEnv {
-    fn current() -> Self {
-        Self {
-            home: std::env::var_os("HOME").map(PathBuf::from),
-            xdg_config_home: std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
-            appdata: std::env::var_os("APPDATA").map(PathBuf::from),
-        }
-    }
-}
-
-fn resolve_config_root_for(
-    platform: PlatformKind,
-    env: &ThemeEnv,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let base = match platform {
-        PlatformKind::Windows => env
-            .appdata
-            .clone()
-            .or_else(|| {
-                env.home
-                    .as_ref()
-                    .map(|home| home.join("AppData").join("Roaming"))
-            })
-            .ok_or("unable to resolve Windows APPDATA directory")?,
-        PlatformKind::MacOs => env
-            .home
-            .as_ref()
-            .map(|home| home.join("Library").join("Application Support"))
-            .ok_or("unable to resolve macOS HOME directory")?,
-        PlatformKind::Unix => env
-            .xdg_config_home
-            .clone()
-            .or_else(|| env.home.as_ref().map(|home| home.join(".config")))
-            .ok_or("unable to resolve XDG config directory")?,
-    };
-    Ok(base.join("ec-rust"))
-}
-
-pub fn resolve_theme_file_for(
-    platform: PlatformKind,
-    env: &ThemeEnv,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    Ok(resolve_config_root_for(platform, env)?.join("theme.kdl"))
-}
-
-pub fn resolve_theme_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    resolve_theme_file_for(PlatformKind::current(), &ThemeEnv::current())
-}
-
-pub fn ensure_theme_file_for(
-    platform: PlatformKind,
-    env: &ThemeEnv,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let theme_file = resolve_theme_file_for(platform, env)?;
-    if let Some(parent) = theme_file.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    if !theme_file.exists() {
-        fs::write(&theme_file, DEFAULT_THEME_KDL)?;
-    } else if fs::read_to_string(&theme_file)? == LEGACY_DEFAULT_THEME_KDL {
-        fs::write(&theme_file, DEFAULT_THEME_KDL)?;
-    }
-    Ok(theme_file)
-}
-
-pub fn initialize_from_disk() -> Result<(), Box<dyn std::error::Error>> {
-    initialize_theme_for(PlatformKind::current(), &ThemeEnv::current())
-}
-
-pub fn initialize_theme_for(
-    platform: PlatformKind,
-    env: &ThemeEnv,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let theme_file = ensure_theme_file_for(platform, env)?;
+/// Initialise the theme for a game directory.
+///
+/// Resolution order:
+/// 1. `<game_dir>/config.kdl` — if present and contains a `theme` directive,
+///    use the path it names (relative to `game_dir`).
+/// 2. `<game_dir>/theme.kdl` — direct theme file next to `ecgame.db`.
+/// 3. Bootstrap: write the bundled default `theme.kdl` into `game_dir` and
+///    use it.
+///
+/// On parse error the bundled default is used silently (same behaviour as
+/// before), so a corrupted user theme never prevents the client from starting.
+pub fn initialize_from_game_dir(game_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let theme_file = resolve_game_dir_theme(game_dir)?;
     let theme = match fs::read_to_string(&theme_file) {
         Ok(contents) => Theme::from_kdl_str(&contents).unwrap_or_else(|_| Theme::bundled_default()),
         Err(_) => Theme::bundled_default(),
@@ -405,8 +348,43 @@ pub fn initialize_theme_for(
     Ok(())
 }
 
-pub fn bundled_theme_kdl() -> &'static str {
-    DEFAULT_THEME_KDL
+/// Resolve (and if necessary bootstrap) the theme file path for a game
+/// directory without loading or applying the theme.
+fn resolve_game_dir_theme(game_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    // 1. config.kdl theme directive
+    if let Some(rel) = parse_config_theme_path(game_dir) {
+        let abs = if rel.is_absolute() {
+            rel
+        } else {
+            game_dir.join(rel)
+        };
+        return Ok(abs);
+    }
+
+    // 2. Direct theme.kdl in game dir
+    let theme_file = game_dir.join("theme.kdl");
+    if !theme_file.exists() {
+        // 3. Bootstrap bundled default
+        fs::write(&theme_file, DEFAULT_THEME_KDL)?;
+    }
+    Ok(theme_file)
+}
+
+/// Parse `<game_dir>/config.kdl` and return the value of a top-level
+/// `theme` node's first argument, if present.
+///
+/// Returns `None` if `config.kdl` is absent, unparseable, or contains no
+/// `theme` directive.
+pub fn parse_config_theme_path(game_dir: &Path) -> Option<PathBuf> {
+    let config_path = game_dir.join("config.kdl");
+    let source = fs::read_to_string(&config_path).ok()?;
+    let document: kdl::KdlDocument = source.parse().ok()?;
+    let node = document
+        .nodes()
+        .iter()
+        .find(|n| n.name().value() == "theme")?;
+    let value = node.get(0)?.as_string()?;
+    Some(PathBuf::from(value))
 }
 
 pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -435,7 +413,7 @@ pub fn toggle_ansi_mode() -> Result<AnsiMode, Box<dyn std::error::Error>> {
 }
 
 pub mod classic {
-    use crate::screen::{AnsiColor, CellStyle};
+    use crate::screen::{CellStyle, GameColor};
 
     use super::active_theme;
 
@@ -584,11 +562,11 @@ pub mod classic {
         active_theme().indicator_off
     }
 
-    pub fn app_background() -> AnsiColor {
+    pub fn app_background() -> GameColor {
         active_theme().body.bg
     }
 
-    pub fn terminal_foreground() -> AnsiColor {
+    pub fn terminal_foreground() -> GameColor {
         active_theme().body.fg
     }
 }

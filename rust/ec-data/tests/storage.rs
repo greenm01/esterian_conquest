@@ -217,6 +217,12 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
         .expect("query schema")
         .collect::<Result<Vec<_>, _>>()
         .expect("collect schema");
+    assert!(
+        schema_rows
+            .iter()
+            .any(|sql| sql.contains("known_starbase_count INTEGER")),
+        "planet_intel schema should include known_starbase_count"
+    );
     for sql in schema_rows {
         assert!(
             !sql.to_ascii_uppercase().contains("BLOB"),

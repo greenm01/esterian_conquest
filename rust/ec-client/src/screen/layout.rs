@@ -660,10 +660,20 @@ pub fn draw_command_line_text_at(
     label: &str,
     text: &str,
 ) {
+    draw_command_line_text_at_col(buffer, row, 0, label, text);
+}
+
+pub fn draw_command_line_text_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    text: &str,
+) {
     buffer.fill_row(row, classic::prompt_style());
     buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <- ", classic::prompt_style()),
@@ -792,15 +802,25 @@ pub fn draw_table_command_prompt_at(
     row: usize,
     prompt: &str,
 ) -> usize {
+    draw_table_command_prompt_at_col(buffer, row, 0, prompt)
+}
+
+pub fn draw_table_command_prompt_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    prompt: &str,
+) -> usize {
     buffer.fill_row(row, classic::prompt_style());
-    let prefix = buffer.write_spans(
-        row,
-        0,
-        &[
-            StyledSpan::new("COMMANDS", classic::title_style()),
-            StyledSpan::new(" <- ", classic::prompt_style()),
-        ],
-    );
+    let prefix = col
+        + buffer.write_spans(
+            row,
+            col,
+            &[
+                StyledSpan::new("COMMANDS", classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
     buffer.set_cursor(cursor_col as u16, row as u16);

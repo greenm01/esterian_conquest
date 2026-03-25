@@ -243,6 +243,7 @@ fn partial_known_world_snapshot(
         known_potential_production: Some(planet.potential_production_points()),
         known_armies: None,
         known_ground_batteries: None,
+        known_starbase_count: None,
         known_current_production: None,
         known_stored_points: None,
         known_docked_summary: None,
@@ -6585,14 +6586,12 @@ fn fleet_selectors_sort_by_mission_then_newest_fleet_id() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Fleet(FleetAction::OpenRoeSelect)
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("fleet selector should render");
+    app.render(&mut terminal)
+        .expect("fleet selector should render");
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert!(terminal.line(6).starts_with("│ 3│"));
     assert!(terminal.line(7).starts_with("│ 1│"));
@@ -8531,7 +8530,7 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
 }
 
 #[test]
-fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
+fn planet_database_render_uses_classic_stacked_headers() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -8549,20 +8548,30 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal.line(1).starts_with("┌"));
-    assert!(terminal.line(2).contains("(X,Y)"));
-    assert!(terminal.line(2).contains("Planet Name"));
+    let title_col = terminal
+        .line(0)
+        .find("TOTAL PLANET DATABASE:")
+        .expect("title col");
+    let border_col = terminal.line(1).find('┌').expect("table col");
+    assert_eq!(title_col, border_col);
+    assert!(terminal.line(2).contains("│Coord"));
     assert!(terminal.line(2).contains("Max"));
+    assert!(terminal.line(2).contains("Year"));
     assert!(terminal.line(2).contains("Curr"));
-    assert!(terminal.line(2).contains("Seen"));
-    assert!(terminal.line(2).contains("Scout"));
-    assert!(terminal.line(2).contains("AR"));
-    assert!(terminal.line(2).contains("GB"));
-    assert!(terminal.line(2).contains("Intel"));
+    assert!(terminal.line(2).contains("Stored"));
+    assert_eq!(terminal.line(2).matches('│').count(), 12);
+    assert!(terminal.line(3).contains("(XX,YY)"));
+    assert!(terminal.line(3).contains("Planet Name"));
+    assert!(terminal.line(3).contains("Prod"));
+    assert!(terminal.line(3).contains("Seen"));
+    assert!(terminal.line(3).contains("Scout"));
+    assert!(terminal.line(3).contains("ARs"));
+    assert!(terminal.line(3).contains("GBs"));
+    assert!(terminal.line(3).contains("SBs"));
+    assert!(!terminal.line(3).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
-    assert!(terminal.lines.iter().any(|line| line.contains("own")));
     let prompt = line_containing(&terminal, "COMMANDS <");
-    assert!(prompt.starts_with("COMMANDS <"));
+    assert_eq!(prompt.find("COMMANDS").expect("commands col"), border_col);
     assert!(prompt.contains("["));
     assert!(prompt.contains("->"));
 }
@@ -8636,6 +8645,7 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
             known_potential_production: Some(100),
             known_armies: Some(4),
             known_ground_batteries: Some(2),
+            known_starbase_count: Some(1),
             known_current_production: Some(75),
             known_stored_points: Some(12),
             known_docked_summary: Some("Nothing".to_string()),
@@ -9190,7 +9200,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
-    app.render(&mut terminal).expect("fleet review should render");
+    app.render(&mut terminal)
+        .expect("fleet review should render");
     assert!(
         line_containing(&terminal, "Fleet ID: ").contains("Fleet ID: 1"),
         "{:#?}",

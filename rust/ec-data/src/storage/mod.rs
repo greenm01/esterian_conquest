@@ -97,6 +97,7 @@ pub struct PlanetIntelSnapshot {
     pub known_potential_production: Option<u16>,
     pub known_armies: Option<u8>,
     pub known_ground_batteries: Option<u8>,
+    pub known_starbase_count: Option<u8>,
     pub known_current_production: Option<u8>,
     pub known_stored_points: Option<u16>,
     pub known_docked_summary: Option<String>,
@@ -234,6 +235,7 @@ impl CampaignStore {
                  known_potential_production INTEGER,
                  known_armies INTEGER,
                  known_ground_batteries INTEGER,
+                 known_starbase_count INTEGER,
                  known_current_production INTEGER,
                  known_stored_points INTEGER,
                  known_docked_summary TEXT,
@@ -263,6 +265,7 @@ impl CampaignStore {
         )?;
         ensure_column(&conn, "planet_intel", "known_docked_summary", "TEXT")?;
         ensure_column(&conn, "planet_intel", "known_orbit_summary", "TEXT")?;
+        ensure_column(&conn, "planet_intel", "known_starbase_count", "INTEGER")?;
         create_typed_record_table(&conn, PLAYER_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, PLANET_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, FLEET_RECORD_FIELDS_TABLE)?;

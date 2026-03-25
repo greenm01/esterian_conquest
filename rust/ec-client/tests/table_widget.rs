@@ -75,7 +75,10 @@ fn standard_table_places_scrollbar_just_right_of_table_border() {
     assert_eq!(buffer.row(7)[scrollbar_col].ch, 'v');
     assert_eq!(buffer.row(2)[0].style, classic::table_chrome_style());
     assert_eq!(buffer.row(4)[0].style, classic::table_chrome_style());
-    assert_eq!(buffer.row(5)[scrollbar_col].style, classic::table_chrome_style());
+    assert_eq!(
+        buffer.row(5)[scrollbar_col].style,
+        classic::table_chrome_style()
+    );
     assert!(row_text(&buffer, 5).contains("Beta"));
     assert!(row_text(&buffer, 6).contains("Gamma"));
 }
@@ -136,7 +139,7 @@ fn stacked_header_table_renders_top_and_bottom_headers() {
     write_stacked_table_window_with_states(
         &mut buffer,
         1,
-        "                      Meta",
+        &["Meta", "", ""],
         &columns,
         &rows,
         0,
@@ -147,7 +150,9 @@ fn stacked_header_table_renders_top_and_bottom_headers() {
         None,
     );
 
-    assert!(buffer.plain_line(1).contains("Meta"));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(2).contains("│Meta"));
+    assert_eq!(buffer.plain_line(2).matches('│').count(), columns.len() + 1);
     assert!(buffer.plain_line(3).contains("Coord"));
     assert!(buffer.plain_line(5).contains("Aurora"));
 }
@@ -206,10 +211,10 @@ fn planet_database_screen_uses_stacked_header_table() {
         year_seen_label: "3001".to_string(),
         armies_label: "10".to_string(),
         batteries_label: "4".to_string(),
+        starbase_count_label: "1".to_string(),
         current_prod_label: "80".to_string(),
         stored_points_label: "25".to_string(),
         year_scout_label: "3001".to_string(),
-        intel_label: "Good".to_string(),
     }];
 
     let buffer = screen
@@ -224,14 +229,75 @@ fn planet_database_screen_uses_stacked_header_table() {
         )
         .expect("render database list");
 
-    assert!(buffer.plain_line(1).starts_with("┌"));
-    assert!(buffer.plain_line(2).contains("(X,Y)"));
-    assert!(buffer.plain_line(2).contains("Planet Name"));
+    let title_col = buffer
+        .plain_line(0)
+        .find("TOTAL PLANET DATABASE:")
+        .expect("title col");
+    let border_col = buffer.plain_line(1).find('┌').expect("table col");
+    assert_eq!(title_col, border_col);
+    assert!(buffer.plain_line(2).contains("│Coord"));
+    assert!(buffer.plain_line(2).contains("Max"));
+    assert!(buffer.plain_line(2).contains("Year"));
     assert!(buffer.plain_line(2).contains("Curr"));
-    assert!(buffer.plain_line(2).contains("AR"));
-    assert!(buffer.plain_line(2).contains("GB"));
-    assert!(buffer.plain_line(2).contains("Intel"));
-    assert!(buffer.plain_line(4).contains("Aurora"));
+    assert!(buffer.plain_line(2).contains("Stored"));
+    assert_eq!(buffer.plain_line(2).matches('│').count(), 12);
+    assert!(buffer.plain_line(2).trim_end().ends_with('│'));
+    assert!(buffer.plain_line(3).contains("(XX,YY)"));
+    assert!(buffer.plain_line(3).contains("Planet Name"));
+    assert!(buffer.plain_line(3).contains("ARs"));
+    assert!(buffer.plain_line(3).contains("GBs"));
+    assert!(buffer.plain_line(3).contains("SBs"));
+    assert!(buffer.plain_line(3).contains("Scout"));
+    assert!(!buffer.plain_line(3).contains("Intel"));
+    assert!(buffer.plain_line(5).contains("(12,34)"));
+    assert!(buffer.plain_line(5).contains("Aurora"));
+    assert_eq!(
+        buffer.plain_line(7).find("COMMANDS").expect("command col"),
+        border_col
+    );
+}
+
+#[test]
+fn planet_database_filter_prompt_aligns_with_centered_table() {
+    let mut screen = PlanetDatabaseScreen::new();
+    let rows = vec![PlanetDatabaseRow {
+        planet_record_index_1_based: 1,
+        coords: [12, 34],
+        name_label: "Aurora".to_string(),
+        owner_label: "01".to_string(),
+        max_prod_label: "120".to_string(),
+        year_seen_label: "3001".to_string(),
+        armies_label: "10".to_string(),
+        batteries_label: "4".to_string(),
+        starbase_count_label: "1".to_string(),
+        current_prod_label: "80".to_string(),
+        stored_points_label: "25".to_string(),
+        year_scout_label: "3001".to_string(),
+    }];
+
+    let buffer = screen
+        .render_filter_prompt(
+            &rows,
+            0,
+            0,
+            [12, 34],
+            "",
+            None,
+            ec_client::screen::CommandMenu::Planet,
+        )
+        .expect("render database filter prompt");
+
+    let border_col = buffer.plain_line(1).find('┌').expect("table col");
+    let prompt_row = (0..PLAYFIELD_HEIGHT)
+        .find(|row| buffer.plain_line(*row).contains("Filter by"))
+        .expect("filter prompt row");
+    assert_eq!(
+        buffer
+            .plain_line(prompt_row)
+            .find("COMMANDS")
+            .expect("prompt col"),
+        border_col
+    );
 }
 
 #[test]

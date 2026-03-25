@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::{CoreGameData, IntelTier, PlanetIntelSnapshot, map_size_for_player_count};
+use crate::{
+    CoreGameData, IntelTier, PlanetIntelSnapshot, active_starbase_count_at,
+    map_size_for_player_count,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerStarmapWorld {
@@ -13,6 +16,7 @@ pub struct PlayerStarmapWorld {
     pub known_potential_production: Option<u16>,
     pub known_armies: Option<u8>,
     pub known_ground_batteries: Option<u8>,
+    pub known_starbase_count: Option<u8>,
     pub known_current_production: Option<u8>,
     pub known_stored_points: Option<u16>,
     pub known_docked_summary: Option<String>,
@@ -295,6 +299,11 @@ pub fn build_player_starmap_projection_from_snapshots(
                     Some(planet.ground_batteries_raw())
                 } else {
                     snapshot.and_then(|row| row.known_ground_batteries)
+                },
+                known_starbase_count: if is_owned_world {
+                    Some(active_starbase_count_at(game_data, planet.coords_raw()))
+                } else {
+                    snapshot.and_then(|row| row.known_starbase_count)
                 },
                 known_current_production: if is_owned_world {
                     planet.present_production_points().map(|v| v as u8)

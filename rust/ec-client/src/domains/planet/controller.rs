@@ -5,9 +5,7 @@ use crate::screen::{
     CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseRow, PlanetListMode, PlanetListSort,
     ScreenId,
 };
-use ec_data::{
-    PlanetIntelSnapshot, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
-};
+use ec_data::build_player_starmap_projection_from_snapshots;
 
 impl App {
     fn command_menu_for_planet_list_mode(mode: PlanetListMode) -> CommandMenu {
@@ -595,7 +593,6 @@ impl App {
             let intel_snapshot = self
                 .planet_intel_snapshots
                 .get(&world.planet_record_index_1_based);
-            let intel_label = planet_database_intel_label(intel_snapshot, &world);
             let owner_label = world
                 .known_owner_empire_id
                 .map(|id| format!("#{}", id))
@@ -622,6 +619,10 @@ impl App {
                     .known_ground_batteries
                     .map(|value| value.to_string())
                     .unwrap_or_else(|| "?".to_string()),
+                starbase_count_label: world
+                    .known_starbase_count
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "?".to_string()),
                 current_prod_label: world
                     .known_current_production
                     .map(|value| value.to_string())
@@ -631,7 +632,6 @@ impl App {
                     .map(|value| value.to_string())
                     .unwrap_or_else(|| "?".to_string()),
                 year_scout_label: year_label,
-                intel_label,
             }
         })
         .collect::<Vec<_>>();
@@ -768,33 +768,5 @@ impl App {
         self.planet.list_sort_status = None;
         self.open_planet_build_menu();
         Ok(())
-    }
-}
-
-fn planet_database_intel_label(
-    snapshot: Option<&PlanetIntelSnapshot>,
-    world: &PlayerStarmapWorld,
-) -> String {
-    if let Some(snapshot) = snapshot {
-        return match snapshot.intel_tier {
-            ec_data::IntelTier::Owned => "own".to_string(),
-            ec_data::IntelTier::Full => "full".to_string(),
-            ec_data::IntelTier::Partial => "part".to_string(),
-            ec_data::IntelTier::Unknown => "unkn".to_string(),
-        };
-    }
-    if world.known_owner_empire_id == Some(0) {
-        return "unkn".to_string();
-    }
-    if world.known_armies.is_some() || world.known_ground_batteries.is_some() {
-        "full".to_string()
-    } else if world.known_name.is_some()
-        || world.known_owner_empire_id.is_some()
-        || world.known_owner_empire_name.is_some()
-        || world.known_potential_production.is_some()
-    {
-        "part".to_string()
-    } else {
-        "unkn".to_string()
     }
 }

@@ -79,16 +79,16 @@ style "status_value" {
     bg "black"
 }
 style "table_chrome" {
-    fg "white"
+    fg "blue"
     bg "black"
 }
 style "table_header" {
-    fg "bright_blue"
+    fg "cyan"
     bg "black"
     bold #true
 }
 style "table_body" {
-    fg "white"
+    fg "light_grey"
     bg "black"
 }
 style "disabled_row" {

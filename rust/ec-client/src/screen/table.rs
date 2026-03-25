@@ -273,7 +273,7 @@ pub fn centered_table_start_col(total_width: usize, columns: &[TableColumn<'_>])
 pub fn write_stacked_table_window_with_states<'a>(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
-    top_header_line: &str,
+    top_header_cells: &[&str],
     columns: &[TableColumn<'a>],
     rows: &[Vec<String>],
     scroll_offset: usize,
@@ -283,15 +283,52 @@ pub fn write_stacked_table_window_with_states<'a>(
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
 ) -> TableRenderMetrics {
-    let area = TableArea::new(start_row, 0, buffer.width());
+    write_stacked_table_window_with_states_at(
+        buffer,
+        start_row,
+        0,
+        top_header_cells,
+        columns,
+        rows,
+        scroll_offset,
+        visible_rows,
+        _header_style,
+        _body_style,
+        selected,
+        row_states,
+    )
+}
+
+pub fn write_stacked_table_window_with_states_at<'a>(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    start_col: usize,
+    top_header_cells: &[&str],
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    scroll_offset: usize,
+    visible_rows: usize,
+    _header_style: crate::screen::CellStyle,
+    _body_style: crate::screen::CellStyle,
+    selected: Option<usize>,
+    row_states: Option<&[TableRowState]>,
+) -> TableRenderMetrics {
+    let area = TableArea::new(
+        start_row,
+        start_col,
+        buffer.width().saturating_sub(start_col),
+    );
     let header_style = classic::table_header_style();
     let chrome_style = classic::table_chrome_style();
     let body_style = classic::table_body_style();
-    buffer.write_text(area.row, area.col, top_header_line, header_style);
-    buffer.write_text(
+    buffer.write_text(area.row, area.col, &table_top_border(columns), chrome_style);
+    write_table_row_at(
+        buffer,
         area.row + 1,
         area.col,
-        &table_top_border(columns),
+        columns,
+        top_header_cells,
+        header_style,
         chrome_style,
     );
     write_table_header_at(

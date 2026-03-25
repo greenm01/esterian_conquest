@@ -764,6 +764,7 @@ fn partial_snapshot(
         known_potential_production: Some(planet.potential_production_points()),
         known_armies: None,
         known_ground_batteries: None,
+        known_starbase_count: None,
         known_current_production: None,
         known_stored_points: None,
         known_docked_summary: None,
@@ -790,6 +791,10 @@ fn full_snapshot(
         known_potential_production: Some(planet.potential_production_points()),
         known_armies: Some(planet.army_count_raw()),
         known_ground_batteries: Some(planet.ground_batteries_raw()),
+        known_starbase_count: Some(ec_data::active_starbase_count_at(
+            game_data,
+            planet.coords_raw(),
+        )),
         known_current_production: planet
             .present_production_points()
             .map(|value| value.min(u16::from(u8::MAX)) as u8),
