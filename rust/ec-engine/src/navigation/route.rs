@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
-use ec_data::{CoreGameData, FleetRecord, Order, map_size_for_player_count};
+use ec_data::{map_size_for_player_count, CoreGameData, FleetRecord, Order};
 
 use super::{PlannedRoute, RouteStep, VisibleHazardIntel};
 

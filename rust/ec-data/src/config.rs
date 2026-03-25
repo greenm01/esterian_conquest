@@ -5,12 +5,6 @@ use std::path::Path;
 use crate::DiplomaticRelation;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SetupMode {
-    CanonicalFourPlayer,
-    BuilderCompatible,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupOptionsConfig {
     pub snoop: bool,
     pub local_timeout: bool,
@@ -53,8 +47,6 @@ impl Default for PortSetupConfig {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupConfig {
     pub player_count: u8,
-    pub year: u16,
-    pub setup_mode: SetupMode,
     pub seed: Option<u64>,
     pub setup_options: SetupOptionsConfig,
     pub port_setup: PortSetupConfig,
@@ -106,17 +98,9 @@ impl SetupConfig {
             .get("game")
             .ok_or_else(|| SetupConfigError::Parse("missing game node".to_string()))?;
         let player_count = prop_u8(game, "player_count")?;
-        let year = prop_u16(game, "year")?;
-        let setup_mode = match prop_string(game, "setup_mode")?.as_str() {
-            "canonical-four-player" => SetupMode::CanonicalFourPlayer,
-            "builder-compatible" => SetupMode::BuilderCompatible,
-            other => {
-                return Err(SetupConfigError::Parse(format!(
-                    "unknown setup_mode: {other}"
-                )));
-            }
-        };
+        // year is always 3000; silently ignore if present in KDL for dev compat
         let seed = opt_prop_u64(game, "seed")?;
+        // setup_mode is no longer sysop-facing; silently ignore if present in KDL for dev compat
 
         let setup_options = if let Some(node) = document.get("setup_options") {
             SetupOptionsConfig {
@@ -184,8 +168,6 @@ impl SetupConfig {
 
         Ok(Self {
             player_count,
-            year,
-            setup_mode,
             seed,
             setup_options,
             port_setup,
@@ -210,11 +192,6 @@ impl SetupConfig {
         }
 
         self.player_count = player_count;
-
-        if matches!(self.setup_mode, SetupMode::CanonicalFourPlayer) && player_count != 4 {
-            self.setup_mode = SetupMode::BuilderCompatible;
-        }
-
         self.validate()
     }
 
@@ -224,17 +201,6 @@ impl SetupConfig {
                 "player_count must be in 1..=25, got {}",
                 self.player_count
             )));
-        }
-        if !(3000..=3100).contains(&self.year) {
-            return Err(SetupConfigError::Parse(format!(
-                "year must be in 3000..=3100, got {}",
-                self.year
-            )));
-        }
-        if matches!(self.setup_mode, SetupMode::CanonicalFourPlayer) && self.player_count != 4 {
-            return Err(SetupConfigError::Parse(
-                "canonical-four-player setup_mode requires player_count=4".to_string(),
-            ));
         }
 
         if self.setup_options.max_key_gap_minutes > 120 {
@@ -373,17 +339,6 @@ fn prop_u8(node: &kdl::KdlNode, name: &str) -> Result<u8, SetupConfigError> {
         })?;
     u8::try_from(value)
         .map_err(|_| SetupConfigError::Parse(format!("property {name} out of u8 range: {value}")))
-}
-
-fn prop_u16(node: &kdl::KdlNode, name: &str) -> Result<u16, SetupConfigError> {
-    let value = node
-        .get(name)
-        .and_then(|value| value.as_integer())
-        .ok_or_else(|| {
-            SetupConfigError::Parse(format!("missing or invalid integer property: {name}"))
-        })?;
-    u16::try_from(value)
-        .map_err(|_| SetupConfigError::Parse(format!("property {name} out of u16 range: {value}")))
 }
 
 fn opt_prop_u64(node: &kdl::KdlNode, name: &str) -> Result<Option<u64>, SetupConfigError> {

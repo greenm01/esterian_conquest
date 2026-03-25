@@ -329,17 +329,23 @@ pub fn bundled_theme_kdl() -> &'static str {
 
 /// Initialise the theme for a game directory.
 ///
+/// `config_theme_path` is the value of the `theme` directive from
+/// `config.kdl`, already resolved by the caller (pass `None` to skip).
+///
 /// Resolution order:
-/// 1. `<game_dir>/config.kdl` — if present and contains a `theme` directive,
-///    use the path it names (relative to `game_dir`).
+/// 1. `config_theme_path` — if `Some`, use it (relative paths are joined to
+///    `game_dir`).
 /// 2. `<game_dir>/theme.kdl` — direct theme file next to `ecgame.db`.
 /// 3. Bootstrap: write the bundled default `theme.kdl` into `game_dir` and
 ///    use it.
 ///
-/// On parse error the bundled default is used silently (same behaviour as
-/// before), so a corrupted user theme never prevents the client from starting.
-pub fn initialize_from_game_dir(game_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let theme_file = resolve_game_dir_theme(game_dir)?;
+/// On parse error the bundled default is used silently, so a corrupted user
+/// theme never prevents the client from starting.
+pub fn initialize_from_game_dir(
+    game_dir: &Path,
+    config_theme_path: Option<PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let theme_file = resolve_game_dir_theme(game_dir, config_theme_path)?;
     let theme = match fs::read_to_string(&theme_file) {
         Ok(contents) => Theme::from_kdl_str(&contents).unwrap_or_else(|_| Theme::bundled_default()),
         Err(_) => Theme::bundled_default(),
@@ -350,9 +356,12 @@ pub fn initialize_from_game_dir(game_dir: &Path) -> Result<(), Box<dyn std::erro
 
 /// Resolve (and if necessary bootstrap) the theme file path for a game
 /// directory without loading or applying the theme.
-fn resolve_game_dir_theme(game_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    // 1. config.kdl theme directive
-    if let Some(rel) = parse_config_theme_path(game_dir) {
+fn resolve_game_dir_theme(
+    game_dir: &Path,
+    config_theme_path: Option<PathBuf>,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    // 1. Explicit path from config.kdl
+    if let Some(rel) = config_theme_path {
         let abs = if rel.is_absolute() {
             rel
         } else {
@@ -368,23 +377,6 @@ fn resolve_game_dir_theme(game_dir: &Path) -> Result<PathBuf, Box<dyn std::error
         fs::write(&theme_file, DEFAULT_THEME_KDL)?;
     }
     Ok(theme_file)
-}
-
-/// Parse `<game_dir>/config.kdl` and return the value of a top-level
-/// `theme` node's first argument, if present.
-///
-/// Returns `None` if `config.kdl` is absent, unparseable, or contains no
-/// `theme` directive.
-pub fn parse_config_theme_path(game_dir: &Path) -> Option<PathBuf> {
-    let config_path = game_dir.join("config.kdl");
-    let source = fs::read_to_string(&config_path).ok()?;
-    let document: kdl::KdlDocument = source.parse().ok()?;
-    let node = document
-        .nodes()
-        .iter()
-        .find(|n| n.name().value() == "theme")?;
-    let value = node.get(0)?.as_string()?;
-    Some(PathBuf::from(value))
 }
 
 pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {

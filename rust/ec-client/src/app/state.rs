@@ -40,6 +40,7 @@ pub struct AppConfig {
 
 pub struct App {
     pub game_dir: PathBuf,
+    pub game_name: String,
     pub game_data: CoreGameData,
     pub player: PlayerContext,
     pub current_screen: ScreenId,
@@ -113,6 +114,7 @@ pub struct App {
 impl App {
     pub fn load(config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let game_dir = config.game_dir.clone();
+        let game_name = config.game_config.game_name.clone();
         let export_root = config
             .export_root
             .clone()
@@ -125,13 +127,24 @@ impl App {
         let campaign_seed = runtime_state.campaign_seed;
         let report_block_rows = runtime_state.report_block_rows;
         let queued_mail = runtime_state.queued_mail;
+
+        // Apply config.kdl overrides to game_data.  Only save a new snapshot
+        // if any field actually changed, to avoid churn on clean starts.
+        let (game_data, snapshot_id) = apply_game_config_overrides(
+            runtime_state.game_data,
+            &config.game_config,
+            &campaign_store,
+            snapshot_id,
+            &report_block_rows,
+            &queued_mail,
+        )?;
+
         let reports = ReportsPreview::from_block_rows(
-            &runtime_state.game_data,
+            &game_data,
             config.player_record_index_1_based as u8,
             &report_block_rows,
             &queued_mail,
         );
-        let game_data = runtime_state.game_data;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
         let planet_intel_snapshots = campaign_store
             .latest_planet_intel_for_viewer(config.player_record_index_1_based as u8)?
@@ -155,6 +168,7 @@ impl App {
         let startup_sequence = StartupSequence::new(&startup_summary, player.classic_login_state);
         Ok(Self {
             game_dir,
+            game_name,
             game_data,
             player,
             current_screen: ScreenId::Startup(startup_sequence.current()),
@@ -228,4 +242,78 @@ impl App {
             planet_intel_snapshots,
         })
     }
+}
+
+/// Apply `config.kdl` operational settings to `game_data.setup`.
+///
+/// If any SetupDat byte changed, save a new snapshot so the engine always
+/// sees the current config on the next run.  Returns the (possibly updated)
+/// `CoreGameData` and the active snapshot id (new if saved, original if not).
+fn apply_game_config_overrides(
+    mut game_data: CoreGameData,
+    cfg: &GameConfig,
+    store: &CampaignStore,
+    current_snapshot_id: i64,
+    report_block_rows: &[ReportBlockRow],
+    queued_mail: &[QueuedPlayerMail],
+) -> Result<(CoreGameData, i64), Box<dyn std::error::Error>> {
+    let s = &mut game_data.setup;
+    let mut changed = false;
+
+    macro_rules! apply_bool {
+        ($getter:ident, $setter:ident, $value:expr) => {
+            if s.$getter() != $value {
+                s.$setter($value);
+                changed = true;
+            }
+        };
+    }
+    macro_rules! apply_u8 {
+        ($getter:ident, $setter:ident, $value:expr) => {
+            if s.$getter() != $value {
+                s.$setter($value);
+                changed = true;
+            }
+        };
+    }
+
+    apply_bool!(snoop_enabled, set_snoop_enabled, cfg.snoop);
+    apply_bool!(
+        local_timeout_enabled,
+        set_local_timeout_enabled,
+        cfg.session.local_timeout
+    );
+    apply_bool!(
+        remote_timeout_enabled,
+        set_remote_timeout_enabled,
+        cfg.session.remote_timeout
+    );
+    apply_u8!(
+        max_time_between_keys_minutes_raw,
+        set_max_time_between_keys_minutes_raw,
+        cfg.session.max_idle_minutes
+    );
+    apply_u8!(
+        minimum_time_granted_minutes_raw,
+        set_minimum_time_granted_minutes_raw,
+        cfg.session.minimum_time_minutes
+    );
+    apply_u8!(
+        purge_after_turns_raw,
+        set_purge_after_turns_raw,
+        cfg.inactivity.purge_after_turns
+    );
+    apply_u8!(
+        autopilot_inactive_turns_raw,
+        set_autopilot_inactive_turns_raw,
+        cfg.inactivity.autopilot_after_turns
+    );
+
+    let snapshot_id = if changed {
+        store.save_runtime_state_structured(&game_data, report_block_rows, queued_mail)?
+    } else {
+        current_snapshot_id
+    };
+
+    Ok((game_data, snapshot_id))
 }

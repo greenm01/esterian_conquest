@@ -116,8 +116,6 @@ fn harness_seed_player1_tui_stress_populates_player1_runtime_backlog_and_intel()
         "12",
         "--seed",
         "1515",
-        "--year",
-        "3012",
     ]);
     assert!(stdout.contains("Initialized new game"));
 
@@ -155,11 +153,9 @@ fn harness_seed_player1_tui_stress_populates_player1_runtime_backlog_and_intel()
         .collect::<BTreeSet<_>>();
     assert_eq!(state.game_data.planets.records.len(), 60);
     assert_eq!(unique_coords.len(), 60);
-    assert!(
-        unique_coords
-            .iter()
-            .all(|coords| { (1..=36).contains(&coords[0]) && (1..=36).contains(&coords[1]) })
-    );
+    assert!(unique_coords
+        .iter()
+        .all(|coords| { (1..=36).contains(&coords[0]) && (1..=36).contains(&coords[1]) }));
     assert!(state.report_block_rows.len() >= 8);
     assert!(
         state
@@ -188,21 +184,17 @@ fn harness_seed_player1_tui_stress_populates_player1_runtime_backlog_and_intel()
             .any(|fleet| fleet.owner_empire_raw() == 1 && fleet.army_count() > 0),
         "expected at least one loaded player 1 transport fleet"
     );
-    assert!(
-        state
-            .game_data
-            .bases
-            .records
-            .iter()
-            .any(|base| base.owner_empire_raw() == 1 && base.active_flag_raw() != 0)
-    );
+    assert!(state
+        .game_data
+        .bases
+        .records
+        .iter()
+        .any(|base| base.owner_empire_raw() == 1 && base.active_flag_raw() != 0));
 
     let viewer1 = store.latest_planet_intel_for_viewer(1).unwrap();
-    assert!(
-        viewer1
-            .iter()
-            .any(|snapshot| snapshot.intel_tier == IntelTier::Partial)
-    );
+    assert!(viewer1
+        .iter()
+        .any(|snapshot| snapshot.intel_tier == IntelTier::Partial));
     let full = viewer1
         .iter()
         .find(|snapshot| {

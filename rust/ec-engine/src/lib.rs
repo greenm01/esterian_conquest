@@ -3,7 +3,8 @@ pub mod navigation;
 pub mod setup;
 
 pub use ec_data::{
-    AssaultReportEvent, BaseRecord, BombardEvent, CONQUEST_DAT_SIZE, CampaignOutcome,
+    build_capacity, map_size_for_player_count, yearly_growth_delta, yearly_high_tax_penalty,
+    yearly_tax_revenue, AssaultReportEvent, BaseRecord, BombardEvent, CampaignOutcome,
     CampaignOutcomeEvent, CampaignOutlook, CampaignOutlookEvent, CampaignState, CivilDisorderEvent,
     ColonizationResolvedEvent, CommissionResult, ConquestDat, ContactReportSource, CoreGameData,
     DiplomacyConfig, DiplomacyDirective, DiplomacyOverride, DiplomaticEscalationEvent,
@@ -14,10 +15,9 @@ pub use ec_data::{
     GuardStarbaseSpec, InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission,
     MissionEvent, MissionOutcome, MissionRetargetEvent, Order, PlanetBuildSpec, PlanetIntelEvent,
     PlanetIntelSource, PlanetOwnershipChangeEvent, PlanetPlayerInputValidationError, PlanetRecord,
-    PlayerDiplomacyValidationError, ProductionItemKind, RNG_TAG_COMBAT, STARDOCK_SLOT_COUNT,
-    SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent, SetupConfig, SetupConfigError,
-    SetupMode, SetupOptionsConfig, ShipLosses, StarbaseDestroyedEvent, build_capacity,
-    map_size_for_player_count, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
+    PlayerDiplomacyValidationError, ProductionItemKind, SalvageFailureReason, SalvageResolvedEvent,
+    ScoutContactEvent, SetupConfig, SetupConfigError, SetupOptionsConfig, ShipLosses,
+    StarbaseDestroyedEvent, CONQUEST_DAT_SIZE, RNG_TAG_COMBAT, STARDOCK_SLOT_COUNT,
 };
 pub use maint::{
     process_autopilot_ai, run_maintenance_turn, run_maintenance_turn_with_context,
@@ -26,12 +26,11 @@ pub use maint::{
     run_maintenance_turns,
 };
 pub use navigation::{
-    FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_fleet_eta,
-    estimate_fleet_eta_to_destination, next_path_step, plan_route, plan_route_with_intel,
-    visible_hazard_intel_from_snapshots,
+    estimate_fleet_eta, estimate_fleet_eta_to_destination, next_path_step, plan_route,
+    plan_route_with_intel, visible_hazard_intel_from_snapshots, FleetEtaEstimate, PlannedRoute,
+    RouteStep, VisibleHazardIntel,
 };
 pub use setup::{
-    CanonicalFourPlayerSetup, GeneratedMap, GeneratedWorld, MapMetrics,
-    build_canonical_four_player_start, build_game_data_from_setup_config,
-    build_seeded_initialized_game, build_seeded_new_game, generate_map,
+    build_game_data_from_setup_config, build_seeded_initialized_game, build_seeded_new_game,
+    generate_map, GeneratedMap, GeneratedWorld, MapMetrics,
 };

@@ -99,7 +99,7 @@ The default is fixed so repeated UI test runs land on the same generated map.
 Example:
 
 ```bash
-python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --year 3012 --seed 1515
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --seed 1515
 ```
 
 ## Recommended Flow

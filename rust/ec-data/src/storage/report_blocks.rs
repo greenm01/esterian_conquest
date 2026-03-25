@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 
 use super::{CampaignStore, CampaignStoreError, ReportBlockRow};
 

@@ -19,13 +19,16 @@ Read it together with:
 - The whole TUI uses a black background.
 - The default look is restrained and Tokyo-Night-inspired, but it is expressed
   through ANSI-safe semantic styles.
-- Theme configuration is file-driven:
-  - Linux: `~/.config/ec-rust/theme.kdl`
-  - Windows: platform-standard user config directory under `ec-rust`
-  - macOS: platform-standard user config/app-support directory under `ec-rust`
-- On first run, `ec-client` should create the default `theme.kdl` if it is
-  missing.
-- Once created, that file is user-owned and should not be silently overwritten.
+- Theme configuration is file-driven and lives in the game directory alongside
+  `ecgame.db`:
+  - `<game_dir>/theme.kdl` — the theme file, created from the bundled default
+    on first run if absent
+  - `<game_dir>/config.kdl` — optional sysop config; if present and contains a
+    `theme` directive, that path (relative to `game_dir`) is used instead of
+    `theme.kdl`
+- On first run, `ec-client` bootstraps the default `theme.kdl` into the game
+  directory if it is missing.
+- Once created, `theme.kdl` is sysop-owned and is not silently overwritten.
 
 ## Semantic Style Tokens
 
@@ -64,8 +67,7 @@ Required tokens:
 - `quote_author`
 - `report_header`
 
-Decorative star/logo accent colors may also be configured, but they should
-still come from the same ANSI-16 palette.
+Decorative star/logo accent colors may also be configured.
 
 ## Standard Palette Intent
 
@@ -96,16 +98,26 @@ Default semantic mapping:
 
 ## Theme File Notes
 
-The default bundled theme should be copied to the user config path on first
-run. The bundled file is the fallback if the user file is missing or invalid,
-but invalid user files should not be rewritten automatically.
+The default bundled theme should be bootstrapped into the game directory on
+first run. The bundled file is the fallback if the theme file is missing or
+invalid, but invalid user files should not be rewritten automatically.
 
 ANSI ON/OFF is a session-level terminal preference in the player TUI. It should
 not rewrite `theme.kdl`; ANSI OFF should apply a monochrome projection over the
 loaded theme for the current session while preserving black backgrounds and
 reverse-video selection. A new client session should default back to ANSI ON.
 
-The theme file should use ANSI-16 color names only, such as:
+The theme file supports three color formats:
+
+- Named ANSI-16 colors (e.g. `bright_blue`, `yellow`, `bright_black`)
+- 256-color palette index: `idx:N` or `index:N` (e.g. `idx:208`)
+- 24-bit hex RGB: `#RRGGBB` (e.g. `#ff8800`)
+
+The default bundled theme uses named ANSI-16 colors only, which are safe across
+all supported terminal types including BBS/door clients. Sysops may use richer
+color formats in custom themes when targeting modern terminals.
+
+Supported named ANSI-16 values:
 
 - `black`
 - `bright_black`

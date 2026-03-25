@@ -1,7 +1,6 @@
 # Setup KDL Schema
 
-This document defines the first KDL shape now supported for sysop/admin game
-setup.
+This document defines the KDL shape supported for sysop/admin game setup.
 
 It is both:
 
@@ -10,14 +9,12 @@ It is both:
 
 ## Goals
 
-The first `setup.kdl` should cover the durable, declarative parts of `ECUTIL`:
+The `setup.kdl` file should cover the durable, declarative parts of `ECUTIL`:
 
 - player count
-- game year
 - optional map-generation seed
 - maintenance schedule
 - setup/program options
-- setup mode
 
 It should not try to encode:
 
@@ -40,7 +37,7 @@ So:
 - KDL stores setup intent
 - Rust remains the compatibility and writeback authority
 
-## First Schema
+## Schema
 
 Top-level nodes:
 
@@ -53,8 +50,6 @@ Top-level nodes:
 Required properties:
 
 - `player_count`
-- `year`
-- `setup_mode`
 
 Optional properties:
 
@@ -65,20 +60,13 @@ Recommended meanings:
 - `player_count`
   - current Rust-compatible range: `1..=25`
   - long-term manual tiers: `4`, `9`, `16`, `25`
-- `year`
-  - starting game year, normally `3000`
 - `seed`
   - optional map-generation seed
   - if omitted, `ec-cli sysop new-game` may generate one at runtime
-- `setup_mode`
-  - `"canonical-four-player"`
-  - `"builder-compatible"`
 
-`setup_mode` exists so the first parser can distinguish:
-
-- the joinable default `ECGAME` new-game baseline
-- the broader compatibility-oriented post-join campaign baseline used for
-  maint/oracle sweeps
+All new games start at year 3000. The `year` and `setup_mode` properties are
+accepted for backward compatibility with existing dev configs but are silently
+ignored.
 
 ### `setup_options`
 
@@ -115,22 +103,18 @@ Example meanings:
 - `irq=4`
 - `hardware_flow_control=#true`
 
-Explicit homeworld placement is not part of the first KDL schema.
+Explicit homeworld placement is not part of the KDL schema.
 
 For the current Rust setup path:
 
 - `player_count` is explicit in KDL
 - the game engine supplies homeworld placement for the chosen player count
 - `seed` controls reproducible generated placement when present
-- `canonical-four-player` still requires `player_count = 4` and now means the
-  default joinable pre-player baseline
-- `builder-compatible` keeps the older initialized/post-join-compatible active
-  campaign baseline for automation and engine testing
 
 ## Example
 
 ```kdl
-game player_count=4 year=3000 setup_mode="builder-compatible" seed=1515
+game player_count=4 seed=1515
 
 setup_options snoop=#true local_timeout=#false remote_timeout=#true max_key_gap_minutes=10 minimum_time_minutes=0 purge_after_turns=0 autopilot_after_turns=0
 
@@ -154,15 +138,14 @@ maintenance_days {
 
 ## Validation Rules
 
-First-version validation should enforce:
+Current validation enforces:
 
 - `player_count` in the currently supported range
-- `year` in the classic accepted range
 - `seed` in unsigned integer range
 - options values in sane ranges
 - COM IRQ values in allowed range
 
-It should not yet promise:
+It does not yet promise:
 
 - full manual-tier support beyond the current record-model limits
 - exact `ECUTIL` map RNG recreation

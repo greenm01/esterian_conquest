@@ -50,17 +50,17 @@ use crate::commands::invade::{init_invade, init_invade_batch, set_invade_oneflee
 use crate::commands::maint::{compare_maintenance, run_rust_maintenance};
 use crate::commands::map_export::export_player_starmap;
 use crate::commands::scenario::{
-    KnownScenario, apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
+    apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
     init_known_replayable_scenario, init_known_scenario, init_known_scenario_chain,
     print_known_scenario_details, print_known_scenarios, validate_all_known_scenarios,
     validate_all_preserved_scenarios, validate_known_scenario, validate_preserved_scenario,
+    KnownScenario,
 };
 use crate::commands::setup::{
-    init_canonical_four_player_start, print_autopilot_after, print_com_irq, print_flow_control,
-    print_local_timeout, print_maintenance_days, print_max_key_gap, print_minimum_time,
-    print_port_setup, print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
-    set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
-    set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
+    print_autopilot_after, print_com_irq, print_flow_control, print_local_timeout,
+    print_maintenance_days, print_max_key_gap, print_minimum_time, print_port_setup,
+    print_purge_after, print_remote_timeout, print_setup_programs, print_snoop, set_com_irq,
+    set_flow_control, set_maintenance_days,
 };
 use crate::commands::storage::{export_latest_db_snapshot, import_directory_to_db};
 use crate::commands::submit_turn::run_submit_turn_args;
@@ -74,7 +74,7 @@ use crate::support::parse::{
     parse_target_and_econ_spec_list, parse_target_and_fleet_battle_spec_list,
     parse_target_and_fleet_spec, parse_target_and_fleet_spec_list,
     parse_target_and_invade_spec_list, parse_target_and_planet_spec,
-    parse_target_and_planet_spec_list, parse_u8_arg, parse_u16_arg, parse_usize_1_based,
+    parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
 };
 use crate::support::paths::{default_fixture_dir, post_maint_fixture_dir, resolve_repo_path};
 use crate::usage::print_usage;
@@ -205,17 +205,6 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
         "generate-gamestate" => {
             run_sysop_args(std::iter::once("generate-gamestate".to_string()).chain(args))?
         }
-        "init-canonical-four-player-start" => {
-            let Some(target_dir) = args.next().map(PathBuf::from) else {
-                print_usage();
-                return Ok(());
-            };
-            init_canonical_four_player_start(&target_dir)?;
-            println!(
-                "Initialized canonical four-player start at: {}",
-                target_dir.display()
-            );
-        }
         "maint-rust" => {
             let dir = next_dir(&mut args);
             let turns: u16 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1);
@@ -293,58 +282,31 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
         }
         "snoop" => {
             let dir = next_dir(&mut args);
-            match args.next().as_deref() {
-                None => print_snoop(&dir)?,
-                Some("on") => set_snoop(&dir, true)?,
-                Some("off") => set_snoop(&dir, false)?,
-                _ => print_usage(),
-            }
+            print_snoop(&dir)?;
         }
         "local-timeout" => {
             let dir = next_dir(&mut args);
-            match args.next().as_deref() {
-                None => print_local_timeout(&dir)?,
-                Some("on") => set_local_timeout(&dir, true)?,
-                Some("off") => set_local_timeout(&dir, false)?,
-                _ => print_usage(),
-            }
+            print_local_timeout(&dir)?;
         }
         "remote-timeout" => {
             let dir = next_dir(&mut args);
-            match args.next().as_deref() {
-                None => print_remote_timeout(&dir)?,
-                Some("on") => set_remote_timeout(&dir, true)?,
-                Some("off") => set_remote_timeout(&dir, false)?,
-                _ => print_usage(),
-            }
+            print_remote_timeout(&dir)?;
         }
         "max-key-gap" => {
             let dir = next_dir(&mut args);
-            match args.next() {
-                None => print_max_key_gap(&dir)?,
-                Some(minutes) => set_max_key_gap(&dir, minutes.parse::<u8>()?)?,
-            }
+            print_max_key_gap(&dir)?;
         }
         "minimum-time" => {
             let dir = next_dir(&mut args);
-            match args.next() {
-                None => print_minimum_time(&dir)?,
-                Some(minutes) => set_minimum_time(&dir, minutes.parse::<u8>()?)?,
-            }
+            print_minimum_time(&dir)?;
         }
         "autopilot-after" => {
             let dir = next_dir(&mut args);
-            match args.next() {
-                None => print_autopilot_after(&dir)?,
-                Some(turns) => set_autopilot_after(&dir, turns.parse::<u8>()?)?,
-            }
+            print_autopilot_after(&dir)?;
         }
         "purge-after" => {
             let dir = next_dir(&mut args);
-            match args.next() {
-                None => print_purge_after(&dir)?,
-                Some(turns) => set_purge_after(&dir, turns.parse::<u8>()?)?,
-            }
+            print_purge_after(&dir)?;
         }
         "setup-programs" => print_setup_programs(&next_dir(&mut args))?,
         "fleet-order" => {

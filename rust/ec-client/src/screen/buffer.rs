@@ -1,5 +1,15 @@
+/// A terminal color value used in the game's rendering layer.
+///
+/// Variants cover three tiers:
+/// - The 16 named ANSI colors (safe for all terminals, including BBS door clients).
+/// - A 256-color indexed palette value (`Indexed`), supported by most modern terminals.
+/// - A 24-bit RGB truecolor value (`Rgb`), supported by most local and SSH terminals.
+///
+/// When rendering, the output backend downgrades to the active [`crate::terminal::ColorMode`].
+/// Extended colors are lossily mapped to lower tiers when needed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AnsiColor {
+pub enum GameColor {
+    // --- Classic 16 ANSI named colors ---
     Black,
     Red,
     Green,
@@ -16,17 +26,25 @@ pub enum AnsiColor {
     BrightMagenta,
     BrightCyan,
     BrightWhite,
+    // --- Extended color tiers ---
+    /// 256-color xterm palette index (0–255).
+    Indexed(u8),
+    /// 24-bit RGB truecolor.
+    Rgb(u8, u8, u8),
 }
+
+/// Backwards-compatible type alias so that existing code using `AnsiColor` continues to compile.
+pub type AnsiColor = GameColor;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CellStyle {
-    pub fg: AnsiColor,
-    pub bg: AnsiColor,
+    pub fg: GameColor,
+    pub bg: GameColor,
     pub bold: bool,
 }
 
 impl CellStyle {
-    pub const fn new(fg: AnsiColor, bg: AnsiColor, bold: bool) -> Self {
+    pub const fn new(fg: GameColor, bg: GameColor, bold: bool) -> Self {
         Self { fg, bg, bold }
     }
 }

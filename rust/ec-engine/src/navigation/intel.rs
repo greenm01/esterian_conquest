@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use ec_data::{
-    CoreGameData, Order, PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots,
+    build_player_starmap_projection_from_snapshots, CoreGameData, Order, PlanetIntelSnapshot,
 };
 
 use super::VisibleHazardIntel;

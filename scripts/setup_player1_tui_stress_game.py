@@ -56,12 +56,6 @@ def main() -> None:
     )
     parser.add_argument("target_dir", help="Directory to create or replace.")
     parser.add_argument(
-        "--year",
-        type=int,
-        default=3012,
-        help="Starting game year. Default: 3012.",
-    )
-    parser.add_argument(
         "--players",
         type=int,
         default=12,
@@ -90,8 +84,6 @@ def main() -> None:
         raise SystemExit("--turn must be >= 1")
     if not 4 <= args.players <= len(PLAYER_SPECS):
         raise SystemExit(f"--players must be between 4 and {len(PLAYER_SPECS)}")
-    if not 3000 <= args.year <= 3100:
-        raise SystemExit("--year must be between 3000 and 3100")
     if args.seed < 0:
         raise SystemExit("--seed must be >= 0")
 
@@ -109,8 +101,6 @@ def main() -> None:
         str(args.players),
         "--seed",
         str(args.seed),
-        "--year",
-        str(args.year),
     )
 
     for idx, (handle, empire, tax) in enumerate(PLAYER_SPECS[: args.players], start=1):
@@ -123,7 +113,6 @@ def main() -> None:
     print()
     print(f"Created player-1 TUI stress game at {target}")
     print(f"Turn: {args.turn}")
-    print(f"Year: {args.year + (args.turn - 1)}")
     print(f"Players: {args.players}")
     print(f"Seed: {args.seed}")
     print(f"Map size: {map_size_for_player_count(args.players)}x{map_size_for_player_count(args.players)}")

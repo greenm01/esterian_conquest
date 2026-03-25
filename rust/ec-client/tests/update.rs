@@ -518,6 +518,7 @@ fn apply_action_switches_between_client_screens() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -862,6 +863,7 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -903,6 +905,7 @@ fn first_time_startup_skips_joined_player_login_summary() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -924,6 +927,7 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -957,6 +961,7 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1009,6 +1014,7 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1078,6 +1084,7 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("reloaded app should load");
 
@@ -1099,6 +1106,7 @@ fn first_time_join_summary_and_no_pending_accept_any_key_dismissal() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1155,6 +1163,7 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1268,6 +1277,7 @@ fn returning_player_with_owned_unnamed_colony_is_routed_to_colony_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1306,6 +1316,7 @@ fn colony_world_naming_updates_planet_and_enters_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1383,6 +1394,7 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1440,6 +1452,7 @@ fn first_time_join_routes_from_homeworld_naming_to_colony_naming_when_needed() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should reload");
     for _ in 0..16 {
@@ -1566,6 +1579,7 @@ fn returning_player_with_multiple_unnamed_colonies_is_prompted_for_each_in_turn(
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1648,6 +1662,7 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1688,6 +1703,7 @@ fn escaping_empire_name_does_not_partially_join_player() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1721,6 +1737,7 @@ fn escaping_empire_name_does_not_partially_join_player() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should reload");
     assert_eq!(
@@ -1740,6 +1757,7 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1849,6 +1867,7 @@ fn apply_action_quit_exits_loop() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -1867,6 +1886,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -2238,6 +2258,7 @@ fn fleet_review_detail_q_returns_to_review_picker() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2273,6 +2294,7 @@ fn fleet_menu_matches_verified_v15_command_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2313,6 +2335,7 @@ fn starbase_menu_matches_verified_v15_command_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2354,6 +2377,7 @@ fn starbase_review_matches_verified_v15_review_content() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2409,6 +2433,7 @@ fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2449,6 +2474,7 @@ fn main_menu_matches_verified_v15_command_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2488,6 +2514,7 @@ fn general_menu_matches_verified_v15_command_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2533,6 +2560,7 @@ fn main_menu_notice_renders_below_fixed_command_row() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2559,6 +2587,7 @@ fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2601,6 +2630,7 @@ fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2636,6 +2666,7 @@ fn main_menu_a_key_maps_to_real_ansi_toggle() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2658,6 +2689,7 @@ fn main_help_describes_the_ansi_toggle() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2687,6 +2719,7 @@ fn first_time_and_main_help_share_the_same_ansi_toggle_text() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_first_time_menu(&mut app);
@@ -2714,6 +2747,7 @@ fn first_time_menu_status_renders_below_fixed_command_row() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_first_time_menu(&mut app);
@@ -2740,6 +2774,7 @@ fn planet_menu_matches_verified_v15_command_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2778,6 +2813,7 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2808,6 +2844,7 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2839,6 +2876,7 @@ fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2886,6 +2924,7 @@ fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -2927,6 +2966,7 @@ fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist(
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -2964,6 +3004,7 @@ fn planet_commission_draft_render_does_not_crash_when_picker_rows_disappear() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -3005,6 +3046,7 @@ fn planet_commission_picker_render_returns_to_planet_menu_when_empty() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -3063,6 +3105,7 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -3206,6 +3249,7 @@ fn planet_commission_draft_keeps_intermediate_success_inline() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -3311,6 +3355,7 @@ fn planet_commission_result_latches_dismiss_key_until_release() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -3350,6 +3395,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -3411,6 +3457,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3473,6 +3520,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3528,6 +3576,7 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3585,6 +3634,7 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3618,6 +3668,7 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3679,6 +3730,7 @@ fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3862,6 +3914,7 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3904,6 +3957,7 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -3969,6 +4023,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4066,6 +4121,7 @@ fn startup_reviews_results_then_messages_then_enters_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4123,6 +4179,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4233,6 +4290,7 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4333,6 +4391,7 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4411,6 +4470,7 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4475,6 +4535,7 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4527,6 +4588,7 @@ fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4580,6 +4642,7 @@ fn startup_results_use_the_full_intro_review_page_height() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4630,6 +4693,7 @@ fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4694,6 +4758,7 @@ fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4753,6 +4818,7 @@ fn reports_screen_preserves_blank_separator_lines() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -4791,6 +4857,7 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -4848,6 +4915,7 @@ fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -4894,6 +4962,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -4934,6 +5003,7 @@ fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -4993,6 +5063,7 @@ fn returning_player_reviews_reports_before_colony_naming() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -5024,6 +5095,7 @@ fn fleet_review_opens_with_an_inline_prompt_first() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5065,6 +5137,7 @@ fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5109,6 +5182,7 @@ fn fleet_review_prompt_accepts_typed_fleet_id_and_opens_that_fleet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5132,6 +5206,7 @@ fn fleet_review_close_returns_to_prompt_for_the_current_fleet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5165,6 +5240,7 @@ fn fleet_review_prompt_shows_invalid_fleet_message_on_unknown_typed_id() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5222,6 +5298,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5304,6 +5381,7 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5358,6 +5436,7 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5413,6 +5492,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5460,6 +5540,7 @@ fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5497,6 +5578,7 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5574,6 +5656,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5677,6 +5760,7 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5744,6 +5828,7 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5811,6 +5896,7 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -5996,6 +6082,7 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6067,6 +6154,7 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6105,6 +6193,7 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6194,6 +6283,7 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6232,6 +6322,7 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("reloaded app should load");
     advance_to_main_menu(&mut reloaded);
@@ -6274,6 +6365,7 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6378,6 +6470,7 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6469,6 +6562,7 @@ fn fleet_group_order_lists_selected_fleet_numbers_in_compact_target_entry() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6547,6 +6641,7 @@ fn fleet_selectors_sort_by_mission_then_newest_fleet_id() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6642,6 +6737,7 @@ fn fleet_order_scout_system_defaults_avoid_worlds_targeted_by_other_friendly_sco
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6741,6 +6837,7 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6878,6 +6975,7 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -6984,6 +7082,7 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7041,6 +7140,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7114,6 +7214,7 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7188,6 +7289,7 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7278,6 +7380,7 @@ fn fleet_order_blockade_mission_defaults_to_closest_owned_planet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7341,6 +7444,7 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7427,6 +7531,7 @@ fn fleet_order_rejects_owned_planet_for_scout_system_mission() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7505,6 +7610,7 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7560,6 +7666,7 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7639,6 +7746,7 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7697,6 +7805,7 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7745,6 +7854,7 @@ fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7801,6 +7911,7 @@ fn partial_starmap_small_map_stays_centered_while_crosshair_tracks_selected_sect
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7838,6 +7949,7 @@ fn partial_starmap_large_map_anchors_axes_and_clamps_crosshair_near_edges() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7872,6 +7984,7 @@ fn partial_starmap_enter_opens_planet_info_and_returns_to_map() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7915,6 +8028,7 @@ fn partial_starmap_enter_on_empty_sector_is_noop() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -7966,6 +8080,7 @@ fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -8032,6 +8147,7 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -8100,6 +8216,7 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -8187,6 +8304,7 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -8291,6 +8409,7 @@ fn fleet_group_guard_starbase_target_prompt_uses_named_target_layout() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -8361,6 +8480,7 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -8423,6 +8543,7 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -8461,6 +8582,7 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8506,6 +8628,7 @@ fn planet_database_render_uses_classic_stacked_headers() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8584,6 +8707,7 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8655,6 +8779,7 @@ fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8688,6 +8813,7 @@ fn main_menu_planet_info_prompt_renders_error_below_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8735,6 +8861,7 @@ fn build_menu_planet_info_prompt_clears_stale_build_notice() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8780,6 +8907,7 @@ fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -8820,6 +8948,7 @@ fn planet_menu_tax_prompt_stays_inline_for_errors_and_success() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -9078,6 +9207,7 @@ fn fleet_list_eta_column_shows_turns_remaining_for_arrived_fleets() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -9128,6 +9258,7 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
@@ -9226,6 +9357,7 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9299,6 +9431,7 @@ fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9366,6 +9499,7 @@ fn fleet_eta_allows_empty_sector_targets_for_resting_hold_fleets() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9562,6 +9696,7 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9610,6 +9745,7 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9655,6 +9791,7 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9682,6 +9819,7 @@ fn enemies_typed_empire_number_moves_selector_bar_immediately() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9725,6 +9863,7 @@ fn apply_action_deletes_reviewables() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9768,6 +9907,7 @@ fn apply_action_queues_composed_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9872,6 +10012,7 @@ fn apply_action_deletes_queued_message_from_outbox() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9910,6 +10051,7 @@ fn apply_action_confirms_before_discarding_composed_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -9986,6 +10128,7 @@ fn compose_body_navigation_tracks_visual_wrapped_lines() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10074,6 +10217,7 @@ fn compose_body_cursor_can_move_down_from_empty_editor_without_mutating_body() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10102,6 +10246,7 @@ fn compose_body_cursor_can_move_into_blank_lines_and_type_there() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10141,6 +10286,7 @@ fn compose_body_cursor_can_move_right_past_end_of_text_without_mutating_body() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10169,6 +10315,7 @@ fn compose_body_tab_inserts_four_spaces() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10192,6 +10339,7 @@ fn compose_body_tab_pushes_existing_text_right() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10215,6 +10363,7 @@ fn compose_body_cursor_left_and_right_do_not_page_jump_on_short_first_line() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10262,6 +10411,7 @@ fn compose_body_cursor_preserves_visual_column_in_blank_canvas_space() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10315,6 +10465,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 
@@ -10396,6 +10547,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("app should load");
 

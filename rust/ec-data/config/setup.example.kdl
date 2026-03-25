@@ -1,4 +1,4 @@
-game player_count=4 year=3000 setup_mode="builder-compatible" seed=1515
+game player_count=4 seed=1515
 
 setup_options snoop=#true local_timeout=#false remote_timeout=#true max_key_gap_minutes=10 minimum_time_minutes=0 purge_after_turns=0 autopilot_after_turns=0
 

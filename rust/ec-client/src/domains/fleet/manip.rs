@@ -905,9 +905,7 @@ impl App {
             FleetDetachMode::EnteringScouts => {
                 ("Scout ships to detach ".to_string(), "0".to_string())
             }
-            FleetDetachMode::EnteringEtacs => {
-                ("ET ships to detach ".to_string(), "0".to_string())
-            }
+            FleetDetachMode::EnteringEtacs => ("ET ships to detach ".to_string(), "0".to_string()),
             FleetDetachMode::AdjustingDonorSpeed => (
                 format!(
                     "Fleet #{} new speed ",

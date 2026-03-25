@@ -59,6 +59,11 @@ combat, fleet missions, and strategy:
 
 - **[EC Player Manual (PDF)](docs/manuals/ec_player_manual.pdf)**
 
+Sysops setting up and administering a campaign — whether on a BBS, a shared
+SSH host, or localhost — should also read:
+
+- **[EC Sysop Manual (PDF)](docs/manuals/ec_sysop_manual.pdf)**
+
 The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
 
 ## Background
@@ -341,9 +346,6 @@ New game from declarative config:
 cd rust
 cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/setup.example.kdl
 ```
-
-The bundled example config uses `setup_mode="builder-compatible"` for the
-active-campaign baseline used by the maint/oracle sweeps.
 
 The Rust client now uses a built-in ASCII splash followed by the in-client intro
 pages.

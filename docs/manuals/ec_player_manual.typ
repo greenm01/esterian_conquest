@@ -17,7 +17,7 @@
   size: 11pt,
 )
 
-#show raw: set text(font: "0xProto Nerd Font Mono")
+#show raw: set text(font: "IBM Plex Mono")
 
 #set par(
   justify: true,
@@ -50,7 +50,7 @@
 
 #align(center + horizon)[
   #block(width: 100%)[
-    #set text(size: 8pt, font: "0xProto Nerd Font Mono")
+    #set text(size: 8pt, font: "IBM Plex Mono")
     ```
   o     #######   ###### ########  #######  ######    ##    #####    ###  ##
     .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
@@ -481,7 +481,7 @@ place.
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[revenue = floor(present_production \* tax_rate / 100)]],
+    [#text(font: "IBM Plex Mono")[revenue = floor(present_production \* tax_rate / 100)]],
   )
 ]
 
@@ -494,9 +494,9 @@ planets.
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[gap = potential_production - present_production]],
-    [#text(font: "0xProto Nerd Font Mono")[tax_headroom = 100 - min(tax_rate, 95)]],
-    [#text(font: "0xProto Nerd Font Mono")[base_growth = ceil(gap \* tax_headroom / 400)]],
+    [#text(font: "IBM Plex Mono")[gap = potential_production - present_production]],
+    [#text(font: "IBM Plex Mono")[tax_headroom = 100 - min(tax_rate, 95)]],
+    [#text(font: "IBM Plex Mono")[base_growth = ceil(gap \* tax_headroom / 400)]],
   )
 ]
 
@@ -509,8 +509,8 @@ and never grows by more than the remaining `gap`.
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[if tax_rate > 65:]],
-    [#text(font: "0xProto Nerd Font Mono")[  penalty = ceil(present_production \* (tax_rate - 65) / 500)]],
+    [#text(font: "IBM Plex Mono")[if tax_rate > 65:]],
+    [#text(font: "IBM Plex Mono")[  penalty = ceil(present_production \* (tax_rate - 65) / 500)]],
   )
 ]
 
@@ -520,7 +520,7 @@ Final yearly Present Production is:
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[present_production = min(potential_production, present_production + growth) - penalty]],
+    [#text(font: "IBM Plex Mono")[present_production = min(potential_production, present_production + growth) - penalty]],
   )
 ]
 
@@ -533,10 +533,10 @@ bonus tapers away completely by `65%`.
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[bonus_percent = 50 if tax_rate <= 50]],
-    [#text(font: "0xProto Nerd Font Mono")[bonus_percent = floor((65 - tax_rate) \* 50 / 15) if 50 < tax_rate < 65]],
-    [#text(font: "0xProto Nerd Font Mono")[bonus_percent = 0 if tax_rate >= 65]],
-    [#text(font: "0xProto Nerd Font Mono")[growth = base_growth + ceil(base_growth \* bonus_percent / 100)]],
+    [#text(font: "IBM Plex Mono")[bonus_percent = 50 if tax_rate <= 50]],
+    [#text(font: "IBM Plex Mono")[bonus_percent = floor((65 - tax_rate) \* 50 / 15) if 50 < tax_rate < 65]],
+    [#text(font: "IBM Plex Mono")[bonus_percent = 0 if tax_rate >= 65]],
+    [#text(font: "IBM Plex Mono")[growth = base_growth + ceil(base_growth \* bonus_percent / 100)]],
   )
 ]
 
@@ -548,8 +548,8 @@ Per-turn build capacity is:
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[build_capacity = present_production without starbase]],
-    [#text(font: "0xProto Nerd Font Mono")[build_capacity = present_production \* 5 with starbase]],
+    [#text(font: "IBM Plex Mono")[build_capacity = present_production without starbase]],
+    [#text(font: "IBM Plex Mono")[build_capacity = present_production \* 5 with starbase]],
   )
 ]
 
@@ -663,7 +663,7 @@ place.
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[hits = ceil(total_AS \* CRT_multiplier)]],
+    [#text(font: "IBM Plex Mono")[hits = ceil(total_AS \* CRT_multiplier)]],
   )
 ]
 
@@ -685,7 +685,7 @@ Planetary return fire is:
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[return_fire_AS = battery_AS]],
+    [#text(font: "IBM Plex Mono")[return_fire_AS = battery_AS]],
   )
 ]
 

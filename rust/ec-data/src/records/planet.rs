@@ -1,5 +1,5 @@
+use crate::support::{copy_array, decode_real48, encode_real48, ParseError};
 use crate::PLANET_RECORD_SIZE;
-use crate::support::{ParseError, copy_array, decode_real48, encode_real48};
 
 pub const STARDOCK_SLOT_COUNT: usize = 6;
 

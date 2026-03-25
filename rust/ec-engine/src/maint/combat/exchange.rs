@@ -1,8 +1,8 @@
 use crate::{GameRng, RNG_TAG_COMBAT};
 
 use super::state::{
-    FleetCombatState, IDX_SB, fleet_auxiliary_order, fleet_class_ds, fleet_combat_line_order,
-    fleet_combat_line_present, fleet_target_order,
+    fleet_auxiliary_order, fleet_class_ds, fleet_combat_line_order, fleet_combat_line_present,
+    fleet_target_order, FleetCombatState, IDX_SB,
 };
 
 pub(super) const GROUND_AS_BATTERY: u32 = 9;

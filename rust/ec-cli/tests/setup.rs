@@ -26,43 +26,33 @@ fn maintenance_days_set_rewrites_conquest_schedule() {
 }
 
 #[test]
-fn snoop_off_rewrites_setup_flag() {
-    let target = unique_temp_dir("ec-cli-snoop");
-    copy_fixture_dir("original/v1.5", &target);
-
-    let stdout = run_ec_cli_in_dir(
-        &["snoop", target.to_str().unwrap(), "off"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Snoop enabled: no"));
-
-    let stdout = run_ec_cli_in_dir(
-        &["snoop", target.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Snoop enabled: no"));
-
-    cleanup_dir(&target);
+fn snoop_prints_current_value() {
+    let stdout = run_ec_cli(&["snoop", "original/v1.5"]);
+    assert!(stdout.contains("Snoop enabled:"));
 }
 
 #[test]
-fn purge_after_rewrites_setup_raw_value() {
-    let target = unique_temp_dir("ec-cli-purge");
-    copy_fixture_dir("original/v1.5", &target);
+fn purge_after_prints_current_value() {
+    let stdout = run_ec_cli(&["purge-after", "original/v1.5"]);
+    assert!(stdout.contains("Purge after turns (raw):"));
+}
 
-    let stdout = run_ec_cli_in_dir(
-        &["purge-after", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Purge after turns (raw): 1"));
+#[test]
+fn remaining_f4_commands_print_current_values() {
+    let stdout = run_ec_cli(&["local-timeout", "original/v1.5"]);
+    assert!(stdout.contains("Local timeout enabled:"));
 
-    let stdout = run_ec_cli_in_dir(
-        &["purge-after", target.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Purge after turns (raw): 1"));
+    let stdout = run_ec_cli(&["remote-timeout", "original/v1.5"]);
+    assert!(stdout.contains("Remote timeout enabled:"));
 
-    cleanup_dir(&target);
+    let stdout = run_ec_cli(&["max-key-gap", "original/v1.5"]);
+    assert!(stdout.contains("Maximum time between key strokes (minutes):"));
+
+    let stdout = run_ec_cli(&["minimum-time", "original/v1.5"]);
+    assert!(stdout.contains("Minimum time granted (minutes):"));
+
+    let stdout = run_ec_cli(&["autopilot-after", "original/v1.5"]);
+    assert!(stdout.contains("Autopilot inactive turns (raw):"));
 }
 
 #[test]
@@ -76,54 +66,6 @@ fn setup_programs_prints_mapped_f4_values() {
     assert!(stdout.contains("E Enable timeout for remote users: Yes"));
     assert!(stdout.contains("F Maximum time between key strokes: 10 minute(s)"));
     assert!(stdout.contains("G Minimum time granted: 0 minute(s)"));
-}
-
-#[test]
-fn remaining_f4_commands_rewrite_setup_fields() {
-    let target = unique_temp_dir("ec-cli-f4");
-    copy_fixture_dir("original/v1.5", &target);
-
-    let stdout = run_ec_cli_in_dir(
-        &["local-timeout", target.to_str().unwrap(), "on"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Local timeout enabled: yes"));
-
-    let stdout = run_ec_cli_in_dir(
-        &["remote-timeout", target.to_str().unwrap(), "off"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Remote timeout enabled: no"));
-
-    let stdout = run_ec_cli_in_dir(
-        &["max-key-gap", target.to_str().unwrap(), "15"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Maximum time between key strokes (minutes): 15"));
-
-    let stdout = run_ec_cli_in_dir(
-        &["minimum-time", target.to_str().unwrap(), "69"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Minimum time granted (minutes): 69"));
-
-    let stdout = run_ec_cli_in_dir(
-        &["autopilot-after", target.to_str().unwrap(), "3"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Autopilot inactive turns (raw): 3"));
-
-    let stdout = run_ec_cli_in_dir(
-        &["setup-programs", target.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("D Enable timeout for local users: Yes"));
-    assert!(stdout.contains("E Enable timeout for remote users: No"));
-    assert!(stdout.contains("F Maximum time between key strokes: 15 minute(s)"));
-    assert!(stdout.contains("G Minimum time granted: 69 minute(s)"));
-    assert!(stdout.contains("B Autopilot any empires inactive for: 3 turn(s)"));
-
-    cleanup_dir(&target);
 }
 
 #[test]

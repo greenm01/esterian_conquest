@@ -1143,9 +1143,7 @@ impl App {
 
     pub(crate) fn fleet_order_current_order_label(&self) -> String {
         self.fleet_order_selected_row()
-            .map(|row| {
-                crate::domains::fleet::screens::fleet::fleet_order_label(row.order_code)
-            })
+            .map(|row| crate::domains::fleet::screens::fleet::fleet_order_label(row.order_code))
             .unwrap_or("Unknown")
             .to_string()
     }

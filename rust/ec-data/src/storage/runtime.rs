@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 
 use super::{CampaignRuntimeState, CampaignStore, CampaignStoreError, PlanetIntelSnapshot};
 use crate::{
-    CoreGameData, QueuedPlayerMail, ReportBlockRow, derive_campaign_seed_from_runtime,
-    generate_campaign_seed,
+    derive_campaign_seed_from_runtime, generate_campaign_seed, CoreGameData, QueuedPlayerMail,
+    ReportBlockRow,
 };
 
 impl CampaignStore {

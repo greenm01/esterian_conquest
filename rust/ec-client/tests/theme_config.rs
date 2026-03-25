@@ -7,8 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ec_client::screen::AnsiColor;
 use ec_client::theme::classic;
 use ec_client::theme::{
-    AnsiMode, ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path,
-    parse_config_theme_path, toggle_ansi_mode,
+    ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path, toggle_ansi_mode,
+    AnsiMode,
 };
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -42,7 +42,7 @@ fn game_dir_bootstraps_theme_kdl_when_absent() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-bootstrap");
 
-    initialize_from_game_dir(&game_dir).expect("initialize from game dir");
+    initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
 
     let theme_file = game_dir.join("theme.kdl");
     assert!(theme_file.exists(), "theme.kdl should be bootstrapped");
@@ -64,7 +64,7 @@ fn game_dir_uses_existing_theme_kdl_without_overwriting() {
     );
     fs::write(game_dir.join("theme.kdl"), &custom).expect("write custom theme");
 
-    initialize_from_game_dir(&game_dir).expect("initialize from game dir");
+    initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightCyan);
 
     // File must not be overwritten
@@ -88,25 +88,11 @@ fn config_kdl_theme_directive_is_followed() {
     );
     fs::write(game_dir.join("my-theme.kdl"), &custom).expect("write custom theme");
 
-    // Write config.kdl pointing to it
-    fs::write(game_dir.join("config.kdl"), "theme \"my-theme.kdl\"\n").expect("write config.kdl");
-
-    initialize_from_game_dir(&game_dir).expect("initialize from game dir");
+    // Caller (cli.rs) would have parsed config.kdl and resolved the theme path;
+    // simulate that by passing the path directly.
+    initialize_from_game_dir(&game_dir, Some(PathBuf::from("my-theme.kdl")))
+        .expect("initialize from game dir");
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightMagenta);
-}
-
-#[test]
-fn parse_config_theme_path_returns_none_when_config_absent() {
-    let game_dir = temp_game_dir("ec-theme-no-config");
-    assert!(parse_config_theme_path(&game_dir).is_none());
-}
-
-#[test]
-fn parse_config_theme_path_returns_none_when_no_theme_node() {
-    let game_dir = temp_game_dir("ec-theme-config-no-theme-node");
-    fs::write(game_dir.join("config.kdl"), "// no theme directive here\n")
-        .expect("write config.kdl");
-    assert!(parse_config_theme_path(&game_dir).is_none());
 }
 
 #[test]
@@ -121,7 +107,7 @@ fn config_kdl_absent_falls_back_to_theme_kdl() {
     );
     fs::write(game_dir.join("theme.kdl"), &custom).expect("write theme.kdl");
 
-    initialize_from_game_dir(&game_dir).expect("initialize from game dir");
+    initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightGreen);
 }
 
@@ -145,7 +131,7 @@ fn invalid_theme_falls_back_to_bundled_default() {
     // Now put an invalid theme.kdl in the game dir
     fs::write(game_dir.join("theme.kdl"), "this is not valid kdl").expect("write invalid theme");
 
-    initialize_from_game_dir(&game_dir).expect("initialize with invalid theme");
+    initialize_from_game_dir(&game_dir, None).expect("initialize with invalid theme");
     // Should silently fall back to bundled default
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
 }
@@ -157,7 +143,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-toggle");
 
-    initialize_from_game_dir(&game_dir).expect("initialize theme");
+    initialize_from_game_dir(&game_dir, None).expect("initialize theme");
     assert_eq!(ansi_mode(), AnsiMode::On);
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
     assert_eq!(classic::notice_style().fg, AnsiColor::BrightRed);
@@ -193,7 +179,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::selected_row_style().fg, AnsiColor::Black);
     assert_eq!(classic::selected_row_style().bg, AnsiColor::BrightBlack);
 
-    initialize_from_game_dir(&game_dir).expect("reinitialize resets ansi on");
+    initialize_from_game_dir(&game_dir, None).expect("reinitialize resets ansi on");
     assert_eq!(ansi_mode(), AnsiMode::On);
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
 }

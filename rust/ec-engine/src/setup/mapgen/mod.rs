@@ -3,8 +3,8 @@ mod placement;
 mod scoring;
 
 use ec_data::{
-    CoreGameData, GameRng, GameStateBuilder, GameStateMutationError, PlanetRecord, RNG_TAG_MAPGEN,
-    map_size_for_player_count,
+    map_size_for_player_count, CoreGameData, GameRng, GameStateBuilder, GameStateMutationError,
+    PlanetRecord, RNG_TAG_MAPGEN,
 };
 use placement::{generate_homeworlds, generate_neutral_worlds};
 use scoring::{all_systems_unique, score_map};

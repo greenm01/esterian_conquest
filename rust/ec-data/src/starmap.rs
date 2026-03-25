@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    CoreGameData, IntelTier, PlanetIntelSnapshot, active_starbase_count_at,
-    map_size_for_player_count,
+    active_starbase_count_at, map_size_for_player_count, CoreGameData, IntelTier,
+    PlanetIntelSnapshot,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

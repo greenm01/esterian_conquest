@@ -2,21 +2,21 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     AssaultReportEvent, BombardEvent, CoreGameData, Mission, MissionEvent, MissionOutcome, Order,
-    PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, STARDOCK_SLOT_COUNT,
-    ShipLosses,
+    PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, ShipLosses,
+    STARDOCK_SLOT_COUNT,
 };
 
 use super::exchange::{
-    COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND, COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND,
-    COMBAT_KIND_INVASION_SOFTEN, COMBAT_KIND_INVASION_SUPPRESSION, ExchangeResolution,
-    GROUND_AS_BATTERY, apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange,
-    scalar_hits_with_critical,
+    apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange,
+    scalar_hits_with_critical, ExchangeResolution, COMBAT_KIND_BLITZ_COVER,
+    COMBAT_KIND_BLITZ_GROUND, COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND, COMBAT_KIND_INVASION_SOFTEN,
+    COMBAT_KIND_INVASION_SUPPRESSION, GROUND_AS_BATTERY,
 };
 use super::reporting::{mission_kind_for_fleet, preferred_reporting_fleet_id, push_planet_intel};
 use super::retreat::set_fleet_to_hold_current_position;
 use super::state::{
-    FleetCombatState, IDX_BB, IDX_CA, IDX_DD, fleet_state_from_records, planet_idx_at_coords,
-    ship_counts_from_state, ship_losses_from_states, starbase_count_at,
+    fleet_state_from_records, planet_idx_at_coords, ship_counts_from_state,
+    ship_losses_from_states, starbase_count_at, FleetCombatState, IDX_BB, IDX_CA, IDX_DD,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

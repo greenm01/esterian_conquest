@@ -2,8 +2,8 @@ use ec_compat::{
     ensure_classic_auxiliary_files, import_directory_snapshot_with_seed,
     write_default_database_dat_for_game_data,
 };
-use ec_data::{CampaignStore, ConquestDat, SetupDat, generate_campaign_seed};
-use ec_engine::{SetupConfig, build_game_data_from_setup_config, build_seeded_new_game};
+use ec_data::{generate_campaign_seed, CampaignStore, ConquestDat, SetupDat};
+use ec_engine::{build_game_data_from_setup_config, build_seeded_new_game, SetupConfig};
 use std::fs;
 use std::path::Path;
 
@@ -30,27 +30,19 @@ pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-pub(crate) fn init_canonical_four_player_start(
-    target: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
-    init_new_game(target, 4, 3000)
-}
-
 pub(crate) fn init_new_game(
     target: &Path,
     player_count: u8,
-    year: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    init_new_game_with_seed(target, player_count, year, runtime_seed())
+    init_new_game_with_seed(target, player_count, runtime_seed())
 }
 
 pub(crate) fn init_new_game_with_seed(
     target: &Path,
     player_count: u8,
-    year: u16,
     seed: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = build_seeded_new_game(player_count, year, seed)?;
+    let data = build_seeded_new_game(player_count, 3000, seed)?;
 
     fs::create_dir_all(target)?;
     data.save(target)?;
@@ -104,12 +96,10 @@ pub(crate) fn set_maintenance_days(
         let idx = weekday_index(day_name).ok_or_else(|| format!("unknown weekday: {day_name}"))?;
         enabled[idx] = true;
     }
-
     with_runtime_game_mut(dir, |data| {
         data.conquest.set_maintenance_schedule_enabled(enabled);
         Ok(())
     })?;
-
     print_maintenance_days(dir)?;
     Ok(())
 }
@@ -156,12 +146,6 @@ pub(crate) fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
         "Snoop enabled: {}",
         if setup.snoop_enabled() { "yes" } else { "no" }
     );
-    Ok(())
-}
-
-pub(crate) fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| setup.set_snoop_enabled(enabled))?;
-    print_snoop(dir)?;
     Ok(())
 }
 
@@ -239,15 +223,6 @@ pub(crate) fn print_local_timeout(dir: &Path) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-pub(crate) fn set_local_timeout(
-    dir: &Path,
-    enabled: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| setup.set_local_timeout_enabled(enabled))?;
-    print_local_timeout(dir)?;
-    Ok(())
-}
-
 pub(crate) fn print_remote_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
@@ -262,15 +237,6 @@ pub(crate) fn print_remote_timeout(dir: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-pub(crate) fn set_remote_timeout(
-    dir: &Path,
-    enabled: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| setup.set_remote_timeout_enabled(enabled))?;
-    print_remote_timeout(dir)?;
-    Ok(())
-}
-
 pub(crate) fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
@@ -281,14 +247,6 @@ pub(crate) fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub(crate) fn set_max_key_gap(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| {
-        setup.set_max_time_between_keys_minutes_raw(minutes)
-    })?;
-    print_max_key_gap(dir)?;
-    Ok(())
-}
-
 pub(crate) fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
@@ -296,14 +254,6 @@ pub(crate) fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::E
         "Minimum time granted (minutes): {}",
         setup.minimum_time_granted_minutes_raw()
     );
-    Ok(())
-}
-
-pub(crate) fn set_minimum_time(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| {
-        setup.set_minimum_time_granted_minutes_raw(minutes)
-    })?;
-    print_minimum_time(dir)?;
     Ok(())
 }
 
@@ -346,12 +296,6 @@ pub(crate) fn print_setup_programs(dir: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-pub(crate) fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| setup.set_purge_after_turns_raw(turns))?;
-    print_purge_after(dir)?;
-    Ok(())
-}
-
 pub(crate) fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
@@ -359,12 +303,6 @@ pub(crate) fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error
         "Autopilot inactive turns (raw): {}",
         setup.autopilot_inactive_turns_raw()
     );
-    Ok(())
-}
-
-pub(crate) fn set_autopilot_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_setup_mut(dir, |setup| setup.set_autopilot_inactive_turns_raw(turns))?;
-    print_autopilot_after(dir)?;
     Ok(())
 }
 
@@ -404,5 +342,9 @@ fn com_index(port_name: &str) -> Option<usize> {
 }
 
 fn yes_no(value: bool) -> &'static str {
-    if value { "Yes" } else { "No" }
+    if value {
+        "Yes"
+    } else {
+        "No"
+    }
 }

@@ -19,6 +19,7 @@ mod directory;
 mod economy;
 #[doc(hidden)]
 pub mod fleet_motion_state;
+pub mod game_config;
 mod intel;
 pub mod maintenance_types;
 mod map_dimensions;
@@ -33,8 +34,7 @@ mod turns;
 
 pub use builder::{FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec};
 pub use config::{
-    DiplomacyConfig, DiplomacyDirective, SetupConfig, SetupConfigError, SetupMode,
-    SetupOptionsConfig,
+    DiplomacyConfig, DiplomacyDirective, SetupConfig, SetupConfigError, SetupOptionsConfig,
 };
 pub use directory::{
     AutoCommissionEntry, AutoCommissionFleetEntry, AutoCommissionReport,
@@ -50,6 +50,9 @@ pub use economy::{
     build_capacity, starbase_growth_bonus_percent, yearly_growth_delta, yearly_high_tax_penalty,
     yearly_tax_revenue,
 };
+pub use game_config::{
+    GameConfig, GameConfigError, InactivityConfig, SessionConfig, DEFAULT_GAME_CONFIG_KDL,
+};
 pub use intel::{active_starbase_count_at, merge_player_intel_from_runtime};
 pub use maintenance_types::{
     AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
@@ -63,7 +66,7 @@ pub use maintenance_types::{
 };
 pub use map_dimensions::map_size_for_player_count;
 pub use player_mail::{
-    QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,
+    append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue, QueuedPlayerMail,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
@@ -74,19 +77,19 @@ pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
 pub use report_blocks::ReportBlockRow;
 pub use rng::{
-    GameRng, RNG_TAG_COMBAT, RNG_TAG_MAPGEN, derive_campaign_seed_from_runtime,
-    generate_campaign_seed, mix_seed,
+    derive_campaign_seed_from_runtime, generate_campaign_seed, mix_seed, GameRng, RNG_TAG_COMBAT,
+    RNG_TAG_MAPGEN,
 };
 pub use starmap::{
-    PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
+    build_player_starmap_projection_from_snapshots, PlayerStarmapProjection, PlayerStarmapWorld,
 };
 pub use storage::{
-    CampaignRuntimeState, CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME, IntelTier,
-    PlanetIntelSnapshot,
+    CampaignRuntimeState, CampaignStore, CampaignStoreError, IntelTier, PlanetIntelSnapshot,
+    DEFAULT_CAMPAIGN_DB_NAME,
 };
-pub use support::{ParseError, decode_real48, encode_real48};
+pub use support::{decode_real48, encode_real48, ParseError};
 pub use turns::{
-    FleetTurnAction, FleetTurnBlock, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS,
-    PlanetTurnAction, PlanetTurnBlock, TurnDiplomacyDirective, TurnMessage, TurnSubmission,
-    TurnSubmissionError, TurnSubmissionReport,
+    FleetTurnAction, FleetTurnBlock, PlanetTurnAction, PlanetTurnBlock, TurnDiplomacyDirective,
+    TurnMessage, TurnSubmission, TurnSubmissionError, TurnSubmissionReport, MAX_MESSAGE_BODY_CHARS,
+    MAX_MESSAGE_SUBJECT_CHARS,
 };

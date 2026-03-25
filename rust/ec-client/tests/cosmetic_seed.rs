@@ -78,6 +78,7 @@ fn startup_splash_styles_are_deterministic_for_campaign_seed() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("load first app");
     let mut app_b = App::load(AppConfig {
@@ -85,6 +86,7 @@ fn startup_splash_styles_are_deterministic_for_campaign_seed() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        game_config: Default::default(),
     })
     .expect("load second app");
 

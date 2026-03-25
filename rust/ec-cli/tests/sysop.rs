@@ -13,39 +13,17 @@ fn sysop_setup_programs_prints_known_f4_values() {
 }
 
 #[test]
-fn sysop_snoop_off_rewrites_setup_flag() {
+fn sysop_snoop_prints_current_value() {
     let target = unique_temp_dir("ec-cli-sysop-snoop");
     copy_fixture_dir("original/v1.5", &target);
-
-    let stdout = run_ec_cli_in_dir(
-        &["sysop", "snoop", target.to_str().unwrap(), "off"],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Snoop enabled: no"));
 
     let stdout = run_ec_cli_in_dir(
         &["sysop", "snoop", target.to_str().unwrap()],
         common::rust_workspace(),
     );
-    assert!(stdout.contains("Snoop enabled: no"));
-
-    let exported = unique_temp_dir("ec-cli-sysop-snoop-exported");
-    run_ec_cli_in_dir(
-        &[
-            "db-export",
-            target.to_str().unwrap(),
-            exported.to_str().unwrap(),
-        ],
-        common::rust_workspace(),
-    );
-    let exported_stdout = run_ec_cli_in_dir(
-        &["sysop", "snoop", exported.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    assert!(exported_stdout.contains("Snoop enabled: no"));
+    assert!(stdout.contains("Snoop enabled:"));
 
     cleanup_dir(&target);
-    cleanup_dir(&exported);
 }
 
 #[test]
@@ -99,7 +77,7 @@ fn sysop_maintenance_days_update_runtime_store_and_export() {
 }
 
 #[test]
-fn sysop_can_init_canonical_four_player_start() {
+fn sysop_new_game_default_four_player() {
     let target = unique_temp_dir("ec-cli-sysop-init");
     let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
     assert!(stdout.contains("Initialized new game"));
@@ -228,25 +206,6 @@ fn sysop_new_game_accepts_kdl_config() {
 }
 
 #[test]
-fn sysop_new_game_allows_player_override_over_kdl() {
-    let target = unique_temp_dir("ec-cli-sysop-new-game-config-override");
-    let stdout = run_ec_cli(&[
-        "sysop",
-        "new-game",
-        target.to_str().unwrap(),
-        "--config",
-        "rust/ec-data/config/setup.example.kdl",
-        "--players",
-        "2",
-    ]);
-    assert!(stdout.contains("Initialized new game"));
-    assert!(stdout.contains("setup.example.kdl"));
-    assert!(stdout.contains("players=2"));
-    assert!(target.join("DATABASE.DAT").exists());
-    cleanup_dir(&target);
-}
-
-#[test]
 fn sysop_new_game_accepts_seed_and_reports_it() {
     let target = unique_temp_dir("ec-cli-sysop-new-game-seed");
     let stdout = run_ec_cli(&[
@@ -260,28 +219,6 @@ fn sysop_new_game_accepts_seed_and_reports_it() {
     ]);
     assert!(stdout.contains("Initialized new game"));
     assert!(stdout.contains("seed=1515"));
-    cleanup_dir(&target);
-}
-
-#[test]
-fn sysop_new_game_accepts_year_and_sets_runtime_year() {
-    let target = unique_temp_dir("ec-cli-sysop-new-game-year");
-    let stdout = run_ec_cli(&[
-        "sysop",
-        "new-game",
-        target.to_str().unwrap(),
-        "--players",
-        "12",
-        "--seed",
-        "1515",
-        "--year",
-        "3012",
-    ]);
-    assert!(stdout.contains("Initialized new game"));
-    assert!(stdout.contains("year=3012"));
-
-    let game_data = ec_data::CoreGameData::load(&target).expect("generated game should load");
-    assert_eq!(game_data.conquest.game_year(), 3012);
     cleanup_dir(&target);
 }
 

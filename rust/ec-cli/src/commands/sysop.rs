@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 
 use crate::commands::setup::{
-    init_canonical_four_player_start, init_new_game, init_new_game_from_config,
-    init_new_game_with_seed, print_autopilot_after, print_com_irq, print_flow_control,
-    print_local_timeout, print_maintenance_days, print_max_key_gap, print_minimum_time,
-    print_port_setup, print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
-    set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
-    set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
+    init_new_game, init_new_game_from_config, init_new_game_with_seed, print_autopilot_after,
+    print_com_irq, print_flow_control, print_local_timeout, print_maintenance_days,
+    print_max_key_gap, print_minimum_time, print_port_setup, print_purge_after,
+    print_remote_timeout, print_setup_programs, print_snoop, set_com_irq, set_flow_control,
+    set_maintenance_days,
 };
 use crate::support::paths::resolve_repo_path;
 use crate::usage::print_usage;
@@ -124,24 +123,12 @@ fn parse_seed_value(value: &str) -> Result<u64, String> {
         .map_err(|_| format!("seed must be a valid unsigned integer, got {value}"))
 }
 
-fn parse_year_value(value: &str) -> Result<u16, String> {
-    let year: u16 = value
-        .parse()
-        .map_err(|_| format!("invalid year: {value}"))?;
-    if (3000..=3100).contains(&year) {
-        Ok(year)
-    } else {
-        Err(format!("year must be 3000-3100, got {year}"))
-    }
-}
-
 fn parse_new_game_options(
     args: &[String],
-) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>, Option<u16>), String> {
+) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>), String> {
     let mut player_count = None;
     let mut config_path = None;
     let mut seed = None;
-    let mut year = None;
     let mut idx = 0;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -166,23 +153,16 @@ fn parse_new_game_options(
                 seed = Some(parse_seed_value(value)?);
                 idx += 2;
             }
-            "--year" => {
-                let Some(value) = args.get(idx + 1) else {
-                    return Err("missing value for --year".to_string());
-                };
-                year = Some(parse_year_value(value)?);
-                idx += 2;
-            }
             _ => {
                 return Err(
-                    "usage: sysop new-game <target_dir> [--players N] [--config path] [--seed N] [--year YYYY]"
+                    "usage: sysop new-game <target_dir> [--players N] [--config path] [--seed N]"
                         .to_string(),
                 );
             }
         }
     }
 
-    Ok((Some(player_count.unwrap_or(4)), config_path, seed, year))
+    Ok((Some(player_count.unwrap_or(4)), config_path, seed))
 }
 
 pub(crate) fn run_sysop_args(
@@ -195,13 +175,13 @@ pub(crate) fn run_sysop_args(
 
     match cmd.as_str() {
         "generate-gamestate" => generate_gamestate_from_args(args)?,
-        "new-game" | "init-canonical-four-player-start" => {
+        "new-game" => {
             let Some(target_dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
                 print_usage();
                 return Ok(());
             };
             let remaining = args.collect::<Vec<_>>();
-            let (player_count, config_path, seed, year) = match parse_new_game_options(&remaining) {
+            let (player_count, config_path, seed) = match parse_new_game_options(&remaining) {
                 Ok(options) => options,
                 Err(message) => {
                     eprintln!("Error: {message}");
@@ -210,9 +190,6 @@ pub(crate) fn run_sysop_args(
                 }
             };
             if let Some(config_path) = config_path {
-                if year.is_some() {
-                    return Err("--year is not supported with --config".into());
-                }
                 init_new_game_from_config(&target_dir, &config_path, player_count, seed)?;
                 println!(
                     "Initialized new game at: {} (config={}{}{}{}{})",
@@ -229,25 +206,17 @@ pub(crate) fn run_sysop_args(
                     if seed.is_some() { ", seed=" } else { "" },
                     seed.map(|value| value.to_string()).unwrap_or_default()
                 );
-            } else if player_count == Some(4) && cmd == "init-canonical-four-player-start" {
-                init_canonical_four_player_start(&target_dir)?;
-                println!(
-                    "Initialized canonical four-player start at: {}",
-                    target_dir.display()
-                );
             } else {
                 let player_count = player_count.expect("player count should be present");
-                let year = year.unwrap_or(3000);
                 if let Some(seed) = seed {
-                    init_new_game_with_seed(&target_dir, player_count, year, seed)?;
+                    init_new_game_with_seed(&target_dir, player_count, seed)?;
                 } else {
-                    init_new_game(&target_dir, player_count, year)?;
+                    init_new_game(&target_dir, player_count)?;
                 }
                 println!(
-                    "Initialized new game at: {} (players={}, year={}{}{})",
+                    "Initialized new game at: {} (players={}{}{})",
                     target_dir.display(),
                     player_count,
-                    year,
                     if seed.is_some() { ", seed=" } else { "" },
                     seed.map(|value| value.to_string()).unwrap_or_default()
                 );
@@ -272,22 +241,14 @@ pub(crate) fn run_sysop_args(
                 print_usage();
                 return Ok(());
             };
-            match args.next().as_deref() {
-                None => print_snoop(&dir)?,
-                Some("on") => set_snoop(&dir, true)?,
-                Some("off") => set_snoop(&dir, false)?,
-                Some(_) => print_usage(),
-            }
+            print_snoop(&dir)?;
         }
         "purge-after" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
                 print_usage();
                 return Ok(());
             };
-            match args.next() {
-                None => print_purge_after(&dir)?,
-                Some(value) => set_purge_after(&dir, value.parse()?)?,
-            }
+            print_purge_after(&dir)?;
         }
         "setup-programs" => {
             let dir = next_sysop_dir(&mut args);
@@ -332,54 +293,35 @@ pub(crate) fn run_sysop_args(
                 print_usage();
                 return Ok(());
             };
-            match args.next().as_deref() {
-                None => print_local_timeout(&dir)?,
-                Some("on") => set_local_timeout(&dir, true)?,
-                Some("off") => set_local_timeout(&dir, false)?,
-                Some(_) => print_usage(),
-            }
+            print_local_timeout(&dir)?;
         }
         "remote-timeout" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
                 print_usage();
                 return Ok(());
             };
-            match args.next().as_deref() {
-                None => print_remote_timeout(&dir)?,
-                Some("on") => set_remote_timeout(&dir, true)?,
-                Some("off") => set_remote_timeout(&dir, false)?,
-                Some(_) => print_usage(),
-            }
+            print_remote_timeout(&dir)?;
         }
         "max-key-gap" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
                 print_usage();
                 return Ok(());
             };
-            match args.next() {
-                None => print_max_key_gap(&dir)?,
-                Some(value) => set_max_key_gap(&dir, value.parse()?)?,
-            }
+            print_max_key_gap(&dir)?;
         }
         "minimum-time" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
                 print_usage();
                 return Ok(());
             };
-            match args.next() {
-                None => print_minimum_time(&dir)?,
-                Some(value) => set_minimum_time(&dir, value.parse()?)?,
-            }
+            print_minimum_time(&dir)?;
         }
         "autopilot-after" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
                 print_usage();
                 return Ok(());
             };
-            match args.next() {
-                None => print_autopilot_after(&dir)?,
-                Some(value) => set_autopilot_after(&dir, value.parse()?)?,
-            }
+            print_autopilot_after(&dir)?;
         }
         _ => print_usage(),
     }
