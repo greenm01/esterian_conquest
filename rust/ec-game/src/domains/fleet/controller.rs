@@ -101,11 +101,11 @@ impl App {
             FleetMenuPromptMode::TransportFleet(PlanetTransportMode::Unload) => {
                 "Unload Fleet # ".to_string()
             }
-            FleetMenuPromptMode::TransportPlanet(PlanetTransportMode::Load) => {
-                "Load Planet XX,YY ".to_string()
+            FleetMenuPromptMode::TransportQuantity(PlanetTransportMode::Load) => {
+                "How many armies to load? ".to_string()
             }
-            FleetMenuPromptMode::TransportPlanet(PlanetTransportMode::Unload) => {
-                "Unload Planet XX,YY ".to_string()
+            FleetMenuPromptMode::TransportQuantity(PlanetTransportMode::Unload) => {
+                "How many armies to unload? ".to_string()
             }
         })
     }
@@ -466,10 +466,6 @@ impl App {
         };
         let (allowed, max_len) = match mode {
             FleetMenuPromptMode::ChangeField => (ch.is_ascii_alphabetic(), 1),
-            FleetMenuPromptMode::TransportPlanet(_) => (
-                ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'),
-                16,
-            ),
             FleetMenuPromptMode::ChangeValue => {
                 let max_len = match self.fleet.menu_prompt_change_field {
                     Some(FleetChangeField::Roe) | Some(FleetChangeField::Speed) => 2,
@@ -990,16 +986,22 @@ impl App {
             {
                 Ok((_index, row)) => {
                     if let Err(err) = self
-                        .open_fleet_transport_planet_prompt(mode, row.fleet_record_index_1_based)
+                        .open_fleet_transport_quantity_prompt(mode, row.fleet_record_index_1_based)
                     {
                         self.fleet.menu_prompt_status = Some(err);
                     }
                 }
                 Err(err) => self.fleet.menu_prompt_status = Some(err),
             },
-            FleetMenuPromptMode::TransportPlanet(mode) => {
-                if let Err(err) = self.open_fleet_transport_quantity_prompt_from_menu(mode) {
-                    self.fleet.menu_prompt_status = Some(err);
+            FleetMenuPromptMode::TransportQuantity(_) => {
+                self.planet.transport_qty_input = self.fleet.menu_prompt_input.clone();
+                self.planet.transport_status = None;
+                if let Err(err) = self.submit_planet_transport_qty() {
+                    self.fleet.menu_prompt_status = Some(err.to_string());
+                    return;
+                }
+                if let Some(status) = self.planet.transport_status.take() {
+                    self.fleet.menu_prompt_status = Some(status);
                 }
             }
         }
@@ -1018,9 +1020,6 @@ impl App {
             KeyCode::Char(ch)
                 if match mode {
                     Some(FleetMenuPromptMode::ChangeField) => ch.is_ascii_alphabetic(),
-                    Some(FleetMenuPromptMode::TransportPlanet(_)) => {
-                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
-                    }
                     _ => ch.is_ascii_digit(),
                 } =>
             {

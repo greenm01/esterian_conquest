@@ -21,7 +21,7 @@ use crate::screen::table::{
     format_fleet_number, write_table_window_with_cursor, write_table_window_with_states_at,
 };
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, format_sector_coords,
+    PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, format_sector_coords,
     format_sector_coords_table,
 };
 use crate::theme::classic;
@@ -178,6 +178,8 @@ impl FleetMenuScreen {
         menu_prompt_default: &str,
         menu_prompt_input: &str,
         menu_prompt_status: Option<&str>,
+        inline_transport_mode: Option<PlanetTransportMode>,
+        inline_transport_summary: Option<&str>,
         info_default_coords: [u8; 2],
         info_input: &str,
         info_notice: Option<&str>,
@@ -250,6 +252,22 @@ impl FleetMenuScreen {
                 info_notice,
                 notice,
             );
+        } else if let Some(mode) = inline_transport_mode {
+            draw_title_bar(&mut buffer, 6, mode.title());
+            if let Some(summary) = inline_transport_summary {
+                buffer.write_text(8, 0, summary, classic::status_value_style());
+            }
+            let quantity_row = draw_command_line_default_input_at(
+                &mut buffer,
+                10,
+                "FLEET COMMAND",
+                menu_prompt_label.unwrap_or("How many armies? "),
+                menu_prompt_default,
+                menu_prompt_input,
+            );
+            if let Some(status) = menu_prompt_status {
+                draw_inline_status_after(&mut buffer, quantity_row, status);
+            }
         } else if menu_prompt_mode.is_some() {
             draw_command_line_default_input_at(
                 &mut buffer,
@@ -290,6 +308,8 @@ impl Screen for FleetMenuScreen {
             None,
             "",
             "",
+            None,
+            None,
             None,
             [0, 0],
             "",

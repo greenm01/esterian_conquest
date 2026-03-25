@@ -2,6 +2,7 @@ use crate::app::helpers::{
     center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
 };
 use crate::app::state::App;
+use crate::domains::fleet::state::FleetMenuPromptMode;
 use crate::screen::{
     CommandMenu, PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, ScreenId,
 };
@@ -11,6 +12,12 @@ use std::cmp::Reverse;
 impl App {
     pub fn open_fleet_transport_prompt(&mut self, mode: PlanetTransportMode) {
         self.command_return_menu = CommandMenu::Fleet;
+        self.planet.transport_mode = Some(mode);
+        self.planet.transport_selected_planet_record = None;
+        self.planet.transport_selected_fleet_record = None;
+        self.planet.transport_fleet_first = false;
+        self.planet.transport_qty_input.clear();
+        self.planet.transport_status = None;
         if self.planet_transport_planet_rows(mode).is_empty() {
             self.show_command_menu_notice(
                 CommandMenu::Fleet,
@@ -26,7 +33,7 @@ impl App {
             return;
         }
         self.open_fleet_menu_prompt(
-            crate::domains::fleet::state::FleetMenuPromptMode::TransportFleet(mode),
+            FleetMenuPromptMode::TransportFleet(mode),
             self.default_fleet_transport_fleet_number(mode)
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
@@ -100,11 +107,7 @@ impl App {
                 if ranking_qty == 0 {
                     return None;
                 }
-                let transport_possible = match mode {
-                    PlanetTransportMode::Load => planet.armies > 0,
-                    PlanetTransportMode::Unload => planet.armies < u8::MAX,
-                };
-                if !transport_possible {
+                if self.transport_available_qty(mode, fleet, &planet) == 0 {
                     return None;
                 }
                 Some((ranking_qty, Reverse(fleet.local_slot_word_raw())))
@@ -113,7 +116,24 @@ impl App {
             .map(|(_, fleet_number)| fleet_number.0)
     }
 
-    pub(crate) fn open_fleet_transport_planet_prompt(
+    fn transport_available_qty(
+        &self,
+        mode: PlanetTransportMode,
+        fleet: &ec_data::FleetRecord,
+        planet: &ec_data::EmpirePlanetEconomyRow,
+    ) -> u16 {
+        match mode {
+            PlanetTransportMode::Load => fleet
+                .troop_transport_count()
+                .saturating_sub(fleet.army_count())
+                .min(u16::from(planet.armies)),
+            PlanetTransportMode::Unload => fleet
+                .army_count()
+                .min(u16::from(u8::MAX.saturating_sub(planet.armies))),
+        }
+    }
+
+    pub(crate) fn open_fleet_transport_quantity_prompt(
         &mut self,
         mode: PlanetTransportMode,
         fleet_record_index_1_based: usize,
@@ -130,6 +150,9 @@ impl App {
         let planet = self
             .owned_planet_row_for_fleet(fleet)
             .ok_or_else(|| "That fleet is not at one of your worlds.".to_string())?;
+        if fleet.troop_transport_count() == 0 {
+            return Err("That fleet has no troop transports.".to_string());
+        }
         match mode {
             PlanetTransportMode::Load => {
                 if fleet
@@ -137,7 +160,7 @@ impl App {
                     .saturating_sub(fleet.army_count())
                     == 0
                 {
-                    return Err("That fleet has no empty troop transports to load.".to_string());
+                    return Err("That fleet's troop transports are already full.".to_string());
                 }
                 if planet.armies == 0 {
                     return Err("That world has no armies available to load.".to_string());
@@ -145,86 +168,37 @@ impl App {
             }
             PlanetTransportMode::Unload => {
                 if fleet.army_count() == 0 {
-                    return Err("That fleet has no loaded troop transports to unload.".to_string());
+                    return Err("That fleet's troop transports are already empty.".to_string());
                 }
                 if planet.armies == u8::MAX {
-                    return Err(
-                        "That world has no room to receive unloaded armies.".to_string()
-                    );
+                    return Err("That world has no room to receive unloaded armies.".to_string());
                 }
             }
         }
-        let eligible_planets =
-            self.fleet_transport_planet_rows_for_fleet(mode, fleet_record_index_1_based);
-        if eligible_planets.is_empty() {
+        let max_qty = self.transport_available_qty(mode, fleet, &planet);
+        if max_qty == 0 {
             return Err(match mode {
                 PlanetTransportMode::Load => {
-                    "No eligible planets at that fleet's location can load armies.".to_string()
+                    "That fleet cannot load any armies from that world right now.".to_string()
                 }
                 PlanetTransportMode::Unload => {
-                    "No eligible planets at that fleet's location can receive unloaded armies."
-                        .to_string()
+                    "That fleet cannot unload any armies to that world right now.".to_string()
                 }
             });
         }
         self.command_return_menu = CommandMenu::Fleet;
         self.planet.transport_mode = Some(mode);
         self.planet.transport_selected_fleet_record = Some(fleet_record_index_1_based);
-        self.planet.transport_selected_planet_record = None;
+        self.planet.transport_selected_planet_record = Some(planet.planet_record_index_1_based);
         self.planet.transport_fleet_first = true;
         self.planet.transport_qty_input.clear();
         self.planet.transport_status = None;
         self.fleet.menu_prompt_context_fleet_record_index_1_based =
             Some(fleet_record_index_1_based);
         self.open_fleet_menu_prompt(
-            crate::domains::fleet::state::FleetMenuPromptMode::TransportPlanet(mode),
-            format!(
-                "{:02},{:02}",
-                fleet.current_location_coords_raw()[0],
-                fleet.current_location_coords_raw()[1]
-            ),
+            FleetMenuPromptMode::TransportQuantity(mode),
+            max_qty.to_string(),
         );
-        Ok(())
-    }
-
-    pub(crate) fn open_fleet_transport_quantity_prompt_from_menu(
-        &mut self,
-        mode: PlanetTransportMode,
-    ) -> Result<(), String> {
-        let fleet_record_index_1_based = self
-            .planet
-            .transport_selected_fleet_record
-            .or(self.fleet.menu_prompt_context_fleet_record_index_1_based)
-            .ok_or_else(|| "Select a fleet first.".to_string())?;
-        let fleet = self
-            .game_data
-            .fleets
-            .records
-            .get(fleet_record_index_1_based - 1)
-            .ok_or_else(|| "Selected fleet is no longer available.".to_string())?;
-        let default_coords = fleet.current_location_coords_raw();
-        let coords = resolve_default_coords_input(&self.fleet.menu_prompt_input, default_coords)
-            .ok_or_else(|| "Enter coordinates like 05,02".to_string())?;
-        let planet_row = self
-            .fleet_transport_planet_rows_for_fleet(mode, fleet_record_index_1_based)
-            .into_iter()
-            .find(|row| row.coords == coords)
-            .ok_or_else(|| {
-                format!(
-                    "Fleet #{:02} has no eligible planet at [{:02},{:02}].",
-                    fleet.local_slot_word_raw(),
-                    coords[0],
-                    coords[1]
-                )
-            })?;
-        self.clear_fleet_menu_prompt();
-        self.planet.transport_mode = Some(mode);
-        self.planet.transport_selected_fleet_record = Some(fleet_record_index_1_based);
-        self.planet.transport_selected_planet_record = Some(planet_row.planet_record_index_1_based);
-        self.planet.transport_fleet_first = true;
-        self.planet.transport_qty_input.clear();
-        self.planet.transport_status = None;
-        self.current_screen = ScreenId::PlanetTransportQuantityPrompt(mode);
         Ok(())
     }
 
@@ -398,11 +372,21 @@ impl App {
     }
 
     pub fn submit_planet_transport_qty(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let inline_fleet_menu_mode = if self.current_screen == ScreenId::FleetMenu {
+            match self.fleet.menu_prompt_mode {
+                Some(FleetMenuPromptMode::TransportQuantity(mode)) => Some(mode),
+                _ => None,
+            }
+        } else {
+            None
+        };
         let mode = match self.current_screen {
             ScreenId::PlanetTransportFleetSelect(mode)
             | ScreenId::PlanetTransportQuantityPrompt(mode) => mode,
+            ScreenId::FleetMenu => inline_fleet_menu_mode.ok_or("transport mode missing")?,
             _ => return Ok(()),
         };
+        let inline_fleet_menu = inline_fleet_menu_mode == Some(mode);
         let fleet = self.current_planet_transport_fleet_row(mode)?;
         let max_qty = fleet.available_qty;
         if max_qty == 0 {
@@ -417,7 +401,9 @@ impl App {
                     )
                 }
             });
-            self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+            if !inline_fleet_menu {
+                self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+            }
             return Ok(());
         }
         let qty = if self.planet.transport_qty_input.trim().is_empty() {
@@ -458,7 +444,9 @@ impl App {
                 } else {
                     format!("Planet can receive only {available} more armies.")
                 });
-                self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+                if !inline_fleet_menu {
+                    self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+                }
                 return Ok(());
             }
             Err(err) => return Err(err.into()),
@@ -473,6 +461,7 @@ impl App {
             self.planet.transport_selected_planet_record = None;
             self.planet.transport_selected_fleet_record = None;
             self.planet.transport_fleet_first = false;
+            self.clear_fleet_menu_prompt();
             self.show_command_menu_notice(
                 CommandMenu::Fleet,
                 match mode {
@@ -579,10 +568,9 @@ impl App {
         &self,
         mode: PlanetTransportMode,
     ) -> Result<PlanetTransportPlanetRow, Box<dyn std::error::Error>> {
-        if matches!(
-            self.current_screen,
-            ScreenId::PlanetTransportFleetSelect(_) | ScreenId::PlanetTransportQuantityPrompt(_)
-        ) {
+        if self.planet.transport_fleet_first
+            && self.planet.transport_selected_planet_record.is_some()
+        {
             let selected_record = self
                 .planet
                 .transport_selected_planet_record
@@ -629,10 +617,8 @@ impl App {
         &self,
         mode: PlanetTransportMode,
     ) -> Result<PlanetTransportFleetRow, Box<dyn std::error::Error>> {
-        if matches!(
-            self.current_screen,
-            ScreenId::PlanetTransportQuantityPrompt(_)
-        ) && self.planet.transport_fleet_first
+        if self.planet.transport_fleet_first
+            && self.planet.transport_selected_fleet_record.is_some()
         {
             let selected_record = self
                 .planet
@@ -656,56 +642,6 @@ impl App {
             .ok_or_else(|| "current transport fleet missing".into())
     }
 
-    fn fleet_transport_planet_rows_for_fleet(
-        &self,
-        mode: PlanetTransportMode,
-        fleet_record_index_1_based: usize,
-    ) -> Vec<PlanetTransportPlanetRow> {
-        let Some(fleet) = self
-            .game_data
-            .fleets
-            .records
-            .get(fleet_record_index_1_based - 1)
-        else {
-            return Vec::new();
-        };
-        let available_qty = match mode {
-            PlanetTransportMode::Load => fleet
-                .troop_transport_count()
-                .saturating_sub(fleet.army_count()),
-            PlanetTransportMode::Unload => fleet.army_count(),
-        };
-        if available_qty == 0 {
-            return Vec::new();
-        }
-        self.build_planet_rows()
-            .into_iter()
-            .filter_map(|row| {
-                if row.coords != fleet.current_location_coords_raw() {
-                    return None;
-                }
-                let fleet_available_qty = match mode {
-                    PlanetTransportMode::Load => available_qty,
-                    PlanetTransportMode::Unload => {
-                        available_qty.min(u16::from(u8::MAX.saturating_sub(row.armies)))
-                    }
-                };
-                if fleet_available_qty == 0
-                    || (mode == PlanetTransportMode::Load && row.armies == 0)
-                {
-                    return None;
-                }
-                Some(PlanetTransportPlanetRow {
-                    planet_record_index_1_based: row.planet_record_index_1_based,
-                    planet_name: row.planet_name,
-                    coords: row.coords,
-                    planet_armies: row.armies,
-                    transport_capacity: fleet_available_qty,
-                })
-            })
-            .collect()
-    }
-
     fn planet_transport_fleet_rows_for_planet(
         &self,
         mode: PlanetTransportMode,
@@ -722,14 +658,7 @@ impl App {
                     && fleet.troop_transport_count() > 0
             })
             .map(|(idx, fleet)| {
-                let available_qty = match mode {
-                    PlanetTransportMode::Load => fleet
-                        .troop_transport_count()
-                        .saturating_sub(fleet.army_count()),
-                    PlanetTransportMode::Unload => fleet
-                        .army_count()
-                        .min(u16::from(u8::MAX.saturating_sub(row.armies))),
-                };
+                let available_qty = self.transport_available_qty(mode, fleet, row);
                 PlanetTransportFleetRow {
                     fleet_record_index_1_based: idx + 1,
                     fleet_number: fleet.local_slot_word_raw(),

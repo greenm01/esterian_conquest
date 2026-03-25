@@ -1179,7 +1179,7 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
 fn first_time_join_summary_and_no_pending_accept_any_key_dismissal() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1352,7 +1352,7 @@ fn returning_player_with_owned_unnamed_colony_is_routed_to_colony_naming() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -5674,16 +5674,29 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     assert!(prompt.contains("Load Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
     submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
-        .expect("fleet load planet prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Load Planet XX,YY");
-    assert!(prompt.contains("Load Planet XX,YY ["));
+        .expect("fleet load quantity prompt should render inline");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("LOAD ARMIES ONTO TROOP TRANSPORTS:"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Planet:") && line.contains("Fleet 01"))
+    );
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to load?");
+    assert!(prompt.contains("How many armies to load? [4]"));
     assert!(prompt.contains("<Q> ->"));
     assert!(
         terminal
             .lines
             .iter()
-            .all(|line| !line.contains("Select a planet, then press ENTER to load armies."))
+            .all(|line| !line.contains("Load Planet XX,YY"))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
@@ -5709,6 +5722,25 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
         .expect("fleet unload prompt should render");
     let prompt = line_containing(&terminal, "FLEET COMMAND <- Unload Fleet #");
     assert!(prompt.contains("Unload Fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
+    submit_fleet_menu_prompt(&mut app, Some(2));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    app.render(&mut terminal)
+        .expect("fleet unload quantity prompt should render inline");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("UNLOAD ARMIES FROM TROOP TRANSPORTS:"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Planet:") && line.contains("Fleet 02"))
+    );
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to unload?");
+    assert!(prompt.contains("How many armies to unload? [3]"));
     assert!(prompt.contains("<Q> ->"));
 }
 
@@ -6028,7 +6060,7 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
 }
 
 #[test]
-fn fleet_transport_planet_picker_accepts_typed_coordinates() {
+fn fleet_transport_quantity_prompt_stays_inline_on_fleet_menu() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     let homeworld_index =
@@ -6064,34 +6096,281 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
     app.render(&mut terminal)
         .expect("fleet load prompt should render");
     submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
-        .expect("fleet load planet prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Load Planet XX,YY");
-    let default_coords = prompt
-        .split('[')
-        .nth(1)
-        .and_then(|tail| tail.split(']').next())
-        .expect("default coords should be shown in prompt");
-    for ch in default_coords.chars() {
-        assert_eq!(
-            apply_action(
-                &mut app,
-                Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
-            ),
-            AppOutcome::Continue
-        );
-    }
+        .expect("fleet load quantity prompt should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Load Planet XX,YY"))
+    );
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- How many armies to load?").contains("<Q> ->")
+    );
+}
+
+#[test]
+fn fleet_transport_load_prompt_rejects_fleet_already_full() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(12);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet.set_current_location_coords_raw(home_coords);
+    fleet.set_troop_transport_count(4);
+    fleet.set_army_count(4);
+    fleet.recompute_max_speed_from_composition();
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(2);
+    fleet_two.set_army_count(0);
+    fleet_two.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        app.current_screen(),
-        ScreenId::PlanetTransportQuantityPrompt(ec_game::screen::PlanetTransportMode::Load)
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
+        AppOutcome::Continue
     );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("That fleet's troop transports are already full.")
+    );
+}
+
+#[test]
+fn fleet_transport_unload_prompt_rejects_fleet_already_empty() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet.set_current_location_coords_raw(home_coords);
+    fleet.set_troop_transport_count(4);
+    fleet.set_army_count(0);
+    fleet.recompute_max_speed_from_composition();
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(2);
+    fleet_two.set_army_count(1);
+    fleet_two.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("That fleet's troop transports are already empty.")
+    );
+}
+
+#[test]
+fn fleet_transport_load_default_skips_full_fleets_and_caps_qty_by_planet_armies() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_planet = &mut state.game_data.planets.records[homeworld_index];
+    let home_coords = home_planet.coords_raw();
+    home_planet.set_army_count_raw(2);
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(home_coords);
+    fleet_one.set_troop_transport_count(6);
+    fleet_one.set_army_count(6);
+    fleet_one.recompute_max_speed_from_composition();
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(5);
+    fleet_two.set_army_count(1);
+    fleet_two.recompute_max_speed_from_composition();
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw(home_coords);
+    fleet_three.set_troop_transport_count(6);
+    fleet_three.set_army_count(0);
+    fleet_three.recompute_max_speed_from_composition();
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.fleet.menu_prompt_default_value, "3");
+    submit_fleet_menu_prompt(&mut app, None);
+    let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load quantity prompt should render");
-    assert!(line_containing(&terminal, "How many armies to load? ").contains("<Q> ->"));
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to load?");
+    assert!(prompt.contains("[2]"));
+}
+
+#[test]
+fn fleet_transport_unload_default_skips_empty_fleets_and_caps_qty_by_planet_capacity() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(253);
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(home_coords);
+    fleet_one.set_troop_transport_count(6);
+    fleet_one.set_army_count(0);
+    fleet_one.recompute_max_speed_from_composition();
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(home_coords);
+    fleet_two.set_troop_transport_count(5);
+    fleet_two.set_army_count(5);
+    fleet_two.recompute_max_speed_from_composition();
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw(home_coords);
+    fleet_three.set_troop_transport_count(4);
+    fleet_three.set_army_count(2);
+    fleet_three.recompute_max_speed_from_composition();
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should reload");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+    submit_fleet_menu_prompt(&mut app, None);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet unload quantity prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to unload?");
+    assert!(prompt.contains("[2]"));
 }
 
 #[test]
@@ -11225,7 +11504,12 @@ fn fleet_detach_last_commissioned_message_persists_until_overwritten() {
         .trim_end()
         .to_string();
     assert_ne!(second_commission_message, first_commission_message);
-    assert!(!terminal.lines.iter().any(|line| line.contains(&first_commission_message)));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&first_commission_message))
+    );
 }
 
 #[test]
@@ -11399,12 +11683,9 @@ fn fleet_detach_final_commission_returns_to_menu_with_new_fleet_number_notice() 
         .local_slot_word_raw();
 
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
-    assert!(
-        line_containing(&terminal, "Notice: ")
-            .contains(&format!(
-                "Detached ships from Fleet #01 into Fleet #{new_fleet_number:02}."
-            ))
-    );
+    assert!(line_containing(&terminal, "Notice: ").contains(&format!(
+        "Detached ships from Fleet #01 into Fleet #{new_fleet_number:02}."
+    )));
 }
 
 #[test]
@@ -11468,8 +11749,7 @@ fn fleet_detach_prompt_reports_missing_fleet_number() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(app.fleet.menu_prompt_default_value, "2");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Detach Fleet #")
-            .contains("Detach Fleet #")
+        line_containing(&terminal, "FLEET COMMAND <- Detach Fleet #").contains("Detach Fleet #")
     );
     assert!(
         terminal

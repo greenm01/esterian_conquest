@@ -26,7 +26,7 @@ pub enum FleetMenuPromptMode {
     TransferDonor,
     TransferHost,
     TransportFleet(PlanetTransportMode),
-    TransportPlanet(PlanetTransportMode),
+    TransportQuantity(PlanetTransportMode),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

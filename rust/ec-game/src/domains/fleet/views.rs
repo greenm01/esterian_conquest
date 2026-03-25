@@ -1,5 +1,5 @@
 use crate::app::state::App;
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, ScreenId};
+use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, ScreenId, format_sector_coords};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
@@ -8,6 +8,22 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+    };
+    let inline_transport = match app.fleet.menu_prompt_mode {
+        Some(crate::domains::fleet::state::FleetMenuPromptMode::TransportQuantity(mode)) => {
+            let planet = app.current_planet_transport_planet_row(mode)?;
+            let fleet = app.current_planet_transport_fleet_row(mode)?;
+            Some((
+                mode,
+                format!(
+                    "Planet: {} {}   Fleet {:02}",
+                    planet.planet_name,
+                    format_sector_coords(planet.coords),
+                    fleet.fleet_number
+                ),
+            ))
+        }
+        _ => None,
     };
     match app.current_screen {
         ScreenId::FleetHelp => app.fleet_help.render(&frame),
@@ -21,6 +37,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet.menu_prompt_default_value,
             &app.fleet.menu_prompt_input,
             app.fleet.menu_prompt_status.as_deref(),
+            inline_transport.as_ref().map(|(mode, _)| *mode),
+            inline_transport
+                .as_ref()
+                .map(|(_, summary)| summary.as_str()),
             app.default_planet_prompt_coords(),
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
