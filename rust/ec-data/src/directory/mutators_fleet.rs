@@ -2,6 +2,40 @@ use super::support::*;
 use super::*;
 
 impl CoreGameData {
+    pub fn set_fleet_local_slot(
+        &mut self,
+        player_index_1_based: usize,
+        fleet_index_1_based: usize,
+        local_slot: u16,
+    ) -> Result<(), GameStateMutationError> {
+        let owner_empire = player_index_1_based as u8;
+        let fleet = self.fleets.records.get(fleet_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_index_1_based,
+            },
+        )?;
+        if fleet.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetOwnershipMismatch {
+                player_index_1_based,
+                fleet_index_1_based,
+            });
+        }
+        if local_slot == 0
+            || self.fleets.records.iter().enumerate().any(|(idx, other)| {
+                idx + 1 != fleet_index_1_based
+                    && other.owner_empire_raw() == owner_empire
+                    && other.local_slot_word_raw() == local_slot
+            })
+        {
+            return Err(GameStateMutationError::InvalidFleetLocalSlot {
+                fleet_index_1_based,
+                requested: local_slot,
+            });
+        }
+        self.fleets.records[fleet_index_1_based - 1].set_local_slot_word_raw(local_slot);
+        Ok(())
+    }
+
     pub fn set_fleet_order(
         &mut self,
         record_index_1_based: usize,

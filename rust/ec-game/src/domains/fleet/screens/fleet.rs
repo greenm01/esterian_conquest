@@ -48,11 +48,9 @@ pub struct FleetRow {
 pub struct FleetMenuScreen;
 pub struct FleetListScreen;
 pub struct FleetReviewScreen;
-pub struct FleetRoeScreen;
 pub struct FleetSingleOrderScreen;
 pub struct FleetGroupScreen;
 pub struct FleetMissionPickerScreen;
-pub struct FleetMergeScreen;
 pub struct FleetTransferScreen;
 pub struct FleetEtaScreen;
 pub struct FleetDetachScreen;
@@ -67,7 +65,6 @@ pub enum FleetSingleOrderMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetEtaMode {
-    SelectingFleet,
     EnteringDestination,
     ConfirmingSystemEntry,
     ShowingResult,
@@ -75,7 +72,6 @@ pub enum FleetEtaMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetDetachMode {
-    SelectingFleet,
     EnteringBattleships,
     EnteringCruisers,
     EnteringDestroyers,
@@ -88,14 +84,7 @@ pub enum FleetDetachMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FleetMergeMode {
-    SelectingSource,
-    SelectingHost,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetTransferMode {
-    SelectingFleets,
     EnteringBattleships,
     EnteringCruisers,
     EnteringDestroyers,
@@ -149,14 +138,6 @@ const ROW_4: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_4, "U", "nload TT Armies"),
 ];
 
-const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
-    TableColumn::right("ID", 2),
-    TableColumn::left("Location", 10),
-    TableColumn::right("Spd", 7),
-    TableColumn::right("ROE", 3),
-    TableColumn::left("Ships", 52),
-];
-
 fn mission_picker_columns() -> Vec<TableColumn<'static>> {
     let columns = [
         TableColumn::right("No.", 3),
@@ -176,25 +157,6 @@ fn mission_picker_columns() -> Vec<TableColumn<'static>> {
     fit_table_columns(&columns, &rows)
 }
 
-fn fleet_selector_columns(max_fleet_number: u16) -> [TableColumn<'static>; 7] {
-    [
-        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-        TableColumn::left("Location", 10),
-        TableColumn::right("Spd", 7),
-        TableColumn::right("ROE", 3),
-        TableColumn::right("Ord", 3),
-        TableColumn::left("Target", 10),
-        TableColumn::left("Ships", 31),
-    ]
-}
-
-fn fleet_menu_prompt_label(mode: FleetMenuPromptMode) -> &'static str {
-    match mode {
-        FleetMenuPromptMode::Review => "Review Fleet # ",
-        FleetMenuPromptMode::Order => "Order Fleet # ",
-    }
-}
-
 impl FleetMenuScreen {
     pub fn new() -> Self {
         Self
@@ -206,7 +168,8 @@ impl FleetMenuScreen {
         expert_mode: bool,
         inline_planet_info: bool,
         menu_prompt_mode: Option<FleetMenuPromptMode>,
-        menu_prompt_default: Option<u16>,
+        menu_prompt_label: Option<&str>,
+        menu_prompt_default: &str,
         menu_prompt_input: &str,
         menu_prompt_status: Option<&str>,
         info_default_coords: [u8; 2],
@@ -224,15 +187,13 @@ impl FleetMenuScreen {
                     info_notice,
                     notice,
                 );
-            } else if let Some(prompt_mode) = menu_prompt_mode {
+            } else if menu_prompt_mode.is_some() {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "FLEET COMMAND",
-                    fleet_menu_prompt_label(prompt_mode),
-                    &menu_prompt_default
-                        .map(|value| value.to_string())
-                        .unwrap_or_default(),
+                    menu_prompt_label.unwrap_or("Command "),
+                    menu_prompt_default,
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
@@ -283,15 +244,13 @@ impl FleetMenuScreen {
                 info_notice,
                 notice,
             );
-        } else if let Some(prompt_mode) = menu_prompt_mode {
+        } else if menu_prompt_mode.is_some() {
             draw_command_line_default_input_at(
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
-                fleet_menu_prompt_label(prompt_mode),
-                &menu_prompt_default
-                    .map(|value| value.to_string())
-                    .unwrap_or_default(),
+                menu_prompt_label.unwrap_or("Command "),
+                menu_prompt_default,
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
@@ -317,7 +276,19 @@ impl Screen for FleetMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false, false, None, None, "", None, [0, 0], "", None)
+        self.render_with_notice(
+            None,
+            false,
+            false,
+            None,
+            None,
+            "",
+            "",
+            None,
+            [0, 0],
+            "",
+            None,
+        )
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -331,7 +302,9 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Fleet(FleetAction::OpenMerge),
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Fleet(FleetAction::OpenOrder),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Fleet(FleetAction::OpenTransfer),
-            KeyCode::Char('c') | KeyCode::Char('C') => Action::Fleet(FleetAction::OpenRoeSelect),
+            KeyCode::Char('c') | KeyCode::Char('C') => {
+                Action::Fleet(FleetAction::OpenChangePrompt)
+            }
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::Fleet(FleetAction::OpenTransportLoad)
             }
@@ -519,119 +492,6 @@ impl FleetReviewScreen {
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::CloseReview)
-            }
-            _ => Action::Noop,
-        }
-    }
-}
-
-impl FleetRoeScreen {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn render_select(
-        &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
-        editing: bool,
-        select_input: &str,
-        input: &str,
-        status: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "CHANGE FLEET ROE:", classic::title_style());
-        let max_fleet_number = max_fleet_number(rows);
-        let brief_columns = brief_columns(max_fleet_number);
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Select a fleet, then press ENTER to change its rules of engagement.",
-        );
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.table_composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            3,
-            &brief_columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if table_rows.is_empty() {
-                None
-            } else {
-                Some(cursor)
-            },
-        );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if table_rows.is_empty() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "COMMANDS",
-                "You have no active fleets. Q quits.",
-            );
-        } else if editing {
-            let row = &rows[cursor];
-            draw_command_line_default_input_at(
-                &mut buffer,
-                command_row,
-                "FLEET COMMAND",
-                &format!(
-                    "Fleet #{} new ROE ",
-                    format_fleet_number(row.fleet_number, max_fleet_number)
-                ),
-                &row.rules_of_engagement.to_string(),
-                input,
-            );
-        } else {
-            draw_table_command_bar_at(
-                &mut buffer,
-                command_row,
-                "<ARROWS J K Q>",
-                Some(&format_fleet_number(
-                    rows[cursor].fleet_number,
-                    max_fleet_number,
-                )),
-                select_input,
-            );
-        }
-        if !table_rows.is_empty() {
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
-        }
-        Ok(buffer)
-    }
-
-    pub fn handle_select_key(&self, key: KeyEvent) -> Action {
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                Action::Fleet(FleetAction::MoveRoeSelect(-1))
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                Action::Fleet(FleetAction::MoveRoeSelect(1))
-            }
-            KeyCode::PageUp => Action::Fleet(FleetAction::MoveRoeSelect(-8)),
-            KeyCode::PageDown => Action::Fleet(FleetAction::MoveRoeSelect(8)),
-            KeyCode::Enter => Action::Noop,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Fleet(FleetAction::OpenMenu)
             }
             _ => Action::Noop,
         }
@@ -877,11 +737,8 @@ impl FleetEtaScreen {
 
     pub fn render(
         &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
+        row: &FleetRow,
         mode: FleetEtaMode,
-        select_input: &str,
         destination_default: [u8; 2],
         destination_input: &str,
         include_system_input: &str,
@@ -890,66 +747,28 @@ impl FleetEtaScreen {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "CALCULATE FLEET ETA:", classic::title_style());
-        let max_fleet_number = max_fleet_number(rows);
-        let eta_columns = fleet_selector_columns(max_fleet_number);
+        draw_status_line(&mut buffer, 1, "Fleet ID: ", &row.fleet_number.to_string());
         draw_status_line(
             &mut buffer,
-            1,
-            "",
-            "Select a fleet, then enter a destination to calculate arrival time.",
+            2,
+            "Location: ",
+            &format_sector_coords_table(row.coords),
         );
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.order_code.to_string(),
-                    format_sector_coords_table(row.target_coords),
-                    row.table_composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
+        draw_status_line(
             &mut buffer,
             3,
-            &eta_columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if table_rows.is_empty() {
-                None
-            } else {
-                Some(cursor)
-            },
+            "Current / Max Speed: ",
+            &format!("{}/{}", row.current_speed, row.max_speed),
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if table_rows.is_empty() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "COMMANDS",
-                "You have no active fleets. Q quits.",
-            );
-            return Ok(buffer);
-        }
+        draw_status_line(
+            &mut buffer,
+            4,
+            "Current Target: ",
+            &format_sector_coords_table(row.target_coords),
+        );
+        draw_status_line(&mut buffer, 5, "Ships: ", &row.composition_label);
+        let command_row = menu_prompt_row(5);
         match mode {
-            FleetEtaMode::SelectingFleet => {
-                draw_table_command_bar_at(
-                    &mut buffer,
-                    command_row,
-                    "<ARROWS J K Q>",
-                    Some(&format_fleet_number(
-                        rows[cursor].fleet_number,
-                        max_fleet_number,
-                    )),
-                    select_input,
-                );
-            }
             FleetEtaMode::EnteringDestination => {
                 draw_command_line_default_input_at(
                     &mut buffer,
@@ -979,94 +798,8 @@ impl FleetEtaScreen {
                 );
             }
         }
-        if mode != FleetEtaMode::ShowingResult {
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
-        }
-        Ok(buffer)
-    }
-}
-
-impl FleetMergeScreen {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn render(
-        &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
-        mode: FleetMergeMode,
-        input: &str,
-        status: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "MERGE A FLEET:", classic::title_style());
-        let max_fleet_number = max_fleet_number(rows);
-        let brief_columns = brief_columns(max_fleet_number);
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            match mode {
-                FleetMergeMode::SelectingSource => "Select the fleet that will join another fleet.",
-                FleetMergeMode::SelectingHost => {
-                    "Select the host fleet that will absorb the joining fleet."
-                }
-            },
-        );
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.table_composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            3,
-            &brief_columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if table_rows.is_empty() {
-                None
-            } else {
-                Some(cursor)
-            },
-        );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if table_rows.is_empty() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "COMMANDS",
-                "At least two fleets are required. Q quits.",
-            );
-        } else {
-            draw_table_command_bar_at(
-                &mut buffer,
-                command_row,
-                "<ARROWS J K Q>",
-                Some(&format_fleet_number(
-                    rows[cursor].fleet_number,
-                    max_fleet_number,
-                )),
-                input,
-            );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
+        if mode != FleetEtaMode::ShowingResult && let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1333,125 +1066,62 @@ impl FleetTransferScreen {
 
     pub fn render(
         &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
-        mode: FleetTransferMode,
-        selected_fleet_record_indexes: &BTreeSet<usize>,
-        donor_fleet_number: Option<u16>,
-        host_fleet_number: Option<u16>,
+        donor_row: &FleetRow,
+        host_row: &FleetRow,
+        _mode: FleetTransferMode,
         input: &str,
         status: Option<&str>,
         prompt: &str,
         default: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let max_fleet_number = max_fleet_number(rows);
-        let columns = [
-            TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-            TableColumn::center("Sel", 3),
-            TableColumn::left("Location", 10),
-            TableColumn::right("Spd", 7),
-            TableColumn::right("ROE", 3),
-            TableColumn::right("Ord", 3),
-            TableColumn::left("Target", 10),
-            TableColumn::left("Ships", 27),
-        ];
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "TRANSFER SHIPS:", classic::title_style());
         draw_status_line(
             &mut buffer,
             1,
             "",
-            match mode {
-                FleetTransferMode::SelectingFleets => {
-                    "Select two fleets in one sector. Highlight the host fleet, then press ENTER."
-                }
-                _ => "Enter ship counts to transfer from the donor fleet to the host fleet.",
-            },
+            "Enter ship counts to transfer from the donor fleet to the host fleet.",
         );
-        match mode {
-            FleetTransferMode::SelectingFleets => {
-                draw_status_line(
-                    &mut buffer,
-                    2,
-                    "Selected fleets: ",
-                    &selected_fleet_record_indexes.len().to_string(),
-                );
-            }
-            _ => {
-                if let Some(donor) = donor_fleet_number {
-                    draw_status_line(&mut buffer, 2, "Donor: ", &format!("Fleet #{donor}"));
-                }
-                if let Some(host) = host_fleet_number {
-                    draw_status_line(&mut buffer, 2, "Host: ", &format!("Fleet #{host}"));
-                }
-            }
-        }
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    if selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based) {
-                        "X".to_string()
-                    } else {
-                        "".to_string()
-                    },
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.order_code.to_string(),
-                    format_sector_coords_table(row.target_coords),
-                    row.table_composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Donor: ",
+            &format!(
+                "Fleet #{} at {}  Ships: {}",
+                donor_row.fleet_number,
+                format_sector_coords_table(donor_row.coords),
+                donor_row.composition_label
+            ),
+        );
+        draw_status_line(
             &mut buffer,
             3,
-            &columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if !table_rows.is_empty() {
-                Some(cursor)
-            } else {
-                None
-            },
+            "Host: ",
+            &format!(
+                "Fleet #{} at {}  Ships: {}",
+                host_row.fleet_number,
+                format_sector_coords_table(host_row.coords),
+                host_row.composition_label
+            ),
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
-        } else {
-            match mode {
-                FleetTransferMode::SelectingFleets => {
-                    if !table_rows.is_empty() {
-                        draw_table_command_bar_at(
-                            &mut buffer,
-                            command_row,
-                            "<ARROWS J K SPACE Q>",
-                            None,
-                            "",
-                        );
-                    }
-                }
-                _ => {
-                    draw_command_line_default_input_at(
-                        &mut buffer,
-                        command_row,
-                        "FLEET COMMAND",
-                        prompt,
-                        default,
-                        input,
-                    );
-                }
-            }
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
+        draw_status_line(
+            &mut buffer,
+            4,
+            "Current / Max Speed: ",
+            &format!("{}/{} -> {}/{}", donor_row.current_speed, donor_row.max_speed, host_row.current_speed, host_row.max_speed),
+        );
+        let command_row = menu_prompt_row(4);
+        draw_command_line_default_input_at(
+            &mut buffer,
+            command_row,
+            "FLEET COMMAND",
+            prompt,
+            default,
+            input,
+        );
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1541,9 +1211,7 @@ impl FleetDetachScreen {
 
     pub fn render(
         &mut self,
-        rows: &[FleetRow],
-        scroll_offset: usize,
-        cursor: usize,
+        donor_row: &FleetRow,
         prompt: &str,
         default: &str,
         input: &str,
@@ -1552,61 +1220,42 @@ impl FleetDetachScreen {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "DETACH FLEET SHIPS:", classic::title_style());
-        let max_fleet_number = max_fleet_number(rows);
-        let brief_columns = brief_columns(max_fleet_number);
         draw_status_line(
             &mut buffer,
             1,
             "",
-            "Select a fleet, then detach ships to create a new fleet.",
+            "Detach ships from the selected fleet to create a new fleet.",
         );
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
-                    row.rules_of_engagement.to_string(),
-                    row.table_composition_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Fleet: ",
+            &format!("Fleet #{}", donor_row.fleet_number),
+        );
+        draw_status_line(
             &mut buffer,
             3,
-            &brief_columns,
-            &table_rows,
-            scroll_offset,
-            FLEET_VISIBLE_ROWS,
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if table_rows.is_empty() {
-                None
-            } else {
-                Some(cursor)
-            },
+            "Location: ",
+            &format_sector_coords_table(donor_row.coords),
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        if table_rows.is_empty() {
-            draw_command_line_text_at(
-                &mut buffer,
-                command_row,
-                "FLEET COMMAND",
-                "You have no active fleets. Q quits.",
-            );
-        } else {
-            draw_command_line_default_input_at(
-                &mut buffer,
-                command_row,
-                "FLEET COMMAND",
-                prompt,
-                default,
-                input,
-            );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
+        draw_status_line(
+            &mut buffer,
+            4,
+            "Current / Max Speed: ",
+            &format!("{}/{}", donor_row.current_speed, donor_row.max_speed),
+        );
+        draw_status_line(&mut buffer, 5, "Ships: ", &donor_row.composition_label);
+        let command_row = menu_prompt_row(5);
+        draw_command_line_default_input_at(
+            &mut buffer,
+            command_row,
+            "FLEET COMMAND",
+            prompt,
+            default,
+            input,
+        );
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1634,16 +1283,6 @@ fn format_selected_fleet_numbers(
         .map(|fleet_number| format!("{fleet_number:02}"))
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-fn brief_columns(max_fleet_number: u16) -> [TableColumn<'static>; 5] {
-    [
-        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-        BRIEF_COLUMNS[1],
-        BRIEF_COLUMNS[2],
-        BRIEF_COLUMNS[3],
-        BRIEF_COLUMNS[4],
-    ]
 }
 
 fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 8] {

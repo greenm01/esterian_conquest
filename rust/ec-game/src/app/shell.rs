@@ -79,11 +79,9 @@ impl App {
             | ScreenId::FleetMenu
             | ScreenId::FleetList
             | ScreenId::FleetReview
-            | ScreenId::FleetRoeSelect
             | ScreenId::FleetOrder
             | ScreenId::FleetGroupOrder
             | ScreenId::FleetMissionPicker
-            | ScreenId::FleetMerge
             | ScreenId::FleetTransfer
             | ScreenId::FleetDetach
             | ScreenId::FleetEta => CommandMenu::Fleet,

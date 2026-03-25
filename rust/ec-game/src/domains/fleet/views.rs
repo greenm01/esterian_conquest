@@ -17,7 +17,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.info_prompt_active
                 && app.command_return_menu == crate::screen::CommandMenu::Fleet,
             app.fleet.menu_prompt_mode,
-            app.fleet_menu_prompt_default_fleet_number(),
+            app.fleet_menu_prompt_label().as_deref(),
+            &app.fleet.menu_prompt_default_value,
             &app.fleet.menu_prompt_input,
             app.fleet.menu_prompt_status.as_deref(),
             app.default_planet_prompt_coords(),
@@ -43,15 +44,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet_review
                 .render(row, app.fleet.review_index, rows.len())
         }
-        ScreenId::FleetRoeSelect => app.fleet_roe.render_select(
-            &app.fleet_rows(),
-            app.fleet.roe_scroll_offset,
-            app.fleet.roe_cursor,
-            app.fleet.roe_editing,
-            &app.fleet.roe_select_input,
-            &app.fleet.roe_input,
-            app.fleet.roe_status.as_deref(),
-        ),
         ScreenId::FleetOrder => {
             let row = app
                 .fleet_order_selected_row()
@@ -126,68 +118,50 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet_mission_picker_enabled_flags(),
             app.fleet.mission_picker_status.as_deref(),
         ),
-        ScreenId::FleetMerge => {
-            let rows = app.current_fleet_merge_rows();
-            let input = app.current_fleet_merge_input().to_string();
-            let status = app.fleet.merge_status.as_deref();
-            app.fleet_merge.render(
-                &rows,
-                app.fleet.merge_scroll_offset,
-                app.fleet.merge_cursor,
-                app.fleet.merge_mode,
-                &input,
-                status,
-            )
-        }
         ScreenId::FleetTransfer => {
-            let rows = app.current_fleet_transfer_rows();
-            let input = app.current_fleet_transfer_input().to_string();
+            let donor_row = app
+                .fleet_transfer_donor_row()
+                .ok_or("fleet transfer donor row missing")?;
+            let host_row = app
+                .fleet_transfer_host_row()
+                .ok_or("fleet transfer host row missing")?;
             let status = app.fleet.transfer_status.as_deref();
-            let (prompt, default) = app.fleet_transfer_prompt_and_default(&rows);
+            let (prompt, default) = app.fleet_transfer_prompt_and_default();
             app.fleet_transfer.render(
-                &rows,
-                app.fleet.transfer_scroll_offset,
-                app.fleet.transfer_cursor,
+                &donor_row,
+                &host_row,
                 app.fleet.transfer_mode,
-                &app.fleet.transfer_selected_fleets,
-                app.fleet
-                    .transfer_donor_record_index_1_based
-                    .and_then(|idx| app.fleet_number_for_record_index(idx)),
-                app.fleet
-                    .transfer_host_record_index_1_based
-                    .and_then(|idx| app.fleet_number_for_record_index(idx)),
-                &input,
+                &app.fleet.transfer_input,
                 status,
                 &prompt,
                 &default,
             )
         }
         ScreenId::FleetDetach => {
-            let rows = app.fleet_rows();
-            let (prompt, default) = app.fleet_detach_prompt_and_default(&rows);
-            let input = app.fleet_detach_current_input().to_string();
+            let donor_row = app
+                .fleet_detach_donor_row()
+                .ok_or("fleet detach donor row missing")?;
+            let (prompt, default) = app.fleet_detach_prompt_and_default();
             let status = app.fleet.detach_status.as_deref();
             app.fleet_detach.render(
-                &rows,
-                app.fleet.detach_scroll_offset,
-                app.fleet.detach_cursor,
+                &donor_row,
                 &prompt,
                 &default,
-                &input,
+                &app.fleet.detach_input,
                 status,
             )
         }
-        ScreenId::FleetEta => app.fleet_eta.render(
-            &app.fleet_rows(),
-            app.fleet.eta_scroll_offset,
-            app.fleet.eta_cursor,
-            app.fleet.eta_mode,
-            &app.fleet.eta_select_input,
-            app.fleet_eta_default_destination(),
-            &app.fleet.eta_destination_input,
-            &app.fleet.eta_include_system_input,
-            app.fleet.eta_status.as_deref(),
-        ),
+        ScreenId::FleetEta => {
+            let row = app.fleet_eta_selected_row().ok_or("fleet eta row missing")?;
+            app.fleet_eta.render(
+                &row,
+                app.fleet.eta_mode,
+                app.fleet_eta_default_destination(),
+                &app.fleet.eta_destination_input,
+                &app.fleet.eta_include_system_input,
+                app.fleet.eta_status.as_deref(),
+            )
+        }
         _ => unreachable!("fleet views called for non-fleet screen"),
     }
 }

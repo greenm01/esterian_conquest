@@ -314,6 +314,10 @@ pub enum GameStateMutationError {
         requested: u8,
         max: u8,
     },
+    InvalidFleetLocalSlot {
+        fleet_index_1_based: usize,
+        requested: u16,
+    },
     InvalidFleetMergeSelection {
         fleet_index_1_based: usize,
         host_fleet_index_1_based: usize,
@@ -583,6 +587,14 @@ impl std::fmt::Display for GameStateMutationError {
                 f,
                 "fleet {} speed {} exceeds maximum {}",
                 fleet_index_1_based, requested, max
+            ),
+            Self::InvalidFleetLocalSlot {
+                fleet_index_1_based,
+                requested,
+            } => write!(
+                f,
+                "fleet {} cannot use local slot {}",
+                fleet_index_1_based, requested
             ),
             Self::InvalidFleetMergeSelection {
                 fleet_index_1_based,

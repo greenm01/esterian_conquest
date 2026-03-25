@@ -27,9 +27,9 @@ use ec_game::model::ClassicLoginState;
 use ec_game::screen::layout::COMMAND_LINE_ROW;
 use ec_game::screen::table::{TableColumn, fit_table_columns};
 use ec_game::screen::{
-    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRoeScreen, FleetRow,
-    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow,
-    PlanetListMode, PlanetListSort, ScreenId,
+    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRow, PlanetBuildMenuView,
+    PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode,
+    PlanetListSort, ScreenId,
 };
 use ec_game::startup::StartupPhase;
 use ec_game::terminal::Terminal;
@@ -366,15 +366,24 @@ fn strongest_owned_fleet_number(root: &Path) -> u16 {
 
 fn submit_fleet_menu_prompt(app: &mut App, fleet_number: Option<u16>) {
     if let Some(fleet_number) = fleet_number {
-        for ch in fleet_number.to_string().chars() {
-            assert_eq!(
-                apply_action(
-                    &mut *app,
-                    Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
-                ),
-                AppOutcome::Continue
-            );
-        }
+        submit_fleet_menu_prompt_value(app, &fleet_number.to_string());
+        return;
+    }
+    assert_eq!(
+        apply_action(&mut *app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
+        AppOutcome::Continue
+    );
+}
+
+fn submit_fleet_menu_prompt_value(app: &mut App, value: &str) {
+    for ch in value.chars() {
+        assert_eq!(
+            apply_action(
+                &mut *app,
+                Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
+            ),
+            AppOutcome::Continue
+        );
     }
     assert_eq!(
         apply_action(&mut *app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
@@ -397,6 +406,42 @@ fn open_order_mission_picker_from_fleet_menu(app: &mut App, fleet_number: Option
     );
     submit_fleet_menu_prompt(app, fleet_number);
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+}
+
+fn open_change_value_prompt_from_fleet_menu(
+    app: &mut App,
+    fleet_number: Option<u16>,
+    field: char,
+) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::OpenChangePrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt(app, fleet_number);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt_value(app, &field.to_string());
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+}
+
+fn open_eta_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::OpenEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt(app, fleet_number);
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+}
+
+fn open_detach_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
+    assert_eq!(
+        apply_action(app, Action::Fleet(FleetAction::OpenDetach)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt(app, fleet_number);
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
 }
 
 fn enter_fleet_order_target(app: &mut App, coords: [u8; 2]) {
@@ -641,16 +686,16 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenChangePrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenHelp)),
@@ -2203,34 +2248,26 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('c'))),
-        Action::Fleet(FleetAction::OpenRoeSelect)
+        Action::Fleet(FleetAction::OpenChangePrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenChangePrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    submit_fleet_menu_prompt_value(&mut app, "R");
+    submit_fleet_menu_prompt_value(&mut app, "4");
     assert_eq!(app.current_fleet_roe_by_id(1), Some(4));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::Fleet(FleetAction::OpenMenu)
+        Action::OpenMainMenu
     );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenMainMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
@@ -2244,13 +2281,13 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::Fleet(FleetAction::OpenMenu)
+        Action::Fleet(FleetAction::CancelMenuPrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -2629,7 +2666,7 @@ fn starbase_review_matches_verified_v15_review_content() {
 }
 
 #[test]
-fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
+fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     let fixture_dir = temp_game_with_same_sector_fleets_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
@@ -2649,25 +2686,39 @@ fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("transfer screen should render");
+        .expect("transfer donor prompt should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Transfer From Fleet #")
+            .contains("Transfer From Fleet # [")
+    );
+
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    app.render(&mut terminal)
+        .expect("transfer host prompt should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Transfer To Fleet #")
+            .contains("Transfer To Fleet # [")
+    );
+
+    submit_fleet_menu_prompt(&mut app, Some(2));
+    assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
+    app.render(&mut terminal)
+        .expect("transfer quantity screen should render");
     assert_eq!(terminal.line(0).trim_end(), "TRANSFER SHIPS:");
     assert_eq!(
         terminal.line(1).trim_end(),
-        "Select two fleets in one sector. Highlight the host fleet, then press ENTER."
+        "Enter ship counts to transfer from the donor fleet to the host fleet."
     );
-    assert_eq!(terminal.line(2).trim_end(), "Selected fleets: 0");
-    assert_eq!(
-        terminal.line(3).trim_end(),
-        "┌──┬───┬──────────┬───────┬───┬───┬──────────┬───────────────────────────┐"
-    );
-    let same_sector_rows = (6..17)
-        .filter(|idx| terminal.line(*idx).contains("(06,05)"))
-        .count();
-    assert!(same_sector_rows >= 2);
+    assert!(terminal.line(2).contains("Donor: Fleet #1 at "));
+    assert!(terminal.line(2).contains("Ships: "));
+    assert!(terminal.line(3).contains("Host: Fleet #2 at "));
+    assert!(terminal.line(3).contains("Ships: "));
+    assert!(line_containing(&terminal, "Battleships [0] <Q> ->").contains("Battleships [0] <Q> ->"));
 }
 
 #[test]
@@ -3815,7 +3866,7 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Fleet(FleetAction::OpenList),
         Action::Fleet(FleetAction::OpenReviewPrompt),
         Action::Fleet(FleetAction::OpenReview),
-        Action::Fleet(FleetAction::OpenRoeSelect),
+        Action::Fleet(FleetAction::OpenChangePrompt),
         Action::Fleet(FleetAction::OpenDetach),
         Action::Fleet(FleetAction::OpenEta),
         Action::Fleet(FleetAction::OpenTransportLoad),
@@ -5571,32 +5622,32 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        app.current_screen(),
-        ScreenId::PlanetTransportPlanetSelect(ec_game::screen::PlanetTransportMode::Load)
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet load transport picker should render");
-    assert_eq!(terminal.line(1), "");
-    assert!(terminal.line(2).starts_with("┌"));
-    let prompt = line_containing(&terminal, "COMMAND <-");
-    assert!(prompt.contains("COMMAND"));
+        .expect("fleet load prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Load Fleet #");
+    assert!(prompt.contains("Load Fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    app.render(&mut terminal)
+        .expect("fleet load planet prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Load Planet XX,YY");
+    assert!(prompt.contains("Load Planet XX,YY ["));
     assert!(prompt.contains("<Q> ->"));
     assert!(
-        line_containing(
-            &terminal,
-            "Select a planet, then press ENTER to load armies."
-        )
-        .contains("Select a planet, then press ENTER to load armies.")
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Select a planet, then press ENTER to load armies."))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::ReturnToCommandMenu
+        Action::Fleet(FleetAction::CancelMenuPrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::ReturnToCommandMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -5609,24 +5660,12 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        app.current_screen(),
-        ScreenId::PlanetTransportPlanetSelect(ec_game::screen::PlanetTransportMode::Unload)
-    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
-        .expect("fleet unload transport picker should render");
-    assert_eq!(terminal.line(1), "");
-    assert!(terminal.line(2).starts_with("┌"));
-    let prompt = line_containing(&terminal, "COMMAND <-");
-    assert!(prompt.contains("COMMAND"));
+        .expect("fleet unload prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Unload Fleet #");
+    assert!(prompt.contains("Unload Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
-    assert!(
-        line_containing(
-            &terminal,
-            "Select a planet, then press ENTER to unload armies."
-        )
-        .contains("Select a planet, then press ENTER to unload armies.")
-    );
 }
 
 #[test]
@@ -5706,10 +5745,14 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
         AppOutcome::Continue
     );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet load transport picker should render");
-    let prompt = line_containing(&terminal, "COMMAND <-");
+        .expect("fleet load prompt should render");
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    app.render(&mut terminal)
+        .expect("fleet load planet prompt should render");
+    let prompt = line_containing(&terminal, "FLEET COMMAND <- Load Planet XX,YY");
     let default_coords = prompt
         .split('[')
         .nth(1)
@@ -5719,27 +5762,22 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
         assert_eq!(
             apply_action(
                 &mut app,
-                Action::Planet(PlanetAction::AppendTransportPlanetChar(ch))
+                Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
             ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::SubmitTransportPlanet)
-        ),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetTransportFleetSelect(ec_game::screen::PlanetTransportMode::Load)
+        ScreenId::PlanetTransportQuantityPrompt(ec_game::screen::PlanetTransportMode::Load)
     );
     app.render(&mut terminal)
-        .expect("fleet load transport fleet picker should render");
-    assert_eq!(terminal.line(1), "");
-    assert!(terminal.line(2).starts_with("┌"));
-    assert!(line_containing(&terminal, "Select a fleet at").contains("then press ENTER."));
+        .expect("fleet load quantity prompt should render");
+    assert!(line_containing(&terminal, "How many armies to load? ").contains("<Q> ->"));
 }
 
 #[test]
@@ -5851,29 +5889,27 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMerge)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetMerge);
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMergeChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMerge)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMerge);
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMergeChar('2'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMerge)),
-        AppOutcome::Continue
-    );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("merge source prompt should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Merge Fleet #")
+            .contains("Merge Fleet # [")
+    );
+
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    app.render(&mut terminal)
+        .expect("merge host prompt should render");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- Into Fleet #").contains("Into Fleet # [")
+    );
+
+    submit_fleet_menu_prompt(&mut app, Some(2));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
     app.render(&mut terminal)
         .expect("fleet menu should render merge success notice");
     assert_eq!(
@@ -5883,16 +5919,7 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
-    let wrapped_notice = [
-        &terminal.lines[10],
-        &terminal.lines[11],
-        &terminal.lines[12],
-    ]
-    .into_iter()
-    .flat_map(|line| line.split_whitespace())
-    .collect::<Vec<_>>()
-    .join(" ");
-    assert!(wrapped_notice.contains("ordered to join Fleet #"));
+    assert!(terminal.lines.iter().any(|line| line.contains("ordered to join Fleet #")));
 
     let state = latest_runtime_state(&fixture_dir);
     let source = &state.game_data.fleets.records[0];
@@ -6895,45 +6922,6 @@ fn fleet_group_order_lists_selected_fleet_numbers_in_compact_target_entry() {
             .iter()
             .all(|part| part.len() >= 2 && part.chars().all(|ch| ch.is_ascii_digit()))
     );
-}
-
-#[test]
-fn fleet_selectors_sort_by_mission_then_newest_fleet_id() {
-    let fixture_dir = temp_game_copy();
-    let mut state = latest_runtime_state(&fixture_dir);
-    for fleet in state.game_data.fleets.records.iter_mut().take(4) {
-        fleet.set_standing_order_code_raw(9);
-    }
-    state.game_data.fleets.records[0].set_standing_order_code_raw(0);
-    state.game_data.fleets.records[1].set_standing_order_code_raw(1);
-    state.game_data.fleets.records[2].set_standing_order_code_raw(0);
-    save_runtime_state(&fixture_dir, &state);
-
-    let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
-        player_record_index_1_based: 1,
-        export_root: None,
-        queue_dir: None,
-        session_timeout_secs: None,
-        game_config: Default::default(),
-    })
-    .expect("app should load");
-    advance_to_main_menu(&mut app);
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
-        AppOutcome::Continue
-    );
-    let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal)
-        .expect("fleet selector should render");
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
-    assert!(terminal.line(6).starts_with("│ 3│"));
-    assert!(terminal.line(7).starts_with("│ 1│"));
-    assert!(terminal.line(8).starts_with("│ 2│"));
 }
 
 #[test]
@@ -8771,7 +8759,7 @@ fn fleet_group_guard_starbase_target_prompt_uses_named_target_layout() {
 }
 
 #[test]
-fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
+fn fleet_change_roe_accepts_typed_fleet_selection_and_q_cancels_prompt() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -8788,54 +8776,25 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.selected_fleet_roe_id(), Some(4));
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'R');
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::Fleet(FleetAction::OpenRoeSelect)
+        Action::Fleet(FleetAction::CancelMenuPrompt)
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('7'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'R');
+    submit_fleet_menu_prompt_value(&mut app, "7");
     assert_eq!(app.current_fleet_roe_by_id(4), Some(7));
     assert_eq!(app.current_fleet_roe_by_id(1), Some(6));
 }
 
 #[test]
-fn fleet_roe_empty_enter_accepts_displayed_default() {
+fn fleet_change_roe_empty_enter_accepts_displayed_default() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -8852,30 +8811,17 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'R');
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
         AppOutcome::Continue
     );
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
-
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(app.current_fleet_roe_by_id(4), Some(6));
 }
 
 #[test]
-fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
+fn fleet_change_success_returns_to_menu_with_notice() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -8893,32 +8839,121 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('9'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
-        AppOutcome::Continue
-    );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'R');
+    submit_fleet_menu_prompt_value(&mut app, "9");
 
     app.render(&mut terminal).expect("render succeeds");
+    assert!(line_containing(&terminal, "Fleet #4 ROE set to 9.").contains("Fleet #4 ROE set to 9."));
+}
+
+#[test]
+fn fleet_change_id_updates_visible_fleet_number_inline() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <ARROWS J K Q> ["),
-        "COMMANDS <ARROWS J K Q> [4] ->"
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
     );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'I');
+    submit_fleet_menu_prompt_value(&mut app, "12");
+
+    app.render(&mut terminal).expect("fleet menu should render");
+    assert!(
+        line_containing(&terminal, "Fleet #4 renumbered to Fleet #12.")
+            .contains("Fleet #4 renumbered to Fleet #12.")
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert!(
+        state
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .any(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 12)
+    );
+}
+
+#[test]
+fn fleet_change_id_rejects_duplicate_fleet_number_inline() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'I');
+    submit_fleet_menu_prompt_value(&mut app, "1");
+
+    app.render(&mut terminal).expect("change prompt should render");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert!(
+        line_containing(&terminal, "Fleet ID is already in use.").contains("Fleet ID is already in use.")
+    );
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- New Fleet ID").contains("New Fleet ID [4] <Q> ->")
+    );
+}
+
+#[test]
+fn fleet_change_speed_updates_current_speed_inline() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'S');
+    submit_fleet_menu_prompt_value(&mut app, "0");
+
+    app.render(&mut terminal).expect("fleet menu should render");
+    assert!(
+        line_containing(&terminal, "Fleet #4 speed set to 0.")
+            .contains("Fleet #4 speed set to 0.")
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    assert_eq!(fleet.current_speed(), 0);
 }
 
 #[test]
@@ -9324,74 +9359,6 @@ fn planet_menu_tax_prompt_stays_inline_for_errors_and_success() {
 }
 
 #[test]
-fn fleet_roe_render_keeps_command_line_on_bottom_row() {
-    let mut screen = FleetRoeScreen::new();
-    let rows = vec![FleetRow {
-        fleet_record_index_1_based: 1,
-        fleet_number: 1,
-        coords: [16, 13],
-        target_coords: [16, 13],
-        order_code: 5,
-        current_speed: 0,
-        max_speed: 3,
-        eta_label: "0".to_string(),
-        list_eta_label: "0".to_string(),
-        rules_of_engagement: 5,
-        order_label: "Guard/blockade world".to_string(),
-        composition_label: "CA=1 ET=1".to_string(),
-        table_composition_label: "CA ET".to_string(),
-    }];
-
-    let buffer = screen
-        .render_select(&rows, 0, 0, false, "", "", None)
-        .expect("roe screen renders");
-
-    assert_eq!(buffer.plain_line(17), "");
-    assert_eq!(buffer.plain_line(8), "COMMANDS <ARROWS J K Q> [1] ->");
-    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor on command row");
-    assert_eq!(cursor_row as usize, 8);
-    assert!(cursor_col < 80);
-}
-
-#[test]
-fn fleet_roe_render_shows_edit_errors_on_bottom_line() {
-    let mut screen = FleetRoeScreen::new();
-    let rows = vec![FleetRow {
-        fleet_record_index_1_based: 1,
-        fleet_number: 6,
-        coords: [16, 13],
-        target_coords: [16, 13],
-        order_code: 0,
-        current_speed: 0,
-        max_speed: 3,
-        eta_label: "0".to_string(),
-        list_eta_label: "0".to_string(),
-        rules_of_engagement: 6,
-        order_label: "Hold".to_string(),
-        composition_label: "ET=1".to_string(),
-        table_composition_label: "ET".to_string(),
-    }];
-
-    let buffer = screen
-        .render_select(
-            &rows,
-            0,
-            0,
-            true,
-            "",
-            "1",
-            Some("Non-combat fleets must use ROE 0."),
-        )
-        .expect("roe screen renders");
-
-    assert_eq!(
-        buffer.plain_line(8),
-        "FLEET COMMAND <- Fleet #6 new ROE [6] <Q> -> 1"
-    );
-    assert_eq!(buffer.plain_line(10), "Non-combat fleets must use ROE 0.");
-}
-
-#[test]
 fn fleet_table_zero_pads_numbers_to_current_max_width() {
     let mut screen = ec_game::screen::FleetListScreen::new();
     let rows = vec![
@@ -9617,7 +9584,7 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
 #[test]
 fn fleet_eta_screen_renders_bottom_line_prompt() {
     let mut screen = ec_game::screen::FleetEtaScreen::new();
-    let rows = vec![FleetRow {
+    let row = FleetRow {
         fleet_record_index_1_based: 1,
         fleet_number: 7,
         coords: [16, 13],
@@ -9631,15 +9598,12 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         order_label: "Move fleet to Sector (19,13)".to_string(),
         composition_label: "CA=1".to_string(),
         table_composition_label: "CA".to_string(),
-    }];
+    };
 
     let buffer = screen
         .render(
-            &rows,
-            0,
-            0,
-            ec_game::screen::FleetEtaMode::SelectingFleet,
-            "",
+            &row,
+            ec_game::screen::FleetEtaMode::EnteringDestination,
             [19, 13],
             "",
             "",
@@ -9648,15 +9612,10 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         .expect("fleet eta screen renders");
 
     assert_eq!(buffer.plain_line(0), "CALCULATE FLEET ETA:");
-    assert!(buffer.plain_line(4).contains("Ord"));
-    assert!(buffer.plain_line(4).contains("Target"));
-    assert!(buffer.plain_line(6).contains("│  1│"));
-    assert!(buffer.plain_line(6).contains("(19,13)"));
-    assert!(
-        buffer
-            .plain_line(8)
-            .contains("COMMANDS <ARROWS J K Q> [7] ->")
-    );
+    assert_eq!(buffer.plain_line(1).trim_end(), "Fleet ID: 7");
+    assert_eq!(buffer.plain_line(2).trim_end(), "Location: (16,13)");
+    assert_eq!(buffer.plain_line(4).trim_end(), "Current Target: (19,13)");
+    assert!(buffer.plain_line(7).contains("FLEET COMMAND <- Destination [19,13] <Q> ->"));
 }
 
 #[test]
@@ -9673,21 +9632,7 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
     .expect("app should load");
 
     advance_to_main_menu(&mut app);
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetEta);
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('4'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.selected_fleet_eta_id(), Some(4));
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
-        AppOutcome::Continue
-    );
+    open_eta_from_fleet_menu(&mut app, Some(4));
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('1'))),
@@ -9748,20 +9693,7 @@ fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
     .expect("app should load");
 
     advance_to_main_menu(&mut app);
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
-        AppOutcome::Continue
-    );
-    for ch in ['1'] {
-        assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
-        AppOutcome::Continue
-    );
+    open_eta_from_fleet_menu(&mut app, Some(1));
     for ch in format!("{},{}", current_coords[0], current_coords[1]).chars() {
         assert_eq!(
             apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
@@ -9817,18 +9749,7 @@ fn fleet_eta_allows_empty_sector_targets_for_resting_hold_fleets() {
     .expect("app should load");
 
     advance_to_main_menu(&mut app);
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('1'))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
-        AppOutcome::Continue
-    );
+    open_eta_from_fleet_menu(&mut app, Some(1));
     for ch in ['1', ',', '1'] {
         assert_eq!(
             apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
@@ -10800,25 +10721,13 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
+    open_detach_from_fleet_menu(&mut app, Some(1));
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("render detach select");
-    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
-    assert!(prompt.contains("Detach ships from fleet # ["));
-    assert!(prompt.contains("<Q> ->"));
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
-        AppOutcome::Continue
-    );
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
-        AppOutcome::Continue
-    );
     app.render(&mut terminal).expect("render destroyer prompt");
     assert!(
         line_containing(&terminal, "Destroyers to detach [")
@@ -10855,10 +10764,12 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal)
-        .expect("render detach select after save");
-    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
-    assert!(prompt.contains("Detach ships from fleet # ["));
-    assert!(prompt.contains("<Q> ->"));
+        .expect("render detach screen after save");
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert!(
+        line_containing(&terminal, "Notice: ")
+            .contains("Detached ships from Fleet #1 into a new fleet.")
+    );
 
     let updated = latest_runtime_state(&fixture_dir).game_data;
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
@@ -10883,31 +10794,18 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
+    open_detach_from_fleet_menu(&mut app, Some(1));
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("render detach select");
-    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
-    assert!(prompt.contains("Detach ships from fleet # ["));
-    assert!(prompt.contains("<Q> ->"));
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
-        AppOutcome::Continue
-    );
-
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
-        AppOutcome::Continue
-    );
     app.render(&mut terminal)
         .expect("render first quantity prompt");
 
     for _ in 0..8 {
-        let prompt = line_containing(&terminal, "Detach ships from fleet # [");
-        if prompt.contains("Detach ships from fleet # [") && prompt.contains("<Q> ->") {
+        if app.current_screen() == ScreenId::FleetMenu {
             break;
         }
         assert_eq!(
@@ -10918,7 +10816,11 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
             .expect("advance zero-detach prompt sequence");
     }
 
-    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
-    assert!(prompt.contains("Detach ships from fleet # [1] <Q> ->"));
-    assert!(!prompt.contains("Detach at least one ship."));
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Detach at least one ship."))
+    );
 }

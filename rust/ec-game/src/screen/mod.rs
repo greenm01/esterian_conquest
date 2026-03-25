@@ -97,9 +97,9 @@ pub(crate) use crate::domains::fleet::screens::fleet::{
 };
 pub use crate::domains::fleet::screens::fleet::{
     FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
-    FleetGroupScreen, FleetListScreen, FleetMenuScreen, FleetMergeMode, FleetMergeScreen,
-    FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen, FleetRow, FleetSingleOrderMode,
-    FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
+    FleetGroupScreen, FleetListScreen, FleetMenuScreen, FleetMissionPickerScreen,
+    FleetReviewScreen, FleetRow, FleetSingleOrderMode, FleetSingleOrderScreen,
+    FleetTransferMode, FleetTransferScreen,
 };
 pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;
@@ -202,11 +202,9 @@ pub enum ScreenId {
     FleetMenu,
     FleetList,
     FleetReview,
-    FleetRoeSelect,
     FleetOrder,
     FleetGroupOrder,
     FleetMissionPicker,
-    FleetMerge,
     FleetTransfer,
     FleetDetach,
     FleetEta,

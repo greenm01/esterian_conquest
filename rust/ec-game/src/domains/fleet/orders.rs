@@ -33,7 +33,12 @@ impl App {
         self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
         self.clear_fleet_order_target_inputs();
         self.fleet.mission_picker_caller = None;
-        self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, None);
+        self.open_fleet_menu_prompt(
+            FleetMenuPromptMode::Order,
+            self.strongest_owned_fleet_number()
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+        );
     }
 
     pub(crate) fn open_fleet_order_with_selected_record(
@@ -123,7 +128,12 @@ impl App {
                     self.fleet.mission_picker_caller = None;
                     let default_fleet_number =
                         self.fleet_order_selected_row().map(|row| row.fleet_number);
-                    self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, default_fleet_number);
+                    self.open_fleet_menu_prompt(
+                        FleetMenuPromptMode::Order,
+                        default_fleet_number
+                            .map(|value| value.to_string())
+                            .unwrap_or_default(),
+                    );
                     return;
                 }
                 None => {}
@@ -1836,7 +1846,12 @@ impl App {
         aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.fleet_order_selected_row() else {
-            self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, None);
+            self.open_fleet_menu_prompt(
+                FleetMenuPromptMode::Order,
+                self.strongest_owned_fleet_number()
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
+            );
             self.fleet.menu_prompt_status =
                 Some("Selected fleet is no longer available.".to_string());
             return Ok(());
@@ -1846,7 +1861,10 @@ impl App {
         self.fleet.order_mission_code = None;
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
-        self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, Some(selected_row.fleet_number));
+        self.open_fleet_menu_prompt(
+            FleetMenuPromptMode::Order,
+            selected_row.fleet_number.to_string(),
+        );
         self.fleet.menu_prompt_status = Some(if fleet_group_order_requires_target(mission_code) {
             format!(
                 "Applied {} to Fleet #{} for sector [{},{}].",
@@ -1870,7 +1888,12 @@ impl App {
         host: FleetRow,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.fleet_order_selected_row() else {
-            self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, None);
+            self.open_fleet_menu_prompt(
+                FleetMenuPromptMode::Order,
+                self.strongest_owned_fleet_number()
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
+            );
             self.fleet.menu_prompt_status =
                 Some("Selected fleet is no longer available.".to_string());
             return Ok(());
@@ -1885,7 +1908,10 @@ impl App {
         self.fleet.order_mission_code = None;
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
-        self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, Some(selected_row.fleet_number));
+        self.open_fleet_menu_prompt(
+            FleetMenuPromptMode::Order,
+            selected_row.fleet_number.to_string(),
+        );
         self.fleet.menu_prompt_status = Some(format!(
             "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
             selected_row.fleet_number, host.fleet_number

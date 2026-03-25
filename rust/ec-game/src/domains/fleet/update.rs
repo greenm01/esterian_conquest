@@ -10,7 +10,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenReviewPrompt => app.open_fleet_review_prompt(),
         FleetAction::OpenReview => app.open_fleet_review(),
         FleetAction::CloseReview => app.close_fleet_review(),
-        FleetAction::OpenRoeSelect => app.open_fleet_roe_select(),
+        FleetAction::OpenChangePrompt => app.open_fleet_change_prompt(),
         FleetAction::OpenOrder => app.open_fleet_order(),
         FleetAction::OpenGroupOrder => app.open_fleet_group_order(),
         FleetAction::OpenMissionPicker => app.open_fleet_mission_picker(),
@@ -18,40 +18,28 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenTransfer => app.open_fleet_transfer(),
         FleetAction::OpenDetach => app.open_fleet_detach(),
         FleetAction::OpenEta => app.open_fleet_eta(),
-        FleetAction::OpenTransportLoad => {
-            app.open_fleet_transport_planet_select(PlanetTransportMode::Load)
-        }
+        FleetAction::OpenTransportLoad => app.open_fleet_transport_prompt(PlanetTransportMode::Load),
         FleetAction::OpenTransportUnload => {
-            app.open_fleet_transport_planet_select(PlanetTransportMode::Unload)
+            app.open_fleet_transport_prompt(PlanetTransportMode::Unload)
         }
         FleetAction::MoveList(delta) => app.move_fleet_list(delta),
         FleetAction::MoveReview(delta) => app.move_fleet_review(delta),
-        FleetAction::MoveRoeSelect(delta) => app.move_fleet_roe_select(delta),
         FleetAction::MoveGroupOrder(delta) => app.move_fleet_group_order(delta),
         FleetAction::MoveMissionPicker(delta) => app.move_fleet_mission_picker(delta),
-        FleetAction::MoveMergeSelect(delta) => app.move_fleet_merge_select(delta),
-        FleetAction::MoveTransferSelect(delta) => app.move_fleet_transfer_select(delta),
-        FleetAction::MoveDetachSelect(delta) => app.move_fleet_detach_select(delta),
-        FleetAction::MoveEtaSelect(delta) => app.move_fleet_eta_select(delta),
         FleetAction::ToggleGroupOrderSelection => app.toggle_fleet_group_order_selection(),
-        FleetAction::ToggleTransferSelection => app.toggle_fleet_transfer_selection(),
         FleetAction::AppendListChar(ch) => app.append_fleet_list_char(ch),
         FleetAction::AppendMenuPromptChar(ch) => app.append_fleet_menu_prompt_char(ch),
-        FleetAction::AppendRoeChar(ch) => app.append_fleet_roe_char(ch),
         FleetAction::AppendOrderChar(ch) => app.append_fleet_order_char(ch),
         FleetAction::AppendGroupOrderChar(ch) => app.append_fleet_group_order_char(ch),
         FleetAction::AppendMissionPickerChar(ch) => app.append_fleet_mission_picker_char(ch),
-        FleetAction::AppendMergeChar(ch) => app.append_fleet_merge_char(ch),
         FleetAction::AppendTransferChar(ch) => app.append_fleet_transfer_char(ch),
         FleetAction::AppendDetachChar(ch) => app.append_fleet_detach_char(ch),
         FleetAction::AppendEtaChar(ch) => app.append_fleet_eta_char(ch),
         FleetAction::BackspaceListInput => app.backspace_fleet_list_input(),
         FleetAction::BackspaceMenuPromptInput => app.backspace_fleet_menu_prompt_input(),
-        FleetAction::BackspaceRoeInput => app.backspace_fleet_roe_input(),
         FleetAction::BackspaceOrderInput => app.backspace_fleet_order_input(),
         FleetAction::BackspaceGroupOrderInput => app.backspace_fleet_group_order_input(),
         FleetAction::BackspaceMissionPickerInput => app.backspace_fleet_mission_picker_input(),
-        FleetAction::BackspaceMergeInput => app.backspace_fleet_merge_input(),
         FleetAction::BackspaceTransferInput => app.backspace_fleet_transfer_input(),
         FleetAction::BackspaceDetachInput => app.backspace_fleet_detach_input(),
         FleetAction::BackspaceEtaInput => app.backspace_fleet_eta_input(),
@@ -59,11 +47,6 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::CancelOrder => app.cancel_fleet_order(),
         FleetAction::CancelGroupOrder => app.cancel_fleet_group_order(),
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),
-        FleetAction::SubmitRoe => {
-            if let Err(err) = app.submit_fleet_roe() {
-                eprintln!("submit fleet roe failed: {err}");
-            }
-        }
         FleetAction::SubmitOrder => {
             if let Err(err) = app.submit_fleet_order() {
                 eprintln!("submit fleet order failed: {err}");
@@ -71,11 +54,6 @@ pub fn update(app: &mut App, action: FleetAction) {
         }
         FleetAction::SubmitGroupOrder => app.submit_fleet_group_order(),
         FleetAction::SubmitMissionPicker => app.submit_fleet_mission_picker(),
-        FleetAction::SubmitMerge => {
-            if let Err(err) = app.submit_fleet_merge() {
-                eprintln!("submit fleet merge failed: {err}");
-            }
-        }
         FleetAction::SubmitTransfer => {
             if let Err(err) = app.submit_fleet_transfer() {
                 eprintln!("submit fleet transfer failed: {err}");
