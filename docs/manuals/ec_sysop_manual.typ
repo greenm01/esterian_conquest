@@ -126,8 +126,10 @@ For player-facing rules and gameplay, see the *Player Manual*.
 / `ecgame.db`: The SQLite database that is the runtime source of truth for the
   Rust engine.
 
-/ `theme.kdl`: The KDL file that controls the visual style of `ec-game` for
-  all players in this game directory.
+/ `themes/`: Subdirectory containing theme KDL files. `themes/classic.kdl` is
+  the default and is bootstrapped on first run. `themes/tokyo_night.kdl` is
+  also shipped and can be activated via `config.kdl`. Sysops can add their own
+  theme files here.
 
 / `config.kdl`: The sysop-managed runtime configuration file in the game
   directory. Bootstrapped from the bundled default on first run. Controls
@@ -164,7 +166,7 @@ looks like:
 /path/to/mygame/
   ecgame.db          runtime database (SQLite)
   config.kdl         sysop runtime config (bootstrapped on first run)
-  theme.kdl          visual theme (bootstrapped on first run)
+  theme.kdl          visual theme (bootstrapped as themes/classic.kdl on first run)
   exports/           default export root for classic .DAT output
   queue/             default turn order queue directory
 ```
@@ -184,7 +186,8 @@ ec-sysop new-game /path/to/mygame --players 4 --seed 1515
 ```
 
 This creates a fresh campaign directory with `ecgame.db`, classic auxiliary
-files, `config.kdl`, and `theme.kdl`.
+files, `config.kdl`, and a `themes/` subdirectory containing the bootstrapped
+`themes/classic.kdl` and `themes/tokyo_night.kdl` theme files.
 
 `config.kdl` is the only sysop-edited KDL file in the public workflow.
 An internal `ec-cli` setup-preset format still exists for reproducible tests
@@ -208,9 +211,9 @@ The supported public creation flags are:
 / `ecgame.db`: The SQLite runtime database. All game state lives here. Do not
   edit manually; use `ec-sysop` for normal operator actions.
 
-/ `theme.kdl`: Visual theme for `ec-game`. Bootstrapped from the bundled
-  default on first run if absent. Sysop-owned once created; not silently
-  overwritten. See @theming.
+/ `themes/`: Theme KDL files for `ec-game`. Bootstrapped on first run with
+  `themes/classic.kdl` (the default) and `themes/tokyo_night.kdl`. Sysop-owned
+  once created; not silently overwritten. See @theming.
 
 / `config.kdl`: Sysop runtime configuration. Bootstrapped from the bundled
   default on first run. Edit to change snoop mode, session timeouts,
@@ -245,8 +248,9 @@ runtime database at that point; no manual database edits are required.
 game_name "Esterian Conquest"
 
 // Theme file (relative to game directory, or absolute path).
-// Remove this line to use theme.kdl in the same directory.
-// theme "theme.kdl"
+// Shipped themes: themes/classic.kdl (default), themes/tokyo_night.kdl
+// Omit to use themes/classic.kdl.
+// theme "themes/classic.kdl"
 
 // Sysop snoop: set to #false to disable.
 snoop #true
@@ -284,7 +288,7 @@ reservations {
   columns: (auto, auto, auto, 1fr),
   [*Field*], [*Type*], [*Default*], [*Description*],
   [`game_name`], [string], [`"Esterian Conquest"`], [Display name shown in the main menu header.],
-  [`theme`], [string], [_(absent)_], [Theme file path, relative to the game directory. Omit to use `theme.kdl`.],
+  [`theme`], [string], [_(absent)_], [Theme file path, relative to the game directory. Omit to use `themes/classic.kdl`. Example: `"themes/tokyo_night.kdl"`.],
   [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
   [`reservations`], [block], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
 )
@@ -347,8 +351,9 @@ appearance for all players connecting to this game directory.
 
 1. If `<game_dir>/config.kdl` contains a `theme` directive, use that path
    (relative to `game_dir`).
-2. Otherwise, use `<game_dir>/theme.kdl`.
-3. If `theme.kdl` does not exist, bootstrap it from the bundled default.
+2. Otherwise, use `<game_dir>/themes/classic.kdl`.
+3. If `themes/classic.kdl` does not exist, create the `themes/` directory and
+   bootstrap it from the bundled default.
 
 `config.kdl` itself is bootstrapped on first run if absent, so it is always
 present by the time this resolution runs. The `theme` directive within it is
@@ -357,7 +362,7 @@ optional; omitting it falls through to step 2.
 On parse error, the bundled default is used silently so a corrupted theme never
 prevents players from connecting.
 
-== theme.kdl Format
+== Theme File Format
 
 A theme file is a KDL document. Each visual element is declared as a `style`
 node with a name and child `fg`, `bg`, and optional `bold` fields.
@@ -398,8 +403,14 @@ Three color formats are supported:
   [24-bit hex RGB], [`"#ff8800"`], [Requires `--color-mode truecolor`. Downgraded gracefully in lower color modes.],
 )
 
-The bundled default theme uses named ANSI-16 colors only. Custom themes may use
-richer formats when targeting modern terminals.
+Two themes ship with `ec-game`. `themes/classic.kdl` is the default: a restrained
+dark palette using named ANSI-16 colors only, safe for all terminal types
+including BBS door clients. `themes/tokyo_night.kdl` uses a full 24-bit hex
+palette (deep navy background with purple, teal, and amber accents) and is
+intended for modern local or SSH terminals. Both degrade gracefully — all hex
+colors are automatically mapped to the nearest 256-color index or 16-color name
+on terminals that do not support truecolor. Custom themes may use any of the
+three color formats.
 
 == Color Mode
 
@@ -469,7 +480,7 @@ All required style tokens:
 == ANSI Off Mode
 
 Players can toggle ANSI color off within a session (a session-level preference
-only — it does not modify `theme.kdl`). ANSI Off applies a monochrome
+only — it does not modify theme files on disk). ANSI Off applies a monochrome
 projection over the loaded theme: white/black with preserved reverse-video
 selection. A new session always starts with ANSI On.
 

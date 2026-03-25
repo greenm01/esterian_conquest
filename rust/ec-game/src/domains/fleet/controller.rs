@@ -82,7 +82,7 @@ impl App {
             FleetMenuPromptMode::Review => "Review Fleet # ".to_string(),
             FleetMenuPromptMode::Order => "Order Fleet # ".to_string(),
             FleetMenuPromptMode::ChangeFleet => "Change Fleet # ".to_string(),
-            FleetMenuPromptMode::ChangeField => "Change [R]OE, [I]D, or [S]peed ".to_string(),
+            FleetMenuPromptMode::ChangeField => "Change <R>OE, <I>D, or <S>peed ".to_string(),
             FleetMenuPromptMode::ChangeValue => match self.fleet.menu_prompt_change_field {
                 Some(FleetChangeField::Roe) => "New ROE ".to_string(),
                 Some(FleetChangeField::Id) => "New Fleet ID ".to_string(),

@@ -7,8 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ec_game::screen::AnsiColor;
 use ec_game::theme::classic;
 use ec_game::theme::{
-    AnsiMode, ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path,
-    toggle_ansi_mode,
+    ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path, toggle_ansi_mode,
+    AnsiMode,
 };
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -44,8 +44,11 @@ fn game_dir_bootstraps_theme_kdl_when_absent() {
 
     initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
 
-    let theme_file = game_dir.join("theme.kdl");
-    assert!(theme_file.exists(), "theme.kdl should be bootstrapped");
+    let theme_file = game_dir.join("themes").join("classic.kdl");
+    assert!(
+        theme_file.exists(),
+        "themes/classic.kdl should be bootstrapped"
+    );
     assert_eq!(
         fs::read_to_string(&theme_file).expect("read bootstrapped theme"),
         bundled_theme_kdl()
@@ -57,19 +60,21 @@ fn game_dir_uses_existing_theme_kdl_without_overwriting() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-existing");
 
-    // Write a custom theme (just swap logo color)
+    // Write a custom theme at the default location (just swap logo color)
     let custom = bundled_theme_kdl().replace(
         "style \"logo\" {\n    fg \"bright_blue\"",
         "style \"logo\" {\n    fg \"bright_cyan\"",
     );
-    fs::write(game_dir.join("theme.kdl"), &custom).expect("write custom theme");
+    let themes_dir = game_dir.join("themes");
+    fs::create_dir_all(&themes_dir).expect("create themes dir");
+    fs::write(themes_dir.join("classic.kdl"), &custom).expect("write custom theme");
 
     initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightCyan);
 
     // File must not be overwritten
     assert_eq!(
-        fs::read_to_string(game_dir.join("theme.kdl")).expect("read theme"),
+        fs::read_to_string(themes_dir.join("classic.kdl")).expect("read theme"),
         custom
     );
 }
@@ -96,16 +101,18 @@ fn config_kdl_theme_directive_is_followed() {
 }
 
 #[test]
-fn config_kdl_absent_falls_back_to_theme_kdl() {
+fn config_kdl_absent_falls_back_to_themes_classic() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-fallback");
 
-    // No config.kdl; theme.kdl has a custom color
+    // No config.kdl; themes/classic.kdl has a custom color
     let custom = bundled_theme_kdl().replace(
         "style \"logo\" {\n    fg \"bright_blue\"",
         "style \"logo\" {\n    fg \"bright_green\"",
     );
-    fs::write(game_dir.join("theme.kdl"), &custom).expect("write theme.kdl");
+    let themes_dir = game_dir.join("themes");
+    fs::create_dir_all(&themes_dir).expect("create themes dir");
+    fs::write(themes_dir.join("classic.kdl"), &custom).expect("write themes/classic.kdl");
 
     initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightGreen);
@@ -128,8 +135,11 @@ fn invalid_theme_falls_back_to_bundled_default() {
     load_theme_from_path(&custom_path).expect("load custom theme");
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightCyan);
 
-    // Now put an invalid theme.kdl in the game dir
-    fs::write(game_dir.join("theme.kdl"), "this is not valid kdl").expect("write invalid theme");
+    // Now put an invalid themes/classic.kdl in the game dir
+    let themes_dir = game_dir.join("themes");
+    fs::create_dir_all(&themes_dir).expect("create themes dir");
+    fs::write(themes_dir.join("classic.kdl"), "this is not valid kdl")
+        .expect("write invalid theme");
 
     initialize_from_game_dir(&game_dir, None).expect("initialize with invalid theme");
     // Should silently fall back to bundled default

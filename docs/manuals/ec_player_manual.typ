@@ -549,6 +549,9 @@ This version is a full Rust reimplementation of the original game, rebuilt from 
 
 The immediate goal is a drop-in replacement that runs natively on modern systems without emulation, while preserving the classic experience for BBS sysops and Telnet players.
 
+*Visual Themes* \
+The `ec-game` client is themable. The sysop controls the active theme for a campaign directory, so the colors you see are a choice made by whoever is running the game. The default ships with two themes: `classic` (the restrained dark look you are reading about here) and `tokyo_night` (a deep navy palette with purple and teal accents). If you are running your own campaign, you can switch themes by setting the `theme` directive in `config.kdl`, or create your own by copying and editing one of the shipped `.kdl` files in the `themes/` subdirectory.
+
 *Nostrian Conquest* \
 Looking further ahead, the project aims to free the game from centralized hosts entirely. Under the working title *Nostrian Conquest*, the next evolution will use the Nostr protocol as a transport layer --- players submit encrypted turn orders using cryptographic keys, and results are broadcast back through relays. No central server to shut down. No single point of failure. A serverless galaxy where the fog of war is enforced by cryptography. Freed from the shackles of the 80x25 Telnet screen, Nostrian Conquest will feature a full-screen modern ANSI/UTF-8 terminal interface worthy of the game's strategic depth.
 

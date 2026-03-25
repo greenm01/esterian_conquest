@@ -4,7 +4,7 @@ use std::sync::{OnceLock, RwLock};
 
 use crate::screen::{CellStyle, GameColor};
 
-const DEFAULT_THEME_KDL: &str = include_str!("../config/theme.kdl");
+const DEFAULT_THEME_KDL: &str = include_str!("../config/themes/classic.kdl");
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnsiMode {
@@ -370,10 +370,12 @@ fn resolve_game_dir_theme(
         return Ok(abs);
     }
 
-    // 2. Direct theme.kdl in game dir
-    let theme_file = game_dir.join("theme.kdl");
+    // 2. Default: themes/classic.kdl inside the game dir
+    let themes_dir = game_dir.join("themes");
+    let theme_file = themes_dir.join("classic.kdl");
     if !theme_file.exists() {
-        // 3. Bootstrap bundled default
+        // 3. Bootstrap bundled default into themes/
+        fs::create_dir_all(&themes_dir)?;
         fs::write(&theme_file, DEFAULT_THEME_KDL)?;
     }
     Ok(theme_file)

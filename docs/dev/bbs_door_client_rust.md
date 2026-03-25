@@ -206,11 +206,10 @@ widget-layout TUI frameworks:
 - keep table browse/prompt rows on the shared `COMMANDS` grammar rather than
   per-screen command labels
 - use one restrained Tokyo Night-inspired dark theme across the whole client
-  instead of mixing bright inverse DOS bars with dark-body screens
-- use split tables only when a screen genuinely needs two synchronized halves;
-  grouped or stacked headers are not the normal list standard
-- bootstrap the default theme KDL into the platform-standard user config
-  directory on first run and load that file on startup
+  instead of mixing bright inverse DOS bars with dark-body screens; the shipped
+  `themes/tokyo_night.kdl` is the full hex-palette version of this aesthetic
+- bootstrap the default theme (`themes/classic.kdl`) into the game directory's
+  `themes/` subdirectory on first run; sysops can switch themes via `config.kdl`
 - keep interactive styling on `crossterm` rather than hand-built ANSI escape
   strings so Linux, macOS, and Windows terminal behavior stays aligned
 

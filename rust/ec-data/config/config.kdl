@@ -6,8 +6,9 @@
 game_name "Esterian Conquest"
 
 // Theme file (relative to this directory, or absolute path).
-// Remove this line to use theme.kdl in the same directory.
-// theme "theme.kdl"
+// Shipped themes: themes/classic.kdl (default), themes/tokyo_night.kdl
+// Omit to use themes/classic.kdl in the themes/ subdirectory.
+// theme "themes/classic.kdl"
 
 // Sysop snoop: set to #false to disable.
 snoop #true

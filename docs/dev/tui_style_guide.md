@@ -22,14 +22,13 @@ Read it together with:
   through ANSI-safe semantic styles.
 - Theme configuration is file-driven and lives in the game directory alongside
   `ecgame.db`:
-  - `<game_dir>/theme.kdl` — the theme file, created from the bundled default
-    on first run if absent
-  - `<game_dir>/config.kdl` — optional sysop config; if present and contains a
-    `theme` directive, that path (relative to `game_dir`) is used instead of
-    `theme.kdl`
-- On first run, `ec-game` bootstraps the default `theme.kdl` into the game
-  directory if it is missing.
-- Once created, `theme.kdl` is sysop-owned and is not silently overwritten.
+  - `<game_dir>/themes/classic.kdl` — the default theme, bootstrapped on first run
+  - `<game_dir>/themes/tokyo_night.kdl` — bundled alternate theme (hex RGB palette)
+  - `<game_dir>/config.kdl` — sysop config; if present and contains a `theme`
+    directive, that path (relative to `game_dir`) is used instead
+- On first run, `ec-game` bootstraps `themes/classic.kdl` into the game directory
+  if it is missing, creating the `themes/` subdirectory as needed.
+- Once created, `themes/classic.kdl` is sysop-owned and is not silently overwritten.
 
 ## Semantic Style Tokens
 
@@ -101,12 +100,13 @@ Default semantic mapping:
 
 ## Theme File Notes
 
-The default bundled theme should be bootstrapped into the game directory on
-first run. The bundled file is the fallback if the theme file is missing or
-invalid, but invalid user files should not be rewritten automatically.
+The default bundled theme (`themes/classic.kdl`) should be bootstrapped into the
+game directory on first run, creating `themes/` as needed. The bundled file is
+the fallback if the theme file is missing or invalid, but invalid user files
+should not be rewritten automatically.
 
 ANSI ON/OFF is a session-level terminal preference in the player TUI. It should
-not rewrite `theme.kdl`; ANSI OFF should apply a monochrome projection over the
+not rewrite `themes/classic.kdl`; ANSI OFF should apply a monochrome projection over the
 loaded theme for the current session while preserving black backgrounds and
 reverse-video selection. A new client session should default back to ANSI ON.
 
