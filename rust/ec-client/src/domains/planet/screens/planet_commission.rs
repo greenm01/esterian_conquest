@@ -34,7 +34,7 @@ const COMMISSION_PICKER_COLUMNS: [TableColumn<'static>; 9] = [
     TableColumn::right("BB", 2),
     TableColumn::right("SC", 2),
     TableColumn::right("TT", 2),
-    TableColumn::right("ETAC", 4),
+    TableColumn::right("ET", 2),
     TableColumn::right("SB", 2),
 ];
 

@@ -1,13 +1,13 @@
 use rusqlite::params;
 
 use super::{
-    CampaignStoreError, Connection, BASE_RECORD_FIELDS_TABLE, CONQUEST_RECORD_FIELDS_TABLE,
+    BASE_RECORD_FIELDS_TABLE, CONQUEST_RECORD_FIELDS_TABLE, CampaignStoreError, Connection,
     FLEET_RECORD_FIELDS_TABLE, IPBM_RECORD_FIELDS_TABLE, PLANET_RECORD_FIELDS_TABLE,
     PLAYER_RECORD_FIELDS_TABLE, SETUP_RECORD_FIELDS_TABLE,
 };
 use crate::{
-    BaseDat, CoreGameData, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat, BASE_RECORD_SIZE,
-    FLEET_RECORD_SIZE, IPBM_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE,
+    BASE_RECORD_SIZE, BaseDat, CoreGameData, FLEET_RECORD_SIZE, FleetDat, IPBM_RECORD_SIZE,
+    IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat, SetupDat,
 };
 
 pub(super) fn write_typed_record_rows(

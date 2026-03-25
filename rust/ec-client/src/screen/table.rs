@@ -417,6 +417,7 @@ pub fn format_fleet_number(fleet_number: u16, max_fleet_number: u16) -> String {
 fn write_scroll_indicator(
     buffer: &mut PlayfieldBuffer,
     area: TableArea,
+    table_width: usize,
     visible_rows: usize,
     total_rows: usize,
     scroll_offset: usize,
@@ -431,7 +432,17 @@ fn write_scroll_indicator(
         return;
     }
 
-    let col = area.col + area.width - 1;
+    let max_col = buffer.width().saturating_sub(1);
+    let right_border_col = area.col + table_width.saturating_sub(1);
+    assert!(
+        right_border_col < max_col,
+        "scrollable table must leave a gutter to the right of its border"
+    );
+    let col = area.col.saturating_add(table_width).min(max_col);
+    assert!(
+        col > right_border_col,
+        "scrollbar must render strictly to the right of the table border"
+    );
     let last_row = area.row + displayed_rows - 1;
     let track_style = crate::theme::classic::body_style();
     let track_top = area.row + 1;
@@ -536,6 +547,7 @@ fn render_standard_body(
     write_scroll_indicator(
         buffer,
         area,
+        table_render_width(columns),
         visible_rows,
         rows.len(),
         scroll_offset,

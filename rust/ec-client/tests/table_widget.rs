@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use ec_client::model::{ClassicLoginState, PlayerContext};
 use ec_client::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_client::screen::table::{
-    SplitTableRow, TableColumn, TableRowState, write_split_table,
+    SplitTableRow, TableColumn, TableRowState, table_render_width, write_split_table,
     write_stacked_table_window_with_states, write_table_row, write_table_window_with_states,
 };
 use ec_client::screen::{
@@ -42,7 +42,7 @@ fn playfield_geometry_is_80x25() {
 }
 
 #[test]
-fn standard_table_uses_right_edge_scroll_gutter() {
+fn standard_table_places_scrollbar_just_right_of_table_border() {
     let columns = [TableColumn::left("Name", 10)];
     let rows = vec![
         vec!["Alpha".to_string()],
@@ -70,13 +70,39 @@ fn standard_table_uses_right_edge_scroll_gutter() {
         Some(&row_states),
     );
 
-    assert_eq!(buffer.row(5)[79].ch, '^');
-    assert_eq!(buffer.row(7)[79].ch, 'v');
+    let scrollbar_col = table_render_width(&columns);
+    assert_eq!(buffer.row(5)[scrollbar_col].ch, '^');
+    assert_eq!(buffer.row(7)[scrollbar_col].ch, 'v');
     assert_eq!(buffer.row(2)[0].style, classic::table_chrome_style());
     assert_eq!(buffer.row(4)[0].style, classic::table_chrome_style());
-    assert_eq!(buffer.row(5)[79].style, classic::table_chrome_style());
+    assert_eq!(buffer.row(5)[scrollbar_col].style, classic::table_chrome_style());
     assert!(row_text(&buffer, 5).contains("Beta"));
     assert!(row_text(&buffer, 6).contains("Gamma"));
+}
+
+#[test]
+#[should_panic(expected = "scrollable table must leave a gutter to the right of its border")]
+fn scrollable_table_panics_when_border_would_consume_last_playfield_col() {
+    let columns = [TableColumn::left("Name", 78)];
+    let rows = vec![
+        vec!["Alpha".to_string()],
+        vec!["Beta".to_string()],
+        vec!["Gamma".to_string()],
+        vec!["Delta".to_string()],
+    ];
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    write_table_window_with_states(
+        &mut buffer,
+        2,
+        &columns,
+        &rows,
+        0,
+        3,
+        classic::status_value_style(),
+        classic::status_value_style(),
+        None,
+        None,
+    );
 }
 
 #[test]
@@ -202,6 +228,8 @@ fn planet_database_screen_uses_stacked_header_table() {
     assert!(buffer.plain_line(2).contains("(X,Y)"));
     assert!(buffer.plain_line(2).contains("Planet Name"));
     assert!(buffer.plain_line(2).contains("Curr"));
+    assert!(buffer.plain_line(2).contains("AR"));
+    assert!(buffer.plain_line(2).contains("GB"));
     assert!(buffer.plain_line(2).contains("Intel"));
     assert!(buffer.plain_line(4).contains("Aurora"));
 }
@@ -247,6 +275,8 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(2).contains("Curr"));
     assert!(buffer.plain_line(2).contains("Max"));
     assert!(buffer.plain_line(2).contains("Docked"));
+    assert!(buffer.plain_line(2).contains("AR"));
+    assert!(buffer.plain_line(2).contains("GB"));
     assert!(buffer.plain_line(2).contains("SB"));
     assert!(buffer.plain_line(4).contains("Player 1 HW"));
     assert!(buffer.plain_line(4).contains("165"));

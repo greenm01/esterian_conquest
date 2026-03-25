@@ -356,25 +356,51 @@ impl FleetRecord {
         self.raw[0x30..0x32].copy_from_slice(&value.to_le_bytes());
     }
 
-    pub fn ship_composition_summary(&self) -> String {
-        let parts = [
-            ("SC", self.scout_count() as u16),
+    fn counted_ship_composition_parts(&self) -> Vec<String> {
+        [
+            ("SC", u16::from(self.scout_count())),
             ("BB", self.battleship_count()),
             ("CA", self.cruiser_count()),
             ("DD", self.destroyer_count()),
             ("TT", self.troop_transport_count()),
-            ("ARMY", self.army_count()),
+            ("AR", self.army_count()),
             ("ET", self.etac_count()),
         ]
         .into_iter()
         .filter_map(|(label, count)| (count > 0).then(|| format!("{label}={count}")))
-        .collect::<Vec<_>>();
+        .collect()
+    }
 
-        if parts.is_empty() {
-            "none".to_string()
-        } else {
-            parts.join(" ")
-        }
+    fn table_ship_composition_codes(&self) -> Vec<&'static str> {
+        assert!(
+            self.army_count() == 0 || self.troop_transport_count() > 0,
+            "fleet armies must be loaded in troop transports"
+        );
+        let loaded_transports = self.troop_transport_count() > 0 && self.army_count() > 0;
+        [
+            ("SC", self.scout_count() > 0),
+            ("BB", self.battleship_count() > 0),
+            ("CA", self.cruiser_count() > 0),
+            ("DD", self.destroyer_count() > 0),
+            ("TT", self.troop_transport_count() > 0 && !loaded_transports),
+            ("TT*", loaded_transports),
+            ("ET", self.etac_count() > 0),
+        ]
+        .into_iter()
+        .filter_map(|(label, present)| present.then_some(label))
+        .collect()
+    }
+
+    pub fn ship_composition_summary(&self) -> String {
+        let parts = self.counted_ship_composition_parts();
+        assert!(!parts.is_empty(), "empty fleet record is not a fleet");
+        parts.join(" ")
+    }
+
+    pub fn ship_composition_table_summary(&self) -> String {
+        let parts = self.table_ship_composition_codes();
+        assert!(!parts.is_empty(), "empty fleet record is not a fleet");
+        parts.join(" ")
     }
 }
 

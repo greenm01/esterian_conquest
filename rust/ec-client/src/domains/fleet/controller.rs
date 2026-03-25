@@ -1,4 +1,4 @@
-use super::manip::fleet_eta_label;
+use super::manip::{fleet_eta_label, fleet_list_eta_label};
 use super::orders::{
     FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line, resolve_yes_no_input,
 };
@@ -29,6 +29,11 @@ impl App {
         self.fleet.menu_prompt_input.clear();
         self.fleet.menu_prompt_status = None;
         self.fleet.menu_prompt_default_fleet_number = None;
+    }
+
+    fn clear_fleet_list_input(&mut self) {
+        self.fleet.list_input.clear();
+        self.fleet.list_status = None;
     }
 
     fn strongest_owned_fleet_number(&self) -> Option<u16> {
@@ -89,12 +94,13 @@ impl App {
     }
 
     pub fn open_fleet_list(&mut self, mode: FleetListMode) {
-        if self.fleet_rows().is_empty() {
+        if self.fleet_list_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
         }
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.clear_fleet_list_input();
         self.fleet.list_mode = mode;
         self.fleet.scroll_offset = 0;
         self.fleet.cursor = 0;
@@ -102,14 +108,36 @@ impl App {
     }
 
     pub fn open_fleet_review(&mut self) {
-        let total = self.fleet_rows().len();
+        let review_return_to_list = matches!(self.current_screen, ScreenId::FleetList(_));
+        let rows = if review_return_to_list {
+            self.fleet_list_rows()
+        } else {
+            self.fleet_rows()
+        };
+        let total = rows.len();
         if total == 0 {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
         }
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
-        self.fleet.review_return_to_list = matches!(self.current_screen, ScreenId::FleetList(_));
+        if review_return_to_list && !self.fleet.list_input.trim().is_empty() {
+            let fleet_number = match self.fleet.list_input.trim().parse::<u16>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.fleet.list_status = Some("Enter a fleet number from the table.".to_string());
+                    return;
+                }
+            };
+            let Some(index) = rows.iter().position(|row| row.fleet_number == fleet_number) else {
+                self.fleet.list_status =
+                    Some(format!("Fleet #{fleet_number} is not in your fleet list."));
+                return;
+            };
+            self.fleet.cursor = index;
+        }
+        self.clear_fleet_list_input();
+        self.fleet.review_return_to_list = review_return_to_list;
         self.fleet.review_index = self.fleet.cursor.min(total - 1);
         self.current_screen = ScreenId::FleetReview;
     }
@@ -118,7 +146,7 @@ impl App {
         if self.current_screen != ScreenId::FleetReview {
             return;
         }
-        let total = self.fleet_rows().len();
+        let total = self.fleet_review_rows().len();
         if total == 0 {
             self.open_fleet_menu();
             return;
@@ -128,12 +156,12 @@ impl App {
             sync_scroll_to_cursor(
                 &mut self.fleet.scroll_offset,
                 self.fleet.cursor,
-                crate::screen::FLEET_VISIBLE_ROWS,
+                crate::screen::FLEET_LIST_VISIBLE_ROWS,
             );
             self.current_screen = ScreenId::FleetList(self.fleet.list_mode);
         } else {
             let default_fleet_number = self
-                .fleet_rows()
+                .fleet_review_rows()
                 .get(self.fleet.review_index)
                 .map(|row| row.fleet_number);
             self.open_fleet_menu_prompt(FleetMenuPromptMode::Review, default_fleet_number);
@@ -194,7 +222,7 @@ impl App {
         let ScreenId::FleetList(_) = self.current_screen else {
             return;
         };
-        let total = self.fleet_rows().len();
+        let total = self.fleet_list_rows().len();
         if total == 0 {
             self.fleet.cursor = 0;
             return;
@@ -204,15 +232,16 @@ impl App {
         sync_scroll_to_cursor(
             &mut self.fleet.scroll_offset,
             self.fleet.cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
+            crate::screen::FLEET_LIST_VISIBLE_ROWS,
         );
+        self.fleet.list_status = None;
     }
 
     pub fn move_fleet_review(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetReview {
             return;
         }
-        let total = self.fleet_rows().len();
+        let total = self.fleet_review_rows().len();
         if total == 0 {
             self.fleet.review_index = 0;
             return;
@@ -230,8 +259,33 @@ impl App {
         sync_scroll_to_cursor(
             &mut self.fleet.scroll_offset,
             self.fleet.cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
+            if self.fleet.review_return_to_list {
+                crate::screen::FLEET_LIST_VISIBLE_ROWS
+            } else {
+                crate::screen::FLEET_VISIBLE_ROWS
+            },
         );
+    }
+
+    pub fn append_fleet_list_char(&mut self, ch: char) {
+        if !matches!(self.current_screen, ScreenId::FleetList(_)) || !ch.is_ascii_digit() {
+            return;
+        }
+        if self.fleet.list_input.len() >= 4 {
+            return;
+        }
+        self.fleet.list_input.push(ch);
+        self.sync_fleet_list_cursor_to_input();
+        self.fleet.list_status = None;
+    }
+
+    pub fn backspace_fleet_list_input(&mut self) {
+        if !matches!(self.current_screen, ScreenId::FleetList(_)) {
+            return;
+        }
+        self.fleet.list_input.pop();
+        self.sync_fleet_list_cursor_to_input();
+        self.fleet.list_status = None;
     }
 
     pub fn move_fleet_roe_select(&mut self, delta: i8) {
@@ -582,6 +636,20 @@ impl App {
         rows.get(self.fleet.eta_cursor).map(|row| row.fleet_number)
     }
 
+    pub(crate) fn fleet_list_rows(&self) -> Vec<FleetRow> {
+        let mut rows = self.fleet_rows();
+        rows.sort_by(|left, right| right.fleet_number.cmp(&left.fleet_number));
+        rows
+    }
+
+    fn fleet_review_rows(&self) -> Vec<FleetRow> {
+        if self.fleet.review_return_to_list {
+            self.fleet_list_rows()
+        } else {
+            self.fleet_rows()
+        }
+    }
+
     pub(crate) fn fleet_rows(&self) -> Vec<FleetRow> {
         let mut rows = self
             .game_data
@@ -601,9 +669,11 @@ impl App {
                 current_speed: fleet.current_speed(),
                 max_speed: fleet.max_speed(),
                 eta_label: fleet_eta_label(&self.game_data, idx),
+                list_eta_label: fleet_list_eta_label(&self.game_data, idx),
                 rules_of_engagement: fleet.rules_of_engagement(),
                 order_label: fleet.standing_order_summary(),
                 composition_label: fleet.ship_composition_summary(),
+                table_composition_label: fleet.ship_composition_table_summary(),
             })
             .collect::<Vec<_>>();
         rows.sort_by(|left, right| {
@@ -612,6 +682,28 @@ impl App {
                 .then_with(|| right.fleet_number.cmp(&left.fleet_number))
         });
         rows
+    }
+
+    fn sync_fleet_list_cursor_to_input(&mut self) {
+        let ScreenId::FleetList(_) = self.current_screen else {
+            return;
+        };
+        let Ok(target_fleet_id) = self.fleet.list_input.trim().parse::<u16>() else {
+            return;
+        };
+        let rows = self.fleet_list_rows();
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
+            return;
+        };
+        self.fleet.cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
+            crate::screen::FLEET_LIST_VISIBLE_ROWS,
+        );
     }
 
     pub(crate) fn handle_fleet_roe_key(

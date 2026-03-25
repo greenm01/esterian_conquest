@@ -118,6 +118,29 @@ Interpretation rules:
 - If no valid target exists in that `XX` column, `[YY]` is blank.
 - Blank `[YY]` is not itself an error.
 
+## Target Entry Layouts
+
+- Coordinate-target entry uses the detailed target-entry layout for single-fleet
+  order:
+  - title
+  - location / speed / ROE / current order
+  - ships
+  - `Enter target coordinates for new order: <mission>`
+  - `Target XX` / `Target YY` prompt
+- Named-target entry (`Guard Starbase`, `Join Fleet`) uses the same detailed
+  single-fleet summary layout, but replaces the coordinate instruction with the
+  explicit prompt text:
+  - `Enter the starbase number for Guard a Starbase.`
+  - `Enter the host fleet number for Join another fleet.`
+- Single-fleet named-target entry does not render `New Orders:` above the
+  prompt.
+- Post-selection group order keeps the compact group summary:
+  - `Selected fleets: N`
+  - explicit instruction line for named-target entry
+  - prompt line
+- Group named-target entry does not use the generic
+  `Enter target for new order: <mission>` line.
+
 ## Validation Flow
 
 - Validation happens only after the player completes both coordinates.

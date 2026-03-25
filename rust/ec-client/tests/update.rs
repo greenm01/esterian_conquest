@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -20,8 +20,9 @@ use ec_client::model::ClassicLoginState;
 use ec_client::screen::layout::COMMAND_LINE_ROW;
 use ec_client::screen::table::{TableColumn, fit_table_columns};
 use ec_client::screen::{
-    CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode, PlanetListSort, ScreenId,
+    CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetListMode, FleetRoeScreen, FleetRow,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow,
+    PlanetListMode, PlanetListSort, ScreenId,
 };
 use ec_client::startup::StartupPhase;
 use ec_client::terminal::Terminal;
@@ -5638,6 +5639,64 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
 }
 
 #[test]
+fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
+    let rows = (1..=20)
+        .map(|idx| FleetRow {
+            fleet_record_index_1_based: idx,
+            fleet_number: idx as u16,
+            coords: [12, 6],
+            target_coords: [12, 6],
+            order_code: 3,
+            current_speed: 0,
+            max_speed: 3,
+            eta_label: "0".to_string(),
+            list_eta_label: "0".to_string(),
+            rules_of_engagement: 6,
+            order_label: "Patrol".to_string(),
+            composition_label: "SC=1".to_string(),
+            table_composition_label: "SC".to_string(),
+        })
+        .collect::<Vec<_>>();
+    let mut screen = FleetGroupScreen::new();
+    let buffer = screen
+        .render(
+            &rows,
+            0,
+            0,
+            &BTreeSet::new(),
+            FleetGroupOrderMode::SelectingFleets,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            3015,
+            None,
+        )
+        .expect("group fleet order screen should render");
+    let mut terminal = CaptureTerminal::new();
+    terminal
+        .render(&buffer)
+        .expect("captured group fleet order screen should render");
+
+    let right_border_col = terminal
+        .line(3)
+        .chars()
+        .position(|ch| ch == '┐')
+        .expect("group order table should have a right border");
+    let scrollbar_col = right_border_col + 1;
+    let char_at = |line: &str| line.chars().nth(scrollbar_col);
+    assert!(terminal.lines.iter().any(|line| char_at(line) == Some('^')));
+    assert!(terminal.lines.iter().any(|line| char_at(line) == Some('#')));
+    assert!(terminal.lines.iter().any(|line| char_at(line) == Some('v')));
+}
+
+#[test]
 fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -5988,9 +6047,20 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("guard starbase target prompt should render");
-    assert_eq!(
-        terminal.line(1).trim_end(),
-        "Enter the starbase number for Guard a Starbase."
+    assert!(line_containing(&terminal, "Location: ").contains("Location: ("));
+    assert!(line_containing(&terminal, "Current / Max Speed: ").contains("Current / Max Speed: "));
+    assert!(line_containing(&terminal, "ROE: ").contains("ROE: "));
+    assert!(line_containing(&terminal, "Order: ").contains("Order: "));
+    assert!(line_containing(&terminal, "Ships: ").contains("Ships: "));
+    assert!(
+        line_containing(&terminal, "Enter the starbase number for Guard a Starbase.")
+            .contains("Enter the starbase number for Guard a Starbase.")
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("New Orders: "))
     );
     assert!(
         line_containing(&terminal, "Starbase # [").contains("Starbase # [1]"),
@@ -6093,9 +6163,23 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("join-fleet target prompt should render");
-    assert_eq!(
-        terminal.line(1).trim_end(),
-        "Enter the host fleet number for Join another fleet."
+    assert!(line_containing(&terminal, "Location: ").contains("Location: ("));
+    assert!(line_containing(&terminal, "Current / Max Speed: ").contains("Current / Max Speed: "));
+    assert!(line_containing(&terminal, "ROE: ").contains("ROE: "));
+    assert!(line_containing(&terminal, "Order: ").contains("Order: "));
+    assert!(line_containing(&terminal, "Ships: ").contains("Ships: "));
+    assert!(
+        line_containing(
+            &terminal,
+            "Enter the host fleet number for Join another fleet."
+        )
+        .contains("Enter the host fleet number for Join another fleet.")
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("New Orders: "))
     );
     assert!(
         line_containing(&terminal, "Fleet # [").contains("Fleet # ["),
@@ -6361,7 +6445,13 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("compact fleet group target screen should render");
-    assert!(line_containing(&terminal, "Selected fleets: ").contains("Selected fleets: 1"));
+    let selected = line_containing(&terminal, "Selected fleets: ")
+        .trim()
+        .strip_prefix("Selected fleets: ")
+        .expect("selected fleets line should have prefix");
+    assert_eq!(selected.split(", ").count(), 1);
+    assert!(selected.len() >= 2);
+    assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
     assert!(
         line_containing(&terminal, "Enter target coordinates for new order: ")
             .contains("Enter target coordinates for new order: Bombard")
@@ -6381,7 +6471,13 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
         line_containing(&terminal, "Stardate: ")
             .contains(&format!("Stardate: {}", app.game_data.conquest.game_year()))
     );
-    assert!(line_containing(&terminal, "Selected fleets: ").contains("Selected fleets: 1"));
+    let selected = line_containing(&terminal, "Selected fleets: ")
+        .trim()
+        .strip_prefix("Selected fleets: ")
+        .expect("selected fleets line should have prefix");
+    assert_eq!(selected.split(", ").count(), 1);
+    assert!(selected.len() >= 2);
+    assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
     assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
     assert!(
         terminal
@@ -6396,7 +6492,76 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
 }
 
 #[test]
-fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
+fn fleet_group_order_lists_selected_fleet_numbers_in_compact_target_entry() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveGroupOrder(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('3'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("compact fleet group target screen should render");
+    let selected = line_containing(&terminal, "Selected fleets: ")
+        .trim()
+        .strip_prefix("Selected fleets: ")
+        .expect("selected fleets line should have prefix");
+    let parts = selected.split(", ").collect::<Vec<_>>();
+    assert_eq!(parts.len(), 2);
+    assert!(
+        parts
+            .iter()
+            .all(|part| part.len() >= 2 && part.chars().all(|ch| ch.is_ascii_digit()))
+    );
+}
+
+#[test]
+fn fleet_selectors_sort_by_mission_then_newest_fleet_id() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     for fleet in state.game_data.fleets.records.iter_mut().take(4) {
@@ -6422,12 +6587,13 @@ fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+            Action::Fleet(FleetAction::OpenRoeSelect)
         ),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("fleet list should render");
+    app.render(&mut terminal).expect("fleet selector should render");
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert!(terminal.line(6).starts_with("│ 3│"));
     assert!(terminal.line(7).starts_with("│ 1│"));
     assert!(terminal.line(8).starts_with("│ 2│"));
@@ -8099,9 +8265,25 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     app.render(&mut terminal)
         .expect("fleet group join target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    assert_eq!(
-        terminal.line(4).trim_end(),
-        "Enter target for new order: Join fleet"
+    let selected = line_containing(&terminal, "Selected fleets: ")
+        .trim()
+        .strip_prefix("Selected fleets: ")
+        .expect("selected fleets line should have prefix");
+    assert_eq!(selected.split(", ").count(), 1);
+    assert!(selected.len() >= 2);
+    assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
+    assert!(
+        line_containing(
+            &terminal,
+            "Enter the host fleet number for Join another fleet."
+        )
+        .contains("Enter the host fleet number for Join another fleet.")
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Enter target for new order: Join fleet"))
     );
     assert!(
         line_containing(&terminal, "Fleet # [").contains("Fleet # ["),
@@ -8131,6 +8313,76 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         ordered_fleet.fleet_id()
     );
     assert_eq!(ordered_fleet.standing_order_target_coords_raw(), [16, 13]);
+}
+
+#[test]
+fn fleet_group_guard_starbase_target_prompt_uses_named_target_layout() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('4'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet group guard-starbase target prompt should render");
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+    let selected = line_containing(&terminal, "Selected fleets: ")
+        .trim()
+        .strip_prefix("Selected fleets: ")
+        .expect("selected fleets line should have prefix");
+    assert_eq!(selected.split(", ").count(), 1);
+    assert!(selected.len() >= 2);
+    assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
+    assert!(
+        line_containing(&terminal, "Enter the starbase number for Guard a Starbase.")
+            .contains("Enter the starbase number for Guard a Starbase.")
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Enter target for new order: Guard starbase"))
+    );
+    assert!(
+        line_containing(&terminal, "Starbase # [").contains("Starbase # ["),
+        "{}",
+        line_containing(&terminal, "Starbase # [")
+    );
 }
 
 #[test]
@@ -8304,6 +8556,8 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     assert!(terminal.line(2).contains("Curr"));
     assert!(terminal.line(2).contains("Seen"));
     assert!(terminal.line(2).contains("Scout"));
+    assert!(terminal.line(2).contains("AR"));
+    assert!(terminal.line(2).contains("GB"));
     assert!(terminal.line(2).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("own")));
@@ -8665,9 +8919,11 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
         current_speed: 0,
         max_speed: 3,
         eta_label: "0".to_string(),
+        list_eta_label: "0".to_string(),
         rules_of_engagement: 5,
         order_label: "Guard/blockade world".to_string(),
-        composition_label: "1 CA 1 ETAC".to_string(),
+        composition_label: "CA=1 ET=1".to_string(),
+        table_composition_label: "CA ET".to_string(),
     }];
 
     let buffer = screen
@@ -8693,9 +8949,11 @@ fn fleet_roe_render_shows_edit_errors_on_bottom_line() {
         current_speed: 0,
         max_speed: 3,
         eta_label: "0".to_string(),
+        list_eta_label: "0".to_string(),
         rules_of_engagement: 6,
         order_label: "Hold".to_string(),
-        composition_label: "1 ETAC".to_string(),
+        composition_label: "ET=1".to_string(),
+        table_composition_label: "ET".to_string(),
     }];
 
     let buffer = screen
@@ -8730,9 +8988,11 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             current_speed: 0,
             max_speed: 3,
             eta_label: "0".to_string(),
+            list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
             order_label: "Hold".to_string(),
-            composition_label: "1 CA".to_string(),
+            composition_label: "CA=1".to_string(),
+            table_composition_label: "CA".to_string(),
         },
         FleetRow {
             fleet_record_index_1_based: 2,
@@ -8743,9 +9003,11 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             current_speed: 0,
             max_speed: 3,
             eta_label: "0".to_string(),
+            list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
             order_label: "Hold".to_string(),
-            composition_label: "1 DD".to_string(),
+            composition_label: "DD=1".to_string(),
+            table_composition_label: "DD".to_string(),
         },
         FleetRow {
             fleet_record_index_1_based: 3,
@@ -8756,19 +9018,21 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             current_speed: 0,
             max_speed: 3,
             eta_label: "0".to_string(),
+            list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
             order_label: "Hold".to_string(),
-            composition_label: "1 BB".to_string(),
+            composition_label: "BB=1".to_string(),
+            table_composition_label: "BB".to_string(),
         },
     ];
 
     let buffer = screen
-        .render(FleetListMode::Brief, &rows, 0, 0)
+        .render(FleetListMode::Brief, &rows, 0, 0, "", None)
         .expect("fleet list renders");
 
-    assert!(buffer.plain_line(6).contains("│001│"));
-    assert!(buffer.plain_line(7).contains("│010│"));
-    assert!(buffer.plain_line(8).contains("│100│"));
+    assert!(buffer.plain_line(4).contains("│001│"));
+    assert!(buffer.plain_line(5).contains("│010│"));
+    assert!(buffer.plain_line(6).contains("│100│"));
 }
 
 #[test]
@@ -8783,28 +9047,37 @@ fn fleet_list_full_table_uses_order_target_eta_columns_and_fits_playfield() {
         current_speed: 0,
         max_speed: 6,
         eta_label: "3000".to_string(),
+        list_eta_label: "0".to_string(),
         rules_of_engagement: 6,
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "DD=1".to_string(),
+        table_composition_label: "DD".to_string(),
     }];
 
     let buffer = screen
-        .render(FleetListMode::Full, &rows, 0, 0)
+        .render(FleetListMode::Full, &rows, 0, 0, "", None)
         .expect("full fleet list renders");
 
     assert_eq!(buffer.plain_line(0), "FLEET LIST:");
-    assert!(buffer.plain_line(3).starts_with("┌"));
-    assert!(buffer.plain_line(3).ends_with("┐"));
-    assert!(buffer.plain_line(4).contains("│ID│Location│Order"));
-    assert!(buffer.plain_line(4).contains("│Target  │"));
-    assert!(buffer.plain_line(4).contains("│  Spd│ ETA│ROE│Ships"));
-    assert!(buffer.plain_line(6).contains("Guard/blockade"));
-    assert!(buffer.plain_line(6).contains("(16,13)"));
-    assert!(buffer.plain_line(6).contains("│  0/6│3000│  6│DD=1"));
+    assert!(!buffer.plain_line(1).contains("ENTER reviews a fleet."));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(1).ends_with("┐"));
+    assert!(buffer.plain_line(2).contains("│ID│Location│Order"));
+    assert!(buffer.plain_line(2).contains("│Target"));
+    assert!(buffer.plain_line(2).contains("│Spd│"));
+    assert!(buffer.plain_line(2).contains("ETA"));
+    assert!(buffer.plain_line(2).contains("ROE"));
+    assert!(buffer.plain_line(2).contains("Ships"));
+    assert!(buffer.plain_line(4).contains("Grd/Blkd"));
+    assert!(buffer.plain_line(4).contains("(16,13)"));
+    assert!(buffer.plain_line(4).contains("0/6"));
+    assert!(buffer.plain_line(4).contains("0"));
+    assert!(buffer.plain_line(4).contains("DD"));
+    assert_eq!(buffer.plain_line(6), "COMMANDS <ARROWS J K Q> [4] ->");
 }
 
 #[test]
-fn fleet_list_eta_column_shows_current_year_for_fleets_already_at_target() {
+fn fleet_list_eta_column_shows_turns_remaining_for_arrived_fleets() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     state.game_data.conquest.set_game_year(3007);
@@ -8842,12 +9115,84 @@ fn fleet_list_eta_column_shows_current_year_for_fleets_already_at_target() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet list should render");
+    let right_border_col = terminal
+        .line(1)
+        .chars()
+        .position(|ch| ch == '┐')
+        .expect("fleet list should have a right border");
+    let scrollbar_col = (1..=22).find_map(|row| {
+        terminal
+            .line(row)
+            .chars()
+            .nth(right_border_col + 1)
+            .filter(|ch| matches!(ch, '^' | '|' | '#' | 'v'))
+            .map(|_| right_border_col + 1)
+    });
+    assert!(right_border_col < 79);
+    if let Some(scrollbar_col) = scrollbar_col {
+        assert_eq!(scrollbar_col, right_border_col + 1);
+    }
     assert!(
         terminal
             .lines
             .iter()
             .filter(|line| line.contains("(16,13)"))
-            .any(|line| line.contains("│3007│")),
+            .any(|line| line.contains("│  0│")),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
+fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
+        ),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(terminal.line(4).contains("│ 4│"));
+    assert_eq!(
+        line_containing(&terminal, "COMMANDS <ARROWS J K Q> [").trim_end(),
+        "COMMANDS <ARROWS J K Q> [4] ->"
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendListChar('1'))),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("fleet list should render typed fleet input");
+    assert_eq!(
+        line_containing(&terminal, "COMMANDS <ARROWS J K Q> [").trim_end(),
+        "COMMANDS <ARROWS J K Q> [1] -> 1"
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReview);
+    app.render(&mut terminal).expect("fleet review should render");
+    assert!(
+        line_containing(&terminal, "Fleet ID: ").contains("Fleet ID: 1"),
         "{:#?}",
         terminal.lines
     );
@@ -8865,9 +9210,11 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         current_speed: 3,
         max_speed: 3,
         eta_label: "1".to_string(),
+        list_eta_label: "1".to_string(),
         rules_of_engagement: 6,
         order_label: "Move fleet to Sector (19,13)".to_string(),
-        composition_label: "1 CA".to_string(),
+        composition_label: "CA=1".to_string(),
+        table_composition_label: "CA".to_string(),
     }];
 
     let buffer = screen
@@ -10032,8 +10379,8 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
     app.render(&mut terminal).expect("render etac prompt");
     assert!(
-        line_containing(&terminal, "ETAC ships to detach [")
-            .contains("ETAC ships to detach [0] <Q> ->")
+        line_containing(&terminal, "ET ships to detach [")
+            .contains("ET ships to detach [0] <Q> ->")
     );
 
     assert_eq!(

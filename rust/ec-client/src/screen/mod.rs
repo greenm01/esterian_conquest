@@ -92,7 +92,7 @@ pub use crate::domains::empire::screens::rankings::RankingsScreen;
 pub use crate::domains::fleet::missions::{
     FLEET_MISSION_OPTIONS, FleetMissionOption, FleetMissionRequirement,
 };
-pub(crate) use crate::domains::fleet::screens::fleet::FLEET_VISIBLE_ROWS;
+pub(crate) use crate::domains::fleet::screens::fleet::{FLEET_LIST_VISIBLE_ROWS, FLEET_VISIBLE_ROWS};
 pub use crate::domains::fleet::screens::fleet::{
     FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
     FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,

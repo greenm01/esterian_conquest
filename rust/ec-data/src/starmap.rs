@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{map_size_for_player_count, CoreGameData, IntelTier, PlanetIntelSnapshot};
+use crate::{CoreGameData, IntelTier, PlanetIntelSnapshot, map_size_for_player_count};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerStarmapWorld {

@@ -41,8 +41,8 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::right("Grow", 5),
     TableColumn::right("Docked", 6),
     TableColumn::left("SB", 2),
-    TableColumn::right("ARs", 3),
-    TableColumn::right("GBs", 3),
+    TableColumn::right("AR", 3),
+    TableColumn::right("GB", 3),
 ];
 
 const BRIEF_SORT_PROMPT: &str = "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->";

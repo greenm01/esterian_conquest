@@ -1701,7 +1701,7 @@ fn format_auto_commission_fleet_entry(
     push_auto_commission_ship_code(&mut composition, "BB", entry.battleships);
     push_auto_commission_ship_code(&mut composition, "SC", entry.scouts);
     push_auto_commission_ship_code(&mut composition, "TT", entry.transports);
-    push_auto_commission_ship_code(&mut composition, "ETAC", entry.etacs);
+    push_auto_commission_ship_code(&mut composition, "ET", entry.etacs);
     format!(
         "Fleet {} commissioned from \"{}\" in sector {} with {}.",
         format_fleet_number(entry.fleet_number, max_fleet_number),

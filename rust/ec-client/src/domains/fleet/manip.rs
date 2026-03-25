@@ -906,7 +906,7 @@ impl App {
                 ("Scout ships to detach ".to_string(), "0".to_string())
             }
             FleetDetachMode::EnteringEtacs => {
-                ("ETAC ships to detach ".to_string(), "0".to_string())
+                ("ET ships to detach ".to_string(), "0".to_string())
             }
             FleetDetachMode::AdjustingDonorSpeed => (
                 format!(
@@ -1178,7 +1178,7 @@ impl App {
                 ("Empty transports ".to_string(), "0".to_string())
             }
             FleetTransferMode::EnteringScouts => ("Scouts ".to_string(), "0".to_string()),
-            FleetTransferMode::EnteringEtacs => ("ETACs ".to_string(), "0".to_string()),
+            FleetTransferMode::EnteringEtacs => ("ET ships ".to_string(), "0".to_string()),
         }
     }
 
@@ -1290,5 +1290,14 @@ pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> Str
             .game_year()
             .saturating_add(years)
             .to_string(),
+    }
+}
+
+pub(super) fn fleet_list_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
+    match estimate_fleet_eta(game_data, fleet_idx) {
+        FleetEtaEstimate::Arrived => "0".to_string(),
+        FleetEtaEstimate::Stopped => "0".to_string(),
+        FleetEtaEstimate::Unreachable => "0".to_string(),
+        FleetEtaEstimate::Years(years) => years.to_string(),
     }
 }

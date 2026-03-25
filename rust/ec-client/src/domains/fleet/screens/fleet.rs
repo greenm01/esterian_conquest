@@ -26,6 +26,7 @@ use crate::screen::{
 use crate::theme::classic;
 
 pub const FLEET_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
+pub const FLEET_LIST_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
@@ -37,9 +38,11 @@ pub struct FleetRow {
     pub current_speed: u8,
     pub max_speed: u8,
     pub eta_label: String,
+    pub list_eta_label: String,
     pub rules_of_engagement: u8,
     pub order_label: String,
     pub composition_label: String,
+    pub table_composition_label: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -368,21 +371,15 @@ impl FleetListScreen {
         rows: &[FleetRow],
         scroll_offset: usize,
         cursor: usize,
+        input: &str,
+        status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let max_fleet_number = max_fleet_number(rows);
-        let brief_columns = brief_columns(max_fleet_number);
-        let full_columns = full_columns(max_fleet_number);
         let title = match mode {
             FleetListMode::Brief => "BRIEF FLEET LIST:",
             FleetListMode::Full => "FLEET LIST:",
         };
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "ENTER reviews a fleet. Use arrows or J/K to move through the list.",
-        );
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, title, classic::title_style());
         let table_rows = rows
@@ -393,30 +390,31 @@ impl FleetListScreen {
                     format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ],
                 FleetListMode::Full => vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
                     format_sector_coords_table(row.coords),
-                    fleet_list_order_label(row.order_code).to_string(),
+                    fleet_table_order_label(row.order_code).to_string(),
                     fleet_list_target_label(row.target_coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
-                    row.eta_label.clone(),
+                    row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ],
             })
             .collect::<Vec<_>>();
+        let columns = match mode {
+            FleetListMode::Brief => brief_columns(max_fleet_number).to_vec(),
+            FleetListMode::Full => fit_table_columns(&full_columns(max_fleet_number), &table_rows),
+        };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            3,
-            match mode {
-                FleetListMode::Brief => &brief_columns,
-                FleetListMode::Full => &full_columns,
-            },
+            1,
+            &columns,
             &table_rows,
             scroll_offset,
-            FLEET_VISIBLE_ROWS,
+            FLEET_LIST_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -426,13 +424,28 @@ impl FleetListScreen {
             },
         );
         let command_row = table_prompt_row(metrics.bottom_row);
-        draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
         if table_rows.is_empty() {
+            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
             draw_command_message_stack(
                 &mut buffer,
                 command_row,
                 &[CommandMessage::Notice("You have no active fleets.")],
             );
+        } else {
+            let default_fleet_number = rows
+                .get(cursor)
+                .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
+                .unwrap_or_else(|| format_fleet_number(rows[0].fleet_number, max_fleet_number));
+            draw_table_command_bar_at(
+                &mut buffer,
+                command_row,
+                "<ARROWS J K Q>",
+                Some(&default_fleet_number),
+                input,
+            );
+            if let Some(status) = status {
+                draw_inline_status_after(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -448,6 +461,8 @@ impl FleetListScreen {
             KeyCode::PageUp => Action::Fleet(FleetAction::MoveList(-8)),
             KeyCode::PageDown => Action::Fleet(FleetAction::MoveList(8)),
             KeyCode::Enter => Action::Fleet(FleetAction::OpenReview),
+            KeyCode::Backspace => Action::Fleet(FleetAction::BackspaceListInput),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Fleet(FleetAction::AppendListChar(ch)),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::OpenMenu)
             }
@@ -565,7 +580,7 @@ impl FleetRoeScreen {
                     format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -677,6 +692,17 @@ impl FleetSingleOrderScreen {
                 status,
             );
         }
+        if mode == FleetSingleOrderMode::EnteringTarget {
+            return self.render_named_target_entry(
+                row,
+                current_order_label,
+                header_text,
+                target_prompt,
+                target_default,
+                input,
+                status,
+            );
+        }
         if matches!(
             mode,
             FleetSingleOrderMode::EnteringTargetX | FleetSingleOrderMode::EnteringTargetY
@@ -693,88 +719,7 @@ impl FleetSingleOrderScreen {
                 status,
             );
         }
-        let mut buffer = new_playfield();
-        buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(
-            0,
-            0,
-            &format!("ORDER FLEET #{}:", row.fleet_number),
-            classic::title_style(),
-        );
-        draw_status_line(&mut buffer, 1, "", header_text);
-        draw_status_line(
-            &mut buffer,
-            3,
-            "Location: ",
-            &format_sector_coords_table(row.coords),
-        );
-        draw_status_line(
-            &mut buffer,
-            4,
-            "Current / Max Speed: ",
-            &format!("{}/{}", row.current_speed, row.max_speed),
-        );
-        draw_status_line(
-            &mut buffer,
-            5,
-            "ROE: ",
-            &row.rules_of_engagement.to_string(),
-        );
-        draw_status_line(&mut buffer, 6, "Order: ", current_order_label);
-        draw_status_line(&mut buffer, 8, "Ships: ", &row.composition_label);
-        draw_status_line(&mut buffer, 10, "New Orders: ", new_order_label);
-        let command_row = menu_prompt_row(10);
-        let active_row = match mode {
-            FleetSingleOrderMode::EnteringTarget => {
-                draw_command_line_default_input_at(
-                    &mut buffer,
-                    command_row,
-                    "FLEET COMMAND",
-                    target_prompt,
-                    target_default,
-                    input,
-                );
-                command_row
-            }
-            FleetSingleOrderMode::EnteringTargetX => {
-                draw_command_line_default_input_at(
-                    &mut buffer,
-                    command_row,
-                    "FLEET COMMAND",
-                    "Target XX ",
-                    target_x_default,
-                    target_x_input,
-                );
-                command_row
-            }
-            FleetSingleOrderMode::EnteringTargetY => {
-                draw_command_line_default_input_at(
-                    &mut buffer,
-                    command_row,
-                    "FLEET COMMAND",
-                    "Target XX ",
-                    target_x_default,
-                    target_x_input,
-                );
-                draw_command_line_default_input_at(
-                    &mut buffer,
-                    command_row + 2,
-                    "FLEET COMMAND",
-                    "Target YY ",
-                    target_y_default,
-                    target_y_input,
-                );
-                command_row + 2
-            }
-            FleetSingleOrderMode::ConfirmingTarget => {
-                draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
-                command_row
-            }
-        };
-        if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, active_row, status);
-        }
-        Ok(buffer)
+        unreachable!("target-entry render path handled above")
     }
 
     fn render_coordinate_target_entry(
@@ -863,6 +808,60 @@ impl FleetSingleOrderScreen {
         Ok(buffer)
     }
 
+    fn render_named_target_entry(
+        &mut self,
+        row: &FleetRow,
+        current_order_label: &str,
+        header_text: &str,
+        target_prompt: &str,
+        target_default: &str,
+        input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(
+            0,
+            0,
+            &format!("ORDER FLEET #{}:", row.fleet_number),
+            classic::title_style(),
+        );
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Location: ",
+            &format_sector_coords_table(row.coords),
+        );
+        draw_status_line(
+            &mut buffer,
+            3,
+            "Current / Max Speed: ",
+            &format!("{}/{}", row.current_speed, row.max_speed),
+        );
+        draw_status_line(
+            &mut buffer,
+            4,
+            "ROE: ",
+            &row.rules_of_engagement.to_string(),
+        );
+        draw_status_line(&mut buffer, 5, "Order: ", current_order_label);
+        draw_status_line(&mut buffer, 7, "Ships: ", &row.composition_label);
+        draw_status_line(&mut buffer, 9, "", header_text);
+        let command_row = menu_prompt_row(9);
+        draw_command_line_default_input_at(
+            &mut buffer,
+            command_row,
+            "FLEET COMMAND",
+            target_prompt,
+            target_default,
+            input,
+        );
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
+        }
+        Ok(buffer)
+    }
+
     fn render_confirm_target(
         &mut self,
         row: &FleetRow,
@@ -930,7 +929,7 @@ impl FleetEtaScreen {
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
                     format_sector_coords_table(row.target_coords),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1048,7 +1047,7 @@ impl FleetMergeScreen {
                     format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1128,9 +1127,11 @@ impl FleetGroupScreen {
                 status,
             );
         }
+        let selected_fleet_label =
+            format_selected_fleet_numbers(rows, selected_fleet_record_indexes);
         if mode == FleetGroupOrderMode::ConfirmingTarget {
             return self.render_confirm_target(
-                selected_fleet_record_indexes.len(),
+                &selected_fleet_label,
                 target_status_line,
                 new_order_label,
                 confirm_input,
@@ -1139,8 +1140,9 @@ impl FleetGroupScreen {
             );
         }
         return self.render_target_entry(
-            selected_fleet_record_indexes.len(),
+            &selected_fleet_label,
             mode,
+            target_status_line,
             new_order_label,
             target_prompt,
             target_default,
@@ -1202,7 +1204,7 @@ impl FleetGroupScreen {
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
                     format_sector_coords_table(row.target_coords),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1240,8 +1242,9 @@ impl FleetGroupScreen {
 
     fn render_target_entry(
         &mut self,
-        selected_count: usize,
+        selected_fleet_label: &str,
         mode: FleetGroupOrderMode,
+        header_text: &str,
         new_order_label: &str,
         target_prompt: &str,
         target_default: &str,
@@ -1259,17 +1262,18 @@ impl FleetGroupScreen {
             &mut buffer,
             2,
             "Selected fleets: ",
-            &selected_count.to_string(),
+            selected_fleet_label,
         );
-        let instruction = if matches!(
-            mode,
-            FleetGroupOrderMode::EnteringTargetX | FleetGroupOrderMode::EnteringTargetY
-        ) {
-            "Enter target coordinates for new order: "
+        if mode == FleetGroupOrderMode::EnteringTarget {
+            draw_status_line(&mut buffer, 4, "", header_text);
         } else {
-            "Enter target for new order: "
-        };
-        draw_status_line(&mut buffer, 4, instruction, new_order_label);
+            draw_status_line(
+                &mut buffer,
+                4,
+                "Enter target coordinates for new order: ",
+                new_order_label,
+            );
+        }
         let command_row = menu_prompt_row(4);
         let active_row = match mode {
             FleetGroupOrderMode::EnteringTarget => {
@@ -1325,7 +1329,7 @@ impl FleetGroupScreen {
 
     fn render_confirm_target(
         &mut self,
-        selected_count: usize,
+        selected_fleet_label: &str,
         header_text: &str,
         new_order_label: &str,
         confirm_input: &str,
@@ -1340,7 +1344,7 @@ impl FleetGroupScreen {
             &mut buffer,
             3,
             "Selected fleets: ",
-            &selected_count.to_string(),
+            selected_fleet_label,
         );
         draw_status_line(&mut buffer, 5, "", header_text);
         draw_status_line(&mut buffer, 7, "New Orders: ", new_order_label);
@@ -1430,7 +1434,7 @@ impl FleetTransferScreen {
                     row.rules_of_engagement.to_string(),
                     row.order_code.to_string(),
                     format_sector_coords_table(row.target_coords),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1510,7 +1514,7 @@ impl FleetMissionPickerScreen {
             .iter()
             .map(|option| {
                 vec![
-                    option.code.to_string(),
+                    format!("{:02}", option.code),
                     option.mission.to_string(),
                     option.requirements.to_string(),
                 ]
@@ -1595,7 +1599,7 @@ impl FleetDetachScreen {
                     format_sector_coords_table(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
-                    row.composition_label.clone(),
+                    row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1643,6 +1647,26 @@ fn max_fleet_number(rows: &[FleetRow]) -> u16 {
     rows.iter().map(|row| row.fleet_number).max().unwrap_or(1)
 }
 
+fn format_selected_fleet_numbers(
+    rows: &[FleetRow],
+    selected_fleet_record_indexes: &BTreeSet<usize>,
+) -> String {
+    let mut fleet_numbers = rows
+        .iter()
+        .filter(|row| selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based))
+        .map(|row| row.fleet_number)
+        .collect::<Vec<_>>();
+    fleet_numbers.sort_unstable();
+    if fleet_numbers.is_empty() {
+        return "0".to_string();
+    }
+    fleet_numbers
+        .into_iter()
+        .map(|fleet_number| format!("{fleet_number:02}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn brief_columns(max_fleet_number: u16) -> [TableColumn<'static>; 5] {
     [
         TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
@@ -1668,7 +1692,7 @@ fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 8] {
     ]
 }
 
-pub(crate) fn fleet_list_order_label(order_code: u8) -> &'static str {
+pub(crate) fn fleet_order_label(order_code: u8) -> &'static str {
     match ec_data::Order::from_raw(order_code) {
         ec_data::Order::HoldPosition => "Hold",
         ec_data::Order::MoveOnly => "Move",
@@ -1685,6 +1709,28 @@ pub(crate) fn fleet_list_order_label(order_code: u8) -> &'static str {
         ec_data::Order::ColonizeWorld => "Colonize",
         ec_data::Order::JoinAnotherFleet => "Join fleet",
         ec_data::Order::RendezvousSector => "Rendezvous",
+        ec_data::Order::Salvage => "Salvage",
+        ec_data::Order::Unknown(_) => "Unknown",
+    }
+}
+
+pub(crate) fn fleet_table_order_label(order_code: u8) -> &'static str {
+    match ec_data::Order::from_raw(order_code) {
+        ec_data::Order::HoldPosition => "Hold",
+        ec_data::Order::MoveOnly => "Move",
+        ec_data::Order::SeekHome => "Seek",
+        ec_data::Order::PatrolSector => "Patrol",
+        ec_data::Order::GuardStarbase => "Grd SB",
+        ec_data::Order::GuardBlockadeWorld => "Grd/Blkd",
+        ec_data::Order::BombardWorld => "Bomb",
+        ec_data::Order::InvadeWorld => "Invade",
+        ec_data::Order::BlitzWorld => "Blitz",
+        ec_data::Order::ViewWorld => "View",
+        ec_data::Order::ScoutSector => "SC Sctr",
+        ec_data::Order::ScoutSolarSystem => "SC Sys",
+        ec_data::Order::ColonizeWorld => "Col",
+        ec_data::Order::JoinAnotherFleet => "Join",
+        ec_data::Order::RendezvousSector => "Rendez",
         ec_data::Order::Salvage => "Salvage",
         ec_data::Order::Unknown(_) => "Unknown",
     }

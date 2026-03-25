@@ -1,4 +1,4 @@
-use ec_compat::{merge_player_intel_from_compat, DatabaseDat};
+use ec_compat::{DatabaseDat, merge_player_intel_from_compat};
 use ec_data::build_player_starmap_projection_from_snapshots;
 use ec_engine::GameStateBuilder;
 
@@ -32,10 +32,12 @@ fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
     let projection = build_player_starmap_projection_from_snapshots(&game_data, &snapshots, 1);
     assert_eq!(projection.worlds.len(), planet_count);
     assert!(projection.worlds.iter().any(|world| world.coords == [5, 2]));
-    assert!(projection
-        .worlds
-        .iter()
-        .any(|world| world.coords == [10, 15]));
+    assert!(
+        projection
+            .worlds
+            .iter()
+            .any(|world| world.coords == [10, 15])
+    );
 
     let known = projection
         .worlds

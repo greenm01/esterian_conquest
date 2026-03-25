@@ -1144,7 +1144,7 @@ impl App {
     pub(crate) fn fleet_order_current_order_label(&self) -> String {
         self.fleet_order_selected_row()
             .map(|row| {
-                crate::domains::fleet::screens::fleet::fleet_list_order_label(row.order_code)
+                crate::domains::fleet::screens::fleet::fleet_order_label(row.order_code)
             })
             .unwrap_or("Unknown")
             .to_string()
@@ -1153,7 +1153,7 @@ impl App {
     pub(crate) fn fleet_order_new_order_label(&self) -> String {
         self.fleet
             .order_mission_code
-            .map(crate::domains::fleet::screens::fleet::fleet_list_order_label)
+            .map(crate::domains::fleet::screens::fleet::fleet_order_label)
             .unwrap_or("Unknown")
             .to_string()
     }
@@ -1211,19 +1211,11 @@ impl App {
     }
 
     pub(crate) fn fleet_order_target_x_display_input(&self) -> String {
-        if self.fleet.order_target_x_input.trim().is_empty() {
-            self.fleet_order_target_x_default()
-        } else {
-            self.fleet.order_target_x_input.clone()
-        }
+        self.fleet.order_target_x_input.clone()
     }
 
     pub(crate) fn fleet_order_target_y_display_input(&self) -> String {
-        if self.fleet.order_target_y_input.trim().is_empty() {
-            self.fleet_order_target_y_default()
-        } else {
-            self.fleet.order_target_y_input.clone()
-        }
+        self.fleet.order_target_y_input.clone()
     }
 
     pub(crate) fn fleet_group_target_x_default_value(&self) -> String {
@@ -1239,19 +1231,11 @@ impl App {
     }
 
     pub(crate) fn fleet_group_target_x_display_input(&self) -> String {
-        if self.fleet.group_target_x_input.trim().is_empty() {
-            self.fleet_group_target_x_default_value()
-        } else {
-            self.fleet.group_target_x_input.clone()
-        }
+        self.fleet.group_target_x_input.clone()
     }
 
     pub(crate) fn fleet_group_target_y_display_input(&self) -> String {
-        if self.fleet.group_target_y_input.trim().is_empty() {
-            self.fleet_group_target_y_default_value()
-        } else {
-            self.fleet.group_target_y_input.clone()
-        }
+        self.fleet.group_target_y_input.clone()
     }
 
     fn fleet_order_default_target_for_mission(&self, mission_code: u8) -> Option<[u8; 2]> {

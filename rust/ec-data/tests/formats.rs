@@ -165,6 +165,7 @@ fn round_trip_initialized_fleets_dat() {
         "Guard/blockade world in System (16,13)"
     );
     assert_eq!(parsed.records[0].ship_composition_summary(), "CA=1 ET=1");
+    assert_eq!(parsed.records[0].ship_composition_table_summary(), "CA ET");
 
     assert_eq!(parsed.records[2].fleet_id(), 3);
     assert_eq!(parsed.records[2].local_slot(), 3);
@@ -189,6 +190,44 @@ fn round_trip_initialized_fleets_dat() {
         "Guard/blockade world in System (16,13)"
     );
     assert_eq!(parsed.records[2].ship_composition_summary(), "DD=1");
+    assert_eq!(parsed.records[2].ship_composition_table_summary(), "DD");
+}
+
+#[test]
+#[should_panic(expected = "empty fleet record is not a fleet")]
+fn empty_fleet_record_panics_when_rendering_ship_composition() {
+    let mut record = FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT"))
+        .unwrap()
+        .records[0]
+        .clone();
+    record.set_scout_count(0);
+    record.set_battleship_count(0);
+    record.set_cruiser_count(0);
+    record.set_destroyer_count(0);
+    record.set_troop_transport_count(0);
+    record.set_army_count(0);
+    record.set_etac_count(0);
+    let _ = record.ship_composition_table_summary();
+}
+
+#[test]
+fn fleet_table_summary_uses_tt_star_for_loaded_transports_only() {
+    let mut record = FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT"))
+        .unwrap()
+        .records[0]
+        .clone();
+    record.set_scout_count(0);
+    record.set_battleship_count(0);
+    record.set_cruiser_count(0);
+    record.set_destroyer_count(0);
+    record.set_etac_count(0);
+    record.set_troop_transport_count(2);
+    record.set_army_count(0);
+    assert_eq!(record.ship_composition_table_summary(), "TT");
+
+    record.set_army_count(2);
+    assert_eq!(record.ship_composition_table_summary(), "TT*");
+    assert!(!record.ship_composition_table_summary().contains("TT "));
 }
 
 #[test]

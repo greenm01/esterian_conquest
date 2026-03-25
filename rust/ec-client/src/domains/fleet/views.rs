@@ -26,12 +26,18 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         ScreenId::FleetList(mode) => app.fleet_list.render(
             mode,
-            &app.fleet_rows(),
+            &app.fleet_list_rows(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
+            &app.fleet.list_input,
+            app.fleet.list_status.as_deref(),
         ),
         ScreenId::FleetReview => {
-            let rows = app.fleet_rows();
+            let rows = if app.fleet.review_return_to_list {
+                app.fleet_list_rows()
+            } else {
+                app.fleet_rows()
+            };
             let row = rows
                 .get(app.fleet.review_index)
                 .ok_or("fleet review row missing")?;
@@ -85,7 +91,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             let new_order_label = app
                 .fleet
                 .group_mission_code
-                .map(crate::domains::fleet::screens::fleet::fleet_list_order_label)
+                .map(crate::domains::fleet::screens::fleet::fleet_order_label)
                 .unwrap_or("Unknown")
                 .to_string();
             let current_year = app.game_data.conquest.game_year();
