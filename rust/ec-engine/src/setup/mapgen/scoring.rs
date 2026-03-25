@@ -1,4 +1,4 @@
-use super::{GeneratedWorld, MapMetrics, CONTESTED_GAP_LIMIT, EARLY_RADIUS, MAP_EDGE_RING_PENALTY};
+use super::{CONTESTED_GAP_LIMIT, EARLY_RADIUS, GeneratedWorld, MAP_EDGE_RING_PENALTY, MapMetrics};
 use crate::setup::mapgen::geometry::{
     distance, edge_hugging_world_penalty, minimum_pair_distance, nearest_homeworld,
     sorted_homeworld_distances,

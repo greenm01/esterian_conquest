@@ -7,9 +7,9 @@ use crate::{
 };
 
 use super::exchange::{
+    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_FLEET, RoundAction, RoundActionKind,
     apply_hits_to_fleet, fleet_state_changed, has_starbase_column_bonus, resolve_space_exchange,
-    resolve_withdrawal_exchange, rule_threshold_satisfied, RoundAction, RoundActionKind,
-    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_FLEET,
+    resolve_withdrawal_exchange, rule_threshold_satisfied,
 };
 use super::reporting::{
     mission_kind_for_order, preferred_reporting_fleet_index, push_contact_event_for_task_force,
@@ -20,9 +20,9 @@ use super::retreat::{
     nearest_owned_planet, retreat_task_force, set_fleet_to_hold_current_position,
 };
 use super::state::{
+    BattleRole, EncounterContext, FleetCombatState, IDX_SB, TaskForce,
     build_task_forces_at_location, has_anchored_guard_order, planet_idx_at_coords,
-    ship_counts_from_state, ship_losses_from_states, tf_has_any_units, BattleRole,
-    EncounterContext, FleetCombatState, TaskForce, IDX_SB,
+    ship_counts_from_state, ship_losses_from_states, tf_has_any_units,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

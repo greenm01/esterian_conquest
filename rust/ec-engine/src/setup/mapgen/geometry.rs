@@ -1,5 +1,5 @@
 use super::{
-    GeneratedWorld, FRONTIER_WORLD_EDGE_CLEARANCE_WEIGHT, FRONTIER_WORLD_EDGE_RING_PENALTY,
+    FRONTIER_WORLD_EDGE_CLEARANCE_WEIGHT, FRONTIER_WORLD_EDGE_RING_PENALTY, GeneratedWorld,
     HOMEWORLD_EDGE_MARGIN, LOCAL_WORLD_EDGE_CLEARANCE_WEIGHT, NEUTRAL_EDGE_RING_THRESHOLD,
     NEUTRAL_MIN_SPACING,
 };
@@ -37,11 +37,7 @@ pub(super) fn minimum_pair_distance(coords: &[[u8; 2]]) -> f32 {
             min = min.min(distance(coords[left], coords[right]));
         }
     }
-    if min.is_finite() {
-        min
-    } else {
-        0.0
-    }
+    if min.is_finite() { min } else { 0.0 }
 }
 
 pub(super) fn nearest_used_distance(candidate: [u8; 2], used: &[[u8; 2]]) -> f32 {
@@ -275,7 +271,7 @@ fn grid_homeworld_regions(player_count: usize, low: u8, high: u8) -> Vec<Homewor
 
 #[cfg(test)]
 mod tests {
-    use super::{frontier_world_edge_bias, local_world_edge_bias, NEUTRAL_EDGE_RING_THRESHOLD};
+    use super::{NEUTRAL_EDGE_RING_THRESHOLD, frontier_world_edge_bias, local_world_edge_bias};
     use ec_data::map_size_for_player_count;
 
     #[test]

@@ -15,9 +15,7 @@ Important behavior:
 
 - `--check` validates the file without mutating the campaign
 - apply mode updates `ecgame.db`
-- classic `.DAT` files are not refreshed automatically
-- use `ec-cli db-export <dir> <dir>` when you intentionally want updated
-  classic files after a submission
+- `ec-game` and `ec-sysop` continue from the updated runtime state directly
 
 The CLI `--player` value must match the `turn player=...` header in the file.
 

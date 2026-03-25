@@ -7,8 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ec_client::screen::AnsiColor;
 use ec_client::theme::classic;
 use ec_client::theme::{
-    ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path, toggle_ansi_mode,
-    AnsiMode,
+    AnsiMode, ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path,
+    toggle_ansi_mode,
 };
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);

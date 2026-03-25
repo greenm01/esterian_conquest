@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    build_capacity, yearly_growth_delta, yearly_tax_revenue, PlayerRecord, ProductionItemKind,
+    PlayerRecord, ProductionItemKind, build_capacity, yearly_growth_delta, yearly_tax_revenue,
 };
 
 impl CoreGameData {

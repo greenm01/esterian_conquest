@@ -424,7 +424,7 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 #admonition("WARNING")[Stardock contents are a prime target for enemy bombardment. Commission your ships promptly or risk losing them before they ever see combat.]
 
-#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. Your sysop may be able to provide these on request. If you are running the Rust client locally, use the `ec-cli map-export` command to generate all three formats at once.]
+#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. Your sysop may be able to provide these on request, and local Rust-client play can export them directly from the in-game starmap view.]
 
 #pagebreak()
 

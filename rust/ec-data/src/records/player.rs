@@ -1,5 +1,5 @@
-use crate::support::{copy_array, trim_ascii_field, ParseError};
 use crate::PLAYER_RECORD_SIZE;
+use crate::support::{ParseError, copy_array, trim_ascii_field};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiplomaticRelation {

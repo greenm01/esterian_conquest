@@ -3,6 +3,8 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use crate::support::paths::{default_fixture_dir, resolve_repo_path};
+use crate::usage::print_maintenance_usage;
 use ec_compat::import_directory_snapshot;
 use ec_data::{
     CampaignStore, CoreGameData, DiplomacyOverride, DiplomaticRelation, MaintenanceEvents,
@@ -24,6 +26,32 @@ use crate::commands::runtime::{
 /// This is the programmatic API (used by tests and direct callers) — it skips
 /// the schedule/token gate.  Use `run_rust_maintenance_with_options` with
 /// `no_gate = false` for CLI invocations that should respect the schedule.
+pub fn run_rust_maintenance_from_args(
+    program: &str,
+    mut args: impl Iterator<Item = String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = args
+        .next()
+        .map(|arg| resolve_repo_path(&arg))
+        .unwrap_or_else(default_fixture_dir);
+    let turns = match args.next() {
+        None => 1,
+        Some(value) => match value.parse::<u16>() {
+            Ok(turns) => turns,
+            Err(_) => {
+                eprintln!("Error: turns must be a valid number");
+                print_maintenance_usage(program);
+                return Ok(());
+            }
+        },
+    };
+    if args.next().is_some() {
+        print_maintenance_usage(program);
+        return Ok(());
+    }
+    run_rust_maintenance(&dir, turns)
+}
+
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
     run_rust_maintenance_with_options(dir, turns, true)
 }

@@ -1,0 +1,14 @@
+[package]
+name = "ec-sysop"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ec-sysop"
+path = "src/main.rs"
+
+[dependencies]
+ec-cli = { path = "../ec-cli" }
+
+[dev-dependencies]
+ec-data = { path = "../ec-data" }

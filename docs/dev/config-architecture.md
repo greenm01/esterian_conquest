@@ -105,22 +105,15 @@ This keeps config from driving low-level design too early.
 When KDL is introduced, prefer:
 
 - `rust/ec-data/config/combat.kdl`
-- `rust/ec-data/config/setup.kdl`
+- `rust/ec-cli/config/setup.example.kdl`
 - `rust/ec-data/config/scenarios/*.kdl`
 - schema and examples documented in `docs/`
 
-For sysop/admin setup, prefer the ownership split:
+For setup presets, prefer the ownership split:
 
-- KDL stores durable setup intent
-- `ec-cli sysop` validates and materializes that config into classic `.DAT`
-  directories
-- a future TUI may edit the same config/model, but should not become the only
-  place where setup exists
+- public sysop workflow uses `ec-sysop new-game` flags plus `config.kdl`
+- internal authored setup presets belong to `ec-cli`
+- runtime/operator policy does not belong in setup presets
 
 The first expected config extraction is combat constants and oracle scenarios,
 not a full generalized scenario DSL.
-
-The first concrete sysop/setup target is now documented in
-[setup-kdl-schema.md](../sysop/setup-kdl-schema.md)
-with a matching sample file at
-[`rust/ec-data/config/setup.example.kdl`](../../rust/ec-data/config/setup.example.kdl).

@@ -101,17 +101,37 @@ It is responsible for:
   workflows
 - keeping classic file handling out of normal engine/client code
 
+### `ec-sysop`
+
+`ec-sysop` is the public sysop/admin surface.
+
+It is responsible for:
+
+- new-game creation and setup/admin flows
+- yearly maintenance execution
+- live campaign operator actions that belong in normal play
+
+It should stay thin:
+
+- `main.rs` is process boundary only
+- dispatch owns top-level routing
+- command modules orchestrate workflows but do not own rules
+
+Game rules should not be reimplemented in command modules. If a command needs a
+shared rule, that rule belongs in `ec-engine` (backed by shared runtime/store
+types from `ec-data`).
+
 ### `ec-cli`
 
-`ec-cli` is the sysop/admin/oracle/inspection surface.
+`ec-cli` is the internal developer/oracle/inspection surface.
 
 It is responsible for:
 
 - command dispatch and workflow orchestration
-- sysop setup/admin flows
 - oracle and compliance sweeps
 - import/export and runtime/storage bridge commands
 - inspection, reporting, and scenario materialization helpers
+- temporary compatibility shims during public CLI transitions
 
 It should stay thin:
 
@@ -127,7 +147,8 @@ types from `ec-data`).
 
 ### `ec-client`
 
-`ec-client` is the player-facing application layer.
+`ec-client` is the player-facing application layer and currently ships as the
+`ec-game` binary.
 
 It is responsible for:
 
@@ -174,8 +195,10 @@ rust/
 │   └── src/          # public engine/rules surface
 ├── ec-compat
 │   └── src/          # classic import/export and compat projections
+├── ec-sysop
+│   └── src/          # public sysop/admin/maintenance workflows
 ├── ec-cli
-│   ├── src/commands/  # sysop/oracle/runtime/admin workflows
+│   ├── src/commands/  # developer/oracle/runtime/compat workflows
 │   └── src/support/   # shared CLI helpers
 └── ec-client
     ├── src/domains/   # feature/domain slices + domain controllers
@@ -194,12 +217,13 @@ but the ownership boundaries above should remain stable.
 +--------------------------------------------------------------+
 |                         Frontends                            |
 |--------------------------------------------------------------|
-|  ec-client              ec-cli                 ec-harness    |
-|  player TUI        sysop/admin/oracle        scenarios/tests |
+|  ec-client      ec-sysop         ec-cli         ec-harness   |
+|  player TUI   sysop/admin    dev/oracle/compat  scenarios/tests |
 +--------------------------------------------------------------+
-                 |                    |
-                 | normal runtime     | explicit classic/oracle
-                 v                    v
+                |          |                |
+                | normal   | normal         | explicit classic/oracle
+                | runtime  | runtime        |
+                v          v                v
 +--------------------------------+   +-------------------------+
 |           ec-engine            |   |        ec-compat        |
 |--------------------------------|   |-------------------------|
@@ -244,6 +268,7 @@ Read this sketch with the ownership rules above:
 - `ec-engine` owns gameplay rules, not classic file workflows
 - `ec-data` owns shared runtime/store/model state
 - `ec-classic` owns low-level classic byte/record helpers only
+- `ec-sysop` owns public maintenance/setup flows
 - `ec-cli` orchestrates explicit compat flows through `ec-compat`
 - SQLite is authoritative; `.DAT` is the compatibility/oracle edge
 
@@ -357,7 +382,8 @@ drive the Rust engine or player client.
 Keep ownership clear:
 
 - rule calculation belongs in `ec-engine`
-- command selection / argument parsing belongs in `ec-cli`
+- operator command selection / argument parsing belongs in `ec-sysop`
+- developer/oracle command selection / argument parsing belongs in `ec-cli`
 - screen flow / interaction belongs in `ec-client`
 - player-visible report timing and header rules belong to the dedicated specs,
   then to shared `ec-engine` / `ec-data` helpers, not to CLI or client-only
@@ -428,7 +454,8 @@ Then place it accordingly:
 
 - gameplay/rule execution -> `ec-engine`
 - shared model/invariant/plain payload -> `ec-data`
-- sysop/oracle workflow -> `ec-cli`
+- public sysop/admin workflow -> `ec-sysop`
+- developer/oracle/compat workflow -> `ec-cli`
 - player interaction/rendering -> `ec-client`
 
 That placement rule matters more than preserving any one historical file tree.

@@ -77,9 +77,10 @@ warfare, and the old BBS command feel.
 
 The immediate goal is a modern drop-in replacement for the classic door stack.
 A canonical Rust game engine uses SQLite-native runtime state. An explicit
-compatibility bridge handles classic `.DAT` import and export. The CLI
-provides sysop, admin, and compatibility tooling, and a Rust player client is
-intended to replace the original `ECGAME`.
+compatibility bridge handles classic `.DAT` import and export. `ec-sysop`
+provides the public operator/admin surface, `ec-game` is the Rust player
+client intended to replace the original `ECGAME`, and `ec-cli` remains the
+internal developer/oracle/compatibility tool.
 
 The project is well past the stage of being a repo of notes and recovery
 experiments. Fresh Rust-backed campaigns can be created across all four
@@ -95,8 +96,9 @@ development testing today.
 The architecture is converging on a full Rust-first stack. The shared state
 model lives in `ec-data`, gameplay and maintenance rules live in `ec-engine`,
 and an explicit `ec-compat` crate handles classic `.DAT` import and export so
-the compatibility boundary stays clean. On top of that, `maint-rust` processes
-turns, and `ec-client` is the growing player interface. Classic file
+the compatibility boundary stays clean. On top of that, `ec-sysop maint`
+processes turns, `ec-game` is the growing player interface, and `ec-cli`
+stays focused on developer/oracle flows. Classic file
 interchange is treated as a compatibility edge rather than the core runtime
 path. That future state still respects the original game — the DOS binaries,
 manuals, and data formats remain the primary reference for rules,
@@ -137,44 +139,31 @@ Create a new game:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
+cargo run -q -p ec-sysop -- new-game /tmp/ec-game --players 4 --seed 1515
 ```
 
 This default path now creates a joinable pre-player `ECGAME` start with
 inactive player slots and `Not Named Yet` homeworld seeds.
 
-Run Rust maintenance:
+Run maintenance:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
+cargo run -q -p ec-sysop -- maint /tmp/ec-game 3
 ```
 
-`maint-rust` now reads and writes the campaign's `ecgame.db`. Classic `.DAT`
-directories are imported/exported through the CLI compatibility bridge.
-`maint-rust` does not project the latest snapshot back into the working
-directory automatically. Use `db-export` when you intentionally want classic
-`.DAT` output through the explicit compatibility bridge for oracle runs or DOS
-`ECGAME`, and use `db-import` if classic tools changed the directory and you
-want SQLite to pick up those edits.
+Schedule `ec-sysop maint` with your host tools, not EC config:
 
-Run the original oracle against that directory:
+- `systemd` timers
+- `cron`
+- BBS event hooks
+- or manual sysop invocation
 
-```bash
-python3 tools/ecmaint_oracle.py run /tmp/ec-game
-```
-
-Launch original `ECGAME` locally in DOSBox-X:
+Launch the Rust player client:
 
 ```bash
-tools/run_ecgame.sh /tmp/ec-game 1
-```
-
-For local returning-player probes, pass a caller alias that matches the
-persisted player handle:
-
-```bash
-tools/run_ecgame.sh /tmp/ec-game 2 SYSOP
+cd rust
+cargo run -q -p ec-game -- --dir /tmp/ec-game --player 1
 ```
 
 Build the reproducible demo-ready release zips for emulator testing:
@@ -211,20 +200,6 @@ original EC v1.5 binaries.
 The unlocked bundle rebuilds `EC_UNLOCKED/` first, including the current
 `ECGAME.EXE` recovery that corrects the memdump image's MZ size fields so DOS
 loads the full unlocked client body.
-
-Inspect the classic login branch Rust expects for a given caller alias:
-
-```bash
-cd rust
-cargo run -q -p ec-cli -- inspect-classic-login /tmp/ec-game SYSOP
-```
-
-Prepare a player slot for a local matched-alias classic probe:
-
-```bash
-cd rust
-cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 2 SYSOP foo
-```
 
 Submit a player turn from KDL:
 
@@ -265,52 +240,6 @@ cargo run -q -p ec-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
 
 The scenario/combat harness format is documented in [docs/dev/harness/README.md](docs/dev/harness/README.md).
 
-Supported local hybrid loop:
-
-```bash
-cd rust
-cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
-cargo run -q -p ec-cli -- inspect-classic-login /tmp/ec-game SYSOP
-../tools/run_ecgame.sh /tmp/ec-game 1
-cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 1 SYSOP foo
-cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game
-../tools/run_ecgame.sh /tmp/ec-game 1 SYSOP
-cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 1
-cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game
-../tools/run_ecgame.sh /tmp/ec-game 1 SYSOP
-```
-
-This is a supported local compatibility loop for classic `ECGAME` on top of
-Rust maintenance. It does not claim byte-faithful classic `MESSAGES.DAT`
-reproduction; current Rust behavior preserves existing classic player mail and
-maintains classic-readable results/report files.
-
-Known deliberate divergence:
-
-- original `ECMAINT` has a regular-world `ScoutSolarSystem` lone-active-mission
-  abort bug; `maint-rust` documents that oracle behavior but does not copy it
-- the recovered successful foreign-world scout refresh family is tied to a
-  legacy rogue-viewer campaign state in original `ECMAINT`; `maint-rust` keeps
-  explicit active-player foreign-intel refresh semantics instead of emulating
-  that state quirk
-
-The classic login classifier now covers all three local compatibility branches:
-
-- `first-time-menu`
-- `matched-preloaded-first-login`
-- `returning-player`
-
-Run the Rust client:
-
-```bash
-cd rust
-cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1
-```
-
-`ec-client` now loads campaign state from `ecgame.db`. Fresh Rust-created games
-seed that DB automatically. If you mutate a classic directory outside the
-SQLite path, run `db-import` before launching the client or `maint-rust`.
-
 Test harness scripts live under [scripts/](scripts/):
 
 ```bash
@@ -340,13 +269,6 @@ launches original `ECGAME` in DOSBox-X.
 
 ## Useful Commands
 
-New game from declarative config:
-
-```bash
-cd rust
-cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/setup.example.kdl
-```
-
 The Rust client now uses a built-in ASCII splash followed by the in-client intro
 pages.
 
@@ -371,31 +293,10 @@ cd rust
 cargo run -q -p ec-cli -- map-export /tmp/ec-game 1 /tmp/ec-exports/ECMAP-P1-Y3000.TXT
 ```
 
-Import a classic game directory into the bundled per-campaign SQLite store:
-
-```bash
-cd rust
-cargo run -q -p ec-cli -- db-import /tmp/ec-game
-```
-
-Export the latest `ecgame.db` snapshot back to a classic-compatible directory:
-
-```bash
-cd rust
-cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game-exported
-```
-
-The intended boundary is:
-
-- `ec-client` and `maint-rust` operate on `ecgame.db`
-- `db-import` and `db-export` are the explicit classic `.DAT` bridge
-
-Run the broader validation sweeps:
-
-```bash
-python3 tools/oracle_sweep.py --mode seeded
-python3 tools/rust_maint_sweep.py --turns 3
-```
+Internal developer/compatibility workflows such as classic `.DAT` bridge
+commands, oracle sweeps, and DOS-binary probes remain in `ec-cli` and the
+developer docs. They are intentionally outside the normal public `ec-game` /
+`ec-sysop` operating path.
 
 ## Local Dependencies
 
@@ -473,8 +374,9 @@ Useful supporting docs:
 - `rust/ec-classic`: low-level classic record/codec support crate
 - `rust/ec-engine`: public gameplay/maintenance/rules crate
 - `rust/ec-compat`: classic `.DAT` import/export bridge
-- `rust/ec-cli`: sysop/admin/oracle/inspection CLI
-- `rust/ec-client`: Rust `ECGAME` replacement in active development
+- `rust/ec-cli`: internal developer/oracle/compatibility CLI
+- `rust/ec-sysop`: public sysop/admin CLI
+- `rust/ec-client`: Rust player client crate that now ships as the `ec-game` binary
 - `tools/`: oracle runners, DOSBox helpers, and analysis scripts
 
 ## License

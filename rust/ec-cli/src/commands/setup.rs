@@ -2,33 +2,13 @@ use ec_compat::{
     ensure_classic_auxiliary_files, import_directory_snapshot_with_seed,
     write_default_database_dat_for_game_data,
 };
-use ec_data::{generate_campaign_seed, CampaignStore, ConquestDat, SetupDat};
-use ec_engine::{build_game_data_from_setup_config, build_seeded_new_game, SetupConfig};
+use ec_data::{CampaignStore, generate_campaign_seed};
+use ec_engine::build_seeded_new_game;
 use std::fs;
 use std::path::Path;
 
-use crate::commands::runtime::{load_runtime_game_data, with_runtime_game_mut};
+use crate::setup_preset::SetupPresetConfig;
 use crate::workspace::seed_classic_runtime_files;
-
-pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let conquest = load_runtime_conquest(dir)?;
-    let enabled = conquest.maintenance_schedule_enabled();
-    println!("Directory: {}", dir.display());
-    println!(
-        "Maintenance days: {}",
-        weekday_labels()
-            .into_iter()
-            .zip(enabled)
-            .map(|(label, enabled)| format!("{label}={}", if enabled { "yes" } else { "no" }))
-            .collect::<Vec<_>>()
-            .join(" ")
-    );
-    println!(
-        "Maintenance raw: {:02x?}",
-        conquest.maintenance_schedule_bytes()
-    );
-    Ok(())
-}
 
 pub(crate) fn init_new_game(
     target: &Path,
@@ -62,14 +42,14 @@ pub(crate) fn init_new_game_from_config(
     player_count_override: Option<u8>,
     seed_override: Option<u64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let config = SetupConfig::load_kdl(config_path)?;
+    let config = SetupPresetConfig::load_kdl(config_path)?;
     let config = if let Some(player_count) = player_count_override {
         config.with_player_count_override(player_count)?
     } else {
         config
     };
     let seed = seed_override.unwrap_or_else(runtime_seed);
-    let data = build_game_data_from_setup_config(&config, seed)?;
+    let data = build_seeded_new_game(config.player_count, 3000, config.seed.unwrap_or(seed))?;
 
     fs::create_dir_all(target)?;
     data.save(target)?;
@@ -85,266 +65,4 @@ pub(crate) fn init_new_game_from_config(
 
 fn runtime_seed() -> u64 {
     generate_campaign_seed()
-}
-
-pub(crate) fn set_maintenance_days(
-    dir: &Path,
-    day_names: &[String],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut enabled = [false; 7];
-    for day_name in day_names {
-        let idx = weekday_index(day_name).ok_or_else(|| format!("unknown weekday: {day_name}"))?;
-        enabled[idx] = true;
-    }
-    with_runtime_game_mut(dir, |data| {
-        data.conquest.set_maintenance_schedule_enabled(enabled);
-        Ok(())
-    })?;
-    print_maintenance_days(dir)?;
-    Ok(())
-}
-
-fn with_runtime_setup_mut<F>(dir: &Path, mutate: F) -> Result<(), Box<dyn std::error::Error>>
-where
-    F: FnOnce(&mut SetupDat),
-{
-    with_runtime_game_mut(dir, |data| {
-        mutate(&mut data.setup);
-        Ok(())
-    })
-}
-
-pub(crate) fn print_port_setup(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!("ECUTIL F5 Modem / Com Port Setup");
-    for com_index in 0..4 {
-        println!(
-            "  COM {} IRQ: {}",
-            com_index + 1,
-            setup.com_irq_raw(com_index).unwrap_or_default()
-        );
-    }
-    for com_index in 0..4 {
-        println!(
-            "  COM {} Hardware Flow Control: {}",
-            com_index + 1,
-            yes_no(
-                setup
-                    .com_hardware_flow_control_enabled(com_index)
-                    .unwrap_or(false)
-            )
-        );
-    }
-    Ok(())
-}
-
-pub(crate) fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "Snoop enabled: {}",
-        if setup.snoop_enabled() { "yes" } else { "no" }
-    );
-    Ok(())
-}
-
-pub(crate) fn print_flow_control(
-    dir: &Path,
-    port_name: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "COM {} Hardware Flow Control: {}",
-        com_index + 1,
-        yes_no(
-            setup
-                .com_hardware_flow_control_enabled(com_index)
-                .unwrap_or(false)
-        )
-    );
-    Ok(())
-}
-
-pub(crate) fn set_flow_control(
-    dir: &Path,
-    port_name: &str,
-    enabled: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
-    with_runtime_setup_mut(dir, |setup| {
-        let _ = setup.set_com_hardware_flow_control_enabled(com_index, enabled);
-    })?;
-    print_flow_control(dir, port_name)?;
-    Ok(())
-}
-
-pub(crate) fn print_com_irq(dir: &Path, port_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "COM {} IRQ: {}",
-        com_index + 1,
-        setup.com_irq_raw(com_index).unwrap_or_default()
-    );
-    Ok(())
-}
-
-pub(crate) fn set_com_irq(
-    dir: &Path,
-    port_name: &str,
-    irq: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if irq > 7 {
-        return Err(format!("IRQ must be in 0..=7, got {irq}").into());
-    }
-    let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
-    with_runtime_setup_mut(dir, |setup| {
-        let _ = setup.set_com_irq_raw(com_index, irq);
-    })?;
-    print_com_irq(dir, port_name)?;
-    Ok(())
-}
-
-pub(crate) fn print_local_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "Local timeout enabled: {}",
-        if setup.local_timeout_enabled() {
-            "yes"
-        } else {
-            "no"
-        }
-    );
-    Ok(())
-}
-
-pub(crate) fn print_remote_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "Remote timeout enabled: {}",
-        if setup.remote_timeout_enabled() {
-            "yes"
-        } else {
-            "no"
-        }
-    );
-    Ok(())
-}
-
-pub(crate) fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "Maximum time between key strokes (minutes): {}",
-        setup.max_time_between_keys_minutes_raw()
-    );
-    Ok(())
-}
-
-pub(crate) fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "Minimum time granted (minutes): {}",
-        setup.minimum_time_granted_minutes_raw()
-    );
-    Ok(())
-}
-
-pub(crate) fn print_purge_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!("Purge after turns (raw): {}", setup.purge_after_turns_raw());
-    Ok(())
-}
-
-pub(crate) fn print_setup_programs(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!("ECUTIL F4 Modify Program Options");
-    println!(
-        "  A Purge messages & reports after: {} turn(s)",
-        setup.purge_after_turns_raw()
-    );
-    println!(
-        "  B Autopilot any empires inactive for: {} turn(s)",
-        setup.autopilot_inactive_turns_raw()
-    );
-    println!("  C Snoop Enabled: {}", yes_no(setup.snoop_enabled()));
-    println!(
-        "  D Enable timeout for local users: {}",
-        yes_no(setup.local_timeout_enabled())
-    );
-    println!(
-        "  E Enable timeout for remote users: {}",
-        yes_no(setup.remote_timeout_enabled())
-    );
-    println!(
-        "  F Maximum time between key strokes: {} minute(s)",
-        setup.max_time_between_keys_minutes_raw()
-    );
-    println!(
-        "  G Minimum time granted: {} minute(s)",
-        setup.minimum_time_granted_minutes_raw()
-    );
-    Ok(())
-}
-
-pub(crate) fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = load_runtime_setup(dir)?;
-    println!("Directory: {}", dir.display());
-    println!(
-        "Autopilot inactive turns (raw): {}",
-        setup.autopilot_inactive_turns_raw()
-    );
-    Ok(())
-}
-
-fn weekday_labels() -> [&'static str; 7] {
-    ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
-}
-
-fn load_runtime_setup(dir: &Path) -> Result<SetupDat, Box<dyn std::error::Error>> {
-    Ok(load_runtime_game_data(dir)?.setup)
-}
-
-fn load_runtime_conquest(dir: &Path) -> Result<ConquestDat, Box<dyn std::error::Error>> {
-    Ok(load_runtime_game_data(dir)?.conquest)
-}
-
-fn weekday_index(day_name: &str) -> Option<usize> {
-    match day_name.to_ascii_lowercase().as_str() {
-        "sun" | "sunday" => Some(0),
-        "mon" | "monday" => Some(1),
-        "tue" | "tues" | "tuesday" => Some(2),
-        "wed" | "wednesday" => Some(3),
-        "thu" | "thur" | "thurs" | "thursday" => Some(4),
-        "fri" | "friday" => Some(5),
-        "sat" | "saturday" => Some(6),
-        _ => None,
-    }
-}
-
-fn com_index(port_name: &str) -> Option<usize> {
-    match port_name.to_ascii_lowercase().as_str() {
-        "com1" | "1" => Some(0),
-        "com2" | "2" => Some(1),
-        "com3" | "3" => Some(2),
-        "com4" | "4" => Some(3),
-        _ => None,
-    }
-}
-
-fn yes_no(value: bool) -> &'static str {
-    if value {
-        "Yes"
-    } else {
-        "No"
-    }
 }

@@ -2,8 +2,8 @@ use ec_data::fleet_motion_state::decode_exact_position;
 use ec_data::{CoreGameData, FleetRecord};
 
 use super::{
-    advance_exact_position, plan_route, plan_route_to_destination, rounded_coords_from_exact,
-    FleetEtaEstimate, PlannedRoute,
+    FleetEtaEstimate, PlannedRoute, advance_exact_position, plan_route, plan_route_to_destination,
+    rounded_coords_from_exact,
 };
 
 pub(super) fn estimate_fleet_eta(game_data: &CoreGameData, fleet_idx: usize) -> FleetEtaEstimate {

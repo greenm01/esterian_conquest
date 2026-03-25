@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use ec_data::game_config::{GameConfig, GameConfigError, InactivityConfig, SessionConfig};
 use ec_data::DEFAULT_GAME_CONFIG_KDL;
+use ec_data::game_config::{GameConfig, GameConfigError, InactivityConfig, SessionConfig};
 
 // ─── Default / bundled KDL ────────────────────────────────────────────────────
 

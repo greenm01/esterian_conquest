@@ -13,7 +13,7 @@ use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{has_visible_runtime_messages, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
@@ -122,7 +122,7 @@ impl App {
         let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
         let runtime_state = campaign_store
             .load_latest_runtime_state()?
-            .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
+            .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
         let snapshot_id = runtime_state.snapshot_id;
         let campaign_seed = runtime_state.campaign_seed;
         let report_block_rows = runtime_state.report_block_rows;

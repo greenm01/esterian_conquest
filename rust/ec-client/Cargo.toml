@@ -7,6 +7,10 @@ edition = "2024"
 name = "ec-client"
 path = "src/main.rs"
 
+[[bin]]
+name = "ec-game"
+path = "src/main.rs"
+
 [dependencies]
 crossterm = "0.28"
 ec-compat = { path = "../ec-compat" }

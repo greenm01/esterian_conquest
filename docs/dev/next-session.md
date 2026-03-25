@@ -10,6 +10,8 @@ Use this as the restart brief. Historical detail belongs in
   - `ec-engine` = gameplay/rules API
   - `ec-compat` = classic `.DAT` import/export/oracle bridge
   - `ec-classic` = low-level classic record/codecs
+  - public binaries are converging on `ec-game` + `ec-sysop`
+  - `ec-cli` remains the internal developer/oracle surface
 - Phase 1 engine-boundary correction is now in place:
   - maintenance execution lives in `ec-engine/src/maint/`
   - shared maintenance event/result payloads live in

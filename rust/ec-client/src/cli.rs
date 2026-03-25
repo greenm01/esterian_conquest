@@ -3,13 +3,13 @@ use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
-use crate::app::{apply_action, App, AppConfig, AppOutcome};
-use crate::terminal::stdout::StdoutTerminal;
+use crate::app::{App, AppConfig, AppOutcome, apply_action};
 use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
+use crate::terminal::stdout::StdoutTerminal;
 use crate::theme;
-use ec_data::game_config::{GameConfig, DEFAULT_GAME_CONFIG_KDL};
+use ec_data::game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
@@ -152,9 +152,9 @@ fn parse_args(
         }
     }
 
-    let dir = dir.ok_or("usage: ec-client --dir <game_dir> --player <1-based empire index>")?;
+    let dir = dir.ok_or("usage: ec-game --dir <game_dir> --player <1-based empire index>")?;
     let player_record_index_1_based =
-        player.ok_or("usage: ec-client --dir <game_dir> --player <1-based empire index>")?;
+        player.ok_or("usage: ec-game --dir <game_dir> --player <1-based empire index>")?;
     if player_record_index_1_based == 0 {
         return Err("--player must be >= 1".into());
     }
@@ -211,7 +211,7 @@ pub fn detect_color_mode() -> ColorMode {
 fn print_usage() {
     println!("Usage:");
     println!(
-        "  ec-client --dir <game_dir> --player <1-based empire index> \
+        "  ec-game --dir <game_dir> --player <1-based empire index> \
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
          [--export-root <dir>] [--queue-dir <dir>]"
     );

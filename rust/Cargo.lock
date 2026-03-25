@@ -130,6 +130,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ec-sysop"
+version = "0.1.0"
+dependencies = [
+ "ec-cli",
+ "ec-data",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

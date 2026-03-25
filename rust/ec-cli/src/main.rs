@@ -1,9 +1,3 @@
-mod commands;
-mod dispatch;
-mod support;
-mod usage;
-mod workspace;
-
 use std::env;
 
 fn main() {
@@ -14,5 +8,5 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    dispatch::run_args(env::args().skip(1))
+    ec_cli::run_dev_cli(env::args().skip(1))
 }

@@ -38,7 +38,7 @@ Export directly from the player client:
 
 ```bash
 cd rust
-cargo run -q -p ec-client -- \
+cargo run -q -p ec-game -- \
   --dir /tmp/ec-game \
   --player 1 \
   --export-root /tmp/ec-exports
@@ -62,7 +62,7 @@ The first implementation supports queue-style delivery by staging files into a
 configured export area and, optionally, copying them into a queue/download
 directory.
 
-`ec-client` recognizes:
+`ec-game` recognizes:
 
 - `EC_CLIENT_EXPORT_ROOT`
   - where generated map files are written
@@ -76,7 +76,7 @@ Example:
 export EC_CLIENT_EXPORT_ROOT=/bbs/doors/ecgame/exports
 export EC_CLIENT_QUEUE_DIR=/bbs/files/player-queue
 cd rust
-cargo run -q -p ec-client -- --dir /bbs/games/ec --player 2
+cargo run -q -p ec-game -- --dir /bbs/games/ec --player 2
 ```
 
 When the player presses `E` from `M`, the client writes both files under the

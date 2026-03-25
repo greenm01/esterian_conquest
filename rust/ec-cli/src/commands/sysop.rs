@@ -1,14 +1,8 @@
 use std::path::PathBuf;
 
-use crate::commands::setup::{
-    init_new_game, init_new_game_from_config, init_new_game_with_seed, print_autopilot_after,
-    print_com_irq, print_flow_control, print_local_timeout, print_maintenance_days,
-    print_max_key_gap, print_minimum_time, print_port_setup, print_purge_after,
-    print_remote_timeout, print_setup_programs, print_snoop, set_com_irq, set_flow_control,
-    set_maintenance_days,
-};
+use crate::commands::setup::{init_new_game, init_new_game_from_config, init_new_game_with_seed};
 use crate::support::paths::resolve_repo_path;
-use crate::usage::print_usage;
+use crate::usage::print_sysop_usage;
 use ec_compat::{
     ensure_classic_auxiliary_files, import_directory_snapshot,
     write_default_database_dat_for_game_data,
@@ -16,24 +10,19 @@ use ec_compat::{
 use ec_data::{CampaignStore, CoreGameData};
 use ec_engine::GameStateBuilder;
 
-fn next_sysop_dir(args: &mut impl Iterator<Item = String>) -> PathBuf {
-    args.next()
-        .map(|arg| resolve_repo_path(&arg))
-        .unwrap_or_else(|| resolve_repo_path("original/v1.5"))
-}
-
 fn generate_gamestate_from_args(
+    program: &str,
     mut args: impl Iterator<Item = String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let Some(target_dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-        print_usage();
+        print_sysop_usage(program);
         return Ok(());
     };
     let player_count: u8 = match args.next().and_then(|s| s.parse().ok()) {
         Some(count) if (1..=25).contains(&count) => count,
         _ => {
             eprintln!("Error: player_count must be 1-25");
-            print_usage();
+            print_sysop_usage(program);
             return Ok(());
         }
     };
@@ -41,7 +30,7 @@ fn generate_gamestate_from_args(
         Some(y) => y,
         None => {
             eprintln!("Error: year must be a valid number");
-            print_usage();
+            print_sysop_usage(program);
             return Ok(());
         }
     };
@@ -51,7 +40,7 @@ fn generate_gamestate_from_args(
         let parts: Vec<&str> = coord_str.split(':').collect();
         if parts.len() != 2 {
             eprintln!("Error: homeworld coords must be in format x:y");
-            print_usage();
+            print_sysop_usage(program);
             return Ok(());
         }
         let x: u8 = match parts[0].parse() {
@@ -125,6 +114,7 @@ fn parse_seed_value(value: &str) -> Result<u64, String> {
 
 fn parse_new_game_options(
     args: &[String],
+    allow_config: bool,
 ) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>), String> {
     let mut player_count = None;
     let mut config_path = None;
@@ -140,6 +130,12 @@ fn parse_new_game_options(
                 idx += 2;
             }
             "--config" => {
+                if !allow_config {
+                    return Err(
+                        "--config is only supported on the internal ec-cli setup preset path"
+                            .to_string(),
+                    );
+                }
                 let Some(value) = args.get(idx + 1) else {
                     return Err("missing value for --config".to_string());
                 };
@@ -154,10 +150,12 @@ fn parse_new_game_options(
                 idx += 2;
             }
             _ => {
-                return Err(
-                    "usage: sysop new-game <target_dir> [--players N] [--config path] [--seed N]"
-                        .to_string(),
-                );
+                return Err(if allow_config {
+                    "usage: sysop new-game <target_dir> [--players N] [--seed N] [--config path]"
+                        .to_string()
+                } else {
+                    "usage: sysop new-game <target_dir> [--players N] [--seed N]".to_string()
+                });
             }
         }
     }
@@ -165,30 +163,33 @@ fn parse_new_game_options(
     Ok((Some(player_count.unwrap_or(4)), config_path, seed))
 }
 
-pub(crate) fn run_sysop_args(
+pub fn run_sysop_args(
+    program: &str,
     mut args: impl Iterator<Item = String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let allow_config = program.starts_with("ec-cli");
     let Some(cmd) = args.next() else {
-        print_usage();
+        print_sysop_usage(program);
         return Ok(());
     };
 
     match cmd.as_str() {
-        "generate-gamestate" => generate_gamestate_from_args(args)?,
+        "generate-gamestate" if allow_config => generate_gamestate_from_args(program, args)?,
         "new-game" => {
             let Some(target_dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
+                print_sysop_usage(program);
                 return Ok(());
             };
             let remaining = args.collect::<Vec<_>>();
-            let (player_count, config_path, seed) = match parse_new_game_options(&remaining) {
-                Ok(options) => options,
-                Err(message) => {
-                    eprintln!("Error: {message}");
-                    print_usage();
-                    return Ok(());
-                }
-            };
+            let (player_count, config_path, seed) =
+                match parse_new_game_options(&remaining, allow_config) {
+                    Ok(options) => options,
+                    Err(message) => {
+                        eprintln!("Error: {message}");
+                        print_sysop_usage(program);
+                        return Err(message.into());
+                    }
+                };
             if let Some(config_path) = config_path {
                 init_new_game_from_config(&target_dir, &config_path, player_count, seed)?;
                 println!(
@@ -222,108 +223,7 @@ pub(crate) fn run_sysop_args(
                 );
             }
         }
-        "maintenance-days" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            match args.next().as_deref() {
-                None => print_maintenance_days(&dir)?,
-                Some("set") => {
-                    let days = args.collect::<Vec<_>>();
-                    set_maintenance_days(&dir, &days)?;
-                }
-                Some(_) => print_usage(),
-            }
-        }
-        "snoop" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_snoop(&dir)?;
-        }
-        "purge-after" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_purge_after(&dir)?;
-        }
-        "setup-programs" => {
-            let dir = next_sysop_dir(&mut args);
-            print_setup_programs(&dir)?;
-        }
-        "port-setup" => {
-            let dir = next_sysop_dir(&mut args);
-            print_port_setup(&dir)?;
-        }
-        "flow-control" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            let Some(port_name) = args.next() else {
-                print_usage();
-                return Ok(());
-            };
-            match args.next().as_deref() {
-                None => print_flow_control(&dir, &port_name)?,
-                Some("on") => set_flow_control(&dir, &port_name, true)?,
-                Some("off") => set_flow_control(&dir, &port_name, false)?,
-                Some(_) => print_usage(),
-            }
-        }
-        "com-irq" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            let Some(port_name) = args.next() else {
-                print_usage();
-                return Ok(());
-            };
-            match args.next() {
-                None => print_com_irq(&dir, &port_name)?,
-                Some(value) => set_com_irq(&dir, &port_name, value.parse()?)?,
-            }
-        }
-        "local-timeout" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_local_timeout(&dir)?;
-        }
-        "remote-timeout" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_remote_timeout(&dir)?;
-        }
-        "max-key-gap" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_max_key_gap(&dir)?;
-        }
-        "minimum-time" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_minimum_time(&dir)?;
-        }
-        "autopilot-after" => {
-            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
-                print_usage();
-                return Ok(());
-            };
-            print_autopilot_after(&dir)?;
-        }
-        _ => print_usage(),
+        _ => print_sysop_usage(program),
     }
 
     Ok(())

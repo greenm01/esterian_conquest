@@ -81,7 +81,8 @@ docs.
 The Rust workspace is organized as a set of focused crates, each owning a
 clear slice of the problem: low-level classic codecs, runtime state and shared
 model, the engine/rules boundary, classic import/export compatibility, the
-sysop/oracle CLI, the player-facing TUI client, and the scenario test harness.
+public sysop CLI, the internal developer/oracle CLI, the player-facing TUI
+client, and the scenario test harness.
 The implementation stays data-oriented throughout, with explicit record/file
 layouts, focused free functions or small impl blocks, and feature-oriented
 submodules instead of monolithic source files. For the current crate inventory,

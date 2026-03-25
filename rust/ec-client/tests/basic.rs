@@ -46,7 +46,7 @@ fn copy_dir_all(src: &Path, dst: &Path) {
 #[test]
 fn client_renders_startup_splash_from_fixture() {
     let fixture_dir = temp_fixture_copy();
-    let output = Command::new(env!("CARGO_BIN_EXE_ec-client"))
+    let output = Command::new(env!("CARGO_BIN_EXE_ec-game"))
         .args([
             "--dir",
             fixture_dir.to_str().expect("fixture path should be utf-8"),
@@ -54,11 +54,11 @@ fn client_renders_startup_splash_from_fixture() {
             "1",
         ])
         .output()
-        .expect("ec-client should run");
+        .expect("ec-game should run");
 
     assert!(
         output.status.success(),
-        "ec-client failed: stdout={:?} stderr={:?}",
+        "ec-game failed: stdout={:?} stderr={:?}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );

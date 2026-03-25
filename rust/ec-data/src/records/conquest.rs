@@ -1,4 +1,4 @@
-use crate::support::{copy_array, expect_size, ParseError};
+use crate::support::{ParseError, copy_array, expect_size};
 use crate::{CONQUEST_DAT_SIZE, MAINTENANCE_DAY_ENABLED_CODES};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

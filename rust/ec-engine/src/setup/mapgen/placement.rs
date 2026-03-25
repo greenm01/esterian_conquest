@@ -1,5 +1,5 @@
 use super::{
-    GeneratedWorld, CONTESTED_GAP_LIMIT, HOMEWORLD_MIN_DISTANCE_RATIO, LOCAL_WORLD_COUNT_PER_PLAYER,
+    CONTESTED_GAP_LIMIT, GeneratedWorld, HOMEWORLD_MIN_DISTANCE_RATIO, LOCAL_WORLD_COUNT_PER_PLAYER,
 };
 use crate::setup::mapgen::geometry::{
     candidate_allowed, clamp_coord, density_noise, distance, distance_sq, edge_clearance,

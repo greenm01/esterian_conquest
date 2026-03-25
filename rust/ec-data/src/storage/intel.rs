@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use rusqlite::{params, Connection, Row};
+use rusqlite::{Connection, Row, params};
 
 use super::{CampaignStore, CampaignStoreError, IntelTier, PlanetIntelSnapshot};
-use crate::{merge_player_intel_from_runtime, CoreGameData};
+use crate::{CoreGameData, merge_player_intel_from_runtime};
 
 impl CampaignStore {
     pub fn latest_planet_intel_for_viewer(

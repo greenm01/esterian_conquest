@@ -1,8 +1,8 @@
 use crate::CoreGameData;
 
 use super::super::{
-    timing::{apply_timing_offset, event_base_week, mission_timing_code},
     MaintenanceEvents, Mission, MissionEvent, MissionOutcome,
+    timing::{apply_timing_offset, event_base_week, mission_timing_code},
 };
 
 pub(super) fn assign_event_weeks(events: &mut MaintenanceEvents, game_data: &CoreGameData) {

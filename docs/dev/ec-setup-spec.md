@@ -192,8 +192,8 @@ The setup roadmap is now split differently:
 The Rust sysop path now has a seeded generator for the documented player
 tiers:
 
-- `ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
-- `ec-cli sysop new-game <target_dir> --config rust/ec-data/config/setup.example.kdl`
+- public sysop path: `ec-sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
+- internal dev preset path: `ec-cli sysop new-game <target_dir> --config ec-cli/config/setup.example.kdl`
 
 Current behavior:
 

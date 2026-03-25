@@ -1,80 +1,9 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_classic_ecgame_smoke, run_classic_ecgame_smoke_with_alias,
-    run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
+    cleanup_dir, run_classic_ecgame_smoke, run_classic_ecgame_smoke_with_alias, run_ec_cli,
+    run_ec_cli_failure_in_dir, run_ec_cli_in_dir, unique_temp_dir,
 };
-
-#[test]
-fn sysop_setup_programs_prints_known_f4_values() {
-    let stdout = run_ec_cli(&["sysop", "setup-programs", "original/v1.5"]);
-    assert!(stdout.contains("ECUTIL F4 Modify Program Options"));
-    assert!(stdout.contains("C Snoop Enabled: Yes"));
-}
-
-#[test]
-fn sysop_snoop_prints_current_value() {
-    let target = unique_temp_dir("ec-cli-sysop-snoop");
-    copy_fixture_dir("original/v1.5", &target);
-
-    let stdout = run_ec_cli_in_dir(
-        &["sysop", "snoop", target.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Snoop enabled:"));
-
-    cleanup_dir(&target);
-}
-
-#[test]
-fn sysop_maintenance_days_update_runtime_store_and_export() {
-    let target = unique_temp_dir("ec-cli-sysop-maintenance-days");
-    let exported = unique_temp_dir("ec-cli-sysop-maintenance-days-exported");
-    let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
-    assert!(stdout.contains("Initialized new game"));
-
-    let stdout = run_ec_cli_in_dir(
-        &[
-            "sysop",
-            "maintenance-days",
-            target.to_str().unwrap(),
-            "set",
-            "mon",
-            "wed",
-            "fri",
-        ],
-        common::rust_workspace(),
-    );
-    assert!(stdout.contains("Directory:"));
-    assert!(stdout.contains("Maintenance days:"));
-    assert!(stdout.contains("mon=yes"));
-    assert!(stdout.contains("wed=yes"));
-    assert!(stdout.contains("fri=yes"));
-
-    run_ec_cli_in_dir(
-        &[
-            "db-export",
-            target.to_str().unwrap(),
-            exported.to_str().unwrap(),
-        ],
-        common::rust_workspace(),
-    );
-
-    let original = run_ec_cli_in_dir(
-        &["sysop", "maintenance-days", target.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    let reexported = run_ec_cli_in_dir(
-        &["sysop", "maintenance-days", exported.to_str().unwrap()],
-        common::rust_workspace(),
-    );
-    let original_lines = original.lines().skip(1).collect::<Vec<_>>();
-    let reexported_lines = reexported.lines().skip(1).collect::<Vec<_>>();
-    assert_eq!(original_lines, reexported_lines);
-
-    cleanup_dir(&target);
-    cleanup_dir(&exported);
-}
 
 #[test]
 fn sysop_new_game_default_four_player() {
@@ -164,17 +93,6 @@ fn hybrid_campaign_loop_reopens_classic_client_after_rust_maintenance() {
 }
 
 #[test]
-#[ignore = "launches classic ECGAME through dosbox-x"]
-fn returning_player_fixture_reopens_in_classic_ecgame_with_matching_alias() {
-    let target = unique_temp_dir("ec-cli-returning-player-ecgame");
-    copy_fixture_dir("original/v1.5", &target);
-
-    run_classic_ecgame_smoke_with_alias(&target, 1, "HANNIBAL");
-
-    cleanup_dir(&target);
-}
-
-#[test]
 fn sysop_new_game_accepts_player_count_flag() {
     let target = unique_temp_dir("ec-cli-sysop-new-game-players");
     let stdout = run_ec_cli(&[
@@ -190,18 +108,43 @@ fn sysop_new_game_accepts_player_count_flag() {
 }
 
 #[test]
-fn sysop_new_game_accepts_kdl_config() {
+fn sysop_new_game_accepts_internal_kdl_setup_preset() {
     let target = unique_temp_dir("ec-cli-sysop-new-game-config");
     let stdout = run_ec_cli(&[
         "sysop",
         "new-game",
         target.to_str().unwrap(),
         "--config",
-        "rust/ec-data/config/setup.example.kdl",
+        "ec-cli/config/setup.example.kdl",
     ]);
     assert!(stdout.contains("Initialized new game"));
     assert!(stdout.contains("setup.example.kdl"));
     assert!(target.join("DATABASE.DAT").exists());
+    cleanup_dir(&target);
+}
+
+#[test]
+fn sysop_new_game_rejects_removed_runtime_setup_fields_in_setup_kdl() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-invalid-config");
+    let preset = target.join("invalid-setup.kdl");
+    std::fs::write(
+        &preset,
+        "game player_count=4\nmaintenance_days { day \"mon\" }\n",
+    )
+    .expect("write invalid setup preset");
+
+    let stderr = run_ec_cli_failure_in_dir(
+        &[
+            "sysop",
+            "new-game",
+            target.to_str().unwrap(),
+            "--config",
+            preset.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("unsupported setup.kdl node: maintenance_days"));
+
     cleanup_dir(&target);
 }
 

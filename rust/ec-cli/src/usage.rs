@@ -1,5 +1,13 @@
 pub fn print_usage() {
     println!("Usage:");
+    println!("  ec-cli <developer command> ...");
+    println!();
+    println!("Public binaries:");
+    println!("  ec-game --dir <game_dir> --player <1-based empire index>");
+    println!("  ec-sysop <new-game|maint> ...");
+    println!();
+    println!("`ec-cli` remains the internal developer/oracle/compatibility tool.");
+    println!();
     println!("  ec-cli inspect [dir]");
     println!("  ec-cli inspect-fleet-movement <dir> <fleet_record> [--live-dir]");
     println!("  ec-cli inspect-messages [dir]");
@@ -30,26 +38,11 @@ pub fn print_usage() {
     );
     println!("  ec-cli sysop <subcommand> ...");
     println!(
-        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--config <setup.kdl>] [--seed <u64>]"
+        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>] [--config <setup.kdl>]"
     );
     println!(
         "  ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]"
     );
-    println!("  ec-cli sysop maintenance-days [dir]");
-    println!("  ec-cli sysop maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
-    println!("  ec-cli sysop snoop [dir]");
-    println!("  ec-cli sysop snoop <dir> <on|off>");
-    println!("  ec-cli sysop purge-after [dir]");
-    println!("  ec-cli sysop purge-after <dir> <turns>");
-    println!("  ec-cli sysop setup-programs [dir]");
-    println!("  ec-cli sysop port-setup [dir]");
-    println!("  ec-cli sysop flow-control <dir> <com1|com2|com3|com4> [on|off]");
-    println!("  ec-cli sysop com-irq <dir> <com1|com2|com3|com4> [irq]");
-    println!("  ec-cli sysop local-timeout <dir> [on|off]");
-    println!("  ec-cli sysop remote-timeout <dir> [on|off]");
-    println!("  ec-cli sysop max-key-gap <dir> [minutes]");
-    println!("  ec-cli sysop minimum-time <dir> [minutes]");
-    println!("  ec-cli sysop autopilot-after <dir> [turns]");
     println!("  ec-cli core-report [dir]");
     println!("  ec-cli core-diff-current-known-baseline [dir]");
     println!("  ec-cli core-diff-current-known-baseline-offsets [dir]");
@@ -68,12 +61,6 @@ pub fn print_usage() {
     println!("  ec-cli core-init-current-known-baseline [source_dir] <target_dir>");
     println!("  ec-cli core-init-canonical-current-known-baseline [source_dir] <target_dir>");
     println!("  ec-cli headers [dir]");
-    println!("  ec-cli maintenance-days [dir]");
-    println!("  ec-cli maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
-    println!("  ec-cli snoop [dir]");
-    println!("  ec-cli snoop <dir> <on|off>");
-    println!("  ec-cli purge-after [dir]");
-    println!("  ec-cli purge-after <dir> <turns>");
     println!(
         "  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]"
     );
@@ -195,4 +182,23 @@ pub fn print_usage() {
     );
     println!("  ec-cli maint-rust <dir> [turns]");
     println!("  ec-cli maint-compare <dir> [turns]");
+}
+
+pub fn print_sysop_usage(program: &str) {
+    println!("Usage:");
+    if program.starts_with("ec-cli") {
+        println!(
+            "  {program} new-game <target_dir> [--players <1-25>] [--seed <u64>] [--config <setup.kdl>]"
+        );
+        println!(
+            "  {program} generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]"
+        );
+    } else {
+        println!("  {program} new-game <target_dir> [--players <1-25>] [--seed <u64>]");
+    }
+}
+
+pub fn print_maintenance_usage(program: &str) {
+    println!("Usage:");
+    println!("  {program} <dir> [turns]");
 }

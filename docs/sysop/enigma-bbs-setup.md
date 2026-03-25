@@ -7,9 +7,8 @@ through `dosbox-x`.
 This is not the primary EC deployment story. The main direction of the
 project is the Rust-native stack:
 
-- `ec-cli` for campaign setup and admin work
-- `maint-rust` for turn processing
-- `ec-client` as the player-facing client
+- `ec-sysop` for campaign setup and maintenance
+- `ec-game` as the player-facing client
 
 Use this guide when you explicitly want to host the original DOS client for
 compatibility or migration reasons.

@@ -90,24 +90,21 @@ For player-facing rules and gameplay, see the *Player Manual*.
 / game directory: The directory containing `ecgame.db` and related files for a
   single running game instance. Passed to all tools via `--dir`.
 
-/ `ec-cli`: The Rust command-line admin tool for setup, maintenance, and
-  compatibility operations.
+/ `ec-sysop`: The public Rust command-line sysop tool for campaign creation
+  and maintenance.
 
-/ `ec-client`: The Rust TUI player client.
+/ `ec-game`: The Rust TUI player client.
 
 / `ecgame.db`: The SQLite database that is the runtime source of truth for the
   Rust engine.
 
-/ `setup.kdl`: The KDL configuration file used to initialize a new game via
-  `ec-cli sysop new-game`.
-
-/ `theme.kdl`: The KDL file that controls the visual style of `ec-client` for
+/ `theme.kdl`: The KDL file that controls the visual style of `ec-game` for
   all players in this game directory.
 
 / `config.kdl`: The sysop-managed runtime configuration file in the game
   directory. Bootstrapped from the bundled default on first run. Controls
   snoop mode, session timeouts, inactivity thresholds, game name, and theme
-  path. Changes take effect on the next `ec-client` startup.
+  path. Changes take effect on the next `ec-game` startup.
 
 // ─── 2. Installation ──────────────────────────────────────────────────────────
 
@@ -125,7 +122,7 @@ For player-facing rules and gameplay, see the *Player Manual*.
 From the repository root:
 
 ```
-cargo build --release -p ec-cli -p ec-client
+cargo build --release -p ec-sysop -p ec-client
 ```
 
 The release binaries will be in `target/release/`.
@@ -152,73 +149,27 @@ All tools take `--dir /path/to/mygame` to locate the game.
 
 == Initializing a New Game
 
-Use `ec-cli sysop new-game` with a `setup.kdl` config file:
+Create a new game with `ec-sysop new-game`:
 
 ```
-ec-cli sysop new-game --dir /path/to/mygame --config setup.kdl
+ec-sysop new-game /path/to/mygame --players 4 --seed 1515
 ```
 
-This creates `ecgame.db` in the target directory, materialized from the
-declarative setup configuration.
+This creates a fresh campaign directory with `ecgame.db`, classic auxiliary
+files, `config.kdl`, and `theme.kdl`.
 
-== The setup.kdl File
+`config.kdl` is the only sysop-edited KDL file in the public workflow.
+An internal `ec-cli` setup-preset format still exists for reproducible tests
+and harness work, but normal sysop operation does not use it.
 
-`setup.kdl` is a KDL document that declares the initial game parameters.
-It is consumed once at game creation; subsequent changes require a new game
-or direct database edits.
-
-A minimal example:
-
-```kdl
-game player_count=4 seed=1515
-
-setup_options snoop=#true local_timeout=#false remote_timeout=#true \
-  max_key_gap_minutes=10 minimum_time_minutes=0 \
-  purge_after_turns=0 autopilot_after_turns=0
-
-maintenance_days {
-  day "sun"
-  day "mon"
-  day "tue"
-  day "wed"
-  day "thu"
-  day "fri"
-  day "sat"
-}
-```
-
-=== `game` Node
+The supported public creation flags are:
 
 #table(
   columns: (auto, auto, 1fr),
-  [*Field*], [*Type*], [*Description*],
-  [`player_count`], [integer], [Number of empires. Supported range: 1–25.],
-  [`seed`], [integer], [Optional. Map generation seed for reproducible layouts.],
+  [*Flag*], [*Type*], [*Description*],
+  [`--players`], [integer], [Number of empires. Supported range: 1–25. Defaults to `4`.],
+  [`--seed`], [integer], [Optional campaign seed for reproducible map generation.],
 )
-
-=== `setup_options` Node
-
-These values seed the initial runtime settings when the game is first created.
-After creation, these settings are owned by `config.kdl` in the game directory
-(see @configuration). To change them on a running game, edit `config.kdl`
-directly — not `setup.kdl`.
-
-#table(
-  columns: (auto, auto, 1fr),
-  [*Field*], [*Type*], [*Description*],
-  [`snoop`], [bool], [Initial snoop mode. Overridable at runtime via `config.kdl`.],
-  [`local_timeout`], [bool], [Initial local session timeout setting.],
-  [`remote_timeout`], [bool], [Initial remote session timeout setting.],
-  [`max_key_gap_minutes`], [integer], [Initial maximum idle time before timeout.],
-  [`minimum_time_minutes`], [integer], [Initial minimum session time guarantee.],
-  [`purge_after_turns`], [integer], [Initial inactivity purge threshold. `0` = disabled.],
-  [`autopilot_after_turns`], [integer], [Initial autopilot threshold. `0` = disabled.],
-)
-
-=== `maintenance_days` Node
-
-Specifies which days of the week maintenance runs. Each child `day` node takes
-one of: `"sun"`, `"mon"`, `"tue"`, `"wed"`, `"thu"`, `"fri"`, `"sat"`.
 
 // ─── 4. Game Directory Structure ─────────────────────────────────────────────
 
@@ -227,9 +178,9 @@ one of: `"sun"`, `"mon"`, `"tue"`, `"wed"`, `"thu"`, `"fri"`, `"sat"`.
 == Core Files
 
 / `ecgame.db`: The SQLite runtime database. All game state lives here. Do not
-  edit manually; use `ec-cli` for admin operations.
+  edit manually; use `ec-sysop` for normal operator actions.
 
-/ `theme.kdl`: Visual theme for `ec-client`. Bootstrapped from the bundled
+/ `theme.kdl`: Visual theme for `ec-game`. Bootstrapped from the bundled
   default on first run if absent. Sysop-owned once created; not silently
   overwritten. See @theming.
 
@@ -252,10 +203,10 @@ one of: `"sun"`, `"mon"`, `"tue"`, `"wed"`, `"thu"`, `"fri"`, `"sat"`.
 == config.kdl
 
 `config.kdl` is the sysop runtime configuration file. It lives in the game
-directory alongside `ecgame.db`. If absent when `ec-client` starts, it is
+directory alongside `ecgame.db`. If absent when `ec-game` starts, it is
 bootstrapped from the bundled default automatically.
 
-Changes to `config.kdl` take effect on the next `ec-client` startup. The
+Changes to `config.kdl` take effect on the next `ec-game` startup. The
 settings are applied into the runtime database at that point; no manual
 database edits are required.
 
@@ -344,12 +295,12 @@ inactivity {
 
 = Theming <theming>
 
-`ec-client` uses a file-driven theme system. The theme defines the visual
+`ec-game` uses a file-driven theme system. The theme defines the visual
 appearance for all players connecting to this game directory.
 
 == Theme File Location
 
-`ec-client` resolves the theme in this order:
+`ec-game` resolves the theme in this order:
 
 1. If `<game_dir>/config.kdl` contains a `theme` directive, use that path
    (relative to `game_dir`).
@@ -409,7 +360,7 @@ richer formats when targeting modern terminals.
 
 == Color Mode
 
-`ec-client` selects a color mode at startup:
+`ec-game` selects a color mode at startup:
 
 #table(
   columns: (auto, 1fr),
@@ -423,10 +374,10 @@ richer formats when targeting modern terminals.
 Override with the `--color-mode` flag:
 
 ```
-ec-client --dir /path/to/mygame --player 1 --color-mode truecolor
+ec-game --dir /path/to/mygame --player 1 --color-mode truecolor
 ```
 
-When `--encoding cp437` is specified (BBS door mode), `ec-client` defaults to
+When `--encoding cp437` is specified (BBS door mode), `ec-game` defaults to
 `ansi16` regardless of the environment, unless `--color-mode` is set explicitly.
 
 == Semantic Style Tokens
@@ -483,13 +434,13 @@ selection. A new session always starts with ANSI On.
 
 = BBS Door Setup
 
-`ec-client` can run as a BBS door. In door mode it reads from and writes to
+`ec-game` can run as a BBS door. In door mode it reads from and writes to
 a socket instead of the local TTY, using CP437 encoding and 16-color ANSI.
 
 == Flags for Door Mode
 
 ```
-ec-client \
+ec-game \
   --dir /path/to/mygame \
   --player <1-based index> \
   --encoding cp437 \
@@ -507,7 +458,7 @@ color depth.
 == Drop File
 
 The `--player` flag selects the 1-based empire index. Map this from your BBS
-drop file (e.g. the node's assigned player number) before invoking `ec-client`.
+drop file (e.g. the node's assigned player number) before invoking `ec-game`.
 
 #admonition("NOTE")[
   The original DOS `ECGAME.EXE` v1.5 expects a strict 32-line WWIV-style
@@ -518,7 +469,7 @@ drop file (e.g. the node's assigned player number) before invoking `ec-client`.
 
 == Enigma BBS (Rust Client)
 
-To run the native `ec-client` as an Enigma BBS door, use the `abracadabra`
+To run the native `ec-game` as an Enigma BBS door, use the `abracadabra`
 module with `io: socket` and pass `--dir`, `--player`, `--encoding cp437`, and
 `--color-mode ansi16` as arguments. The client will inherit the socket from
 Enigma's stdio handoff.
@@ -527,7 +478,7 @@ Enigma's stdio handoff.
 
 = SSH Access
 
-`ec-client` runs cleanly over SSH. No special flags are required for SSH
+`ec-game` runs cleanly over SSH. No special flags are required for SSH
 sessions on modern terminals.
 
 Color mode is auto-detected from the environment:
@@ -540,7 +491,7 @@ Force a specific mode with `--color-mode` if your SSH setup does not propagate
 `COLORTERM` reliably:
 
 ```
-ec-client --dir /path/to/mygame --player 1 --color-mode 256
+ec-game --dir /path/to/mygame --player 1 --color-mode 256
 ```
 
 UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
@@ -551,10 +502,10 @@ terminal emulator over SSH.
 
 = Local and Direct Play
 
-For localhost play, run `ec-client` directly in your terminal:
+For localhost play, run `ec-game` directly in your terminal:
 
 ```
-ec-client --dir /path/to/mygame --player 1
+ec-game --dir /path/to/mygame --player 1
 ```
 
 Color mode and encoding default to `auto` / `utf8`, which is correct for
@@ -565,53 +516,68 @@ automatically.
 
 = Turn Processing and Maintenance
 
-_This section will document the Rust maintenance cycle, `ec-cli maint`,
-turn submission, and scheduled processing. Placeholder pending implementation
-documentation._
+Run yearly maintenance with:
+
+```
+ec-sysop maint /path/to/mygame [turns]
+```
+
+`ec-sysop maint` advances the campaign in `ecgame.db`. EC does not schedule
+maintenance by itself. In a real deployment, invoke `ec-sysop maint` from your
+host scheduler or BBS tooling:
+
+- a `systemd` timer
+- `cron`
+- a BBS event runner
+- or manual sysop operation
+
+Do not treat KDL config as a scheduler. `config.kdl` owns runtime policy such
+as theming, snoop, and inactivity thresholds. Maintenance timing belongs to
+the host.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
 
 = Player Management
 
-_This section will document adding players, player record indices, purge and
-autopilot settings, and inactivity policies. Placeholder pending implementation
-documentation._
+Inactive-player policy is configured in `config.kdl` under the `inactivity`
+block. The two public thresholds are:
+
+- `purge_after_turns`
+- `autopilot_after_turns`
+
+These values are runtime policy, not setup-time game creation input.
 
 // ─── 12. Classic Compatibility ────────────────────────────────────────────────
 
 = Classic Compatibility
 
-_This section will document the `.DAT` import/export boundary, oracle testing
-with the original binaries, and the preservation fixture workflow. Placeholder
-pending implementation documentation._
+The Rust-native public deployment path is `ec-sysop` plus `ec-game`.
+
+Classic `.DAT` import/export, oracle runs against the original binaries, and
+other preservation workflows still exist, but they belong to the internal
+`ec-cli` developer/compatibility surface rather than the normal sysop manual.
 
 // ─── 13. CLI Reference ────────────────────────────────────────────────────────
 
 = CLI Reference
 
-== ec-cli
+== ec-sysop
 
 ```
-ec-cli <subcommand> [options]
+ec-sysop <subcommand> [options]
 ```
-
-Key subcommand families:
 
 #table(
   columns: (auto, 1fr),
   [*Subcommand*], [*Purpose*],
-  [`sysop new-game`], [Initialize a new game from a `setup.kdl` file.],
-  [`sysop`], [Other admin and maintenance operations.],
-  [`compat export`], [Export game state to classic `.DAT` format.],
-  [`compat import`], [Import classic `.DAT` state into `ecgame.db`.],
-  [`report`], [Generate turn reports.],
-  [`validate`], [Validate game state against oracle fixtures.],
+  [`new-game`], [Create a fresh campaign directory. Public flags: `--players` and `--seed`.],
+  [`maint`], [Run one or more maintenance turns against `ecgame.db`.],
 )
 
-== ec-client
+== ec-game
 
 ```
-ec-client --dir <game_dir> --player <1-based index> [options]
+ec-game --dir <game_dir> --player <1-based index> [options]
 ```
 
 #table(

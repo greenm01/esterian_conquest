@@ -47,20 +47,13 @@ use crate::commands::economy::{
 };
 use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, set_fleet_battle};
 use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
-use crate::commands::maint::{compare_maintenance, run_rust_maintenance};
+use crate::commands::maint::{compare_maintenance, run_rust_maintenance_from_args};
 use crate::commands::map_export::export_player_starmap;
 use crate::commands::scenario::{
-    apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
+    KnownScenario, apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
     init_known_replayable_scenario, init_known_scenario, init_known_scenario_chain,
     print_known_scenario_details, print_known_scenarios, validate_all_known_scenarios,
     validate_all_preserved_scenarios, validate_known_scenario, validate_preserved_scenario,
-    KnownScenario,
-};
-use crate::commands::setup::{
-    print_autopilot_after, print_com_irq, print_flow_control, print_local_timeout,
-    print_maintenance_days, print_max_key_gap, print_minimum_time, print_port_setup,
-    print_purge_after, print_remote_timeout, print_setup_programs, print_snoop, set_com_irq,
-    set_flow_control, set_maintenance_days,
 };
 use crate::commands::storage::{export_latest_db_snapshot, import_directory_to_db};
 use crate::commands::submit_turn::run_submit_turn_args;
@@ -74,7 +67,7 @@ use crate::support::parse::{
     parse_target_and_econ_spec_list, parse_target_and_fleet_battle_spec_list,
     parse_target_and_fleet_spec, parse_target_and_fleet_spec_list,
     parse_target_and_invade_spec_list, parse_target_and_planet_spec,
-    parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
+    parse_target_and_planet_spec_list, parse_u8_arg, parse_u16_arg, parse_usize_1_based,
 };
 use crate::support::paths::{default_fixture_dir, post_maint_fixture_dir, resolve_repo_path};
 use crate::usage::print_usage;
@@ -93,7 +86,10 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
     };
 
     match cmd.as_str() {
-        "sysop" => run_sysop_args(args)?,
+        "sysop" => {
+            eprintln!("warning: `ec-cli sysop ...` is deprecated; use `ec-sysop ...`");
+            run_sysop_args("ec-cli sysop", args)?
+        }
         "inspect" => inspect_dir(&next_dir(&mut args))?,
         "inspect-fleet-movement" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
@@ -203,12 +199,17 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
             initialize_dir(&source, &target)?;
         }
         "generate-gamestate" => {
-            run_sysop_args(std::iter::once("generate-gamestate".to_string()).chain(args))?
+            eprintln!(
+                "warning: `ec-cli generate-gamestate ...` is a developer helper; `ec-sysop` uses `new-game` for normal campaign creation"
+            );
+            run_sysop_args(
+                "ec-cli sysop",
+                std::iter::once("generate-gamestate".to_string()).chain(args),
+            )?
         }
         "maint-rust" => {
-            let dir = next_dir(&mut args);
-            let turns: u16 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1);
-            run_rust_maintenance(&dir, turns)?;
+            eprintln!("warning: `ec-cli maint-rust ...` is deprecated; use `ec-sysop maint ...`");
+            run_rust_maintenance_from_args("ec-cli maint-rust", args)?;
         }
         "maint-compare" => {
             let dir = next_dir(&mut args);
@@ -244,71 +245,6 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
         "harness" => {
             run_harness_args(args)?;
         }
-        "maintenance-days" => {
-            let dir = next_dir(&mut args);
-            match args.next().as_deref() {
-                None => print_maintenance_days(&dir)?,
-                Some("set") => {
-                    let days = args.collect::<Vec<_>>();
-                    set_maintenance_days(&dir, &days)?;
-                }
-                _ => print_usage(),
-            }
-        }
-        "port-setup" => print_port_setup(&next_dir(&mut args))?,
-        "flow-control" => {
-            let dir = next_dir(&mut args);
-            let Some(port_name) = args.next() else {
-                print_usage();
-                return Ok(());
-            };
-            match args.next().as_deref() {
-                None => print_flow_control(&dir, &port_name)?,
-                Some("on") => set_flow_control(&dir, &port_name, true)?,
-                Some("off") => set_flow_control(&dir, &port_name, false)?,
-                _ => print_usage(),
-            }
-        }
-        "com-irq" => {
-            let dir = next_dir(&mut args);
-            let Some(port_name) = args.next() else {
-                print_usage();
-                return Ok(());
-            };
-            match args.next() {
-                None => print_com_irq(&dir, &port_name)?,
-                Some(irq) => set_com_irq(&dir, &port_name, irq.parse::<u8>()?)?,
-            }
-        }
-        "snoop" => {
-            let dir = next_dir(&mut args);
-            print_snoop(&dir)?;
-        }
-        "local-timeout" => {
-            let dir = next_dir(&mut args);
-            print_local_timeout(&dir)?;
-        }
-        "remote-timeout" => {
-            let dir = next_dir(&mut args);
-            print_remote_timeout(&dir)?;
-        }
-        "max-key-gap" => {
-            let dir = next_dir(&mut args);
-            print_max_key_gap(&dir)?;
-        }
-        "minimum-time" => {
-            let dir = next_dir(&mut args);
-            print_minimum_time(&dir)?;
-        }
-        "autopilot-after" => {
-            let dir = next_dir(&mut args);
-            print_autopilot_after(&dir)?;
-        }
-        "purge-after" => {
-            let dir = next_dir(&mut args);
-            print_purge_after(&dir)?;
-        }
-        "setup-programs" => print_setup_programs(&next_dir(&mut args))?,
         "fleet-order" => {
             let dir = next_dir(&mut args);
             let Some(record_index) = args.next() else {
