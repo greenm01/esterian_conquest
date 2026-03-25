@@ -145,9 +145,9 @@ Game rules should not be reimplemented in command modules. If a command needs a
 shared rule, that rule belongs in `ec-engine` (backed by shared runtime/store
 types from `ec-data`).
 
-### `ec-client`
+### `ec-game`
 
-`ec-client` is the player-facing application layer and currently ships as the
+`ec-game` is the player-facing application layer and currently ships as the
 `ec-game` binary.
 
 It is responsible for:
@@ -200,7 +200,7 @@ rust/
 ├── ec-cli
 │   ├── src/commands/  # developer/oracle/runtime/compat workflows
 │   └── src/support/   # shared CLI helpers
-└── ec-client
+└── ec-game
     ├── src/domains/   # feature/domain slices + domain controllers
     ├── src/app/       # thin app shell/state/update/action seams
     ├── src/screen/    # screen/layout primitives
@@ -217,7 +217,7 @@ but the ownership boundaries above should remain stable.
 +--------------------------------------------------------------+
 |                         Frontends                            |
 |--------------------------------------------------------------|
-|  ec-client      ec-sysop         ec-cli         ec-harness   |
+|  ec-game      ec-sysop         ec-cli         ec-harness   |
 |  player TUI   sysop/admin    dev/oracle/compat  scenarios/tests |
 +--------------------------------------------------------------+
                 |          |                |
@@ -264,7 +264,7 @@ Even simpler:
 
 Read this sketch with the ownership rules above:
 
-- `ec-client` does not parse classic `.DAT` files
+- `ec-game` does not parse classic `.DAT` files
 - `ec-engine` owns gameplay rules, not classic file workflows
 - `ec-data` owns shared runtime/store/model state
 - `ec-classic` owns low-level classic byte/record helpers only
@@ -359,7 +359,7 @@ The runtime storage direction is now active, not deferred:
 
 Practical rule:
 
-- `ec-client` and normal Rust maintenance/mutator paths read and write SQLite
+- `ec-game` and normal Rust maintenance/mutator paths read and write SQLite
   runtime state
 - explicit compatibility paths such as `db-export`, scenario materialization,
   and oracle setup are the only places that should intentionally write classic
@@ -384,7 +384,7 @@ Keep ownership clear:
 - rule calculation belongs in `ec-engine`
 - operator command selection / argument parsing belongs in `ec-sysop`
 - developer/oracle command selection / argument parsing belongs in `ec-cli`
-- screen flow / interaction belongs in `ec-client`
+- screen flow / interaction belongs in `ec-game`
 - player-visible report timing and header rules belong to the dedicated specs,
   then to shared `ec-engine` / `ec-data` helpers, not to CLI or client-only
   string logic
@@ -433,7 +433,7 @@ module, it usually deserves its own test surface too.
 Do not:
 
 - grow giant `main.rs`, `mod.rs`, or catch-all utility files
-- duplicate rules between `ec-engine`, `ec-data`, `ec-cli`, and `ec-client`
+- duplicate rules between `ec-engine`, `ec-data`, `ec-cli`, and `ec-game`
 - bury classic byte semantics in UI or command code
 - treat scenario-specific scripts as the long-term home for shared mechanics
 - collapse maint ordering, combat rules, timing rules, and economy rules into
@@ -456,6 +456,6 @@ Then place it accordingly:
 - shared model/invariant/plain payload -> `ec-data`
 - public sysop/admin workflow -> `ec-sysop`
 - developer/oracle/compat workflow -> `ec-cli`
-- player interaction/rendering -> `ec-client`
+- player interaction/rendering -> `ec-game`
 
 That placement rule matters more than preserving any one historical file tree.

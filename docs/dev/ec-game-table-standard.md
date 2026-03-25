@@ -1,4 +1,4 @@
-# `ec-client` Table Standard
+# `ec-game` Table Standard
 
 This document defines the standard table format for the Rust player TUI.
 

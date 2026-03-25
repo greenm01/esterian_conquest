@@ -13,7 +13,7 @@
 )
 
 #set text(
-  font: "New Computer Modern",
+  font: "IBM Plex Serif",
   size: 11pt,
 )
 
@@ -782,6 +782,15 @@ the original v1.5 package, working wrapper scripts, and setup documentation for
 running the classic binaries under DOSBox. This legacy setup friction is one of
 the motivating factors behind the Rust rewrite --- making the game accessible on
 modern systems without emulation or fragile drop file plumbing.
+
+The Rust `ec-game` binary handles drop files natively and robustly. Pass the
+`--dropfile <path>` flag and it will auto-detect the format
+(`DOOR32.SYS`, `DOOR.SYS`, or `CHAIN.TXT`), tolerate both CRLF and LF line
+endings, and extract the player alias and session timeout without any wrapper
+scripts or format massaging. The `--timeout <minutes>` flag can override the
+timeout from the command line. This means a modern BBS can drop any of the
+three supported formats and launch `ec-game` directly, with no DOSBox, no
+`ECUTIL.EXE`, and no fragile field-count dependencies.
 
 === This Manual
 

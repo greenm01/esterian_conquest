@@ -234,7 +234,7 @@ SQLite now sits at the runtime center of the Rust stack without replacing the
 classic compliance boundary. The intended shape is: `CoreGameData` remains the
 canonical in-memory snapshot model, `ecgame.db` is the first-class persisted
 source of truth for active campaigns, and classic `.DAT` files remain explicit
-import/export projections and oracle artifacts. `ec-client` and normal Rust
+import/export projections and oracle artifacts. `ec-game` and normal Rust
 maintenance/mutator paths should operate on SQLite runtime state, not on live
 `.DAT` mutation paths. `ec-cli db-import` / `db-export` plus explicit classic
 materialization helpers are the compatibility bridge for classic directories.

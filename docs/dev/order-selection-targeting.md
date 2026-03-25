@@ -16,8 +16,8 @@ Primary sources:
 
 Current implementation lives in:
 
-- [orders.rs](../../rust/ec-client/src/domains/fleet/orders.rs)
-- [fleet.rs](../../rust/ec-client/src/domains/fleet/screens/fleet.rs)
+- [orders.rs](../../rust/ec-game/src/domains/fleet/orders.rs)
+- [fleet.rs](../../rust/ec-game/src/domains/fleet/screens/fleet.rs)
 
 ## Scope
 

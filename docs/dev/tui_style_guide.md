@@ -1,4 +1,4 @@
-# `ec-client` TUI Style Guide
+# `ec-game` TUI Style Guide
 
 This document defines the visual and color standard for the Rust player TUI.
 
@@ -9,11 +9,11 @@ and telnet-style ANSI clients.
 Read it together with:
 
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
-- [ec-client-table-standard.md](ec-client-table-standard.md)
+- [ec-game-table-standard.md](ec-game-table-standard.md)
 
 ## Core Rules
 
-- `ec-client` uses a fixed `80x25` playfield.
+- `ec-game` uses a fixed `80x25` playfield.
 - The TUI color standard is ANSI 16-color, not truecolor.
 - Interactive rendering should go through `crossterm` end-to-end.
 - The whole TUI uses a black background.
@@ -26,7 +26,7 @@ Read it together with:
   - `<game_dir>/config.kdl` — optional sysop config; if present and contains a
     `theme` directive, that path (relative to `game_dir`) is used instead of
     `theme.kdl`
-- On first run, `ec-client` bootstraps the default `theme.kdl` into the game
+- On first run, `ec-game` bootstraps the default `theme.kdl` into the game
   directory if it is missing.
 - Once created, `theme.kdl` is sysop-owned and is not silently overwritten.
 

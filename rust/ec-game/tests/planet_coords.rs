@@ -1,4 +1,4 @@
-use ec_client::screen::parse_planet_coords;
+use ec_game::screen::parse_planet_coords;
 
 #[test]
 fn parse_planet_coords_accepts_unpadded_coords() {

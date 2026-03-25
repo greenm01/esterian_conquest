@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use ec_client::model::{ClassicLoginState, PlayerContext};
-use ec_client::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
-use ec_client::screen::table::{
+use ec_game::model::{ClassicLoginState, PlayerContext};
+use ec_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+use ec_game::screen::table::{
     SplitTableRow, TableColumn, TableRowState, table_render_width, write_split_table,
     write_stacked_table_window_with_states, write_table_row, write_table_window_with_states,
 };
-use ec_client::screen::{
+use ec_game::screen::{
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow,
     PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer, ScreenFrame,
 };
-use ec_client::theme::classic;
+use ec_game::theme::classic;
 use ec_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
@@ -225,7 +225,7 @@ fn planet_database_screen_uses_stacked_header_table() {
             [12, 34],
             "",
             None,
-            ec_client::screen::CommandMenu::Planet,
+            ec_game::screen::CommandMenu::Planet,
         )
         .expect("render database list");
 
@@ -283,7 +283,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
             [12, 34],
             "",
             None,
-            ec_client::screen::CommandMenu::Planet,
+            ec_game::screen::CommandMenu::Planet,
         )
         .expect("render database filter prompt");
 

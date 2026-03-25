@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ec_client::app::Action;
-use ec_client::domains::planet::PlanetAction;
-use ec_client::screen::{
+use ec_game::app::Action;
+use ec_game::domains::planet::PlanetAction;
+use ec_game::screen::{
     PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen,
 };
 use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};

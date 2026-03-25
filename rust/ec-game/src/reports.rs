@@ -68,7 +68,7 @@ pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<Stri
 }
 
 // ---------------------------------------------------------------------------
-// Conversion: ec-data ReportBlockRow -> ec-client ReviewBlock
+// Conversion: ec-data ReportBlockRow -> ec-game ReviewBlock
 // ---------------------------------------------------------------------------
 
 fn review_blocks_from_rows(rows: &[ReportBlockRow]) -> Vec<ReviewBlock> {

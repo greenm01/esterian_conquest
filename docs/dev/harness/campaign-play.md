@@ -51,7 +51,7 @@ Then inspect the live runtime campaign in the TUI:
 
 ```bash
 cd rust
-cargo run -q -p ec-client -- --dir /tmp/ec-bot-campaign --player 1
+cargo run -q -p ec-game -- --dir /tmp/ec-bot-campaign --player 1
 ```
 
 Use any player slot you want to inspect.

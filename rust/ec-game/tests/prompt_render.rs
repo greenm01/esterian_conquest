@@ -1,19 +1,19 @@
-use ec_client::screen::MessageComposeScreen;
-use ec_client::screen::PlanetBuildOrder;
-use ec_client::screen::PlanetBuildScreen;
-use ec_client::screen::PlanetCommissionDraftRow;
-use ec_client::screen::PlanetCommissionPickerRow;
-use ec_client::screen::PlanetCommissionScreen;
-use ec_client::screen::PlanetMenuScreen;
-use ec_client::screen::PlayfieldBuffer;
-use ec_client::screen::layout::{
+use ec_game::screen::MessageComposeScreen;
+use ec_game::screen::PlanetBuildOrder;
+use ec_game::screen::PlanetBuildScreen;
+use ec_game::screen::PlanetCommissionDraftRow;
+use ec_game::screen::PlanetCommissionPickerRow;
+use ec_game::screen::PlanetCommissionScreen;
+use ec_game::screen::PlanetMenuScreen;
+use ec_game::screen::PlayfieldBuffer;
+use ec_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
     draw_bottom_aligned_transcript_rows, draw_command_line_prompt_text_at, draw_command_prompt_at,
     draw_help_panel, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
     draw_inline_status_after, draw_plain_prompt, draw_table_command_prompt,
     table_dismiss_prompt_row,
 };
-use ec_client::theme::classic;
+use ec_game::theme::classic;
 use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
@@ -384,7 +384,7 @@ fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
 #[test]
 fn build_menu_inline_abort_uses_standard_confirm_layout() {
     let mut screen = PlanetBuildScreen::new();
-    let view = ec_client::screen::PlanetBuildMenuView {
+    let view = ec_game::screen::PlanetBuildMenuView {
         row: EmpirePlanetEconomyRow {
             planet_record_index_1_based: 1,
             coords: [6, 5],

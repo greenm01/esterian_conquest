@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_client::app::{App, AppConfig};
-use ec_client::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
+use ec_game::app::{App, AppConfig};
+use ec_game::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
 use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 
@@ -41,7 +41,7 @@ fn copy_dir_all(src: &Path, dst: &Path) {
 }
 
 fn seeded_fixture_copy(seed: u64) -> PathBuf {
-    let root = temp_dir("ec-client-cosmetic-seed");
+    let root = temp_dir("ec-game-cosmetic-seed");
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
     let store =
         CampaignStore::open(root.join(DEFAULT_CAMPAIGN_DB_NAME)).expect("open campaign store");
@@ -78,6 +78,7 @@ fn startup_splash_styles_are_deterministic_for_campaign_seed() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        session_timeout_secs: None,
         game_config: Default::default(),
     })
     .expect("load first app");
@@ -86,6 +87,7 @@ fn startup_splash_styles_are_deterministic_for_campaign_seed() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        session_timeout_secs: None,
         game_config: Default::default(),
     })
     .expect("load second app");
@@ -93,8 +95,8 @@ fn startup_splash_styles_are_deterministic_for_campaign_seed() {
     app_a.current_screen = ScreenId::Startup(app_a.startup_sequence.current());
     app_b.current_screen = ScreenId::Startup(app_b.startup_sequence.current());
 
-    let buffer_a = ec_client::domains::startup::views::render(&mut app_a).expect("render app a");
-    let buffer_b = ec_client::domains::startup::views::render(&mut app_b).expect("render app b");
+    let buffer_a = ec_game::domains::startup::views::render(&mut app_a).expect("render app a");
+    let buffer_b = ec_game::domains::startup::views::render(&mut app_b).expect("render app b");
 
     for row in 0..PLAYFIELD_HEIGHT {
         assert_eq!(buffer_a.row(row), buffer_b.row(row), "row {row} differs");

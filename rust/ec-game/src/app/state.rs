@@ -13,7 +13,7 @@ use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
@@ -34,6 +34,9 @@ pub struct AppConfig {
     pub player_record_index_1_based: usize,
     pub export_root: Option<PathBuf>,
     pub queue_dir: Option<PathBuf>,
+    /// Session time limit in seconds sourced from `--timeout` or a dropfile.
+    /// `None` means no limit.
+    pub session_timeout_secs: Option<u32>,
     /// Runtime configuration loaded from `config.kdl`.
     pub game_config: GameConfig,
 }
@@ -120,9 +123,9 @@ impl App {
             .clone()
             .unwrap_or_else(|| game_dir.join("exports"));
         let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
-        let runtime_state = campaign_store
-            .load_latest_runtime_state()?
-            .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
+        let runtime_state = campaign_store.load_latest_runtime_state()?.ok_or(
+            "campaign store has no snapshots; initialize the campaign with ec-sysop first",
+        )?;
         let snapshot_id = runtime_state.snapshot_id;
         let campaign_seed = runtime_state.campaign_seed;
         let report_block_rows = runtime_state.report_block_rows;

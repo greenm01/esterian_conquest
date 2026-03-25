@@ -83,17 +83,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ec-client"
-version = "0.1.0"
-dependencies = [
- "crossterm",
- "ec-compat",
- "ec-data",
- "ec-engine",
- "kdl",
-]
-
-[[package]]
 name = "ec-compat"
 version = "0.1.0"
 dependencies = [
@@ -117,6 +106,17 @@ name = "ec-engine"
 version = "0.1.0"
 dependencies = [
  "ec-data",
+]
+
+[[package]]
+name = "ec-game"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "ec-compat",
+ "ec-data",
+ "ec-engine",
+ "kdl",
 ]
 
 [[package]]

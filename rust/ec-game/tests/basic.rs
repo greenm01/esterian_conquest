@@ -15,7 +15,7 @@ fn repo_root() -> PathBuf {
 
 fn temp_fixture_copy() -> PathBuf {
     let root = std::env::temp_dir().join(format!(
-        "ec-client-basic-{}-{}-{}",
+        "ec-game-basic-{}-{}-{}",
         std::process::id(),
         TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()

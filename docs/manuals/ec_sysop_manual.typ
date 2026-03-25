@@ -13,7 +13,7 @@
 )
 
 #set text(
-  font: "New Computer Modern",
+  font: "IBM Plex Serif",
   size: 11pt,
 )
 
@@ -122,7 +122,7 @@ For player-facing rules and gameplay, see the *Player Manual*.
 From the repository root:
 
 ```
-cargo build --release -p ec-sysop -p ec-client
+cargo build --release -p ec-sysop -p ec-game
 ```
 
 The release binaries will be in `target/release/`.
@@ -457,8 +457,32 @@ color depth.
 
 == Drop File
 
-The `--player` flag selects the 1-based empire index. Map this from your BBS
-drop file (e.g. the node's assigned player number) before invoking `ec-game`.
+`ec-game` can read a BBS drop file directly with `--dropfile <path>`:
+
+```
+ec-game \
+  --dir /path/to/mygame \
+  --player <1-based index> \
+  --dropfile /path/to/DOOR32.SYS
+```
+
+Supported drop file formats (auto-detected by filename, case-insensitive):
+
+- `DOOR32.SYS` — modern standard (Enigma, Mystic, Talisman, etc.)
+- `DOOR.SYS` — legacy, widest BBS software support
+- `CHAIN.TXT` — WWIV format
+
+The drop file supplies the player alias and session time limit. Explicit CLI
+flags always override drop file values. When `--dropfile` is given and
+`--encoding` is not, encoding defaults to `cp437` automatically.
+
+`--timeout <minutes>` sets a session time limit independently of a drop file.
+
+#admonition("NOTE")[
+  `--dropfile` currently supplies the alias and timeout only. The `--player`
+  flag is still required; alias-to-empire-index resolution is a planned
+  follow-up.
+]
 
 #admonition("NOTE")[
   The original DOS `ECGAME.EXE` v1.5 expects a strict 32-line WWIV-style
@@ -473,6 +497,15 @@ To run the native `ec-game` as an Enigma BBS door, use the `abracadabra`
 module with `io: socket` and pass `--dir`, `--player`, `--encoding cp437`, and
 `--color-mode ansi16` as arguments. The client will inherit the socket from
 Enigma's stdio handoff.
+
+If Enigma writes a `DOOR32.SYS`, you can pass it directly:
+
+```
+ec-game \
+  --dir /path/to/mygame \
+  --player <1-based index> \
+  --dropfile /path/to/DOOR32.SYS
+```
 
 // ─── 8. SSH Access ────────────────────────────────────────────────────────────
 
@@ -587,6 +620,8 @@ ec-game --dir <game_dir> --player <1-based index> [options]
   [`--player <N>`], [1-based empire index. Required.],
   [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
   [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
+  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout. Defaults encoding to `cp437`. Explicit flags always override.],
+  [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
   [`--export-root <path>`], [Override export directory. Default: `<game_dir>/exports`.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
 )

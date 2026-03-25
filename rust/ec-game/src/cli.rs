@@ -3,13 +3,14 @@ use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
-use crate::app::{App, AppConfig, AppOutcome, apply_action};
+use crate::app::{apply_action, App, AppConfig, AppOutcome};
+use crate::dropfile;
+use crate::terminal::stdout::StdoutTerminal;
 use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
-use crate::terminal::stdout::StdoutTerminal;
 use crate::theme;
-use ec_data::game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig};
+use ec_data::game_config::{GameConfig, DEFAULT_GAME_CONFIG_KDL};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
@@ -65,12 +66,17 @@ fn parse_args(
     args: &[String],
 ) -> Result<(AppConfig, OutputEncoding, ColorMode), Box<dyn std::error::Error>> {
     let mut dir = None;
-    let mut player = None;
-    let mut export_root = std::env::var_os("EC_CLIENT_EXPORT_ROOT").map(PathBuf::from);
-    let mut queue_dir = std::env::var_os("EC_CLIENT_QUEUE_DIR").map(PathBuf::from);
+    let mut player: Option<usize> = None;
+    let mut export_root = std::env::var_os("EC_GAME_EXPORT_ROOT")
+        .or_else(|| std::env::var_os("EC_CLIENT_EXPORT_ROOT"))
+        .map(PathBuf::from);
+    let mut queue_dir = std::env::var_os("EC_GAME_QUEUE_DIR")
+        .or_else(|| std::env::var_os("EC_CLIENT_QUEUE_DIR"))
+        .map(PathBuf::from);
     let mut encoding = OutputEncoding::Utf8;
     let mut explicit_color_mode: Option<ColorMode> = None;
-
+    let mut dropfile_path: Option<PathBuf> = None;
+    let mut explicit_timeout_minutes: Option<u32> = None;
     let mut idx = 1;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -142,6 +148,23 @@ fn parse_args(
                 });
                 idx += 2;
             }
+            "--dropfile" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --dropfile".into());
+                };
+                dropfile_path = Some(PathBuf::from(value));
+                idx += 2;
+            }
+            "--timeout" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --timeout (minutes)".into());
+                };
+                let minutes = value.parse::<u32>().map_err(|_| {
+                    format!("--timeout value must be a positive integer, got '{value}'")
+                })?;
+                explicit_timeout_minutes = Some(minutes);
+                idx += 2;
+            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -152,15 +175,40 @@ fn parse_args(
         }
     }
 
+    // Parse dropfile and apply any fields not already set by explicit flags.
+    let mut dropfile_alias: Option<String> = None;
+    let mut dropfile_timeout_minutes: Option<u32> = None;
+
+    if let Some(path) = &dropfile_path {
+        let info = dropfile::parse(path).map_err(|e| format!("{e}"))?;
+        dropfile_alias = info.alias;
+        dropfile_timeout_minutes = info.timeout_minutes;
+    }
+
+    // If a dropfile was given without an explicit --encoding, default to cp437.
+    if dropfile_path.is_some() && !args.iter().any(|a| a == "--encoding") {
+        encoding = OutputEncoding::Cp437;
+    }
+
     let dir = dir.ok_or("usage: ec-game --dir <game_dir> --player <1-based empire index>")?;
+
+    // --player is required unless we can resolve a player from the dropfile alias.
+    // For now, --player is always required; alias→index resolution is a follow-up.
     let player_record_index_1_based =
         player.ok_or("usage: ec-game --dir <game_dir> --player <1-based empire index>")?;
     if player_record_index_1_based == 0 {
         return Err("--player must be >= 1".into());
     }
 
-    // Resolve color mode: explicit flag > env-based detection > Ansi16 safe default
-    // when CP437 encoding is in use (BBS door context).
+    // Explicit --timeout overrides the dropfile value.
+    let timeout_minutes = explicit_timeout_minutes.or(dropfile_timeout_minutes);
+    let session_timeout_secs = timeout_minutes.map(|m| m.saturating_mul(60));
+
+    // Suppress unused-variable warning for dropfile_alias until alias→player
+    // resolution is implemented.
+    let _ = dropfile_alias;
+
+    // Resolve color mode: explicit flag > cp437-default > env-based detection.
     let color_mode = explicit_color_mode.unwrap_or_else(|| {
         if encoding == OutputEncoding::Cp437 {
             // BBS/door clients: assume classic 16-color unless explicitly overridden.
@@ -176,6 +224,7 @@ fn parse_args(
             player_record_index_1_based,
             export_root,
             queue_dir,
+            session_timeout_secs,
             // Placeholder; overwritten in run() after loading config.kdl.
             game_config: GameConfig::default(),
         },
@@ -213,8 +262,15 @@ fn print_usage() {
     println!(
         "  ec-game --dir <game_dir> --player <1-based empire index> \
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
+         [--dropfile <path>] [--timeout <minutes>] \
          [--export-root <dir>] [--queue-dir <dir>]"
     );
+    println!();
+    println!("BBS door flags:");
+    println!("  --dropfile <path>   Parse a BBS dropfile (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT).");
+    println!("                      Supplies alias and timeout; explicit flags always override.");
+    println!("                      Defaults encoding to cp437 when no --encoding is given.");
+    println!("  --timeout <minutes> Session time limit in minutes.");
     println!();
     println!("Color modes:");
     println!("  ansi16     Classic 16-color ANSI (BBS doors, legacy terminals)");

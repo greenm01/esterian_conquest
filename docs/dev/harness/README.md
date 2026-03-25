@@ -30,7 +30,7 @@ Then inspect any house directly:
 
 ```bash
 cd rust
-cargo run -q -p ec-client -- --dir .tmp/campaigns/human-tui-four-player/game --player 1
+cargo run -q -p ec-game -- --dir .tmp/campaigns/human-tui-four-player/game --player 1
 ```
 
 ## Commands

@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_client::screen::AnsiColor;
-use ec_client::theme::classic;
-use ec_client::theme::{
+use ec_game::screen::AnsiColor;
+use ec_game::theme::classic;
+use ec_game::theme::{
     AnsiMode, ansi_mode, bundled_theme_kdl, initialize_from_game_dir, load_theme_from_path,
     toggle_ansi_mode,
 };

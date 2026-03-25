@@ -1,5 +1,6 @@
 pub mod app;
 pub mod cli;
+pub mod dropfile;
 pub mod domains;
 pub mod model;
 pub mod quotes;

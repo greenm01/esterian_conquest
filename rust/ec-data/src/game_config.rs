@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// Default `config.kdl` content bundled into `ec-data`.
 ///
-/// Callers (e.g. `ec-client`) bootstrap this into a new game directory when
+/// Callers (e.g. `ec-game`) bootstrap this into a new game directory when
 /// `config.kdl` is absent.
 pub const DEFAULT_GAME_CONFIG_KDL: &str = include_str!("../config/config.kdl");
 
@@ -13,7 +13,7 @@ pub const DEFAULT_GAME_CONFIG_KDL: &str = include_str!("../config/config.kdl");
 /// Sysop-facing runtime configuration parsed from `config.kdl`.
 ///
 /// This is the authoritative source for operational settings.  On startup,
-/// `ec-client` reads this file and applies any differing values into
+/// `ec-game` reads this file and applies any differing values into
 /// `ecgame.db` so the engine and TUI always see the current config.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GameConfig {
