@@ -8,6 +8,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifi
 use ec_client::app::{Action, App, AppConfig, AppOutcome, apply_action};
 use ec_client::domains::empire::EmpireAction;
 use ec_client::domains::fleet::FleetAction;
+use ec_client::domains::fleet::missions::{
+    FLEET_MISSION_OPTIONS, FleetMissionRequirement, fleet_record_supports_mission_code,
+};
 use ec_client::domains::messaging::MessagingAction;
 use ec_client::domains::planet::PlanetAction;
 use ec_client::domains::starbase::StarbaseAction;
@@ -5846,6 +5849,102 @@ fn fit_table_columns_keeps_header_width_for_blank_cells() {
 
     assert_eq!(fitted[0].width, "ROE".len());
     assert_eq!(fitted[1].width, "Status".len());
+}
+
+#[test]
+fn fleet_mission_requirements_match_manual_summary_table() {
+    let expected = [
+        (0, "Any ships", FleetMissionRequirement::Any),
+        (1, "Any", FleetMissionRequirement::Any),
+        (2, "Any", FleetMissionRequirement::Any),
+        (3, "Any", FleetMissionRequirement::Any),
+        (4, "Combat ships", FleetMissionRequirement::CombatShips),
+        (5, "Combat ships", FleetMissionRequirement::CombatShips),
+        (6, "Combat ships", FleetMissionRequirement::CombatShips),
+        (
+            7,
+            "Combat + loaded transports",
+            FleetMissionRequirement::CombatAndLoadedTransports,
+        ),
+        (
+            8,
+            "Loaded transports (combat recommended)",
+            FleetMissionRequirement::LoadedTransports,
+        ),
+        (9, "Any", FleetMissionRequirement::Any),
+        (
+            10,
+            "At least one scout",
+            FleetMissionRequirement::AtLeastOneScout,
+        ),
+        (
+            11,
+            "At least one scout",
+            FleetMissionRequirement::AtLeastOneScout,
+        ),
+        (
+            12,
+            "At least one ETAC",
+            FleetMissionRequirement::AtLeastOneEtac,
+        ),
+        (13, "Any", FleetMissionRequirement::Any),
+        (14, "Any", FleetMissionRequirement::Any),
+        (15, "Any", FleetMissionRequirement::Any),
+    ];
+
+    for (option, (code, requirements, requirement)) in
+        FLEET_MISSION_OPTIONS.iter().zip(expected.into_iter())
+    {
+        assert_eq!(option.code, code);
+        assert_eq!(option.requirements, requirements);
+        assert_eq!(option.requirement, requirement);
+    }
+}
+
+#[test]
+fn fleet_record_supports_manual_requirement_classes() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .get_mut(0)
+        .expect("fleet 1 should exist");
+
+    fleet.set_battleship_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_destroyer_count(0);
+    fleet.set_army_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_etac_count(0);
+
+    assert!(fleet_record_supports_mission_code(fleet, 0));
+    assert!(fleet_record_supports_mission_code(fleet, 15));
+    assert!(!fleet_record_supports_mission_code(fleet, 4));
+    assert!(!fleet_record_supports_mission_code(fleet, 8));
+    assert!(!fleet_record_supports_mission_code(fleet, 10));
+    assert!(!fleet_record_supports_mission_code(fleet, 12));
+
+    fleet.set_destroyer_count(1);
+    assert!(fleet_record_supports_mission_code(fleet, 4));
+    assert!(fleet_record_supports_mission_code(fleet, 6));
+    assert!(!fleet_record_supports_mission_code(fleet, 7));
+
+    fleet.set_army_count(1);
+    assert!(fleet_record_supports_mission_code(fleet, 7));
+    assert!(fleet_record_supports_mission_code(fleet, 8));
+
+    fleet.set_destroyer_count(0);
+    assert!(!fleet_record_supports_mission_code(fleet, 7));
+    assert!(fleet_record_supports_mission_code(fleet, 8));
+
+    fleet.set_scout_count(1);
+    assert!(fleet_record_supports_mission_code(fleet, 10));
+    assert!(fleet_record_supports_mission_code(fleet, 11));
+
+    fleet.set_etac_count(1);
+    assert!(fleet_record_supports_mission_code(fleet, 12));
 }
 
 #[test]

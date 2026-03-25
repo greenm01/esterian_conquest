@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::domains::fleet::FleetAction;
+use crate::domains::fleet::missions::FLEET_MISSION_OPTIONS;
 use crate::domains::fleet::state::FleetMenuPromptMode;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
@@ -116,13 +117,6 @@ pub enum FleetGroupOrderMode {
     ConfirmingTarget,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FleetMissionOption {
-    pub code: u8,
-    pub mission: &'static str,
-    pub requirements: &'static str,
-}
-
 const FLEET_COL_1: usize = 2;
 const FLEET_COL_2: usize = 21;
 const FLEET_COL_3: usize = 41;
@@ -164,89 +158,6 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::right("Spd", 7),
     TableColumn::right("ROE", 3),
     TableColumn::left("Ships", 52),
-];
-
-pub const FLEET_MISSION_OPTIONS: [FleetMissionOption; 16] = [
-    FleetMissionOption {
-        code: 0,
-        mission: "None (hold position)",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 1,
-        mission: "Move Fleet (only)",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 2,
-        mission: "Seek Home",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 3,
-        mission: "Patrol a Sector",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 4,
-        mission: "Guard a Starbase",
-        requirements: "Combat ship(s).",
-    },
-    FleetMissionOption {
-        code: 5,
-        mission: "Guard/Blockade a World",
-        requirements: "Combat ship(s).",
-    },
-    FleetMissionOption {
-        code: 6,
-        mission: "Bombard a World",
-        requirements: "Combat ship(s).",
-    },
-    FleetMissionOption {
-        code: 7,
-        mission: "Invade a World",
-        requirements: "Combat ship(s) & Loaded TTs.",
-    },
-    FleetMissionOption {
-        code: 8,
-        mission: "Blitz a World",
-        requirements: "Loaded troop transports.",
-    },
-    FleetMissionOption {
-        code: 9,
-        mission: "View a World",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 10,
-        mission: "Scout a Sector",
-        requirements: "At least one scout ship.",
-    },
-    FleetMissionOption {
-        code: 11,
-        mission: "Scout a Solar System",
-        requirements: "At least one scout ship.",
-    },
-    FleetMissionOption {
-        code: 12,
-        mission: "Colonize a World",
-        requirements: "At least one ETAC.",
-    },
-    FleetMissionOption {
-        code: 13,
-        mission: "Join another fleet",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 14,
-        mission: "Rendezvous at Sector",
-        requirements: "None. All ships can do this.",
-    },
-    FleetMissionOption {
-        code: 15,
-        mission: "Salvage",
-        requirements: "None. All ships can do this.",
-    },
 ];
 
 fn mission_picker_columns() -> Vec<TableColumn<'static>> {

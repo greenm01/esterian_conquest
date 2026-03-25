@@ -1,6 +1,7 @@
 pub mod action;
 mod controller;
 mod manip;
+pub mod missions;
 mod orders;
 pub mod screens;
 pub mod state;

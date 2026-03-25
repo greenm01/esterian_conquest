@@ -89,13 +89,15 @@ pub use crate::domains::empire::screens::empire_status::EmpireStatusScreen;
 pub(crate) use crate::domains::empire::screens::enemies::ENEMIES_VISIBLE_ROWS;
 pub use crate::domains::empire::screens::enemies::EnemiesScreen;
 pub use crate::domains::empire::screens::rankings::RankingsScreen;
+pub use crate::domains::fleet::missions::{
+    FLEET_MISSION_OPTIONS, FleetMissionOption, FleetMissionRequirement,
+};
 pub(crate) use crate::domains::fleet::screens::fleet::FLEET_VISIBLE_ROWS;
 pub use crate::domains::fleet::screens::fleet::{
-    FLEET_MISSION_OPTIONS, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
-    FleetGroupOrderMode, FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
-    FleetMergeMode, FleetMergeScreen, FleetMissionOption, FleetMissionPickerScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetRow, FleetSingleOrderMode, FleetSingleOrderScreen,
-    FleetTransferMode, FleetTransferScreen,
+    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
+    FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,
+    FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FleetSingleOrderMode, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
 };
 pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;

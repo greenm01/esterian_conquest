@@ -1,6 +1,7 @@
 use crate::app::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
+use crate::domains::fleet::missions::fleet_record_supports_mission_code;
 use crate::domains::fleet::state::{FleetMenuPromptMode, FleetMissionPickerCaller};
 use crate::screen::{
     CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, FleetSingleOrderMode,
@@ -1554,22 +1555,7 @@ impl App {
         else {
             return false;
         };
-        let has_combat = fleet.battleship_count() > 0
-            || fleet.cruiser_count() > 0
-            || fleet.destroyer_count() > 0;
-        let has_loaded_troops = fleet.army_count() > 0;
-        let has_scout = fleet.scout_count() > 0;
-        let has_etac = fleet.etac_count() > 0;
-
-        match order_code {
-            0 | 1 | 2 | 3 | 9 | 13 | 14 | 15 => true,
-            4 | 5 | 6 => has_combat,
-            7 => has_combat && has_loaded_troops,
-            8 => has_loaded_troops,
-            10 | 11 => has_scout,
-            12 => has_etac,
-            _ => false,
-        }
+        fleet_record_supports_mission_code(fleet, order_code)
     }
 
     pub(crate) fn fleet_mission_picker_enabled_flags(&self) -> Vec<bool> {
