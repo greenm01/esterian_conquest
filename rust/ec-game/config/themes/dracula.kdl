@@ -1,0 +1,159 @@
+// Dracula for ec-game
+// dracula/vim
+//
+// Background: #282A36  Foreground: #F8F8F2
+// Bold, iconic purple/pink — vibrant without being chaotic.
+
+style "body" {
+    fg "#F8F8F2"
+    bg "#282A36"
+}
+style "title" {
+    fg "#BD93F9"
+    bg "#282A36"
+    bold #true
+}
+style "menu" {
+    fg "#F8F8F2"
+    bg "#282A36"
+}
+style "menu_hotkey" {
+    fg "#F1FA8C"
+    bg "#282A36"
+    bold #true
+}
+style "prompt" {
+    fg "#F8F8F2"
+    bg "#282A36"
+}
+style "prompt_hotkey" {
+    fg "#F1FA8C"
+    bg "#282A36"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "#8BE9FD"
+    bg "#282A36"
+    bold #true
+}
+style "bright" {
+    fg "#F8F8F2"
+    bg "#282A36"
+    bold #true
+}
+style "logo" {
+    fg "#BD93F9"
+    bg "#282A36"
+    bold #true
+}
+style "intro_accent" {
+    fg "#BD93F9"
+    bg "#282A36"
+}
+style "intro_tribute" {
+    fg "#FF79C6"
+    bg "#282A36"
+}
+style "stardate_label" {
+    fg "#8BE9FD"
+    bg "#282A36"
+}
+style "stardate_week" {
+    fg "#8BE9FD"
+    bg "#282A36"
+    bold #true
+}
+style "stardate_year" {
+    fg "#F1FA8C"
+    bg "#282A36"
+}
+style "error" {
+    fg "#FF5555"
+    bg "#282A36"
+    bold #true
+}
+style "notice" {
+    fg "#FF5555"
+    bg "#282A36"
+    bold #true
+}
+style "status_label" {
+    fg "#6272A4"
+    bg "#282A36"
+}
+style "status_value" {
+    fg "#F8F8F2"
+    bg "#282A36"
+}
+style "table_chrome" {
+    fg "#44475A"
+    bg "#282A36"
+}
+style "table_header" {
+    fg "#BD93F9"
+    bg "#282A36"
+    bold #true
+}
+style "table_body" {
+    fg "#F8F8F2"
+    bg "#282A36"
+}
+style "disabled_row" {
+    fg "#6272A4"
+    bg "#282A36"
+}
+style "selected" {
+    fg "#282A36"
+    bg "#BD93F9"
+}
+style "alert" {
+    fg "#F8F8F2"
+    bg "#44475A"
+    bold #true
+}
+style "help_header" {
+    fg "#BD93F9"
+    bg "#282A36"
+    bold #true
+}
+style "help_panel" {
+    fg "#F8F8F2"
+    bg "#282A36"
+}
+style "map_dot" {
+    fg "#50FA7B"
+    bg "#282A36"
+}
+style "map_crosshair" {
+    fg "#FF5555"
+    bg "#282A36"
+    bold #true
+}
+style "map_center" {
+    fg "#F8F8F2"
+    bg "#282A36"
+    bold #true
+}
+style "quote" {
+    fg "#6272A4"
+    bg "#282A36"
+}
+style "quote_author" {
+    fg "#6272A4"
+    bg "#282A36"
+}
+style "report_header" {
+    fg "#8BE9FD"
+    bg "#282A36"
+}
+style "indicator_on" {
+    fg "#50FA7B"
+    bg "#282A36"
+    bold #true
+}
+style "indicator_off" {
+    fg "#44475A"
+    bg "#282A36"
+}
+
+star-colors "#BD93F9" "#F8F8F2" "#8BE9FD" "#F1FA8C" "#FFB86C" "#FF5555"

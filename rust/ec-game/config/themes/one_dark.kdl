@@ -1,0 +1,159 @@
+// One Dark for ec-game
+// joshdick/onedark.vim
+//
+// Background: #282C34  Foreground: #ABB2BF
+// Atom/VS Code crossover — sleek dark theme with clean syntax highlighting.
+
+style "body" {
+    fg "#ABB2BF"
+    bg "#282C34"
+}
+style "title" {
+    fg "#61AFEF"
+    bg "#282C34"
+    bold #true
+}
+style "menu" {
+    fg "#ABB2BF"
+    bg "#282C34"
+}
+style "menu_hotkey" {
+    fg "#E5C07B"
+    bg "#282C34"
+    bold #true
+}
+style "prompt" {
+    fg "#ABB2BF"
+    bg "#282C34"
+}
+style "prompt_hotkey" {
+    fg "#E5C07B"
+    bg "#282C34"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "#56B6C2"
+    bg "#282C34"
+    bold #true
+}
+style "bright" {
+    fg "#ABB2BF"
+    bg "#282C34"
+    bold #true
+}
+style "logo" {
+    fg "#61AFEF"
+    bg "#282C34"
+    bold #true
+}
+style "intro_accent" {
+    fg "#61AFEF"
+    bg "#282C34"
+}
+style "intro_tribute" {
+    fg "#C678DD"
+    bg "#282C34"
+}
+style "stardate_label" {
+    fg "#56B6C2"
+    bg "#282C34"
+}
+style "stardate_week" {
+    fg "#56B6C2"
+    bg "#282C34"
+    bold #true
+}
+style "stardate_year" {
+    fg "#E5C07B"
+    bg "#282C34"
+}
+style "error" {
+    fg "#E06C75"
+    bg "#282C34"
+    bold #true
+}
+style "notice" {
+    fg "#E06C75"
+    bg "#282C34"
+    bold #true
+}
+style "status_label" {
+    fg "#5C6370"
+    bg "#282C34"
+}
+style "status_value" {
+    fg "#ABB2BF"
+    bg "#282C34"
+}
+style "table_chrome" {
+    fg "#3E4452"
+    bg "#282C34"
+}
+style "table_header" {
+    fg "#61AFEF"
+    bg "#282C34"
+    bold #true
+}
+style "table_body" {
+    fg "#ABB2BF"
+    bg "#282C34"
+}
+style "disabled_row" {
+    fg "#4B5263"
+    bg "#282C34"
+}
+style "selected" {
+    fg "#282C34"
+    bg "#61AFEF"
+}
+style "alert" {
+    fg "#ABB2BF"
+    bg "#BE5046"
+    bold #true
+}
+style "help_header" {
+    fg "#61AFEF"
+    bg "#282C34"
+    bold #true
+}
+style "help_panel" {
+    fg "#ABB2BF"
+    bg "#282C34"
+}
+style "map_dot" {
+    fg "#98C379"
+    bg "#282C34"
+}
+style "map_crosshair" {
+    fg "#E06C75"
+    bg "#282C34"
+    bold #true
+}
+style "map_center" {
+    fg "#ABB2BF"
+    bg "#282C34"
+    bold #true
+}
+style "quote" {
+    fg "#5C6370"
+    bg "#282C34"
+}
+style "quote_author" {
+    fg "#5C6370"
+    bg "#282C34"
+}
+style "report_header" {
+    fg "#56B6C2"
+    bg "#282C34"
+}
+style "indicator_on" {
+    fg "#98C379"
+    bg "#282C34"
+    bold #true
+}
+style "indicator_off" {
+    fg "#3E4452"
+    bg "#282C34"
+}
+
+star-colors "#61AFEF" "#ABB2BF" "#56B6C2" "#E5C07B" "#D19A66" "#E06C75"

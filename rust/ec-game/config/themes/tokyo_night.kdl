@@ -112,7 +112,7 @@ style "selected" {
 }
 style "alert" {
     fg "#f7768e"
-    bg "#3d1520"
+    bg "#4a272f"
     bold #true
 }
 style "help_header" {

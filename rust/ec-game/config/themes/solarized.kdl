@@ -1,0 +1,159 @@
+// Solarized Dark for ec-game
+// altercation/vim-colors-solarized
+//
+// Background: #002b36  Foreground: #839496
+// The precision low-contrast classic — thoughtful, timeless, influential.
+
+style "body" {
+    fg "#839496"
+    bg "#002b36"
+}
+style "title" {
+    fg "#268bd2"
+    bg "#002b36"
+    bold #true
+}
+style "menu" {
+    fg "#839496"
+    bg "#002b36"
+}
+style "menu_hotkey" {
+    fg "#b58900"
+    bg "#002b36"
+    bold #true
+}
+style "prompt" {
+    fg "#839496"
+    bg "#002b36"
+}
+style "prompt_hotkey" {
+    fg "#b58900"
+    bg "#002b36"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "#2aa198"
+    bg "#002b36"
+    bold #true
+}
+style "bright" {
+    fg "#93a1a1"
+    bg "#002b36"
+    bold #true
+}
+style "logo" {
+    fg "#268bd2"
+    bg "#002b36"
+    bold #true
+}
+style "intro_accent" {
+    fg "#268bd2"
+    bg "#002b36"
+}
+style "intro_tribute" {
+    fg "#d33682"
+    bg "#002b36"
+}
+style "stardate_label" {
+    fg "#2aa198"
+    bg "#002b36"
+}
+style "stardate_week" {
+    fg "#2aa198"
+    bg "#002b36"
+    bold #true
+}
+style "stardate_year" {
+    fg "#b58900"
+    bg "#002b36"
+}
+style "error" {
+    fg "#dc322f"
+    bg "#002b36"
+    bold #true
+}
+style "notice" {
+    fg "#dc322f"
+    bg "#002b36"
+    bold #true
+}
+style "status_label" {
+    fg "#586e75"
+    bg "#002b36"
+}
+style "status_value" {
+    fg "#839496"
+    bg "#002b36"
+}
+style "table_chrome" {
+    fg "#073642"
+    bg "#002b36"
+}
+style "table_header" {
+    fg "#268bd2"
+    bg "#002b36"
+    bold #true
+}
+style "table_body" {
+    fg "#93a1a1"
+    bg "#002b36"
+}
+style "disabled_row" {
+    fg "#586e75"
+    bg "#002b36"
+}
+style "selected" {
+    fg "#002b36"
+    bg "#268bd2"
+}
+style "alert" {
+    fg "#fdf6e3"
+    bg "#dc322f"
+    bold #true
+}
+style "help_header" {
+    fg "#268bd2"
+    bg "#002b36"
+    bold #true
+}
+style "help_panel" {
+    fg "#839496"
+    bg "#002b36"
+}
+style "map_dot" {
+    fg "#859900"
+    bg "#002b36"
+}
+style "map_crosshair" {
+    fg "#dc322f"
+    bg "#002b36"
+    bold #true
+}
+style "map_center" {
+    fg "#93a1a1"
+    bg "#002b36"
+    bold #true
+}
+style "quote" {
+    fg "#586e75"
+    bg "#002b36"
+}
+style "quote_author" {
+    fg "#586e75"
+    bg "#002b36"
+}
+style "report_header" {
+    fg "#2aa198"
+    bg "#002b36"
+}
+style "indicator_on" {
+    fg "#859900"
+    bg "#002b36"
+    bold #true
+}
+style "indicator_off" {
+    fg "#073642"
+    bg "#002b36"
+}
+
+star-colors "#268bd2" "#93a1a1" "#839496" "#b58900" "#cb4b16" "#dc322f"
