@@ -41,6 +41,30 @@ impl<'a> TableColumn<'a> {
     }
 }
 
+pub fn fit_table_columns<'a>(
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+) -> Vec<TableColumn<'a>> {
+    columns
+        .iter()
+        .enumerate()
+        .map(|(index, column)| {
+            let content_width = rows
+                .iter()
+                .filter_map(|row| row.get(index))
+                .filter(|cell| !cell.trim().is_empty())
+                .map(|cell| cell.chars().count())
+                .max()
+                .unwrap_or(0);
+            TableColumn {
+                header: column.header,
+                width: column.header.chars().count().max(content_width),
+                align: column.align,
+            }
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableRowState {
     Normal,
@@ -161,7 +185,39 @@ pub fn write_table_window_with_states<'a>(
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
 ) -> TableRenderMetrics {
-    let area = TableArea::new(start_row, 0, buffer.width());
+    write_table_window_with_states_at(
+        buffer,
+        start_row,
+        0,
+        columns,
+        rows,
+        scroll_offset,
+        visible_rows,
+        _header_style,
+        _body_style,
+        selected,
+        row_states,
+    )
+}
+
+pub fn write_table_window_with_states_at<'a>(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    start_col: usize,
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    scroll_offset: usize,
+    visible_rows: usize,
+    _header_style: crate::screen::CellStyle,
+    _body_style: crate::screen::CellStyle,
+    selected: Option<usize>,
+    row_states: Option<&[TableRowState]>,
+) -> TableRenderMetrics {
+    let area = TableArea::new(
+        start_row,
+        start_col,
+        buffer.width().saturating_sub(start_col),
+    );
     let header_style = classic::table_header_style();
     let chrome_style = classic::table_chrome_style();
     let body_style = classic::table_body_style();
@@ -204,6 +260,14 @@ pub fn write_table_window_with_states<'a>(
         bottom_row,
         displayed_rows,
     }
+}
+
+pub fn table_render_width(columns: &[TableColumn<'_>]) -> usize {
+    columns.iter().map(|column| column.width).sum::<usize>() + columns.len() + 1
+}
+
+pub fn centered_table_start_col(total_width: usize, columns: &[TableColumn<'_>]) -> usize {
+    total_width.saturating_sub(table_render_width(columns)) / 2
 }
 
 pub fn write_stacked_table_window_with_states<'a>(

@@ -11,12 +11,12 @@ use crate::screen::layout::{
     CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
     draw_command_line_text_at, draw_command_message_stack, draw_command_prompt_at,
     draw_expert_menu, draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry,
-    draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_table_command_bar_at_col,
+    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
-    TableColumn, TableRowState, fleet_id_column_width, format_fleet_number,
-    write_table_window_with_cursor, write_table_window_with_states,
+    TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
+    format_fleet_number, write_table_window_with_cursor, write_table_window_with_states_at,
 };
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, format_sector_coords,
@@ -25,7 +25,6 @@ use crate::screen::{
 use crate::theme::classic;
 
 pub const FLEET_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
-const FLEET_GROUP_TARGET_VISIBLE_ROWS: usize = FLEET_VISIBLE_ROWS.saturating_sub(2);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
@@ -249,6 +248,25 @@ pub const FLEET_MISSION_OPTIONS: [FleetMissionOption; 16] = [
         requirements: "None. All ships can do this.",
     },
 ];
+
+fn mission_picker_columns() -> Vec<TableColumn<'static>> {
+    let columns = [
+        TableColumn::right("No.", 3),
+        TableColumn::left("Mission", "Mission".len()),
+        TableColumn::left("Requirements (if any)", "Requirements (if any)".len()),
+    ];
+    let rows = FLEET_MISSION_OPTIONS
+        .iter()
+        .map(|option| {
+            vec![
+                option.code.to_string(),
+                option.mission.to_string(),
+                option.requirements.to_string(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    fit_table_columns(&columns, &rows)
+}
 
 fn fleet_selector_columns(max_fleet_number: u16) -> [TableColumn<'static>; 7] {
     [
@@ -735,8 +753,35 @@ impl FleetSingleOrderScreen {
         target_y_default: &str,
         target_y_input: &str,
         confirm_input: &str,
+        current_year: u16,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        if mode == FleetSingleOrderMode::ConfirmingTarget {
+            return self.render_confirm_target(
+                row,
+                new_order_label,
+                header_text,
+                confirm_input,
+                current_year,
+                status,
+            );
+        }
+        if matches!(
+            mode,
+            FleetSingleOrderMode::EnteringTargetX | FleetSingleOrderMode::EnteringTargetY
+        ) {
+            return self.render_coordinate_target_entry(
+                row,
+                current_order_label,
+                new_order_label,
+                mode,
+                target_x_default,
+                target_x_input,
+                target_y_default,
+                target_y_input,
+                status,
+            );
+        }
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(
@@ -817,6 +862,120 @@ impl FleetSingleOrderScreen {
         };
         if let Some(status) = status {
             draw_inline_status_after(&mut buffer, active_row, status);
+        }
+        Ok(buffer)
+    }
+
+    fn render_coordinate_target_entry(
+        &mut self,
+        row: &FleetRow,
+        current_order_label: &str,
+        new_order_label: &str,
+        mode: FleetSingleOrderMode,
+        target_x_default: &str,
+        target_x_input: &str,
+        target_y_default: &str,
+        target_y_input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(
+            0,
+            0,
+            &format!("ORDER FLEET #{}:", row.fleet_number),
+            classic::title_style(),
+        );
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Location: ",
+            &format_sector_coords_table(row.coords),
+        );
+        draw_status_line(
+            &mut buffer,
+            3,
+            "Current / Max Speed: ",
+            &format!("{}/{}", row.current_speed, row.max_speed),
+        );
+        draw_status_line(
+            &mut buffer,
+            4,
+            "ROE: ",
+            &row.rules_of_engagement.to_string(),
+        );
+        draw_status_line(&mut buffer, 5, "Order: ", current_order_label);
+        draw_status_line(&mut buffer, 7, "Ships: ", &row.composition_label);
+        draw_status_line(
+            &mut buffer,
+            9,
+            "Enter target coordinates for new order: ",
+            new_order_label,
+        );
+        let command_row = menu_prompt_row(9);
+        let active_row = match mode {
+            FleetSingleOrderMode::EnteringTargetX => {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row,
+                    "FLEET COMMAND",
+                    "Target XX ",
+                    target_x_default,
+                    target_x_input,
+                );
+                command_row
+            }
+            FleetSingleOrderMode::EnteringTargetY => {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row,
+                    "FLEET COMMAND",
+                    "Target XX ",
+                    target_x_default,
+                    target_x_input,
+                );
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row + 2,
+                    "FLEET COMMAND",
+                    "Target YY ",
+                    target_y_default,
+                    target_y_input,
+                );
+                command_row + 2
+            }
+            _ => command_row,
+        };
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, active_row, status);
+        }
+        Ok(buffer)
+    }
+
+    fn render_confirm_target(
+        &mut self,
+        row: &FleetRow,
+        new_order_label: &str,
+        header_text: &str,
+        confirm_input: &str,
+        current_year: u16,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(
+            0,
+            0,
+            &format!("ORDER FLEET #{}:", row.fleet_number),
+            classic::title_style(),
+        );
+        draw_status_line(&mut buffer, 2, "Stardate: ", &current_year.to_string());
+        draw_status_line(&mut buffer, 4, "", header_text);
+        draw_status_line(&mut buffer, 6, "New Orders: ", new_order_label);
+        let command_row = menu_prompt_row(6);
+        draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1037,6 +1196,7 @@ impl FleetGroupScreen {
         selected_fleet_record_indexes: &BTreeSet<usize>,
         mode: FleetGroupOrderMode,
         target_status_line: &str,
+        new_order_label: &str,
         target_prompt: &str,
         target_default: &str,
         input: &str,
@@ -1045,6 +1205,49 @@ impl FleetGroupScreen {
         target_y_default: &str,
         target_y_input: &str,
         confirm_input: &str,
+        current_year: u16,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        if mode == FleetGroupOrderMode::SelectingFleets {
+            return self.render_selection_table(
+                rows,
+                scroll_offset,
+                cursor,
+                selected_fleet_record_indexes,
+                status,
+            );
+        }
+        if mode == FleetGroupOrderMode::ConfirmingTarget {
+            return self.render_confirm_target(
+                selected_fleet_record_indexes.len(),
+                target_status_line,
+                new_order_label,
+                confirm_input,
+                current_year,
+                status,
+            );
+        }
+        return self.render_target_entry(
+            selected_fleet_record_indexes.len(),
+            mode,
+            new_order_label,
+            target_prompt,
+            target_default,
+            input,
+            target_x_default,
+            target_x_input,
+            target_y_default,
+            target_y_input,
+            status,
+        );
+    }
+
+    fn render_selection_table(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        selected_fleet_record_indexes: &BTreeSet<usize>,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -1065,15 +1268,7 @@ impl FleetGroupScreen {
             &mut buffer,
             1,
             "",
-            match mode {
-                FleetGroupOrderMode::SelectingFleets => {
-                    "Select fleets with SPACE, then press ENTER to give them the same mission."
-                }
-                FleetGroupOrderMode::EnteringTarget
-                | FleetGroupOrderMode::EnteringTargetX
-                | FleetGroupOrderMode::EnteringTargetY
-                | FleetGroupOrderMode::ConfirmingTarget => target_status_line,
-            },
+            "Select fleets with SPACE, then press ENTER to give them the same mission.",
         );
         draw_status_line(
             &mut buffer,
@@ -1106,11 +1301,7 @@ impl FleetGroupScreen {
             &columns,
             &table_rows,
             scroll_offset,
-            if mode == FleetGroupOrderMode::SelectingFleets {
-                FLEET_VISIBLE_ROWS
-            } else {
-                FLEET_GROUP_TARGET_VISIBLE_ROWS
-            },
+            FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -1128,71 +1319,124 @@ impl FleetGroupScreen {
                 "You have no active fleets. Q quits.",
             );
         } else {
-            let active_row = match mode {
-                FleetGroupOrderMode::SelectingFleets => {
-                    draw_table_command_bar_at(
-                        &mut buffer,
-                        command_row,
-                        "<ARROWS J K SPACE Q>",
-                        None,
-                        "",
-                    );
-                    command_row
-                }
-                FleetGroupOrderMode::EnteringTarget => {
-                    draw_command_line_default_input_at(
-                        &mut buffer,
-                        command_row,
-                        "FLEET COMMAND",
-                        target_prompt,
-                        target_default,
-                        input,
-                    );
-                    command_row
-                }
-                FleetGroupOrderMode::EnteringTargetX => {
-                    draw_command_line_default_input_at(
-                        &mut buffer,
-                        command_row,
-                        "FLEET COMMAND",
-                        "Target XX ",
-                        target_x_default,
-                        target_x_input,
-                    );
-                    command_row
-                }
-                FleetGroupOrderMode::EnteringTargetY => {
-                    draw_command_line_default_input_at(
-                        &mut buffer,
-                        command_row,
-                        "FLEET COMMAND",
-                        "Target XX ",
-                        target_x_default,
-                        target_x_input,
-                    );
-                    draw_command_line_default_input_at(
-                        &mut buffer,
-                        command_row + 2,
-                        "FLEET COMMAND",
-                        "Target YY ",
-                        target_y_default,
-                        target_y_input,
-                    );
-                    command_row + 2
-                }
-                FleetGroupOrderMode::ConfirmingTarget => {
-                    draw_confirm_prompt_at(
-                        &mut buffer,
-                        command_row,
-                        "FLEET COMMAND",
-                        confirm_input,
-                    );
-                    command_row
-                }
-            };
+            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
             if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, active_row, status);
+                draw_inline_status_after(&mut buffer, command_row, status);
             }
+        }
+        Ok(buffer)
+    }
+
+    fn render_target_entry(
+        &mut self,
+        selected_count: usize,
+        mode: FleetGroupOrderMode,
+        new_order_label: &str,
+        target_prompt: &str,
+        target_default: &str,
+        input: &str,
+        target_x_default: &str,
+        target_x_input: &str,
+        target_y_default: &str,
+        target_y_input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Selected fleets: ",
+            &selected_count.to_string(),
+        );
+        let instruction = if matches!(
+            mode,
+            FleetGroupOrderMode::EnteringTargetX | FleetGroupOrderMode::EnteringTargetY
+        ) {
+            "Enter target coordinates for new order: "
+        } else {
+            "Enter target for new order: "
+        };
+        draw_status_line(&mut buffer, 4, instruction, new_order_label);
+        let command_row = menu_prompt_row(4);
+        let active_row = match mode {
+            FleetGroupOrderMode::EnteringTarget => {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row,
+                    "FLEET COMMAND",
+                    target_prompt,
+                    target_default,
+                    input,
+                );
+                command_row
+            }
+            FleetGroupOrderMode::EnteringTargetX => {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row,
+                    "FLEET COMMAND",
+                    "Target XX ",
+                    target_x_default,
+                    target_x_input,
+                );
+                command_row
+            }
+            FleetGroupOrderMode::EnteringTargetY => {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row,
+                    "FLEET COMMAND",
+                    "Target XX ",
+                    target_x_default,
+                    target_x_input,
+                );
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    command_row + 2,
+                    "FLEET COMMAND",
+                    "Target YY ",
+                    target_y_default,
+                    target_y_input,
+                );
+                command_row + 2
+            }
+            FleetGroupOrderMode::SelectingFleets | FleetGroupOrderMode::ConfirmingTarget => {
+                command_row
+            }
+        };
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, active_row, status);
+        }
+        Ok(buffer)
+    }
+
+    fn render_confirm_target(
+        &mut self,
+        selected_count: usize,
+        header_text: &str,
+        new_order_label: &str,
+        confirm_input: &str,
+        current_year: u16,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
+        draw_status_line(&mut buffer, 2, "Stardate: ", &current_year.to_string());
+        draw_status_line(
+            &mut buffer,
+            3,
+            "Selected fleets: ",
+            &selected_count.to_string(),
+        );
+        draw_status_line(&mut buffer, 5, "", header_text);
+        draw_status_line(&mut buffer, 7, "New Orders: ", new_order_label);
+        let command_row = menu_prompt_row(7);
+        draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1343,12 +1587,14 @@ impl FleetMissionPickerScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "FLEET MISSION ORDERS:", classic::title_style());
-        let columns = [
-            TableColumn::right("No.", 3),
-            TableColumn::left("Mission", 27),
-            TableColumn::left("Requirements (if any)", 46),
-        ];
+        let columns = mission_picker_columns();
+        let start_col = centered_table_start_col(buffer.width(), &columns);
+        buffer.write_text(
+            0,
+            start_col,
+            "FLEET MISSION ORDERS:",
+            classic::title_style(),
+        );
         let rows = FLEET_MISSION_OPTIONS
             .iter()
             .map(|option| {
@@ -1369,9 +1615,10 @@ impl FleetMissionPickerScreen {
                 }
             })
             .collect::<Vec<_>>();
-        let metrics = write_table_window_with_states(
+        let metrics = write_table_window_with_states_at(
             &mut buffer,
             1,
+            start_col,
             &columns,
             &rows,
             0,
@@ -1387,9 +1634,10 @@ impl FleetMissionPickerScreen {
                 .get(cursor)
                 .map(|option| option.code.to_string())
                 .unwrap_or_else(|| "1".to_string());
-            draw_table_command_bar_at(
+            draw_table_command_bar_at_col(
                 &mut buffer,
                 command_row,
+                start_col,
                 "<ARROWS J K Q>",
                 Some(&default),
                 input,

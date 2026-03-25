@@ -15,6 +15,7 @@ use ec_client::domains::starmap::StarmapAction;
 use ec_client::domains::startup::StartupAction;
 use ec_client::model::ClassicLoginState;
 use ec_client::screen::layout::COMMAND_LINE_ROW;
+use ec_client::screen::table::{TableColumn, fit_table_columns};
 use ec_client::screen::{
     CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode, PlanetListSort, ScreenId,
@@ -5672,10 +5673,20 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet mission picker should render");
-    assert_eq!(terminal.line(0), "FLEET MISSION ORDERS:");
+    let border = terminal.line(1);
+    let left_padding = border
+        .find('┌')
+        .expect("mission picker border should render");
+    assert!(left_padding > 0, "mission picker table should be centered");
+    assert!(border.trim_end().chars().count() < 80);
+    assert_eq!(
+        terminal.line(0).find("FLEET MISSION ORDERS:"),
+        Some(left_padding)
+    );
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
     let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
     assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
     assert!(prompt.contains("->"));
 
@@ -5730,8 +5741,16 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
     );
     app.render(&mut terminal)
         .expect("fleet mission picker should render");
-    assert_eq!(terminal.line(0), "FLEET MISSION ORDERS:");
+    let border = terminal.line(1);
+    let left_padding = border
+        .find('┌')
+        .expect("mission picker border should render");
+    assert_eq!(
+        terminal.line(0).find("FLEET MISSION ORDERS:"),
+        Some(left_padding)
+    );
     let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
     assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
     assert!(prompt.contains("->"));
 
@@ -5813,6 +5832,20 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
             .count(),
         0
     );
+}
+
+#[test]
+fn fit_table_columns_keeps_header_width_for_blank_cells() {
+    let columns = [TableColumn::right("ROE", 1), TableColumn::left("Status", 1)];
+    let rows = vec![
+        vec!["".to_string(), "".to_string()],
+        vec!["".to_string(), "OK".to_string()],
+    ];
+
+    let fitted = fit_table_columns(&columns, &rows);
+
+    assert_eq!(fitted[0].width, "ROE".len());
+    assert_eq!(fitted[1].width, "Status".len());
 }
 
 #[test]
@@ -6116,7 +6149,17 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
     assert!(line_containing(&terminal, "ROE: ").contains("ROE: "));
     assert!(line_containing(&terminal, "Order: ").contains("Order: "));
     assert!(line_containing(&terminal, "Ships: ").contains("Ships: "));
-    assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
+    assert!(
+        line_containing(&terminal, "Enter target coordinates for new order: ")
+            .contains("Enter target coordinates for new order: Bombard")
+    );
+    assert!(line_containing(&terminal, "Target XX [").contains("FLEET COMMAND <- Target XX ["));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("New Orders: "))
+    );
     assert!(
         !terminal
             .lines
@@ -6134,13 +6177,119 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet order confirm should render");
+    assert!(
+        line_containing(&terminal, "Stardate: ")
+            .contains(&format!("Stardate: {}", app.game_data.conquest.game_year()))
+    );
     assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
+    assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
     assert!(
         terminal
             .lines
             .iter()
             .any(|line| line.contains("arriving in"))
     );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Location: "))
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Current / Max Speed: "))
+    );
+    assert!(!terminal.lines.iter().any(|line| line.contains("ROE: ")));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Order: ")));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Ships: ")));
+}
+
+#[test]
+fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
+    let fixture_dir = temp_game_copy();
+    let bombard_target = latest_runtime_state(&fixture_dir)
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() != 1)
+        .expect("fixture should have a foreign world")
+        .coords_raw();
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('6'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("compact fleet group target screen should render");
+    assert!(line_containing(&terminal, "Selected fleets: ").contains("Selected fleets: 1"));
+    assert!(
+        line_containing(&terminal, "Enter target coordinates for new order: ")
+            .contains("Enter target coordinates for new order: Bombard")
+    );
+    assert!(line_containing(&terminal, "Target XX [").contains("FLEET COMMAND <- Target XX ["));
+    assert!(!terminal.lines.iter().any(|line| line.contains("│Sel│")));
+    assert!(!terminal.lines.iter().any(|line| line.contains('│')));
+    assert!(!terminal.lines.iter().any(|line| line.contains('┌')));
+
+    enter_fleet_group_order_target(&mut app, bombard_target);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("compact fleet group confirm should render");
+    assert!(
+        line_containing(&terminal, "Stardate: ")
+            .contains(&format!("Stardate: {}", app.game_data.conquest.game_year()))
+    );
+    assert!(line_containing(&terminal, "Selected fleets: ").contains("Selected fleets: 1"));
+    assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("arriving in"))
+    );
+    assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("│Sel│")));
+    assert!(!terminal.lines.iter().any(|line| line.contains('│')));
+    assert!(!terminal.lines.iter().any(|line| line.contains('┌')));
 }
 
 #[test]
@@ -7681,8 +7830,8 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         .expect("fleet group join target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     assert_eq!(
-        terminal.line(1).trim_end(),
-        "Enter the host fleet number for Join another fleet."
+        terminal.line(4).trim_end(),
+        "Enter target for new order: Join fleet"
     );
     assert!(
         line_containing(&terminal, "Fleet # [").contains("Fleet # ["),

@@ -739,35 +739,47 @@ pub fn draw_table_command_bar_at(
     default: Option<&str>,
     input: &str,
 ) -> usize {
+    draw_table_command_bar_at_col(buffer, row, 0, hotkeys_markup, default, input)
+}
+
+pub fn draw_table_command_bar_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
     buffer.fill_row(row, classic::prompt_style());
-    let mut col = buffer.write_spans(
-        row,
-        0,
-        &[
-            StyledSpan::new("COMMANDS", classic::title_style()),
-            StyledSpan::new(" ", classic::prompt_style()),
-        ],
-    );
-    col = write_prompt_markup(buffer, row, col, hotkeys_markup);
-    if let Some(default) = default {
-        col += buffer.write_spans(
+    let mut cursor_col = col
+        + buffer.write_spans(
             row,
             col,
+            &[
+                StyledSpan::new("COMMANDS", classic::title_style()),
+                StyledSpan::new(" ", classic::prompt_style()),
+            ],
+        );
+    cursor_col = write_prompt_markup(buffer, row, cursor_col, hotkeys_markup);
+    if let Some(default) = default {
+        cursor_col += buffer.write_spans(
+            row,
+            cursor_col,
             &[
                 StyledSpan::new(" [", classic::prompt_style()),
                 StyledSpan::new(default, classic::prompt_hotkey_style()),
                 StyledSpan::new("] -> ", classic::prompt_style()),
             ],
         );
-        let written = buffer.write_text(row, col, input, classic::prompt_hotkey_style());
-        let cursor_col = col + written;
-        buffer.set_cursor(cursor_col as u16, row as u16);
-        cursor_col
+        let written = buffer.write_text(row, cursor_col, input, classic::prompt_hotkey_style());
+        let final_cursor_col = cursor_col + written;
+        buffer.set_cursor(final_cursor_col as u16, row as u16);
+        final_cursor_col
     } else {
-        let written = buffer.write_text(row, col, " -> ", classic::prompt_style());
-        let cursor_col = col + written;
-        buffer.set_cursor(cursor_col as u16, row as u16);
-        cursor_col
+        let written = buffer.write_text(row, cursor_col, " -> ", classic::prompt_style());
+        let final_cursor_col = cursor_col + written;
+        buffer.set_cursor(final_cursor_col as u16, row as u16);
+        final_cursor_col
     }
 }
 
