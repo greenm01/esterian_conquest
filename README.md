@@ -16,6 +16,10 @@ EC takes that premise seriously. The goal is not to sand away the identity of
 the original game, but to keep its campaign feel, menus, reports, and
 old-school tension — now running on a modern Rust engine.
 
+## Screenshots
+
+**[View screenshots](docs/assets/screenshots/)**
+
 ## Play
 
 There are three ways to run an Esterian Conquest campaign:
