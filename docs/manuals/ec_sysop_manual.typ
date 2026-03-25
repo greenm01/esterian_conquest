@@ -61,7 +61,7 @@
   #v(2em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Draft — March 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: March 25, 2026]
 ]
 
 #pagebreak()
