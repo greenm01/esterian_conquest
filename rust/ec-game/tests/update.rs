@@ -6622,8 +6622,244 @@ fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
 }
 
 #[test]
-fn fleet_merge_sets_join_order_for_selected_source_and_host() {
+fn fleet_merge_defaults_to_largest_eligible_source_and_smallest_host() {
     let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw([1, 1]);
+    fleet_one.set_destroyer_count(4);
+    fleet_one.set_cruiser_count(0);
+    fleet_one.set_battleship_count(0);
+    fleet_one.set_troop_transport_count(0);
+    fleet_one.set_scout_count(0);
+    fleet_one.set_etac_count(0);
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw([8, 8]);
+    fleet_two.set_destroyer_count(2);
+    fleet_two.set_cruiser_count(0);
+    fleet_two.set_battleship_count(0);
+    fleet_two.set_troop_transport_count(0);
+    fleet_two.set_scout_count(0);
+    fleet_two.set_etac_count(0);
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw([8, 8]);
+    fleet_three.set_destroyer_count(5);
+    fleet_three.set_cruiser_count(0);
+    fleet_three.set_battleship_count(0);
+    fleet_three.set_troop_transport_count(0);
+    fleet_three.set_scout_count(0);
+    fleet_three.set_etac_count(0);
+
+    let fleet_four = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    fleet_four.set_current_location_coords_raw([8, 8]);
+    fleet_four.set_destroyer_count(7);
+    fleet_four.set_cruiser_count(0);
+    fleet_four.set_battleship_count(0);
+    fleet_four.set_troop_transport_count(0);
+    fleet_four.set_scout_count(0);
+    fleet_four.set_etac_count(0);
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMerge)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.fleet.menu_prompt_default_value, "4");
+
+    submit_fleet_menu_prompt(&mut app, None);
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.fleet.menu_prompt_default_value, "2");
+}
+
+#[test]
+fn fleet_merge_source_rejects_fleet_without_lower_numbered_host() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw([8, 8]);
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw([8, 8]);
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMerge)),
+        AppOutcome::Continue
+    );
+
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("Fleet #1 must merge into a lower-numbered fleet in the same sector.")
+    );
+}
+
+#[test]
+fn fleet_merge_host_rejects_non_colocated_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw([1, 1]);
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw([8, 8]);
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw([8, 8]);
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMerge)),
+        AppOutcome::Continue
+    );
+
+    submit_fleet_menu_prompt(&mut app, Some(3));
+    submit_fleet_menu_prompt(&mut app, Some(1));
+    assert_eq!(
+        app.fleet.menu_prompt_status.as_deref(),
+        Some("Fleet #1 is not in the same sector as Fleet #3.")
+    );
+}
+
+#[test]
+fn fleet_merge_auto_swaps_higher_numbered_fleet_into_lower_host() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw([8, 8]);
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw([8, 8]);
+
+    let fleet_four = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    fleet_four.set_current_location_coords_raw([8, 8]);
+
+    save_runtime_state(&fixture_dir, &state);
+
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
@@ -6642,7 +6878,6 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMerge)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -6651,44 +6886,46 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
         line_containing(&terminal, "FLEET COMMAND <- Merge Fleet #").contains("Merge Fleet # [")
     );
 
-    submit_fleet_menu_prompt(&mut app, Some(1));
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    submit_fleet_menu_prompt(&mut app, Some(3));
     app.render(&mut terminal)
         .expect("merge host prompt should render");
     assert!(line_containing(&terminal, "FLEET COMMAND <- Into Fleet #").contains("Into Fleet # ["));
 
-    submit_fleet_menu_prompt(&mut app, Some(2));
+    submit_fleet_menu_prompt(&mut app, Some(4));
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
-
     app.render(&mut terminal)
         .expect("fleet menu should render merge success notice");
-    assert_eq!(
-        terminal.lines[6].trim_end(),
-        "FLEET COMMAND <-H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U->"
-    );
-    assert_eq!(terminal.lines[7].trim_end(), "");
-    assert_eq!(terminal.lines[8].trim_end(), "");
-    assert_eq!(terminal.lines[9].trim_end(), "");
     assert!(
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("ordered to join Fleet #"))
+            .any(|line| line.contains("Fleet #4 ordered to join Fleet #3."))
     );
 
     let state = latest_runtime_state(&fixture_dir);
-    let source = &state.game_data.fleets.records[0];
+    let source = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    let host = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
     assert_eq!(
         source.standing_order_kind(),
         ec_data::Order::JoinAnotherFleet
     );
-    assert_ne!(source.join_host_fleet_id_raw(), 0);
-    let valid_host = state.game_data.fleets.records.iter().any(|fleet| {
-        fleet.owner_empire_raw() == 1
-            && fleet.fleet_id() == source.join_host_fleet_id_raw()
-            && fleet.current_location_coords_raw() == source.standing_order_target_coords_raw()
-    });
-    assert!(valid_host);
+    assert_eq!(source.join_host_fleet_id_raw(), host.fleet_id());
+    assert_eq!(
+        source.standing_order_target_coords_raw(),
+        host.current_location_coords_raw()
+    );
 }
 
 #[test]

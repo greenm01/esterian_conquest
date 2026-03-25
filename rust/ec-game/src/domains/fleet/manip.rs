@@ -18,12 +18,38 @@ impl App {
         if source_record_index_1_based == host_fleet_record_index_1_based {
             return Err("Choose a different host fleet.".to_string());
         }
-        let host_fleet_number = self
-            .fleet_number_for_record_index(host_fleet_record_index_1_based)
-            .ok_or_else(|| "Host fleet is no longer available.".to_string())?;
-        let source_fleet_number = self
-            .fleet_number_for_record_index(source_record_index_1_based)
+        let source_row = self
+            .fleet_row_by_record_index(source_record_index_1_based)
             .ok_or_else(|| "Selected fleet is no longer available.".to_string())?;
+        let host_row = self
+            .fleet_row_by_record_index(host_fleet_record_index_1_based)
+            .ok_or_else(|| "Host fleet is no longer available.".to_string())?;
+        if host_row.coords != source_row.coords {
+            return Err(format!(
+                "Fleet #{} is not in the same sector as Fleet #{}.",
+                host_row.fleet_number, source_row.fleet_number
+            ));
+        }
+        let (
+            source_record_index_1_based,
+            source_fleet_number,
+            host_fleet_record_index_1_based,
+            host_fleet_number,
+        ) = if source_row.fleet_number > host_row.fleet_number {
+            (
+                source_record_index_1_based,
+                source_row.fleet_number,
+                host_fleet_record_index_1_based,
+                host_row.fleet_number,
+            )
+        } else {
+            (
+                host_fleet_record_index_1_based,
+                host_row.fleet_number,
+                source_record_index_1_based,
+                source_row.fleet_number,
+            )
+        };
         self.game_data
             .set_join_fleet_order(
                 self.player.record_index_1_based,
@@ -46,20 +72,17 @@ impl App {
     }
 
     pub fn open_fleet_merge(&mut self) {
-        let total = self.fleet_rows().len();
-        if total < 2 {
+        let Some(default_fleet_number) = self.eligible_merge_source_fleet_number() else {
             self.show_command_menu_notice(
                 CommandMenu::Fleet,
-                "You need at least two fleets to merge.",
+                "You need a fleet in the same sector as a lower-numbered one of your fleets to merge.",
             );
             return;
-        }
+        };
         self.fleet.merge_source_record_index_1_based = None;
         self.open_fleet_menu_prompt(
             crate::domains::fleet::state::FleetMenuPromptMode::MergeSource,
-            self.strongest_owned_fleet_number()
-                .map(|value| value.to_string())
-                .unwrap_or_default(),
+            default_fleet_number.to_string(),
         );
     }
 
