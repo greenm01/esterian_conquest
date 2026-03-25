@@ -6252,7 +6252,9 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
         line_containing(&terminal, "Enter target coordinates for new order: ")
             .contains("Enter target coordinates for new order: Bombard")
     );
-    assert!(line_containing(&terminal, "Target XX [").contains("FLEET COMMAND <- Target XX ["));
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("FLEET COMMAND <- Target XX "));
+    assert!(!prompt.contains('['));
     assert!(
         !terminal
             .lines
@@ -6364,7 +6366,9 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
         line_containing(&terminal, "Enter target coordinates for new order: ")
             .contains("Enter target coordinates for new order: Bombard")
     );
-    assert!(line_containing(&terminal, "Target XX [").contains("FLEET COMMAND <- Target XX ["));
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("FLEET COMMAND <- Target XX "));
+    assert!(!prompt.contains('['));
     assert!(!terminal.lines.iter().any(|line| line.contains("│Sel│")));
     assert!(!terminal.lines.iter().any(|line| line.contains('│')));
     assert!(!terminal.lines.iter().any(|line| line.contains('┌')));
@@ -6651,6 +6655,7 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
 fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
     let home_coords = state.game_data.planets.records
         [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
         .coords_raw();
@@ -6670,6 +6675,36 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     });
     let claimed_coords = unowned_candidates[0].1;
     let fallback_coords = unowned_candidates[1].1;
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].insert(
+        unowned_candidates[0].0 + 1,
+        partial_known_world_snapshot(
+            unowned_candidates[0].0 + 1,
+            &state.game_data.planets.records[unowned_candidates[0].0],
+            0,
+            year,
+        ),
+    );
+    planet_intel_by_viewer[viewer_index].insert(
+        unowned_candidates[1].0 + 1,
+        partial_known_world_snapshot(
+            unowned_candidates[1].0 + 1,
+            &state.game_data.planets.records[unowned_candidates[1].0],
+            0,
+            year,
+        ),
+    );
     for fleet in state.game_data.fleets.records.iter_mut() {
         if fleet.owner_empire_raw() == 1 {
             fleet.set_standing_order_code_raw(9);
@@ -6702,7 +6737,7 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
         })
         .expect("fixture should have a selectable ETAC fleet");
     selected_etac.set_standing_order_code_raw(0);
-    save_runtime_state(&fixture_dir, &state);
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -6781,7 +6816,7 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
         dx * dx + dy * dy
     });
     let hidden_colonized_idx = candidates[0].0;
-    let hidden_colonized_coords = candidates[0].1;
+    let _hidden_colonized_coords = candidates[0].1;
     state.game_data.planets.records[hidden_colonized_idx].set_owner_empire_slot_raw(2);
     let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
         .map(|viewer_empire_id| {
@@ -6859,10 +6894,9 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(line_containing(&terminal, "Target XX [").contains(&format!(
-        "Target XX [{:02}] <Q> ->",
-        hidden_colonized_coords[0]
-    )));
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("Target XX "));
+    assert!(!prompt.contains('['));
 }
 
 #[test]
@@ -6988,10 +7022,15 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     assert!(terminal.lines.iter().any(|line| {
         line.contains("That mission requires a system with a planet at the target coordinates.")
     }));
-    let prompt = line_containing(&terminal, "Target YY [");
-    assert!(prompt.contains("Target YY ["));
-    assert!(prompt.contains("->"), "{prompt}");
-    assert!(!prompt.contains("[00]"));
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("Target XX "));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Target YY "))
+    );
 }
 
 #[test]
@@ -7075,7 +7114,67 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
 }
 
 #[test]
-fn fleet_group_order_allows_owned_planet_for_scout_mission() {
+fn fleet_order_blockade_mission_defaults_to_closest_owned_planet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let target_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned world");
+    state.game_data.planets.records[target_idx].set_owner_empire_slot_raw(1);
+    let owned_target = state.game_data.planets.records[target_idx].coords_raw();
+    let selected_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("player 1 fleet #1 should exist");
+    selected_fleet.set_current_location_coords_raw(owned_target);
+    selected_fleet.set_standing_order_target_coords_raw(owned_target);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("blockade target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", owned_target[0]))
+    );
+}
+
+#[test]
+fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     for fleet in state.game_data.fleets.records.iter_mut() {
@@ -7150,23 +7249,94 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     enter_fleet_group_order_target(&mut app, owned_target);
-    confirm_fleet_group_order(&mut app, true);
 
-    let state = latest_runtime_state(&fixture_dir);
-    let ordered_fleet = state
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("owned scout target rejection should render");
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("You cannot order scouts to target your own planet or system.")
+    }));
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("Target XX "));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Target YY "))
+    );
+}
+
+#[test]
+fn fleet_order_rejects_owned_planet_for_scout_system_mission() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    let scout_fleet = state
         .game_data
         .fleets
         .records
-        .iter()
-        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
-        .expect("player 1 fleet #1 should exist");
+        .get_mut(0)
+        .expect("fleet 1 should exist");
+    scout_fleet.set_scout_count(1);
+    scout_fleet.set_standing_order_code_raw(0);
+    let owned_target = state.game_data.planets.records
+        [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
+        .coords_raw();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
     assert_eq!(
-        ordered_fleet.standing_order_kind(),
-        ec_data::Order::ScoutSector
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
     );
     assert_eq!(
-        ordered_fleet.standing_order_target_coords_raw(),
-        owned_target
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_order_target(&mut app, owned_target);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("owned scout-system target rejection should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| { line.contains("You cannot scout your own planet or system.") })
+    );
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("Target XX "));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Target YY "))
     );
 }
 
@@ -7773,8 +7943,9 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
     app.render(&mut terminal)
         .expect("scout target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    let prompt = line_containing(&terminal, "Target XX [");
-    assert!(prompt.contains("Target XX ["));
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("Target XX "));
+    assert!(!prompt.contains('['));
     assert!(!prompt.contains("Notice:"));
 }
 

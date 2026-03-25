@@ -22,6 +22,8 @@ These are the docs that should drive engine/client behavior.
   - economy/build policy and post-loop world/player updates
 - [ec-movement-spec.md](ec-movement-spec.md)
   - movement, contact, and planner-facing movement rules
+- [order-selection-targeting.md](order-selection-targeting.md)
+  - canonical fleet-order target default and validation behavior for the Rust client
 - [ec-setup-spec.md](ec-setup-spec.md)
   - setup/generator expectations and compatibility boundaries
 - [ec-reports.md](ec-reports.md)

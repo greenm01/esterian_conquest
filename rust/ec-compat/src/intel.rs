@@ -102,16 +102,27 @@ fn compat_worlds(
                         .controlled_empire_name_summary()
                 })
             });
+            let known_potential_production = decode_known_u16(db_record.raw[0x1c]);
+            let known_armies = decode_known_u8(db_record.raw[0x23]);
+            let known_ground_batteries = decode_known_u8(db_record.raw[0x25]);
 
             PlayerStarmapWorld {
                 planet_record_index_1_based: planet_index + 1,
                 coords: planet.coords_raw(),
+                intel_tier: IntelTier::infer_from_fields(
+                    viewer_empire_id,
+                    known_owner_empire_id,
+                    known_name.as_deref(),
+                    known_potential_production,
+                    known_armies,
+                    known_ground_batteries,
+                ),
                 known_name,
                 known_owner_empire_id,
                 known_owner_empire_name,
-                known_potential_production: decode_known_u16(db_record.raw[0x1c]),
-                known_armies: decode_known_u8(db_record.raw[0x23]),
-                known_ground_batteries: decode_known_u8(db_record.raw[0x25]),
+                known_potential_production,
+                known_armies,
+                known_ground_batteries,
                 known_current_production: decode_known_u8(db_record.raw[0x1d]),
                 known_stored_points: decode_known_u16_word(db_record.word_at(0x1e)),
                 known_docked_summary: None,
@@ -122,18 +133,7 @@ fn compat_worlds(
 }
 
 fn infer_intel_tier(viewer_empire_id: u8, world: &PlayerStarmapWorld) -> IntelTier {
-    if world.known_owner_empire_id == Some(viewer_empire_id) {
-        IntelTier::Owned
-    } else if world.known_armies.is_some() || world.known_ground_batteries.is_some() {
-        IntelTier::Full
-    } else if world.known_name.is_some()
-        || world.known_owner_empire_id.is_some()
-        || world.known_potential_production.is_some()
-    {
-        IntelTier::Partial
-    } else {
-        IntelTier::Unknown
-    }
+    IntelTier::infer_from_world(viewer_empire_id, world)
 }
 
 fn infer_intel_tier_from_snapshot(

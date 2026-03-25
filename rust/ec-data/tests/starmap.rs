@@ -1,4 +1,4 @@
-use ec_compat::{DatabaseDat, merge_player_intel_from_compat};
+use ec_compat::{merge_player_intel_from_compat, DatabaseDat};
 use ec_data::build_player_starmap_projection_from_snapshots;
 use ec_engine::GameStateBuilder;
 
@@ -32,12 +32,10 @@ fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
     let projection = build_player_starmap_projection_from_snapshots(&game_data, &snapshots, 1);
     assert_eq!(projection.worlds.len(), planet_count);
     assert!(projection.worlds.iter().any(|world| world.coords == [5, 2]));
-    assert!(
-        projection
-            .worlds
-            .iter()
-            .any(|world| world.coords == [10, 15])
-    );
+    assert!(projection
+        .worlds
+        .iter()
+        .any(|world| world.coords == [10, 15]));
 
     let known = projection
         .worlds
@@ -180,6 +178,7 @@ fn ascii_map_export_uses_printable_paged_grid() {
                 ec_data::PlayerStarmapWorld {
                     planet_record_index_1_based: 1,
                     coords: [1, 1],
+                    intel_tier: ec_data::IntelTier::Unknown,
                     known_name: None,
                     known_owner_empire_id: None,
                     known_owner_empire_name: None,
@@ -194,6 +193,7 @@ fn ascii_map_export_uses_printable_paged_grid() {
                 ec_data::PlayerStarmapWorld {
                     planet_record_index_1_based: 2,
                     coords: [width, height],
+                    intel_tier: ec_data::IntelTier::Unknown,
                     known_name: None,
                     known_owner_empire_id: None,
                     known_owner_empire_name: None,

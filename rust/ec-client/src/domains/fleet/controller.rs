@@ -877,10 +877,10 @@ impl App {
                 .fleet_group_default_host_fleet()
                 .map(|row| row.fleet_number.to_string())
                 .unwrap_or_else(|| "1".to_string()),
-            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                let target = self.fleet_group_default_target();
-                format!("{},{}", target[0], target[1])
-            }
+            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => self
+                .fleet_group_default_target_coords()
+                .map(|target| format!("{},{}", target[0], target[1]))
+                .unwrap_or_default(),
         }
     }
 }

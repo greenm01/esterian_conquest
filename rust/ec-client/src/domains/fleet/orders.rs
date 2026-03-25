@@ -7,6 +7,7 @@ use crate::screen::{
     CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, FleetSingleOrderMode,
     ScreenId, StarbaseRow,
 };
+use ec_data::PlayerStarmapWorld;
 use ec_data::build_player_starmap_projection_from_snapshots;
 use ec_data::map_size_for_player_count;
 use std::collections::BTreeSet;
@@ -405,13 +406,13 @@ impl App {
     fn resolve_target_axis_input(
         &self,
         input: &str,
-        default: u8,
+        default: Option<u8>,
         axis_label: &str,
     ) -> Result<u8, String> {
         let max = map_size_for_player_count(self.game_data.conquest.player_count());
         let raw = input.trim();
         let value = if raw.is_empty() {
-            default
+            default.ok_or_else(|| format!("Enter {axis_label} from 1 to {max}."))?
         } else {
             raw.parse::<u8>()
                 .map_err(|_| format!("Enter {axis_label} from 1 to {max}."))?
@@ -423,18 +424,24 @@ impl App {
     }
 
     fn resolve_fleet_order_split_target(&self) -> Result<[u8; 2], String> {
-        let default = self.fleet_order_default_target();
+        let default_x = self
+            .fleet_order_default_target_coords()
+            .map(|coords| coords[0]);
+        let default_y = self.fleet_order_default_target_y_value();
         Ok([
-            self.resolve_target_axis_input(&self.fleet.order_target_x_input, default[0], "XX")?,
-            self.resolve_target_axis_input(&self.fleet.order_target_y_input, default[1], "YY")?,
+            self.resolve_target_axis_input(&self.fleet.order_target_x_input, default_x, "XX")?,
+            self.resolve_target_axis_input(&self.fleet.order_target_y_input, default_y, "YY")?,
         ])
     }
 
     pub(crate) fn resolve_fleet_group_split_target(&self) -> Result<[u8; 2], String> {
-        let default = self.fleet_group_default_target();
+        let default_x = self
+            .fleet_group_default_target_coords()
+            .map(|coords| coords[0]);
+        let default_y = self.fleet_group_default_target_y_value();
         Ok([
-            self.resolve_target_axis_input(&self.fleet.group_target_x_input, default[0], "XX")?,
-            self.resolve_target_axis_input(&self.fleet.group_target_y_input, default[1], "YY")?,
+            self.resolve_target_axis_input(&self.fleet.group_target_x_input, default_x, "XX")?,
+            self.resolve_target_axis_input(&self.fleet.group_target_y_input, default_y, "YY")?,
         ])
     }
 
@@ -469,6 +476,19 @@ impl App {
                 "You cannot send that mission to your own world.".to_string()
             } else {
                 "You cannot order that combat mission against your own planet.".to_string()
+            });
+        }
+        if fleet_order_target_rejects_owned_scout_target(mission_code)
+            && target_planet
+                .map(|planet| {
+                    planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
+                })
+                .unwrap_or(false)
+        {
+            return Err(if single {
+                "You cannot scout your own planet or system.".to_string()
+            } else {
+                "You cannot order scouts to target your own planet or system.".to_string()
             });
         }
         if fleet_order_target_requires_owned_planet(mission_code)
@@ -626,10 +646,12 @@ impl App {
                 }
             }
             FleetGroupOrderMode::EnteringTargetX => {
-                let default = self.fleet_group_default_target();
+                let default = self
+                    .fleet_group_default_target_coords()
+                    .map(|coords| coords[0]);
                 match self.resolve_target_axis_input(
                     &self.fleet.group_target_x_input,
-                    default[0],
+                    default,
                     "XX",
                 ) {
                     Ok(value) => {
@@ -651,16 +673,20 @@ impl App {
                 let destination = match self.resolve_fleet_group_split_target() {
                     Ok(coords) => coords,
                     Err(err) => {
+                        self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetX;
                         self.fleet.group_status = Some(err);
                         return;
                     }
                 };
                 if self.fleet.group_target_y_input.trim().is_empty() {
-                    self.fleet.group_target_y_input = format!("{:02}", destination[1]);
+                    if let Some(default_y) = self.fleet_group_default_target_y_value() {
+                        self.fleet.group_target_y_input = format!("{default_y:02}");
+                    }
                 }
                 if let Err(err) =
                     self.validate_fleet_target_for_mission(mission_code, destination, false)
                 {
+                    self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetX;
                     self.fleet.group_status = Some(err);
                     return;
                 }
@@ -685,7 +711,7 @@ impl App {
                 let destination = match self.resolve_fleet_group_split_target() {
                     Ok(coords) => coords,
                     Err(err) => {
-                        self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetY;
+                        self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetX;
                         self.fleet.group_status = Some(err);
                         return;
                     }
@@ -693,7 +719,7 @@ impl App {
                 if let Err(err) =
                     self.validate_fleet_target_for_mission(mission_code, destination, false)
                 {
-                    self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetY;
+                    self.fleet.group_mode = FleetGroupOrderMode::EnteringTargetX;
                     self.fleet.group_status = Some(err);
                     return;
                 }
@@ -757,10 +783,12 @@ impl App {
                 }
             }
             FleetSingleOrderMode::EnteringTargetX => {
-                let default = self.fleet_order_default_target();
+                let default = self
+                    .fleet_order_default_target_coords()
+                    .map(|coords| coords[0]);
                 match self.resolve_target_axis_input(
                     &self.fleet.order_target_x_input,
-                    default[0],
+                    default,
                     "XX",
                 ) {
                     Ok(value) => {
@@ -777,16 +805,20 @@ impl App {
                 let destination = match self.resolve_fleet_order_split_target() {
                     Ok(coords) => coords,
                     Err(err) => {
+                        self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetX;
                         self.fleet.order_status = Some(err);
                         return Ok(());
                     }
                 };
                 if self.fleet.order_target_y_input.trim().is_empty() {
-                    self.fleet.order_target_y_input = format!("{:02}", destination[1]);
+                    if let Some(default_y) = self.fleet_order_default_target_y_value() {
+                        self.fleet.order_target_y_input = format!("{default_y:02}");
+                    }
                 }
                 if let Err(err) =
                     self.validate_fleet_target_for_mission(mission_code, destination, true)
                 {
+                    self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetX;
                     self.fleet.order_status = Some(err);
                     return Ok(());
                 }
@@ -805,7 +837,7 @@ impl App {
                 let destination = match self.resolve_fleet_order_split_target() {
                     Ok(coords) => coords,
                     Err(err) => {
-                        self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetY;
+                        self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetX;
                         self.fleet.order_status = Some(err);
                         return Ok(());
                     }
@@ -813,7 +845,7 @@ impl App {
                 if let Err(err) =
                     self.validate_fleet_target_for_mission(mission_code, destination, true)
                 {
-                    self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetY;
+                    self.fleet.order_mode = FleetSingleOrderMode::EnteringTargetX;
                     self.fleet.order_status = Some(err);
                     return Ok(());
                 }
@@ -1126,22 +1158,6 @@ impl App {
             .to_string()
     }
 
-    fn fleet_order_default_target(&self) -> [u8; 2] {
-        if let Some(mission_code) = self.fleet.order_mission_code {
-            if let Some(target) = self.fleet_order_default_target_for_mission(mission_code) {
-                return target;
-            }
-        }
-        let Some(row) = self.fleet_order_selected_row() else {
-            return [8, 2];
-        };
-        if row.target_coords[0] > 0 && row.target_coords[1] > 0 {
-            row.target_coords
-        } else {
-            row.coords
-        }
-    }
-
     pub(crate) fn fleet_order_target_status_line(&self) -> String {
         if self.fleet.order_mode == FleetSingleOrderMode::ConfirmingTarget
             && let (Some(mission_code), Ok(destination)) = (
@@ -1175,19 +1191,23 @@ impl App {
                 .fleet_order_default_host_fleet()
                 .map(|row| row.fleet_number.to_string())
                 .unwrap_or_else(|| "1".to_string()),
-            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                let target = self.fleet_order_default_target();
-                format!("{},{}", target[0], target[1])
-            }
+            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => self
+                .fleet_order_default_target_coords()
+                .map(|target| format!("{},{}", target[0], target[1]))
+                .unwrap_or_default(),
         }
     }
 
     pub(crate) fn fleet_order_target_x_default(&self) -> String {
-        format!("{:02}", self.fleet_order_default_target()[0])
+        self.fleet_order_default_target_coords()
+            .map(|coords| format!("{:02}", coords[0]))
+            .unwrap_or_default()
     }
 
     pub(crate) fn fleet_order_target_y_default(&self) -> String {
-        format!("{:02}", self.fleet_order_default_target()[1])
+        self.fleet_order_default_target_y_value()
+            .map(|value| format!("{value:02}"))
+            .unwrap_or_default()
     }
 
     pub(crate) fn fleet_order_target_x_display_input(&self) -> String {
@@ -1207,11 +1227,15 @@ impl App {
     }
 
     pub(crate) fn fleet_group_target_x_default_value(&self) -> String {
-        format!("{:02}", self.fleet_group_default_target()[0])
+        self.fleet_group_default_target_coords()
+            .map(|coords| format!("{:02}", coords[0]))
+            .unwrap_or_default()
     }
 
     pub(crate) fn fleet_group_target_y_default_value(&self) -> String {
-        format!("{:02}", self.fleet_group_default_target()[1])
+        self.fleet_group_default_target_y_value()
+            .map(|value| format!("{value:02}"))
+            .unwrap_or_default()
     }
 
     pub(crate) fn fleet_group_target_x_display_input(&self) -> String {
@@ -1238,21 +1262,14 @@ impl App {
         self.recommended_fleet_target(mission_code, &selected, BTreeSet::new())
     }
 
-    pub(super) fn fleet_group_default_target(&self) -> [u8; 2] {
-        if let Some(mission_code) = self.fleet.group_mission_code {
-            if let Some(target) = self.fleet_group_default_target_for_mission(mission_code) {
-                return target;
-            }
-        }
-        let rows = self.fleet_rows();
-        let Some(row) = rows.get(self.fleet.group_cursor) else {
-            return [8, 2];
-        };
-        if row.target_coords[0] > 0 && row.target_coords[1] > 0 {
-            row.target_coords
-        } else {
-            row.coords
-        }
+    pub(crate) fn fleet_order_default_target_coords(&self) -> Option<[u8; 2]> {
+        let mission_code = self.fleet.order_mission_code?;
+        self.fleet_order_default_target_for_mission(mission_code)
+    }
+
+    pub(crate) fn fleet_group_default_target_coords(&self) -> Option<[u8; 2]> {
+        let mission_code = self.fleet.group_mission_code?;
+        self.fleet_group_default_target_for_mission(mission_code)
     }
 
     fn fleet_group_default_target_for_mission(&self, mission_code: u8) -> Option<[u8; 2]> {
@@ -1323,7 +1340,10 @@ impl App {
                 fleet.owner_empire_raw() as usize == self.player.record_index_1_based
                     && !selected_records.contains(&(idx + 1))
                     && fleet.scout_count() > 0
-                    && fleet.standing_order_kind() == ec_data::Order::ScoutSolarSystem
+                    && matches!(
+                        fleet.standing_order_kind(),
+                        ec_data::Order::ScoutSector | ec_data::Order::ScoutSolarSystem
+                    )
                     && fleet.standing_order_target_coords_raw() == coords
             })
     }
@@ -1345,26 +1365,36 @@ impl App {
         selected_rows: &[FleetRow],
         selected_records: BTreeSet<usize>,
     ) -> Option<[u8; 2]> {
+        self.recommended_fleet_target_candidates(mission_code, selected_rows, selected_records)
+            .into_iter()
+            .next()
+    }
+
+    fn recommended_fleet_target_candidates(
+        &self,
+        mission_code: u8,
+        selected_rows: &[FleetRow],
+        selected_records: BTreeSet<usize>,
+    ) -> Vec<[u8; 2]> {
         let anchor = selected_rows
             .first()
             .map(|row| row.coords)
             .unwrap_or(self.default_planet_prompt_coords());
-        if fleet_order_target_rejects_owned_planet(mission_code) {
-            return self.closest_known_non_owned_planet_target_from(anchor);
+        match mission_code {
+            1 | 3 => vec![anchor],
+            4 => self
+                .closest_owned_starbase_target_from(anchor)
+                .into_iter()
+                .collect(),
+            5 | 15 => self.owned_planet_targets_from(anchor),
+            6 | 7 | 8 => self.known_enemy_planet_targets_from(anchor),
+            9 => self.under_scouted_world_targets_from(anchor),
+            10 => self.scout_sector_target_candidates_from(anchor, &selected_records),
+            11 => self.scout_system_target_candidates_from(anchor, &selected_records),
+            12 => self.colonize_target_candidates_from(anchor, &selected_records),
+            14 => self.rendezvous_target_candidates_from(anchor, &selected_records),
+            _ => Vec::new(),
         }
-        if mission_code == 4 {
-            return self.closest_owned_starbase_target_from(anchor);
-        }
-        if mission_code == 12 {
-            return self.closest_colonize_target_from(anchor, &selected_records);
-        }
-        if mission_code == 11 {
-            return self.closest_scout_system_target_from(anchor, &selected_records);
-        }
-        if mission_code == 15 {
-            return self.closest_owned_planet_target_from(anchor);
-        }
-        None
     }
 
     fn closest_owned_starbase_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
@@ -1461,89 +1491,206 @@ impl App {
         })
     }
 
-    fn closest_known_non_owned_planet_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
-        build_player_starmap_projection_from_snapshots(
-            &self.game_data,
-            &self.planet_intel_snapshots,
-            self.player.record_index_1_based as u8,
-        )
-        .worlds
-        .into_iter()
-        .filter(|world| {
-            world.known_owner_empire_id.is_some()
-                && world.known_owner_empire_id != Some(self.player.record_index_1_based as u8)
-        })
-        .min_by_key(|world| sector_distance_sq(anchor, world.coords))
-        .map(|world| world.coords)
-    }
-
-    fn closest_owned_planet_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
-        self.game_data
+    fn owned_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        let mut coords = self
+            .game_data
             .planets
             .records
             .iter()
             .filter(|planet| {
                 planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
             })
-            .min_by_key(|planet| sector_distance_sq(anchor, planet.coords_raw()))
             .map(|planet| planet.coords_raw())
+            .collect::<Vec<_>>();
+        self.sort_unique_coords_by_distance(anchor, &mut coords);
+        coords
     }
 
-    fn closest_colonize_target_from(
+    fn known_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        self.filtered_known_world_targets_from(anchor, |_| true)
+    }
+
+    /// Enemy-owned planets only (owner > 0 and owner != self).
+    /// Excludes unowned (owner 0) worlds since they are never valid hostile targets.
+    fn known_enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        self.filtered_known_world_targets_from(anchor, |world| {
+            let owner = world.known_owner_empire_id;
+            owner.is_some()
+                && owner != Some(0)
+                && owner != Some(self.player.record_index_1_based as u8)
+        })
+    }
+
+    /// Under-scouted worlds: Partial or Unknown intel tier, falling back to all known.
+    /// View is typically used to scan worlds the player knows little about.
+    fn under_scouted_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        let under_scouted = self.filtered_known_world_targets_from(anchor, |world| {
+            matches!(
+                world.intel_tier,
+                ec_data::IntelTier::Partial | ec_data::IntelTier::Unknown
+            )
+        });
+        if under_scouted.is_empty() {
+            self.known_world_targets_from(anchor)
+        } else {
+            under_scouted
+        }
+    }
+
+    fn colonize_target_candidates_from(
         &self,
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
-    ) -> Option<[u8; 2]> {
-        let projection = build_player_starmap_projection_from_snapshots(
-            &self.game_data,
-            &self.planet_intel_snapshots,
-            self.player.record_index_1_based as u8,
-        );
-        projection
-            .worlds
-            .iter()
-            .filter(|world| {
-                world.known_owner_empire_id.is_none()
-                    && !self
-                        .friendly_colonize_target_claimed_elsewhere(world.coords, selected_records)
-            })
-            .min_by_key(|world| sector_distance_sq(anchor, world.coords))
-            .map(|world| world.coords)
-            .or_else(|| {
-                projection
-                    .worlds
-                    .iter()
-                    .filter(|world| world.known_owner_empire_id.is_none())
-                    .min_by_key(|world| sector_distance_sq(anchor, world.coords))
-                    .map(|world| world.coords)
-            })
+    ) -> Vec<[u8; 2]> {
+        self.filtered_known_world_targets_from(anchor, |world| {
+            world.known_owner_empire_id == Some(0)
+                && !self.friendly_colonize_target_claimed_elsewhere(world.coords, selected_records)
+        })
     }
 
-    fn closest_scout_system_target_from(
+    fn scout_sector_target_candidates_from(
         &self,
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
-    ) -> Option<[u8; 2]> {
-        let projection = build_player_starmap_projection_from_snapshots(
+    ) -> Vec<[u8; 2]> {
+        let mut coords = self.filtered_known_world_targets_from(anchor, |world| {
+            world.known_owner_empire_id == Some(0)
+                && !self.friendly_scout_target_claimed_elsewhere(world.coords, selected_records)
+                && !self.coords_are_owned_system(world.coords)
+        });
+        if coords.is_empty() && !self.coords_are_owned_system(anchor) {
+            coords.push(anchor);
+        }
+        coords
+    }
+
+    fn scout_system_target_candidates_from(
+        &self,
+        anchor: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> Vec<[u8; 2]> {
+        self.filtered_known_world_targets_from(anchor, |world| {
+            world.known_owner_empire_id.is_some()
+                && world.known_owner_empire_id != Some(self.player.record_index_1_based as u8)
+                && !self.friendly_scout_target_claimed_elsewhere(world.coords, selected_records)
+        })
+    }
+
+    fn rendezvous_target_candidates_from(
+        &self,
+        anchor: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> Vec<[u8; 2]> {
+        let mut coords = self
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(idx, fleet)| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                    && !selected_records.contains(&(idx + 1))
+                    && fleet.standing_order_kind() == ec_data::Order::RendezvousSector
+            })
+            .map(|(_, fleet)| fleet.standing_order_target_coords_raw())
+            .collect::<Vec<_>>();
+        self.sort_unique_coords_by_distance(anchor, &mut coords);
+        if coords.is_empty() {
+            coords.push(anchor);
+        }
+        coords
+    }
+
+    fn filtered_known_world_targets_from<F>(&self, anchor: [u8; 2], predicate: F) -> Vec<[u8; 2]>
+    where
+        F: Fn(&PlayerStarmapWorld) -> bool,
+    {
+        let mut coords = self
+            .player_starmap_worlds()
+            .into_iter()
+            .filter(|world| self.world_is_known_for_targeting(world))
+            .filter(predicate)
+            .map(|world| world.coords)
+            .collect::<Vec<_>>();
+        self.sort_unique_coords_by_distance(anchor, &mut coords);
+        coords
+    }
+
+    fn player_starmap_worlds(&self) -> Vec<PlayerStarmapWorld> {
+        build_player_starmap_projection_from_snapshots(
             &self.game_data,
             &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
-        );
-        projection
-            .worlds
-            .iter()
-            .filter(|world| {
-                !self.friendly_scout_target_claimed_elsewhere(world.coords, selected_records)
-            })
-            .min_by_key(|world| sector_distance_sq(anchor, world.coords))
-            .map(|world| world.coords)
-            .or_else(|| {
-                projection
-                    .worlds
-                    .iter()
-                    .min_by_key(|world| sector_distance_sq(anchor, world.coords))
-                    .map(|world| world.coords)
-            })
+        )
+        .worlds
+    }
+
+    fn world_is_known_for_targeting(&self, world: &PlayerStarmapWorld) -> bool {
+        world.known_name.is_some()
+            || world.known_owner_empire_id.is_some()
+            || world.known_owner_empire_name.is_some()
+            || world.known_potential_production.is_some()
+            || world.known_armies.is_some()
+            || world.known_ground_batteries.is_some()
+    }
+
+    fn coords_are_owned_system(&self, coords: [u8; 2]) -> bool {
+        self.game_data.planets.records.iter().any(|planet| {
+            planet.coords_raw() == coords
+                && planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
+        })
+    }
+
+    fn sort_unique_coords_by_distance(&self, anchor: [u8; 2], coords: &mut Vec<[u8; 2]>) {
+        coords.sort_by_key(|coords| sector_distance_sq(anchor, *coords));
+        coords.dedup();
+    }
+
+    fn fleet_order_default_target_y_value(&self) -> Option<u8> {
+        let mission_code = self.fleet.order_mission_code?;
+        let selected = self
+            .fleet_order_selected_row()
+            .map(|row| vec![row])
+            .unwrap_or_default();
+        self.recommended_fleet_target_for_entered_x(
+            mission_code,
+            &selected,
+            BTreeSet::new(),
+            self.fleet.order_target_x_input.trim(),
+        )
+        .map(|coords| coords[1])
+    }
+
+    fn fleet_group_default_target_y_value(&self) -> Option<u8> {
+        let mission_code = self.fleet.group_mission_code?;
+        let selected = self.fleet_group_selected_rows();
+        self.recommended_fleet_target_for_entered_x(
+            mission_code,
+            &selected,
+            self.fleet.group_selected_fleets.clone(),
+            self.fleet.group_target_x_input.trim(),
+        )
+        .map(|coords| coords[1])
+    }
+
+    fn recommended_fleet_target_for_entered_x(
+        &self,
+        mission_code: u8,
+        selected_rows: &[FleetRow],
+        selected_records: BTreeSet<usize>,
+        entered_x: &str,
+    ) -> Option<[u8; 2]> {
+        let candidates =
+            self.recommended_fleet_target_candidates(mission_code, selected_rows, selected_records);
+        if !fleet_order_target_y_depends_on_entered_x(mission_code) {
+            return candidates.into_iter().next();
+        }
+        let entered_x = entered_x.trim();
+        if entered_x.is_empty() {
+            return candidates.into_iter().next();
+        }
+        let target_x = entered_x.parse::<u8>().ok()?;
+        candidates.into_iter().find(|coords| coords[0] == target_x)
     }
 
     fn fleet_row_supports_mission(&self, row: &FleetRow, order_code: u8) -> bool {
@@ -1809,7 +1956,7 @@ fn fleet_group_order_requires_target(order_code: u8) -> bool {
 }
 
 fn fleet_mission_requires_preselected_target(order_code: u8) -> bool {
-    matches!(order_code, 4 | 12)
+    matches!(order_code, 4)
 }
 
 fn fleet_order_target_requires_planet_system(order_code: u8) -> bool {
@@ -1820,8 +1967,16 @@ fn fleet_order_target_rejects_owned_planet(order_code: u8) -> bool {
     matches!(order_code, 6 | 7 | 8)
 }
 
+fn fleet_order_target_rejects_owned_scout_target(order_code: u8) -> bool {
+    matches!(order_code, 10 | 11)
+}
+
 fn fleet_order_target_requires_owned_planet(order_code: u8) -> bool {
     matches!(order_code, 15)
+}
+
+fn fleet_order_target_y_depends_on_entered_x(order_code: u8) -> bool {
+    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
 }
 
 fn fleet_group_order_label(order_code: u8) -> &'static str {

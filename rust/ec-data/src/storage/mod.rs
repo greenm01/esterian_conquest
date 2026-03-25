@@ -39,6 +39,51 @@ pub enum IntelTier {
     Unknown,
 }
 
+impl IntelTier {
+    /// Infer intel tier from a `PlayerStarmapWorld` as seen by `viewer_empire_id`.
+    ///
+    /// Owned  — the viewer owns this world.
+    /// Full   — armies or ground batteries are known (Scout System level).
+    /// Partial — name, owner, or potential production is known (View/ETAC level).
+    /// Unknown — no intel at all.
+    pub fn infer_from_world(viewer_empire_id: u8, world: &crate::PlayerStarmapWorld) -> IntelTier {
+        Self::infer_from_fields(
+            viewer_empire_id,
+            world.known_owner_empire_id,
+            world.known_name.as_deref(),
+            world.known_potential_production,
+            world.known_armies,
+            world.known_ground_batteries,
+        )
+    }
+
+    /// Infer intel tier from raw constituent fields.
+    ///
+    /// Use this when constructing a `PlayerStarmapWorld` before the struct is
+    /// complete. Use `infer_from_world` when you already have the struct.
+    pub fn infer_from_fields(
+        viewer_empire_id: u8,
+        known_owner_empire_id: Option<u8>,
+        known_name: Option<&str>,
+        known_potential_production: Option<u16>,
+        known_armies: Option<u8>,
+        known_ground_batteries: Option<u8>,
+    ) -> IntelTier {
+        if known_owner_empire_id == Some(viewer_empire_id) {
+            IntelTier::Owned
+        } else if known_armies.is_some() || known_ground_batteries.is_some() {
+            IntelTier::Full
+        } else if known_name.is_some()
+            || known_owner_empire_id.is_some()
+            || known_potential_production.is_some()
+        {
+            IntelTier::Partial
+        } else {
+            IntelTier::Unknown
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetIntelSnapshot {
     pub planet_record_index_1_based: usize,

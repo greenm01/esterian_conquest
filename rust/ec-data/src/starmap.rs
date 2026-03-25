@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
-use crate::{CoreGameData, PlanetIntelSnapshot, map_size_for_player_count};
+use crate::{map_size_for_player_count, CoreGameData, IntelTier, PlanetIntelSnapshot};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerStarmapWorld {
     pub planet_record_index_1_based: usize,
     pub coords: [u8; 2],
+    pub intel_tier: IntelTier,
     pub known_name: Option<String>,
     pub known_owner_empire_id: Option<u8>,
     pub known_owner_empire_name: Option<String>,
@@ -265,6 +266,18 @@ pub fn build_player_starmap_projection_from_snapshots(
             PlayerStarmapWorld {
                 planet_record_index_1_based: planet_index + 1,
                 coords: planet.coords_raw(),
+                intel_tier: if is_owned_world {
+                    IntelTier::Owned
+                } else {
+                    IntelTier::infer_from_fields(
+                        viewer_empire_id,
+                        known_owner_empire_id,
+                        known_name.as_deref(),
+                        snapshot.and_then(|s| s.known_potential_production),
+                        snapshot.and_then(|s| s.known_armies),
+                        snapshot.and_then(|s| s.known_ground_batteries),
+                    )
+                },
                 known_name,
                 known_owner_empire_id,
                 known_owner_empire_name,
