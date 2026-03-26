@@ -18,7 +18,6 @@ fn is_allowed_raw_path(path: &Path) -> bool {
     path.contains("/src/records/")
         || path.ends_with("/src/builder.rs")
         || path.ends_with("/src/storage/snapshot_core.rs")
-        || path.ends_with("/src/directory/current_known_baseline.rs")
 }
 
 fn non_comment_raw_lines(path: &Path) -> Vec<String> {

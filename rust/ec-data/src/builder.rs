@@ -218,8 +218,8 @@ impl GameStateBuilder {
         data.conquest.set_player_count(self.player_count);
 
         // Configure setup header
-        data.setup.raw[..5].copy_from_slice(b"EC151");
-        data.setup.raw[5..13].copy_from_slice(&[4, 3, 4, 3, 1, 1, 1, 1]); // option_prefix
+        data.setup.set_version_tag(b"EC151");
+        data.setup.set_option_prefix(&[4, 3, 4, 3, 1, 1, 1, 1]);
         data.setup.set_snoop_enabled(true);
         data.setup.set_max_time_between_keys_minutes_raw(10);
         data.setup.set_remote_timeout_enabled(true);
