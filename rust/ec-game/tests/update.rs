@@ -3281,7 +3281,12 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
 
     app.render(&mut terminal)
         .expect("theme picker should rerender");
-    assert!(line_containing(&terminal, "Applied theme: ").contains("Applied theme: Tokyo Night."));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Applied theme: Tokyo Night."))
+    );
 }
 
 #[test]
@@ -3495,7 +3500,12 @@ fn missing_theme_file_falls_back_to_classic_and_persists_fallback() {
         "Theme unavailable. Using {}.",
         theme::default_theme_display_name()
     );
-    assert!(line_containing(&terminal, "Theme unavailable. Using ").contains(&expected_notice));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains(&expected_notice))
+    );
 }
 
 #[test]
@@ -7375,6 +7385,16 @@ fn planet_transport_load_prompt_rejects_non_owned_planet() {
         app.planet.transport_status.as_deref(),
         Some(expected.as_str())
     );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet transport prompt should render error hanger");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Error: ") && line.contains(expected.as_str()))
+    );
 }
 
 #[test]
@@ -8435,8 +8455,10 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
     app.render(&mut terminal)
         .expect("no-starbase guard order notice should render");
     assert!(
-        line_containing(&terminal, "You have no starbases available to guard.")
-            .contains("You have no starbases available to guard.")
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("You have no starbases available to guard."))
     );
 }
 
@@ -9430,7 +9452,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("That mission does not apply to all selected fleets."))
+            .all(|line| !line.contains("That mission does not apply to all selected fleets."))
     );
 }
 

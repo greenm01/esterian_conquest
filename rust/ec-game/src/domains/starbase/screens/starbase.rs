@@ -8,9 +8,8 @@ use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_prompt_at,
     draw_dismiss_prompt, draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt,
-    draw_inline_status_after, draw_menu_entry, draw_menu_notice, draw_status_line,
-    draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    draw_menu_entry, draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -293,7 +292,7 @@ impl StarbaseReviewScreen {
         scroll_offset: usize,
         cursor: usize,
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "REVIEW A STARBASE:");
@@ -349,9 +348,6 @@ impl StarbaseReviewScreen {
                 Some(&default_base),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }

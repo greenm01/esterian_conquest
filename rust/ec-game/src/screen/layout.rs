@@ -405,16 +405,28 @@ pub fn draw_menu_alert_after(
     draw_command_message_stack_after(buffer, previous_end_row, &[message])
 }
 
-pub fn draw_inline_status_after(
+pub fn draw_prompt_notice_after(
     buffer: &mut PlayfieldBuffer,
     previous_end_row: usize,
     value: &str,
 ) -> usize {
-    draw_command_message_stack_after(
-        buffer,
-        previous_end_row,
-        &[CommandMessage::General { label: "", value }],
-    )
+    draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Notice(value)])
+}
+
+pub fn draw_prompt_warning_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    value: &str,
+) -> usize {
+    draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Warning(value)])
+}
+
+pub fn draw_prompt_error_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    value: &str,
+) -> usize {
+    draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Error(value)])
 }
 
 pub fn draw_menu_general_message(

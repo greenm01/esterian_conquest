@@ -3,8 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_text_at_col, draw_inline_status_after, draw_table_command_bar_at_col,
-    draw_table_command_prompt_at_col, new_playfield, stacked_table_visible_rows, table_prompt_row,
+    draw_command_line_text_at_col, draw_table_command_bar_at_col, draw_table_command_prompt_at_col,
+    new_playfield, stacked_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, centered_table_start_col, fit_table_columns,
@@ -75,7 +75,7 @@ impl PlanetDatabaseScreen {
         cursor: usize,
         _default_coords: [u8; 2],
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
         _menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -132,9 +132,6 @@ impl PlanetDatabaseScreen {
                 Some(&default),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }

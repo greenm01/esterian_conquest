@@ -3,8 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    draw_inline_status_after, draw_status_line, draw_table_command_bar_at, draw_title_bar,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_status_line, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
@@ -30,7 +30,7 @@ impl ThemePickerScreen {
         rows: &[ThemeEntry],
         cursor: usize,
         active_key: Option<&str>,
-        status: Option<&str>,
+        _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "ANSI THEMES:");
@@ -74,9 +74,6 @@ impl ThemePickerScreen {
         );
         let command_row = table_prompt_row(metrics.bottom_row);
         draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K ENTER Q>", None, "");
-        if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
-        }
         Ok(buffer)
     }
 }

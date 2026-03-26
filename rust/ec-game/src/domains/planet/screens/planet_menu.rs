@@ -6,8 +6,8 @@ use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at, draw_command_prompt_at,
     draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
-    draw_inline_planet_info_prompt, draw_inline_status_after, draw_inline_tax_prompt,
-    draw_menu_entry, draw_menu_notice, draw_title_bar, menu_prompt_row, new_playfield,
+    draw_inline_planet_info_prompt, draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice,
+    draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -114,7 +114,7 @@ impl PlanetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_inline_status_after(&mut buffer, command_row, status);
+                    draw_prompt_error_after(&mut buffer, command_row, status);
                 }
             } else if menu_prompt_label.is_some() {
                 let command_row = draw_command_line_default_input_at(
@@ -126,7 +126,7 @@ impl PlanetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_inline_status_after(&mut buffer, command_row, status);
+                    draw_prompt_error_after(&mut buffer, command_row, status);
                 }
             } else {
                 draw_expert_menu(
@@ -202,7 +202,7 @@ impl PlanetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_inline_status_after(&mut buffer, quantity_row, status);
+                draw_prompt_error_after(&mut buffer, quantity_row, status);
             }
         } else if menu_prompt_label.is_some() {
             let prompt_row = draw_command_line_default_input_at(
@@ -214,7 +214,7 @@ impl PlanetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_inline_status_after(&mut buffer, prompt_row, status);
+                draw_prompt_error_after(&mut buffer, prompt_row, status);
             }
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);

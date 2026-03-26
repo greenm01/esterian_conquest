@@ -11,10 +11,10 @@ use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
     draw_command_line_text_at, draw_command_message_stack, draw_command_prompt_at,
-    draw_expert_menu, draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry,
-    draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_table_command_bar_at_col,
-    draw_title_bar, draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice,
+    draw_prompt_error_after, draw_status_line, draw_table_command_bar_at,
+    draw_table_command_bar_at_col, draw_title_bar, draw_wrapped_message, last_body_row,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
@@ -200,7 +200,7 @@ impl FleetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_inline_status_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
+                    draw_prompt_error_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
                 }
             } else {
                 draw_expert_menu(
@@ -261,7 +261,7 @@ impl FleetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_inline_status_after(&mut buffer, quantity_row, status);
+                draw_prompt_error_after(&mut buffer, quantity_row, status);
             }
         } else if menu_prompt_mode.is_some() {
             draw_command_line_default_input_at(
@@ -273,7 +273,7 @@ impl FleetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_inline_status_after(&mut buffer, command_row, status);
+                draw_prompt_error_after(&mut buffer, command_row, status);
             }
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
@@ -355,7 +355,7 @@ impl FleetListScreen {
         scroll_offset: usize,
         cursor: usize,
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let max_fleet_number = max_fleet_number(rows);
@@ -412,9 +412,6 @@ impl FleetListScreen {
                 Some(&default_fleet_number),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }
@@ -661,7 +658,7 @@ impl FleetSingleOrderScreen {
             _ => command_row,
         };
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, active_row, status);
+            draw_prompt_error_after(&mut buffer, active_row, status);
         }
         Ok(buffer)
     }
@@ -715,7 +712,7 @@ impl FleetSingleOrderScreen {
             input,
         );
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -743,7 +740,7 @@ impl FleetSingleOrderScreen {
         let command_row = menu_prompt_row(6);
         draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -820,7 +817,7 @@ impl FleetEtaScreen {
         if mode != FleetEtaMode::ShowingResult
             && let Some(status) = status
         {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -894,7 +891,7 @@ impl FleetGroupScreen {
         scroll_offset: usize,
         cursor: usize,
         selected_fleet_record_indexes: &BTreeSet<usize>,
-        status: Option<&str>,
+        _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
@@ -948,7 +945,6 @@ impl FleetGroupScreen {
         let command_row = table_prompt_row(metrics.bottom_row);
         if table_rows.is_empty() {
             draw_table_command_bar_at_col(&mut buffer, command_row, start_col, "<Q>", None, "");
-            draw_inline_status_after(&mut buffer, command_row, "You have no active fleets.");
         } else {
             draw_table_command_bar_at_col(
                 &mut buffer,
@@ -958,9 +954,6 @@ impl FleetGroupScreen {
                 None,
                 "",
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }
@@ -1042,7 +1035,7 @@ impl FleetGroupScreen {
             }
         };
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, active_row, status);
+            draw_prompt_error_after(&mut buffer, active_row, status);
         }
         Ok(buffer)
     }
@@ -1066,7 +1059,7 @@ impl FleetGroupScreen {
         let command_row = menu_prompt_row(7);
         draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1254,7 +1247,7 @@ impl FleetMissionPickerScreen {
         cursor: usize,
         input: &str,
         enabled: &[bool],
-        status: Option<&str>,
+        _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
@@ -1313,9 +1306,6 @@ impl FleetMissionPickerScreen {
                 Some(&default),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }

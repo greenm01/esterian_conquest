@@ -4,9 +4,9 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    CommandMessage, dismiss_prompt_row, draw_command_message_stack, draw_dismiss_prompt,
-    draw_status_line, draw_table_command_bar_at_col, draw_table_command_prompt_at_col,
-    draw_title_bar, new_playfield, stacked_table_visible_rows, table_prompt_row,
+    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_table_command_bar_at_col,
+    draw_table_command_prompt_at_col, draw_title_bar, new_playfield, stacked_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, centered_table_start_col, fit_table_columns,
@@ -68,7 +68,7 @@ impl PlanetListScreen {
         scroll_offset: usize,
         cursor: usize,
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if let PlanetListMode::Stub(message) = mode {
             let mut buffer = new_playfield();
@@ -84,9 +84,6 @@ impl PlanetListScreen {
         let start_col = centered_table_start_col(buffer.width(), &columns);
         let command_row = brief_list_command_row(rows.len(), scroll_offset);
         draw_table_command_prompt_at_col(&mut buffer, command_row, start_col, BRIEF_SORT_PROMPT);
-        if let Some(status) = status {
-            draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Notice(status)]);
-        }
         Ok(buffer)
     }
 

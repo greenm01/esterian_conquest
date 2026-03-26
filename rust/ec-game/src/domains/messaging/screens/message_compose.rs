@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
     dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_prompt_text_at,
-    draw_command_prompt_at, draw_dismiss_prompt, draw_inline_status_after,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_prompt_error_after,
     draw_table_command_bar_at, draw_title_bar, new_playfield, standard_table_visible_rows,
     table_prompt_row,
 };
@@ -43,7 +43,7 @@ impl MessageComposeScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -99,9 +99,6 @@ impl MessageComposeScreen {
                 Some(default_empire),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }
@@ -130,7 +127,7 @@ impl MessageComposeScreen {
             subject,
         );
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -245,7 +242,7 @@ impl MessageComposeScreen {
         &mut self,
         queue: &[QueuedPlayerMail],
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
         scroll_offset: usize,
         cursor: usize,
         game_data: &ec_data::CoreGameData,
@@ -299,9 +296,6 @@ impl MessageComposeScreen {
                 Some(&default_queue_no),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }

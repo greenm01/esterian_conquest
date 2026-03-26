@@ -7,8 +7,8 @@ use crate::screen::layout::{
     COMMAND_LINE_ROW, CommandMessage, dismiss_prompt_row, draw_bottom_aligned_transcript_rows,
     draw_command_line_default_input_at, draw_command_line_prompt_text_at,
     draw_command_message_stack, draw_dismiss_prompt, draw_general_message_after_command,
-    draw_inline_status_after, draw_plain_prompt, draw_table_command_bar_at, draw_title_bar,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_plain_prompt, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -206,9 +206,7 @@ impl PlanetCommissionScreen {
             "",
             "ENTER drafts a fleet from the current selection.",
         );
-        if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, message_end_row, status);
-        }
+        let _ = (message_end_row, status);
         Ok(buffer)
     }
 

@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_text_at,
-    draw_dismiss_prompt, draw_general_message_after_command, draw_inline_status_after,
+    draw_dismiss_prompt, draw_general_message_after_command, draw_prompt_error_after,
     draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
@@ -133,7 +133,7 @@ impl PlanetTransportScreen {
                 &format!("{},{}", default_coords[0], default_coords[1]),
                 input,
             );
-            let message_end_row = draw_general_message_after_command(
+            let _message_end_row = draw_general_message_after_command(
                 &mut buffer,
                 command_row,
                 "",
@@ -142,9 +142,7 @@ impl PlanetTransportScreen {
                     mode.verb()
                 ),
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, message_end_row, status);
-            }
+            let _ = status;
         }
         Ok(buffer)
     }
@@ -209,7 +207,7 @@ impl PlanetTransportScreen {
                 &max_qty.to_string(),
                 input,
             );
-            let message_end_row = draw_general_message_after_command(
+            let _message_end_row = draw_general_message_after_command(
                 &mut buffer,
                 command_row,
                 "",
@@ -219,9 +217,7 @@ impl PlanetTransportScreen {
                     format_sector_coords(planet.coords)
                 ),
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, message_end_row, status);
-            }
+            let _ = status;
         }
         Ok(buffer)
     }
@@ -257,7 +253,7 @@ impl PlanetTransportScreen {
             input,
         );
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, command_row, status);
+            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }

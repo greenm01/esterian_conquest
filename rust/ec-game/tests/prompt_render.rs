@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use ec_game::screen::MessageComposeScreen;
 use ec_game::screen::PlanetBuildOrder;
@@ -12,7 +15,7 @@ use ec_game::screen::layout::{
     draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
     draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
-    draw_inline_status_after, draw_plain_prompt, draw_table_command_prompt,
+    draw_plain_prompt, draw_prompt_error_after, draw_table_command_prompt,
     table_dismiss_prompt_row,
 };
 use ec_game::theme::classic;
@@ -745,12 +748,45 @@ fn bottom_aligned_transcript_rows_can_fill_content_through_row_22() {
 }
 
 #[test]
-fn draw_inline_status_after_places_status_two_rows_below_command_row() {
+fn draw_prompt_error_after_places_error_hanger_two_rows_below_command_row() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_inline_status_after(&mut buffer, 10, "No fleets are ready.");
+    draw_prompt_error_after(&mut buffer, 10, "No fleets are ready.");
 
     assert!(row_text(&buffer, 11).trim().is_empty());
+    assert!(row_text(&buffer, 12).contains("Error: "));
     assert!(row_text(&buffer, 12).contains("No fleets are ready."));
+}
+
+#[test]
+fn source_tree_does_not_use_removed_inline_status_helper() {
+    let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut stack = vec![src_root];
+    while let Some(path) = stack.pop() {
+        for entry in fs::read_dir(&path).expect("read source dir") {
+            let entry = entry.expect("read source entry");
+            let entry_path = entry.path();
+            if entry_path.is_dir() {
+                stack.push(entry_path);
+                continue;
+            }
+            if entry_path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
+                continue;
+            }
+            let contents = fs::read_to_string(&entry_path).expect("read source file");
+            assert!(
+                !contents.contains("draw_inline_status_after("),
+                "old inline status helper still used in {}",
+                display_rel(&entry_path)
+            );
+        }
+    }
+}
+
+fn display_rel(path: &Path) -> String {
+    path.strip_prefix(env!("CARGO_MANIFEST_DIR"))
+        .unwrap_or(path)
+        .display()
+        .to_string()
 }
 
 #[test]

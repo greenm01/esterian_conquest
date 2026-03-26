@@ -10,7 +10,7 @@ use crate::screen::layout::{
     draw_command_message_stack, draw_command_message_stack_after, draw_command_prompt_at,
     draw_dismiss_prompt, draw_expert_menu, draw_general_message_after_command,
     draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
-    draw_inline_status_after, draw_menu_notice, draw_menu_row, draw_title_bar, last_body_row,
+    draw_menu_notice, draw_menu_row, draw_prompt_error_after, draw_title_bar, last_body_row,
     menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
@@ -591,7 +591,7 @@ impl PlanetBuildScreen {
             &build_points_summary(view),
         );
         if let Some(status) = status {
-            draw_inline_status_after(&mut buffer, message_end_row, status);
+            draw_prompt_error_after(&mut buffer, message_end_row, status);
         }
         Ok(buffer)
     }

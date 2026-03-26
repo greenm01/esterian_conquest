@@ -4,8 +4,8 @@ use ec_data::DiplomaticRelation;
 use crate::app::Action;
 use crate::domains::empire::EmpireAction;
 use crate::screen::layout::{
-    draw_command_line_text_at, draw_inline_status_after, draw_table_command_bar_at, draw_title_bar,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_command_line_text_at, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -29,7 +29,7 @@ impl EnemiesScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         input: &str,
-        status: Option<&str>,
+        _status: Option<&str>,
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -107,9 +107,6 @@ impl EnemiesScreen {
                 Some(default_empire),
                 input,
             );
-            if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
-            }
         }
         Ok(buffer)
     }
