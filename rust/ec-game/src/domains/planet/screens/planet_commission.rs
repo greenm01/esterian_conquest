@@ -264,7 +264,7 @@ impl PlanetCommissionScreen {
                 .map(|row| format!("Qty for {} ", row.unit_label))
                 .unwrap_or_else(|| "Qty ".to_string());
             let default_qty = current_row
-                .map(|row| format_draft_qty(row.fleet_qty))
+                .map(|row| format_draft_qty(row.remaining_qty))
                 .unwrap_or_else(|| "00".to_string());
             draw_command_line_default_input_at(
                 &mut buffer,

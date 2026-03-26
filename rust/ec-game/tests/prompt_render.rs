@@ -14,9 +14,8 @@ use ec_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
     draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
-    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
-    draw_plain_prompt, draw_prompt_error_after, draw_table_command_prompt,
-    table_dismiss_prompt_row,
+    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt, draw_plain_prompt,
+    draw_prompt_error_after, draw_table_command_prompt, table_dismiss_prompt_row,
 };
 use ec_game::theme::classic;
 
@@ -525,7 +524,7 @@ fn commission_picker_renders_planets_with_stardock_counts() {
 }
 
 #[test]
-fn commission_draft_starts_table_under_title_and_zero_defaults_ship_rows() {
+fn commission_draft_starts_table_under_title_and_defaults_ship_prompt_to_remaining_qty() {
     let mut screen = PlanetCommissionScreen::new();
     let rows = vec![
         PlanetCommissionDraftRow {
@@ -561,7 +560,7 @@ fn commission_draft_starts_table_under_title_and_zero_defaults_ship_rows() {
     assert!(row_text(&buffer, 5).contains("│       04│         00│"));
     assert!(row_text(&buffer, 6).contains("│Starbases"));
     assert!(row_text(&buffer, 6).contains("│       01│           │"));
-    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Destroyers [00] <Q> ->"));
+    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Destroyers [04] <Q> ->"));
     assert!(row_text(&buffer, 9).trim().is_empty());
     assert!(row_text(&buffer, 10).contains("Set quantities for the ships you want in this fleet."));
 }
@@ -639,7 +638,7 @@ fn commission_draft_renders_inline_notice_below_command_row() {
         .expect("commission draft renders");
 
     assert!(row_text(&buffer, 2).starts_with("┌"));
-    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Battleships [02] <Q> ->"));
+    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Battleships [03] <Q> ->"));
     assert!(row_text(&buffer, 9).trim().is_empty());
     assert!(row_text(&buffer, 10).contains("ENTER commissions the current fleet draft."));
     assert!(row_text(&buffer, 11).trim().is_empty());
