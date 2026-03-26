@@ -132,14 +132,18 @@ pub fn run_maintenance_turn_with_context_and_seed(
 
     // CONQUEST.DAT 0x0c/0x3d accumulation: accumulate when raw[0x0c]==0x64 at start of turn
     // AND at least one fleet is in-transit (raw[0x19]==0x80) or a player is active/rogue.
-    let any_fleet_in_transit = game_data.fleets.records.iter().any(|f| f.raw[0x19] == 0x80);
+    let any_fleet_in_transit = game_data
+        .fleets
+        .records
+        .iter()
+        .any(|f| f.transit_ready_flag_raw() == 0x80);
     let any_active_player = game_data
         .player
         .records
         .iter()
-        .any(|p| p.raw[0x00] == 0x01 || p.raw[0x00] == 0xff);
-    let should_accumulate_conquest =
-        game_data.conquest.raw[0x0c] == 0x64 && (any_fleet_in_transit || any_active_player);
+        .any(|p| p.is_active_or_rogue_player());
+    let should_accumulate_conquest = game_data.conquest.raw_byte(0x0c) == 0x64
+        && (any_fleet_in_transit || any_active_player);
 
     // Bombardment execution: a BombardWorld fleet that had raw[0x19]==0x80 at start of turn
     // (i.e. it arrived last turn) executes this turn. Fleets that arrive this turn
@@ -150,7 +154,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if f.raw[0x19] == 0x80
+            if f.transit_ready_flag_raw() == 0x80
                 && matches!(
                     Order::from_raw(f.standing_order_code_raw()),
                     Order::BombardWorld
@@ -174,7 +178,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if f.raw[0x19] == 0x80
+            if f.transit_ready_flag_raw() == 0x80
                 && matches!(
                     Order::from_raw(f.standing_order_code_raw()),
                     Order::InvadeWorld
@@ -193,7 +197,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .iter()
         .enumerate()
         .filter_map(|(i, f)| {
-            if f.raw[0x19] == 0x80
+            if f.transit_ready_flag_raw() == 0x80
                 && matches!(
                     Order::from_raw(f.standing_order_code_raw()),
                     Order::BlitzWorld
@@ -446,19 +450,19 @@ fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {
             let mut f = fleet.clone();
             f.set_fleet_id_word_raw(remap_id(fleet.fleet_id_word_raw()));
             f.set_next_fleet_link_word_raw(remap_id(fleet.next_fleet_link_word_raw()));
-            f.raw[0x07] = remap_id(u16::from(fleet.raw[0x07])) as u8;
+            f.set_previous_fleet_id(remap_id(u16::from(fleet.previous_fleet_id())) as u8);
             f
         })
         .collect();
 
     for player_idx in 0..game_data.player.records.len() {
         let owner_raw = (player_idx + 1) as u8;
-        let first_id = game_data.player.records[player_idx].raw[0x40];
-        let last_id = game_data.player.records[player_idx].raw[0x42];
+        let first_id = game_data.player.records[player_idx].fleet_chain_head_raw() as u8;
+        let last_id = game_data.player.records[player_idx].fleet_chain_tail_raw() as u8;
         let new_first = remap_id(u16::from(first_id)) as u8;
         let new_last = remap_id(u16::from(last_id)) as u8;
-        game_data.player.records[player_idx].raw[0x40] = new_first;
-        game_data.player.records[player_idx].raw[0x42] = if new_last == 0 && new_first != 0 {
+        game_data.player.records[player_idx].set_fleet_chain_head_raw(u16::from(new_first));
+        game_data.player.records[player_idx].set_fleet_chain_tail_raw(if new_last == 0 && new_first != 0 {
             let mut max_new_id: u8 = new_first;
             for orig_idx in 0..fleet_count {
                 if pre_removal_owner[orig_idx] == owner_raw && !to_remove[orig_idx] {
@@ -471,7 +475,7 @@ fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {
             max_new_id
         } else {
             new_last
-        };
+        }.into());
     }
 }
 

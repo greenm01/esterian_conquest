@@ -167,7 +167,9 @@ pub(super) fn sanitize_invalid_player_inputs(
         for target_empire_raw in 1..=player_count {
             let reason = {
                 let player = &game_data.player.records[player_idx];
-                let raw = player.raw[0x54 + target_empire_raw as usize - 1];
+                let raw = player
+                    .diplomatic_relation_byte_raw(target_empire_raw)
+                    .unwrap_or(0);
                 let empire_raw = (player_idx + 1) as u8;
                 if target_empire_raw == empire_raw {
                     (raw != 0).then_some(PlayerDiplomacyValidationError::SelfTarget { empire_raw })
@@ -181,8 +183,8 @@ pub(super) fn sanitize_invalid_player_inputs(
                 }
             };
             if let Some(reason) = reason {
-                game_data.player.records[player_idx].raw[0x54 + target_empire_raw as usize - 1] =
-                    0x00;
+                let _ = game_data.player.records[player_idx]
+                    .set_diplomatic_relation_byte_raw(target_empire_raw, 0x00);
                 events.push(InvalidPlayerStateEvent::DiplomacyInput {
                     player_idx,
                     owner_empire_raw: (player_idx + 1) as u8,

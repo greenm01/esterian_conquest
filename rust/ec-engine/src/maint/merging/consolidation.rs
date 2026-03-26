@@ -35,7 +35,7 @@ pub(super) fn process_fleet_merging(
     let mut players_with_merges = vec![false; game_data.player.records.len()];
 
     for (player_idx, player_merged) in players_with_merges.iter_mut().enumerate() {
-        if game_data.player.records[player_idx].raw[0x00] != 0xff {
+        if !game_data.player.records[player_idx].is_rogue_player() {
             continue;
         }
 
@@ -96,8 +96,8 @@ pub(super) fn process_fleet_merging(
             });
 
             if had_merges {
-                game_data.fleets.records[fi].raw[0x03] = 0x00;
-                game_data.fleets.records[fi].raw[0x07] = 0x00;
+                game_data.fleets.records[fi].set_next_fleet_link_word_raw(0x0000);
+                game_data.fleets.records[fi].set_previous_fleet_id(0x00);
                 game_data.fleets.records[fi].set_rules_of_engagement(10);
                 *player_merged = true;
             }
@@ -106,8 +106,8 @@ pub(super) fn process_fleet_merging(
     super::super::apply_fleet_removal_remap(game_data, &to_remove);
 
     for (player_idx, had_merge) in players_with_merges.into_iter().enumerate() {
-        if had_merge && game_data.player.records[player_idx].raw[0x00] == 0xff {
-            game_data.player.records[player_idx].raw[0x51] = 0x41;
+        if had_merge && game_data.player.records[player_idx].is_rogue_player() {
+            game_data.player.records[player_idx].set_tax_rate_raw(0x41);
         }
     }
 

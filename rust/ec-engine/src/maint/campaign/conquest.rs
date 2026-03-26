@@ -5,13 +5,12 @@ pub(super) fn process_conquest_header(
     should_accumulate: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if should_accumulate {
-        let prod_total =
-            u16::from_le_bytes([game_data.conquest.raw[0x0c], game_data.conquest.raw[0x0d]]);
+        let prod_total = game_data.conquest.raw_word(0x0c);
         let new_prod_total = prod_total.saturating_add(100);
-        let [lo, hi] = new_prod_total.to_le_bytes();
-        game_data.conquest.raw[0x0c] = lo;
-        game_data.conquest.raw[0x0d] = hi;
-        game_data.conquest.raw[0x3d] = game_data.conquest.raw[0x3d].saturating_add(1);
+        game_data.conquest.set_raw_word(0x0c, new_prod_total);
+        game_data
+            .conquest
+            .set_raw_byte(0x3d, game_data.conquest.raw_byte(0x3d).saturating_add(1));
     }
 
     let offsets_to_clear = [
@@ -19,102 +18,86 @@ pub(super) fn process_conquest_header(
     ];
 
     for offset in offsets_to_clear {
-        if game_data.conquest.raw[offset] == 0x64 {
-            game_data.conquest.raw[offset] = 0x00;
-        }
+        game_data.conquest.clear_raw_byte_if_equal(offset, 0x64);
     }
 
-    if game_data.conquest.raw[0x0e] == 0x00 {
+    if game_data.conquest.raw_byte(0x0e) == 0x00 {
         let non_active_prods: Vec<u16> = game_data
             .player
             .records
             .iter()
-            .filter(|p| p.raw[0x00] != 0x01)
-            .map(|p| p.raw[0x52] as u16)
+            .filter(|p| !p.is_active_player())
+            .map(|p| p.production_score_raw())
             .collect();
 
         let mut write_offset = 0x0cusize;
         for prod in non_active_prods.iter().take(3) {
-            game_data.conquest.raw[write_offset] = (*prod & 0xFF) as u8;
-            game_data.conquest.raw[write_offset + 1] = (*prod >> 8) as u8;
+            game_data.conquest.set_raw_word(write_offset, *prod);
             write_offset += 2;
         }
     }
 
-    game_data.conquest.raw[0x12] = 0xFF;
-    game_data.conquest.raw[0x13] = 0xFF;
-    game_data.conquest.raw[0x1a] = 0x74;
-    game_data.conquest.raw[0x1b] = 0x33;
+    game_data.conquest.set_raw_word(0x12, 0xFFFF);
+    game_data.conquest.set_raw_word(0x1a, 0x3374);
 
-    if game_data.conquest.raw[0x20] == 0x64 {
-        game_data.conquest.raw[0x20] = 0x75;
-        game_data.conquest.raw[0x21] = 0x03;
+    if game_data.conquest.raw_byte(0x20) == 0x64 {
+        game_data.conquest.set_raw_word(0x20, 0x0375);
     }
 
-    if game_data.conquest.raw[0x22] == 0x64 && game_data.conquest.raw[0x23] == 0x00 {
-        game_data.conquest.raw[0x22] = 0x65;
-        game_data.conquest.raw[0x23] = 0x20;
+    if game_data.conquest.raw_word(0x22) == 0x0064 {
+        game_data.conquest.set_raw_word(0x22, 0x2065);
     }
 
-    if game_data.conquest.raw[0x26] == 0x64 {
-        game_data.conquest.raw[0x26] = 0x7e;
-        game_data.conquest.raw[0x27] = 0x04;
+    if game_data.conquest.raw_byte(0x26) == 0x64 {
+        game_data.conquest.set_raw_word(0x26, 0x047e);
     }
 
-    if game_data.conquest.raw[0x28] == 0x64 && game_data.conquest.raw[0x29] == 0x00 {
-        game_data.conquest.raw[0x28] = 0x20;
-        game_data.conquest.raw[0x29] = 0x74;
+    if game_data.conquest.raw_word(0x28) == 0x0064 {
+        game_data.conquest.set_raw_word(0x28, 0x7420);
     }
 
-    if game_data.conquest.raw[0x36] == 0x64 {
-        game_data.conquest.raw[0x36] = 0x3b;
-        game_data.conquest.raw[0x37] = 0x86;
+    if game_data.conquest.raw_byte(0x36) == 0x64 {
+        game_data.conquest.set_raw_word(0x36, 0x863b);
     }
 
-    if game_data.conquest.raw[0x38] == 0x64 && game_data.conquest.raw[0x39] == 0x00 {
-        game_data.conquest.raw[0x38] = 0xfe;
-        game_data.conquest.raw[0x39] = 0xfc;
+    if game_data.conquest.raw_word(0x38) == 0x0064 {
+        game_data.conquest.set_raw_word(0x38, 0xfcfe);
     }
 
-    if game_data.conquest.raw[0x3a] == 0x64 && game_data.conquest.raw[0x3b] == 0x00 {
-        game_data.conquest.raw[0x3a] = 0x28;
-        game_data.conquest.raw[0x3b] = 0x8b;
+    if game_data.conquest.raw_word(0x3a) == 0x0064 {
+        game_data.conquest.set_raw_word(0x3a, 0x8b28);
     }
 
     for offset in 0x42..=0x54 {
-        if game_data.conquest.raw[offset] == 0x01 {
-            game_data.conquest.raw[offset] = 0x00;
-        }
+        game_data.conquest.clear_raw_byte_if_equal(offset, 0x01);
     }
 
-    if game_data.conquest.raw[0x40] == 0x01 && game_data.conquest.raw[0x41] == 0x01 {
-        game_data.conquest.raw[0x40] = 0xFF;
-        game_data.conquest.raw[0x41] = 0x00;
+    if game_data.conquest.raw_word(0x40) == 0x0101 {
+        game_data.conquest.set_raw_word(0x40, 0x00FF);
     }
 
-    if game_data.conquest.raw[0x44] == 0x00 {
-        game_data.conquest.raw[0x44] = 0xc2;
+    if game_data.conquest.raw_byte(0x44) == 0x00 {
+        game_data.conquest.set_raw_byte(0x44, 0xc2);
     }
 
-    if game_data.conquest.raw[0x47] == 0x00 && game_data.conquest.raw[0x48] == 0x00 {
-        game_data.conquest.raw[0x47] = 0x08;
-        game_data.conquest.raw[0x48] = 0x6f;
+    if game_data.conquest.raw_byte(0x47) == 0x00 && game_data.conquest.raw_byte(0x48) == 0x00 {
+        game_data.conquest.set_raw_byte(0x47, 0x08);
+        game_data.conquest.set_raw_byte(0x48, 0x6f);
     }
 
-    if game_data.conquest.raw[0x4a] == 0x00 {
-        game_data.conquest.raw[0x4a] = 0x01;
+    if game_data.conquest.raw_byte(0x4a) == 0x00 {
+        game_data.conquest.set_raw_byte(0x4a, 0x01);
     }
-    if game_data.conquest.raw[0x4b] == 0x00 {
-        game_data.conquest.raw[0x4b] = 0x6f;
-    }
-
-    if game_data.conquest.raw[0x52] == 0x00 && game_data.conquest.raw[0x53] == 0x00 {
-        game_data.conquest.raw[0x52] = 0x6a;
-        game_data.conquest.raw[0x53] = 0x8d;
+    if game_data.conquest.raw_byte(0x4b) == 0x00 {
+        game_data.conquest.set_raw_byte(0x4b, 0x6f);
     }
 
-    if game_data.conquest.raw[0x54] == 0x00 {
-        game_data.conquest.raw[0x54] = 0x35;
+    if game_data.conquest.raw_word(0x52) == 0x0000 {
+        game_data.conquest.set_raw_word(0x52, 0x8d6a);
+    }
+
+    if game_data.conquest.raw_byte(0x54) == 0x00 {
+        game_data.conquest.set_raw_byte(0x54, 0x35);
     }
 
     Ok(())

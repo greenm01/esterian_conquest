@@ -265,6 +265,14 @@ impl FleetRecord {
     pub fn set_tuple_a_payload_raw(&mut self, payload: [u8; 5]) {
         self.raw[0x0D..0x12].copy_from_slice(&payload);
     }
+
+    pub fn extended_tuple_a_payload_raw(&self) -> [u8; 6] {
+        copy_array(&self.raw[0x0D..=0x12])
+    }
+
+    pub fn set_extended_tuple_a_payload_raw(&mut self, payload: [u8; 6]) {
+        self.raw[0x0D..=0x12].copy_from_slice(&payload);
+    }
     pub fn tuple_b_payload_raw(&self) -> [u8; 5] {
         copy_array(&self.raw[0x13..0x18])
     }
@@ -276,6 +284,38 @@ impl FleetRecord {
     }
     pub fn set_tuple_c_payload_raw(&mut self, payload: [u8; 5]) {
         self.raw[0x19..0x1E].copy_from_slice(&payload);
+    }
+
+    pub fn movement_state_flag_raw(&self) -> u8 {
+        self.raw[0x0D]
+    }
+
+    pub fn set_movement_state_flag_raw(&mut self, value: u8) {
+        self.raw[0x0D] = value;
+    }
+
+    pub fn movement_fraction_raw(&self) -> u8 {
+        self.raw[0x0F]
+    }
+
+    pub fn set_movement_fraction_raw(&mut self, value: u8) {
+        self.raw[0x0F] = value;
+    }
+
+    pub fn transit_ready_flag_raw(&self) -> u8 {
+        self.raw[0x19]
+    }
+
+    pub fn set_transit_ready_flag_raw(&mut self, value: u8) {
+        self.raw[0x19] = value;
+    }
+
+    pub fn extended_tuple_c_payload_raw(&self) -> [u8; 6] {
+        copy_array(&self.raw[0x19..=0x1E])
+    }
+
+    pub fn set_extended_tuple_c_payload_raw(&mut self, payload: [u8; 6]) {
+        self.raw[0x19..=0x1E].copy_from_slice(&payload);
     }
 
     pub fn standing_order_summary(&self) -> String {

@@ -27,6 +27,18 @@ impl PlayerRecord {
         self.raw[0]
     }
 
+    pub fn is_active_player(&self) -> bool {
+        self.owner_mode_raw() == 0x01
+    }
+
+    pub fn is_rogue_player(&self) -> bool {
+        self.owner_mode_raw() == 0xff
+    }
+
+    pub fn is_active_or_rogue_player(&self) -> bool {
+        matches!(self.owner_mode_raw(), 0x01 | 0xff)
+    }
+
     pub fn handle_bytes(&self) -> &[u8] {
         &self.raw[1..0x1A]
     }
@@ -262,6 +274,14 @@ impl PlayerRecord {
         self.raw[0x45] = hi;
     }
 
+    pub fn starbase_presence_flag_raw(&self) -> u8 {
+        self.raw[0x46]
+    }
+
+    pub fn set_starbase_presence_flag_raw(&mut self, value: u8) {
+        self.raw[0x46] = value;
+    }
+
     pub fn fleet_chain_head_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x40], self.raw[0x41]])
     }
@@ -270,6 +290,16 @@ impl PlayerRecord {
         let [lo, hi] = value.to_le_bytes();
         self.raw[0x40] = lo;
         self.raw[0x41] = hi;
+    }
+
+    pub fn fleet_chain_tail_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x42], self.raw[0x43]])
+    }
+
+    pub fn set_fleet_chain_tail_raw(&mut self, value: u16) {
+        let [lo, hi] = value.to_le_bytes();
+        self.raw[0x42] = lo;
+        self.raw[0x43] = hi;
     }
 
     pub fn ipbm_count_raw(&self) -> u16 {
@@ -302,6 +332,22 @@ impl PlayerRecord {
 
     pub fn set_last_run_year_raw(&mut self, value: u16) {
         self.raw[0x4E..0x50].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn planet_count_raw(&self) -> u8 {
+        self.raw[0x50]
+    }
+
+    pub fn set_planet_count_raw(&mut self, value: u8) {
+        self.raw[0x50] = value;
+    }
+
+    pub fn production_score_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x52], self.raw[0x53]])
+    }
+
+    pub fn set_production_score_raw(&mut self, value: u16) {
+        self.raw[0x52..0x54].copy_from_slice(&value.to_le_bytes());
     }
 
     /// Unknown u16/u32-adjacent region beginning at 0x52. Current evidence:
@@ -361,11 +407,30 @@ impl PlayerRecord {
         if !(1..=25).contains(&other_empire_raw) {
             return None;
         }
-        match self.raw[0x54 + other_empire_raw as usize - 1] {
+        match self.diplomatic_relation_byte_raw(other_empire_raw)? {
             0x00 => Some(DiplomaticRelation::Neutral),
             0x01 => Some(DiplomaticRelation::Enemy),
             _ => None,
         }
+    }
+
+    pub fn diplomatic_relation_byte_raw(&self, other_empire_raw: u8) -> Option<u8> {
+        if !(1..=25).contains(&other_empire_raw) {
+            return None;
+        }
+        Some(self.raw[0x54 + other_empire_raw as usize - 1])
+    }
+
+    pub fn set_diplomatic_relation_byte_raw(
+        &mut self,
+        other_empire_raw: u8,
+        raw: u8,
+    ) -> bool {
+        if !(1..=25).contains(&other_empire_raw) {
+            return false;
+        }
+        self.raw[0x54 + other_empire_raw as usize - 1] = raw;
+        true
     }
 
     pub fn set_diplomatic_relation_toward(
@@ -376,10 +441,13 @@ impl PlayerRecord {
         if !(1..=25).contains(&other_empire_raw) {
             return false;
         }
-        self.raw[0x54 + other_empire_raw as usize - 1] = match relation {
+        self.set_diplomatic_relation_byte_raw(
+            other_empire_raw,
+            match relation {
             DiplomaticRelation::Neutral => 0x00,
             DiplomaticRelation::Enemy => 0x01,
-        };
+        },
+        );
         true
     }
 }

@@ -79,6 +79,10 @@ impl PlanetRecord {
         self.raw[2]
     }
 
+    pub fn set_header_value_raw(&mut self, value: u8) {
+        self.raw[2] = value;
+    }
+
     pub fn string_len(&self) -> u8 {
         self.raw[0x0F]
     }
@@ -93,6 +97,14 @@ impl PlanetRecord {
     pub fn set_potential_production_raw(&mut self, value: [u8; 2]) {
         self.raw[0x02] = value[0];
         self.raw[0x03] = value[1];
+    }
+
+    pub fn potential_production_high_byte_raw(&self) -> u8 {
+        self.raw[0x03]
+    }
+
+    pub fn set_potential_production_high_byte_raw(&mut self, value: u8) {
+        self.raw[0x03] = value;
     }
 
     pub fn factories_raw(&self) -> [u8; 6] {

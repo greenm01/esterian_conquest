@@ -60,6 +60,28 @@ impl ConquestDat {
         self.raw[2] = count;
     }
 
+    pub fn raw_byte(&self, offset: usize) -> u8 {
+        self.raw[offset]
+    }
+
+    pub fn set_raw_byte(&mut self, offset: usize, value: u8) {
+        self.raw[offset] = value;
+    }
+
+    pub fn raw_word(&self, offset: usize) -> u16 {
+        u16::from_le_bytes([self.raw[offset], self.raw[offset + 1]])
+    }
+
+    pub fn set_raw_word(&mut self, offset: usize, value: u16) {
+        self.raw[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn clear_raw_byte_if_equal(&mut self, offset: usize, value: u8) {
+        if self.raw_byte(offset) == value {
+            self.set_raw_byte(offset, 0);
+        }
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         self.raw.to_vec()
     }

@@ -63,7 +63,7 @@ pub(super) fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
         let owner = planet.owner_empire_slot_raw() as usize;
         if owner > 0 && owner <= n_players {
             planet_counts[owner] = planet_counts[owner].saturating_add(1);
-            let current_prod: u16 = if planet.raw[0x03] == 0x81 {
+            let current_prod: u16 = if planet.potential_production_high_byte_raw() == 0x81 {
                 1
             } else {
                 planet.present_production_points().unwrap_or(0)
@@ -74,7 +74,8 @@ pub(super) fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
 
     for player_idx in 0..n_players {
         let owner_slot = player_idx + 1;
-        game_data.player.records[player_idx].raw[0x50] = planet_counts[owner_slot];
-        game_data.player.records[player_idx].raw[0x52] = pot_prod_sums[owner_slot] as u8;
+        game_data.player.records[player_idx].set_planet_count_raw(planet_counts[owner_slot]);
+        game_data.player.records[player_idx]
+            .set_production_score_raw(pot_prod_sums[owner_slot]);
     }
 }

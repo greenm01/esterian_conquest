@@ -58,14 +58,11 @@ fn apply_standing_arrival_state(fleet: &mut ec_data::FleetRecord, order: Order) 
             // Controlled classic probes converge on a distinct guarded-arrival payload here.
             // This is still treated as a compatibility shape rather than a decoded semantic
             // model for the remaining tuple-a bytes.
-            fleet.raw[0x0d] = 0x7b;
-            fleet.raw[0x0e] = 0x00;
-            fleet.raw[0x0f] = 0x84;
-            fleet.raw[0x10] = 0xd8;
-            fleet.raw[0x11] = 0x89;
-            fleet.raw[0x12] = 0x1d;
+            fleet.set_extended_tuple_a_payload_raw([0x7b, 0x00, 0x84, 0xd8, 0x89, 0x1d]);
             clear_exact_position(fleet);
-            fleet.raw[0x19] = 0x00;
+            let mut extended = fleet.extended_tuple_c_payload_raw();
+            extended[0] = 0x00;
+            fleet.set_extended_tuple_c_payload_raw(extended);
         }
         _ => {}
     }
@@ -138,8 +135,8 @@ pub(super) fn process_single_fleet_movement(
             fleet.standing_order_target_coords_raw()[0],
             fleet.standing_order_target_coords_raw()[1],
             fleet.current_speed(),
-            fleet.raw[0x0d] == 0x80,
-            fleet.raw[0x0f],
+            fleet.movement_state_flag_raw() == 0x80,
+            fleet.movement_fraction_raw(),
             fleet.owner_empire_raw(),
             fleet.standing_order_kind(),
         )
@@ -148,7 +145,7 @@ pub(super) fn process_single_fleet_movement(
     if order == Order::GuardStarbase {
         // Classic clears the guard-starbase index byte on the first maintenance pass and
         // keeps later mission continuity keyed from the active base at the guarded target.
-        game_data.fleets.records[fleet_idx].raw[0x22] = 0x00;
+        game_data.fleets.records[fleet_idx].set_join_host_fleet_id_raw(0x00);
     }
 
     if speed == 0 {
@@ -212,39 +209,28 @@ pub(super) fn process_single_fleet_movement(
         if !preserves_order_on_arrival {
             game_data.fleets.records[fleet_idx].set_current_speed(0);
             game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
-            game_data.fleets.records[fleet_idx].raw[0x19] = 0x80;
-            game_data.fleets.records[fleet_idx].raw[0x1a] = 0xb9;
-            game_data.fleets.records[fleet_idx].raw[0x1b] = 0xff;
-            game_data.fleets.records[fleet_idx].raw[0x1c] = 0xff;
-            game_data.fleets.records[fleet_idx].raw[0x1d] = 0xff;
-            game_data.fleets.records[fleet_idx].raw[0x1e] = 0x7f;
+            game_data.fleets.records[fleet_idx]
+                .set_extended_tuple_c_payload_raw([0x80, 0xb9, 0xff, 0xff, 0xff, 0x7f]);
         } else if order_stops_on_arrival(arrival_order) {
             apply_standing_arrival_state(&mut game_data.fleets.records[fleet_idx], arrival_order);
         } else {
-            game_data.fleets.records[fleet_idx].raw[0x19] = 0x80;
-            game_data.fleets.records[fleet_idx].raw[0x1a] = 0xb9;
-            game_data.fleets.records[fleet_idx].raw[0x1b] = 0xff;
-            game_data.fleets.records[fleet_idx].raw[0x1c] = 0xff;
-            game_data.fleets.records[fleet_idx].raw[0x1d] = 0xff;
-            game_data.fleets.records[fleet_idx].raw[0x1e] = 0x7f;
+            game_data.fleets.records[fleet_idx]
+                .set_extended_tuple_c_payload_raw([0x80, 0xb9, 0xff, 0xff, 0xff, 0x7f]);
         }
 
         return Ok(true);
     }
 
     if is_at_rest {
-        game_data.fleets.records[fleet_idx].raw[0x0d] = 0x7f;
-        game_data.fleets.records[fleet_idx].raw[0x0e] = 0xc0;
-        game_data.fleets.records[fleet_idx].raw[0x10] = 0xff;
-        game_data.fleets.records[fleet_idx].raw[0x11] = 0xff;
-        game_data.fleets.records[fleet_idx].raw[0x12] = 0x7f;
-        game_data.fleets.records[fleet_idx].raw[0x19] = 0x00;
+        game_data.fleets.records[fleet_idx]
+            .set_extended_tuple_a_payload_raw([0x7f, 0xc0, 0x00, 0xff, 0xff, 0x7f]);
+        game_data.fleets.records[fleet_idx].set_extended_tuple_c_payload_raw([0x00, 0x00, 0x00, 0x00, 0x00, 0x7f]);
     }
 
     store_exact_position(&mut game_data.fleets.records[fleet_idx], exact_end);
 
     let new_0f = ((sub_acc_after as i32 - 9) * 2 / 3) as i8;
-    game_data.fleets.records[fleet_idx].raw[0x0f] = new_0f as u8;
+    game_data.fleets.records[fleet_idx].set_movement_fraction_raw(new_0f as u8);
 
     Ok(false)
 }

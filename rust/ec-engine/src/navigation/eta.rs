@@ -135,9 +135,9 @@ fn simulate_eta_years(
 }
 
 fn decode_movement_sub_acc(fleet: &FleetRecord) -> u32 {
-    if fleet.current_speed() == 0 || fleet.raw[0x0d] == 0x80 {
+    if fleet.current_speed() == 0 || fleet.movement_state_flag_raw() == 0x80 {
         return 0;
     }
-    let i8_val = fleet.raw[0x0f] as i8;
+    let i8_val = fleet.movement_fraction_raw() as i8;
     (9i32 + i8_val as i32 * 3 / 2) as u32
 }

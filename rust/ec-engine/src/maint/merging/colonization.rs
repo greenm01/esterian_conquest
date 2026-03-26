@@ -56,17 +56,18 @@ pub(super) fn process_colonizations(
                 planet.set_ownership_status_raw(2);
                 planet.set_owner_empire_slot_raw(event.owner_empire);
                 planet.set_army_count_raw(1);
-                planet.raw[0x03] = 0x81;
+                planet.set_potential_production_high_byte_raw(0x81);
 
                 let player_idx = (event.owner_empire as usize).saturating_sub(1);
                 if player_idx < game_data.player.records.len() {
-                    let current_count = game_data.player.records[player_idx].raw[0x50];
-                    game_data.player.records[player_idx].raw[0x50] =
-                        current_count.saturating_add(1);
+                    let current_count = game_data.player.records[player_idx].planet_count_raw();
+                    game_data.player.records[player_idx]
+                        .set_planet_count_raw(current_count.saturating_add(1));
 
-                    let current_score = game_data.player.records[player_idx].raw[0x52];
-                    game_data.player.records[player_idx].raw[0x52] =
-                        current_score.saturating_add(1);
+                    let current_score =
+                        game_data.player.records[player_idx].production_score_raw();
+                    game_data.player.records[player_idx]
+                        .set_production_score_raw(current_score.saturating_add(1));
                 }
 
                 resolved.push(ColonizationResolvedEvent::Succeeded {

@@ -4,12 +4,13 @@ const EXACT_POSITION_MAGIC: u8 = 0x42;
 const EXACT_POSITION_SCALE: f64 = 256.0;
 
 pub fn decode_exact_position(fleet: &FleetRecord) -> Option<[f64; 2]> {
-    if fleet.raw[0x1e] != EXACT_POSITION_MAGIC {
+    let payload = fleet.extended_tuple_c_payload_raw();
+    if payload[5] != EXACT_POSITION_MAGIC {
         return None;
     }
 
-    let x_fixed = u16::from_le_bytes([fleet.raw[0x1a], fleet.raw[0x1b]]);
-    let y_fixed = u16::from_le_bytes([fleet.raw[0x1c], fleet.raw[0x1d]]);
+    let x_fixed = u16::from_le_bytes([payload[1], payload[2]]);
+    let y_fixed = u16::from_le_bytes([payload[3], payload[4]]);
     Some([
         f64::from(x_fixed) / EXACT_POSITION_SCALE,
         f64::from(y_fixed) / EXACT_POSITION_SCALE,
@@ -19,32 +20,29 @@ pub fn decode_exact_position(fleet: &FleetRecord) -> Option<[f64; 2]> {
 pub fn store_exact_position(fleet: &mut FleetRecord, exact: [f64; 2]) {
     let x_fixed = encode_exact_coord(exact[0]);
     let y_fixed = encode_exact_coord(exact[1]);
-    fleet.raw[0x1a..0x1c].copy_from_slice(&x_fixed.to_le_bytes());
-    fleet.raw[0x1c..0x1e].copy_from_slice(&y_fixed.to_le_bytes());
-    fleet.raw[0x1e] = EXACT_POSITION_MAGIC;
+    let mut payload = fleet.extended_tuple_c_payload_raw();
+    payload[1..3].copy_from_slice(&x_fixed.to_le_bytes());
+    payload[3..5].copy_from_slice(&y_fixed.to_le_bytes());
+    payload[5] = EXACT_POSITION_MAGIC;
+    fleet.set_extended_tuple_c_payload_raw(payload);
 }
 
 pub fn clear_exact_position(fleet: &mut FleetRecord) {
-    fleet.raw[0x1a] = 0;
-    fleet.raw[0x1b] = 0;
-    fleet.raw[0x1c] = 0;
-    fleet.raw[0x1d] = 0;
-    fleet.raw[0x1e] = 0;
+    let mut payload = fleet.extended_tuple_c_payload_raw();
+    payload[1..].fill(0);
+    fleet.set_extended_tuple_c_payload_raw(payload);
 }
 
 pub fn reset_motion_state_for_new_orders(fleet: &mut FleetRecord) {
-    fleet.raw[0x0d] = 0x80;
-    fleet.raw[0x0f] = 0x00;
+    let mut payload = fleet.tuple_a_payload_raw();
+    payload[0] = 0x80;
+    payload[2] = 0x00;
+    fleet.set_tuple_a_payload_raw(payload);
     clear_exact_position(fleet);
 }
 
 pub fn reset_motion_state_for_stationary_arrival(fleet: &mut FleetRecord) {
-    fleet.raw[0x0d] = 0x80;
-    fleet.raw[0x0e] = 0x00;
-    fleet.raw[0x0f] = 0x00;
-    fleet.raw[0x10] = 0x00;
-    fleet.raw[0x11] = 0x00;
-    fleet.raw[0x12] = 0x00;
+    fleet.set_tuple_a_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
     clear_exact_position(fleet);
 }
 

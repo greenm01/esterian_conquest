@@ -121,10 +121,11 @@ impl CoreGameData {
                     record.header_value_raw()
                 ));
             }
-            if record.raw[0x03] != 135 {
+            if record.potential_production_high_byte_raw() != 135 {
                 errors.push(format!(
                     "PLANET[{}].header[3] expected 135 for homeworld seed, got {}",
-                    planet_index_1_based, record.raw[0x03]
+                    planet_index_1_based,
+                    record.potential_production_high_byte_raw()
                 ));
             }
             if record.ownership_status_raw() != 2 {

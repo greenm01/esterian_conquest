@@ -1,4 +1,5 @@
 use crate::{CoreGameData, Order};
+use ec_data::fleet_motion_state::clear_exact_position;
 
 use super::state::TaskForce;
 
@@ -27,19 +28,15 @@ pub(super) fn set_fleet_to_hold_current_position(fleet: &mut ec_data::FleetRecor
     fleet.set_standing_order_kind(Order::HoldPosition);
     fleet.set_standing_order_target_coords_raw(coords);
     fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
-    fleet.raw[0x1e] = 0x00;
+    clear_exact_position(fleet);
 }
 
 fn apply_retreat_order(fleet: &mut ec_data::FleetRecord, retreat_target: [u8; 2]) {
     fleet.set_standing_order_kind(Order::SeekHome);
     fleet.set_standing_order_target_coords_raw(retreat_target);
     fleet.set_current_speed(fleet.max_speed().clamp(1, 3));
-    fleet.raw[0x0d] = 0x7f;
-    fleet.raw[0x0e] = 0xc0;
-    fleet.raw[0x10] = 0xff;
-    fleet.raw[0x11] = 0xff;
-    fleet.raw[0x12] = 0x7f;
-    fleet.raw[0x19] = 0x00;
+    fleet.set_extended_tuple_a_payload_raw([0x7f, 0xc0, 0x00, 0xff, 0xff, 0x7f]);
+    fleet.set_extended_tuple_c_payload_raw([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
     fleet.set_rules_of_engagement(0);
 }
 

@@ -175,7 +175,7 @@ pub(super) fn apply_campaign_state_transitions(
 
 pub(super) fn update_player_starbase_flag(game_data: &mut CoreGameData) {
     for player in game_data.player.records.iter_mut() {
-        let sc = u16::from_le_bytes([player.raw[0x44], player.raw[0x45]]);
-        player.raw[0x46] = if sc > 0 { 0x01 } else { 0x00 };
+        let sc = player.starbase_count_raw();
+        player.set_starbase_presence_flag_raw(if sc > 0 { 0x01 } else { 0x00 });
     }
 }
