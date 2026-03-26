@@ -50,12 +50,23 @@ It is responsible for:
 
 - explicit runtime record/file layouts under `records/`
 - `CoreGameData` and shared multi-file directory semantics
-- SQLite runtime persistence and snapshot/history loading
+- semantic SQLite runtime persistence and snapshot/history loading
 - shared validators, normalizers, report/mail/intel state, and typed helpers
   used by more than one frontend
 
 It should stay focused on runtime/state semantics rather than owning the normal
 classic import/export workflow or the external engine API surface.
+
+Operationally:
+
+- the live runtime DB is authoritative for normal play
+- snapshot storage should prefer explicit typed columns over opaque grouped
+  residue
+- classic byte layouts belong at the explicit compat/oracle boundary, not in
+  normal gameplay code
+- when classic-derived fields are not yet fully named semantically, keep them
+  as narrowly-scoped explicit runtime fields rather than regressing to whole
+  record blobs or byte-offset tables
 
 ### `ec-engine`
 
@@ -100,6 +111,9 @@ It is responsible for:
 - classic report/database projection helpers used only for oracle and hybrid
   workflows
 - keeping classic file handling out of normal engine/client code
+
+This is the only layer that should need to think in terms of classic
+directories as a workflow boundary.
 
 ### `ec-sysop`
 
@@ -189,7 +203,7 @@ rust/
 │   └── src/          # low-level classic record/codecs
 ├── ec-data
 │   ├── src/records/   # explicit binary/runtime record layouts
-│   ├── src/storage.rs # SQLite campaign store + snapshot bridge
+│   ├── src/storage/   # SQLite campaign store + snapshot bridge modules
 │   └── shared runtime/support modules
 ├── ec-engine
 │   └── src/          # public engine/rules surface
@@ -236,7 +250,7 @@ but the ownership boundaries above should remain stable.
 +--------------------------------+   +-------------------------+
 |            ec-data             |   |       ec-classic        |
 |--------------------------------|   |-------------------------|
-| runtime store                  |   | raw classic records     |
+| semantic runtime store         |   | raw classic records     |
 | shared model                   |   | byte codecs             |
 | snapshots / reports / mail     |   | DAT parsing/encoding    |
 | fog of war                     |   +-------------------------+
