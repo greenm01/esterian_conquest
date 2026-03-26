@@ -1,3 +1,7 @@
 [workspace]
 members = ["ec-classic", "ec-data", "ec-engine", "ec-compat", "ec-cli", "ec-game", "ec-harness", "ec-sysop"]
 resolver = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

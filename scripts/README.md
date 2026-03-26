@@ -10,6 +10,7 @@ These scripts are intended for:
 - creating classic-probe campaigns that open in original `ECGAME` with a busy
   player-1 report backlog
 - launching `ec-game` against a chosen campaign and player seat
+- building standalone release bundles for playtesting
 
 The current boundary is:
 
@@ -225,6 +226,32 @@ Use this when you want:
 - a reproducible bundle to hand to emulator developers
 - a small local package that opens with the repo's known-good `CHAIN.TXT`
 - a clean split between original packed and curated runnable unlocked variants
+
+### `build_linux_playtest_bundle.py`
+
+Builds a standalone Linux x64 `tar.gz` playtest bundle under `releases/`.
+
+It currently:
+
+- builds optimized `ec-game` and `ec-sysop` release binaries
+- packages both binaries into one archive
+- includes only the public PDF manuals under `docs/`
+- includes the shipped `themes/` KDL files
+- includes a sample `config.kdl`
+- writes `README.md` and `BUILD-INFO.txt` into the bundle root
+- can unpack and smoke-test the bundle when `--verify` is passed
+
+Example:
+
+```bash
+python3 scripts/build_linux_playtest_bundle.py --verify
+```
+
+Use this when you want:
+
+- a Linux x64 playtest bundle without requiring a Rust toolchain
+- one archive containing both the player and sysop binaries
+- a quick way to hand testers the manuals, themes, and startup instructions
 
 ### `publish_release_packages.sh`
 
