@@ -1,7 +1,7 @@
-use crate::reports::{wrap_review_text_preserving_spacing, ReportsPreview, ReviewBlock};
+use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    centered_row, dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_plain_prompt,
-    last_body_row, new_playfield, COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, dismiss_prompt_row,
+    draw_bottom_aligned_transcript_rows, draw_plain_prompt, last_body_row, new_playfield,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -535,11 +535,12 @@ fn push_completed_block_transcript(
     }
 }
 
-/// Report header lines start with this prefix after block_review_rows formatting.
-const REPORT_HEADER_MARKER: &str = " -> From your";
+const REVIEW_HEADER_MARKERS: [&str; 2] = [" -> From", " -> Subject:"];
 
-fn is_report_header(line: &str) -> bool {
-    line.starts_with(REPORT_HEADER_MARKER)
+fn is_review_header(line: &str) -> bool {
+    REVIEW_HEADER_MARKERS
+        .iter()
+        .any(|marker| line.starts_with(marker))
 }
 
 fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[String]) {
@@ -550,7 +551,7 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
         STARTUP_TRANSCRIPT_LAST_ROW + 1 - STARTUP_REVIEW_VISIBLE_LINES,
         STARTUP_TRANSCRIPT_LAST_ROW,
         |buffer, y, line| {
-            let line_style = if is_report_header(line) {
+            let line_style = if is_review_header(line) {
                 classic::report_header_style()
             } else {
                 classic::body_style()
@@ -676,11 +677,7 @@ fn capitalize(s: &str) -> String {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() {
-        "<unknown>"
-    } else {
-        value
-    }
+    if value.is_empty() { "<unknown>" } else { value }
 }
 
 const INTRO_LOGO: [&str; 11] = [
