@@ -22,7 +22,7 @@ const TOP_ROW: [MenuEntry<'static>; 2] = [
 
 const ROW_1: [MenuEntry<'static>; 2] = [
     MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
-    MenuEntry::new(51, "R", "eview messages/results"),
+    MenuEntry::new(51, "R", "eview Inbox"),
 ];
 
 const ROW_2: [MenuEntry<'static>; 3] = [

@@ -1,3 +1,27 @@
+use crate::screen::layout::PromptFeedback;
+
+pub const INBOX_VISIBLE_ROWS: usize = 8;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxTypeFilter {
+    All,
+    Messages,
+    Reports,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxFocus {
+    Inbox,
+    Preview,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxPromptMode {
+    Normal,
+    YearInput,
+    DeleteConfirm,
+}
+
 pub struct MessagingState {
     pub compose_recipient_input: String,
     pub compose_recipient_status: Option<String>,
@@ -16,6 +40,16 @@ pub struct MessagingState {
     pub compose_outbox_cursor: usize,
     pub compose_sent_status: Option<String>,
     pub delete_reviewables_prompt_active: bool,
+    pub inbox_type_filter: InboxTypeFilter,
+    pub inbox_year_filter: Option<u16>,
+    pub inbox_cursor: usize,
+    pub inbox_scroll_offset: usize,
+    pub inbox_preview_scroll: usize,
+    pub inbox_focus: InboxFocus,
+    pub inbox_id_input: String,
+    pub inbox_year_input: String,
+    pub inbox_prompt_mode: InboxPromptMode,
+    pub inbox_feedback: Option<PromptFeedback>,
 }
 
 impl Default for MessagingState {
@@ -38,6 +72,16 @@ impl Default for MessagingState {
             compose_outbox_cursor: 0,
             compose_sent_status: None,
             delete_reviewables_prompt_active: false,
+            inbox_type_filter: InboxTypeFilter::All,
+            inbox_year_filter: None,
+            inbox_cursor: 0,
+            inbox_scroll_offset: 0,
+            inbox_preview_scroll: 0,
+            inbox_focus: InboxFocus::Inbox,
+            inbox_id_input: String::new(),
+            inbox_year_input: String::new(),
+            inbox_prompt_mode: InboxPromptMode::Normal,
+            inbox_feedback: None,
         }
     }
 }

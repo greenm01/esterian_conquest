@@ -1,7 +1,7 @@
 use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
-use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
+use crate::model::{MainMenuSummary, PlayerContext};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
@@ -1084,9 +1084,7 @@ impl App {
             summary.pending_messages,
             &refreshed,
         );
-        self.startup.replace(startup_summary, refreshed.clone());
-        self.reports
-            .replace(refreshed, ReviewSummary::from_main_menu(&summary));
+        self.startup.replace(startup_summary, refreshed);
         Ok(())
     }
 

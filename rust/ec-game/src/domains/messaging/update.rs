@@ -3,6 +3,29 @@ use crate::domains::messaging::MessagingAction;
 
 pub fn update(app: &mut App, action: MessagingAction) {
     match action {
+        MessagingAction::SetInboxTypeFilterAll => app.set_inbox_type_filter_all(),
+        MessagingAction::SetInboxTypeFilterMessages => app.set_inbox_type_filter_messages(),
+        MessagingAction::SetInboxTypeFilterReports => app.set_inbox_type_filter_reports(),
+        MessagingAction::OpenInboxYearPrompt => app.open_inbox_year_prompt(),
+        MessagingAction::ClearInboxYearFilter => app.clear_inbox_year_filter(),
+        MessagingAction::AppendInboxYearChar(ch) => app.append_inbox_year_char(ch),
+        MessagingAction::BackspaceInboxYearInput => app.backspace_inbox_year_input(),
+        MessagingAction::SubmitInboxYearInput => app.submit_inbox_year_input(),
+        MessagingAction::MoveInboxCursor(delta) => app.move_inbox_cursor(delta),
+        MessagingAction::PageInboxCursor(delta) => app.page_inbox_cursor(delta),
+        MessagingAction::ScrollInboxPreview(delta) => app.scroll_inbox_preview(delta),
+        MessagingAction::PageInboxPreview(delta) => app.page_inbox_preview(delta),
+        MessagingAction::ToggleInboxFocus => app.toggle_inbox_focus(),
+        MessagingAction::AppendInboxIdChar(ch) => app.append_inbox_id_char(ch),
+        MessagingAction::BackspaceInboxIdInput => app.backspace_inbox_id_input(),
+        MessagingAction::SubmitInboxIdInput => app.submit_inbox_id_input(),
+        MessagingAction::OpenInboxDeleteConfirm => app.open_inbox_delete_confirm(),
+        MessagingAction::CancelInboxPrompt => app.cancel_inbox_prompt(),
+        MessagingAction::ConfirmDeleteInboxItem => {
+            if let Err(err) = app.confirm_delete_inbox_item() {
+                eprintln!("delete inbox item failed: {err}");
+            }
+        }
         MessagingAction::OpenDeleteReviewables => app.open_delete_reviewables(),
         MessagingAction::CloseDeleteReviewables => app.close_delete_reviewables_prompt(),
         MessagingAction::OpenComposeRecipient => app.open_compose_message_recipient(),

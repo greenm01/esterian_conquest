@@ -15,6 +15,37 @@ pub struct ReportsPreview {
     pub message_blocks: Vec<ReviewBlock>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxItemType {
+    Message,
+    Report,
+}
+
+impl InboxItemType {
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Message => "M",
+            Self::Report => "R",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxItemSource {
+    QueuedMail(usize),
+    ReportBlock(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InboxItem {
+    pub source: InboxItemSource,
+    pub item_type: InboxItemType,
+    pub year: u16,
+    pub week: Option<u8>,
+    pub subject: String,
+    pub body_lines: Vec<String>,
+}
+
 impl ReportsPreview {
     pub fn from_block_rows(
         game_data: &CoreGameData,
@@ -40,6 +71,54 @@ pub fn has_visible_runtime_messages(
     queued_mail
         .iter()
         .any(|mail| mail.is_visible_to_recipient(viewer_empire_id))
+}
+
+pub fn runtime_inbox_items(
+    game_data: &CoreGameData,
+    viewer_empire_id: u8,
+    report_blocks: &[ReportBlockRow],
+    queued_mail: &[QueuedPlayerMail],
+) -> Vec<InboxItem> {
+    let current_year = game_data.conquest.game_year();
+    let mut items = report_blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, row)| !row.recipient_deleted)
+        .map(|(idx, row)| inbox_item_from_report_row(idx, row, current_year))
+        .chain(
+            queued_mail
+                .iter()
+                .enumerate()
+                .filter(|(_, mail)| mail.is_visible_to_recipient(viewer_empire_id))
+                .map(|(idx, mail)| inbox_item_from_mail(game_data, idx, mail)),
+        )
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        right
+            .year
+            .cmp(&left.year)
+            .then_with(|| right.week.unwrap_or(0).cmp(&left.week.unwrap_or(0)))
+            .then_with(|| {
+                inbox_item_type_rank(right.item_type).cmp(&inbox_item_type_rank(left.item_type))
+            })
+            .then_with(|| inbox_source_index(right.source).cmp(&inbox_source_index(left.source)))
+    });
+    items
+}
+
+pub fn runtime_inbox_preview_lines(lines: &[String], width: usize) -> Vec<String> {
+    if width == 0 {
+        return Vec::new();
+    }
+    let mut wrapped = Vec::new();
+    for line in lines {
+        if line.is_empty() {
+            wrapped.push(String::new());
+        } else {
+            wrapped.extend(wrap_review_text_preserving_spacing(line, width));
+        }
+    }
+    wrapped
 }
 
 pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<String> {
@@ -127,6 +206,164 @@ fn runtime_message_lines(game_data: &CoreGameData, mail: &QueuedPlayerMail) -> V
     }
     lines.push("<end of message>".to_string());
     lines
+}
+
+fn inbox_item_from_mail(
+    game_data: &CoreGameData,
+    idx: usize,
+    mail: &QueuedPlayerMail,
+) -> InboxItem {
+    InboxItem {
+        source: InboxItemSource::QueuedMail(idx),
+        item_type: InboxItemType::Message,
+        year: mail.year,
+        week: None,
+        subject: inbox_message_subject(mail),
+        body_lines: runtime_message_lines(game_data, mail),
+    }
+}
+
+fn inbox_item_from_report_row(idx: usize, row: &ReportBlockRow, current_year: u16) -> InboxItem {
+    let body_lines = row
+        .decoded_text
+        .split('\n')
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let (week, parsed_year) = parse_stardate_week_year(&row.decoded_text)
+        .map(|(week, year)| (Some(week), year))
+        .unwrap_or((None, current_year));
+    InboxItem {
+        source: InboxItemSource::ReportBlock(idx),
+        item_type: InboxItemType::Report,
+        year: parsed_year,
+        week,
+        subject: synthesize_report_subject(&body_lines, week, parsed_year),
+        body_lines,
+    }
+}
+
+fn inbox_message_subject(mail: &QueuedPlayerMail) -> String {
+    let subject = mail.subject.trim();
+    if subject.is_empty() {
+        "<no subject>".to_string()
+    } else {
+        subject.to_string()
+    }
+}
+
+fn parse_stardate_week_year(text: &str) -> Option<(u8, u16)> {
+    let marker = text.find("Stardate")?;
+    let tail = &text[marker + "Stardate".len()..];
+    let digit_start = tail.find(|ch: char| ch.is_ascii_digit())?;
+    let digits = &tail[digit_start..];
+    let slash = digits.find('/')?;
+    let week_raw = digits[..slash]
+        .chars()
+        .filter(|ch| ch.is_ascii_digit())
+        .collect::<String>();
+    let year_raw = digits[slash + 1..]
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect::<String>();
+    let week = week_raw.parse::<u8>().ok()?;
+    let year = year_raw.parse::<u16>().ok()?;
+    Some((week, year))
+}
+
+fn synthesize_report_subject(lines: &[String], week: Option<u8>, year: u16) -> String {
+    let category = classify_report_subject(lines);
+    format!("{category} - Stardate {:02}/{year}", week.unwrap_or(0))
+}
+
+fn classify_report_subject(lines: &[String]) -> &'static str {
+    let normalized = lines
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_ascii_lowercase();
+
+    if normalized.is_empty() {
+        return "General";
+    }
+
+    if contains_any(&normalized, &["bombard"]) {
+        return "Bombard";
+    }
+    if contains_any(&normalized, &["blitz"]) {
+        return "Blitz";
+    }
+    if contains_any(&normalized, &["invade", "invasion", "assault"]) {
+        return "Invade";
+    }
+    if contains_any(&normalized, &["salvage"]) {
+        return "Salvage";
+    }
+    if contains_any(&normalized, &["coloniz"]) {
+        return "Colonize";
+    }
+    if contains_any(
+        &normalized,
+        &["merged into", "merged with", "merged at", "absorbed into"],
+    ) {
+        return "Merge";
+    }
+    if contains_any(
+        &normalized,
+        &[
+            "contact report",
+            "scout report",
+            "sighted",
+            "detected",
+            "sensor contact",
+            "contact with",
+        ],
+    ) {
+        return "Scout";
+    }
+    if contains_any(
+        &normalized,
+        &[
+            "we were attacked",
+            "we intercepted",
+            "lost all contact",
+            "captured by",
+            "has been captured",
+            "destroyed in combat",
+            "engaged in combat",
+            "battle at",
+        ],
+    ) {
+        return "Combat";
+    }
+    if contains_any(&normalized, &["patrol"]) {
+        return "Patrol";
+    }
+    if contains_any(&normalized, &["rendezvous"]) {
+        return "Rendez";
+    }
+    if contains_any(&normalized, &["starbase", "is moving to", "halted at"]) {
+        return "Starbase";
+    }
+    "General"
+}
+
+fn contains_any(text: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| text.contains(needle))
+}
+
+fn inbox_source_index(source: InboxItemSource) -> usize {
+    match source {
+        InboxItemSource::QueuedMail(index) | InboxItemSource::ReportBlock(index) => index,
+    }
+}
+
+fn inbox_item_type_rank(item_type: InboxItemType) -> u8 {
+    match item_type {
+        InboxItemType::Report => 1,
+        InboxItemType::Message => 0,
+    }
 }
 
 fn decode_text_lines(text: &str) -> Vec<String> {

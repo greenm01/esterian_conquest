@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const QUEUE_FILE_NAME: &str = "RUSTMAIL.QUE";
+pub const MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR: usize = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueuedPlayerMail {
@@ -21,6 +22,43 @@ impl QueuedPlayerMail {
     pub fn mark_deleted_by_recipient(&mut self) {
         self.recipient_deleted = true;
     }
+}
+
+pub fn queued_message_count_for_sender_recipient_year(
+    queue: &[QueuedPlayerMail],
+    sender_empire_id: u8,
+    recipient_empire_id: u8,
+    year: u16,
+) -> usize {
+    queue
+        .iter()
+        .filter(|mail| {
+            mail.sender_empire_id == sender_empire_id
+                && mail.recipient_empire_id == recipient_empire_id
+                && mail.year == year
+        })
+        .count()
+}
+
+pub fn validate_queue_message_limit(
+    queue: &[QueuedPlayerMail],
+    sender_empire_id: u8,
+    recipient_empire_id: u8,
+    year: u16,
+) -> Result<(), String> {
+    let queued = queued_message_count_for_sender_recipient_year(
+        queue,
+        sender_empire_id,
+        recipient_empire_id,
+        year,
+    );
+    if queued >= MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR {
+        return Err(format!(
+            "You may only queue {} messages to Empire {} this turn.",
+            MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, recipient_empire_id
+        ));
+    }
+    Ok(())
 }
 
 pub fn queue_path(dir: &Path) -> PathBuf {

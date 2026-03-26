@@ -96,11 +96,18 @@ fn client_renders_startup_splash_from_fixture() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+    assert!(
+        output.stderr.is_empty(),
+        "successful ec-game launch should be silent on stderr: {:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("#######"));
     assert!(stdout.contains(&format!("EC v{}", env!("CARGO_PKG_VERSION"))));
     assert!(stdout.contains("View the game introduction? Y/[N] ->"));
+    assert!(!stdout.contains("config.kdl"));
+    assert!(!stdout.contains("theme.kdl"));
 }
 
 #[test]
@@ -123,6 +130,11 @@ fn reserved_dropfile_alias_can_launch_without_player_flag() {
         output.status.success(),
         "ec-game failed: stdout={:?} stderr={:?}",
         String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "successful ec-game launch should be silent on stderr: {:?}",
         String::from_utf8_lossy(&output.stderr)
     );
 }

@@ -13,7 +13,7 @@ use crate::domains::planet::PlanetState;
 use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
-use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
+use crate::model::{MainMenuSummary, PlayerContext};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
@@ -165,7 +165,6 @@ impl App {
             !report_block_rows.is_empty(),
             has_visible_runtime_messages(config.player_record_index_1_based as u8, &queued_mail),
         );
-        let review_summary = ReviewSummary::from_main_menu(&main_menu_summary);
         let startup_summary = StartupSummary::from_reports(
             main_menu_summary.game_year,
             player.classic_login_state,
@@ -222,7 +221,7 @@ impl App {
             empire_status: EmpireStatusScreen::new(),
             empire_profile: EmpireProfileScreen::new(),
             rankings: RankingsScreen::new(),
-            reports: ReportsScreen::new(reports, review_summary),
+            reports: ReportsScreen::new(),
 
             fleet: FleetState::default(),
             planet: PlanetState::new(campaign_store, planet_intel_snapshots.clone()),

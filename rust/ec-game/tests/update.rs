@@ -2237,7 +2237,13 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     })
     .expect("app should load");
 
-    advance_to_main_menu(&mut app);
+    for _ in 0..64 {
+        if app.current_screen() == ScreenId::MainMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     assert_eq!(
@@ -2601,7 +2607,13 @@ fn fleet_review_detail_q_returns_to_review_picker() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    advance_to_main_menu(&mut app);
+    for _ in 0..64 {
+        if app.current_screen() == ScreenId::MainMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
@@ -2927,7 +2939,13 @@ fn starbase_help_uses_move_wording_not_hauling() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    advance_to_main_menu(&mut app);
+    for _ in 0..64 {
+        if app.current_screen() == ScreenId::MainMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
     apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu));
     apply_action(&mut app, Action::Starbase(StarbaseAction::OpenHelp));
@@ -3133,7 +3151,13 @@ fn fleet_transfer_source_prompt_defaults_to_largest_eligible_fleet() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    advance_to_main_menu(&mut app);
+    for _ in 0..64 {
+        if app.current_screen() == ScreenId::MainMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
@@ -3327,7 +3351,7 @@ fn general_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp with commands     A>utopilot [ON] [OFF]    R>eview messages/results"
+        "  H>elp with commands     A>utopilot [ON] [OFF]    R>eview Inbox"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
@@ -5383,12 +5407,24 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let mut reports_terminal = CaptureTerminal::new();
     app.render(&mut reports_terminal)
         .expect("reports screen should render");
-    assert!(reports_terminal.lines.iter().any(|line| {
-        line.contains("reports are marked pending, but no review text is available yet")
-    }));
-    assert!(reports_terminal.lines.iter().any(|line| {
-        line.contains("messages are marked pending, but no review text is available yet")
-    }));
+    assert!(
+        reports_terminal
+            .line(0)
+            .contains("Type: All | Year: All | Focus: Inbox")
+    );
+    assert!(reports_terminal.line(1).starts_with('┌'));
+    assert!(reports_terminal.line(2).contains("ID"));
+    assert!(reports_terminal.line(2).contains("Type"));
+    assert!(reports_terminal.line(2).contains("Year"));
+    assert!(reports_terminal.line(2).contains("Subject"));
+    assert!(reports_terminal.line(5).starts_with('┌'));
+    assert!(reports_terminal.line(6).contains("PREVIEW:"));
+    assert!(
+        reports_terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("<no matching items>"))
+    );
 }
 
 #[test]
@@ -6137,10 +6173,12 @@ fn reports_screen_preserves_blank_separator_lines() {
     let line_one_idx = terminal
         .lines
         .iter()
-        .position(|line| line.trim_end() == "  Line one")
+        .position(|line| line.contains("Line one"))
         .expect("reports screen should contain first line");
-    assert!(terminal.lines[line_one_idx + 1].trim().is_empty());
-    assert_eq!(terminal.lines[line_one_idx + 2].trim_end(), "  Line two");
+    let blank_line =
+        terminal.lines[line_one_idx + 1].trim_matches(|ch: char| ch == '│' || ch == ' ');
+    assert!(blank_line.is_empty());
+    assert!(terminal.lines[line_one_idx + 2].contains("Line two"));
 }
 
 #[test]
@@ -6179,8 +6217,6 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
         .iter()
         .position(|line| line.contains("This is a deliberately long reports review line"))
         .expect("reports screen should contain wrapped first line");
-    assert!(terminal.lines[first_line_idx].starts_with("  "));
-    assert!(terminal.lines[first_line_idx + 1].starts_with("  "));
     assert!(
         terminal.lines[first_line_idx].contains("should wrap cleanly")
             || terminal.lines[first_line_idx + 1].contains("should wrap cleanly")
@@ -6233,18 +6269,8 @@ fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("reports screen should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.trim_end() == "MESSAGES")
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Message line 01 should still remain visible"))
-    );
+    assert!(terminal.lines.iter().any(|line| line.contains("│Type│")));
+    assert!(terminal.lines.iter().any(|line| line.contains("Visible")));
 }
 
 #[test]
@@ -6281,10 +6307,18 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("reports screen should render");
-    assert!(terminal.lines.iter().any(|line| {
-        line.contains("<...")
-            && line.contains("more line(s); use startup review for full suspense>")
-    }));
+    assert!(
+        terminal
+            .line(0)
+            .contains("Type: All | Year: All | Focus: Inbox")
+    );
+    assert!(terminal.line(24).contains("<M>"));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("full suspense"))
+    );
 }
 
 #[test]
@@ -13393,6 +13427,53 @@ fn apply_action_queues_composed_message() {
 }
 
 #[test]
+fn compose_message_rejects_fourth_message_to_same_recipient_in_same_year() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    for subject in ["One", "Two", "Three"] {
+        runtime.queued_mail.push(QueuedPlayerMail {
+            sender_empire_id: 1,
+            recipient_empire_id: 2,
+            year: current_year,
+            subject: subject.to_string(),
+            body: "Queued".to_string(),
+            recipient_deleted: false,
+        });
+    }
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    app.messaging.compose_recipient_empire = Some(2);
+    app.messaging.compose_subject = "Four".to_string();
+    app.messaging.compose_body = "Blocked".to_string();
+    app.current_screen = ScreenId::ComposeMessageSendConfirm;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmSendComposedMessage)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
+    assert_eq!(
+        app.messaging.compose_body_status.as_deref(),
+        Some("You may only queue 3 messages to Empire 2 this turn.")
+    );
+    assert_eq!(app.queued_mail.len(), 3);
+}
+
+#[test]
 fn apply_action_deletes_queued_message_from_outbox() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
@@ -13441,6 +13522,246 @@ fn apply_action_deletes_queued_message_from_outbox() {
 
     let queue = latest_runtime_state(&fixture_dir).queued_mail;
     assert!(queue.is_empty());
+}
+
+#[test]
+fn reports_inbox_stacks_type_and_year_filters_and_deletes_selected_item() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    set_runtime_report_blocks(
+        &mut runtime,
+        classic_chunked_report_blocks(&[
+            "Stardate: 03/3003\nFleet contact report",
+            "Stardate: 02/3002\nOlder report",
+        ]),
+    );
+    runtime.queued_mail.push(incoming_mail(
+        2,
+        1,
+        current_year,
+        "Current message",
+        "Newest body",
+    ));
+    runtime.queued_mail.push(incoming_mail(
+        3,
+        1,
+        current_year - 1,
+        "Older message",
+        "Older body",
+    ));
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SetInboxTypeFilterMessages)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenInboxYearPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    for ch in current_year.to_string().chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Messaging(MessagingAction::AppendInboxYearChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitInboxYearInput)
+        ),
+        AppOutcome::Continue
+    );
+
+    let mut filtered = CaptureTerminal::new();
+    app.render(&mut filtered)
+        .expect("filtered inbox should render");
+    assert!(
+        filtered
+            .lines
+            .iter()
+            .any(|line| line.contains("Type: Messages"))
+    );
+    assert!(
+        filtered
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!("Year: {current_year}")))
+    );
+    assert!(
+        filtered
+            .lines
+            .iter()
+            .any(|line| line.contains("Current message"))
+    );
+    assert!(
+        !filtered
+            .lines
+            .iter()
+            .any(|line| line.contains("Older message"))
+    );
+    assert!(
+        !filtered
+            .lines
+            .iter()
+            .any(|line| line.contains("Scout - Stardate 03/3003"))
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenInboxDeleteConfirm)
+        ),
+        AppOutcome::Continue
+    );
+    let mut confirm = CaptureTerminal::new();
+    app.render(&mut confirm)
+        .expect("delete confirm should render");
+    assert!(confirm.line(24).contains("Delete item 01? Y/[N] ->"));
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmDeleteInboxItem)
+        ),
+        AppOutcome::Continue
+    );
+
+    let reloaded = latest_runtime_state(&fixture_dir);
+    assert!(reloaded.queued_mail[0].recipient_deleted);
+}
+
+#[test]
+fn reports_inbox_typed_id_jump_moves_selection_immediately() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    runtime
+        .queued_mail
+        .push(incoming_mail(2, 1, current_year, "Alpha", "Body Alpha"));
+    runtime
+        .queued_mail
+        .push(incoming_mail(3, 1, current_year, "Beta", "Body Beta"));
+    runtime
+        .queued_mail
+        .push(incoming_mail(4, 1, current_year, "Gamma", "Body Gamma"));
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendInboxIdChar('3'))
+        ),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("inbox should render");
+    assert!(
+        terminal
+            .line(0)
+            .contains("Type: All | Year: All | Focus: Inbox")
+    );
+    assert!(terminal.line(1).starts_with('┌'));
+    assert!(terminal.line(24).contains("[03] -> 3"));
+    assert!(terminal.lines.iter().any(|line| line.contains("Alpha")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("PREVIEW: M 3000 Alpha"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Body Alpha"))
+    );
+}
+
+#[test]
+fn reports_inbox_leaves_scrollbar_gutter_when_many_items_exist() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    for idx in 0..12 {
+        runtime.queued_mail.push(incoming_mail(
+            2,
+            1,
+            current_year,
+            &format!("Message {}", idx + 1),
+            "Body",
+        ));
+    }
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    for _ in 0..64 {
+        if app.current_screen() == ScreenId::MainMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("inbox should render");
+    assert!(terminal.lines.iter().any(|line| line.ends_with('^')));
+    assert!(terminal.lines.iter().any(|line| line.ends_with('|')));
+    assert!(terminal.lines.iter().any(|line| line.ends_with('v')));
 }
 
 #[test]

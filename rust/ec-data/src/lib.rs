@@ -65,7 +65,9 @@ pub use maintenance_types::{
 };
 pub use map_dimensions::map_size_for_player_count;
 pub use player_mail::{
-    QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,
+    MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, QueuedPlayerMail, append_mail_queue,
+    clear_mail_queue, load_mail_queue, queued_message_count_for_sender_recipient_year,
+    save_mail_queue, validate_queue_message_limit,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

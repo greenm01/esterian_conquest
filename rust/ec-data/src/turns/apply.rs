@@ -2,7 +2,7 @@ use super::{
     FleetTurnAction, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS, PlanetTurnAction,
     TurnMessage, TurnSubmission, TurnSubmissionError, TurnSubmissionReport,
 };
-use crate::{CoreGameData, QueuedPlayerMail};
+use crate::{CoreGameData, QueuedPlayerMail, validate_queue_message_limit};
 
 pub(super) fn apply_turn_submission(
     submission: &TurnSubmission,
@@ -305,6 +305,13 @@ fn queue_message(
             MAX_MESSAGE_BODY_CHARS
         )));
     }
+    validate_queue_message_limit(
+        queued_mail,
+        sender_player_record_index_1_based as u8,
+        message.recipient_empire_raw,
+        game_data.conquest.game_year(),
+    )
+    .map_err(TurnSubmissionError::Validation)?;
 
     queued_mail.push(QueuedPlayerMail {
         sender_empire_id: sender_player_record_index_1_based as u8,

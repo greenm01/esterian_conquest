@@ -27,8 +27,7 @@ impl App {
     }
 
     pub fn open_reports(&mut self) {
-        self.command_return_menu = self.origin_command_menu();
-        self.current_screen = ScreenId::Reports;
+        self.open_reports_inbox();
     }
 
     pub fn scroll_enemies(&mut self, delta: i8) {

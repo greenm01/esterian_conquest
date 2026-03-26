@@ -253,7 +253,7 @@ impl App {
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
             ScreenId::Rankings(_) => self.rankings.handle_key(key),
-            ScreenId::Reports => self.reports.handle_key(key),
+            ScreenId::Reports => self.handle_reports_key(key),
         }
     }
 

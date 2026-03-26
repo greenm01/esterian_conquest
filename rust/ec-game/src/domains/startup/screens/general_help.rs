@@ -17,7 +17,7 @@ const HELP_LINES: [&str; 14] = [
     "<O> - list all empires in the order you specify",
     "<P> - display the profile of your empire",
     "<Q> - quit the General Command Center and return to the Main Menu",
-    "<R> - display pending messages or reports",
+    "<R> - review your inbox of recent messages and reports",
     "<S> - display time left to play and other status information",
     "<V> - display a portion of the map; use M for the whole map",
     "<X> - hide/show command menus",

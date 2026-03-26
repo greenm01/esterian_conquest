@@ -220,6 +220,52 @@ message to=2 subject="Scout" body="Watch the lane."
     cleanup_dir(&dir);
 }
 
+#[test]
+fn turn_submission_rejects_fourth_message_to_same_recipient_in_same_year() {
+    let mut data = build_seeded_initialized_game(4, 3000, 1515).unwrap();
+    let mut queued_mail = vec![
+        ec_data::QueuedPlayerMail {
+            sender_empire_id: 1,
+            recipient_empire_id: 2,
+            year: 3000,
+            subject: "One".to_string(),
+            body: "Queued".to_string(),
+            recipient_deleted: false,
+        },
+        ec_data::QueuedPlayerMail {
+            sender_empire_id: 1,
+            recipient_empire_id: 2,
+            year: 3000,
+            subject: "Two".to_string(),
+            body: "Queued".to_string(),
+            recipient_deleted: false,
+        },
+        ec_data::QueuedPlayerMail {
+            sender_empire_id: 1,
+            recipient_empire_id: 2,
+            year: 3000,
+            subject: "Three".to_string(),
+            body: "Queued".to_string(),
+            recipient_deleted: false,
+        },
+    ];
+    let submission = TurnSubmission::parse_kdl_str(
+        r#"
+turn player=1 year=3000
+message to=2 subject="Four" body="Blocked"
+"#,
+    )
+    .unwrap();
+
+    let err = submission
+        .apply_to(&mut data, &mut queued_mail)
+        .expect_err("4th message should be rejected");
+    assert!(
+        err.to_string()
+            .contains("You may only queue 3 messages to Empire 2 this turn.")
+    );
+}
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }

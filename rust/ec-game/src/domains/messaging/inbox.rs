@@ -1,0 +1,476 @@
+use crossterm::event::{KeyCode, KeyEvent};
+
+use crate::app::Action;
+use crate::app::helpers::sync_scroll_to_cursor;
+use crate::app::state::App;
+use crate::domains::messaging::MessagingAction;
+use crate::domains::messaging::state::{
+    INBOX_VISIBLE_ROWS, InboxFocus, InboxPromptMode, InboxTypeFilter,
+};
+use crate::reports::{InboxItem, InboxItemSource, InboxItemType, runtime_inbox_items};
+use crate::screen::ScreenId;
+use crate::screen::layout::PromptFeedback;
+
+const INBOX_PREVIEW_PAGE_DELTA: i8 = INBOX_VISIBLE_ROWS as i8;
+
+impl App {
+    pub fn open_reports_inbox(&mut self) {
+        self.command_return_menu = self.origin_command_menu();
+        self.messaging.inbox_type_filter = InboxTypeFilter::All;
+        self.messaging.inbox_year_filter = None;
+        self.messaging.inbox_cursor = 0;
+        self.messaging.inbox_scroll_offset = 0;
+        self.messaging.inbox_preview_scroll = 0;
+        self.messaging.inbox_focus = InboxFocus::Inbox;
+        self.messaging.inbox_id_input.clear();
+        self.messaging.inbox_year_input.clear();
+        self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+        self.messaging.inbox_feedback = None;
+        self.current_screen = ScreenId::Reports;
+        self.normalize_inbox_selection();
+    }
+
+    pub fn handle_reports_key(&self, key: KeyEvent) -> Action {
+        match self.messaging.inbox_prompt_mode {
+            InboxPromptMode::YearInput => match key.code {
+                KeyCode::Enter => Action::Messaging(MessagingAction::SubmitInboxYearInput),
+                KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceInboxYearInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Messaging(MessagingAction::CancelInboxPrompt)
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    Action::Messaging(MessagingAction::AppendInboxYearChar(ch))
+                }
+                _ => Action::Noop,
+            },
+            InboxPromptMode::DeleteConfirm => match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    Action::Messaging(MessagingAction::ConfirmDeleteInboxItem)
+                }
+                KeyCode::Enter
+                | KeyCode::Char('n')
+                | KeyCode::Char('N')
+                | KeyCode::Char('q')
+                | KeyCode::Char('Q')
+                | KeyCode::Esc => Action::Messaging(MessagingAction::CancelInboxPrompt),
+                _ => Action::Noop,
+            },
+            InboxPromptMode::Normal => match key.code {
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    Action::Messaging(MessagingAction::SetInboxTypeFilterMessages)
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    Action::Messaging(MessagingAction::SetInboxTypeFilterReports)
+                }
+                KeyCode::Char('a') | KeyCode::Char('A') => {
+                    Action::Messaging(MessagingAction::SetInboxTypeFilterAll)
+                }
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    if self.messaging.inbox_year_filter.is_some() {
+                        Action::Messaging(MessagingAction::ClearInboxYearFilter)
+                    } else {
+                        Action::Messaging(MessagingAction::OpenInboxYearPrompt)
+                    }
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    Action::Messaging(MessagingAction::OpenInboxDeleteConfirm)
+                }
+                KeyCode::Tab => Action::Messaging(MessagingAction::ToggleInboxFocus),
+                KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceInboxIdInput),
+                KeyCode::Enter => Action::Messaging(MessagingAction::SubmitInboxIdInput),
+                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    Action::ReturnToCommandMenu
+                }
+                KeyCode::PageUp => match self.messaging.inbox_focus {
+                    InboxFocus::Inbox => Action::Messaging(MessagingAction::PageInboxCursor(-1)),
+                    InboxFocus::Preview => Action::Messaging(MessagingAction::PageInboxPreview(-1)),
+                },
+                KeyCode::PageDown => match self.messaging.inbox_focus {
+                    InboxFocus::Inbox => Action::Messaging(MessagingAction::PageInboxCursor(1)),
+                    InboxFocus::Preview => Action::Messaging(MessagingAction::PageInboxPreview(1)),
+                },
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => match self
+                    .messaging
+                    .inbox_focus
+                {
+                    InboxFocus::Inbox => Action::Messaging(MessagingAction::MoveInboxCursor(-1)),
+                    InboxFocus::Preview => {
+                        Action::Messaging(MessagingAction::ScrollInboxPreview(-1))
+                    }
+                },
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    match self.messaging.inbox_focus {
+                        InboxFocus::Inbox => Action::Messaging(MessagingAction::MoveInboxCursor(1)),
+                        InboxFocus::Preview => {
+                            Action::Messaging(MessagingAction::ScrollInboxPreview(1))
+                        }
+                    }
+                }
+                KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => match self
+                    .messaging
+                    .inbox_focus
+                {
+                    InboxFocus::Inbox => Action::Messaging(MessagingAction::MoveInboxCursor(-1)),
+                    InboxFocus::Preview => {
+                        Action::Messaging(MessagingAction::ScrollInboxPreview(-1))
+                    }
+                },
+                KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+                    match self.messaging.inbox_focus {
+                        InboxFocus::Inbox => Action::Messaging(MessagingAction::MoveInboxCursor(1)),
+                        InboxFocus::Preview => {
+                            Action::Messaging(MessagingAction::ScrollInboxPreview(1))
+                        }
+                    }
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    Action::Messaging(MessagingAction::AppendInboxIdChar(ch))
+                }
+                _ => Action::Noop,
+            },
+        }
+    }
+
+    pub fn set_inbox_type_filter_all(&mut self) {
+        self.messaging.inbox_type_filter = InboxTypeFilter::All;
+        self.clear_inbox_filter_feedback();
+        self.reset_inbox_jump_and_preview();
+        self.normalize_inbox_selection();
+    }
+
+    pub fn set_inbox_type_filter_messages(&mut self) {
+        self.messaging.inbox_type_filter = InboxTypeFilter::Messages;
+        self.clear_inbox_filter_feedback();
+        self.reset_inbox_jump_and_preview();
+        self.normalize_inbox_selection();
+    }
+
+    pub fn set_inbox_type_filter_reports(&mut self) {
+        self.messaging.inbox_type_filter = InboxTypeFilter::Reports;
+        self.clear_inbox_filter_feedback();
+        self.reset_inbox_jump_and_preview();
+        self.normalize_inbox_selection();
+    }
+
+    pub fn open_inbox_year_prompt(&mut self) {
+        self.messaging.inbox_prompt_mode = InboxPromptMode::YearInput;
+        self.messaging.inbox_year_input.clear();
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn clear_inbox_year_filter(&mut self) {
+        self.messaging.inbox_year_filter = None;
+        self.clear_inbox_filter_feedback();
+        self.reset_inbox_jump_and_preview();
+        self.normalize_inbox_selection();
+    }
+
+    pub fn append_inbox_year_char(&mut self, ch: char) {
+        if self.messaging.inbox_prompt_mode == InboxPromptMode::YearInput
+            && self.messaging.inbox_year_input.len() < 4
+        {
+            self.messaging.inbox_year_input.push(ch);
+            self.messaging.inbox_feedback = None;
+        }
+    }
+
+    pub fn backspace_inbox_year_input(&mut self) {
+        if self.messaging.inbox_prompt_mode == InboxPromptMode::YearInput {
+            self.messaging.inbox_year_input.pop();
+            self.messaging.inbox_feedback = None;
+        }
+    }
+
+    pub fn submit_inbox_year_input(&mut self) {
+        if self.messaging.inbox_prompt_mode != InboxPromptMode::YearInput {
+            return;
+        }
+        let year = if self.messaging.inbox_year_input.trim().is_empty() {
+            self.game_data.conquest.game_year()
+        } else {
+            let Ok(year) = self.messaging.inbox_year_input.trim().parse::<u16>() else {
+                self.messaging.inbox_feedback =
+                    Some(PromptFeedback::error("Enter a 4-digit year."));
+                return;
+            };
+            year
+        };
+        self.messaging.inbox_year_filter = Some(year);
+        self.messaging.inbox_year_input.clear();
+        self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+        self.clear_inbox_filter_feedback();
+        self.reset_inbox_jump_and_preview();
+        self.normalize_inbox_selection();
+    }
+
+    pub fn move_inbox_cursor(&mut self, delta: i8) {
+        let total = self.filtered_inbox_items().len();
+        if total == 0 {
+            return;
+        }
+        let next = self.messaging.inbox_cursor as isize + delta as isize;
+        self.messaging.inbox_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.messaging.inbox_scroll_offset,
+            self.messaging.inbox_cursor,
+            INBOX_VISIBLE_ROWS,
+        );
+        self.messaging.inbox_preview_scroll = 0;
+        self.messaging.inbox_id_input.clear();
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn page_inbox_cursor(&mut self, delta: i8) {
+        self.move_inbox_cursor(delta.saturating_mul(INBOX_VISIBLE_ROWS as i8));
+    }
+
+    pub fn scroll_inbox_preview(&mut self, delta: i8) {
+        let visible_rows = self.inbox_preview_visible_rows();
+        let total = self.current_inbox_preview_lines().len();
+        let max_scroll = total.saturating_sub(visible_rows);
+        self.messaging.inbox_preview_scroll = self
+            .messaging
+            .inbox_preview_scroll
+            .saturating_add_signed(delta as isize)
+            .min(max_scroll);
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn page_inbox_preview(&mut self, delta: i8) {
+        self.scroll_inbox_preview(delta.saturating_mul(INBOX_PREVIEW_PAGE_DELTA));
+    }
+
+    pub fn toggle_inbox_focus(&mut self) {
+        self.messaging.inbox_focus = match self.messaging.inbox_focus {
+            InboxFocus::Inbox => InboxFocus::Preview,
+            InboxFocus::Preview => InboxFocus::Inbox,
+        };
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn append_inbox_id_char(&mut self, ch: char) {
+        if self.messaging.inbox_prompt_mode != InboxPromptMode::Normal
+            || self.messaging.inbox_id_input.len() >= 4
+        {
+            return;
+        }
+        self.messaging.inbox_id_input.push(ch);
+        self.sync_inbox_cursor_to_id_input();
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn backspace_inbox_id_input(&mut self) {
+        if self.messaging.inbox_prompt_mode != InboxPromptMode::Normal {
+            return;
+        }
+        self.messaging.inbox_id_input.pop();
+        self.sync_inbox_cursor_to_id_input();
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn submit_inbox_id_input(&mut self) {
+        if self.messaging.inbox_prompt_mode != InboxPromptMode::Normal {
+            return;
+        }
+        if self.messaging.inbox_id_input.trim().is_empty() {
+            return;
+        }
+        let Ok(id) = self.messaging.inbox_id_input.trim().parse::<usize>() else {
+            self.messaging.inbox_feedback =
+                Some(PromptFeedback::error("Enter a valid inbox item ID."));
+            return;
+        };
+        let total = self.filtered_inbox_items().len();
+        if !(1..=total).contains(&id) {
+            self.messaging.inbox_feedback = Some(PromptFeedback::error(format!(
+                "Enter an inbox item ID in 1..={total}."
+            )));
+            return;
+        }
+        self.messaging.inbox_cursor = id - 1;
+        sync_scroll_to_cursor(
+            &mut self.messaging.inbox_scroll_offset,
+            self.messaging.inbox_cursor,
+            INBOX_VISIBLE_ROWS,
+        );
+        self.messaging.inbox_preview_scroll = 0;
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn open_inbox_delete_confirm(&mut self) {
+        if self.filtered_inbox_items().is_empty() {
+            self.messaging.inbox_feedback =
+                Some(PromptFeedback::error("No inbox item is selected."));
+            return;
+        }
+        self.messaging.inbox_prompt_mode = InboxPromptMode::DeleteConfirm;
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn cancel_inbox_prompt(&mut self) {
+        self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+        self.messaging.inbox_year_input.clear();
+        self.messaging.inbox_feedback = None;
+    }
+
+    pub fn confirm_delete_inbox_item(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.messaging.inbox_prompt_mode != InboxPromptMode::DeleteConfirm {
+            return Ok(());
+        }
+        let Some(item) = self.current_inbox_item() else {
+            self.messaging.inbox_feedback =
+                Some(PromptFeedback::error("No inbox item is selected."));
+            self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+            return Ok(());
+        };
+        let deleted_id = self.messaging.inbox_cursor + 1;
+        match item.source {
+            InboxItemSource::QueuedMail(index) => {
+                if let Some(mail) = self.queued_mail.get_mut(index) {
+                    mail.mark_deleted_by_recipient();
+                }
+            }
+            InboxItemSource::ReportBlock(index) => {
+                if let Some(row) = self.report_block_rows.get_mut(index) {
+                    row.recipient_deleted = true;
+                }
+            }
+        }
+        self.save_game_data()?;
+        self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+        self.messaging.inbox_feedback = Some(PromptFeedback::notice(format!(
+            "Deleted item {deleted_id:02}."
+        )));
+        self.reset_inbox_jump_and_preview();
+        self.normalize_inbox_selection();
+        Ok(())
+    }
+
+    pub fn filtered_inbox_items(&self) -> Vec<InboxItem> {
+        let current_year = self.game_data.conquest.game_year();
+        let min_year = current_year.saturating_sub(4);
+        runtime_inbox_items(
+            &self.game_data,
+            self.player.record_index_1_based as u8,
+            &self.report_block_rows,
+            &self.queued_mail,
+        )
+        .into_iter()
+        .filter(|item| item.year >= min_year)
+        .filter(|item| match self.messaging.inbox_type_filter {
+            InboxTypeFilter::All => true,
+            InboxTypeFilter::Messages => item.item_type == InboxItemType::Message,
+            InboxTypeFilter::Reports => item.item_type == InboxItemType::Report,
+        })
+        .filter(|item| {
+            self.messaging
+                .inbox_year_filter
+                .is_none_or(|year| item.year == year)
+        })
+        .collect()
+    }
+
+    pub fn current_inbox_item(&self) -> Option<InboxItem> {
+        self.filtered_inbox_items()
+            .get(self.messaging.inbox_cursor)
+            .cloned()
+    }
+
+    pub fn current_inbox_display_id(&self) -> String {
+        if self.filtered_inbox_items().is_empty() {
+            "00".to_string()
+        } else {
+            format!("{:02}", self.messaging.inbox_cursor + 1)
+        }
+    }
+
+    fn current_inbox_preview_lines(&self) -> Vec<String> {
+        let Some(item) = self.current_inbox_item() else {
+            return vec!["<no matching items>".to_string()];
+        };
+        crate::reports::runtime_inbox_preview_lines(
+            &item.body_lines,
+            crate::screen::PLAYFIELD_WIDTH.saturating_sub(2),
+        )
+    }
+
+    fn inbox_preview_visible_rows(&self) -> usize {
+        self.inbox_preview_body_rows()
+    }
+
+    fn normalize_inbox_selection(&mut self) {
+        let total = self.filtered_inbox_items().len();
+        if total == 0 {
+            self.messaging.inbox_cursor = 0;
+            self.messaging.inbox_scroll_offset = 0;
+            self.messaging.inbox_preview_scroll = 0;
+            return;
+        }
+        self.messaging.inbox_cursor = self.messaging.inbox_cursor.min(total - 1);
+        let max_offset = total.saturating_sub(INBOX_VISIBLE_ROWS);
+        self.messaging.inbox_scroll_offset = self.messaging.inbox_scroll_offset.min(max_offset);
+        sync_scroll_to_cursor(
+            &mut self.messaging.inbox_scroll_offset,
+            self.messaging.inbox_cursor,
+            INBOX_VISIBLE_ROWS,
+        );
+        let preview_total = self.current_inbox_preview_lines().len();
+        let preview_visible = self.inbox_preview_visible_rows();
+        self.messaging.inbox_preview_scroll = self
+            .messaging
+            .inbox_preview_scroll
+            .min(preview_total.saturating_sub(preview_visible));
+    }
+
+    fn sync_inbox_cursor_to_id_input(&mut self) {
+        let raw = self.messaging.inbox_id_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let Ok(id) = raw.parse::<usize>() else {
+            return;
+        };
+        let total = self.filtered_inbox_items().len();
+        if !(1..=total).contains(&id) {
+            return;
+        }
+        self.messaging.inbox_cursor = id - 1;
+        sync_scroll_to_cursor(
+            &mut self.messaging.inbox_scroll_offset,
+            self.messaging.inbox_cursor,
+            INBOX_VISIBLE_ROWS,
+        );
+        self.messaging.inbox_preview_scroll = 0;
+    }
+
+    fn clear_inbox_filter_feedback(&mut self) {
+        self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+        self.messaging.inbox_year_input.clear();
+        self.messaging.inbox_feedback = None;
+    }
+
+    fn reset_inbox_jump_and_preview(&mut self) {
+        self.messaging.inbox_id_input.clear();
+        self.messaging.inbox_preview_scroll = 0;
+        self.messaging.inbox_cursor = 0;
+        self.messaging.inbox_scroll_offset = 0;
+    }
+
+    pub fn inbox_visible_table_rows(&self) -> usize {
+        self.filtered_inbox_items().len().min(INBOX_VISIBLE_ROWS)
+    }
+
+    pub fn inbox_preview_start_row(&self) -> usize {
+        1 + 4 + self.inbox_visible_table_rows()
+    }
+
+    pub fn inbox_preview_body_rows(&self) -> usize {
+        crate::screen::layout::COMMAND_LINE_ROW
+            .saturating_sub(self.inbox_preview_start_row() + 2)
+            .saturating_sub(1)
+    }
+
+    pub fn inbox_preview_scroll_offset(&self) -> usize {
+        self.messaging.inbox_preview_scroll
+    }
+}

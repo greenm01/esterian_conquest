@@ -5,9 +5,9 @@ use crate::domains::messaging::screens::message_compose::{
     compose_existing_index_for_cursor, compose_row_end_col, materialize_compose_cursor,
 };
 use crate::model::{MainMenuSummary, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::has_visible_runtime_messages;
 use crate::screen::{CommandMenu, ScreenId};
-use ec_data::{CoreGameData, QueuedPlayerMail};
+use ec_data::{CoreGameData, QueuedPlayerMail, validate_queue_message_limit};
 
 const COMPOSE_TAB_WIDTH: usize = 4;
 
@@ -366,6 +366,16 @@ impl App {
             self.messaging.compose_body_status = Some("Message body cannot be empty.".to_string());
             return Ok(());
         }
+        if let Err(err) = validate_queue_message_limit(
+            &self.queued_mail,
+            self.player.record_index_1_based as u8,
+            recipient_empire_id,
+            self.game_data.conquest.game_year(),
+        ) {
+            self.messaging.compose_body_status = Some(err);
+            self.current_screen = ScreenId::ComposeMessageBody;
+            return Ok(());
+        }
         self.queued_mail.push(QueuedPlayerMail {
             sender_empire_id: self.player.record_index_1_based as u8,
             recipient_empire_id,
@@ -602,20 +612,6 @@ impl App {
             player.set_classic_results_chain_state(false, 0);
         }
         self.save_game_data()?;
-        let refreshed = ReportsPreview::from_block_rows(
-            &self.game_data,
-            self.player.record_index_1_based as u8,
-            &self.report_block_rows,
-            &self.queued_mail,
-        );
-        let summary = MainMenuSummary::from_game_data(
-            &self.game_data,
-            self.player.record_index_1_based,
-            self.has_active_report_blocks(),
-            has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
-        );
-        self.reports
-            .replace(refreshed, ReviewSummary::from_main_menu(&summary));
         self.messaging.delete_reviewables_prompt_active = false;
         self.show_command_menu_notice(CommandMenu::General, "Messages and results deleted.");
         Ok(())
@@ -647,6 +643,11 @@ impl App {
             _ => crate::app::Action::Noop,
         }
     }
+    fn compose_outbox_queue_len(&self) -> usize {
+        self.compose_outbox_queue()
+            .map(|queue| queue.len())
+            .unwrap_or(0)
+    }
 
     pub(crate) fn compose_outbox_queue(
         &self,
@@ -658,12 +659,6 @@ impl App {
             .into_iter()
             .filter(|mail| mail.sender_empire_id == sender_empire_id)
             .collect())
-    }
-
-    fn compose_outbox_queue_len(&self) -> usize {
-        self.compose_outbox_queue()
-            .map(|queue| queue.len())
-            .unwrap_or(0)
     }
 }
 

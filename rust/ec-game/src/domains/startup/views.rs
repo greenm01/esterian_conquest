@@ -126,9 +126,21 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.info_error.as_deref(),
         ),
         ScreenId::GeneralHelp => app.general_help.render(&frame),
-        ScreenId::Reports => app
-            .reports
-            .render_with_menu(&frame, app.command_return_menu),
+        ScreenId::Reports => app.reports.render_inbox(
+            app.command_return_menu,
+            &app.filtered_inbox_items(),
+            app.messaging.inbox_type_filter,
+            app.messaging.inbox_year_filter,
+            app.messaging.inbox_cursor,
+            app.messaging.inbox_scroll_offset,
+            app.messaging.inbox_preview_scroll,
+            app.messaging.inbox_focus,
+            &app.messaging.inbox_id_input,
+            &app.messaging.inbox_year_input,
+            app.messaging.inbox_prompt_mode,
+            app.messaging.inbox_feedback.as_ref(),
+            app.game_data.conquest.game_year(),
+        ),
         _ => unreachable!("startup views called for non-startup screen"),
     }
 }

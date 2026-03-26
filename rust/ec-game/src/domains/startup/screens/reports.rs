@@ -1,79 +1,210 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::model::ReviewSummary;
-use crate::reports::{ReportsPreview, wrap_review_text_preserving_spacing};
-use crate::screen::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row, draw_dismiss_prompt, draw_status_line,
-    draw_title_bar, new_playfield,
+use crate::domains::messaging::state::{
+    INBOX_VISIBLE_ROWS, InboxFocus, InboxPromptMode, InboxTypeFilter,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::reports::InboxItem;
+use crate::screen::layout::{
+    COMMAND_LINE_ROW, PLAYFIELD_WIDTH, PromptFeedback, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, new_playfield, wrap_text,
+};
+use crate::screen::table::{
+    TableAlign, TableColumn, fit_table_columns, table_column_start, table_render_width,
+    write_table_window_with_states_at,
+};
+use crate::screen::{
+    CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, command_menu_label,
+};
 use crate::theme::classic;
 
-pub struct ReportsScreen {
-    preview: ReportsPreview,
-    summary: ReviewSummary,
-}
+pub struct ReportsScreen;
+
+const TABLE_START_ROW: usize = 1;
+const STATUS_ROW: usize = 0;
+const FEEDBACK_MAX_ROWS: usize = 3;
+const INBOX_MAX_TABLE_WIDTH: usize = PLAYFIELD_WIDTH - 1;
 
 impl ReportsScreen {
-    pub fn new(preview: ReportsPreview, summary: ReviewSummary) -> Self {
-        Self { preview, summary }
+    pub fn new() -> Self {
+        Self
     }
 
-    pub fn replace(&mut self, preview: ReportsPreview, summary: ReviewSummary) {
-        self.preview = preview;
-        self.summary = summary;
-    }
-
-    pub fn render_with_menu(
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_inbox(
         &mut self,
-        frame: &ScreenFrame<'_>,
         menu: CommandMenu,
+        items: &[InboxItem],
+        type_filter: InboxTypeFilter,
+        year_filter: Option<u16>,
+        cursor: usize,
+        scroll_offset: usize,
+        preview_scroll: usize,
+        focus: InboxFocus,
+        id_input: &str,
+        year_input: &str,
+        prompt_mode: InboxPromptMode,
+        feedback: Option<&PromptFeedback>,
+        current_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let mut row = 0;
-        draw_title_bar(&mut buffer, row, "MESSAGES / RESULTS REVIEW: ");
-        row += 2;
-        draw_status_line(
-            &mut buffer,
-            row,
-            "Player: ",
+        buffer.write_text(
+            STATUS_ROW,
+            0,
             &format!(
-                "{}  Empire: {}",
-                frame.player.record_index_1_based,
-                display_or_unknown(&frame.player.empire_name)
+                "Type: {} | Year: {} | Focus: {}",
+                type_filter_label(type_filter),
+                year_filter
+                    .map(|year| year.to_string())
+                    .unwrap_or_else(|| "All".to_string()),
+                focus_label(focus)
             ),
+            classic::status_value_style(),
         );
-        row += 2;
-        let report_rows = section_rows(
-            "results",
-            self.summary.reviewable_results,
-            &self.preview.results_lines,
-        );
-        let message_rows = section_rows(
-            "messages",
-            self.summary.reviewable_messages,
-            &self.preview.message_lines,
-        );
-        let content_budget = PLAYFIELD_HEIGHT
-            .saturating_sub(1)
-            .saturating_sub(row)
-            .saturating_sub(4);
-        let (visible_report_rows, visible_message_rows) =
-            split_section_budget(content_budget, report_rows.len(), message_rows.len());
 
-        buffer.write_text(row, 0, "REPORTS", classic::status_value_style());
-        row += 1;
-        buffer.write_text(row, 0, "-------", classic::status_label_style());
-        row += 1;
-        row += write_section(&mut buffer, row, &report_rows, visible_report_rows)?;
-        buffer.write_text(row, 0, "MESSAGES", classic::status_value_style());
-        row += 1;
-        buffer.write_text(row, 0, "--------", classic::status_label_style());
-        row += 1;
-        row += write_section(&mut buffer, row, &message_rows, visible_message_rows)?;
-        let _ = menu;
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(row.saturating_sub(1)));
+        let table_rows = items
+            .iter()
+            .enumerate()
+            .map(|(idx, item)| {
+                vec![
+                    format!("{:02}", idx + 1),
+                    item.item_type.code().to_string(),
+                    item.year.to_string(),
+                    item.subject.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let base_columns = [
+            TableColumn::right("ID", 2),
+            TableColumn::center("Type", 4),
+            TableColumn::right("Year", 4),
+            TableColumn::left("Subject", 24),
+        ];
+        let columns = fit_inbox_columns(&base_columns, &table_rows);
+        let visible_rows = items.len().min(INBOX_VISIBLE_ROWS);
+        let metrics = write_table_window_with_states_at(
+            &mut buffer,
+            TABLE_START_ROW,
+            0,
+            &columns,
+            &table_rows,
+            scroll_offset,
+            visible_rows,
+            classic::table_header_style(),
+            classic::table_body_style(),
+            None,
+            None,
+        );
+        if let Some(selected_row) = selected_visible_row(cursor, scroll_offset, visible_rows) {
+            highlight_selected_id_cell(
+                &mut buffer,
+                TABLE_START_ROW + 3 + selected_row,
+                table_column_start(&columns, 0).unwrap_or(1),
+                columns[0],
+                &format!("{:02}", cursor + 1),
+            );
+        }
+
+        let preview_top_row = metrics.bottom_row + 1;
+        let preview_bottom_row = COMMAND_LINE_ROW.saturating_sub(1);
+        draw_preview_border(&mut buffer, preview_top_row, preview_bottom_row, focus);
+        buffer.write_text(
+            preview_top_row + 1,
+            1,
+            &truncate_to_width(
+                &preview_title(items.get(cursor)),
+                PLAYFIELD_WIDTH.saturating_sub(2),
+            ),
+            if focus == InboxFocus::Preview {
+                classic::notice_style()
+            } else {
+                classic::title_style()
+            },
+        );
+
+        let preview_body_row = preview_top_row + 2;
+        let preview_body_last_row = preview_bottom_row.saturating_sub(1);
+        let feedback_rows = feedback
+            .map(|value| preview_feedback_row_count(value, PLAYFIELD_WIDTH.saturating_sub(2)))
+            .unwrap_or(0)
+            .min(preview_body_last_row.saturating_sub(preview_body_row) + 1);
+        let preview_body_rows = preview_body_last_row
+            .saturating_sub(preview_body_row)
+            .saturating_add(1)
+            .saturating_sub(feedback_rows);
+        let preview_lines = items
+            .get(cursor)
+            .map(|item| {
+                crate::reports::runtime_inbox_preview_lines(
+                    &item.body_lines,
+                    PLAYFIELD_WIDTH.saturating_sub(2),
+                )
+            })
+            .unwrap_or_else(|| vec!["<no matching items>".to_string()]);
+        for (idx, line) in preview_lines
+            .iter()
+            .skip(preview_scroll)
+            .take(preview_body_rows)
+            .enumerate()
+        {
+            buffer.write_text(preview_body_row + idx, 1, line, classic::body_style());
+        }
+
+        if let Some(feedback) = feedback {
+            let feedback_start_row = preview_body_last_row + 1 - feedback_rows;
+            draw_feedback_block_in_preview(
+                &mut buffer,
+                feedback_start_row,
+                PLAYFIELD_WIDTH.saturating_sub(2),
+                feedback,
+            );
+        }
+
+        match prompt_mode {
+            InboxPromptMode::Normal => {
+                let prompt = format!(
+                    "<M> <R> <A> <Y> <D> [{}] -> ",
+                    selected_id_label(items, cursor)
+                );
+                draw_command_line_prompt_text_at(
+                    &mut buffer,
+                    COMMAND_LINE_ROW,
+                    command_menu_label(menu),
+                    &prompt,
+                );
+                if let Some((col, row)) = buffer.cursor() {
+                    buffer.write_text(
+                        row as usize,
+                        col as usize,
+                        id_input,
+                        classic::prompt_hotkey_style(),
+                    );
+                    buffer.set_cursor(col + id_input.chars().count() as u16, row);
+                }
+            }
+            InboxPromptMode::YearInput => {
+                draw_command_line_default_input_at(
+                    &mut buffer,
+                    COMMAND_LINE_ROW,
+                    command_menu_label(menu),
+                    "Year ",
+                    &current_year.to_string(),
+                    year_input,
+                );
+            }
+            InboxPromptMode::DeleteConfirm => {
+                draw_command_line_prompt_text_at(
+                    &mut buffer,
+                    COMMAND_LINE_ROW,
+                    command_menu_label(menu),
+                    &format!(
+                        "Delete item {}? Y/[N] -> ",
+                        selected_id_label(items, cursor)
+                    ),
+                );
+            }
+        }
+
         Ok(buffer)
     }
 }
@@ -81,104 +212,200 @@ impl ReportsScreen {
 impl Screen for ReportsScreen {
     fn render(
         &mut self,
-        frame: &ScreenFrame<'_>,
+        _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_menu(frame, CommandMenu::General)
+        self.render_inbox(
+            CommandMenu::General,
+            &[],
+            InboxTypeFilter::All,
+            None,
+            0,
+            0,
+            0,
+            InboxFocus::Inbox,
+            "",
+            "",
+            InboxPromptMode::Normal,
+            None,
+            0,
+        )
     }
 
     fn handle_key(&self, _key: KeyEvent) -> Action {
-        Action::ReturnToCommandMenu
+        Action::Noop
     }
 }
 
-/// Report header lines in the summary view start with 2-space indent + "From your".
-fn is_report_header(line: &str) -> bool {
-    line.starts_with("  From your")
+fn fit_inbox_columns(
+    columns: &[TableColumn<'static>],
+    rows: &[Vec<String>],
+) -> Vec<TableColumn<'static>> {
+    let mut columns = fit_table_columns(columns, rows);
+    if columns.is_empty() {
+        return columns;
+    }
+    let subject_min_width = "Subject".len().max(16);
+    let render_width = table_render_width(&columns);
+    if render_width < INBOX_MAX_TABLE_WIDTH {
+        let extra = INBOX_MAX_TABLE_WIDTH - render_width;
+        columns[3].width += extra;
+        return columns;
+    }
+
+    let overflow = table_render_width(&columns).saturating_sub(INBOX_MAX_TABLE_WIDTH);
+    if overflow > 0 {
+        let subject = &mut columns[3];
+        subject.width = subject
+            .width
+            .saturating_sub(overflow)
+            .max(subject_min_width);
+    }
+    columns
 }
 
-fn write_section(
+fn highlight_selected_id_cell(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    column: TableColumn<'_>,
+    value: &str,
+) {
+    let text = match column.align {
+        TableAlign::Left => format!("{value:<width$}", width = column.width),
+        TableAlign::Center => {
+            let width = column.width;
+            let text_width = value.chars().count();
+            let pad = width.saturating_sub(text_width);
+            let left = pad / 2;
+            let right = pad.saturating_sub(left);
+            format!("{}{}{}", " ".repeat(left), value, " ".repeat(right))
+        }
+        TableAlign::Right => format!("{value:>width$}", width = column.width),
+    };
+    buffer.write_text(row, col, &text, classic::selected_row_style());
+}
+
+fn selected_visible_row(cursor: usize, scroll_offset: usize, visible_rows: usize) -> Option<usize> {
+    if cursor < scroll_offset || cursor >= scroll_offset + visible_rows {
+        None
+    } else {
+        Some(cursor - scroll_offset)
+    }
+}
+
+fn type_filter_label(filter: InboxTypeFilter) -> &'static str {
+    match filter {
+        InboxTypeFilter::All => "All",
+        InboxTypeFilter::Messages => "Messages",
+        InboxTypeFilter::Reports => "Reports",
+    }
+}
+
+fn focus_label(focus: InboxFocus) -> &'static str {
+    match focus {
+        InboxFocus::Inbox => "Inbox",
+        InboxFocus::Preview => "Preview",
+    }
+}
+
+fn preview_title(item: Option<&InboxItem>) -> String {
+    match item {
+        Some(item) => format!(
+            "PREVIEW: {} {} {}",
+            item.item_type.code(),
+            item.year,
+            item.subject
+        ),
+        None => "PREVIEW:".to_string(),
+    }
+}
+
+fn selected_id_label(items: &[InboxItem], cursor: usize) -> String {
+    if items.is_empty() {
+        "00".to_string()
+    } else {
+        format!("{:02}", cursor + 1)
+    }
+}
+
+fn draw_preview_border(
+    buffer: &mut PlayfieldBuffer,
+    top_row: usize,
+    bottom_row: usize,
+    focus: InboxFocus,
+) {
+    let border_style = if focus == InboxFocus::Preview {
+        classic::notice_style()
+    } else {
+        classic::table_chrome_style()
+    };
+    let top = format!("┌{}┐", "─".repeat(PLAYFIELD_WIDTH.saturating_sub(2)));
+    let bottom = format!("└{}┘", "─".repeat(PLAYFIELD_WIDTH.saturating_sub(2)));
+    buffer.write_text(top_row, 0, &top, border_style);
+    for row in top_row + 1..bottom_row {
+        buffer.write_text(row, 0, "│", border_style);
+        buffer.write_text(row, PLAYFIELD_WIDTH.saturating_sub(1), "│", border_style);
+    }
+    buffer.write_text(bottom_row, 0, &bottom, border_style);
+}
+
+fn truncate_to_width(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    let mut out = text.chars().take(max_chars).collect::<String>();
+    while out.ends_with(' ') {
+        out.pop();
+    }
+    out
+}
+
+fn preview_feedback_row_count(feedback: &PromptFeedback, width: usize) -> usize {
+    let (label, value) = match feedback {
+        PromptFeedback::Notice(value) => ("Notice: ", value.as_str()),
+        PromptFeedback::Error(value) => ("Error: ", value.as_str()),
+        PromptFeedback::Warning(value) => ("Warning: ", value.as_str()),
+    };
+    let label_width = label.chars().count();
+    wrap_text(
+        value,
+        width.saturating_sub(label_width).max(1),
+        width.saturating_sub(label_width).max(1),
+    )
+    .len()
+    .min(FEEDBACK_MAX_ROWS)
+}
+
+fn draw_feedback_block_in_preview(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
-    rows: &[String],
-    max_rows: usize,
-) -> Result<usize, Box<dyn std::error::Error>> {
-    let mut written = 0;
-    for line in rows.iter().take(max_rows) {
-        let style = if is_report_header(line) {
-            classic::report_header_style()
-        } else {
-            classic::body_style()
-        };
-        buffer.write_text(start_row + written, 0, line, style);
-        written += 1;
-    }
-    if rows.len() > max_rows {
-        buffer.write_text(
-            start_row + written,
-            0,
-            &format!(
-                "  <... {} more line(s); use startup review for full suspense>",
-                rows.len() - max_rows
-            ),
-            classic::body_style(),
-        );
-        written += 1;
-    }
-    Ok(written)
-}
-
-fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
-}
-
-fn section_rows(section_name: &str, reviewable: bool, lines: &[String]) -> Vec<String> {
-    if !reviewable {
-        return vec!["  <none currently reviewable>".to_string()];
-    }
-
-    if lines.is_empty() {
-        let empty_notice = match section_name {
-            "results" => "  <reports are marked pending, but no review text is available yet>",
-            "messages" => "  <messages are marked pending, but no review text is available yet>",
-            _ => "  <review items are marked pending, but no review text is available yet>",
-        };
-        return vec![empty_notice.to_string()];
-    }
-
-    let mut rows = Vec::new();
-    for line in lines {
-        if line.is_empty() {
-            rows.push("  ".to_string());
-            continue;
-        }
-        rows.extend(
-            wrap_review_text_preserving_spacing(line, PLAYFIELD_WIDTH.saturating_sub(2))
-                .into_iter()
-                .map(|wrapped| format!("  {wrapped}")),
+    width: usize,
+    feedback: &PromptFeedback,
+) {
+    let (label, label_style, value) = match feedback {
+        PromptFeedback::Notice(value) => ("Notice: ", classic::notice_style(), value.as_str()),
+        PromptFeedback::Error(value) => ("Error: ", classic::error_style(), value.as_str()),
+        PromptFeedback::Warning(value) => ("Warning: ", classic::error_style(), value.as_str()),
+    };
+    let label_width = label.chars().count();
+    let continuation = " ".repeat(label_width);
+    let wrapped = wrap_text(
+        value,
+        width.saturating_sub(label_width).max(1),
+        width.saturating_sub(label_width).max(1),
+    );
+    for (idx, line) in wrapped.into_iter().take(FEEDBACK_MAX_ROWS).enumerate() {
+        let current_label = if idx == 0 { label } else { &continuation };
+        buffer.write_spans(
+            start_row + idx,
+            1,
+            &[
+                StyledSpan::new(current_label, label_style),
+                StyledSpan::new(
+                    &truncate_to_width(&line, width.saturating_sub(label_width)),
+                    classic::status_value_style(),
+                ),
+            ],
         );
     }
-    rows
-}
-
-fn split_section_budget(total: usize, first_len: usize, second_len: usize) -> (usize, usize) {
-    if total == 0 {
-        return (0, 0);
-    }
-
-    let mut first = usize::from(first_len > 0);
-    let mut second = usize::from(second_len > 0);
-    let mut remaining = total.saturating_sub(first + second);
-
-    while remaining > 0 && (first < first_len || second < second_len) {
-        if first < first_len && (first <= second || second >= second_len) {
-            first += 1;
-        } else if second < second_len {
-            second += 1;
-        } else if first < first_len {
-            first += 1;
-        }
-        remaining -= 1;
-    }
-
-    (first.min(first_len), second.min(second_len))
 }
