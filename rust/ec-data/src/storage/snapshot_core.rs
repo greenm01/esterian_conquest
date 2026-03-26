@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, params_from_iter, types::Value};
 
 use super::hex::{decode_hex, encode_hex};
 use super::CampaignStoreError;
@@ -37,6 +37,16 @@ pub(super) fn load_snapshot_game_data(
         conquest: load_conquest_row(conn, snapshot_id)?,
     })
 }
+
+const CONQUEST_CONTROL_WORD_OFFSETS: [usize; 25] = [
+    0x0A, 0x0C, 0x0E, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1A, 0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26,
+    0x28, 0x2A, 0x2C, 0x2E, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3A,
+];
+
+const CONQUEST_CONTROL_BYTE_OFFSETS: [usize; 25] = [
+    0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A,
+    0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54,
+];
 
 fn write_player_rows(
     tx: &rusqlite::Transaction<'_>,
@@ -281,18 +291,19 @@ fn write_conquest_row(
     snapshot_id: i64,
     data: &ConquestDat,
 ) -> Result<(), CampaignStoreError> {
-    tx.execute(
-        "INSERT INTO snapshot_conquest(
-             snapshot_id, game_year, player_count, maintenance_schedule_raw_hex, control_header_tail_raw_hex
-         ) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![
-            snapshot_id,
-            i64::from(data.game_year()),
-            i64::from(data.player_count()),
-            encode_hex(&data.maintenance_schedule_bytes()),
-            encode_hex(&data.raw[10..0x55]),
-        ],
-    )?;
+    let sql = conquest_insert_sql();
+    let mut values = Vec::with_capacity(4 + CONQUEST_CONTROL_WORD_OFFSETS.len() + CONQUEST_CONTROL_BYTE_OFFSETS.len());
+    values.push(Value::from(snapshot_id));
+    values.push(Value::from(i64::from(data.game_year())));
+    values.push(Value::from(i64::from(data.player_count())));
+    values.push(Value::from(encode_hex(&data.maintenance_schedule_bytes())));
+    for offset in CONQUEST_CONTROL_WORD_OFFSETS {
+        values.push(Value::from(i64::from(data.raw_word(offset))));
+    }
+    for offset in CONQUEST_CONTROL_BYTE_OFFSETS {
+        values.push(Value::from(i64::from(data.raw_byte(offset))));
+    }
+    tx.execute(&sql, params_from_iter(values))?;
     Ok(())
 }
 
@@ -726,25 +737,28 @@ fn load_conquest_row(
     conn: &mut Connection,
     snapshot_id: i64,
 ) -> Result<ConquestDat, CampaignStoreError> {
-    let (
-        game_year,
-        player_count,
-        maintenance_schedule_raw_hex,
-        control_header_tail_raw_hex,
-    ) = conn.query_row(
-        "SELECT game_year, player_count, maintenance_schedule_raw_hex, control_header_tail_raw_hex
-         FROM snapshot_conquest
-         WHERE snapshot_id = ?1",
-        params![snapshot_id],
-        |row| {
+    let sql = conquest_select_sql();
+    let (game_year, player_count, maintenance_schedule_raw_hex, control_words, control_bytes) =
+        conn.query_row(&sql, params![snapshot_id], |row| {
+            let mut control_words = [0u16; CONQUEST_CONTROL_WORD_OFFSETS.len()];
+            let mut control_bytes = [0u8; CONQUEST_CONTROL_BYTE_OFFSETS.len()];
+            let mut column = 3;
+            for word in &mut control_words {
+                *word = row.get::<_, i64>(column)? as u16;
+                column += 1;
+            }
+            for byte in &mut control_bytes {
+                *byte = row.get::<_, i64>(column)? as u8;
+                column += 1;
+            }
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, i64>(1)?,
                 row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
+                control_words,
+                control_bytes,
             ))
-        },
-    )?;
+        })?;
 
     let mut conquest = ConquestDat {
         raw: [0; CONQUEST_DAT_SIZE],
@@ -752,10 +766,63 @@ fn load_conquest_row(
     conquest.set_game_year(game_year as u16);
     conquest.set_player_count(player_count as u8);
     conquest.raw[3..10].copy_from_slice(&decode_hex_exact::<7>(&maintenance_schedule_raw_hex)?);
-    conquest.raw[10..0x55].copy_from_slice(&decode_hex_exact::<{ 0x55 - 10 }>(
-        &control_header_tail_raw_hex,
-    )?);
+    for (index, offset) in CONQUEST_CONTROL_WORD_OFFSETS.into_iter().enumerate() {
+        conquest.set_raw_word(offset, control_words[index]);
+    }
+    for (index, offset) in CONQUEST_CONTROL_BYTE_OFFSETS.into_iter().enumerate() {
+        conquest.set_raw_byte(offset, control_bytes[index]);
+    }
     Ok(conquest)
+}
+
+fn conquest_insert_sql() -> String {
+    let mut columns = vec![
+        "snapshot_id".to_string(),
+        "game_year".to_string(),
+        "player_count".to_string(),
+        "maintenance_schedule_raw_hex".to_string(),
+    ];
+    columns.extend(
+        CONQUEST_CONTROL_WORD_OFFSETS
+            .into_iter()
+            .map(|offset| format!("control_word_{offset:02x}_raw")),
+    );
+    columns.extend(
+        CONQUEST_CONTROL_BYTE_OFFSETS
+            .into_iter()
+            .map(|offset| format!("control_byte_{offset:02x}_raw")),
+    );
+    let placeholders = (1..=columns.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "INSERT INTO snapshot_conquest({}) VALUES ({})",
+        columns.join(", "),
+        placeholders
+    )
+}
+
+fn conquest_select_sql() -> String {
+    let mut columns = vec![
+        "game_year".to_string(),
+        "player_count".to_string(),
+        "maintenance_schedule_raw_hex".to_string(),
+    ];
+    columns.extend(
+        CONQUEST_CONTROL_WORD_OFFSETS
+            .into_iter()
+            .map(|offset| format!("control_word_{offset:02x}_raw")),
+    );
+    columns.extend(
+        CONQUEST_CONTROL_BYTE_OFFSETS
+            .into_iter()
+            .map(|offset| format!("control_byte_{offset:02x}_raw")),
+    );
+    format!(
+        "SELECT {} FROM snapshot_conquest WHERE snapshot_id = ?1",
+        columns.join(", ")
+    )
 }
 
 fn decode_hex_exact<const N: usize>(value: &str) -> Result<[u8; N], CampaignStoreError> {

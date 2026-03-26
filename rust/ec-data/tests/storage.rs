@@ -291,8 +291,14 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
     assert!(
         schema_rows
             .iter()
-            .any(|sql| sql.contains("control_header_tail_raw_hex TEXT NOT NULL")),
-        "snapshot schema should preserve conquest control-header residue slices"
+            .any(|sql| sql.contains("control_word_0a_raw INTEGER NOT NULL")),
+        "snapshot schema should expose explicit conquest control words"
+    );
+    assert!(
+        schema_rows
+            .iter()
+            .any(|sql| sql.contains("control_byte_54_raw INTEGER NOT NULL")),
+        "snapshot schema should expose explicit conquest control bytes"
     );
     for sql in schema_rows {
         assert!(
@@ -304,8 +310,8 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
             "setup residue slab should be gone: {sql}"
         );
         assert!(
-            !sql.contains("compat_control_tail_hex"),
-            "legacy conquest tail residue column should be gone: {sql}"
+            !sql.contains("control_header_tail_raw_hex"),
+            "legacy grouped conquest residue column should be gone: {sql}"
         );
         assert!(
             !sql.to_ascii_uppercase().contains("BLOB"),
@@ -347,7 +353,7 @@ fn sqlite_store_rejects_legacy_byte_table_schema() {
         matches!(
             err,
             CampaignStoreError::SchemaVersionMismatch {
-                expected: 3,
+                expected: 4,
                 found: None
             }
         ),

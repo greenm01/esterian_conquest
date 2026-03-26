@@ -18,11 +18,12 @@ Keep this file short. Historical detail belongs in
   preferences is already stored relationally.
 - The intended runtime end state is still a **semantically normalized
   relational SQLite game state**.
-- The remaining compatibility debt is now concentrated in the `CONQUEST.DAT`
-  control header:
-  snapshot storage no longer persists whole-record residue, the old zero-fill
-  `SETUP.DAT` slab is gone from SQLite, and the post-header zero tail of
-  `CONQUEST.DAT` is gone too.
+- Snapshot storage no longer persists whole-record residue or grouped opaque
+  tail slices.
+- The remaining compatibility debt is now mainly semantic:
+  some classic-derived fields, especially in `CONQUEST.DAT`, are stored as
+  explicit offset-shaped raw columns because their gameplay meaning is still
+  only partially understood.
 - Latest broad baselines before new work:
   - `cargo test -q`
   - `cargo test -q -p ec-game`
@@ -32,7 +33,7 @@ Keep this file short. Historical detail belongs in
 - Keep the Rust player client stable while shifting primary effort away from
   broad TUI implementation and toward runtime storage cleanup.
 - Keep pushing the storage model toward smaller semantic fields and fewer
-  opaque control-header slices, without regressing exact classic import/export.
+  offset-shaped raw fields, without regressing exact classic import/export.
 - Keep classic import/export and oracle tooling as compatibility backstops, not
   the primary day-to-day development model.
 
@@ -42,17 +43,17 @@ Keep this file short. Historical detail belongs in
   plumbing:
   - runtime/gameplay layers are off direct raw offsets
   - snapshot storage is normalized and exact-roundtrip safe
-  - the remaining unresolved storage seam is the active `CONQUEST.DAT` control
-    header bytes that are still stored as a grouped slice
-- New gameplay features should not deepen the remaining control-slice storage
-  path.
+  - the remaining unresolved storage seam is that some classic control/header
+    fields are still stored by explicit offsets rather than fully named
+    semantics
+- New gameplay features should not deepen the offset-shaped storage path.
 - Remaining TUI work is now minor cleanup, not the primary blocker.
 
 ## Immediate Next Steps
 
-1. Shrink the remaining grouped `CONQUEST.DAT` control-header slice in
-   `snapshot_core` only when a decoded semantic field is actually useful to
-   gameplay or tooling.
+1. Keep converting offset-shaped classic fields, especially in
+   `CONQUEST.DAT`, into named semantic storage only when the decoded meaning is
+   actually useful to gameplay or tooling.
 2. Keep `CoreGameData` as the in-memory boundary for now, but continue pushing
    unknown byte semantics behind typed record accessors rather than exposing
    `.raw[...]` to runtime callers.
