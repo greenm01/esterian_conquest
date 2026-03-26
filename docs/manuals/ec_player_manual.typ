@@ -445,6 +445,8 @@ Your last choice is remembered for your empire in that campaign.
 
 General Command handles empire-wide administration. Autopilot (*A*) lets the computer manage your defenses if you miss turns. Diplomacy (*E*) lets you declare other players as Neutral or Enemy --- neutral fleets will not attack unless provoked, while enemy fleets will attack on sight based on ROE. Messages (*C*) lets you send messages to other empires.
 
+To keep messaging civil, you may send no more than three messages to any single opponent per turn. In a four-player game, for example, that is up to twelve outgoing messages in a turn. Messages and reports are never automatically purged --- they accumulate in your inbox across turns until you remove them yourself. The inbox supports type and year filters to help you find older items, and pressing *D* on a selected item prompts for deletion, defaulting to yes. General Command also offers a bulk delete to clear all messages at once. New reports and messages from the most recent maintenance turn are presented one by one through the scrolling intro review when you log in, giving you another opportunity to read and delete before reaching the main menu.
+
 === Planet Command
 
 Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. Scorch Earth (*S*) destroys your own factories to deny them to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.

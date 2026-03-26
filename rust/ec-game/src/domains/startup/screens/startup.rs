@@ -1,7 +1,7 @@
-use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
+use crate::reports::{wrap_review_text_preserving_spacing, ReportsPreview, ReviewBlock};
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, dismiss_prompt_row,
-    draw_bottom_aligned_transcript_rows, draw_plain_prompt, last_body_row, new_playfield,
+    centered_row, dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_plain_prompt,
+    last_body_row, new_playfield, COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -206,7 +206,7 @@ impl StartupScreen {
         game_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let delete_prompt = format!("Delete this {singular} Y/[N] ->");
+        let delete_prompt = format!("Delete this {singular} [Y]/N ->");
         let view_prompt =
             format!("You have undeleted {plural}. View them? [Y]es, <N>o, <NS> (non-stop) ->");
         let continue_prompt =
@@ -642,7 +642,7 @@ fn completed_review_history_rows(
     game_year: u16,
     section_label: &str,
 ) -> Vec<String> {
-    let delete_prompt = format!("Delete this {singular} Y/[N] ->");
+    let delete_prompt = format!("Delete this {singular} [Y]/N ->");
     let continue_prompt =
         format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
     let mut transcript_rows = vec![format!(
@@ -676,7 +676,11 @@ fn capitalize(s: &str) -> String {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
+    if value.is_empty() {
+        "<unknown>"
+    } else {
+        value
+    }
 }
 
 const INTRO_LOGO: [&str; 11] = [

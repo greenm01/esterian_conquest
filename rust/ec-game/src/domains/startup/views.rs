@@ -128,7 +128,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::GeneralHelp => app.general_help.render(&frame),
         ScreenId::Reports => app.reports.render_inbox(
             app.command_return_menu,
-            &app.filtered_inbox_items(),
+            &app.filtered_inbox_display_items(),
             app.messaging.inbox_type_filter,
             app.messaging.inbox_year_filter,
             app.messaging.inbox_cursor,

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use ec_data::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 use ec_game::domains::messaging::state::{InboxFocus, InboxPromptMode, InboxTypeFilter};
-use ec_game::reports::{InboxItemType, runtime_inbox_items};
+use ec_game::reports::{InboxDisplayItem, InboxItem, InboxItemType, runtime_inbox_items};
 use ec_game::screen::{CommandMenu, ReportsScreen};
 use ec_game::theme::classic;
 
@@ -32,6 +32,17 @@ fn report_row(block_index: usize, decoded_text: &str) -> ReportBlockRow {
         raw_bytes: None,
         recipient_deleted: false,
     }
+}
+
+fn with_display_ids(items: Vec<InboxItem>) -> Vec<InboxDisplayItem> {
+    items
+        .into_iter()
+        .enumerate()
+        .map(|(idx, item)| InboxDisplayItem {
+            display_id: idx + 1,
+            item,
+        })
+        .collect()
 }
 
 #[test]
@@ -109,12 +120,12 @@ fn message_rows_display_zero_week_stardate() {
 #[test]
 fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
     let game_data = fixture_game_data();
-    let items = runtime_inbox_items(
+    let items = with_display_ids(runtime_inbox_items(
         &game_data,
         1,
         &[report_row(0, "Stardate: 03/3003\nFleet contact report")],
         &[visible_mail(2, 1, 3003, "Diplomatic")],
-    );
+    ));
     let mut screen = ReportsScreen::new();
 
     let inbox_buffer = screen
@@ -203,13 +214,16 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
 fn reports_screen_uses_themed_scrollbar_thumb_style() {
     let game_data = fixture_game_data();
     let items = (0..12)
-        .map(|idx| ec_game::reports::InboxItem {
-            source: ec_game::reports::InboxItemSource::QueuedMail(idx),
-            item_type: InboxItemType::Message,
-            year: 3003,
-            week: None,
-            subject: format!("Message {}", idx + 1),
-            body_lines: vec![format!("Body {}", idx + 1)],
+        .map(|idx| InboxDisplayItem {
+            display_id: idx + 1,
+            item: InboxItem {
+                source: ec_game::reports::InboxItemSource::QueuedMail(idx),
+                item_type: InboxItemType::Message,
+                year: 3003,
+                week: None,
+                subject: format!("Message {}", idx + 1),
+                body_lines: vec![format!("Body {}", idx + 1)],
+            },
         })
         .collect::<Vec<_>>();
     let mut screen = ReportsScreen::new();

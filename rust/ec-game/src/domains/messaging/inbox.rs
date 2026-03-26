@@ -1,15 +1,17 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::Action;
 use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
-use crate::domains::messaging::MessagingAction;
+use crate::app::Action;
 use crate::domains::messaging::state::{
-    INBOX_VISIBLE_ROWS, InboxFocus, InboxPromptMode, InboxTypeFilter,
+    InboxFocus, InboxPromptMode, InboxTypeFilter, INBOX_VISIBLE_ROWS,
 };
-use crate::reports::{InboxItem, InboxItemSource, InboxItemType, runtime_inbox_items};
-use crate::screen::ScreenId;
+use crate::domains::messaging::MessagingAction;
+use crate::reports::{
+    runtime_inbox_items, InboxDisplayItem, InboxItem, InboxItemSource, InboxItemType,
+};
 use crate::screen::layout::PromptFeedback;
+use crate::screen::ScreenId;
 
 const INBOX_PREVIEW_PAGE_DELTA: i8 = INBOX_VISIBLE_ROWS as i8;
 
@@ -44,11 +46,10 @@ impl App {
                 _ => Action::Noop,
             },
             InboxPromptMode::DeleteConfirm => match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
                     Action::Messaging(MessagingAction::ConfirmDeleteInboxItem)
                 }
-                KeyCode::Enter
-                | KeyCode::Char('n')
+                KeyCode::Char('n')
                 | KeyCode::Char('N')
                 | KeyCode::Char('q')
                 | KeyCode::Char('Q')
@@ -77,7 +78,13 @@ impl App {
                 }
                 KeyCode::Tab => Action::Messaging(MessagingAction::ToggleInboxFocus),
                 KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceInboxIdInput),
-                KeyCode::Enter => Action::Messaging(MessagingAction::SubmitInboxIdInput),
+                KeyCode::Enter => match self.messaging.inbox_focus {
+                    InboxFocus::Inbox if self.messaging.inbox_id_input.trim().is_empty() => {
+                        Action::Messaging(MessagingAction::ToggleInboxFocus)
+                    }
+                    InboxFocus::Inbox => Action::Messaging(MessagingAction::SubmitInboxIdInput),
+                    InboxFocus::Preview => Action::Noop,
+                },
                 KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                     Action::ReturnToCommandMenu
                 }
@@ -195,6 +202,15 @@ impl App {
             };
             year
         };
+        if self
+            .inbox_items_for_filters(self.messaging.inbox_type_filter, Some(year))
+            .is_empty()
+        {
+            self.messaging.inbox_year_input.clear();
+            self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
+            self.messaging.inbox_feedback = None;
+            return;
+        }
         self.messaging.inbox_year_filter = Some(year);
         self.messaging.inbox_year_input.clear();
         self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
@@ -280,14 +296,17 @@ impl App {
                 Some(PromptFeedback::error("Enter a valid inbox item ID."));
             return;
         };
-        let total = self.filtered_inbox_items().len();
-        if !(1..=total).contains(&id) {
+        let Some(index) = self
+            .filtered_inbox_display_items()
+            .iter()
+            .position(|item| item.display_id == id)
+        else {
             self.messaging.inbox_feedback = Some(PromptFeedback::error(format!(
-                "Enter an inbox item ID in 1..={total}."
+                "Enter a visible inbox item ID."
             )));
             return;
-        }
-        self.messaging.inbox_cursor = id - 1;
+        };
+        self.messaging.inbox_cursor = index;
         sync_scroll_to_cursor(
             &mut self.messaging.inbox_scroll_offset,
             self.messaging.inbox_cursor,
@@ -323,7 +342,7 @@ impl App {
             self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
             return Ok(());
         };
-        let deleted_id = self.messaging.inbox_cursor + 1;
+        let deleted_id = self.current_inbox_display_id();
         match item.source {
             InboxItemSource::QueuedMail(index) => {
                 if let Some(mail) = self.queued_mail.get_mut(index) {
@@ -339,16 +358,19 @@ impl App {
         self.save_game_data()?;
         self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
         self.messaging.inbox_feedback = Some(PromptFeedback::notice(format!(
-            "Deleted item {deleted_id:02}."
+            "Deleted item {deleted_id}."
         )));
-        self.reset_inbox_jump_and_preview();
+        self.messaging.inbox_id_input.clear();
+        self.messaging.inbox_preview_scroll = 0;
         self.normalize_inbox_selection();
         Ok(())
     }
 
-    pub fn filtered_inbox_items(&self) -> Vec<InboxItem> {
-        let current_year = self.game_data.conquest.game_year();
-        let min_year = current_year.saturating_sub(4);
+    fn inbox_items_for_filters(
+        &self,
+        type_filter: InboxTypeFilter,
+        year_filter: Option<u16>,
+    ) -> Vec<InboxItem> {
         runtime_inbox_items(
             &self.game_data,
             self.player.record_index_1_based as u8,
@@ -356,18 +378,33 @@ impl App {
             &self.queued_mail,
         )
         .into_iter()
-        .filter(|item| item.year >= min_year)
-        .filter(|item| match self.messaging.inbox_type_filter {
+        .filter(|item| match type_filter {
             InboxTypeFilter::All => true,
             InboxTypeFilter::Messages => item.item_type == InboxItemType::Message,
             InboxTypeFilter::Reports => item.item_type == InboxItemType::Report,
         })
-        .filter(|item| {
-            self.messaging
-                .inbox_year_filter
-                .is_none_or(|year| item.year == year)
-        })
+        .filter(|item| year_filter.is_none_or(|year| item.year == year))
         .collect()
+    }
+
+    pub fn filtered_inbox_items(&self) -> Vec<InboxItem> {
+        self.inbox_items_for_filters(
+            self.messaging.inbox_type_filter,
+            self.messaging.inbox_year_filter,
+        )
+    }
+
+    pub fn filtered_inbox_display_items(&self) -> Vec<InboxDisplayItem> {
+        self.filtered_inbox_items()
+            .into_iter()
+            .filter_map(|item| {
+                self.messaging
+                    .inbox_display_ids
+                    .get(&item.source)
+                    .copied()
+                    .map(|display_id| InboxDisplayItem { display_id, item })
+            })
+            .collect()
     }
 
     pub fn current_inbox_item(&self) -> Option<InboxItem> {
@@ -377,11 +414,10 @@ impl App {
     }
 
     pub fn current_inbox_display_id(&self) -> String {
-        if self.filtered_inbox_items().is_empty() {
-            "00".to_string()
-        } else {
-            format!("{:02}", self.messaging.inbox_cursor + 1)
-        }
+        self.filtered_inbox_display_items()
+            .get(self.messaging.inbox_cursor)
+            .map(|item| format!("{:02}", item.display_id))
+            .unwrap_or_else(|| "00".to_string())
     }
 
     fn current_inbox_preview_lines(&self) -> Vec<String> {
@@ -399,6 +435,7 @@ impl App {
     }
 
     fn normalize_inbox_selection(&mut self) {
+        self.ensure_inbox_display_ids_for_current_filter();
         let total = self.filtered_inbox_items().len();
         if total == 0 {
             self.messaging.inbox_cursor = 0;
@@ -430,11 +467,14 @@ impl App {
         let Ok(id) = raw.parse::<usize>() else {
             return;
         };
-        let total = self.filtered_inbox_items().len();
-        if !(1..=total).contains(&id) {
+        let Some(index) = self
+            .filtered_inbox_display_items()
+            .iter()
+            .position(|item| item.display_id == id)
+        else {
             return;
-        }
-        self.messaging.inbox_cursor = id - 1;
+        };
+        self.messaging.inbox_cursor = index;
         sync_scroll_to_cursor(
             &mut self.messaging.inbox_scroll_offset,
             self.messaging.inbox_cursor,
@@ -447,6 +487,18 @@ impl App {
         self.messaging.inbox_prompt_mode = InboxPromptMode::Normal;
         self.messaging.inbox_year_input.clear();
         self.messaging.inbox_feedback = None;
+    }
+
+    fn ensure_inbox_display_ids_for_current_filter(&mut self) {
+        let items = self.filtered_inbox_items();
+        for item in items {
+            if self.messaging.inbox_display_ids.contains_key(&item.source) {
+                continue;
+            }
+            let next = self.messaging.inbox_next_display_id;
+            self.messaging.inbox_display_ids.insert(item.source, next);
+            self.messaging.inbox_next_display_id += 1;
+        }
     }
 
     fn reset_inbox_jump_and_preview(&mut self) {
@@ -466,7 +518,7 @@ impl App {
 
     pub fn inbox_preview_body_rows(&self) -> usize {
         crate::screen::layout::COMMAND_LINE_ROW
-            .saturating_sub(self.inbox_preview_start_row() + 2)
+            .saturating_sub(self.inbox_preview_start_row() + 1)
             .saturating_sub(1)
     }
 

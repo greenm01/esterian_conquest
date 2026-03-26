@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -24,7 +25,23 @@ def build_workspace_binary(package: str, release: bool) -> Path:
 
 def refresh_campaign_snapshot(game_dir: Path, release: bool) -> None:
     cli_binary = build_workspace_binary("ec-cli", release)
-    subprocess.run([str(cli_binary), "db-import", str(game_dir)], cwd=RUST_DIR, check=True)
+    result = subprocess.run(
+        [str(cli_binary), "db-import", str(game_dir)],
+        cwd=RUST_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        if result.stdout:
+            sys.stderr.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            result.args,
+            output=result.stdout,
+            stderr=result.stderr,
+        )
 
 
 def main() -> None:

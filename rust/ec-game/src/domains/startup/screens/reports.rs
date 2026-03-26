@@ -2,19 +2,19 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::domains::messaging::state::{
-    INBOX_VISIBLE_ROWS, InboxFocus, InboxPromptMode, InboxTypeFilter,
+    InboxFocus, InboxPromptMode, InboxTypeFilter, INBOX_VISIBLE_ROWS,
 };
-use crate::reports::InboxItem;
+use crate::reports::InboxDisplayItem;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_WIDTH, PromptFeedback, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, new_playfield, wrap_text,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at, new_playfield, wrap_text,
+    PromptFeedback, COMMAND_LINE_ROW, PLAYFIELD_WIDTH,
 };
 use crate::screen::table::{
-    TableAlign, TableColumn, fit_table_columns, table_column_start, table_render_width,
-    write_table_window_with_states_at,
+    fit_table_columns, table_column_start, table_render_width, write_table_window_with_states_at,
+    TableAlign, TableColumn,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, command_menu_label,
+    command_menu_label, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan,
 };
 use crate::theme::classic;
 
@@ -34,7 +34,7 @@ impl ReportsScreen {
     pub fn render_inbox(
         &mut self,
         menu: CommandMenu,
-        items: &[InboxItem],
+        items: &[InboxDisplayItem],
         type_filter: InboxTypeFilter,
         year_filter: Option<u16>,
         cursor: usize,
@@ -73,13 +73,12 @@ impl ReportsScreen {
 
         let table_rows = items
             .iter()
-            .enumerate()
-            .map(|(idx, item)| {
+            .map(|item| {
                 vec![
-                    format!("{:02}", idx + 1),
-                    item.item_type.code().to_string(),
-                    item.stardate_label(),
-                    item.subject.clone(),
+                    format!("{:02}", item.display_id),
+                    item.item.item_type.code().to_string(),
+                    item.item.stardate_label(),
+                    item.item.subject.clone(),
                 ]
             })
             .collect::<Vec<_>>();
@@ -119,7 +118,7 @@ impl ReportsScreen {
                 TABLE_START_ROW + 3 + selected_row,
                 table_column_start(&columns, 0).unwrap_or(1),
                 columns[0],
-                &format!("{:02}", cursor + 1),
+                &selected_id_label(items, cursor),
             );
         }
 
@@ -141,7 +140,7 @@ impl ReportsScreen {
             .get(cursor)
             .map(|item| {
                 crate::reports::runtime_inbox_preview_lines(
-                    &item.body_lines,
+                    &item.item.body_lines,
                     PLAYFIELD_WIDTH.saturating_sub(2),
                 )
             })
@@ -203,7 +202,7 @@ impl ReportsScreen {
                     COMMAND_LINE_ROW,
                     command_menu_label(menu),
                     &format!(
-                        "Delete item {}? Y/[N] -> ",
+                        "Delete item {}? [Y]/N -> ",
                         selected_id_label(items, cursor)
                     ),
                 );
@@ -313,12 +312,11 @@ fn focus_label(focus: InboxFocus) -> &'static str {
     }
 }
 
-fn selected_id_label(items: &[InboxItem], cursor: usize) -> String {
-    if items.is_empty() {
-        "00".to_string()
-    } else {
-        format!("{:02}", cursor + 1)
-    }
+fn selected_id_label(items: &[InboxDisplayItem], cursor: usize) -> String {
+    items
+        .get(cursor)
+        .map(|item| format!("{:02}", item.display_id))
+        .unwrap_or_else(|| "00".to_string())
 }
 
 fn draw_preview_border(

@@ -1,3 +1,6 @@
+use std::collections::BTreeMap;
+
+use crate::reports::InboxItemSource;
 use crate::screen::layout::PromptFeedback;
 
 pub const INBOX_VISIBLE_ROWS: usize = 8;
@@ -50,6 +53,8 @@ pub struct MessagingState {
     pub inbox_year_input: String,
     pub inbox_prompt_mode: InboxPromptMode,
     pub inbox_feedback: Option<PromptFeedback>,
+    pub inbox_display_ids: BTreeMap<InboxItemSource, usize>,
+    pub inbox_next_display_id: usize,
 }
 
 impl Default for MessagingState {
@@ -82,6 +87,8 @@ impl Default for MessagingState {
             inbox_year_input: String::new(),
             inbox_prompt_mode: InboxPromptMode::Normal,
             inbox_feedback: None,
+            inbox_display_ids: BTreeMap::new(),
+            inbox_next_display_id: 1,
         }
     }
 }

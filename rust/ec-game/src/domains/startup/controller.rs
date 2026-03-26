@@ -2,10 +2,10 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{
-    CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
-    StartupReviewMode,
+    CommandMenu, ScreenId, StartupReviewMode, FIRST_TIME_INTRO_PAGE_COUNT,
+    STARTUP_SPLASH_PAGE_COUNT,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 
@@ -811,10 +811,10 @@ impl App {
                         _ => Action::Startup(StartupAction::Advance),
                     },
                     StartupReviewMode::DeletePrompt => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
                             Action::Startup(StartupAction::AcceptDefault)
                         }
-                        KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
+                        KeyCode::Char('n') | KeyCode::Char('N') => {
                             Action::Startup(StartupAction::RejectChoice)
                         }
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
@@ -886,10 +886,10 @@ impl App {
                         _ => Action::Startup(StartupAction::Advance),
                     },
                     StartupReviewMode::DeletePrompt => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
                             Action::Startup(StartupAction::AcceptDefault)
                         }
-                        KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
+                        KeyCode::Char('n') | KeyCode::Char('N') => {
                             Action::Startup(StartupAction::RejectChoice)
                         }
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,

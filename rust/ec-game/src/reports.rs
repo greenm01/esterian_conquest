@@ -30,7 +30,7 @@ impl InboxItemType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InboxItemSource {
     QueuedMail(usize),
     ReportBlock(usize),
@@ -44,6 +44,12 @@ pub struct InboxItem {
     pub week: Option<u8>,
     pub subject: String,
     pub body_lines: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InboxDisplayItem {
+    pub display_id: usize,
+    pub item: InboxItem,
 }
 
 impl InboxItem {

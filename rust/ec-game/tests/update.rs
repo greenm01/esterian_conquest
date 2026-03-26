@@ -7,25 +7,26 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use ec_compat::{decode_report_block_rows, import_directory_snapshot};
 use ec_data::{
-    CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, GameConfig, InactivityConfig, IntelTier, PlanetIntelSnapshot,
-    ProductionItemKind, QueuedPlayerMail, SessionConfig, map_size_for_player_count,
+    map_size_for_player_count, CampaignRuntimeState, CampaignStore, CoreGameData,
+    DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort, GameConfig,
+    InactivityConfig, IntelTier, PlanetIntelSnapshot, ProductionItemKind, QueuedPlayerMail,
+    SessionConfig,
 };
 use ec_engine::yearly_tax_revenue;
-use ec_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
+use ec_game::app::{apply_action, Action, App, AppConfig, AppOutcome};
 use ec_game::domains::empire::EmpireAction;
-use ec_game::domains::fleet::FleetAction;
 use ec_game::domains::fleet::missions::{
-    FLEET_MISSION_OPTIONS, FleetMissionRequirement, fleet_record_supports_mission_code,
+    fleet_record_supports_mission_code, FleetMissionRequirement, FLEET_MISSION_OPTIONS,
 };
-use ec_game::domains::messaging::{MessagingAction, state::InboxFocus};
+use ec_game::domains::fleet::FleetAction;
+use ec_game::domains::messaging::{state::InboxFocus, MessagingAction};
 use ec_game::domains::planet::PlanetAction;
 use ec_game::domains::starbase::StarbaseAction;
 use ec_game::domains::starmap::StarmapAction;
 use ec_game::domains::startup::StartupAction;
 use ec_game::model::ClassicLoginState;
 use ec_game::screen::layout::COMMAND_LINE_ROW;
-use ec_game::screen::table::{TableColumn, fit_table_columns};
+use ec_game::screen::table::{fit_table_columns, TableColumn};
 use ec_game::screen::{
     CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRow, PlanetBuildMenuView,
     PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode, PlanetListSort,
@@ -1164,11 +1165,9 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("rename prompt should render");
-    assert!(
-        terminal
-            .line(2)
-            .contains("You are a pre-loaded player and this is your first time on.")
-    );
+    assert!(terminal
+        .line(2)
+        .contains("You are a pre-loaded player and this is your first time on."));
     assert!(terminal.line(6).contains("Rename your empire? Y/[N] ->"));
 }
 
@@ -1360,11 +1359,9 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
     let mut rename_terminal = CaptureTerminal::new();
     app.render(&mut rename_terminal)
         .expect("rename input should render");
-    assert!(
-        rename_terminal
-            .line(2)
-            .contains("You are a pre-loaded player and this is your first time on.")
-    );
+    assert!(rename_terminal
+        .line(2)
+        .contains("You are a pre-loaded player and this is your first time on."));
 
     for _ in 0..24 {
         assert_eq!(
@@ -1591,12 +1588,10 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colony world naming screen should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("must name this newly colonized world before continuing"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("must name this newly colonized world before continuing")));
 }
 
 #[test]
@@ -2850,19 +2845,15 @@ fn starbase_move_prompt_accepts_non_planet_sector_and_persists_report() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase move base prompt should render");
-    assert!(
-        line_containing(&terminal, "STARBASE COMMAND <- Starbase #")
-            .contains("Starbase # [1] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "STARBASE COMMAND <- Starbase #")
+        .contains("Starbase # [1] <Q> ->"));
 
     apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase move decision prompt should render");
-    assert!(
-        line_containing(&terminal, "STARBASE COMMAND <- <H>alt or")
-            .contains("<H>alt or [M]ove <Q> ->")
-    );
+    assert!(line_containing(&terminal, "STARBASE COMMAND <- <H>alt or")
+        .contains("<H>alt or [M]ove <Q> ->"));
 
     apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
     let mut terminal = CaptureTerminal::new();
@@ -2907,11 +2898,9 @@ fn starbase_move_prompt_accepts_non_planet_sector_and_persists_report() {
         "Starbase 1 is moving to ({:02},{:02}).",
         destination[0], destination[1]
     )));
-    assert!(
-        latest_report
-            .decoded_text
-            .contains("Guard Fleets 1 and 2 will follow it.")
-    );
+    assert!(latest_report
+        .decoded_text
+        .contains("Guard Fleets 1 and 2 will follow it."));
 }
 
 #[test]
@@ -2940,9 +2929,7 @@ fn starbase_help_uses_move_wording_not_hauling() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase help should render");
-    assert!(
-        line_containing(&terminal, "move to a new location").contains("move to a new location")
-    );
+    assert!(line_containing(&terminal, "move to a new location").contains("move to a new location"));
     assert!(
         !terminal.lines.iter().any(|line| line.contains("hauled")),
         "player-facing help should not mention hauling"
@@ -3100,20 +3087,16 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     assert!(
         line_containing(&terminal, "Destination Fleet: Fleet #2").contains("Destination Fleet:")
     );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Ships: ") && line.contains("TT*"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Ships: ") && line.contains("TT*")));
     assert!(terminal.lines.iter().all(|line| !line.contains("AR=")));
     assert!(line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X>").contains("<Q> ->"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Staged to Transfer: none"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Staged to Transfer: none")));
 }
 
 #[test]
@@ -3571,10 +3554,8 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     app.render(&mut terminal)
         .expect("theme picker should render");
     assert_eq!(terminal.line(0).trim_end(), "ANSI THEMES:");
-    assert!(
-        line_containing(&terminal, "COMMANDS <ARROWS J K ENTER Q>")
-            .contains("<ARROWS J K ENTER Q>")
-    );
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K ENTER Q>")
+        .contains("<ARROWS J K ENTER Q>"));
 
     theme_picker_select(&mut app, "tokyo_night");
     assert_eq!(
@@ -3589,12 +3570,10 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
 
     app.render(&mut terminal)
         .expect("theme picker should rerender");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains("Applied theme: Tokyo Night."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains("Applied theme: Tokyo Night.")));
 }
 
 #[test]
@@ -3808,12 +3787,10 @@ fn missing_theme_file_falls_back_to_classic_and_persists_fallback() {
         "Theme unavailable. Using {}.",
         theme::default_theme_display_name()
     );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains(&expected_notice))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains(&expected_notice)));
 }
 
 #[test]
@@ -4096,12 +4073,10 @@ fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist(
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("No owned planets have units waiting in stardock.") })
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("No owned planets have units waiting in stardock.") }));
 }
 
 #[test]
@@ -4139,12 +4114,10 @@ fn planet_commission_draft_render_does_not_crash_when_picker_rows_disappear() {
 
     app.render(&mut terminal)
         .expect("commission draft render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("DRAFT COMMISSION FLEET:"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("DRAFT COMMISSION FLEET:")));
 }
 
 #[test]
@@ -4248,12 +4221,10 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
 
     app.render(&mut terminal).expect("commission draft renders");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Set quantities for the ships you want in this fleet."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Set quantities for the ships you want in this fleet.")));
 
     assert_eq!(
         apply_action(
@@ -4270,28 +4241,23 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionResult);
-    assert!(
-        app.planet
-            .commission_result_notice
-            .as_deref()
-            .unwrap_or("")
-            .contains("Fleet")
-    );
+    assert!(app
+        .planet
+        .commission_result_notice
+        .as_deref()
+        .unwrap_or("")
+        .contains("Fleet"));
 
     app.render(&mut terminal)
         .expect("commission result renders");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Notice: Commissioned selected ships into Fleet"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("(slap a key)"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Notice: Commissioned selected ships into Fleet")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("(slap a key)")));
 
     assert_eq!(
         apply_action(
@@ -4315,13 +4281,12 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionResult);
-    assert!(
-        app.planet
-            .commission_result_notice
-            .as_deref()
-            .unwrap_or("")
-            .contains("Starbase")
-    );
+    assert!(app
+        .planet
+        .commission_result_notice
+        .as_deref()
+        .unwrap_or("")
+        .contains("Starbase"));
 
     assert_eq!(
         apply_action(
@@ -4418,13 +4383,12 @@ fn planet_commission_draft_keeps_intermediate_success_inline() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
-    assert!(
-        app.planet
-            .commission_draft_notice
-            .as_deref()
-            .unwrap_or("")
-            .contains("Fleet")
-    );
+    assert!(app
+        .planet
+        .commission_draft_notice
+        .as_deref()
+        .unwrap_or("")
+        .contains("Fleet"));
     assert_eq!(app.planet.commission_draft_rows.len(), 2);
     assert_eq!(app.planet.commission_draft_rows[0].remaining_qty, 3);
     assert_eq!(app.planet.commission_draft_rows[1].remaining_qty, 2);
@@ -4495,13 +4459,12 @@ fn planet_commission_blank_submit_uses_displayed_default_qty() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionResult);
-    assert!(
-        app.planet
-            .commission_result_notice
-            .as_deref()
-            .unwrap_or("")
-            .contains("Fleet")
-    );
+    assert!(app
+        .planet
+        .commission_result_notice
+        .as_deref()
+        .unwrap_or("")
+        .contains("Fleet"));
 }
 
 #[test]
@@ -4588,13 +4551,12 @@ fn planet_commission_blank_row_move_commits_displayed_default_qty() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
-    assert!(
-        app.planet
-            .commission_draft_notice
-            .as_deref()
-            .unwrap_or("")
-            .contains("Fleet")
-    );
+    assert!(app
+        .planet
+        .commission_draft_notice
+        .as_deref()
+        .unwrap_or("")
+        .contains("Fleet"));
 }
 
 #[test]
@@ -4699,12 +4661,10 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
     app.render(&mut terminal)
         .expect("planet menu render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("No owned planets available"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("No owned planets available")));
 
     assert_eq!(
         apply_action(
@@ -4949,12 +4909,10 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet menu should render empty-fleet notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("You have no active fleets."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("You have no active fleets.")));
 }
 
 #[test]
@@ -4987,12 +4945,10 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet menu should render empty-planet notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("You do not currently control any planets."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("You do not currently control any planets.")));
 
     assert_eq!(
         apply_action(
@@ -5235,12 +5191,10 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("general menu should render empty-reviewables notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("No messages or results are currently reviewable."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("No messages or results are currently reviewable.")));
 }
 
 #[test]
@@ -5281,18 +5235,14 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
     app.render(&mut terminal)
         .expect("general menu should render inline delete prompt");
     assert!(line_containing(&terminal, "COMMAND <-").contains("COMMAND <- Y/[N] ->"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("DELETE ALL MESSAGES / RESULTS:"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("currently reviewable"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("DELETE ALL MESSAGES / RESULTS:")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("currently reviewable")));
 
     assert_eq!(
         apply_action(
@@ -5339,12 +5289,10 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
-            assert!(
-                terminal
-                    .lines
-                    .iter()
-                    .any(|line| line.contains("The year is:"))
-            );
+            assert!(terminal
+                .lines
+                .iter()
+                .any(|line| line.contains("The year is:")));
             break;
         }
         app.advance_startup();
@@ -5394,23 +5342,19 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let mut reports_terminal = CaptureTerminal::new();
     app.render(&mut reports_terminal)
         .expect("reports screen should render");
-    assert!(
-        reports_terminal
-            .line(0)
-            .contains("Type: All | Year: All | Focus: Inbox")
-    );
+    assert!(reports_terminal
+        .line(0)
+        .contains("Type: All | Year: All | Focus: Inbox"));
     assert!(reports_terminal.line(1).starts_with('┌'));
     assert!(reports_terminal.line(2).contains("ID"));
     assert!(reports_terminal.line(2).contains("Type"));
     assert!(reports_terminal.line(2).contains("Stardate"));
     assert!(reports_terminal.line(2).contains("Subject"));
     assert!(reports_terminal.line(5).starts_with('┌'));
-    assert!(
-        reports_terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("<no matching items>"))
-    );
+    assert!(reports_terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<no matching items>")));
 }
 
 #[test]
@@ -5515,24 +5459,18 @@ fn startup_results_paginate_before_advancing_to_messages() {
     let mut first_page = CaptureTerminal::new();
     app.render(&mut first_page)
         .expect("first startup results page should render");
-    assert!(
-        first_page
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Report line 01"))
-    );
-    assert!(
-        !first_page
-            .lines
-            .iter()
-            .any(|line| line.contains("Report line 28"))
-    );
-    assert!(
-        first_page
-            .lines
-            .iter()
-            .any(|line| line.contains("(Slap a key for more)"))
-    );
+    assert!(first_page
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Report line 01")));
+    assert!(!first_page
+        .lines
+        .iter()
+        .any(|line| line.contains("Report line 28")));
+    assert!(first_page
+        .lines
+        .iter()
+        .any(|line| line.contains("(Slap a key for more)")));
 
     for _ in 0..18 {
         let mut screen = CaptureTerminal::new();
@@ -5541,7 +5479,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         if screen
             .lines
             .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
+            .any(|line| line.contains("Delete this report [Y]/N ->"))
         {
             break;
         }
@@ -5558,24 +5496,18 @@ fn startup_results_paginate_before_advancing_to_messages() {
     let mut end_status = CaptureTerminal::new();
     app.render(&mut end_status)
         .expect("inline startup results completion should render");
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("All reports seen. (Slap a key)"))
-    );
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
-    );
-    assert!(
-        !end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("RESULTS REVIEW:"))
-    );
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("All reports seen. (Slap a key)")));
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("Delete this report [Y]/N ->")));
+    assert!(!end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("RESULTS REVIEW:")));
 
     // EndStatus → phase exit → Messages.
     app.advance_startup();
@@ -5627,18 +5559,14 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("first startup message should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> From") && line.contains("Empire #2"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("<end of message>"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> From") && line.contains("Empire #2")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<end of message>")));
 
     // Accept default at the end-of-block prompt → delete Alpha → ContinuePrompt (Beta still exists).
     assert_eq!(
@@ -5659,12 +5587,10 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let mut after_delete = CaptureTerminal::new();
     app.render(&mut after_delete)
         .expect("next startup message should render");
-    assert!(
-        after_delete
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> From") && line.contains("Empire #3"))
-    );
+    assert!(after_delete
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> From") && line.contains("Empire #3")));
 
     let runtime = latest_runtime_state(&fixture_dir);
     let preview = ec_game::reports::ReportsPreview::from_block_rows(
@@ -5674,18 +5600,14 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         &runtime.queued_mail,
     );
     assert_eq!(preview.message_blocks.len(), 1);
-    assert!(
-        preview
-            .message_lines
-            .iter()
-            .any(|line| line.contains("From") && line.contains("Empire #3"))
-    );
-    assert!(
-        preview
-            .message_lines
-            .iter()
-            .any(|line| line.contains("<end of message>"))
-    );
+    assert!(preview
+        .message_lines
+        .iter()
+        .any(|line| line.contains("From") && line.contains("Empire #3")));
+    assert!(preview
+        .message_lines
+        .iter()
+        .any(|line| line.contains("<end of message>")));
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert!(!runtime.queued_mail[1].recipient_deleted);
 }
@@ -5738,24 +5660,18 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
     let mut end_status = CaptureTerminal::new();
     app.render(&mut end_status)
         .expect("end status should render");
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("Messages deleted."))
-    );
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("All messages seen. (Slap a key)"))
-    );
-    assert!(
-        !end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("MESSAGES REVIEW:"))
-    );
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("Messages deleted.")));
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("All messages seen. (Slap a key)")));
+    assert!(!end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("MESSAGES REVIEW:")));
 
     // Advance from EndStatus → phase exit → MainMenu.
     app.advance_startup();
@@ -5809,31 +5725,23 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> This is a deliberately long startup results line"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> This is a deliberately long startup results line")));
     assert!(terminal.lines.iter().any(|line| line.starts_with(" -> ")));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("should wrap cleanly"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("eighty column playfield"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("single row."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("should wrap cleanly")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("eighty column playfield")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("single row.")));
 }
 
 #[test]
@@ -5875,19 +5783,15 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Line one"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Line one")));
     assert!(terminal.lines.iter().any(|line| line.trim_end() == " ->"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Line two"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Line two")));
 }
 
 #[test]
@@ -5928,18 +5832,14 @@ fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.starts_with(" ->   Stardate 11 / 3003"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.starts_with(" ->     Fleet 7 arrived"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.starts_with(" ->   Stardate 11 / 3003")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.starts_with(" ->     Fleet 7 arrived")));
 }
 
 #[test]
@@ -5983,12 +5883,10 @@ fn startup_results_use_the_full_intro_review_page_height() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Report 15"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Report 15")));
     assert!(!terminal.line(19).contains("for more"));
 }
 
@@ -6035,30 +5933,22 @@ fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("System(9,14):          Stardate: 02/3003") })
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("We were attacked by \"Nadir Compact\", (Empire #4)") })
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("<end of transmission>"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("System(9,14):          Stardate: 02/3003") }));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("We were attacked by \"Nadir Compact\", (Empire #4)") }));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<end of transmission>")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Delete this report [Y]/N ->")));
     assert!(terminal.line(COMMAND_LINE_ROW - 1).trim().is_empty());
     assert!(!terminal.lines.iter().any(|line| line.contains("----")));
 }
@@ -6102,18 +5992,14 @@ fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup continue prompt should render");
-    assert!(
-        terminal
-            .line(19)
-            .contains("There are more reports. Continue?")
-    );
+    assert!(terminal
+        .line(19)
+        .contains("There are more reports. Continue?"));
     assert!(terminal.line(COMMAND_LINE_ROW - 1).trim().is_empty());
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Delete this report [Y]/N ->")));
     assert_eq!(
         terminal
             .lines
@@ -6293,19 +6179,15 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("reports screen should render");
-    assert!(
-        terminal
-            .line(0)
-            .contains("Type: All | Year: All | Focus: Inbox")
-    );
+    assert!(terminal
+        .line(0)
+        .contains("Type: All | Year: All | Focus: Inbox"));
     assert!(terminal.line(24).contains("<M>"));
     assert!(terminal.line(24).contains("<TAB>"));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("full suspense"))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("full suspense")));
 }
 
 #[test]
@@ -6498,10 +6380,8 @@ fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
     );
     app.render(&mut terminal)
         .expect("order prompt should render");
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Order Fleet #")
-            .contains("Order Fleet # [2] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "FLEET COMMAND <- Order Fleet #")
+        .contains("Order Fleet # [2] <Q> ->"));
 }
 
 #[test]
@@ -6604,12 +6484,10 @@ fn fleet_review_prompt_shows_invalid_fleet_message_on_unknown_typed_id() {
     assert!(
         line_containing(&terminal, "FLEET COMMAND <- Review Fleet #").contains("Review Fleet #")
     );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Fleet #99 is not in your fleet list."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Fleet #99 is not in your fleet list.")));
 }
 
 #[test]
@@ -6690,27 +6568,21 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet load quantity prompt should render inline");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("LOAD ARMIES ONTO TROOP TRANSPORTS:"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Planet:") && line.contains("Fleet 01"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("LOAD ARMIES ONTO TROOP TRANSPORTS:")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Planet:") && line.contains("Fleet 01")));
     let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to load?");
     assert!(prompt.contains("How many armies to load? [4]"));
     assert!(prompt.contains("<Q> ->"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains("Load Planet XX,YY"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains("Load Planet XX,YY")));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::Fleet(FleetAction::CancelMenuPrompt)
@@ -6740,18 +6612,14 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet unload quantity prompt should render inline");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("UNLOAD ARMIES FROM TROOP TRANSPORTS:"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Planet:") && line.contains("Fleet 02"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("UNLOAD ARMIES FROM TROOP TRANSPORTS:")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Planet:") && line.contains("Fleet 02")));
     let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to unload?");
     assert!(prompt.contains("How many armies to unload? [3]"));
     assert!(prompt.contains("<Q> ->"));
@@ -7076,12 +6944,10 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet menu should render unload notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("No fleets have loaded armies ready to unload") })
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("No fleets have loaded armies ready to unload") }));
 }
 
 #[test]
@@ -7124,12 +6990,10 @@ fn fleet_transport_quantity_prompt_stays_inline_on_fleet_menu() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet load quantity prompt should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains("Load Planet XX,YY"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains("Load Planet XX,YY")));
     assert!(
         line_containing(&terminal, "FLEET COMMAND <- How many armies to load?").contains("<Q> ->")
     );
@@ -7509,26 +7373,20 @@ fn planet_menu_load_and_unload_use_inline_transport_prompts() {
     submit_planet_transport_prompt(&mut app, None);
     app.render(&mut terminal)
         .expect("planet load quantity prompt should render inline");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("LOAD ARMIES ONTO TROOP TRANSPORTS:"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Planet:") && line.contains("Fleet "))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("LOAD ARMIES ONTO TROOP TRANSPORTS:")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Planet:") && line.contains("Fleet ")));
     let prompt = line_containing(&terminal, "PLANET COMMAND <- How many armies to load?");
     assert!(prompt.contains("<Q> ->"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains("COMMANDS <ARROWS"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains("COMMANDS <ARROWS")));
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
@@ -7543,9 +7401,7 @@ fn planet_menu_load_and_unload_use_inline_transport_prompts() {
     );
     app.render(&mut terminal)
         .expect("planet load fleet prompt should re-render");
-    assert!(
-        line_containing(&terminal, "PLANET COMMAND <- Load Fleet #").contains("Load Fleet # [")
-    );
+    assert!(line_containing(&terminal, "PLANET COMMAND <- Load Fleet #").contains("Load Fleet # ["));
     assert_eq!(
         apply_action(
             &mut app,
@@ -8036,11 +7892,8 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
     .flat_map(|line| line.split_whitespace())
     .collect::<Vec<_>>()
     .join(" ");
-    assert!(
-        wrapped_notice.contains(
-            "No fleets have loaded armies ready to unload onto planets with free capacity."
-        )
-    );
+    assert!(wrapped_notice
+        .contains("No fleets have loaded armies ready to unload onto planets with free capacity."));
 }
 
 #[test]
@@ -8362,12 +8215,10 @@ fn fleet_merge_auto_swaps_higher_numbered_fleet_into_lower_host() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet menu should render merge success notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Fleet #4 ordered to join Fleet #3."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Fleet #4 ordered to join Fleet #3.")));
 
     let state = latest_runtime_state(&fixture_dir);
     let source = state
@@ -8449,12 +8300,10 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     assert!(header_line.contains("ETA"));
     assert!(header_line.contains("ROE"));
     assert!(header_line.contains("Ships"));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Selected fleets: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Selected fleets: ")));
     assert!(!terminal.lines.iter().any(|line| line.contains("│ X │")));
 
     assert_eq!(
@@ -8703,18 +8552,14 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     app.render(&mut terminal)
         .expect("fleet menu should render success notice");
     assert!(line_containing(&terminal, "FLEET COMMAND <- Order Fleet #").contains("[2]"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Notice: Applied move to Fleet #2 for sector [14,9]."))
-    );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Error: Applied move to Fleet #2 for sector [14,9]."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Notice: Applied move to Fleet #2 for sector [14,9].")));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Error: Applied move to Fleet #2 for sector [14,9].")));
 
     let state = latest_runtime_state(&fixture_dir);
     let ordered_fleet = state
@@ -9094,12 +8939,10 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
         line_containing(&terminal, "Enter the starbase number for Guard a Starbase.")
             .contains("Enter the starbase number for Guard a Starbase.")
     );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("New Orders: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("New Orders: ")));
     assert!(
         line_containing(&terminal, "Starbase # [").contains("Starbase # [1]"),
         "{}",
@@ -9158,12 +9001,10 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("no-starbase guard order notice should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains("You have no starbases available to guard."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains("You have no starbases available to guard.")));
 }
 
 #[test]
@@ -9212,19 +9053,15 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
     assert!(line_containing(&terminal, "ROE: ").contains("ROE: "));
     assert!(line_containing(&terminal, "Order: ").contains("Order: "));
     assert!(line_containing(&terminal, "Ships: ").contains("Ships: "));
-    assert!(
-        line_containing(
-            &terminal,
-            "Enter the host fleet number for Join another fleet."
-        )
-        .contains("Enter the host fleet number for Join another fleet.")
-    );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("New Orders: "))
-    );
+    assert!(line_containing(
+        &terminal,
+        "Enter the host fleet number for Join another fleet."
+    )
+    .contains("Enter the host fleet number for Join another fleet."));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("New Orders: ")));
     assert!(
         line_containing(&terminal, "Fleet # [").contains("Fleet # ["),
         "{}",
@@ -9386,51 +9223,39 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
     let prompt = line_containing(&terminal, "Target XX ");
     assert!(prompt.contains("FLEET COMMAND <- Target XX "));
     assert!(!prompt.contains('['));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("New Orders: "))
-    );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Selected mission:"))
-    );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Standing order:"))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("New Orders: ")));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Selected mission:")));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Standing order:")));
 
     enter_fleet_order_target(&mut app, bombard_target);
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet order confirm should render");
-    assert!(
-        line_containing(&terminal, "Stardate: ")
-            .contains(&format!("Stardate: {}", app.game_data.conquest.game_year()))
-    );
+    assert!(line_containing(&terminal, "Stardate: ")
+        .contains(&format!("Stardate: {}", app.game_data.conquest.game_year())));
     assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
     assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
     assert!(terminal.lines.iter().any(|line| line.contains(&format!(
         "cannot reach ({:02},{:02})",
         bombard_target[0], bombard_target[1]
     ))));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Location: "))
-    );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Current / Max Speed: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Location: ")));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Current / Max Speed: ")));
     assert!(!terminal.lines.iter().any(|line| line.contains("ROE: ")));
     assert!(!terminal.lines.iter().any(|line| line.contains("Order: ")));
     assert!(!terminal.lines.iter().any(|line| line.contains("Ships: ")));
@@ -9514,10 +9339,8 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("compact fleet group confirm should render");
-    assert!(
-        line_containing(&terminal, "Stardate: ")
-            .contains(&format!("Stardate: {}", app.game_data.conquest.game_year()))
-    );
+    assert!(line_containing(&terminal, "Stardate: ")
+        .contains(&format!("Stardate: {}", app.game_data.conquest.game_year())));
     let selected = line_containing(&terminal, "Selected fleets: ")
         .trim()
         .strip_prefix("Selected fleets: ")
@@ -9600,11 +9423,9 @@ fn fleet_group_order_lists_selected_fleet_numbers_in_compact_target_entry() {
         .expect("selected fleets line should have prefix");
     let parts = selected.split(", ").collect::<Vec<_>>();
     assert_eq!(parts.len(), 2);
-    assert!(
-        parts
-            .iter()
-            .all(|part| part.len() >= 2 && part.chars().all(|ch| ch.is_ascii_digit()))
-    );
+    assert!(parts
+        .iter()
+        .all(|part| part.len() >= 2 && part.chars().all(|ch| ch.is_ascii_digit())));
 }
 
 #[test]
@@ -9714,10 +9535,8 @@ fn fleet_order_scout_system_defaults_avoid_worlds_targeted_by_other_friendly_sco
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("scout system target prompt should render");
-    assert!(
-        line_containing(&terminal, "Target XX [")
-            .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0]))
-    );
+    assert!(line_containing(&terminal, "Target XX [")
+        .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0])));
 }
 
 #[test]
@@ -9823,10 +9642,8 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("combat target prompt should render");
-    assert!(
-        line_containing(&terminal, "Target XX [")
-            .contains(&format!("Target XX [{:02}] <Q> ->", closest_coords[0]))
-    );
+    assert!(line_containing(&terminal, "Target XX [")
+        .contains(&format!("Target XX [{:02}] <Q> ->", closest_coords[0])));
 }
 
 #[test]
@@ -9968,10 +9785,8 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(
-        line_containing(&terminal, "Target XX [")
-            .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0]))
-    );
+    assert!(line_containing(&terminal, "Target XX [")
+        .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0])));
 }
 
 #[test]
@@ -10148,12 +9963,10 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
     assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .all(|line| !line.contains("That mission does not apply to all selected fleets."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .all(|line| !line.contains("That mission does not apply to all selected fleets.")));
 }
 
 #[test]
@@ -10211,12 +10024,10 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     let prompt = line_containing(&terminal, "Target XX ");
     assert!(prompt.contains("Target XX "));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Target YY "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Target YY ")));
 }
 
 #[test]
@@ -10357,10 +10168,8 @@ fn fleet_order_blockade_mission_defaults_to_closest_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("blockade target prompt should render");
-    assert!(
-        line_containing(&terminal, "Target XX [")
-            .contains(&format!("Target XX [{:02}] <Q> ->", owned_target[0]))
-    );
+    assert!(line_containing(&terminal, "Target XX [")
+        .contains(&format!("Target XX [{:02}] <Q> ->", owned_target[0])));
 }
 
 #[test]
@@ -10450,12 +10259,10 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
     }));
     let prompt = line_containing(&terminal, "Target XX ");
     assert!(prompt.contains("Target XX "));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Target YY "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Target YY ")));
 }
 
 #[test]
@@ -10518,20 +10325,16 @@ fn fleet_order_rejects_owned_planet_for_scout_system_mission() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("owned scout-system target rejection should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("You cannot scout your own planet or system.") })
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("You cannot scout your own planet or system.") }));
     let prompt = line_containing(&terminal, "Target XX ");
     assert!(prompt.contains("Target XX "));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Target YY "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Target YY ")));
 }
 
 #[test]
@@ -10597,10 +10400,8 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage target prompt should render");
-    assert!(
-        line_containing(&terminal, "Target XX [")
-            .contains(&format!("Target XX [{:02}] <Q> ->", nearest_owned[0]))
-    );
+    assert!(line_containing(&terminal, "Target XX [")
+        .contains(&format!("Target XX [{:02}] <Q> ->", nearest_owned[0])));
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
@@ -10608,10 +10409,8 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage target y prompt should render");
-    assert!(
-        line_containing(&terminal, "Target YY [")
-            .contains(&format!("Target YY [{:02}] <Q> ->", nearest_owned[1]))
-    );
+    assert!(line_containing(&terminal, "Target YY [")
+        .contains(&format!("Target YY [{:02}] <Q> ->", nearest_owned[1])));
 }
 
 #[test]
@@ -10736,13 +10535,11 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage foreign-planet validation should render");
-    assert!(
-        line_containing(
-            &terminal,
-            "That mission requires one of your owned planets."
-        )
-        .contains("That mission requires one of your owned planets.")
-    );
+    assert!(line_containing(
+        &terminal,
+        "That mission requires one of your owned planets."
+    )
+    .contains("That mission requires one of your owned planets."));
 }
 
 #[test]
@@ -10796,13 +10593,11 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage unowned-planet validation should render");
-    assert!(
-        line_containing(
-            &terminal,
-            "That mission requires one of your owned planets."
-        )
-        .contains("That mission requires one of your owned planets.")
-    );
+    assert!(line_containing(
+        &terminal,
+        "That mission requires one of your owned planets."
+    )
+    .contains("That mission requires one of your owned planets."));
 }
 
 #[test]
@@ -11238,12 +11033,10 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
         .expect("fleet group order should render normal command line");
     assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Selected fleets: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Selected fleets: ")));
 
     let state = latest_runtime_state(&fixture_dir);
     assert_eq!(
@@ -11327,19 +11120,15 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     assert_eq!(selected.split(", ").count(), 1);
     assert!(selected.len() >= 2);
     assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
-    assert!(
-        line_containing(
-            &terminal,
-            "Enter the host fleet number for Join another fleet."
-        )
-        .contains("Enter the host fleet number for Join another fleet.")
-    );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Enter target for new order: Join fleet"))
-    );
+    assert!(line_containing(
+        &terminal,
+        "Enter the host fleet number for Join another fleet."
+    )
+    .contains("Enter the host fleet number for Join another fleet."));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Enter target for new order: Join fleet")));
     assert!(
         line_containing(&terminal, "Fleet # [").contains("Fleet # ["),
         "{}",
@@ -11357,12 +11146,10 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         .expect("fleet group join should return to normal command line");
     assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Selected fleets: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Selected fleets: ")));
 
     let state = latest_runtime_state(&fixture_dir);
     let joined_fleets = state
@@ -11442,12 +11229,10 @@ fn fleet_group_guard_starbase_target_prompt_uses_named_target_layout() {
         line_containing(&terminal, "Enter the starbase number for Guard a Starbase.")
             .contains("Enter the starbase number for Guard a Starbase.")
     );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Enter target for new order: Guard starbase"))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Enter target for new order: Guard starbase")));
     assert!(
         line_containing(&terminal, "Starbase # [").contains("Starbase # ["),
         "{}",
@@ -11512,10 +11297,8 @@ fn fleet_change_field_prompt_uses_angle_bracket_commands_and_default() {
     open_change_field_prompt_from_fleet_menu(&mut app, Some(4));
 
     app.render(&mut terminal).expect("fleet menu should render");
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Change")
-            .contains("Change <R>OE, <I>D, or <S>peed [R] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "FLEET COMMAND <- Change")
+        .contains("Change <R>OE, <I>D, or <S>peed [R] <Q> ->"));
 }
 
 #[test]
@@ -11568,9 +11351,7 @@ fn fleet_change_success_returns_to_menu_with_notice() {
     submit_fleet_menu_prompt_value(&mut app, "9");
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        line_containing(&terminal, "Fleet #4 ROE set to 9.").contains("Fleet #4 ROE set to 9.")
-    );
+    assert!(line_containing(&terminal, "Fleet #4 ROE set to 9.").contains("Fleet #4 ROE set to 9."));
 }
 
 #[test]
@@ -11602,14 +11383,12 @@ fn fleet_change_id_updates_visible_fleet_number_inline() {
     );
 
     let state = latest_runtime_state(&fixture_dir);
-    assert!(
-        state
-            .game_data
-            .fleets
-            .records
-            .iter()
-            .any(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 12)
-    );
+    assert!(state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .any(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 12));
 }
 
 #[test]
@@ -11637,14 +11416,10 @@ fn fleet_change_id_rejects_duplicate_fleet_number_inline() {
     app.render(&mut terminal)
         .expect("change prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
-    assert!(
-        line_containing(&terminal, "Fleet ID is already in use.")
-            .contains("Fleet ID is already in use.")
-    );
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- New Fleet ID")
-            .contains("New Fleet ID [4] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "Fleet ID is already in use.")
+        .contains("Fleet ID is already in use."));
+    assert!(line_containing(&terminal, "FLEET COMMAND <- New Fleet ID")
+        .contains("New Fleet ID [4] <Q> ->"));
 }
 
 #[test]
@@ -11817,25 +11592,19 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     app.planet.info_selected = Some(planet_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Last Viewed/Scouted: "))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Last Viewed/Scouted: ")));
     assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Intel Tier: "))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Intel Tier: ")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1]))));
 }
 
 #[test]
@@ -12370,9 +12139,7 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
     );
     app.render(&mut terminal).expect("render succeeds");
     assert!(line_containing(&terminal, "SETTING SCORCH-EARTH POLICY:").contains("SCORCH-EARTH"));
-    assert!(
-        line_containing(&terminal, "Are you sure? Y/[N] ->").contains("Are you sure? Y/[N] ->")
-    );
+    assert!(line_containing(&terminal, "Are you sure? Y/[N] ->").contains("Are you sure? Y/[N] ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
@@ -12380,10 +12147,8 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
     );
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        line_containing(&terminal, "Are you really sure? Y/[N] ->")
-            .contains("Are you really sure? Y/[N] ->")
-    );
+    assert!(line_containing(&terminal, "Are you really sure? Y/[N] ->")
+        .contains("Are you really sure? Y/[N] ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
@@ -12391,22 +12156,19 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
     );
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        line_containing(
-            &terminal,
-            "Are you sure-sure? Last chance to bail! Y/[N] ->"
-        )
-        .contains("Are you sure-sure? Last chance to bail! Y/[N] ->")
-    );
+    assert!(line_containing(
+        &terminal,
+        "Are you sure-sure? Last chance to bail! Y/[N] ->"
+    )
+    .contains("Are you sure-sure? Last chance to bail! Y/[N] ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
         AppOutcome::Continue
     );
-    assert!(
-        app.planet_scorch_orders
-            .contains(&(expected_record_index + 1))
-    );
+    assert!(app
+        .planet_scorch_orders
+        .contains(&(expected_record_index + 1)));
 
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
@@ -12430,11 +12192,9 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
     );
 
     let reloaded = latest_runtime_state(&fixture_dir);
-    assert!(
-        reloaded
-            .planet_scorch_orders
-            .contains(&(expected_record_index + 1))
-    );
+    assert!(reloaded
+        .planet_scorch_orders
+        .contains(&(expected_record_index + 1)));
     let reloaded_planet = &reloaded.game_data.planets.records[expected_record_index];
     assert_eq!(reloaded_planet.present_production_points(), Some(0));
     assert_eq!(reloaded_planet.potential_production_points(), 0);
@@ -12791,11 +12551,9 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert_eq!(buffer.plain_line(1).trim_end(), "Fleet ID: 7");
     assert_eq!(buffer.plain_line(2).trim_end(), "Location: (16,13)");
     assert_eq!(buffer.plain_line(4).trim_end(), "Current Target: (19,13)");
-    assert!(
-        buffer
-            .plain_line(7)
-            .contains("FLEET COMMAND <- Destination [19,13] <Q> ->")
-    );
+    assert!(buffer
+        .plain_line(7)
+        .contains("FLEET COMMAND <- Destination [19,13] <Q> ->"));
 }
 
 #[test]
@@ -12989,17 +12747,13 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
         .render_specify(&view, &orders, "", None, None)
         .expect("build specify renders");
 
-    assert!(
-        buffer
-            .plain_line(11)
-            .contains("BUILD COMMAND <- Unit number or 0 if done")
-    );
+    assert!(buffer
+        .plain_line(11)
+        .contains("BUILD COMMAND <- Unit number or 0 if done"));
     assert!(buffer.plain_line(11).contains("[0] <Q> ->"));
-    assert!(
-        buffer
-            .plain_line(13)
-            .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
-    );
+    assert!(buffer
+        .plain_line(13)
+        .contains("You have spent 10 out of 40 points. You have 30 points left to spend."));
 }
 
 #[test]
@@ -13045,17 +12799,13 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
         )
         .expect("build quantity renders");
 
-    assert!(
-        buffer
-            .plain_line(11)
-            .contains("BUILD COMMAND <- How many new destroyers to build")
-    );
+    assert!(buffer
+        .plain_line(11)
+        .contains("BUILD COMMAND <- How many new destroyers to build"));
     assert!(buffer.plain_line(11).contains("[1] <Q> ->"));
-    assert!(
-        buffer
-            .plain_line(13)
-            .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
-    );
+    assert!(buffer
+        .plain_line(13)
+        .contains("You have spent 10 out of 40 points. You have 30 points left to spend."));
 }
 
 #[test]
@@ -13094,11 +12844,9 @@ fn planet_build_specify_renders_success_as_notice_not_error() {
         .render_specify(&view, &orders, "", None, Some("Queued 2 Destroyers."))
         .expect("build specify renders with notice");
 
-    assert!(
-        buffer
-            .plain_line(15)
-            .contains("Notice: Queued 2 Destroyers.")
-    );
+    assert!(buffer
+        .plain_line(15)
+        .contains("Notice: Queued 2 Destroyers."));
     assert!(!buffer.plain_line(15).contains("Error:"));
 }
 
@@ -13305,12 +13053,10 @@ fn apply_action_deletes_reviewables() {
     );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    assert!(
-        runtime
-            .report_block_rows
-            .iter()
-            .all(|row| row.recipient_deleted)
-    );
+    assert!(runtime
+        .report_block_rows
+        .iter()
+        .all(|row| row.recipient_deleted));
     assert_eq!(runtime.queued_mail.len(), 1);
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
@@ -13588,30 +13334,22 @@ fn reports_inbox_stacks_type_and_year_filters_and_deletes_selected_item() {
     let mut filtered = CaptureTerminal::new();
     app.render(&mut filtered)
         .expect("filtered inbox should render");
-    assert!(
-        filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Type: Messages"))
-    );
-    assert!(
-        filtered
-            .lines
-            .iter()
-            .any(|line| line.contains(&format!("Year: {current_year}")))
-    );
-    assert!(
-        filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Current message"))
-    );
-    assert!(
-        !filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Older message"))
-    );
+    assert!(filtered
+        .lines
+        .iter()
+        .any(|line| line.contains("Type: Messages")));
+    assert!(filtered
+        .lines
+        .iter()
+        .any(|line| line.contains(&format!("Year: {current_year}"))));
+    assert!(filtered
+        .lines
+        .iter()
+        .any(|line| line.contains("Current message")));
+    assert!(!filtered
+        .lines
+        .iter()
+        .any(|line| line.contains("Older message")));
     assert!(!filtered.lines.iter().any(|line| line.contains("Scout")));
 
     assert_eq!(
@@ -13624,7 +13362,7 @@ fn reports_inbox_stacks_type_and_year_filters_and_deletes_selected_item() {
     let mut confirm = CaptureTerminal::new();
     app.render(&mut confirm)
         .expect("delete confirm should render");
-    assert!(confirm.line(24).contains("Delete item 01? Y/[N] ->"));
+    assert!(confirm.line(24).contains("Delete item 03? [Y]/N ->"));
 
     assert_eq!(
         apply_action(
@@ -13636,6 +13374,134 @@ fn reports_inbox_stacks_type_and_year_filters_and_deletes_selected_item() {
 
     let reloaded = latest_runtime_state(&fixture_dir);
     assert!(reloaded.queued_mail[0].recipient_deleted);
+}
+
+#[test]
+fn reports_inbox_rejects_no_match_year_filter_without_blanking_the_table() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    clear_runtime_report_blocks(&mut runtime);
+    runtime.queued_mail.clear();
+    runtime
+        .queued_mail
+        .push(incoming_mail(2, 1, current_year, "Visible", "Visible body"));
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    for _ in 0..64 {
+        if matches!(
+            app.current_screen(),
+            ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+        ) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert!(matches!(
+        app.current_screen(),
+        ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+    ));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenInboxYearPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    for ch in (current_year + 10).to_string().chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Messaging(MessagingAction::AppendInboxYearChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitInboxYearInput)
+        ),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(app.messaging.inbox_year_filter, None);
+    assert!(app.messaging.inbox_feedback.is_none());
+    assert_eq!(
+        app.messaging.inbox_prompt_mode,
+        ec_game::domains::messaging::state::InboxPromptMode::Normal
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("inbox should still render");
+    assert!(terminal.line(0).contains("Year: All"));
+    assert!(terminal.lines.iter().any(|line| line.contains("Visible")));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<no matching items>")));
+}
+
+#[test]
+fn reports_inbox_enter_moves_focus_to_preview_when_id_input_is_empty() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    clear_runtime_report_blocks(&mut runtime);
+    runtime.queued_mail.clear();
+    runtime
+        .queued_mail
+        .push(incoming_mail(2, 1, current_year, "Visible", "Visible body"));
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    for _ in 0..64 {
+        if matches!(
+            app.current_screen(),
+            ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+        ) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert!(matches!(
+        app.current_screen(),
+        ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+    ));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.inbox_focus, InboxFocus::Inbox);
+    assert!(app.messaging.inbox_id_input.is_empty());
+
+    let enter = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, enter), AppOutcome::Continue);
+    assert_eq!(app.messaging.inbox_focus, InboxFocus::Preview);
 }
 
 #[test]
@@ -13679,20 +13545,117 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("inbox should render");
-    assert!(
-        terminal
-            .line(0)
-            .contains("Type: All | Year: All | Focus: Inbox")
-    );
+    assert!(terminal
+        .line(0)
+        .contains("Type: All | Year: All | Focus: Inbox"));
     assert!(terminal.line(1).starts_with('┌'));
     assert!(terminal.line(24).contains("<TAB> [03] -> 3"));
     assert!(terminal.lines.iter().any(|line| line.contains("Alpha")));
-    assert!(
-        terminal
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Body Alpha")));
+}
+
+#[test]
+fn reports_inbox_delete_keeps_sparse_session_ids_without_empty_rows() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    clear_runtime_report_blocks(&mut runtime);
+    runtime.queued_mail.clear();
+    for subject in ["Alpha", "Beta", "Gamma", "Delta"] {
+        runtime
+            .queued_mail
+            .push(incoming_mail(2, 1, current_year, subject, subject));
+    }
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    for _ in 0..64 {
+        if matches!(
+            app.current_screen(),
+            ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+        ) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert!(matches!(
+        app.current_screen(),
+        ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+    ));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendInboxIdChar('3'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_inbox_display_id(), "03");
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenInboxDeleteConfirm)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmDeleteInboxItem)
+        ),
+        AppOutcome::Continue
+    );
+
+    let mut deleted = CaptureTerminal::new();
+    app.render(&mut deleted)
+        .expect("deleted inbox should render");
+    assert!(deleted
+        .lines
+        .iter()
+        .any(|line| line.contains("Deleted item 03.")));
+    assert!(!deleted.lines.iter().any(|line| line.contains("│03│")));
+    assert!(deleted.lines.iter().any(|line| line.contains("│04│")));
+    assert_eq!(
+        deleted
             .lines
             .iter()
-            .any(|line| line.contains("Body Alpha"))
+            .filter(|line| {
+                line.contains("│01│") || line.contains("│02│") || line.contains("│04│")
+            })
+            .count(),
+        3
     );
+
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+
+    let mut reopened = CaptureTerminal::new();
+    app.render(&mut reopened)
+        .expect("reopened inbox should render");
+    assert!(!reopened.lines.iter().any(|line| line.contains("│03│")));
+    assert!(reopened.lines.iter().any(|line| line.contains("│04│")));
 }
 
 #[test]
@@ -13833,12 +13796,10 @@ fn reports_inbox_long_preview_scrolls_and_clamps_without_panicking() {
 
     let mut switched = CaptureTerminal::new();
     app.render(&mut switched).expect("switched preview render");
-    assert!(
-        switched
-            .lines
-            .iter()
-            .any(|line| line.contains("Short body"))
-    );
+    assert!(switched
+        .lines
+        .iter()
+        .any(|line| line.contains("Short body")));
 }
 
 #[test]
@@ -14296,37 +14257,29 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
     assert!(terminal.line(6).starts_with("Target: "));
     assert_eq!(terminal.line(7).trim_end(), "Speed: 0");
     assert_eq!(terminal.line(8).trim_end(), "ROE: 0");
-    assert!(
-        terminal
-            .line(10)
-            .contains("Ships: SC=1 CA=1 DD=4 TT=4 AR=4")
-    );
+    assert!(terminal
+        .line(10)
+        .contains("Ships: SC=1 CA=1 DD=4 TT=4 AR=4"));
     assert_eq!(terminal.line(12).trim_end(), "<C>ommission, <X> Cancel");
     assert!(
         line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X>")
             .contains("Class <BB,CA,DD,TT*,TT,SC,ET,C,X>")
     );
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Detach ships from the selected fleet"))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Detach ships from the selected fleet")));
     assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Remaining on Donor: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Remaining on Donor: ")));
 
     enter_detach_input(&mut app, "dd");
     submit_detach(&mut app);
     app.render(&mut terminal).expect("render quantity prompt");
-    assert!(
-        line_containing(&terminal, "DD to stage (max 4)")
-            .contains("DD to stage (max 4) [1] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "DD to stage (max 4)")
+        .contains("DD to stage (max 4) [1] <Q> ->"));
 
     submit_detach(&mut app);
     app.render(&mut terminal).expect("render staged summary");
@@ -14339,12 +14292,10 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
         .expect("render menu notice after commission");
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
     assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Remaining on Donor: "))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Remaining on Donor: ")));
     let updated = latest_runtime_state(&fixture_dir).game_data;
     let first_commission_message = format!(
         "Commissioned Fleet #{:02} from Fleet #01.",
@@ -14355,12 +14306,10 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
             .expect("detached fleet")
             .local_slot_word_raw()
     );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(&first_commission_message))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(&first_commission_message)));
 
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
     assert_eq!(updated.fleets.records[0].scout_count(), 1);
@@ -14436,12 +14385,10 @@ fn fleet_detach_last_commissioned_message_persists_until_overwritten() {
         app.fleet.detach_status.as_deref(),
         Some("Use BB, CA, DD, TT*, TT, SC, ET, C, X, or Q.")
     );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(&first_commission_message))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(&first_commission_message)));
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::ClearDetachSelection)),
@@ -14458,12 +14405,10 @@ fn fleet_detach_last_commissioned_message_persists_until_overwritten() {
         .trim_end()
         .to_string();
     assert_ne!(second_commission_message, first_commission_message);
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(&first_commission_message))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(&first_commission_message)));
 }
 
 #[test]
@@ -14578,10 +14523,8 @@ fn fleet_detach_leaves_at_least_one_ship_on_the_donor() {
     app.render(&mut terminal)
         .expect("render donor minimum warning");
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
-    assert!(
-        line_containing(&terminal, "Enter a quantity from 1 to 1.")
-            .contains("Enter a quantity from 1 to 1.")
-    );
+    assert!(line_containing(&terminal, "Enter a quantity from 1 to 1.")
+        .contains("Enter a quantity from 1 to 1."));
     assert!(line_containing(&terminal, "Staged for New Fleet: ").contains("none"));
 }
 
@@ -14705,12 +14648,10 @@ fn fleet_detach_prompt_reports_missing_fleet_number() {
     assert!(
         line_containing(&terminal, "FLEET COMMAND <- Detach Fleet #").contains("Detach Fleet #")
     );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Fleet #99 is not in your fleet list."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Fleet #99 is not in your fleet list.")));
 }
 
 #[test]
