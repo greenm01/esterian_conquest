@@ -5,15 +5,19 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     CommandMessage, dismiss_prompt_row, draw_command_message_stack, draw_dismiss_prompt,
-    draw_status_line, draw_table_command_bar_at, draw_table_command_prompt_at, draw_title_bar,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_status_line, draw_table_command_bar_at_col, draw_table_command_prompt_at_col,
+    draw_title_bar, new_playfield, stacked_table_visible_rows, table_prompt_row,
 };
-use crate::screen::table::{TableColumn, write_table_window_with_states};
+use crate::screen::table::{
+    TableColumn, centered_table_start_col, fit_table_columns,
+    write_stacked_table_window_with_states_at,
+};
 use crate::screen::{
     PlayfieldBuffer, ScreenFrame, format_sector_coords_default, format_sector_coords_table,
 };
+use crate::theme::classic;
 
-pub const PLANET_BRIEF_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
+pub const PLANET_BRIEF_VISIBLE_ROWS: usize = stacked_table_visible_rows(1);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetListMode {
@@ -32,18 +36,21 @@ pub enum PlanetListSort {
 pub struct PlanetListScreen;
 
 const BRIEF_COLUMNS: [TableColumn<'static>; 11] = [
-    TableColumn::left("(X,Y)", 8),
-    TableColumn::left("Name", 22),
-    TableColumn::right("Curr", 4),
-    TableColumn::right("Max", 4),
+    TableColumn::left("(XX,YY)", 7),
+    TableColumn::left("Planet Name", 11),
+    TableColumn::right("Prod", 4),
+    TableColumn::right("Prod", 4),
     TableColumn::right("Points", 6),
-    TableColumn::right("Rev", 4),
-    TableColumn::right("Grow", 5),
+    TableColumn::right("Rev", 3),
+    TableColumn::right("Grow", 4),
     TableColumn::right("Docked", 6),
-    TableColumn::left("SB", 2),
-    TableColumn::right("AR", 3),
-    TableColumn::right("GB", 3),
+    TableColumn::right("SBs", 3),
+    TableColumn::right("ARs", 3),
+    TableColumn::right("GBs", 3),
 ];
+
+const BRIEF_TOP_HEADER_CELLS: [&str; 11] =
+    ["Coord", "", "Max", "Curr", "Stored", "", "", "", "", "", ""];
 
 const BRIEF_SORT_PROMPT: &str = "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->";
 
@@ -71,9 +78,12 @@ impl PlanetListScreen {
             return Ok(buffer);
         }
 
-        let mut buffer = self.render_brief_list(frame, rows, sort, scroll_offset, cursor, input)?;
+        let mut buffer =
+            self.render_brief_list(frame, mode, rows, sort, scroll_offset, cursor, input)?;
+        let columns = fit_table_columns(&BRIEF_COLUMNS, &planet_table_rows(frame, rows));
+        let start_col = centered_table_start_col(buffer.width(), &columns);
         let command_row = brief_list_command_row(rows.len(), scroll_offset);
-        draw_table_command_prompt_at(&mut buffer, command_row, BRIEF_SORT_PROMPT);
+        draw_table_command_prompt_at_col(&mut buffer, command_row, start_col, BRIEF_SORT_PROMPT);
         if let Some(status) = status {
             draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Notice(status)]);
         }
@@ -83,6 +93,7 @@ impl PlanetListScreen {
     pub fn render_brief_list(
         &mut self,
         frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
         rows: &[EmpirePlanetEconomyRow],
         _sort: PlanetListSort,
         scroll_offset: usize,
@@ -90,39 +101,23 @@ impl PlanetListScreen {
         input: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
+        let table_rows = planet_table_rows(frame, rows);
+        let columns = fit_table_columns(&BRIEF_COLUMNS, &table_rows);
+        let start_col = centered_table_start_col(buffer.width(), &columns);
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, start_col, brief_list_title(mode), classic::title_style());
 
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_sector_coords_table(row.coords),
-                    row.planet_name.clone(),
-                    row.present_production.to_string(),
-                    row.potential_production.to_string(),
-                    row.stored_production_points.to_string(),
-                    row.yearly_tax_revenue.to_string(),
-                    format_signed_growth(row.yearly_growth_delta),
-                    docked_units(frame, row).to_string(),
-                    if row.has_friendly_starbase {
-                        "Y".to_string()
-                    } else {
-                        "N".to_string()
-                    },
-                    row.armies.to_string(),
-                    row.ground_batteries.to_string(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let metrics = write_table_window_with_states(
+        let metrics = write_stacked_table_window_with_states_at(
             &mut buffer,
             1,
-            &BRIEF_COLUMNS,
+            start_col,
+            &BRIEF_TOP_HEADER_CELLS,
+            &columns,
             &table_rows,
             scroll_offset,
             PLANET_BRIEF_VISIBLE_ROWS,
-            crate::theme::classic::status_value_style(),
-            crate::theme::classic::status_value_style(),
+            classic::status_value_style(),
+            classic::status_value_style(),
             if table_rows.is_empty() {
                 None
             } else {
@@ -135,9 +130,10 @@ impl PlanetListScreen {
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
             .unwrap_or_else(|| "00,00".to_string());
-        draw_table_command_bar_at(
+        draw_table_command_bar_at_col(
             &mut buffer,
             table_prompt_row(metrics.bottom_row),
+            start_col,
             "<ARROWS J K S Q>",
             Some(&default_coords),
             input,
@@ -193,7 +189,38 @@ fn brief_list_command_row(total_rows: usize, scroll_offset: usize) -> usize {
     let displayed_rows = total_rows
         .saturating_sub(scroll_offset)
         .min(PLANET_BRIEF_VISIBLE_ROWS);
-    table_prompt_row(1 + 3 + displayed_rows)
+    table_prompt_row(1 + 4 + displayed_rows)
+}
+
+fn brief_list_title(mode: PlanetListMode) -> &'static str {
+    match mode {
+        PlanetListMode::Brief | PlanetListMode::Stub(_) => "PLANET COMMAND:",
+        PlanetListMode::BuildSelect => "CHANGE CURRENT PLANET:",
+    }
+}
+
+fn planet_table_rows(frame: &ScreenFrame<'_>, rows: &[EmpirePlanetEconomyRow]) -> Vec<Vec<String>> {
+    rows.iter()
+        .map(|row| {
+            vec![
+                format_sector_coords_table(row.coords),
+                row.planet_name.clone(),
+                row.potential_production.to_string(),
+                row.present_production.to_string(),
+                row.stored_production_points.to_string(),
+                row.yearly_tax_revenue.to_string(),
+                format_signed_growth(row.yearly_growth_delta),
+                docked_units(frame, row).to_string(),
+                if row.has_friendly_starbase {
+                    "1".to_string()
+                } else {
+                    "0".to_string()
+                },
+                row.armies.to_string(),
+                row.ground_batteries.to_string(),
+            ]
+        })
+        .collect()
 }
 
 fn format_signed_growth(growth: u16) -> String {

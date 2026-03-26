@@ -304,7 +304,7 @@ fn format_build_queue_summary(planet: &ec_data::PlanetRecord) -> String {
         })
         .collect();
     if orders.is_empty() {
-        "<none>".to_string()
+        "Nothing".to_string()
     } else {
         orders
             .into_iter()

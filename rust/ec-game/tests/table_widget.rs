@@ -331,24 +331,52 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     }];
 
     let buffer = screen
-        .render_brief_list(&frame, &rows, PlanetListSort::CurrentProduction, 0, 0, "")
+        .render_brief_list(
+            &frame,
+            ec_game::screen::PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            0,
+            0,
+            "",
+        )
         .expect("render brief list");
 
-    assert!(buffer.plain_line(0).contains("PLANET COMMAND:"));
-    assert!(buffer.plain_line(1).starts_with("┌"));
-    assert!(buffer.plain_line(2).contains("(X,Y)"));
-    assert!(buffer.plain_line(2).contains("Name"));
-    assert!(buffer.plain_line(2).contains("Curr"));
+    let title_col = buffer
+        .plain_line(0)
+        .find("PLANET COMMAND:")
+        .expect("title col");
+    let border_col = buffer.plain_line(1).find('┌').expect("table col");
+    assert_eq!(title_col, border_col);
+    assert!(border_col > 0);
+    assert!(buffer.plain_line(2).contains("│Coord"));
     assert!(buffer.plain_line(2).contains("Max"));
-    assert!(buffer.plain_line(2).contains("Docked"));
-    assert!(buffer.plain_line(2).contains("AR"));
-    assert!(buffer.plain_line(2).contains("GB"));
-    assert!(buffer.plain_line(2).contains("SB"));
-    assert!(buffer.plain_line(4).contains("Player 1 HW"));
-    assert!(buffer.plain_line(4).contains("165"));
-    assert!(buffer.plain_line(4).contains("N"));
-    assert_eq!(buffer.row(4)[1].style, classic::selected_row_style());
-    assert_ne!(buffer.row(4)[10].style, classic::selected_row_style());
+    assert!(buffer.plain_line(2).contains("Curr"));
+    assert!(buffer.plain_line(2).contains("Stored"));
+    assert_eq!(buffer.plain_line(2).matches('│').count(), 12);
+    assert!(buffer.plain_line(3).contains("(XX,YY)"));
+    assert!(buffer.plain_line(3).contains("Planet Name"));
+    assert!(buffer.plain_line(3).contains("Prod"));
+    assert!(buffer.plain_line(3).contains("Points"));
+    assert!(buffer.plain_line(3).contains("Docked"));
+    assert!(buffer.plain_line(3).contains("SBs"));
+    assert!(buffer.plain_line(3).contains("ARs"));
+    assert!(buffer.plain_line(3).contains("GBs"));
+    assert!(buffer.plain_line(5).contains("Player 1 HW"));
+    assert!(buffer.plain_line(5).contains("165"));
+    assert!(buffer.plain_line(5).contains("0"));
+    assert_eq!(
+        buffer.plain_line(7).find("COMMANDS").expect("command col"),
+        border_col
+    );
+    assert_eq!(
+        buffer.row(5)[border_col + 1].style,
+        classic::selected_row_style()
+    );
+    assert_ne!(
+        buffer.row(5)[border_col].style,
+        classic::selected_row_style()
+    );
 }
 
 #[test]
