@@ -17,8 +17,14 @@ impl SetupDat {
     pub fn version_tag(&self) -> &[u8] {
         &self.raw[..5]
     }
+    pub fn set_version_tag(&mut self, value: &[u8; 5]) {
+        self.raw[..5].copy_from_slice(value);
+    }
     pub fn option_prefix(&self) -> &[u8] {
         &self.raw[5..13]
+    }
+    pub fn set_option_prefix(&mut self, value: &[u8; 8]) {
+        self.raw[5..13].copy_from_slice(value);
     }
     pub fn com_irq_raw(&self, com_index: usize) -> Option<u8> {
         (com_index < 4).then(|| self.raw[5 + com_index])

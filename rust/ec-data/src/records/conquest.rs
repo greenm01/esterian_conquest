@@ -19,6 +19,9 @@ impl ConquestDat {
     pub fn control_header(&self) -> &[u8] {
         &self.raw[..0x55]
     }
+    pub fn set_control_header_bytes(&mut self, value: &[u8; 0x55]) {
+        self.raw[..0x55].copy_from_slice(value);
+    }
     pub fn game_year(&self) -> u16 {
         u16::from_le_bytes([self.raw[0], self.raw[1]])
     }
@@ -35,6 +38,9 @@ impl ConquestDat {
     }
     pub fn maintenance_schedule_enabled(&self) -> [bool; 7] {
         self.maintenance_schedule_bytes().map(|byte| byte != 0)
+    }
+    pub fn set_maintenance_schedule_bytes(&mut self, bytes: [u8; 7]) {
+        self.raw[3..10].copy_from_slice(&bytes);
     }
     pub fn set_maintenance_schedule_enabled(&mut self, enabled: [bool; 7]) {
         for (idx, enabled) in enabled.into_iter().enumerate() {

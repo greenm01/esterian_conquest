@@ -138,8 +138,8 @@ impl CoreGameData {
     pub fn sync_current_known_baseline_controls_and_counts(&mut self) {
         self.sync_player1_current_known_counts();
 
-        self.setup.raw[..5].copy_from_slice(b"EC151");
-        self.setup.raw[5..13].copy_from_slice(&[4, 3, 4, 3, 1, 1, 1, 1]);
+        self.setup.set_version_tag(b"EC151");
+        self.setup.set_option_prefix(&[4, 3, 4, 3, 1, 1, 1, 1]);
         self.setup.set_snoop_enabled(true);
         self.setup.set_max_time_between_keys_minutes_raw(10);
         self.setup.set_remote_timeout_enabled(true);
@@ -149,10 +149,10 @@ impl CoreGameData {
         self.setup.set_autopilot_inactive_turns_raw(0);
 
         if !matches!(self.conquest.game_year(), 3000 | 3001) {
-            self.conquest.raw[0..2].copy_from_slice(&3001u16.to_le_bytes());
+            self.conquest.set_game_year(3001);
         }
-        self.conquest.raw[2] = 4;
-        self.conquest.raw[3..10].copy_from_slice(&[1; 7]);
+        self.conquest.set_player_count(4);
+        self.conquest.set_maintenance_schedule_bytes([1; 7]);
     }
 
     pub fn sync_current_known_initialized_fleet_baseline(&mut self) {
@@ -259,8 +259,8 @@ impl CoreGameData {
     }
 
     pub fn sync_current_known_initialized_conquest_post_maint_header(&mut self) {
-        self.conquest.raw[..CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER.len()]
-            .copy_from_slice(&CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER);
+        self.conquest
+            .set_control_header_bytes(&CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER);
     }
 
     pub fn current_known_empty_auxiliary_state_errors(&self) -> Vec<String> {
