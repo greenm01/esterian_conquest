@@ -52,7 +52,7 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 11] = [
 const BRIEF_TOP_HEADER_CELLS: [&str; 11] =
     ["Coord", "", "Max", "Curr", "Stored", "", "", "", "", "", ""];
 
-const BRIEF_SORT_PROMPT: &str = "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->";
+const BRIEF_SORT_PROMPT: &str = "Sort <C>, <L>, <M>, or <Q>? [C] ->";
 
 impl PlanetListScreen {
     pub fn new() -> Self {

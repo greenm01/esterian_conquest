@@ -105,19 +105,20 @@ impl PlanetMenuScreen {
                 if let Some(summary) = inline_transport_summary {
                     buffer.write_text(8, 0, summary, classic::status_value_style());
                 }
-                let command_row = draw_command_line_default_input_at(
+                const EXPERT_TRANSPORT_COMMAND_ROW: usize = 10;
+                draw_command_line_default_input_at(
                     &mut buffer,
-                    10,
+                    EXPERT_TRANSPORT_COMMAND_ROW,
                     "PLANET COMMAND",
                     menu_prompt_label.unwrap_or("How many armies? "),
                     menu_prompt_default,
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_prompt_error_after(&mut buffer, command_row, status);
+                    draw_prompt_error_after(&mut buffer, EXPERT_TRANSPORT_COMMAND_ROW, status);
                 }
             } else if menu_prompt_label.is_some() {
-                let command_row = draw_command_line_default_input_at(
+                draw_command_line_default_input_at(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "PLANET COMMAND",
@@ -126,7 +127,7 @@ impl PlanetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_prompt_error_after(&mut buffer, command_row, status);
+                    draw_prompt_error_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
                 }
             } else {
                 draw_expert_menu(
@@ -193,19 +194,20 @@ impl PlanetMenuScreen {
             if let Some(summary) = inline_transport_summary {
                 buffer.write_text(7, 0, summary, classic::status_value_style());
             }
-            let quantity_row = draw_command_line_default_input_at(
+            const MENU_TRANSPORT_COMMAND_ROW: usize = 9;
+            draw_command_line_default_input_at(
                 &mut buffer,
-                9,
+                MENU_TRANSPORT_COMMAND_ROW,
                 "PLANET COMMAND",
                 menu_prompt_label.unwrap_or("How many armies? "),
                 menu_prompt_default,
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, quantity_row, status);
+                draw_prompt_error_after(&mut buffer, MENU_TRANSPORT_COMMAND_ROW, status);
             }
         } else if menu_prompt_label.is_some() {
-            let prompt_row = draw_command_line_default_input_at(
+            draw_command_line_default_input_at(
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",
@@ -214,7 +216,7 @@ impl PlanetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, prompt_row, status);
+                draw_prompt_error_after(&mut buffer, command_row, status);
             }
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);

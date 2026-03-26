@@ -103,14 +103,21 @@ impl PlayfieldBuffer {
     }
 
     pub fn row(&self, row: usize) -> &[Cell] {
+        assert!(
+            row < self.height,
+            "playfield row {row} is outside buffer height {}",
+            self.height
+        );
         let start = row * self.width;
         &self.cells[start..start + self.width]
     }
 
     pub fn fill_row(&mut self, row: usize, style: CellStyle) {
-        if row >= self.height {
-            return;
-        }
+        assert!(
+            row < self.height,
+            "fill_row target row {row} is outside buffer height {}",
+            self.height
+        );
         let start = row * self.width;
         for cell in &mut self.cells[start..start + self.width] {
             *cell = Cell::new(' ', style);
@@ -118,16 +125,29 @@ impl PlayfieldBuffer {
     }
 
     pub fn write_text(&mut self, row: usize, col: usize, text: &str, style: CellStyle) -> usize {
-        if row >= self.height || col >= self.width {
+        assert!(
+            row < self.height,
+            "write_text target row {row} is outside buffer height {}",
+            self.height
+        );
+        if text.is_empty() {
             return 0;
         }
+        assert!(
+            col < self.width,
+            "write_text start col {col} is outside buffer width {}",
+            self.width
+        );
+        let text_width = text.chars().count();
+        assert!(
+            text_width <= self.width.saturating_sub(col),
+            "write_text overflow at row {row}, col {col}: text width {text_width} exceeds remaining width {}",
+            self.width.saturating_sub(col)
+        );
 
         let mut written = 0;
         for (offset, ch) in text.chars().enumerate() {
             let x = col + offset;
-            if x >= self.width {
-                break;
-            }
             let index = row * self.width + x;
             self.cells[index] = Cell::new(ch, style);
             written += 1;
@@ -144,6 +164,18 @@ impl PlayfieldBuffer {
     }
 
     pub fn set_cursor(&mut self, column: u16, row: u16) {
+        assert!(
+            usize::from(column) < self.width,
+            "cursor column {} is outside buffer width {}",
+            column,
+            self.width
+        );
+        assert!(
+            usize::from(row) < self.height,
+            "cursor row {} is outside buffer height {}",
+            row,
+            self.height
+        );
         self.cursor = Some((column, row));
     }
 

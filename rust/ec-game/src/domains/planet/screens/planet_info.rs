@@ -10,8 +10,7 @@ use crate::screen::layout::{
     dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::{
-    CommandMenu, PlanetBuildOrder, PlayfieldBuffer, ScreenFrame, build_order_summary,
-    format_sector_coords_zero_padded,
+    CommandMenu, PlanetBuildOrder, PlayfieldBuffer, ScreenFrame, format_sector_coords_zero_padded,
 };
 
 pub struct PlanetInfoScreen;
@@ -279,7 +278,7 @@ fn format_stardock_summary(planet: &ec_data::PlanetRecord) -> String {
             continue;
         }
         let kind = planet.stardock_item_kind_current_known(slot);
-        parts.push(format!("{} {}", count, stardock_unit_label(kind, count)));
+        parts.push(format!("{count}{}", compact_unit_code(kind)));
     }
     if parts.is_empty() {
         "Nothing".to_string()
@@ -308,7 +307,13 @@ fn format_build_queue_summary(planet: &ec_data::PlanetRecord) -> String {
     } else {
         orders
             .into_iter()
-            .map(build_order_summary)
+            .map(|order| {
+                format!(
+                    "{}{}",
+                    order.points_remaining,
+                    compact_unit_code(order.kind)
+                )
+            })
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -373,78 +378,18 @@ fn fleet_has_any_force(fleet: &ec_data::FleetRecord) -> bool {
         || fleet.etac_count() > 0
 }
 
-fn stardock_unit_label(kind: ec_data::ProductionItemKind, count: u32) -> &'static str {
+fn compact_unit_code(kind: ec_data::ProductionItemKind) -> &'static str {
     match kind {
-        ec_data::ProductionItemKind::Destroyer => {
-            if count == 1 {
-                "destroyer"
-            } else {
-                "destroyers"
-            }
-        }
-        ec_data::ProductionItemKind::Cruiser => {
-            if count == 1 {
-                "cruiser"
-            } else {
-                "cruisers"
-            }
-        }
-        ec_data::ProductionItemKind::Battleship => {
-            if count == 1 {
-                "battleship"
-            } else {
-                "battleships"
-            }
-        }
-        ec_data::ProductionItemKind::Scout => {
-            if count == 1 {
-                "scout"
-            } else {
-                "scouts"
-            }
-        }
-        ec_data::ProductionItemKind::Transport => {
-            if count == 1 {
-                "troop transport"
-            } else {
-                "troop transports"
-            }
-        }
-        ec_data::ProductionItemKind::Etac => {
-            if count == 1 {
-                "ETAC"
-            } else {
-                "ETACs"
-            }
-        }
-        ec_data::ProductionItemKind::Army => {
-            if count == 1 {
-                "army"
-            } else {
-                "armies"
-            }
-        }
-        ec_data::ProductionItemKind::GroundBattery => {
-            if count == 1 {
-                "ground battery"
-            } else {
-                "ground batteries"
-            }
-        }
-        ec_data::ProductionItemKind::Starbase => {
-            if count == 1 {
-                "starbase"
-            } else {
-                "starbases"
-            }
-        }
-        ec_data::ProductionItemKind::Unknown(_) => {
-            if count == 1 {
-                "unit"
-            } else {
-                "units"
-            }
-        }
+        ec_data::ProductionItemKind::Destroyer => "DD",
+        ec_data::ProductionItemKind::Cruiser => "CA",
+        ec_data::ProductionItemKind::Battleship => "BB",
+        ec_data::ProductionItemKind::Scout => "SC",
+        ec_data::ProductionItemKind::Transport => "TT",
+        ec_data::ProductionItemKind::Etac => "ET",
+        ec_data::ProductionItemKind::Army => "AR",
+        ec_data::ProductionItemKind::GroundBattery => "GB",
+        ec_data::ProductionItemKind::Starbase => "SB",
+        ec_data::ProductionItemKind::Unknown(_) => "UN",
     }
 }
 

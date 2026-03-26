@@ -646,9 +646,9 @@ pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &
     let suffix = "-> ";
     if keys == "SLAP A KEY" {
         let slap_width = "(slap a key)".chars().count();
-        let slap_col = PLAYFIELD_WIDTH.saturating_sub(suffix.chars().count() + slap_width);
+        let suffix_col = buffer.width().saturating_sub(suffix.chars().count() + 1);
+        let slap_col = suffix_col.saturating_sub(slap_width);
         write_slap_a_key(buffer, row, slap_col);
-        let suffix_col = slap_col + slap_width;
         let written = buffer.write_text(row, suffix_col, suffix, classic::prompt_style());
         let cursor_col = suffix_col + written;
         buffer.set_cursor(cursor_col as u16, row as u16);
@@ -720,7 +720,7 @@ pub fn draw_command_line_default_input_at(
     prompt: &str,
     default: &str,
     input: &str,
-) -> usize {
+) {
     buffer.fill_row(row, classic::prompt_style());
     let mut col = buffer.write_spans(
         row,
@@ -746,7 +746,6 @@ pub fn draw_command_line_default_input_at(
     let written = buffer.write_text(row, col, input, classic::prompt_hotkey_style());
     let cursor_col = col + written;
     buffer.set_cursor(cursor_col as u16, row as u16);
-    cursor_col
 }
 
 pub fn draw_table_command_bar(

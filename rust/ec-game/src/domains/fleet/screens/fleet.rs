@@ -252,16 +252,17 @@ impl FleetMenuScreen {
             if let Some(summary) = inline_transport_summary {
                 buffer.write_text(8, 0, summary, classic::status_value_style());
             }
-            let quantity_row = draw_command_line_default_input_at(
+            const TRANSPORT_COMMAND_ROW: usize = 10;
+            draw_command_line_default_input_at(
                 &mut buffer,
-                10,
+                TRANSPORT_COMMAND_ROW,
                 "FLEET COMMAND",
                 menu_prompt_label.unwrap_or("How many armies? "),
                 menu_prompt_default,
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, quantity_row, status);
+                draw_prompt_error_after(&mut buffer, TRANSPORT_COMMAND_ROW, status);
             }
         } else if menu_prompt_mode.is_some() {
             draw_command_line_default_input_at(

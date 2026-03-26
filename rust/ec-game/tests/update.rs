@@ -1141,11 +1141,7 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
             .line(2)
             .contains("You are a pre-loaded player and this is your first time on.")
     );
-    assert!(
-        terminal
-            .line(6)
-            .contains("Would you like to rename your empire? (This is your only chance.)")
-    );
+    assert!(terminal.line(6).contains("Rename your empire? Y/[N] ->"));
 }
 
 #[test]
@@ -7389,12 +7385,8 @@ fn planet_transport_load_prompt_rejects_non_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet transport prompt should render error hanger");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Error: ") && line.contains(expected.as_str()))
-    );
+    assert!(terminal.line(7).contains(&format!("Error: {expected}")));
+    assert!(!terminal.line(24).contains(expected.as_str()));
 }
 
 #[test]
@@ -11311,15 +11303,103 @@ fn build_menu_review_shortcut_opens_owned_planet_info_with_build_queue_and_retur
     app.render(&mut terminal).expect("render succeeds");
     let build_queue_line = line_containing(&terminal, "Build Queue: ");
     assert!(build_queue_line.contains("Build Queue: "));
-    assert!(build_queue_line.contains("Destroyers"));
-    assert!(build_queue_line.contains("5 pts"));
-    assert!(line_containing(&terminal, "Docked: ").contains("Docked: 2 destroyers"));
+    assert!(build_queue_line.contains("5DD"));
+    assert!(line_containing(&terminal, "Docked: ").contains("Docked: 2DD"));
 
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+}
+
+#[test]
+fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+
+    let planet_idx = app
+        .game_data
+        .planet_record_index_at_coords([16, 13])
+        .expect("current build planet should exist");
+    let planet = &mut app.game_data.planets.records[planet_idx];
+
+    for (slot, (points, kind_raw)) in [
+        (10u8, 1u8),
+        (20, 2),
+        (30, 3),
+        (40, 4),
+        (50, 5),
+        (60, 6),
+        (70, 7),
+        (80, 8),
+        (90, 9),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        planet.set_build_count_raw(slot, points);
+        planet.set_build_kind_raw(slot, kind_raw);
+    }
+
+    for (slot, (count, kind_raw)) in [
+        (1u8, 1u8),
+        (2u8, 2u8),
+        (3u8, 3u8),
+        (4u8, 4u8),
+        (5u8, 5u8),
+        (6u8, 9u8),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        planet.set_stardock_count_raw(slot, u16::from(count));
+        planet.set_stardock_kind_raw(slot, kind_raw);
+    }
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+
+    app.render(&mut terminal).expect("render succeeds");
+
+    let build_queue_line = line_containing(&terminal, "Build Queue: ");
+    for token in [
+        "10DD", "20CA", "30BB", "40SC", "50TT", "60ET", "70GB", "80AR", "90SB",
+    ] {
+        assert!(
+            build_queue_line.contains(token),
+            "missing {token} in {build_queue_line}"
+        );
+    }
+
+    let docked_line = line_containing(&terminal, "Docked: ");
+    for token in ["1DD", "2CA", "3BB", "4SC", "5TT", "6SB"] {
+        assert!(
+            docked_line.contains(token),
+            "missing {token} in {docked_line}"
+        );
+    }
 }
 
 #[test]

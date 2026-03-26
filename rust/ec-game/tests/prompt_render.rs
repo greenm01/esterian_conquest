@@ -757,6 +757,20 @@ fn draw_prompt_error_after_places_error_hanger_two_rows_below_command_row() {
 }
 
 #[test]
+#[should_panic(expected = "write_text overflow")]
+fn playfield_write_text_panics_when_text_overflows_row() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    buffer.write_text(0, PLAYFIELD_WIDTH - 1, "AB", classic::body_style());
+}
+
+#[test]
+#[should_panic(expected = "cursor column")]
+fn playfield_set_cursor_panics_when_cursor_is_out_of_bounds() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    buffer.set_cursor(PLAYFIELD_WIDTH as u16, 0);
+}
+
+#[test]
 fn source_tree_does_not_use_removed_inline_status_helper() {
     let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut stack = vec![src_root];

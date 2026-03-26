@@ -17,8 +17,7 @@ use crate::theme::classic;
 
 pub const PLANET_DATABASE_VISIBLE_ROWS: usize = stacked_table_visible_rows(1);
 
-const DATABASE_FILTER_PROMPT: &str =
-    "Filter by <L>ocation, <R>ange, <E>mpire, <M>ax Prod, or <Q>uit? [L] ->";
+const DATABASE_FILTER_PROMPT: &str = "Filter <L>, <R>, <E>, <M>, or <Q>? [L] ->";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetDatabaseFilterMode {

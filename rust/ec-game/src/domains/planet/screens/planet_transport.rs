@@ -244,9 +244,10 @@ impl PlanetTransportScreen {
             ),
             classic::status_value_style(),
         );
-        let command_row = draw_command_line_default_input_at(
+        let command_row = menu_prompt_row(2);
+        draw_command_line_default_input_at(
             &mut buffer,
-            menu_prompt_row(2),
+            command_row,
             prompt_label,
             &format!("How many armies to {}? ", mode.verb()),
             &fleet.available_qty.to_string(),

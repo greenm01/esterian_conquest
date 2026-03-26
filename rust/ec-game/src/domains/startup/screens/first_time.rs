@@ -261,7 +261,7 @@ pub fn render_preloaded_first_login_rename_prompt(
         &mut buffer,
         menu_prompt_row(4),
         "EMPIRE NAME",
-        "Would you like to rename your empire? (This is your only chance.) Y/[N] ->",
+        "Rename your empire? Y/[N] ->",
     );
     Ok(buffer)
 }

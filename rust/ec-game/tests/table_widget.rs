@@ -289,7 +289,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
 
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
     let prompt_row = (0..PLAYFIELD_HEIGHT)
-        .find(|row| buffer.plain_line(*row).contains("Filter by"))
+        .find(|row| buffer.plain_line(*row).contains("Filter <L>"))
         .expect("filter prompt row");
     assert_eq!(
         buffer
