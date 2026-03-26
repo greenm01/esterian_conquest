@@ -822,10 +822,13 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildReview)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo)
+        ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetBuildReview);
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
@@ -4219,12 +4222,15 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildReview)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
     app.render(&mut terminal)
-        .expect("build review fallback render succeeds");
+        .expect("build current-planet info fallback render succeeds");
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
@@ -4367,7 +4373,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("build list should still render normally");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "BUILD LIST: \"Codex Prime\" AT [16,13]:"
+        "BUILD LIST: \"Codex Prime\" AT (16,13):"
     );
     assert!(terminal.lines[2].contains("┌"));
 }
@@ -4401,7 +4407,7 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Planet(PlanetAction::OpenAutoCommissionPrompt),
         Action::Planet(PlanetAction::OpenCommissionMenu),
         Action::Planet(PlanetAction::OpenBuildMenu),
-        Action::Planet(PlanetAction::OpenBuildReview),
+        Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo),
         Action::Planet(PlanetAction::OpenBuildList),
         Action::Planet(PlanetAction::OpenBuildChange),
         Action::Planet(PlanetAction::OpenBuildAbortPrompt),
@@ -11239,6 +11245,59 @@ fn build_menu_planet_info_prompt_clears_stale_build_notice() {
             .any(|line| line.contains("Build orders aborted.")),
         "stale build notice should not leak into the inline planet info prompt"
     );
+}
+
+#[test]
+fn build_menu_review_shortcut_opens_owned_planet_info_with_build_queue_and_returns() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+
+    let planet_idx = app
+        .game_data
+        .planet_record_index_at_coords([16, 13])
+        .expect("current build planet should exist");
+    let planet = &mut app.game_data.planets.records[planet_idx];
+    planet.set_build_count_raw(0, 5);
+    planet.set_build_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 2);
+    planet.set_stardock_kind_raw(0, 1);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+
+    app.render(&mut terminal).expect("render succeeds");
+    let build_queue_line = line_containing(&terminal, "Build Queue: ");
+    assert!(build_queue_line.contains("Build Queue: "));
+    assert!(build_queue_line.contains("Destroyers"));
+    assert!(build_queue_line.contains("5 pts"));
+    assert!(line_containing(&terminal, "Docked: ").contains("Docked: 2 destroyers"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
 }
 
 #[test]

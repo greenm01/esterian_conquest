@@ -204,7 +204,6 @@ impl App {
             ScreenId::PlanetTransportDone(_) => Action::Planet(PlanetAction::OpenMenu),
             ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
-            ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
             ScreenId::PlanetBuildList => self.planet_build.handle_list_key(
                 key,
                 self.planet.build_list_confirming,

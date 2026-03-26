@@ -95,14 +95,12 @@ fn build_list_renders_queue_columns_without_dock() {
             unit_label: "Destroyers".to_string(),
             points: 5,
             queue_qty: 2,
-            stardock_qty: Some(3),
         },
         PlanetBuildListRow {
             kind: ProductionItemKind::Army,
             unit_label: "Armies".to_string(),
             points: 2,
             queue_qty: 4,
-            stardock_qty: None,
         },
     ];
 
@@ -168,7 +166,6 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
         unit_label: "Destroyers".to_string(),
         points: 5,
         queue_qty: 2,
-        stardock_qty: Some(3),
     }];
 
     let buffer = screen
@@ -288,7 +285,6 @@ fn build_list_delete_qty_prompt_renders_all_as_default() {
         unit_label: "Destroyers".to_string(),
         points: 5,
         queue_qty: 2,
-        stardock_qty: Some(3),
     }];
 
     let buffer = screen

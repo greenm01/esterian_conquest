@@ -1,12 +1,18 @@
 use crossterm::event::KeyEvent;
-use ec_data::{IntelTier, PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
+use ec_data::{
+    IntelTier, PlanetIntelSnapshot, ProductionItemKind,
+    build_player_starmap_projection_from_snapshots,
+};
 use ec_engine::yearly_tax_revenue;
 
 use crate::app::Action;
 use crate::screen::layout::{
     dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, format_sector_coords_zero_padded};
+use crate::screen::{
+    CommandMenu, PlanetBuildOrder, PlayfieldBuffer, ScreenFrame, build_order_summary,
+    format_sector_coords_zero_padded,
+};
 
 pub struct PlanetInfoScreen;
 
@@ -92,22 +98,28 @@ impl PlanetInfoScreen {
         draw_status_line(
             &mut buffer,
             14,
+            "Build Queue: ",
+            &format_build_queue_summary(planet),
+        );
+        draw_status_line(
+            &mut buffer,
+            15,
             "Docked: ",
             &format_stardock_summary(planet),
         );
         draw_status_line(
             &mut buffer,
-            15,
+            16,
             "Space Forces: ",
             &format_owned_orbit_summary(frame, [x, y]),
         );
         draw_status_line(
             &mut buffer,
-            16,
+            17,
             "Status: ",
             &owned_status_summary(frame, planet_idx, [x, y]),
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(16));
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(17));
         Ok(buffer)
     }
 
@@ -273,6 +285,32 @@ fn format_stardock_summary(planet: &ec_data::PlanetRecord) -> String {
         "Nothing".to_string()
     } else {
         parts.join(", ")
+    }
+}
+
+fn format_build_queue_summary(planet: &ec_data::PlanetRecord) -> String {
+    let orders: Vec<PlanetBuildOrder> = (0..10)
+        .filter_map(|slot| {
+            let points = planet.build_count_raw(slot);
+            let kind_raw = planet.build_kind_raw(slot);
+            if points == 0 || kind_raw == 0 {
+                None
+            } else {
+                Some(PlanetBuildOrder {
+                    kind: ProductionItemKind::from_raw(kind_raw),
+                    points_remaining: points,
+                })
+            }
+        })
+        .collect();
+    if orders.is_empty() {
+        "<none>".to_string()
+    } else {
+        orders
+            .into_iter()
+            .map(build_order_summary)
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 

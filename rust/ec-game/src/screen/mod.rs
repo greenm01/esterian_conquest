@@ -219,7 +219,6 @@ pub enum ScreenId {
     PlanetHelp,
     PlanetBuildMenu,
     PlanetBuildHelp,
-    PlanetBuildReview,
     PlanetBuildList,
     PlanetBuildChange,
     PlanetBuildSpecify,

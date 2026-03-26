@@ -27,7 +27,7 @@ pub enum PlanetAction {
     CancelTransportPrompt,
     OpenBuildMenu,
     OpenBuildHelp,
-    OpenBuildReview,
+    OpenCurrentBuildPlanetInfo,
     OpenBuildList,
     OpenBuildChange,
     MoveBuildChange(i8),

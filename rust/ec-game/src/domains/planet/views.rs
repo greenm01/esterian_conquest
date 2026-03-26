@@ -154,10 +154,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.info_error.as_deref(),
             app.planet.build_abort_prompt_active,
         ),
-        ScreenId::PlanetBuildReview => app.planet_build.render_review(
-            &app.current_planet_build_view()?,
-            &app.current_planet_build_orders(),
-        ),
         ScreenId::PlanetBuildList => app.planet_build.render_list(
             &app.current_planet_build_view()?,
             &app.planet_build_list_rows(),

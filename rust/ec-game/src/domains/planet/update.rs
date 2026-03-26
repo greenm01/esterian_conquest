@@ -39,7 +39,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::CancelTransportPrompt => app.cancel_planet_transport_prompt(),
         PlanetAction::OpenBuildMenu => app.open_planet_build_menu(),
         PlanetAction::OpenBuildHelp => app.open_planet_build_help(),
-        PlanetAction::OpenBuildReview => app.open_planet_build_review(),
+        PlanetAction::OpenCurrentBuildPlanetInfo => app.open_current_build_planet_info(),
         PlanetAction::OpenBuildList => app.open_planet_build_list(),
         PlanetAction::OpenBuildChange => app.open_planet_build_change(),
         PlanetAction::MoveBuildChange(delta) => app.move_planet_build_change_cursor(delta),

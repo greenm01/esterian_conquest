@@ -10,8 +10,8 @@ use crate::screen::layout::{
     draw_command_message_stack, draw_command_message_stack_after, draw_command_prompt_at,
     draw_dismiss_prompt, draw_expert_menu, draw_general_message_after_command,
     draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
-    draw_inline_status_after, draw_menu_notice, draw_menu_row, draw_status_line, draw_title_bar,
-    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_inline_status_after, draw_menu_notice, draw_menu_row, draw_title_bar, last_body_row,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -101,7 +101,6 @@ pub struct PlanetBuildListRow {
     pub unit_label: String,
     pub points: u32,
     pub queue_qty: u32,
-    pub stardock_qty: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -340,83 +339,6 @@ impl PlanetBuildScreen {
         Ok(buffer)
     }
 
-    pub fn render_review(
-        &mut self,
-        view: &PlanetBuildMenuView,
-        orders: &[PlanetBuildOrder],
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "BUILD REVIEW:");
-        draw_status_line(&mut buffer, 2, "Planet Name: ", &view.row.planet_name);
-        draw_status_line(
-            &mut buffer,
-            3,
-            "Location: ",
-            &format_sector_coords(view.row.coords),
-        );
-        draw_status_line(
-            &mut buffer,
-            4,
-            "Production: ",
-            &format!(
-                "{} of {}",
-                view.row.present_production, view.row.potential_production
-            ),
-        );
-        draw_status_line(
-            &mut buffer,
-            5,
-            "Stored Production Points: ",
-            &view.row.stored_production_points.to_string(),
-        );
-        draw_status_line(
-            &mut buffer,
-            6,
-            "Build Capacity: ",
-            &view.row.build_capacity.to_string(),
-        );
-        draw_status_line(
-            &mut buffer,
-            7,
-            "Available To Spend: ",
-            &view.available_points.to_string(),
-        );
-        draw_status_line(
-            &mut buffer,
-            8,
-            "Queued Points: ",
-            &view.committed_points.to_string(),
-        );
-        draw_status_line(
-            &mut buffer,
-            9,
-            "Points Left: ",
-            &view.points_left.to_string(),
-        );
-        draw_status_line(
-            &mut buffer,
-            10,
-            "Starbase In Orbit: ",
-            if view.row.has_friendly_starbase {
-                "YES"
-            } else {
-                "NO"
-            },
-        );
-        let queue_summary = if orders.is_empty() {
-            "<none>".to_string()
-        } else {
-            orders
-                .iter()
-                .map(|o| build_order_summary(*o))
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-        draw_status_line(&mut buffer, 12, "Queued Build: ", &queue_summary);
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
-        Ok(buffer)
-    }
-
     pub fn render_list(
         &mut self,
         view: &PlanetBuildMenuView,
@@ -436,7 +358,7 @@ impl PlanetBuildScreen {
             &format!(
                 "BUILD LIST: \"{}\" AT {}:",
                 view.row.planet_name,
-                format_sector_coords(view.row.coords)
+                format_sector_coords_table(view.row.coords)
             ),
         );
 
@@ -767,7 +689,7 @@ impl PlanetBuildScreen {
             }
             KeyCode::Char('n') | KeyCode::Char('N') => Action::Planet(PlanetAction::MoveBuild(1)),
             KeyCode::Char('r') | KeyCode::Char('R') => {
-                Action::Planet(PlanetAction::OpenBuildReview)
+                Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo)
             }
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(PlanetAction::OpenBuildList),
             KeyCode::Char('a') | KeyCode::Char('A') => {
@@ -785,10 +707,6 @@ impl PlanetBuildScreen {
             KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             _ => Action::Noop,
         }
-    }
-
-    pub fn handle_review_key(&self, _key: KeyEvent) -> Action {
-        Action::Planet(PlanetAction::OpenBuildMenu)
     }
 
     pub fn handle_list_key(

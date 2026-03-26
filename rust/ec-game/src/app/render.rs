@@ -61,7 +61,6 @@ impl App {
             | ScreenId::PlanetAutoCommissionReport
             | ScreenId::PlanetBuildHelp
             | ScreenId::PlanetBuildMenu
-            | ScreenId::PlanetBuildReview
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange
             | ScreenId::PlanetBuildSpecify

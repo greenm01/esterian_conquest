@@ -178,12 +178,17 @@ impl App {
         self.current_screen = ScreenId::PlanetBuildMenu;
     }
 
-    pub fn open_planet_build_review(&mut self) {
+    pub fn open_current_build_planet_info(&mut self) {
         if self.build_planet_rows().is_empty() {
             self.open_planet_build_menu();
             return;
         }
-        self.current_screen = ScreenId::PlanetBuildReview;
+        let Ok(row) = self.current_build_planet_row() else {
+            self.open_planet_build_menu();
+            return;
+        };
+        self.command_return_menu = CommandMenu::PlanetBuild;
+        let _ = self.open_planet_info_detail_at_coords(row.coords, Some(ScreenId::PlanetBuildMenu));
     }
 
     pub fn open_planet_build_list(&mut self) {
@@ -1542,7 +1547,6 @@ impl App {
             return vec![];
         };
         let mut queue_qty_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
-        let mut stardock_qty_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
 
         for slot in 0..10 {
             let points = u32::from(record.build_count_raw(slot));
@@ -1556,17 +1560,8 @@ impl App {
             *queue_qty_by_kind.entry(kind_raw).or_default() += qty.max(1);
         }
 
-        for slot in 0..STARDOCK_SLOT_COUNT {
-            let qty = u32::from(record.stardock_count_raw(slot));
-            let kind_raw = record.stardock_kind_raw(slot);
-            if qty == 0 || kind_raw == 0 {
-                continue;
-            }
-            *stardock_qty_by_kind.entry(kind_raw).or_default() += qty;
-        }
-
         let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
-        for kind_raw in queue_qty_by_kind.keys().chain(stardock_qty_by_kind.keys()) {
+        for kind_raw in queue_qty_by_kind.keys() {
             if !ordered_kind_raws.contains(kind_raw) {
                 ordered_kind_raws.push(*kind_raw);
             }
@@ -1576,8 +1571,7 @@ impl App {
             .into_iter()
             .filter_map(|kind_raw| {
                 let queue_qty = queue_qty_by_kind.get(&kind_raw).copied().unwrap_or(0);
-                let stardock_qty = stardock_qty_by_kind.get(&kind_raw).copied().unwrap_or(0);
-                if queue_qty == 0 && stardock_qty == 0 {
+                if queue_qty == 0 {
                     return None;
                 }
                 let kind = ProductionItemKind::from_raw(kind_raw);
@@ -1589,11 +1583,6 @@ impl App {
                     unit_label,
                     points: u32::from(cost),
                     queue_qty,
-                    stardock_qty: if kind.requires_stardock() {
-                        Some(stardock_qty)
-                    } else {
-                        None
-                    },
                 })
             })
             .collect()

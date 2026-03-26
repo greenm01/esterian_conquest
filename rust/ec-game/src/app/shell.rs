@@ -122,7 +122,6 @@ impl App {
             | ScreenId::PlanetTransportDone(_) => CommandMenu::Planet,
             ScreenId::PlanetBuildMenu
             | ScreenId::PlanetBuildHelp
-            | ScreenId::PlanetBuildReview
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange
             | ScreenId::PlanetBuildSpecify
