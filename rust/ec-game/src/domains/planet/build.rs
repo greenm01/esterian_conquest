@@ -619,7 +619,9 @@ impl App {
             }
         };
         let notice = self.commission_fleet_notice(fleet_record_index_1_based)?;
-        let (remaining_slots, remaining_rows) = self.current_planet_commission_draft_state()?;
+        let remaining_rows = self.current_planet_commission_rows_for(planet_record);
+        let (remaining_slots, remaining_rows) =
+            build_planet_commission_draft_state(&remaining_rows);
         self.planet.commission_selected_slots.clear();
         self.planet.commission_draft_input.clear();
         self.planet.commission_draft_status = None;
@@ -1226,16 +1228,6 @@ impl App {
         self.planet.commission_status = None;
     }
 
-    fn current_planet_commission_draft_state(
-        &self,
-    ) -> Result<(Vec<usize>, Vec<PlanetCommissionDraftRow>), Box<dyn std::error::Error>> {
-        let planet_record = self
-            .current_commission_planet_row()?
-            .planet_record_index_1_based;
-        let rows = self.current_planet_commission_rows_for(planet_record);
-        Ok(build_planet_commission_draft_state(&rows))
-    }
-
     fn commit_current_planet_commission_draft_input(
         &mut self,
     ) -> Result<bool, Box<dyn std::error::Error>> {
@@ -1258,6 +1250,9 @@ impl App {
         }
         let raw = self.planet.commission_draft_input.trim();
         if raw.is_empty() {
+            row.fleet_qty = row.remaining_qty;
+            self.planet.commission_draft_input.clear();
+            self.planet.commission_draft_status = None;
             return Ok(true);
         }
         let qty = match raw.parse::<u16>() {

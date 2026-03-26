@@ -4119,6 +4119,173 @@ fn planet_commission_draft_keeps_intermediate_success_inline() {
 }
 
 #[test]
+fn planet_commission_blank_submit_uses_displayed_default_qty() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let owned_planets = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() == 1)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+    let owned_planet = owned_planets
+        .first()
+        .copied()
+        .expect("fixture should have an owned planet");
+    for &planet_idx in &owned_planets {
+        let planet = &mut state.game_data.planets.records[planet_idx];
+        for slot in 0..6 {
+            planet.set_stardock_kind_raw(slot, 0);
+            planet.set_stardock_count_raw(slot, 0);
+        }
+    }
+    let planet = &mut state.game_data.planets.records[owned_planet];
+    planet.set_stardock_kind_raw(0, 3);
+    planet.set_stardock_count_raw(0, 1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionPlanet)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
+    assert_eq!(app.planet.commission_draft_rows.len(), 1);
+    assert_eq!(app.planet.commission_draft_rows[0].remaining_qty, 1);
+    assert_eq!(app.planet.commission_draft_rows[0].fleet_qty, 0);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitCommissionDraft)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionResult);
+    assert!(
+        app.planet
+            .commission_result_notice
+            .as_deref()
+            .unwrap_or("")
+            .contains("Fleet")
+    );
+}
+
+#[test]
+fn planet_commission_blank_row_move_commits_displayed_default_qty() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let owned_planets = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() == 1)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+    let owned_planet = owned_planets
+        .first()
+        .copied()
+        .expect("fixture should have an owned planet");
+    for &planet_idx in &owned_planets {
+        let planet = &mut state.game_data.planets.records[planet_idx];
+        for slot in 0..6 {
+            planet.set_stardock_kind_raw(slot, 0);
+            planet.set_stardock_count_raw(slot, 0);
+        }
+    }
+    let planet = &mut state.game_data.planets.records[owned_planet];
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 2);
+    planet.set_stardock_kind_raw(1, 3);
+    planet.set_stardock_count_raw(1, 1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionPlanet)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
+    assert_eq!(app.planet.commission_draft_rows.len(), 2);
+    assert_eq!(app.planet.commission_draft_rows[0].remaining_qty, 2);
+    assert_eq!(app.planet.commission_draft_rows[0].fleet_qty, 0);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::MoveCommissionDraftRow(1))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.planet.commission_draft_cursor, 1);
+    assert_eq!(app.planet.commission_draft_rows[0].fleet_qty, 2);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::AppendCommissionDraftChar('0'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitCommissionDraft)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
+    assert!(
+        app.planet
+            .commission_draft_notice
+            .as_deref()
+            .unwrap_or("")
+            .contains("Fleet")
+    );
+}
+
+#[test]
 fn planet_commission_result_latches_dismiss_key_until_release() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
