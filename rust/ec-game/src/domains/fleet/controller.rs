@@ -6,6 +6,7 @@ use crate::app::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetChangeField, FleetMenuPromptMode};
+use crate::screen::layout::PromptFeedback;
 use crate::screen::{CommandMenu, FleetEtaMode, FleetRow, PlanetTransportMode, ScreenId};
 use std::cmp::Reverse;
 
@@ -262,8 +263,9 @@ impl App {
             .iter()
             .all(|row| row.fleet_record_index_1_based != fleet_record_index_1_based)
         {
-            self.fleet.menu_prompt_status =
-                Some("Selected fleet is no longer available.".to_string());
+            self.fleet.menu_prompt_status = Some(PromptFeedback::error(
+                "Selected fleet is no longer available.",
+            ));
             return;
         }
         self.clear_command_menu_notice();
@@ -917,10 +919,7 @@ impl App {
             .iter()
             .all(|peer| peer.fleet_number > row.fleet_number)
         {
-            return Err(format!(
-                "Fleet #{} must merge into a lower-numbered fleet in the same sector.",
-                row.fleet_number
-            ));
+            return Err("Fleets must be co-located in the same sector.".to_string());
         }
         Ok(())
     }
@@ -1037,7 +1036,7 @@ impl App {
                     self.fleet.menu_prompt_default_value = row.fleet_number.to_string();
                     self.open_fleet_review();
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::Order => match self.resolve_fleet_menu_prompt_selection() {
                 Ok((index, row)) => {
@@ -1047,7 +1046,7 @@ impl App {
                     self.fleet.menu_prompt_default_value = row.fleet_number.to_string();
                     self.open_fleet_order_with_selected_record(row.fleet_record_index_1_based);
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::ChangeFleet => match self.resolve_fleet_menu_prompt_selection() {
                 Ok((_index, row)) => {
@@ -1059,7 +1058,7 @@ impl App {
                     self.fleet.menu_prompt_status = None;
                     self.fleet.menu_prompt_default_value = "R".to_string();
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::ChangeField => match self.resolve_fleet_change_field() {
                 Ok(field) => {
@@ -1070,11 +1069,11 @@ impl App {
                     self.fleet.menu_prompt_default_value =
                         self.fleet_change_value_default().unwrap_or_default();
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::ChangeValue => {
                 if let Err(err) = self.submit_inline_fleet_change() {
-                    self.fleet.menu_prompt_status = Some(err);
+                    self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                 }
             }
             FleetMenuPromptMode::EtaFleet => match self.resolve_fleet_menu_prompt_selection() {
@@ -1085,7 +1084,7 @@ impl App {
                     self.fleet.menu_prompt_default_value = row.fleet_number.to_string();
                     self.open_fleet_eta_with_selected_record(row.fleet_record_index_1_based);
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::DetachFleet => match self.resolve_fleet_menu_prompt_selection() {
                 Ok((index, row)) => {
@@ -1099,7 +1098,7 @@ impl App {
                             .largest_owned_fleet_number_by_ship_total()
                             .map(|value| value.to_string())
                             .unwrap_or_default();
-                        self.fleet.menu_prompt_status = Some(err);
+                        self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                     }
                 }
                 Err(err) => {
@@ -1107,7 +1106,7 @@ impl App {
                         .largest_owned_fleet_number_by_ship_total()
                         .map(|value| value.to_string())
                         .unwrap_or_default();
-                    self.fleet.menu_prompt_status = Some(err);
+                    self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                 }
             },
             FleetMenuPromptMode::MergeSource => match self.resolve_fleet_menu_prompt_selection() {
@@ -1117,7 +1116,7 @@ impl App {
                             .eligible_merge_source_fleet_number()
                             .map(|value| value.to_string())
                             .unwrap_or_default();
-                        self.fleet.menu_prompt_status = Some(err);
+                        self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                         return;
                     }
                     self.fleet.merge_source_record_index_1_based =
@@ -1127,22 +1126,22 @@ impl App {
                     self.fleet.menu_prompt_status = None;
                     self.fleet.menu_prompt_default_value = self.merge_host_default_value();
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::MergeHost => match self.resolve_merge_host_prompt_row() {
                 Ok(row) => {
                     if let Err(err) = self.submit_inline_fleet_merge(row.fleet_record_index_1_based)
                     {
-                        self.fleet.menu_prompt_status = Some(err);
+                        self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                     }
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::TransferDonor => {
                 match self.resolve_fleet_menu_prompt_selection() {
                     Ok((_index, row)) => {
                         if let Err(err) = self.validate_transfer_donor_row(&row) {
-                            self.fleet.menu_prompt_status = Some(err);
+                            self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                             return;
                         }
                         self.fleet.transfer_donor_record_index_1_based =
@@ -1152,14 +1151,14 @@ impl App {
                         self.fleet.menu_prompt_status = None;
                         self.fleet.menu_prompt_default_value = self.transfer_host_default_value();
                     }
-                    Err(err) => self.fleet.menu_prompt_status = Some(err),
+                    Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
                 }
             }
             FleetMenuPromptMode::TransferHost => match self.resolve_transfer_host_prompt_row() {
                 Ok(row) => {
                     self.open_fleet_transfer_with_selected_records(row.fleet_record_index_1_based);
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::TransportFleet(mode) => match self
                 .resolve_fleet_menu_prompt_selection()
@@ -1168,20 +1167,20 @@ impl App {
                     if let Err(err) = self
                         .open_fleet_transport_quantity_prompt(mode, row.fleet_record_index_1_based)
                     {
-                        self.fleet.menu_prompt_status = Some(err);
+                        self.fleet.menu_prompt_status = Some(PromptFeedback::error(err));
                     }
                 }
-                Err(err) => self.fleet.menu_prompt_status = Some(err),
+                Err(err) => self.fleet.menu_prompt_status = Some(PromptFeedback::error(err)),
             },
             FleetMenuPromptMode::TransportQuantity(_) => {
                 self.planet.transport_qty_input = self.fleet.menu_prompt_input.clone();
                 self.planet.transport_status = None;
                 if let Err(err) = self.submit_planet_transport_qty() {
-                    self.fleet.menu_prompt_status = Some(err.to_string());
+                    self.fleet.menu_prompt_status = Some(PromptFeedback::error(err.to_string()));
                     return;
                 }
                 if let Some(status) = self.planet.transport_status.take() {
-                    self.fleet.menu_prompt_status = Some(status);
+                    self.fleet.menu_prompt_status = Some(PromptFeedback::error(status));
                 }
             }
         }

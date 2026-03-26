@@ -11,11 +11,12 @@ use ec_game::screen::PlanetCommissionScreen;
 use ec_game::screen::PlanetMenuScreen;
 use ec_game::screen::PlayfieldBuffer;
 use ec_game::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, dismiss_prompt_row,
     draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
     draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt, draw_plain_prompt,
-    draw_prompt_error_after, draw_table_command_prompt, table_dismiss_prompt_row,
+    draw_prompt_error_after, draw_prompt_feedback_after, draw_table_command_prompt,
+    table_dismiss_prompt_row,
 };
 use ec_game::theme::classic;
 
@@ -147,6 +148,28 @@ fn draw_command_line_default_input_highlights_prompt_choices_and_default() {
     assert_eq!(row[quit].style, classic::prompt_style());
     assert_eq!(row[quit + 1].style, classic::prompt_hotkey_style());
     assert_eq!(row[quit + 2].style, classic::prompt_style());
+}
+
+#[test]
+fn draw_prompt_feedback_after_renders_notice_hanger() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_line_default_input_at(
+        &mut buffer,
+        COMMAND_LINE_ROW,
+        "FLEET COMMAND",
+        "Order Fleet # ",
+        "2",
+        "",
+    );
+    draw_prompt_feedback_after(
+        &mut buffer,
+        COMMAND_LINE_ROW,
+        &PromptFeedback::notice("Applied move to Fleet #2 for sector [14,9]."),
+    );
+
+    assert!((0..PLAYFIELD_HEIGHT).any(|row| {
+        row_text(&buffer, row).contains("Notice: Applied move to Fleet #2 for sector [14,9].")
+    }));
 }
 
 #[test]

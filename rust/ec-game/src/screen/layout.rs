@@ -88,6 +88,33 @@ pub enum CommandMessage<'a> {
     Warning(&'a str),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PromptFeedback {
+    Notice(String),
+    Error(String),
+    Warning(String),
+}
+
+impl PromptFeedback {
+    pub fn notice(value: impl Into<String>) -> Self {
+        Self::Notice(value.into())
+    }
+
+    pub fn error(value: impl Into<String>) -> Self {
+        Self::Error(value.into())
+    }
+
+    pub fn warning(value: impl Into<String>) -> Self {
+        Self::Warning(value.into())
+    }
+
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Notice(value) | Self::Error(value) | Self::Warning(value) => value,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MenuEntry<'a> {
     pub col: usize,
@@ -427,6 +454,20 @@ pub fn draw_prompt_error_after(
     value: &str,
 ) -> usize {
     draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Error(value)])
+}
+
+pub fn draw_prompt_feedback_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    feedback: &PromptFeedback,
+) -> usize {
+    match feedback {
+        PromptFeedback::Notice(value) => draw_prompt_notice_after(buffer, previous_end_row, value),
+        PromptFeedback::Error(value) => draw_prompt_error_after(buffer, previous_end_row, value),
+        PromptFeedback::Warning(value) => {
+            draw_prompt_warning_after(buffer, previous_end_row, value)
+        }
+    }
 }
 
 pub fn draw_menu_general_message(

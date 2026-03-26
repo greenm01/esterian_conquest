@@ -1,5 +1,6 @@
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
+use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FleetDetachClass, FleetDetachMode, FleetRow, FleetTransferMode, ScreenId,
 };
@@ -131,7 +132,8 @@ impl App {
     ) {
         let Some(donor_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based
         else {
-            self.fleet.menu_prompt_status = Some("Select a donor fleet first.".to_string());
+            self.fleet.menu_prompt_status =
+                Some(PromptFeedback::error("Select a donor fleet first."));
             return;
         };
         self.clear_command_menu_notice();

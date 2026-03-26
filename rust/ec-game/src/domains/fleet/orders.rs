@@ -3,6 +3,7 @@ use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::missions::fleet_record_supports_mission_code;
 use crate::domains::fleet::state::{FleetMenuPromptMode, FleetMissionPickerCaller};
+use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, FleetSingleOrderMode,
     ScreenId, StarbaseRow,
@@ -92,7 +93,7 @@ impl App {
             {
                 if self.fleet.order_fleet_record_index_1_based.is_none() {
                     self.fleet.menu_prompt_status =
-                        Some("Enter one of your fleet numbers.".to_string());
+                        Some(PromptFeedback::error("Enter one of your fleet numbers."));
                     return;
                 }
                 self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
@@ -1833,8 +1834,9 @@ impl App {
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
             );
-            self.fleet.menu_prompt_status =
-                Some("Selected fleet is no longer available.".to_string());
+            self.fleet.menu_prompt_status = Some(PromptFeedback::error(
+                "Selected fleet is no longer available.",
+            ));
             return Ok(());
         };
         self.apply_fleet_orders_to_rows(&[selected_row.clone()], mission_code, target, aux0, aux1)?;
@@ -1846,21 +1848,23 @@ impl App {
             FleetMenuPromptMode::Order,
             selected_row.fleet_number.to_string(),
         );
-        self.fleet.menu_prompt_status = Some(if fleet_group_order_requires_target(mission_code) {
-            format!(
-                "Applied {} to Fleet #{} for sector [{},{}].",
-                fleet_group_order_label(mission_code),
-                selected_row.fleet_number,
-                target[0],
-                target[1]
-            )
-        } else {
-            format!(
-                "Applied {} to Fleet #{}.",
-                fleet_group_order_label(mission_code),
-                selected_row.fleet_number
-            )
-        });
+        self.fleet.menu_prompt_status = Some(PromptFeedback::notice(
+            if fleet_group_order_requires_target(mission_code) {
+                format!(
+                    "Applied {} to Fleet #{} for sector [{},{}].",
+                    fleet_group_order_label(mission_code),
+                    selected_row.fleet_number,
+                    target[0],
+                    target[1]
+                )
+            } else {
+                format!(
+                    "Applied {} to Fleet #{}.",
+                    fleet_group_order_label(mission_code),
+                    selected_row.fleet_number
+                )
+            },
+        ));
         Ok(())
     }
 
@@ -1875,8 +1879,9 @@ impl App {
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
             );
-            self.fleet.menu_prompt_status =
-                Some("Selected fleet is no longer available.".to_string());
+            self.fleet.menu_prompt_status = Some(PromptFeedback::error(
+                "Selected fleet is no longer available.",
+            ));
             return Ok(());
         };
         self.game_data.set_join_fleet_order(
@@ -1893,10 +1898,10 @@ impl App {
             FleetMenuPromptMode::Order,
             selected_row.fleet_number.to_string(),
         );
-        self.fleet.menu_prompt_status = Some(format!(
+        self.fleet.menu_prompt_status = Some(PromptFeedback::notice(format!(
             "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
             selected_row.fleet_number, host.fleet_number
-        ));
+        )));
         Ok(())
     }
 }

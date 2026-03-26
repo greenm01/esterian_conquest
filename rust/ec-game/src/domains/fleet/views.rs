@@ -36,7 +36,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet_menu_prompt_label().as_deref(),
             &app.fleet.menu_prompt_default_value,
             &app.fleet.menu_prompt_input,
-            app.fleet.menu_prompt_status.as_deref(),
+            app.fleet.menu_prompt_status.as_ref(),
             inline_transport.as_ref().map(|(mode, _)| *mode),
             inline_transport
                 .as_ref()

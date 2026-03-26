@@ -9,12 +9,12 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
-    draw_command_line_text_at, draw_command_message_stack, draw_command_prompt_at,
-    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice,
-    draw_prompt_error_after, draw_status_line, draw_table_command_bar_at,
-    draw_table_command_bar_at_col, draw_title_bar, draw_wrapped_message, last_body_row,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, PromptFeedback,
+    draw_command_line_default_input_at, draw_command_line_text_at, draw_command_message_stack,
+    draw_command_prompt_at, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry,
+    draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
+    draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar, draw_wrapped_message,
+    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
@@ -172,7 +172,7 @@ impl FleetMenuScreen {
         menu_prompt_label: Option<&str>,
         menu_prompt_default: &str,
         menu_prompt_input: &str,
-        menu_prompt_status: Option<&str>,
+        menu_prompt_status: Option<&PromptFeedback>,
         inline_transport_mode: Option<PlanetTransportMode>,
         inline_transport_summary: Option<&str>,
         info_default_coords: [u8; 2],
@@ -200,7 +200,7 @@ impl FleetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_prompt_error_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
+                    draw_prompt_feedback_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
                 }
             } else {
                 draw_expert_menu(
@@ -262,7 +262,7 @@ impl FleetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, TRANSPORT_COMMAND_ROW, status);
+                draw_prompt_feedback_after(&mut buffer, TRANSPORT_COMMAND_ROW, status);
             }
         } else if menu_prompt_mode.is_some() {
             draw_command_line_default_input_at(
@@ -274,7 +274,7 @@ impl FleetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, command_row, status);
+                draw_prompt_feedback_after(&mut buffer, command_row, status);
             }
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);

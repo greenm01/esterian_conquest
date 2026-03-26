@@ -3169,7 +3169,10 @@ fn fleet_transfer_source_prompt_rejects_one_ship_fleet() {
     );
     submit_fleet_menu_prompt(&mut app, Some(1));
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("Fleet #1 has only one ship and is not eligible to transfer any ships.")
     );
 }
@@ -3237,7 +3240,10 @@ fn fleet_transfer_destination_prompt_rejects_non_colocated_fleet() {
     submit_fleet_menu_prompt(&mut app, Some(1));
     submit_fleet_menu_prompt(&mut app, Some(3));
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("Fleet #3 is not in the same sector as Fleet #1.")
     );
 }
@@ -6775,7 +6781,10 @@ fn fleet_transport_load_prompt_rejects_fleet_not_at_owned_world() {
         .expect("fleet load prompt should render owned-world warning");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("That fleet is not at one of your worlds.")
     );
 }
@@ -6836,7 +6845,10 @@ fn fleet_transport_unload_prompt_rejects_fleet_not_at_owned_world() {
         .expect("fleet unload prompt should render owned-world warning");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("That fleet is not at one of your worlds.")
     );
 }
@@ -6910,7 +6922,10 @@ fn fleet_transport_load_prompt_requires_armies_on_owned_world() {
         .expect("fleet load prompt should render no-armies warning");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("That world has no armies available to load.")
     );
 }
@@ -6984,7 +6999,10 @@ fn fleet_transport_unload_prompt_requires_room_on_owned_world() {
         .expect("fleet unload prompt should render no-room warning");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("That world has no room to receive unloaded armies.")
     );
 }
@@ -7137,7 +7155,10 @@ fn fleet_transport_load_prompt_rejects_fleet_already_full() {
     );
     submit_fleet_menu_prompt(&mut app, Some(1));
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("That fleet's troop transports are already full.")
     );
 }
@@ -7193,7 +7214,10 @@ fn fleet_transport_unload_prompt_rejects_fleet_already_empty() {
     );
     submit_fleet_menu_prompt(&mut app, Some(1));
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("That fleet's troop transports are already empty.")
     );
 }
@@ -8165,8 +8189,11 @@ fn fleet_merge_source_rejects_fleet_without_lower_numbered_host() {
 
     submit_fleet_menu_prompt(&mut app, Some(1));
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
-        Some("Fleet #1 must merge into a lower-numbered fleet in the same sector.")
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
+        Some("Fleets must be co-located in the same sector.")
     );
 }
 
@@ -8226,7 +8253,10 @@ fn fleet_merge_host_rejects_non_colocated_fleet() {
     submit_fleet_menu_prompt(&mut app, Some(3));
     submit_fleet_menu_prompt(&mut app, Some(1));
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("Fleet #1 is not in the same sector as Fleet #3.")
     );
 }
@@ -8645,7 +8675,13 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("Applied move to Fleet #2 for sector [14,9]."))
+            .any(|line| line.contains("Notice: Applied move to Fleet #2 for sector [14,9]."))
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Error: Applied move to Fleet #2 for sector [14,9]."))
     );
 
     let state = latest_runtime_state(&fixture_dir);
@@ -13831,7 +13867,10 @@ fn fleet_detach_prompt_reports_single_ship_fleet_as_ineligible() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(app.fleet.menu_prompt_default_value, "2");
     assert_eq!(
-        app.fleet.menu_prompt_status.as_deref(),
+        app.fleet
+            .menu_prompt_status
+            .as_ref()
+            .map(|feedback| feedback.message()),
         Some("Fleet #1 has only one ship and is not eligible to detach any ships.")
     );
 }

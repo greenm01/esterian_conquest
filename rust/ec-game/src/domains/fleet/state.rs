@@ -2,6 +2,7 @@ use crate::domains::fleet::screens::fleet::{
     FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetSingleOrderMode, FleetTransferMode,
 };
 use crate::screen::PlanetTransportMode;
+use crate::screen::layout::PromptFeedback;
 use ec_data::FleetDetachSelection;
 use std::collections::BTreeSet;
 
@@ -42,7 +43,7 @@ pub struct FleetState {
     pub list_status: Option<String>,
     pub menu_prompt_mode: Option<FleetMenuPromptMode>,
     pub menu_prompt_input: String,
-    pub menu_prompt_status: Option<String>,
+    pub menu_prompt_status: Option<PromptFeedback>,
     pub menu_prompt_default_value: String,
     pub menu_prompt_context_fleet_record_index_1_based: Option<usize>,
     pub menu_prompt_change_field: Option<FleetChangeField>,
