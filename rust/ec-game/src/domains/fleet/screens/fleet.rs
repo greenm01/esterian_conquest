@@ -2,27 +2,28 @@ use crossterm::event::{KeyCode, KeyEvent};
 use std::collections::BTreeSet;
 
 use crate::app::Action;
-use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::missions::FLEET_MISSION_OPTIONS;
 use crate::domains::fleet::state::FleetMenuPromptMode;
+use crate::domains::fleet::FleetAction;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, PromptFeedback,
-    draw_command_line_default_input_at, draw_command_line_text_at, draw_command_message_stack,
-    draw_command_prompt_at, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry,
-    draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
-    draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar, draw_wrapped_message,
-    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_message_stack,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_expert_menu, draw_inline_planet_info_prompt,
+    draw_menu_entry, draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after,
+    draw_status_line, draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar,
+    draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, table_prompt_row, CommandMessage, MenuEntry, PromptFeedback,
+    EXPERT_MENU_PROMPT_ROW,
 };
 use crate::screen::table::{
-    TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
-    format_fleet_number, write_table_window_with_cursor, write_table_window_with_states_at,
+    centered_table_start_col, fit_table_columns, fleet_id_column_width, format_fleet_number,
+    write_table_window_with_cursor, write_table_window_with_states_at, TableColumn, TableRowState,
 };
 use crate::screen::{
-    PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, format_sector_coords,
-    format_sector_coords_table,
+    format_sector_coords, format_sector_coords_table, PlanetTransportMode, PlayfieldBuffer, Screen,
+    ScreenFrame, StyledSpan,
 };
 use crate::theme::classic;
 
@@ -764,29 +765,30 @@ impl FleetEtaScreen {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "CALCULATE FLEET ETA:", classic::title_style());
-        draw_status_line(&mut buffer, 1, "Fleet ID: ", &row.fleet_number.to_string());
-        draw_status_line(
-            &mut buffer,
-            2,
-            "Location: ",
-            &format_sector_coords_table(row.coords),
-        );
-        draw_status_line(
-            &mut buffer,
-            3,
-            "Current / Max Speed: ",
-            &format!("{}/{}", row.current_speed, row.max_speed),
-        );
+        // row 1: blank
+        draw_status_line(&mut buffer, 2, "Fleet ID: ", &row.fleet_number.to_string());
+        // row 3: blank
         draw_status_line(
             &mut buffer,
             4,
-            "Current Target: ",
+            "Location: ",
+            &format_sector_coords_table(row.coords),
+        );
+        draw_status_line(&mut buffer, 5, "Speed: ", &row.current_speed.to_string());
+        // row 6: blank
+        draw_status_line(&mut buffer, 7, "Orders: ", &row.order_label);
+        draw_status_line(
+            &mut buffer,
+            8,
+            "Target: ",
             &format_sector_coords_table(row.target_coords),
         );
-        draw_status_line(&mut buffer, 5, "Ships: ", &row.composition_label);
-        let command_row = menu_prompt_row(5);
+        // row 9: blank
+        draw_status_line(&mut buffer, 10, "Ships: ", &row.composition_label);
+        const LAST_CONTENT_ROW: usize = 10;
         match mode {
             FleetEtaMode::EnteringDestination => {
+                let command_row = menu_prompt_row(LAST_CONTENT_ROW);
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
@@ -795,8 +797,12 @@ impl FleetEtaScreen {
                     &format!("{},{}", destination_default[0], destination_default[1]),
                     destination_input,
                 );
+                if let Some(err) = status {
+                    draw_prompt_error_after(&mut buffer, command_row, err);
+                }
             }
             FleetEtaMode::ConfirmingSystemEntry => {
+                let command_row = menu_prompt_row(LAST_CONTENT_ROW);
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
@@ -805,20 +811,15 @@ impl FleetEtaScreen {
                     "N",
                     include_system_input,
                 );
+                if let Some(err) = status {
+                    draw_prompt_error_after(&mut buffer, command_row, err);
+                }
             }
             FleetEtaMode::ShowingResult => {
-                draw_command_line_text_at(
-                    &mut buffer,
-                    command_row,
-                    "FLEET COMMAND",
-                    status.unwrap_or("Press ENTER to continue."),
-                );
+                let result_row = dismiss_prompt_row(LAST_CONTENT_ROW);
+                draw_status_line(&mut buffer, result_row, "", status.unwrap_or(""));
+                draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(result_row));
             }
-        }
-        if mode != FleetEtaMode::ShowingResult
-            && let Some(status) = status
-        {
-            draw_prompt_error_after(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }

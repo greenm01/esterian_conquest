@@ -1242,12 +1242,9 @@ impl App {
                 }
                 _ => crate::app::Action::Noop,
             },
-            FleetEtaMode::ShowingResult => match key.code {
-                KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::Fleet(FleetAction::SubmitEta)
-                }
-                _ => crate::app::Action::Noop,
-            },
+            FleetEtaMode::ShowingResult => {
+                crate::app::Action::Fleet(FleetAction::SubmitEta)
+            }
         }
     }
 
