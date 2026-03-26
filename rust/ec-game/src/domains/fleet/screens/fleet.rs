@@ -925,7 +925,7 @@ impl FleetGroupScreen {
         buffer.write_text(
             1,
             start_col,
-            "Select fleets with SPACE, then press ENTER to give them the same mission.",
+            "Select Fleets with SPACE",
             classic::status_value_style(),
         );
         let metrics = crate::screen::table::write_table_window_with_states_at(
