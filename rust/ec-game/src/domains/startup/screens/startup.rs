@@ -535,12 +535,17 @@ fn push_completed_block_transcript(
     }
 }
 
-const REVIEW_HEADER_MARKERS: [&str; 2] = [" -> From", " -> Subject:"];
+const REVIEW_FROM_HEADER_MARKER: &str = " -> From";
+const REVIEW_SUBJECT_HEADER_MARKER: &str = " -> Subject:";
 
-fn is_review_header(line: &str) -> bool {
-    REVIEW_HEADER_MARKERS
-        .iter()
-        .any(|marker| line.starts_with(marker))
+fn review_line_style(line: &str) -> CellStyle {
+    if line.starts_with(REVIEW_FROM_HEADER_MARKER) {
+        classic::report_header_style()
+    } else if line.starts_with(REVIEW_SUBJECT_HEADER_MARKER) {
+        classic::status_label_style()
+    } else {
+        classic::body_style()
+    }
 }
 
 fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[String]) {
@@ -551,11 +556,7 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
         STARTUP_TRANSCRIPT_LAST_ROW + 1 - STARTUP_REVIEW_VISIBLE_LINES,
         STARTUP_TRANSCRIPT_LAST_ROW,
         |buffer, y, line| {
-            let line_style = if is_review_header(line) {
-                classic::report_header_style()
-            } else {
-                classic::body_style()
-            };
+            let line_style = review_line_style(line);
             if let Some(stardate_pos) = line.find("Stardate: ") {
                 let label_end = stardate_pos + "Stardate: ".len();
                 // Parse: week digits, slash, year digits.

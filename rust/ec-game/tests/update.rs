@@ -5646,7 +5646,7 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     );
     assert_eq!(
         styled_buffer.row(subject_row)[subject_col].style,
-        ec_game::theme::classic::report_header_style()
+        ec_game::theme::classic::status_label_style()
     );
 
     let mut terminal = CaptureTerminal::new();
