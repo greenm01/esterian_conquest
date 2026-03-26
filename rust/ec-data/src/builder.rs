@@ -485,16 +485,14 @@ fn seed_unjoined_player_slot(
     ipbm_count: u16,
 ) {
     *player = PlayerRecord::new_zeroed();
-    player.raw[1..0x1A].fill(b' ');
-    player.raw[0x1A] = 0x18;
-    player.raw[0x1B] = 0x11;
-    player.raw[0x1C..0x1C + 17].copy_from_slice(b"In Civil Disorder");
-    player.raw[0x40..0x42].copy_from_slice(&fleet_start.to_le_bytes());
-    player.raw[0x42..0x44].copy_from_slice(&fleet_end.to_le_bytes());
-    player.raw[0x4C] = homeworld_planet_index_1_based;
-    player.raw[0x4D] = homeworld_planet_index_1_based;
-    player.raw[0x50] = 0x01;
-    player.raw[0x52..0x54].copy_from_slice(&100u16.to_le_bytes());
+    player.set_owner_empire_raw(0x00);
+    player.set_assigned_player_handle_raw("");
+    player.set_legacy_status_name_field_raw(0x18, "In Civil Disorder");
+    player.set_fleet_chain_head_raw(fleet_start);
+    player.set_fleet_chain_tail_raw(fleet_end);
+    player.set_homeworld_planet_index_1_based_raw(homeworld_planet_index_1_based);
+    player.set_planet_count_raw(0x01);
+    player.set_production_score_raw(100);
     player.set_tax_rate_raw(DEFAULT_EMPIRE_TAX_RATE);
     player.set_ipbm_count_raw(ipbm_count);
     player.set_autopilot_flag(1);
