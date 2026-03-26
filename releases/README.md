@@ -1,11 +1,11 @@
-# Release Bundles
+# EC v1.5 DOS Bundles
 
-This directory holds demo-ready Esterian Conquest zip packages for emulator testing and operator reproduction.
+This directory holds Esterian Conquest v1.5 DOS zip bundles for emulator testing and operator reproduction.
 
 | Bundle | Executables | DOSBox-X | dosemu2 | Notes |
 |---|---|---|---|---|
-| `ec-v1.5-classic-demo.zip` | Original packed DOS executables | Verified | Not currently working | 8s smoke pass from `/tmp` with a real game dir and known-good local-console `CHAIN.TXT`. |
-| `ec-v1.5-unlocked-demo.zip` | Curated runnable plain-MZ executables from `EC_UNLOCKED/` | Verified | Not currently working | 8s smoke pass from `/tmp`; current `ECGAME.EXE` is rebuilt from `ECGAMEU.EXE` with corrected MZ size fields. |
+| `ec-v1.5-classic.zip` | Original packed DOS executables | Verified | Not currently working | 8s smoke pass from `/tmp` with a real game dir and known-good local-console `CHAIN.TXT`. |
+| `ec-v1.5-unlocked.zip` | Curated runnable plain-MZ executables from `EC_UNLOCKED/` | Verified | Not currently working | 8s smoke pass from `/tmp`; current `ECGAME.EXE` is rebuilt from `ECGAMEU.EXE` with corrected MZ size fields. |
 
 Here, `Verified` means the current package survived the repo's DOSBox-X smoke launch from `/tmp` without the old INT 6 / GPF failures. DOSBox-X is currently the only verified local runner for the original EC v1.5 binaries.
 

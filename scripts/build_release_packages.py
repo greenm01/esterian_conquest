@@ -63,7 +63,7 @@ PACKAGE_SPECS = (
     PackageSpec(
         slug="classic",
         exe_root=ORIGINAL_DIR,
-        archive_name="ec-v1.5-classic-demo.zip",
+        archive_name="ec-v1.5-classic.zip",
         notes_title="Classic Packed Oracle Bundle",
         notes_summary=(
             "This package uses the original packed DOS binaries under their "
@@ -88,7 +88,7 @@ PACKAGE_SPECS = (
     PackageSpec(
         slug="unlocked",
         exe_root=UNLOCKED_DIR,
-        archive_name="ec-v1.5-unlocked-demo.zip",
+        archive_name="ec-v1.5-unlocked.zip",
         notes_title="Unlocked Plain-MZ Bundle",
         notes_summary=(
             "This package swaps in the curated runnable plain-MZ executables "
@@ -119,8 +119,8 @@ PACKAGE_SPECS = (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build demo-ready classic and unlocked Esterian Conquest release "
-            "zip packages."
+            "Build classic and unlocked Esterian Conquest DOS release zip "
+            "bundles."
         )
     )
     parser.add_argument(
@@ -272,8 +272,8 @@ def releases_readme() -> str:
         ],
     )
     return (
-        "# Release Bundles\n\n"
-        "This directory holds demo-ready Esterian Conquest zip packages for "
+        "# EC v1.5 DOS Bundles\n\n"
+        "This directory holds Esterian Conquest v1.5 DOS zip bundles for "
         "emulator testing and operator reproduction.\n\n"
         f"{bundle_table}\n\n"
         "Here, `Verified` means the current package survived the repo's "
@@ -295,7 +295,7 @@ def releases_readme() -> str:
 
 
 def stage_package(spec: PackageSpec, workspace_root: Path) -> Path:
-    package_root = workspace_root / f"ec-v1.5-{spec.slug}-demo"
+    package_root = workspace_root / f"ec-v1.5-{spec.slug}"
     game_dir = package_root / "game"
     docs_dir = package_root / "docs"
     dropfiles_dir = package_root / "dropfiles"
@@ -343,7 +343,7 @@ def expected_archive_entries(package_root_name: str) -> set[str]:
 
 
 def verify_archive(spec: PackageSpec, zip_path: Path) -> None:
-    package_root_name = f"ec-v1.5-{spec.slug}-demo"
+    package_root_name = f"ec-v1.5-{spec.slug}"
     expected_entries = expected_archive_entries(package_root_name)
     with zipfile.ZipFile(zip_path) as zf:
         names = set(zf.namelist())

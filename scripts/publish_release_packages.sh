@@ -6,12 +6,12 @@ usage() {
 Usage:
   ./scripts/publish_release_packages.sh [--tag TAG] [--variant classic|unlocked]
 
-Builds the demo release bundles under releases/ and uploads the selected assets
+Builds the DOS release bundles under releases/ and uploads the selected assets
 to an existing GitHub Release with `gh release upload --clobber`.
 
 Options:
   --tag TAG                 GitHub release tag to update.
-                            Default: v1.5-demo-bundles
+                            Default: v1.5-dos-bundles
   --variant classic         Build and upload only the classic package.
   --variant unlocked        Build and upload only the unlocked package.
   -h, --help                Show this help text.
@@ -21,7 +21,7 @@ EOF
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-release_tag="v1.5-demo-bundles"
+release_tag="v1.5-dos-bundles"
 build_args=()
 assets=()
 want_classic=0
@@ -68,11 +68,11 @@ if [[ $want_classic -eq 0 && $want_unlocked -eq 0 ]]; then
 fi
 
 if [[ $want_classic -eq 1 ]]; then
-  assets+=("releases/ec-v1.5-classic-demo.zip")
+  assets+=("releases/ec-v1.5-classic.zip")
 fi
 
 if [[ $want_unlocked -eq 1 ]]; then
-  assets+=("releases/ec-v1.5-unlocked-demo.zip")
+  assets+=("releases/ec-v1.5-unlocked.zip")
 fi
 
 python3 scripts/build_release_packages.py "${build_args[@]}" --verify

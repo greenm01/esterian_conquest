@@ -195,7 +195,7 @@ directory before launch.
 
 ### `build_release_packages.py`
 
-Builds the reproducible demo-ready release zips under `releases/`.
+Builds the reproducible EC v1.5 DOS release zips under `releases/`.
 
 It currently:
 
@@ -240,7 +240,7 @@ Default example:
 Custom tag example:
 
 ```bash
-./scripts/publish_release_packages.sh --tag v1.5-demo-bundles
+./scripts/publish_release_packages.sh --tag v1.5-dos-bundles
 ```
 
 Unlocked-only example:
