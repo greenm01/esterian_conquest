@@ -7270,10 +7270,37 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order screen should render");
-    assert!(terminal.line(4).contains("Sel"));
-    assert!(terminal.line(4).contains("Ord"));
-    assert!(terminal.line(4).contains("Target"));
-    assert!(!terminal.line(6).contains(" X "));
+    let top_border_line = line_containing(&terminal, "┌");
+    let header_line = line_containing(&terminal, "│ID");
+    let command_line = line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>");
+    let table_left = top_border_line
+        .chars()
+        .position(|ch| ch == '┌')
+        .expect("group table should have a top border");
+    let title_left = terminal
+        .line(0)
+        .chars()
+        .position(|ch| ch != ' ')
+        .expect("title line should contain text");
+    let command_left = command_line
+        .chars()
+        .position(|ch| ch == 'C')
+        .expect("command line should start with COMMANDS");
+    assert_eq!(table_left, title_left);
+    assert_eq!(table_left, command_left);
+    assert!(header_line.contains("│ID│Sel│Location│Order"));
+    assert!(header_line.contains("│Target"));
+    assert!(header_line.contains("│Spd│"));
+    assert!(header_line.contains("ETA"));
+    assert!(header_line.contains("ROE"));
+    assert!(header_line.contains("Ships"));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Selected fleets: "))
+    );
+    assert!(!terminal.lines.iter().any(|line| line.contains("│ X │")));
 
     assert_eq!(
         apply_action(
@@ -7284,7 +7311,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     );
     app.render(&mut terminal)
         .expect("fleet group order selection should render");
-    assert!(terminal.line(6).contains("X"));
+    assert!(terminal.lines.iter().any(|line| line.contains("│ X │")));
 }
 
 #[test]
@@ -7333,8 +7360,8 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
         .render(&buffer)
         .expect("captured group fleet order screen should render");
 
-    let right_border_col = terminal
-        .line(3)
+    let top_border_line = line_containing(&terminal, "┐");
+    let right_border_col = top_border_line
         .chars()
         .position(|ch| ch == '┐')
         .expect("group order table should have a right border");
@@ -9856,13 +9883,14 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet group order should render success notice");
+        .expect("fleet group order should render normal command line");
     assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
-        terminal
+        !terminal
             .lines
             .iter()
-            .any(|line| line.contains("Applied move order to"))
+            .any(|line| line.contains("Selected fleets: "))
     );
 
     let state = latest_runtime_state(&fixture_dir);
@@ -9969,6 +9997,19 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
         AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet group join should return to normal command line");
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Selected fleets: "))
     );
 
     let state = latest_runtime_state(&fixture_dir);

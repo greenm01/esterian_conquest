@@ -1783,27 +1783,12 @@ impl App {
             return Ok(());
         }
         self.apply_fleet_orders_to_rows(&selected_rows, mission_code, target, aux0, aux1)?;
-        let selected_count = selected_rows.len();
         self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet.group_mission_code = None;
         self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
         self.current_screen = ScreenId::FleetGroupOrder;
-        self.fleet.group_status = Some(if fleet_group_order_requires_target(mission_code) {
-            format!(
-                "Applied {} order to {} fleets for sector [{},{}].",
-                fleet_group_order_label(mission_code),
-                selected_count,
-                target[0],
-                target[1]
-            )
-        } else {
-            format!(
-                "Applied {} order to {} fleets.",
-                fleet_group_order_label(mission_code),
-                selected_count
-            )
-        });
+        self.fleet.group_status = None;
         Ok(())
     }
 
@@ -1825,16 +1810,12 @@ impl App {
             )?;
         }
         self.save_game_data()?;
-        let selected_count = selected_rows.len();
         self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet.group_mission_code = None;
         self.clear_fleet_group_target_inputs();
         self.fleet.group_selected_fleets.clear();
         self.current_screen = ScreenId::FleetGroupOrder;
-        self.fleet.group_status = Some(format!(
-            "Applied join-fleet order to {} fleets with host Fleet #{}.",
-            selected_count, host.fleet_number
-        ));
+        self.fleet.group_status = None;
         Ok(())
     }
 

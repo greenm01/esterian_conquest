@@ -898,30 +898,7 @@ impl FleetGroupScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
         let max_fleet_number = max_fleet_number(rows);
-        let columns = [
-            TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-            TableColumn::center("Sel", 3),
-            TableColumn::left("Location", 10),
-            TableColumn::right("Spd", 7),
-            TableColumn::right("ROE", 3),
-            TableColumn::right("Ord", 3),
-            TableColumn::left("Target", 10),
-            TableColumn::left("Ships", 27),
-        ];
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Select fleets with SPACE, then press ENTER to give them the same mission.",
-        );
-        draw_status_line(
-            &mut buffer,
-            2,
-            "Selected fleets: ",
-            &selected_fleet_record_indexes.len().to_string(),
-        );
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -933,17 +910,28 @@ impl FleetGroupScreen {
                         "".to_string()
                     },
                     format_sector_coords_table(row.coords),
-                    format!("{}/{}", row.current_speed, row.max_speed),
+                    fleet_table_order_label(row.order_code).to_string(),
+                    fleet_list_target_label(row.target_coords),
+                    row.current_speed.to_string(),
+                    row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
-                    row.order_code.to_string(),
-                    format_sector_coords_table(row.target_coords),
                     row.table_composition_label.clone(),
                 ]
             })
             .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
+        let columns = fit_table_columns(&group_selection_columns(max_fleet_number), &table_rows);
+        let start_col = centered_table_start_col(buffer.width(), &columns);
+        buffer.write_text(0, start_col, "GROUP FLEET ORDER:", classic::title_style());
+        buffer.write_text(
+            1,
+            start_col,
+            "Select fleets with SPACE, then press ENTER to give them the same mission.",
+            classic::status_value_style(),
+        );
+        let metrics = crate::screen::table::write_table_window_with_states_at(
             &mut buffer,
-            3,
+            2,
+            start_col,
             &columns,
             &table_rows,
             scroll_offset,
@@ -955,17 +943,21 @@ impl FleetGroupScreen {
             } else {
                 Some(cursor)
             },
+            None,
         );
         let command_row = table_prompt_row(metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_command_line_text_at(
+            draw_table_command_bar_at_col(&mut buffer, command_row, start_col, "<Q>", None, "");
+            draw_inline_status_after(&mut buffer, command_row, "You have no active fleets.");
+        } else {
+            draw_table_command_bar_at_col(
                 &mut buffer,
                 command_row,
-                "COMMANDS",
-                "You have no active fleets. Q quits.",
+                start_col,
+                "<ARROWS J K SPACE Q>",
+                None,
+                "",
             );
-        } else {
-            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
             if let Some(status) = status {
                 draw_inline_status_after(&mut buffer, command_row, status);
             }
@@ -1478,6 +1470,22 @@ fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 8] {
     let ships_width = 71usize.saturating_sub(id_width + 8 + 15 + 8 + 3 + 4 + 3);
     [
         TableColumn::right("ID", id_width),
+        TableColumn::left("Location", 8),
+        TableColumn::left("Order", 15),
+        TableColumn::left("Target", 8),
+        TableColumn::right("Spd", 3),
+        TableColumn::right("ETA", 4),
+        TableColumn::right("ROE", 3),
+        TableColumn::left("Ships", ships_width),
+    ]
+}
+
+fn group_selection_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
+    let id_width = fleet_id_column_width(max_fleet_number);
+    let ships_width = 70usize.saturating_sub(id_width + 3 + 8 + 15 + 8 + 3 + 4 + 3);
+    [
+        TableColumn::right("ID", id_width),
+        TableColumn::center("Sel", 3),
         TableColumn::left("Location", 8),
         TableColumn::left("Order", 15),
         TableColumn::left("Target", 8),
