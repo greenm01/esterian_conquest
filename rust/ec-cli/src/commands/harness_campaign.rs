@@ -518,6 +518,7 @@ fn apply_turn_batch_internal(
 
     store.save_runtime_state_structured(
         &runtime.game_data,
+        &runtime.planet_scorch_orders,
         &runtime.report_block_rows,
         &runtime.queued_mail,
     )?;

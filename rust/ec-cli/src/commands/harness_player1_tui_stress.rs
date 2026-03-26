@@ -155,6 +155,7 @@ fn seed_player1_tui_stress(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
 
     store.save_runtime_state_structured_with_intel(
         &state.game_data,
+        &state.planet_scorch_orders,
         &state.report_block_rows,
         &state.queued_mail,
         &planet_intel_by_viewer,

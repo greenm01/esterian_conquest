@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -63,6 +64,7 @@ pub fn import_directory_snapshot_with_seed(
     );
     store.save_runtime_state_structured_with_intel_and_seed(
         &game_data,
+        &BTreeSet::new(),
         &report_block_rows,
         &queued_mail,
         &planet_intel_by_viewer,

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use rusqlite::{OptionalExtension, params};
 
@@ -27,6 +28,8 @@ impl CampaignStore {
             return Ok(None);
         };
         let game_data = super::records::load_snapshot_game_data(&mut conn, snapshot_id)?;
+        let planet_scorch_orders =
+            super::planet_scorch_orders::load_planet_scorch_orders(&mut conn, snapshot_id)?;
         let report_block_rows =
             super::report_blocks::load_report_block_rows(&mut conn, snapshot_id)?;
         let queued_mail = super::mail::load_queued_mail_rows(&mut conn, snapshot_id)?;
@@ -42,6 +45,7 @@ impl CampaignStore {
             game_year,
             campaign_seed,
             game_data,
+            planet_scorch_orders,
             report_block_rows,
             queued_mail,
         }))
@@ -50,21 +54,31 @@ impl CampaignStore {
     pub fn save_runtime_state_structured(
         &self,
         game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
     ) -> Result<i64, CampaignStoreError> {
-        self.save_runtime_state_internal(game_data, report_block_rows, queued_mail, None, None)
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            None,
+            None,
+        )
     }
 
     pub fn save_runtime_state_structured_with_intel(
         &self,
         game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
     ) -> Result<i64, CampaignStoreError> {
         self.save_runtime_state_structured_with_intel_and_seed(
             game_data,
+            planet_scorch_orders,
             report_block_rows,
             queued_mail,
             planet_intel_by_viewer,
@@ -75,6 +89,7 @@ impl CampaignStore {
     pub fn save_runtime_state_structured_with_intel_and_seed(
         &self,
         game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
@@ -82,6 +97,7 @@ impl CampaignStore {
     ) -> Result<i64, CampaignStoreError> {
         self.save_runtime_state_internal(
             game_data,
+            planet_scorch_orders,
             report_block_rows,
             queued_mail,
             Some(planet_intel_by_viewer),
@@ -92,6 +108,7 @@ impl CampaignStore {
     fn save_runtime_state_internal(
         &self,
         game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
@@ -173,6 +190,11 @@ impl CampaignStore {
             snapshot_id,
             &game_data.conquest.to_bytes(),
             crate::CONQUEST_DAT_SIZE,
+        )?;
+        super::planet_scorch_orders::write_planet_scorch_orders(
+            &tx,
+            snapshot_id,
+            planet_scorch_orders,
         )?;
         super::report_blocks::write_report_block_rows(&tx, snapshot_id, report_block_rows)?;
         super::mail::write_queued_mail_rows(&tx, snapshot_id, queued_mail)?;

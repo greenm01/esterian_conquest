@@ -12,6 +12,14 @@ pub enum PlanetMenuTransportPromptMode {
     Quantity(PlanetTransportMode),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetScorchPromptMode {
+    Planet,
+    Confirm1,
+    Confirm2,
+    Confirm3,
+}
+
 pub struct PlanetState {
     pub campaign_store: CampaignStore,
     pub intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
@@ -42,6 +50,12 @@ pub struct PlanetState {
     pub auto_commission_prompt_active: bool,
     pub auto_commission_report_rows: Vec<String>,
     pub auto_commission_report_revealed_rows: usize,
+    pub scorch_prompt_mode: Option<PlanetScorchPromptMode>,
+    pub scorch_prompt_input: String,
+    pub scorch_prompt_default_value: String,
+    pub scorch_prompt_default_coords: Option<[u8; 2]>,
+    pub scorch_prompt_status: Option<String>,
+    pub scorch_selected_planet_record: Option<usize>,
     pub transport_mode: Option<PlanetTransportMode>,
     pub transport_planet_cursor: usize,
     pub transport_planet_scroll_offset: usize,
@@ -120,6 +134,12 @@ impl PlanetState {
             auto_commission_prompt_active: false,
             auto_commission_report_rows: Vec::new(),
             auto_commission_report_revealed_rows: 0,
+            scorch_prompt_mode: None,
+            scorch_prompt_input: String::new(),
+            scorch_prompt_default_value: String::new(),
+            scorch_prompt_default_coords: None,
+            scorch_prompt_status: None,
+            scorch_selected_planet_record: None,
             transport_mode: None,
             transport_planet_cursor: 0,
             transport_planet_scroll_offset: 0,

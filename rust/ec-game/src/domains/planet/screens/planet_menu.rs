@@ -2,12 +2,14 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
+use crate::domains::planet::state::PlanetScorchPromptMode;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at, draw_command_prompt_at,
-    draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
-    draw_inline_planet_info_prompt, draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice,
-    draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_expert_menu,
+    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
+    draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice, draw_prompt_error_after,
+    draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -64,6 +66,8 @@ impl PlanetMenuScreen {
         tax_error: Option<&str>,
         tax_notice: Option<&str>,
         inline_auto_commission: bool,
+        inline_scorch_mode: Option<PlanetScorchPromptMode>,
+        scorch_warning_lines: &[String],
         menu_prompt_label: Option<&str>,
         menu_prompt_default: &str,
         menu_prompt_input: &str,
@@ -98,6 +102,29 @@ impl PlanetMenuScreen {
                     EXPERT_MENU_PROMPT_ROW,
                     "AUTO-COMMISSION SHIPS:",
                     &["Automatically commission all ships and starbases in stardock?"],
+                    notice,
+                );
+            } else if matches!(
+                inline_scorch_mode,
+                Some(PlanetScorchPromptMode::Confirm1)
+                    | Some(PlanetScorchPromptMode::Confirm2)
+                    | Some(PlanetScorchPromptMode::Confirm3)
+            ) {
+                let scorch_refs = scorch_warning_lines
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>();
+                draw_command_line_prompt_text_at(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    "PLANET COMMAND",
+                    menu_prompt_label.unwrap_or("Y/[N] -> "),
+                );
+                draw_inline_confirm_block(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    "SETTING SCORCH-EARTH POLICY:",
+                    &scorch_refs,
                     notice,
                 );
             } else if let Some(mode) = inline_transport_mode {
@@ -189,6 +216,29 @@ impl PlanetMenuScreen {
                 &["Automatically commission all ships and starbases in stardock?"],
                 notice,
             );
+        } else if matches!(
+            inline_scorch_mode,
+            Some(PlanetScorchPromptMode::Confirm1)
+                | Some(PlanetScorchPromptMode::Confirm2)
+                | Some(PlanetScorchPromptMode::Confirm3)
+        ) {
+            let scorch_refs = scorch_warning_lines
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>();
+            draw_command_line_prompt_text_at(
+                &mut buffer,
+                command_row,
+                "PLANET COMMAND",
+                menu_prompt_label.unwrap_or("Y/[N] -> "),
+            );
+            draw_inline_confirm_block(
+                &mut buffer,
+                command_row,
+                "SETTING SCORCH-EARTH POLICY:",
+                &scorch_refs,
+                notice,
+            );
         } else if let Some(mode) = inline_transport_mode {
             draw_title_bar(&mut buffer, 5, mode.title());
             if let Some(summary) = inline_transport_summary {
@@ -224,6 +274,7 @@ impl PlanetMenuScreen {
         if !inline_planet_info
             && !inline_tax
             && !inline_auto_commission
+            && inline_scorch_mode.is_none()
             && menu_prompt_label.is_none()
             && inline_transport_mode.is_none()
         {
@@ -257,6 +308,8 @@ impl Screen for PlanetMenuScreen {
             None,
             false,
             None,
+            &[],
+            None,
             "",
             "",
             None,
@@ -289,9 +342,7 @@ impl Screen for PlanetMenuScreen {
                 Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Stub(
-                    planet_stub_label(key.code).unwrap_or(""),
-                )))
+                Action::Planet(PlanetAction::OpenScorchPrompt)
             }
             KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
@@ -303,14 +354,5 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenTaxPrompt),
             _ => Action::Noop,
         }
-    }
-}
-
-fn planet_stub_label(code: KeyCode) -> Option<&'static str> {
-    match code {
-        KeyCode::Char('s') | KeyCode::Char('S') => {
-            Some("Scorch-planet orders are not implemented yet.")
-        }
-        _ => None,
     }
 }

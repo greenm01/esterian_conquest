@@ -24,6 +24,7 @@ impl PlanetInfoScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         planet_idx: usize,
+        planet_scorch_orders: &BTreeSet<usize>,
         _menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let planet = frame
@@ -116,7 +117,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             17,
             "Status: ",
-            &owned_status_summary(frame, planet_idx, [x, y]),
+            &owned_status_summary(frame, planet_idx, [x, y], planet_scorch_orders),
         );
         draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(17));
         Ok(buffer)
@@ -393,7 +394,15 @@ fn compact_unit_code(kind: ec_data::ProductionItemKind) -> &'static str {
     }
 }
 
-fn owned_status_summary(frame: &ScreenFrame<'_>, planet_idx: usize, coords: [u8; 2]) -> String {
+fn owned_status_summary(
+    frame: &ScreenFrame<'_>,
+    planet_idx: usize,
+    coords: [u8; 2],
+    planet_scorch_orders: &BTreeSet<usize>,
+) -> String {
+    if planet_scorch_orders.contains(&(planet_idx + 1)) {
+        return "Planet is scorched!".to_string();
+    }
     let planet = &frame.game_data.planets.records[planet_idx];
     if planet.is_homeworld_seed_ignoring_name() {
         return "Homeworld - fully developed".to_string();
@@ -474,3 +483,4 @@ pub fn parse_planet_coords(input: &str) -> Option<[u8; 2]> {
     let y = parts[1].parse::<u8>().ok()?;
     Some([x, y])
 }
+use std::collections::BTreeSet;

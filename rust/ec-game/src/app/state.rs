@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -112,6 +112,7 @@ pub struct App {
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub command_menu_notice: Option<String>,
     pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
+    pub planet_scorch_orders: BTreeSet<usize>,
 }
 
 impl App {
@@ -131,6 +132,7 @@ impl App {
         let campaign_seed = runtime_state.campaign_seed;
         let report_block_rows = runtime_state.report_block_rows;
         let queued_mail = runtime_state.queued_mail;
+        let planet_scorch_orders = runtime_state.planet_scorch_orders;
 
         // Apply config.kdl overrides to game_data.  Only save a new snapshot
         // if any field actually changed, to avoid churn on clean starts.
@@ -139,6 +141,7 @@ impl App {
             &config.game_config,
             &campaign_store,
             snapshot_id,
+            &planet_scorch_orders,
             &report_block_rows,
             &queued_mail,
         )?;
@@ -244,6 +247,7 @@ impl App {
             queued_mail,
             command_menu_notice: None,
             planet_intel_snapshots,
+            planet_scorch_orders,
         })
     }
 }
@@ -281,6 +285,7 @@ fn apply_game_config_overrides(
     cfg: &GameConfig,
     store: &CampaignStore,
     current_snapshot_id: i64,
+    planet_scorch_orders: &BTreeSet<usize>,
     report_block_rows: &[ReportBlockRow],
     queued_mail: &[QueuedPlayerMail],
 ) -> Result<(CoreGameData, i64), Box<dyn std::error::Error>> {
@@ -337,7 +342,12 @@ fn apply_game_config_overrides(
     );
 
     let snapshot_id = if changed {
-        store.save_runtime_state_structured(&game_data, report_block_rows, queued_mail)?
+        store.save_runtime_state_structured(
+            &game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+        )?
     } else {
         current_snapshot_id
     };

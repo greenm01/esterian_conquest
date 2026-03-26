@@ -101,6 +101,34 @@ impl CoreGameData {
         Ok(())
     }
 
+    pub fn scorch_planet_surface(
+        &mut self,
+        record_index_1_based: usize,
+    ) -> Result<(), GameStateMutationError> {
+        let record = self
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            })?;
+
+        record.set_potential_production_raw([0, 0]);
+        let _ = record.set_present_production_points(0);
+        record.set_stored_production_points(0);
+
+        for slot in 0..10 {
+            record.set_build_count_raw(slot, 0);
+            record.set_build_kind_raw(slot, 0);
+        }
+        for slot in 0..crate::STARDOCK_SLOT_COUNT {
+            record.set_stardock_count_raw(slot, 0);
+            record.set_stardock_kind_raw(slot, 0);
+        }
+
+        Ok(())
+    }
+
     pub fn clear_planet_build_orders_by_kind(
         &mut self,
         record_index_1_based: usize,

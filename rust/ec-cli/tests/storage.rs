@@ -99,6 +99,7 @@ fn setup_classic_probe_planets(target: &Path) {
     store
         .save_runtime_state_structured_with_intel(
             &game_data,
+            &state.planet_scorch_orders,
             &state.report_block_rows,
             &state.queued_mail,
             &planet_intel_by_viewer,

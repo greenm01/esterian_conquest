@@ -231,7 +231,7 @@ impl MessageComposeScreen {
         draw_command_line_prompt_text_at(
             &mut buffer,
             crate::screen::layout::COMMAND_LINE_ROW,
-            "GENERAL COMMAND",
+            "CANCEL MESSAGE",
             "Y/[N] ->",
         );
         buffer.clear_cursor();

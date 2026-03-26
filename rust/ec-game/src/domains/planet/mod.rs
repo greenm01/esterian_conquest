@@ -1,6 +1,7 @@
 pub mod action;
 mod build;
 mod controller;
+mod scorch;
 pub mod screens;
 pub mod state;
 mod transport;

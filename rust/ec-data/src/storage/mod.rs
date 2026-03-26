@@ -7,6 +7,7 @@ use crate::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 mod intel;
 mod mail;
 mod metadata;
+mod planet_scorch_orders;
 mod records;
 mod report_blocks;
 mod runtime;
@@ -116,6 +117,7 @@ pub struct CampaignRuntimeState {
     pub game_year: u16,
     pub campaign_seed: u64,
     pub game_data: CoreGameData,
+    pub planet_scorch_orders: std::collections::BTreeSet<usize>,
     /// Structured report blocks. This is the authoritative runtime review
     /// state; callers should not rely on classic RESULTS.DAT byte payloads.
     pub report_block_rows: Vec<ReportBlockRow>,
@@ -298,6 +300,11 @@ impl CampaignStore {
                  raw_hex TEXT,
                  recipient_deleted INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, block_index)
+             );
+             CREATE TABLE IF NOT EXISTS planet_scorch_orders (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 planet_record_index INTEGER NOT NULL,
+                 PRIMARY KEY(snapshot_id, planet_record_index)
              );",
         )?;
         ensure_column(&conn, "planet_intel", "known_docked_summary", "TEXT")?;

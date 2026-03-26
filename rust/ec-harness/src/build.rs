@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -88,6 +89,7 @@ pub fn save_built_scenario(
     let store = CampaignStore::open_default_in_dir(target_dir)?;
     store.save_runtime_state_structured(
         &built.game_data,
+        &BTreeSet::new(),
         &built.report_block_rows,
         &built.queued_mail,
     )?;

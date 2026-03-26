@@ -24,6 +24,7 @@ impl App {
     pub(crate) fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let new_snapshot_id = self.planet.campaign_store.save_runtime_state_structured(
             &self.game_data,
+            &self.planet_scorch_orders,
             &self.report_block_rows,
             &self.queued_mail,
         )?;

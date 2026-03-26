@@ -279,6 +279,7 @@ fn save_runtime_state_with_intel(
         .expect("open campaign store")
         .save_runtime_state_structured_with_intel(
             &state.game_data,
+            &state.planet_scorch_orders,
             &state.report_block_rows,
             &state.queued_mail,
             planet_intel_by_viewer,
@@ -12204,6 +12205,285 @@ fn planet_menu_tax_prompt_stays_inline_for_errors_and_success() {
         line_containing(&terminal, "Notice: ").contains("Empire tax rate set to 65%."),
         "expected inline success notice after saving tax"
     );
+}
+
+#[test]
+fn planet_menu_scorch_prompt_defaults_to_lowest_owned_planet_and_validates_ownership() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenScorchPrompt)),
+        AppOutcome::Continue
+    );
+
+    let expected_default = app
+        .game_data
+        .empire_planet_economy_rows(app.player.record_index_1_based)
+        .into_iter()
+        .min_by(|left, right| {
+            left.present_production
+                .cmp(&right.present_production)
+                .then_with(|| left.coords.cmp(&right.coords))
+        })
+        .expect("owned planet exists")
+        .coords;
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "PLANET COMMAND <- Scorch Planet XX").trim_end(),
+        format!(
+            "PLANET COMMAND <- Scorch Planet XX [{}] <Q> ->",
+            ec_game::screen::format_sector_coords_default(expected_default)
+        )
+    );
+
+    let foreign_coords = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() as usize != app.player.record_index_1_based)
+        .map(|planet| planet.coords_raw())
+        .expect("non-owned planet exists");
+    for ch in foreign_coords[0].to_string().chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendScorchPromptChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::AppendScorchPromptChar(','))
+        ),
+        AppOutcome::Continue
+    );
+    for ch in foreign_coords[1].to_string().chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendScorchPromptChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
+        AppOutcome::Continue
+    );
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(&terminal, "Error: ").contains(&format!(
+            "Planet [{},{}] is not one of your worlds.",
+            foreign_coords[0], foreign_coords[1]
+        )),
+        "expected inline ownership validation error"
+    );
+}
+
+#[test]
+fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenScorchPrompt)),
+        AppOutcome::Continue
+    );
+
+    let expected_coords = app
+        .game_data
+        .empire_planet_economy_rows(app.player.record_index_1_based)
+        .into_iter()
+        .min_by(|left, right| {
+            left.present_production
+                .cmp(&right.present_production)
+                .then_with(|| left.coords.cmp(&right.coords))
+        })
+        .expect("owned planet exists")
+        .coords;
+    let expected_record_index = app
+        .game_data
+        .planet_record_index_at_coords(expected_coords)
+        .expect("selected scorch planet index");
+    let expected_name =
+        app.game_data.planets.records[expected_record_index].status_or_name_summary();
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(line_containing(&terminal, "SETTING SCORCH-EARTH POLICY:").contains("SCORCH-EARTH"));
+    assert!(
+        line_containing(&terminal, "Are you sure? Y/[N] ->").contains("Are you sure? Y/[N] ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(&terminal, "Are you really sure? Y/[N] ->")
+            .contains("Are you really sure? Y/[N] ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(
+            &terminal,
+            "Are you sure-sure? Last chance to bail! Y/[N] ->"
+        )
+        .contains("Are you sure-sure? Last chance to bail! Y/[N] ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
+        AppOutcome::Continue
+    );
+    assert!(
+        app.planet_scorch_orders
+            .contains(&(expected_record_index + 1))
+    );
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(&terminal, "Notice: ")
+            .contains(&format!("Planet \"{expected_name}\" is scorched!")),
+        "expected success notice after final confirmation"
+    );
+
+    let scorched_planet = &app.game_data.planets.records[expected_record_index];
+    assert_eq!(scorched_planet.present_production_points(), Some(0));
+    assert_eq!(scorched_planet.potential_production_points(), 0);
+    assert_eq!(scorched_planet.stored_production_points(), 0);
+    assert!((0..10).all(|slot| scorched_planet.build_count_raw(slot) == 0));
+    assert!((0..10).all(|slot| scorched_planet.build_kind_raw(slot) == 0));
+    assert!(
+        (0..ec_data::STARDOCK_SLOT_COUNT).all(|slot| scorched_planet.stardock_count_raw(slot) == 0)
+    );
+    assert!(
+        (0..ec_data::STARDOCK_SLOT_COUNT).all(|slot| scorched_planet.stardock_kind_raw(slot) == 0)
+    );
+
+    let reloaded = latest_runtime_state(&fixture_dir);
+    assert!(
+        reloaded
+            .planet_scorch_orders
+            .contains(&(expected_record_index + 1))
+    );
+    let reloaded_planet = &reloaded.game_data.planets.records[expected_record_index];
+    assert_eq!(reloaded_planet.present_production_points(), Some(0));
+    assert_eq!(reloaded_planet.potential_production_points(), 0);
+    assert_eq!(reloaded_planet.stored_production_points(), 0);
+
+    app.open_planet_info_detail_at_coords(expected_coords, Some(ScreenId::PlanetMenu))
+        .expect("open planet info detail");
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "Present Production: ").trim_end(),
+        "Present Production: 0"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Potential Production: ").trim_end(),
+        "Potential Production: 0"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Stored Production Points: ").trim_end(),
+        "Stored Production Points: 0"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Build Queue: ").trim_end(),
+        "Build Queue: Nothing"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Docked: ").trim_end(),
+        "Docked: Nothing"
+    );
+    assert_eq!(
+        line_containing(&terminal, "Status: ").trim_end(),
+        "Status: Planet is scorched!"
+    );
+}
+
+#[test]
+fn planet_menu_scorch_confirm_enter_honors_default_no_and_bails() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenScorchPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitScorchPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Planet(PlanetAction::CancelScorchPrompt)
+    );
+    let enter_action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, enter_action), AppOutcome::Continue);
+    assert_eq!(app.current_screen, ScreenId::PlanetMenu);
+    assert!(app.planet.scorch_prompt_mode.is_none());
+    assert!(app.planet_scorch_orders.is_empty());
 }
 
 #[test]

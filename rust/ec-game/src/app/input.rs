@@ -29,6 +29,9 @@ impl App {
         if self.inline_planet_auto_commission_active_on_current_screen() {
             return self.handle_planet_auto_commission_prompt_key(key);
         }
+        if self.inline_planet_scorch_prompt_active_on_current_screen() {
+            return self.handle_planet_scorch_prompt_key(key);
+        }
         if self.inline_planet_build_abort_active_on_current_screen() {
             return self.handle_planet_build_abort_prompt_key(key);
         }

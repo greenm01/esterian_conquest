@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::{
@@ -33,6 +33,7 @@ pub(super) fn submit_turn_kdl_file(
     let planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
     store.save_runtime_state_structured_with_intel(
         &state.game_data,
+        &state.planet_scorch_orders,
         &state.report_block_rows,
         &state.queued_mail,
         &planet_intel_by_viewer,
@@ -76,6 +77,7 @@ fn load_or_seed_runtime_state(
 
     store.save_runtime_state_structured_with_intel_and_seed(
         &game_data,
+        &BTreeSet::new(),
         &report_block_rows,
         &queued_mail,
         &planet_intel_by_viewer,

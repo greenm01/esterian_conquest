@@ -349,7 +349,7 @@ fn compose_discard_confirm_uses_default_no_prompt_markup() {
 
     assert!(!row_text(&buffer, 20).contains("Discard this unsent message draft?"));
     assert!(row_text(&buffer, 21).trim().is_empty());
-    assert!(row_text(&buffer, 24).contains("GENERAL COMMAND <- Y/[N] ->"));
+    assert!(row_text(&buffer, 24).contains("CANCEL MESSAGE <- Y/[N] ->"));
     let row = buffer.row(24);
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());
@@ -429,6 +429,8 @@ fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
             None,
             None,
             true,
+            None,
+            &[],
             None,
             "",
             "",

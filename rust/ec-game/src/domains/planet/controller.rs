@@ -20,6 +20,7 @@ impl App {
         self.close_planet_auto_commission_prompt();
         self.clear_planet_auto_commission_report();
         self.close_planet_tax_prompt();
+        self.clear_planet_scorch_prompt();
         self.clear_planet_transport_prompt();
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;

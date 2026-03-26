@@ -1,5 +1,5 @@
 use crate::app::state::App;
-use crate::domains::planet::state::PlanetMenuTransportPromptMode;
+use crate::domains::planet::state::{PlanetMenuTransportPromptMode, PlanetScorchPromptMode};
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, ScreenId, build_unit_spec_by_kind, format_sector_coords,
 };
@@ -28,6 +28,36 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         _ => None,
     };
+    let transport_prompt_label = app.planet_transport_prompt_label();
+    let scorch_planet_prompt_active =
+        app.planet.scorch_prompt_mode == Some(PlanetScorchPromptMode::Planet);
+    let menu_prompt_label = if scorch_planet_prompt_active {
+        Some("Scorch Planet XX ")
+    } else if matches!(
+        app.planet.scorch_prompt_mode,
+        Some(PlanetScorchPromptMode::Confirm1)
+            | Some(PlanetScorchPromptMode::Confirm2)
+            | Some(PlanetScorchPromptMode::Confirm3)
+    ) {
+        app.planet_scorch_confirm_prompt()
+    } else {
+        transport_prompt_label.as_deref()
+    };
+    let menu_prompt_default = if scorch_planet_prompt_active {
+        app.planet.scorch_prompt_default_value.as_str()
+    } else {
+        &app.planet.transport_prompt_default_value
+    };
+    let menu_prompt_input = if scorch_planet_prompt_active {
+        app.planet.scorch_prompt_input.as_str()
+    } else {
+        &app.planet.transport_prompt_input
+    };
+    let menu_prompt_status = if scorch_planet_prompt_active {
+        app.planet.scorch_prompt_status.as_deref()
+    } else {
+        app.planet.transport_status.as_deref()
+    };
     match app.current_screen {
         ScreenId::PlanetMenu => app.planet_menu.render_with_notice(
             app.command_menu_notice.as_deref(),
@@ -45,10 +75,12 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.tax_error.as_deref(),
             app.planet.tax_notice.as_deref(),
             app.planet.auto_commission_prompt_active,
-            app.planet_transport_prompt_label().as_deref(),
-            &app.planet.transport_prompt_default_value,
-            &app.planet.transport_prompt_input,
-            app.planet.transport_status.as_deref(),
+            app.planet.scorch_prompt_mode,
+            &app.planet_scorch_warning_lines(),
+            menu_prompt_label,
+            menu_prompt_default,
+            menu_prompt_input,
+            menu_prompt_status,
             inline_transport.as_ref().map(|(mode, _)| *mode),
             inline_transport
                 .as_ref()
@@ -232,6 +264,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet
                 .info_selected
                 .ok_or("planet info detail not selected")?,
+            &app.planet_scorch_orders,
             app.command_return_menu,
         ),
         _ => unreachable!("planet views called for non-planet screen"),

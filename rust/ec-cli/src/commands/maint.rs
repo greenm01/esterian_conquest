@@ -111,6 +111,7 @@ pub fn run_rust_maintenance_with_options(
     let campaign_seed = runtime_state.campaign_seed;
     let start_year = game_data.conquest.game_year();
     let queued_mail = runtime_state.queued_mail;
+    let planet_scorch_orders = runtime_state.planet_scorch_orders;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
     let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&campaign_store, &game_data)?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
@@ -240,6 +241,7 @@ pub fn run_rust_maintenance_with_options(
     let report_block_rows = build_results_report_blocks(&mut game_data, &all_events);
     campaign_store.save_runtime_state_structured_with_intel(
         &game_data,
+        &planet_scorch_orders,
         &report_block_rows,
         &queued_mail,
         &planet_intel_by_viewer,

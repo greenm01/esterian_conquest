@@ -1,0 +1,284 @@
+use crate::app::helpers::resolve_default_coords_input;
+use crate::app::state::App;
+use crate::domains::planet::PlanetAction;
+use crate::domains::planet::state::PlanetScorchPromptMode;
+use crate::screen::{CommandMenu, ScreenId, format_sector_coords_default};
+use crossterm::event::KeyCode;
+
+impl App {
+    pub fn open_planet_scorch_prompt(&mut self) {
+        let Some(default_coords) = self.default_planet_scorch_coords() else {
+            self.show_command_menu_notice(CommandMenu::Planet, "No owned planets available.");
+            return;
+        };
+        self.clear_command_menu_notice();
+        self.close_planet_auto_commission_prompt();
+        self.close_planet_tax_prompt();
+        self.close_planet_info_prompt();
+        self.clear_planet_transport_prompt();
+        self.open_planet_scorch_prompt_mode(
+            PlanetScorchPromptMode::Planet,
+            Some(default_coords),
+            None,
+        );
+        self.current_screen = ScreenId::PlanetMenu;
+    }
+
+    pub(crate) fn inline_planet_scorch_prompt_active_on_current_screen(&self) -> bool {
+        self.current_screen == ScreenId::PlanetMenu && self.planet.scorch_prompt_mode.is_some()
+    }
+
+    pub(crate) fn handle_planet_scorch_prompt_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        let mode = self.planet.scorch_prompt_mode;
+        match key.code {
+            KeyCode::Enter
+                if matches!(
+                    mode,
+                    Some(PlanetScorchPromptMode::Confirm1)
+                        | Some(PlanetScorchPromptMode::Confirm2)
+                        | Some(PlanetScorchPromptMode::Confirm3)
+                ) =>
+            {
+                crate::app::Action::Planet(PlanetAction::CancelScorchPrompt)
+            }
+            KeyCode::Enter => crate::app::Action::Planet(PlanetAction::SubmitScorchPrompt),
+            KeyCode::Backspace => {
+                crate::app::Action::Planet(PlanetAction::BackspaceScorchPromptInput)
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::Planet(PlanetAction::CancelScorchPrompt)
+            }
+            KeyCode::Char('n') | KeyCode::Char('N')
+                if matches!(
+                    mode,
+                    Some(PlanetScorchPromptMode::Confirm1)
+                        | Some(PlanetScorchPromptMode::Confirm2)
+                        | Some(PlanetScorchPromptMode::Confirm3)
+                ) =>
+            {
+                crate::app::Action::Planet(PlanetAction::CancelScorchPrompt)
+            }
+            KeyCode::Char('y') | KeyCode::Char('Y')
+                if matches!(
+                    mode,
+                    Some(PlanetScorchPromptMode::Confirm1)
+                        | Some(PlanetScorchPromptMode::Confirm2)
+                        | Some(PlanetScorchPromptMode::Confirm3)
+                ) =>
+            {
+                crate::app::Action::Planet(PlanetAction::SubmitScorchPrompt)
+            }
+            KeyCode::Char(ch)
+                if match mode {
+                    Some(PlanetScorchPromptMode::Planet) => {
+                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+                    }
+                    Some(PlanetScorchPromptMode::Confirm1)
+                    | Some(PlanetScorchPromptMode::Confirm2)
+                    | Some(PlanetScorchPromptMode::Confirm3)
+                    | None => false,
+                } =>
+            {
+                crate::app::Action::Planet(PlanetAction::AppendScorchPromptChar(ch))
+            }
+            _ => crate::app::Action::Noop,
+        }
+    }
+
+    pub(crate) fn append_planet_scorch_prompt_char(&mut self, ch: char) {
+        if !self.inline_planet_scorch_prompt_active_on_current_screen() {
+            return;
+        }
+        if self.planet.scorch_prompt_mode != Some(PlanetScorchPromptMode::Planet) {
+            return;
+        }
+        if self.planet.scorch_prompt_input.len() >= 16 {
+            return;
+        }
+        self.planet.scorch_prompt_input.push(ch);
+        self.planet.scorch_prompt_status = None;
+    }
+
+    pub(crate) fn backspace_planet_scorch_prompt_input(&mut self) {
+        if !self.inline_planet_scorch_prompt_active_on_current_screen() {
+            return;
+        }
+        self.planet.scorch_prompt_input.pop();
+        self.planet.scorch_prompt_status = None;
+    }
+
+    pub(crate) fn cancel_planet_scorch_prompt(&mut self) {
+        self.clear_planet_scorch_prompt();
+        self.current_screen = ScreenId::PlanetMenu;
+    }
+
+    pub(crate) fn submit_planet_scorch_prompt(&mut self) -> Result<(), String> {
+        let Some(mode) = self.planet.scorch_prompt_mode else {
+            return Ok(());
+        };
+        match mode {
+            PlanetScorchPromptMode::Planet => {
+                let default_coords = self
+                    .planet
+                    .scorch_prompt_default_coords
+                    .ok_or_else(|| "No owned planets available.".to_string())?;
+                let Some(coords) =
+                    resolve_default_coords_input(&self.planet.scorch_prompt_input, default_coords)
+                else {
+                    return Err("Enter coordinates like 5,2".to_string());
+                };
+                let planet_record_index = self.resolve_planet_scorch_record(coords)?;
+                self.planet.scorch_selected_planet_record = Some(planet_record_index);
+                self.open_planet_scorch_prompt_mode(
+                    PlanetScorchPromptMode::Confirm1,
+                    None,
+                    Some(planet_record_index),
+                );
+            }
+            PlanetScorchPromptMode::Confirm1 => {
+                self.open_planet_scorch_prompt_mode(
+                    PlanetScorchPromptMode::Confirm2,
+                    None,
+                    self.planet.scorch_selected_planet_record,
+                );
+            }
+            PlanetScorchPromptMode::Confirm2 => {
+                self.open_planet_scorch_prompt_mode(
+                    PlanetScorchPromptMode::Confirm3,
+                    None,
+                    self.planet.scorch_selected_planet_record,
+                );
+            }
+            PlanetScorchPromptMode::Confirm3 => {
+                let planet_record_index = self
+                    .planet
+                    .scorch_selected_planet_record
+                    .ok_or_else(|| "Choose one of your planets first.".to_string())?;
+                let planet_name = self.game_data.planets.records[planet_record_index - 1]
+                    .status_or_name_summary();
+                self.game_data
+                    .scorch_planet_surface(planet_record_index)
+                    .map_err(|err| err.to_string())?;
+                self.planet_scorch_orders.insert(planet_record_index);
+                self.save_game_data().map_err(|err| err.to_string())?;
+                self.clear_planet_scorch_prompt();
+                self.show_command_menu_notice(
+                    CommandMenu::Planet,
+                    format!("Planet \"{planet_name}\" is scorched!"),
+                );
+            }
+        }
+        self.current_screen = ScreenId::PlanetMenu;
+        Ok(())
+    }
+
+    pub(crate) fn planet_scorch_warning_lines(&self) -> Vec<String> {
+        let planet_line = self
+            .selected_planet_scorch_name_and_coords()
+            .map(|(name, coords)| {
+                format!(
+                    "Planet \"{}\" at {}.",
+                    name,
+                    crate::screen::format_sector_coords(coords)
+                )
+            })
+            .unwrap_or_default();
+        vec![
+            planet_line,
+            String::new(),
+            "Scorch-Earth is a drastic policy in which a planet destroys anything and".to_string(),
+            "everything potentially usable by an invading force. Factories, warehouses,"
+                .to_string(),
+            "etc. are destroyed causing the planet's production level to drop drastically."
+                .to_string(),
+            "Stored spare parts (including \"production points\") are eliminated".to_string(),
+            "as well.".to_string(),
+        ]
+    }
+
+    pub(crate) fn planet_scorch_confirm_prompt(&self) -> Option<&'static str> {
+        match self.planet.scorch_prompt_mode {
+            Some(PlanetScorchPromptMode::Confirm1) => Some("Are you sure? Y/[N] -> "),
+            Some(PlanetScorchPromptMode::Confirm2) => Some("Are you really sure? Y/[N] -> "),
+            Some(PlanetScorchPromptMode::Confirm3) => {
+                Some("Are you sure-sure? Last chance to bail! Y/[N] -> ")
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn default_planet_scorch_coords(&self) -> Option<[u8; 2]> {
+        let mut rows = self
+            .game_data
+            .empire_planet_economy_rows(self.player.record_index_1_based);
+        rows.sort_by(|left, right| {
+            left.present_production
+                .cmp(&right.present_production)
+                .then_with(|| left.coords.cmp(&right.coords))
+        });
+        rows.first().map(|row| row.coords)
+    }
+
+    pub(crate) fn clear_planet_scorch_prompt(&mut self) {
+        self.planet.scorch_prompt_mode = None;
+        self.planet.scorch_prompt_input.clear();
+        self.planet.scorch_prompt_default_value.clear();
+        self.planet.scorch_prompt_default_coords = None;
+        self.planet.scorch_prompt_status = None;
+        self.planet.scorch_selected_planet_record = None;
+    }
+
+    fn open_planet_scorch_prompt_mode(
+        &mut self,
+        mode: PlanetScorchPromptMode,
+        default_coords: Option<[u8; 2]>,
+        selected_planet_record: Option<usize>,
+    ) {
+        self.planet.scorch_prompt_mode = Some(mode);
+        self.planet.scorch_prompt_input.clear();
+        self.planet.scorch_prompt_status = None;
+        self.planet.scorch_prompt_default_coords = default_coords;
+        self.planet.scorch_prompt_default_value = default_coords
+            .map(format_sector_coords_default)
+            .unwrap_or_default();
+        if let Some(record_index) = selected_planet_record {
+            self.planet.scorch_selected_planet_record = Some(record_index);
+        }
+    }
+
+    fn resolve_planet_scorch_record(&self, coords: [u8; 2]) -> Result<usize, String> {
+        let Some((record_index, planet)) =
+            self.game_data
+                .planets
+                .records
+                .iter()
+                .enumerate()
+                .find(|(_, planet)| {
+                    planet.coords_raw() == coords
+                        && planet.owner_empire_slot_raw() as usize
+                            == self.player.record_index_1_based
+                })
+        else {
+            return Err(format!(
+                "Planet [{},{}] is not one of your worlds.",
+                coords[0], coords[1]
+            ));
+        };
+        if self.planet_scorch_orders.contains(&(record_index + 1)) {
+            return Err(format!(
+                "Planet \"{}\" is already scorched.",
+                planet.status_or_name_summary()
+            ));
+        }
+        Ok(record_index + 1)
+    }
+
+    fn selected_planet_scorch_name_and_coords(&self) -> Option<(String, [u8; 2])> {
+        let record_index = self.planet.scorch_selected_planet_record?;
+        let planet = self.game_data.planets.records.get(record_index - 1)?;
+        Some((planet.status_or_name_summary(), planet.coords_raw()))
+    }
+}

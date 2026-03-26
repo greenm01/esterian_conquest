@@ -1726,6 +1726,43 @@ fn set_fleet_order_rejects_speed_above_current_maximum() {
 }
 
 #[test]
+fn scorch_planet_surface_clears_economy_queue_and_stardock_immediately() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let planet = &mut data.planets.records[14];
+    let _ = planet.set_present_production_points(42);
+    planet.set_potential_production_raw([77, 0]);
+    planet.set_stored_production_points(1234);
+    planet.set_build_count_raw(0, 5);
+    planet.set_build_kind_raw(0, 3);
+    planet.set_stardock_count_raw(0, 2);
+    planet.set_stardock_kind_raw(0, 5);
+    planet.set_army_count_raw(9);
+    planet.set_ground_batteries_raw(4);
+
+    data.scorch_planet_surface(15).unwrap();
+
+    let planet = &data.planets.records[14];
+    assert_eq!(planet.present_production_points(), Some(0));
+    assert_eq!(planet.potential_production_points(), 0);
+    assert_eq!(planet.stored_production_points(), 0);
+    assert!((0..10).all(|slot| planet.build_count_raw(slot) == 0));
+    assert!((0..10).all(|slot| planet.build_kind_raw(slot) == 0));
+    assert!((0..STARDOCK_SLOT_COUNT).all(|slot| planet.stardock_count_raw(slot) == 0));
+    assert!((0..STARDOCK_SLOT_COUNT).all(|slot| planet.stardock_kind_raw(slot) == 0));
+    assert_eq!(planet.army_count_raw(), 9);
+    assert_eq!(planet.ground_batteries_raw(), 4);
+}
+
+#[test]
 fn set_fleet_rules_of_engagement_rejects_non_combat_value() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
