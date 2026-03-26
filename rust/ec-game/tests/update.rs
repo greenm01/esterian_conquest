@@ -3472,23 +3472,27 @@ fn missing_theme_file_falls_back_to_classic_and_persists_fallback() {
         Action::Startup(StartupAction::ApplyThemePickerSelection),
     );
 
-    assert_eq!(theme::current_theme_key().as_deref(), Some("classic"));
+    assert_eq!(
+        theme::current_theme_key().as_deref(),
+        Some(theme::default_theme_key())
+    );
     assert_eq!(
         CampaignStore::open_default_in_dir(&fixture_dir)
             .expect("open store")
             .player_theme_preference(1)
             .expect("load preference")
             .as_deref(),
-        Some("classic")
+        Some(theme::default_theme_key())
     );
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("theme picker should render");
-    assert!(
-        line_containing(&terminal, "Theme unavailable. Using Classic.")
-            .contains("Theme unavailable. Using Classic.")
+    let expected_notice = format!(
+        "Theme unavailable. Using {}.",
+        theme::default_theme_display_name()
     );
+    assert!(line_containing(&terminal, "Theme unavailable. Using ").contains(&expected_notice));
 }
 
 #[test]
@@ -3510,14 +3514,17 @@ fn stale_stored_theme_preference_self_heals_to_classic_on_load() {
     .expect("app should load");
 
     assert!(app.player.is_joined);
-    assert_eq!(theme::current_theme_key().as_deref(), Some("classic"));
+    assert_eq!(
+        theme::current_theme_key().as_deref(),
+        Some(theme::default_theme_key())
+    );
     assert_eq!(
         CampaignStore::open_default_in_dir(&fixture_dir)
             .expect("open store")
             .player_theme_preference(1)
             .expect("load preference")
             .as_deref(),
-        Some("classic")
+        Some(theme::default_theme_key())
     );
 }
 

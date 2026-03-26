@@ -377,6 +377,14 @@ pub fn current_theme_key() -> Option<String> {
     CURRENT_THEME_KEY.with(|key| key.borrow().clone())
 }
 
+pub fn default_theme_key() -> &'static str {
+    DEFAULT_THEME_KEY
+}
+
+pub fn default_theme_display_name() -> String {
+    humanize_theme_name(DEFAULT_THEME_KEY)
+}
+
 pub fn ensure_bundled_themes_in_game_dir(
     game_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {

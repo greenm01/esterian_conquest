@@ -522,7 +522,7 @@ impl App {
             }
             Err(_) => {
                 crate::theme::apply_default_theme();
-                let fallback_key = "tokyo_night";
+                let fallback_key = crate::theme::default_theme_key();
                 if self.player.is_joined {
                     let _ = self.planet.campaign_store.set_player_theme_preference(
                         self.player.record_index_1_based,
@@ -531,8 +531,10 @@ impl App {
                 } else {
                     self.startup_state.prejoin_theme_key = Some(fallback_key.to_string());
                 }
-                self.startup_state.theme_picker_status =
-                    Some("Theme unavailable. Using Classic.".to_string());
+                self.startup_state.theme_picker_status = Some(format!(
+                    "Theme unavailable. Using {}.",
+                    crate::theme::default_theme_display_name()
+                ));
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(fallback_key);
             }
