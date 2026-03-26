@@ -54,7 +54,7 @@ Password: ********
    Saturday Showdown   war.example.com     Seat 5
 
  ─────────────────────────────────────────────────
- [J] Join new game   [I] Identity   [Q] Quit
+ [J] Join new game   [I] Identity info   [Q] Quit
 ```
 
 Arrow keys select a game. Enter connects. When the game session ends, the
@@ -77,7 +77,7 @@ A player who already has a Nostr identity can import their key before
 joining:
 
 ```
-$ ec-connect identity import
+$ ec-connect id import
 Enter your nsec: nsec1...
 Identity imported.
 
@@ -123,12 +123,12 @@ Identity types:
 ### Subcommands
 
 ```
-ec-connect identity              Show active identity (npub)
-ec-connect identity --secret     Show active identity (npub + nsec for backup)
-ec-connect identity list         List all wallet identities
-ec-connect identity new          Generate a new keypair in the wallet
-ec-connect identity import       Import an existing nsec (bech32 or hex)
-ec-connect identity switch N     Switch active identity to index N
+ec-connect id              Show active identity (npub)
+ec-connect id --secret     Show active identity (npub + nsec for backup)
+ec-connect id list         List all wallet identities
+ec-connect id new          Generate a new keypair in the wallet
+ec-connect id import       Import an existing nsec (bech32 or hex)
+ec-connect id switch N     Switch active identity to index N
 ```
 
 ### Key Import
@@ -151,7 +151,7 @@ can reissue an invite code for the seat, but the old identity's history
 is orphaned.
 
 Players should back up their nsec to a password manager or other secure
-storage. `ec-connect identity --secret` displays the active identity's
+storage. `ec-connect id --secret` displays the active identity's
 npub and nsec for this purpose.
 
 ## Configuration
@@ -265,12 +265,12 @@ config file.
 ### Identity Subcommands
 
 ```
-ec-connect identity                  Show active identity (npub)
-ec-connect identity --secret         Show active identity (npub + nsec)
-ec-connect identity list             List all wallet identities
-ec-connect identity new              Generate a new keypair
-ec-connect identity import           Import an existing nsec
-ec-connect identity switch N         Switch active identity to index N
+ec-connect id                        Show active identity (npub)
+ec-connect id --secret               Show active identity (npub + nsec)
+ec-connect id list                   List all wallet identities
+ec-connect id new                    Generate a new keypair
+ec-connect id import                 Import an existing nsec
+ec-connect id switch N               Switch active identity to index N
 ```
 
 ### Options
@@ -297,7 +297,7 @@ manage identity.
    Saturday Showdown   war.example.com     Seat 5    (2 days ago)
 
  ─────────────────────────────────────────────────────────────────
- [J] Join new game   [I] Identity   [Q] Quit
+ [J] Join new game   [I] Identity info   [Q] Quit
 ```
 
 Columns: game name, server hostname, seat number, relative time since

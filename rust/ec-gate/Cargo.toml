@@ -1,0 +1,24 @@
+[package]
+name = "ec-gate"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ec-gate"
+path = "src/main.rs"
+
+[dependencies]
+# Nostr protocol
+# nostr-sdk = "..."
+
+# Async runtime
+# tokio = { version = "...", features = ["full"] }
+
+# SSH key formatting
+# russh-keys = "..."
+
+# Config/roster parsing
+# kdl = "6"
+
+# CLI argument parsing
+# clap = { version = "...", features = ["derive"] }

@@ -1,0 +1,37 @@
+[package]
+name = "ec-connect"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ec-connect"
+path = "src/main.rs"
+
+[dependencies]
+# Nostr identity + relay handshake
+# nostr-sdk = "..."
+
+# SSH client
+# russh = "..."
+
+# TUI picker screen
+# ratatui = "..."
+
+# Terminal raw mode + resize
+# crossterm = "0.28"
+
+# Wallet encryption
+# chacha20poly1305 = "..."
+# pbkdf2 = "..."
+
+# Config/wallet/cache file format
+# kdl = "6"
+
+# Platform-appropriate directories
+# dirs = "..."
+
+# Async runtime
+# tokio = { version = "...", features = ["full"] }
+
+# CLI argument parsing
+# clap = { version = "...", features = ["derive"] }
