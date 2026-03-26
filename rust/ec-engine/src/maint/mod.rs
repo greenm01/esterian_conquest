@@ -142,7 +142,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .records
         .iter()
         .any(|p| p.is_active_or_rogue_player());
-    let should_accumulate_conquest = game_data.conquest.raw_byte(0x0c) == 0x64
+    let should_accumulate_conquest = game_data.conquest.inactive_production_slot_raw(0) == Some(0x0064)
         && (any_fleet_in_transit || any_active_player);
 
     // Bombardment execution: a BombardWorld fleet that had raw[0x19]==0x80 at start of turn

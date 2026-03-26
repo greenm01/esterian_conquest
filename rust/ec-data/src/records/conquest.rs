@@ -7,6 +7,8 @@ pub struct ConquestDat {
 }
 
 impl ConquestDat {
+    const INACTIVE_PRODUCTION_SLOT_OFFSETS: [usize; 3] = [0x0C, 0x0E, 0x10];
+
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         expect_size(data, CONQUEST_DAT_SIZE, "CONQUEST.DAT")?;
         Ok(Self {
@@ -58,6 +60,136 @@ impl ConquestDat {
     /// Set the player count (offset 0x02).
     pub fn set_player_count(&mut self, count: u8) {
         self.raw[2] = count;
+    }
+
+    pub fn inactive_production_slot_raw(&self, slot: usize) -> Option<u16> {
+        Self::INACTIVE_PRODUCTION_SLOT_OFFSETS
+            .get(slot)
+            .copied()
+            .map(|offset| self.raw_word(offset))
+    }
+
+    pub fn set_inactive_production_slot_raw(&mut self, slot: usize, value: u16) -> bool {
+        if let Some(offset) = Self::INACTIVE_PRODUCTION_SLOT_OFFSETS.get(slot).copied() {
+            self.set_raw_word(offset, value);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn control_word_12_raw(&self) -> u16 {
+        self.raw_word(0x12)
+    }
+    pub fn set_control_word_12_raw(&mut self, value: u16) {
+        self.set_raw_word(0x12, value);
+    }
+    pub fn control_word_1a_raw(&self) -> u16 {
+        self.raw_word(0x1A)
+    }
+    pub fn set_control_word_1a_raw(&mut self, value: u16) {
+        self.set_raw_word(0x1A, value);
+    }
+    pub fn control_word_20_raw(&self) -> u16 {
+        self.raw_word(0x20)
+    }
+    pub fn set_control_word_20_raw(&mut self, value: u16) {
+        self.set_raw_word(0x20, value);
+    }
+    pub fn control_word_22_raw(&self) -> u16 {
+        self.raw_word(0x22)
+    }
+    pub fn set_control_word_22_raw(&mut self, value: u16) {
+        self.set_raw_word(0x22, value);
+    }
+    pub fn control_word_26_raw(&self) -> u16 {
+        self.raw_word(0x26)
+    }
+    pub fn set_control_word_26_raw(&mut self, value: u16) {
+        self.set_raw_word(0x26, value);
+    }
+    pub fn control_word_28_raw(&self) -> u16 {
+        self.raw_word(0x28)
+    }
+    pub fn set_control_word_28_raw(&mut self, value: u16) {
+        self.set_raw_word(0x28, value);
+    }
+    pub fn control_word_36_raw(&self) -> u16 {
+        self.raw_word(0x36)
+    }
+    pub fn set_control_word_36_raw(&mut self, value: u16) {
+        self.set_raw_word(0x36, value);
+    }
+    pub fn control_word_38_raw(&self) -> u16 {
+        self.raw_word(0x38)
+    }
+    pub fn set_control_word_38_raw(&mut self, value: u16) {
+        self.set_raw_word(0x38, value);
+    }
+    pub fn control_word_3a_raw(&self) -> u16 {
+        self.raw_word(0x3A)
+    }
+    pub fn set_control_word_3a_raw(&mut self, value: u16) {
+        self.set_raw_word(0x3A, value);
+    }
+    pub fn control_word_40_raw(&self) -> u16 {
+        self.raw_word(0x40)
+    }
+    pub fn set_control_word_40_raw(&mut self, value: u16) {
+        self.set_raw_word(0x40, value);
+    }
+    pub fn control_word_52_raw(&self) -> u16 {
+        self.raw_word(0x52)
+    }
+    pub fn set_control_word_52_raw(&mut self, value: u16) {
+        self.set_raw_word(0x52, value);
+    }
+
+    pub fn control_byte_3d_raw(&self) -> u8 {
+        self.raw_byte(0x3D)
+    }
+    pub fn set_control_byte_3d_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x3D, value);
+    }
+    pub fn control_byte_44_raw(&self) -> u8 {
+        self.raw_byte(0x44)
+    }
+    pub fn set_control_byte_44_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x44, value);
+    }
+    pub fn control_byte_47_raw(&self) -> u8 {
+        self.raw_byte(0x47)
+    }
+    pub fn set_control_byte_47_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x47, value);
+    }
+    pub fn control_byte_48_raw(&self) -> u8 {
+        self.raw_byte(0x48)
+    }
+    pub fn set_control_byte_48_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x48, value);
+    }
+    pub fn control_byte_4a_raw(&self) -> u8 {
+        self.raw_byte(0x4A)
+    }
+    pub fn set_control_byte_4a_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x4A, value);
+    }
+    pub fn control_byte_4b_raw(&self) -> u8 {
+        self.raw_byte(0x4B)
+    }
+    pub fn set_control_byte_4b_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x4B, value);
+    }
+    pub fn control_byte_54_raw(&self) -> u8 {
+        self.raw_byte(0x54)
+    }
+    pub fn set_control_byte_54_raw(&mut self, value: u8) {
+        self.set_raw_byte(0x54, value);
+    }
+
+    pub fn clear_control_byte_if_equal(&mut self, offset: usize, value: u8) {
+        self.clear_raw_byte_if_equal(offset, value);
     }
 
     pub fn raw_byte(&self, offset: usize) -> u8 {

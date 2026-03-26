@@ -23,7 +23,13 @@ fn non_comment_raw_lines(path: &Path) -> Vec<String> {
                 || trimmed.starts_with("/*")
                 || trimmed.starts_with('*')
                 || trimmed.starts_with("*/");
-            (!is_comment && line.contains(".raw[")).then(|| line.to_string())
+            let uses_banned_raw_pattern = line.contains(".raw[")
+                || line.contains(".raw_byte(")
+                || line.contains(".raw_word(")
+                || line.contains(".set_raw_byte(")
+                || line.contains(".set_raw_word(")
+                || line.contains(".clear_raw_byte_if_equal(");
+            (!is_comment && uses_banned_raw_pattern).then(|| line.to_string())
         })
         .collect()
 }
@@ -43,6 +49,6 @@ fn engine_runtime_code_does_not_use_direct_raw_offsets() {
 
     assert!(
         offenders.is_empty(),
-        "ec-engine runtime should use record accessors, not .raw offsets: {offenders:#?}"
+        "ec-engine runtime should use record accessors, not generic raw access helpers: {offenders:#?}"
     );
 }

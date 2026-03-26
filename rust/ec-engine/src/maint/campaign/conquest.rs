@@ -5,12 +5,12 @@ pub(super) fn process_conquest_header(
     should_accumulate: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if should_accumulate {
-        let prod_total = game_data.conquest.raw_word(0x0c);
+        let prod_total = game_data.conquest.inactive_production_slot_raw(0).unwrap_or_default();
         let new_prod_total = prod_total.saturating_add(100);
-        game_data.conquest.set_raw_word(0x0c, new_prod_total);
-        game_data
-            .conquest
-            .set_raw_byte(0x3d, game_data.conquest.raw_byte(0x3d).saturating_add(1));
+        game_data.conquest.set_inactive_production_slot_raw(0, new_prod_total);
+        game_data.conquest.set_control_byte_3d_raw(
+            game_data.conquest.control_byte_3d_raw().saturating_add(1),
+        );
     }
 
     let offsets_to_clear = [
@@ -18,10 +18,10 @@ pub(super) fn process_conquest_header(
     ];
 
     for offset in offsets_to_clear {
-        game_data.conquest.clear_raw_byte_if_equal(offset, 0x64);
+        game_data.conquest.clear_control_byte_if_equal(offset, 0x64);
     }
 
-    if game_data.conquest.raw_byte(0x0e) == 0x00 {
+    if game_data.conquest.inactive_production_slot_raw(1) == Some(0) {
         let non_active_prods: Vec<u16> = game_data
             .player
             .records
@@ -30,74 +30,74 @@ pub(super) fn process_conquest_header(
             .map(|p| p.production_score_raw())
             .collect();
 
-        let mut write_offset = 0x0cusize;
-        for prod in non_active_prods.iter().take(3) {
-            game_data.conquest.set_raw_word(write_offset, *prod);
-            write_offset += 2;
+        for (slot, prod) in non_active_prods.iter().take(3).enumerate() {
+            game_data.conquest.set_inactive_production_slot_raw(slot, *prod);
         }
     }
 
-    game_data.conquest.set_raw_word(0x12, 0xFFFF);
-    game_data.conquest.set_raw_word(0x1a, 0x3374);
+    game_data.conquest.set_control_word_12_raw(0xFFFF);
+    game_data.conquest.set_control_word_1a_raw(0x3374);
 
-    if game_data.conquest.raw_byte(0x20) == 0x64 {
-        game_data.conquest.set_raw_word(0x20, 0x0375);
+    if game_data.conquest.control_word_20_raw() == 0x0064 {
+        game_data.conquest.set_control_word_20_raw(0x0375);
     }
 
-    if game_data.conquest.raw_word(0x22) == 0x0064 {
-        game_data.conquest.set_raw_word(0x22, 0x2065);
+    if game_data.conquest.control_word_22_raw() == 0x0064 {
+        game_data.conquest.set_control_word_22_raw(0x2065);
     }
 
-    if game_data.conquest.raw_byte(0x26) == 0x64 {
-        game_data.conquest.set_raw_word(0x26, 0x047e);
+    if game_data.conquest.control_word_26_raw() == 0x0064 {
+        game_data.conquest.set_control_word_26_raw(0x047e);
     }
 
-    if game_data.conquest.raw_word(0x28) == 0x0064 {
-        game_data.conquest.set_raw_word(0x28, 0x7420);
+    if game_data.conquest.control_word_28_raw() == 0x0064 {
+        game_data.conquest.set_control_word_28_raw(0x7420);
     }
 
-    if game_data.conquest.raw_byte(0x36) == 0x64 {
-        game_data.conquest.set_raw_word(0x36, 0x863b);
+    if game_data.conquest.control_word_36_raw() == 0x0064 {
+        game_data.conquest.set_control_word_36_raw(0x863b);
     }
 
-    if game_data.conquest.raw_word(0x38) == 0x0064 {
-        game_data.conquest.set_raw_word(0x38, 0xfcfe);
+    if game_data.conquest.control_word_38_raw() == 0x0064 {
+        game_data.conquest.set_control_word_38_raw(0xfcfe);
     }
 
-    if game_data.conquest.raw_word(0x3a) == 0x0064 {
-        game_data.conquest.set_raw_word(0x3a, 0x8b28);
+    if game_data.conquest.control_word_3a_raw() == 0x0064 {
+        game_data.conquest.set_control_word_3a_raw(0x8b28);
     }
 
     for offset in 0x42..=0x54 {
-        game_data.conquest.clear_raw_byte_if_equal(offset, 0x01);
+        game_data.conquest.clear_control_byte_if_equal(offset, 0x01);
     }
 
-    if game_data.conquest.raw_word(0x40) == 0x0101 {
-        game_data.conquest.set_raw_word(0x40, 0x00FF);
+    if game_data.conquest.control_word_40_raw() == 0x0101 {
+        game_data.conquest.set_control_word_40_raw(0x00FF);
     }
 
-    if game_data.conquest.raw_byte(0x44) == 0x00 {
-        game_data.conquest.set_raw_byte(0x44, 0xc2);
+    if game_data.conquest.control_byte_44_raw() == 0x00 {
+        game_data.conquest.set_control_byte_44_raw(0xc2);
     }
 
-    if game_data.conquest.raw_byte(0x47) == 0x00 && game_data.conquest.raw_byte(0x48) == 0x00 {
-        game_data.conquest.set_raw_byte(0x47, 0x08);
-        game_data.conquest.set_raw_byte(0x48, 0x6f);
+    if game_data.conquest.control_byte_47_raw() == 0x00
+        && game_data.conquest.control_byte_48_raw() == 0x00
+    {
+        game_data.conquest.set_control_byte_47_raw(0x08);
+        game_data.conquest.set_control_byte_48_raw(0x6f);
     }
 
-    if game_data.conquest.raw_byte(0x4a) == 0x00 {
-        game_data.conquest.set_raw_byte(0x4a, 0x01);
+    if game_data.conquest.control_byte_4a_raw() == 0x00 {
+        game_data.conquest.set_control_byte_4a_raw(0x01);
     }
-    if game_data.conquest.raw_byte(0x4b) == 0x00 {
-        game_data.conquest.set_raw_byte(0x4b, 0x6f);
-    }
-
-    if game_data.conquest.raw_word(0x52) == 0x0000 {
-        game_data.conquest.set_raw_word(0x52, 0x8d6a);
+    if game_data.conquest.control_byte_4b_raw() == 0x00 {
+        game_data.conquest.set_control_byte_4b_raw(0x6f);
     }
 
-    if game_data.conquest.raw_byte(0x54) == 0x00 {
-        game_data.conquest.set_raw_byte(0x54, 0x35);
+    if game_data.conquest.control_word_52_raw() == 0x0000 {
+        game_data.conquest.set_control_word_52_raw(0x8d6a);
+    }
+
+    if game_data.conquest.control_byte_54_raw() == 0x00 {
+        game_data.conquest.set_control_byte_54_raw(0x35);
     }
 
     Ok(())
