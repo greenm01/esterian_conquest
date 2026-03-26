@@ -267,7 +267,7 @@ Default example:
 Custom tag example:
 
 ```bash
-./scripts/publish_release_packages.sh --tag v1.5-dos-bundles
+./scripts/publish_release_packages.sh --tag release-artifacts
 ```
 
 Unlocked-only example:

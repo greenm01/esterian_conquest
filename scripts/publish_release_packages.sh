@@ -11,7 +11,7 @@ to an existing GitHub Release with `gh release upload --clobber`.
 
 Options:
   --tag TAG                 GitHub release tag to update.
-                            Default: v1.5-dos-bundles
+                            Default: release-artifacts
   --variant classic         Build and upload only the classic package.
   --variant unlocked        Build and upload only the unlocked package.
   -h, --help                Show this help text.
@@ -21,7 +21,7 @@ EOF
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-release_tag="v1.5-dos-bundles"
+release_tag="release-artifacts"
 build_args=()
 assets=()
 want_classic=0

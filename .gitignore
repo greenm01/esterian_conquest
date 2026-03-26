@@ -98,6 +98,7 @@ fixtures/**/*.SAV
 
 # Local release-package build output. Published copies live on GitHub Releases.
 releases/*.zip
+releases/*.tar.gz
 
 # Local bot/LLM turn submissions and notes.
 .tmp/

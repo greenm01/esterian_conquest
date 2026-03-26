@@ -1,4 +1,4 @@
-# Release Artifacts
+# Esterian Conquest Release Artifacts
 
 This directory holds the current downloadable Esterian Conquest release artifacts.
 
