@@ -5,7 +5,7 @@
 _Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
 A fan-built resurrection -- not affiliated with the original._
 
-**Status:** v1.0.0-beta.1 — feature-complete, seeking playtesters
+**Status:** v1.0.0-beta.1 — beta-quality and playable, seeking player and sysop playtesters
 
 ## Premise
 
@@ -96,11 +96,11 @@ original was opaque or stochastic, the Rust version is explicit — a seeded
 campaign RNG means results are reproducible, and the engine will tell you why
 a combat resolved the way it did.
 
-The game is usable today. Fresh campaigns run across all four documented
-player tiers (4, 9, 16, and 25 empires), yearly maintenance processes real
-turns, and the growing TUI client handles a substantial slice of the campaign
-experience. It is not feature-complete end to end, but you can run a real
-game on it now.
+The game is playable today and has reached a real beta stage. Fresh campaigns
+run across all four documented player tiers (4, 9, 16, and 25 empires),
+yearly maintenance processes real turns, and the Rust player and sysop tools
+cover the core campaign workflow. The main work now is playtesting, collecting
+feedback, and fixing the rough edges and bugs that only show up in real games.
 
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 

@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 25),
+  date: datetime(year: 2026, month: 3, day: 26),
 )
 
 #set page(
@@ -89,7 +89,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 25, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: March 26, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -556,7 +556,7 @@ Most multiplayer games of the era demanded constant attention. Esterian Conquest
 *The Rust Port (2026)* \
 This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played EC on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
 
-The immediate goal is a drop-in replacement that runs natively on modern systems without emulation, while preserving the classic experience for BBS sysops and Telnet players.
+The project has now reached a real beta stage. The Rust player and sysop tools cover the core campaign workflow, and the main work from here is broad playtesting, collecting feedback, and fixing the rough edges and bugs that only show up in live games while preserving the classic experience for BBS sysops, SSH hosts, and local players.
 
 *Visual Themes* \
 The `ec-game` client is themable. Each campaign has a sysop-chosen default
