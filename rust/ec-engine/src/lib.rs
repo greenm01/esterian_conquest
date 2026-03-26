@@ -26,9 +26,9 @@ pub use maint::{
     run_maintenance_turns,
 };
 pub use navigation::{
-    FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_fleet_eta,
-    estimate_fleet_eta_to_destination, next_path_step, plan_route, plan_route_with_intel,
-    visible_hazard_intel_from_snapshots,
+    FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_direct_eta,
+    estimate_fleet_eta, estimate_fleet_eta_to_destination, next_path_step, plan_route,
+    plan_route_with_intel, visible_hazard_intel_from_snapshots,
 };
 pub use setup::{
     GeneratedMap, GeneratedWorld, MapMetrics, build_seeded_initialized_game, build_seeded_new_game,

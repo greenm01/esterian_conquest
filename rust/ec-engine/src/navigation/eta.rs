@@ -53,6 +53,24 @@ pub(super) fn estimate_fleet_eta_to_destination(
     )
 }
 
+pub(super) fn estimate_direct_eta(
+    current: [u8; 2],
+    target: [u8; 2],
+    speed: u8,
+    include_system: bool,
+) -> u16 {
+    if current == target || speed == 0 {
+        return 0;
+    }
+    simulate_eta_years(
+        [f64::from(current[0]), f64::from(current[1])],
+        target,
+        speed,
+        0,
+        include_system,
+    )
+}
+
 fn estimate_eta_for_route(
     route: Option<PlannedRoute>,
     current: [u8; 2],

@@ -241,7 +241,7 @@ Ships operate in fleets. A fleet always moves at the speed of its slowest member
 
 Starbases are large space fortresses (Cost: 50, AS: 10, DS: 12) that serve dual roles. In orbit around a planet, they provide a defensive combat bonus and significant economic benefits --- they help underdeveloped colonies grow faster at low and moderate tax rates, and they let a planet spend up to *5x* its current production on a single build when points have been accumulated (see @economy for details). They are not a free pass to run punitive tax rates forever. In deep space, they function as surveillance platforms with slightly more firepower than a battleship, though they move very slowly at just 1 sector per year.
 
-Unlike ships, starbases are not assigned to fleets. They are commissioned individually from stardock and moved independently through the *Starbase Command* submenu. You can order combat fleets to escort a starbase using Mission 4 (Guard Starbase), but the starbase itself remains a separate unit.
+Unlike ships, starbases are not assigned to fleets. They are commissioned individually from stardock and moved independently through the *Starbase Command* submenu. Older documentation sometimes says a starbase is "hauled," but in practice this is simply the normal move order for a very slow unit, likely implying tug support rather than a separate modeled mechanic. You can order combat fleets to escort a starbase using Mission 4 (Guard Starbase), but the starbase itself remains a separate unit.
 
 #admonition("NOTE")[Starbases must be commissioned from stardock before they can be moved or provide orbital benefits. An uncommissioned starbase sitting in stardock has no effect.]
 

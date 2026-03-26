@@ -82,6 +82,15 @@ pub fn estimate_fleet_eta_to_destination(
     )
 }
 
+pub fn estimate_direct_eta(
+    current: [u8; 2],
+    target: [u8; 2],
+    speed: u8,
+    include_system: bool,
+) -> u16 {
+    eta::estimate_direct_eta(current, target, speed, include_system)
+}
+
 pub(crate) fn plan_route_to_destination(
     game_data: &CoreGameData,
     fleet_idx: usize,

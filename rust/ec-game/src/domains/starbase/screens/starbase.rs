@@ -4,12 +4,14 @@ use crate::app::Action;
 use crate::domains::fleet::FleetAction;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
+use crate::domains::starbase::state::StarbaseMovePromptMode;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt,
-    draw_menu_entry, draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
+    draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt, draw_menu_entry,
+    draw_menu_notice, draw_prompt_error_after, draw_status_line, draw_table_command_bar_at,
+    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -74,10 +76,25 @@ impl StarbaseMenuScreen {
         info_default_coords: [u8; 2],
         info_input: &str,
         info_notice: Option<&str>,
+        move_prompt_mode: Option<StarbaseMovePromptMode>,
+        move_prompt_label: Option<&str>,
+        move_prompt_default: &str,
+        move_prompt_input: &str,
+        move_prompt_status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            if inline_planet_info {
+            if let Some(mode) = move_prompt_mode {
+                draw_starbase_move_prompt(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    mode,
+                    move_prompt_label,
+                    move_prompt_default,
+                    move_prompt_input,
+                    move_prompt_status,
+                );
+            } else if inline_planet_info {
                 draw_inline_planet_info_prompt(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
@@ -108,7 +125,17 @@ impl StarbaseMenuScreen {
             }
         }
         let command_row = menu_prompt_row(2);
-        if inline_planet_info {
+        if let Some(mode) = move_prompt_mode {
+            draw_starbase_move_prompt(
+                &mut buffer,
+                command_row,
+                mode,
+                move_prompt_label,
+                move_prompt_default,
+                move_prompt_input,
+                move_prompt_status,
+            );
+        } else if inline_planet_info {
             draw_inline_planet_info_prompt(
                 &mut buffer,
                 command_row,
@@ -120,7 +147,7 @@ impl StarbaseMenuScreen {
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        if !inline_planet_info {
+        if !inline_planet_info && move_prompt_mode.is_none() {
             draw_command_prompt_at(
                 &mut buffer,
                 command_row,
@@ -137,7 +164,19 @@ impl Screen for StarbaseMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false, false, [0, 0], "", None)
+        self.render_with_notice(
+            None,
+            false,
+            false,
+            [0, 0],
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -152,7 +191,7 @@ impl Screen for StarbaseMenuScreen {
                 Action::Starbase(StarbaseAction::OpenReviewSelect)
             }
             KeyCode::Char('m') | KeyCode::Char('M') => {
-                Action::Starbase(StarbaseAction::ShowMoveNotice)
+                Action::Starbase(StarbaseAction::OpenMovePrompt)
             }
             KeyCode::Char('v') | KeyCode::Char('V') => Action::Starmap(
                 StarmapAction::OpenPartialView(crate::screen::CommandMenu::Starbase),
@@ -162,6 +201,48 @@ impl Screen for StarbaseMenuScreen {
             ),
             _ => Action::Noop,
         }
+    }
+}
+
+fn draw_starbase_move_prompt(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    mode: StarbaseMovePromptMode,
+    prompt_label: Option<&str>,
+    prompt_default: &str,
+    prompt_input: &str,
+    prompt_status: Option<&str>,
+) {
+    match mode {
+        StarbaseMovePromptMode::HaltConfirm => {
+            draw_command_line_prompt_text_at(
+                buffer,
+                command_row,
+                "STARBASE COMMAND",
+                "Halt this starbase? [Y]/N -> ",
+            );
+        }
+        StarbaseMovePromptMode::Decision => {
+            draw_command_line_prompt_text_at(
+                buffer,
+                command_row,
+                "STARBASE COMMAND",
+                "<H>alt or [M]ove <Q> -> ",
+            );
+        }
+        StarbaseMovePromptMode::Base | StarbaseMovePromptMode::Destination => {
+            draw_command_line_default_input_at(
+                buffer,
+                command_row,
+                "STARBASE COMMAND",
+                prompt_label.unwrap_or("Command "),
+                prompt_default,
+                prompt_input,
+            );
+        }
+    }
+    if let Some(status) = prompt_status {
+        draw_prompt_error_after(buffer, command_row, status);
     }
 }
 
@@ -180,7 +261,7 @@ impl Screen for StarbaseHelpScreen {
         let lines = [
             "<H> - describe Starbase Control commands",
             "<I> - show Intelligence on what you know about any planet",
-            "<M> - order a starbase to move (ie, to be hauled) to a new location",
+            "<M> - order a starbase to move to a new location",
             "<Q> - quit the Starbase Control menu & returns you to the Fleet Command Center",
             "<R> - display all game information regarding a specified starbase",
             "<S> - display all of your starbases with their locations, destinations etc.",

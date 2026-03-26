@@ -13,6 +13,8 @@ mod fleet;
 mod planets;
 #[path = "mutators_player.rs"]
 mod player;
+#[path = "mutators_starbase.rs"]
+mod starbase;
 #[path = "mutators_support.rs"]
 mod support;
 #[path = "mutators_transfers.rs"]

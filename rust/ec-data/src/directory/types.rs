@@ -289,6 +289,10 @@ pub enum GameStateMutationError {
         requested: u16,
         available: u16,
     },
+    BaseOwnershipMismatch {
+        player_index_1_based: usize,
+        base_record_index_1_based: usize,
+    },
     FleetOwnershipMismatch {
         player_index_1_based: usize,
         fleet_index_1_based: usize,
@@ -542,6 +546,14 @@ impl std::fmt::Display for GameStateMutationError {
                 f,
                 "fleet {} has only {} troop transport capacity available, requested {}",
                 fleet_index_1_based, available, requested
+            ),
+            Self::BaseOwnershipMismatch {
+                player_index_1_based,
+                base_record_index_1_based,
+            } => write!(
+                f,
+                "base {} is not owned by player {}",
+                base_record_index_1_based, player_index_1_based
             ),
             Self::FleetOwnershipMismatch {
                 player_index_1_based,

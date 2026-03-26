@@ -63,6 +63,37 @@ fn guard_starbase_related_accessors_expose_linkage_words() {
 }
 
 #[test]
+fn set_starbase_destination_updates_trailing_coords_for_owned_active_base() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_guard_starbase(1, 1, [16, 13], 1)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    data.set_starbase_destination(1, 1, [2, 12])
+        .expect("owned starbase destination should update");
+
+    assert_eq!(data.bases.records[0].coords_raw(), [16, 13]);
+    assert_eq!(data.bases.records[0].trailing_coords_raw(), [2, 12]);
+}
+
+#[test]
+fn halt_starbase_resets_trailing_coords_to_live_location() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_guard_starbase(1, 1, [16, 13], 1)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    data.bases.records[0].set_trailing_coords_raw([2, 12]);
+
+    data.halt_starbase(1, 1)
+        .expect("owned starbase halt should succeed");
+
+    assert_eq!(data.bases.records[0].coords_raw(), [16, 13]);
+    assert_eq!(data.bases.records[0].trailing_coords_raw(), [16, 13]);
+}
+
+#[test]
 fn fleet_owner_empire_accessor_round_trips() {
     let mut record = FleetRecord::new_zeroed();
     record.set_owner_empire_raw(0x03);

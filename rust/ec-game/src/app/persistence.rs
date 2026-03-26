@@ -1,8 +1,26 @@
 use std::collections::BTreeMap;
 
+use ec_data::ReportBlockRow;
+
 use super::state::App;
 
 impl App {
+    pub(crate) fn append_report_block(&mut self, text: impl Into<String>) {
+        let next_index = self
+            .report_block_rows
+            .iter()
+            .map(|row| row.block_index)
+            .max()
+            .map(|idx| idx + 1)
+            .unwrap_or(0);
+        self.report_block_rows.push(ReportBlockRow {
+            block_index: next_index,
+            decoded_text: text.into(),
+            raw_bytes: None,
+            recipient_deleted: false,
+        });
+    }
+
     pub(crate) fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let new_snapshot_id = self.planet.campaign_store.save_runtime_state_structured(
             &self.game_data,

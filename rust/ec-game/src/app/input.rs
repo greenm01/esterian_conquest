@@ -41,6 +41,9 @@ impl App {
         if self.inline_fleet_menu_prompt_active_on_current_screen() {
             return self.handle_fleet_menu_prompt_key(key);
         }
+        if self.inline_starbase_move_prompt_active_on_current_screen() {
+            return self.handle_starbase_move_prompt_key(key);
+        }
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Splash)
                 if self.startup_state.splash_page > 0

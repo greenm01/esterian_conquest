@@ -9,7 +9,7 @@ use ec_compat::{decode_report_block_rows, import_directory_snapshot};
 use ec_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
     EmpireProductionRankingSort, GameConfig, InactivityConfig, IntelTier, PlanetIntelSnapshot,
-    ProductionItemKind, QueuedPlayerMail, SessionConfig,
+    ProductionItemKind, QueuedPlayerMail, SessionConfig, map_size_for_player_count,
 };
 use ec_engine::yearly_tax_revenue;
 use ec_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
@@ -159,6 +159,23 @@ fn temp_game_with_starbase_copy() -> PathBuf {
         .expect("seed guard starbase");
     save_runtime_state(&root, &state);
     root
+}
+
+fn first_empty_sector(game_data: &CoreGameData) -> [u8; 2] {
+    let map_size = map_size_for_player_count(game_data.conquest.player_count());
+    for x in 1..=map_size {
+        for y in 1..=map_size {
+            if game_data
+                .planets
+                .records
+                .iter()
+                .all(|planet| planet.coords_raw() != [x, y])
+            {
+                return [x, y];
+            }
+        }
+    }
+    panic!("fixture should contain at least one empty sector");
 }
 
 fn temp_game_with_auto_commission_copy() -> PathBuf {
@@ -2738,6 +2755,273 @@ fn starbase_review_matches_verified_v15_review_content() {
         "ETA:         Starbase 1 has already arrived and is in operation."
     );
     assert_eq!(terminal.line(8).trim_end(), "Escort:      The 1st Fleet");
+}
+
+#[test]
+fn starbase_list_and_review_show_numeric_transit_eta() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.game_data.bases.records[0].set_coords_raw([15, 13]);
+    runtime.game_data.bases.records[0].set_trailing_coords_raw([2, 12]);
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenList)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase list should render");
+    let list_row = line_containing(&terminal, "System(15,13)");
+    assert!(list_row.contains("System(15,13)"));
+    assert!(list_row.contains("System(02,12)"));
+    assert!(list_row.contains("16"));
+    assert!(list_row.contains("Starbase in transit"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenReview)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::StarbaseReview);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase review should render");
+    assert_eq!(
+        terminal.line(7).trim_end(),
+        "ETA:         Starbase 1 is in transit with ETA 16 years."
+    );
+}
+
+#[test]
+fn starbase_move_prompt_accepts_non_planet_sector_and_persists_report() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.game_data.fleets.records[1].set_current_location_coords_raw([6, 5]);
+    runtime.game_data.fleets.records[1].set_standing_order_kind(ec_data::Order::GuardStarbase);
+    runtime.game_data.fleets.records[1].set_standing_order_target_coords_raw([6, 5]);
+    runtime.game_data.fleets.records[1].set_mission_aux_bytes([1, 1]);
+    save_runtime_state(&fixture_dir, &runtime);
+    let destination = first_empty_sector(&runtime.game_data);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMovePrompt));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase move base prompt should render");
+    assert!(
+        line_containing(&terminal, "STARBASE COMMAND <- Starbase #")
+            .contains("Starbase # [1] <Q> ->")
+    );
+
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase move decision prompt should render");
+    assert!(
+        line_containing(&terminal, "STARBASE COMMAND <- <H>alt or")
+            .contains("<H>alt or [M]ove <Q> ->")
+    );
+
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase move destination prompt should render");
+    assert!(
+        line_containing(&terminal, "STARBASE COMMAND <- Destination")
+            .contains("Destination [06,05] <Q> ->")
+    );
+
+    for ch in format!("{:02},{:02}", destination[0], destination[1]).chars() {
+        apply_action(
+            &mut app,
+            Action::Starbase(StarbaseAction::AppendMovePromptChar(ch)),
+        );
+    }
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase menu notice should render after move");
+    assert!(line_containing(&terminal, "Notice: ").contains(&format!(
+        "Starbase #1 ordered to move to ({:02},{:02}).",
+        destination[0], destination[1]
+    )));
+
+    let persisted = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        persisted.game_data.bases.records[0].coords_raw(),
+        [6, 5],
+        "live base location should stay unchanged until movement execution exists"
+    );
+    assert_eq!(
+        persisted.game_data.bases.records[0].trailing_coords_raw(),
+        destination
+    );
+    let latest_report = persisted
+        .report_block_rows
+        .last()
+        .expect("move should append a report block");
+    assert!(latest_report.decoded_text.contains(&format!(
+        "Starbase 1 is moving to ({:02},{:02}).",
+        destination[0], destination[1]
+    )));
+    assert!(
+        latest_report
+            .decoded_text
+            .contains("Guard Fleets 1 and 2 will follow it.")
+    );
+}
+
+#[test]
+fn starbase_help_uses_move_wording_not_hauling() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenHelp));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase help should render");
+    assert!(
+        line_containing(&terminal, "move to a new location").contains("move to a new location")
+    );
+    assert!(
+        !terminal.lines.iter().any(|line| line.contains("hauled")),
+        "player-facing help should not mention hauling"
+    );
+}
+
+#[test]
+fn starbase_move_prompt_errors_hang_directly_under_command_line() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMovePrompt));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+    for ch in "99,99".chars() {
+        apply_action(
+            &mut app,
+            Action::Starbase(StarbaseAction::AppendMovePromptChar(ch)),
+        );
+    }
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase move error should render");
+    let error_line = terminal
+        .lines
+        .iter()
+        .find(|line| line.contains("Error: "))
+        .expect("error hanger should render");
+    assert!(error_line.contains("Enter coordinates within 1.."));
+    let error_row = terminal
+        .lines
+        .iter()
+        .position(|line| line.contains("Error: "))
+        .expect("error hanger should render");
+    assert_eq!(error_row, 6, "error hanger should sit under the prompt");
+}
+
+#[test]
+fn starbase_halt_prompt_resets_destination_to_live_location() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.game_data.bases.records[0].set_trailing_coords_raw([2, 12]);
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMovePrompt));
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+    apply_action(
+        &mut app,
+        Action::Starbase(StarbaseAction::AppendMovePromptChar('H')),
+    );
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("halt confirm should render");
+    assert!(
+        line_containing(&terminal, "STARBASE COMMAND <- Halt this starbase?")
+            .contains("Halt this starbase? [Y]/N ->")
+    );
+
+    apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
+    let persisted = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        persisted.game_data.bases.records[0].trailing_coords_raw(),
+        [6, 5]
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase halt notice should render");
+    assert!(line_containing(&terminal, "Notice: ").contains("Starbase #1 halted at (06,05)."));
 }
 
 #[test]

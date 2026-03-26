@@ -18,6 +18,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.default_planet_prompt_coords(),
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
+            app.starbase_move_prompt_mode(),
+            app.starbase_move_prompt_label(),
+            &app.starbase.move_prompt_default_value,
+            &app.starbase.move_prompt_input,
+            app.starbase.move_prompt_status.as_deref(),
         ),
         ScreenId::StarbaseHelp => app.starbase_help.render(&frame),
         ScreenId::StarbaseList => app.starbase_list.render(

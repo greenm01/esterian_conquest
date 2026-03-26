@@ -1,5 +1,14 @@
 use crate::domains::starbase::screens::starbase::{STARBASE_VISIBLE_ROWS, StarbaseRow};
 use ec_data::CoreGameData;
+use ec_engine::estimate_direct_eta;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StarbaseMovePromptMode {
+    Base,
+    Decision,
+    Destination,
+    HaltConfirm,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StarbaseState {
@@ -8,6 +17,11 @@ pub struct StarbaseState {
     pub review_index: usize,
     pub review_input: String,
     pub review_status: Option<String>,
+    pub move_prompt_mode: Option<StarbaseMovePromptMode>,
+    pub move_prompt_input: String,
+    pub move_prompt_status: Option<String>,
+    pub move_prompt_default_value: String,
+    pub move_prompt_base_record_index_1_based: Option<usize>,
 }
 
 impl StarbaseState {
@@ -41,11 +55,8 @@ impl StarbaseState {
                 } else {
                     "Starbase in transit".to_string()
                 };
-                let eta_label = if destination_coords == base.coords_raw() {
-                    "0".to_string()
-                } else {
-                    "?".to_string()
-                };
+                let eta_label =
+                    estimate_direct_eta(base.coords_raw(), destination_coords, 1, true).to_string();
                 StarbaseRow {
                     base_record_index_1_based: idx + 1,
                     base_id: base.base_id_raw(),
