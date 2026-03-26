@@ -48,18 +48,27 @@ impl ReportsScreen {
         current_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        buffer.write_text(
+        buffer.write_spans(
             STATUS_ROW,
             0,
-            &format!(
-                "Type: {} | Year: {} | Focus: {}",
-                type_filter_label(type_filter),
-                year_filter
-                    .map(|year| year.to_string())
-                    .unwrap_or_else(|| "All".to_string()),
-                focus_label(focus)
-            ),
-            classic::status_value_style(),
+            &[
+                StyledSpan::new("Type: ", classic::status_label_style()),
+                StyledSpan::new(
+                    type_filter_label(type_filter),
+                    classic::status_value_style(),
+                ),
+                StyledSpan::new(" | ", classic::status_value_style()),
+                StyledSpan::new("Year: ", classic::status_label_style()),
+                StyledSpan::new(
+                    &year_filter
+                        .map(|year| year.to_string())
+                        .unwrap_or_else(|| "All".to_string()),
+                    classic::status_value_style(),
+                ),
+                StyledSpan::new(" | ", classic::status_value_style()),
+                StyledSpan::new("Focus: ", classic::status_label_style()),
+                StyledSpan::new(focus_label(focus), classic::status_value_style()),
+            ],
         );
 
         let table_rows = items
@@ -69,7 +78,7 @@ impl ReportsScreen {
                 vec![
                     format!("{:02}", idx + 1),
                     item.item_type.code().to_string(),
-                    item.year.to_string(),
+                    item.stardate_label(),
                     item.subject.clone(),
                 ]
             })
@@ -77,10 +86,11 @@ impl ReportsScreen {
         let base_columns = [
             TableColumn::right("ID", 2),
             TableColumn::center("Type", 4),
-            TableColumn::right("Year", 4),
+            TableColumn::right("Stardate", 8),
             TableColumn::left("Subject", 24),
         ];
         let columns = fit_inbox_columns(&base_columns, &table_rows);
+        let table_width = table_render_width(&columns);
         let visible_rows = items.len().min(INBOX_VISIBLE_ROWS);
         let metrics = write_table_window_with_states_at(
             &mut buffer,
@@ -95,6 +105,14 @@ impl ReportsScreen {
             None,
             None,
         );
+        if focus == InboxFocus::Inbox {
+            highlight_table_chrome(
+                &mut buffer,
+                TABLE_START_ROW,
+                metrics.bottom_row,
+                table_width,
+            );
+        }
         if let Some(selected_row) = selected_visible_row(cursor, scroll_offset, visible_rows) {
             highlight_selected_id_cell(
                 &mut buffer,
@@ -108,21 +126,8 @@ impl ReportsScreen {
         let preview_top_row = metrics.bottom_row + 1;
         let preview_bottom_row = COMMAND_LINE_ROW.saturating_sub(1);
         draw_preview_border(&mut buffer, preview_top_row, preview_bottom_row, focus);
-        buffer.write_text(
-            preview_top_row + 1,
-            1,
-            &truncate_to_width(
-                &preview_title(items.get(cursor)),
-                PLAYFIELD_WIDTH.saturating_sub(2),
-            ),
-            if focus == InboxFocus::Preview {
-                classic::notice_style()
-            } else {
-                classic::title_style()
-            },
-        );
 
-        let preview_body_row = preview_top_row + 2;
+        let preview_body_row = preview_top_row + 1;
         let preview_body_last_row = preview_bottom_row.saturating_sub(1);
         let feedback_rows = feedback
             .map(|value| preview_feedback_row_count(value, PLAYFIELD_WIDTH.saturating_sub(2)))
@@ -163,7 +168,7 @@ impl ReportsScreen {
         match prompt_mode {
             InboxPromptMode::Normal => {
                 let prompt = format!(
-                    "<M> <R> <A> <Y> <D> [{}] -> ",
+                    "<M> <R> <A> <Y> <D> <TAB> [{}] -> ",
                     selected_id_label(items, cursor)
                 );
                 draw_command_line_prompt_text_at(
@@ -308,18 +313,6 @@ fn focus_label(focus: InboxFocus) -> &'static str {
     }
 }
 
-fn preview_title(item: Option<&InboxItem>) -> String {
-    match item {
-        Some(item) => format!(
-            "PREVIEW: {} {} {}",
-            item.item_type.code(),
-            item.year,
-            item.subject
-        ),
-        None => "PREVIEW:".to_string(),
-    }
-}
-
 fn selected_id_label(items: &[InboxItem], cursor: usize) -> String {
     if items.is_empty() {
         "00".to_string()
@@ -347,6 +340,30 @@ fn draw_preview_border(
         buffer.write_text(row, PLAYFIELD_WIDTH.saturating_sub(1), "│", border_style);
     }
     buffer.write_text(bottom_row, 0, &bottom, border_style);
+}
+
+fn highlight_table_chrome(
+    buffer: &mut PlayfieldBuffer,
+    top_row: usize,
+    bottom_row: usize,
+    table_width: usize,
+) {
+    let border_style = classic::notice_style();
+    for row in top_row..=bottom_row {
+        for col in 0..table_width {
+            let ch = buffer.row(row)[col].ch;
+            if is_table_chrome_char(ch) {
+                buffer.write_text(row, col, &ch.to_string(), border_style);
+            }
+        }
+    }
+}
+
+fn is_table_chrome_char(ch: char) -> bool {
+    matches!(
+        ch,
+        '┌' | '┐' | '└' | '┘' | '├' | '┤' | '┬' | '┴' | '┼' | '─' | '│'
+    )
 }
 
 fn truncate_to_width(text: &str, max_chars: usize) -> String {

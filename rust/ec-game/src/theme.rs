@@ -680,6 +680,10 @@ pub mod classic {
         active_theme().selected
     }
 
+    pub fn scrollbar_thumb_style() -> CellStyle {
+        active_theme().indicator_on
+    }
+
     pub fn alert_style() -> CellStyle {
         active_theme().alert
     }

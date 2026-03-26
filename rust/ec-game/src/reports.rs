@@ -46,6 +46,16 @@ pub struct InboxItem {
     pub body_lines: Vec<String>,
 }
 
+impl InboxItem {
+    pub fn stardate_label(&self) -> String {
+        format!("{:02}/{}", self.stardate_week(), self.year)
+    }
+
+    pub fn stardate_week(&self) -> u8 {
+        self.week.unwrap_or(0)
+    }
+}
+
 impl ReportsPreview {
     pub fn from_block_rows(
         game_data: &CoreGameData,
@@ -93,16 +103,7 @@ pub fn runtime_inbox_items(
                 .map(|(idx, mail)| inbox_item_from_mail(game_data, idx, mail)),
         )
         .collect::<Vec<_>>();
-    items.sort_by(|left, right| {
-        right
-            .year
-            .cmp(&left.year)
-            .then_with(|| right.week.unwrap_or(0).cmp(&left.week.unwrap_or(0)))
-            .then_with(|| {
-                inbox_item_type_rank(right.item_type).cmp(&inbox_item_type_rank(left.item_type))
-            })
-            .then_with(|| inbox_source_index(right.source).cmp(&inbox_source_index(left.source)))
-    });
+    items.sort_by(|left, right| inbox_item_sort_key(right).cmp(&inbox_item_sort_key(left)));
     items
 }
 
@@ -237,7 +238,7 @@ fn inbox_item_from_report_row(idx: usize, row: &ReportBlockRow, current_year: u1
         item_type: InboxItemType::Report,
         year: parsed_year,
         week,
-        subject: synthesize_report_subject(&body_lines, week, parsed_year),
+        subject: synthesize_report_subject(&body_lines),
         body_lines,
     }
 }
@@ -270,9 +271,8 @@ fn parse_stardate_week_year(text: &str) -> Option<(u8, u16)> {
     Some((week, year))
 }
 
-fn synthesize_report_subject(lines: &[String], week: Option<u8>, year: u16) -> String {
-    let category = classify_report_subject(lines);
-    format!("{category} - Stardate {:02}/{year}", week.unwrap_or(0))
+fn synthesize_report_subject(lines: &[String]) -> String {
+    classify_report_subject(lines).to_string()
 }
 
 fn classify_report_subject(lines: &[String]) -> &'static str {
@@ -364,6 +364,15 @@ fn inbox_item_type_rank(item_type: InboxItemType) -> u8 {
         InboxItemType::Report => 1,
         InboxItemType::Message => 0,
     }
+}
+
+fn inbox_item_sort_key(item: &InboxItem) -> (u16, u8, u8, usize) {
+    (
+        item.year,
+        item.stardate_week(),
+        inbox_item_type_rank(item.item_type),
+        inbox_source_index(item.source),
+    )
 }
 
 fn decode_text_lines(text: &str) -> Vec<String> {

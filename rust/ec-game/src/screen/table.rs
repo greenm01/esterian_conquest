@@ -501,7 +501,12 @@ fn write_scroll_indicator(
     } else {
         thumb_top + (scroll_offset * thumb_span) / max_offset
     };
-    buffer.write_text(thumb_row, col, "#", style);
+    buffer.write_text(
+        thumb_row,
+        col,
+        "#",
+        crate::theme::classic::scrollbar_thumb_style(),
+    );
 }
 
 fn header_cells<'a>(columns: &'a [TableColumn<'a>]) -> Vec<&'a str> {

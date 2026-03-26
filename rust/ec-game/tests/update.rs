@@ -18,7 +18,7 @@ use ec_game::domains::fleet::FleetAction;
 use ec_game::domains::fleet::missions::{
     FLEET_MISSION_OPTIONS, FleetMissionRequirement, fleet_record_supports_mission_code,
 };
-use ec_game::domains::messaging::MessagingAction;
+use ec_game::domains::messaging::{MessagingAction, state::InboxFocus};
 use ec_game::domains::planet::PlanetAction;
 use ec_game::domains::starbase::StarbaseAction;
 use ec_game::domains::starmap::StarmapAction;
@@ -372,7 +372,7 @@ fn clear_runtime_report_blocks(state: &mut CampaignRuntimeState) {
 }
 
 fn advance_to_main_menu(app: &mut App) {
-    for _ in 0..16 {
+    for _ in 0..64 {
         if app.current_screen() == ScreenId::MainMenu {
             return;
         }
@@ -2237,14 +2237,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     })
     .expect("app should load");
 
-    for _ in 0..64 {
-        if app.current_screen() == ScreenId::MainMenu {
-            break;
-        }
-        app.advance_startup();
-    }
-    assert_eq!(app.current_screen(), ScreenId::MainMenu);
-    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+    advance_to_main_menu(&mut app);
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('b'))),
@@ -2607,13 +2600,7 @@ fn fleet_review_detail_q_returns_to_review_picker() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    for _ in 0..64 {
-        if app.current_screen() == ScreenId::MainMenu {
-            break;
-        }
-        app.advance_startup();
-    }
-    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+    advance_to_main_menu(&mut app);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
@@ -5415,10 +5402,9 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     assert!(reports_terminal.line(1).starts_with('┌'));
     assert!(reports_terminal.line(2).contains("ID"));
     assert!(reports_terminal.line(2).contains("Type"));
-    assert!(reports_terminal.line(2).contains("Year"));
+    assert!(reports_terminal.line(2).contains("Stardate"));
     assert!(reports_terminal.line(2).contains("Subject"));
     assert!(reports_terminal.line(5).starts_with('┌'));
-    assert!(reports_terminal.line(6).contains("PREVIEW:"));
     assert!(
         reports_terminal
             .lines
@@ -6313,6 +6299,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
             .contains("Type: All | Year: All | Focus: Inbox")
     );
     assert!(terminal.line(24).contains("<M>"));
+    assert!(terminal.line(24).contains("<TAB>"));
     assert!(
         !terminal
             .lines
@@ -13625,12 +13612,7 @@ fn reports_inbox_stacks_type_and_year_filters_and_deletes_selected_item() {
             .iter()
             .any(|line| line.contains("Older message"))
     );
-    assert!(
-        !filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Scout - Stardate 03/3003"))
-    );
+    assert!(!filtered.lines.iter().any(|line| line.contains("Scout")));
 
     assert_eq!(
         apply_action(
@@ -13703,14 +13685,8 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
             .contains("Type: All | Year: All | Focus: Inbox")
     );
     assert!(terminal.line(1).starts_with('┌'));
-    assert!(terminal.line(24).contains("[03] -> 3"));
+    assert!(terminal.line(24).contains("<TAB> [03] -> 3"));
     assert!(terminal.lines.iter().any(|line| line.contains("Alpha")));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("PREVIEW: M 3000 Alpha"))
-    );
     assert!(
         terminal
             .lines
@@ -13762,6 +13738,107 @@ fn reports_inbox_leaves_scrollbar_gutter_when_many_items_exist() {
     assert!(terminal.lines.iter().any(|line| line.ends_with('^')));
     assert!(terminal.lines.iter().any(|line| line.ends_with('|')));
     assert!(terminal.lines.iter().any(|line| line.ends_with('v')));
+}
+
+#[test]
+fn reports_inbox_long_preview_scrolls_and_clamps_without_panicking() {
+    let fixture_dir = temp_game_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    let current_year = runtime.game_data.conquest.game_year();
+    runtime
+        .queued_mail
+        .push(incoming_mail(2, 1, current_year, "Older", "Short body"));
+    let long_body = (0..40)
+        .map(|idx| format!("Line {idx:02} {}", "x".repeat(90)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    runtime
+        .queued_mail
+        .push(incoming_mail(3, 1, current_year, "Long", &long_body));
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    for _ in 0..64 {
+        if matches!(
+            app.current_screen(),
+            ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+        ) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert!(matches!(
+        app.current_screen(),
+        ScreenId::MainMenu | ScreenId::Startup(StartupPhase::Messages)
+    ));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    let tab_to_preview = app.handle_key(key(KeyCode::Tab));
+    assert_eq!(apply_action(&mut app, tab_to_preview), AppOutcome::Continue);
+    assert_eq!(app.messaging.inbox_focus, InboxFocus::Preview);
+    assert_eq!(app.messaging.inbox_preview_scroll, 0);
+
+    let mut first = CaptureTerminal::new();
+    app.render(&mut first).expect("initial preview render");
+    assert!(first.lines.iter().any(|line| line.contains("Line 00")));
+
+    let page_down = app.handle_key(key(KeyCode::PageDown));
+    assert_eq!(apply_action(&mut app, page_down), AppOutcome::Continue);
+    assert!(app.messaging.inbox_preview_scroll > 0);
+    let after_first_page = app.messaging.inbox_preview_scroll;
+
+    let mut paged = CaptureTerminal::new();
+    app.render(&mut paged).expect("paged preview render");
+    assert!(paged.lines.iter().any(|line| line.contains("Line 04")));
+
+    for _ in 0..12 {
+        let page_down = app.handle_key(key(KeyCode::PageDown));
+        assert_eq!(apply_action(&mut app, page_down), AppOutcome::Continue);
+    }
+    let mut bottom_scroll = app.messaging.inbox_preview_scroll;
+    assert!(bottom_scroll >= after_first_page);
+    for _ in 0..32 {
+        let page_down = app.handle_key(key(KeyCode::PageDown));
+        assert_eq!(apply_action(&mut app, page_down), AppOutcome::Continue);
+        if app.messaging.inbox_preview_scroll == bottom_scroll {
+            break;
+        }
+        bottom_scroll = app.messaging.inbox_preview_scroll;
+    }
+    let page_down = app.handle_key(key(KeyCode::PageDown));
+    assert_eq!(apply_action(&mut app, page_down), AppOutcome::Continue);
+    assert_eq!(app.messaging.inbox_preview_scroll, bottom_scroll);
+
+    let page_up = app.handle_key(key(KeyCode::PageUp));
+    assert_eq!(apply_action(&mut app, page_up), AppOutcome::Continue);
+    assert!(app.messaging.inbox_preview_scroll < bottom_scroll);
+
+    let tab_to_inbox = app.handle_key(key(KeyCode::Tab));
+    assert_eq!(apply_action(&mut app, tab_to_inbox), AppOutcome::Continue);
+    assert_eq!(app.messaging.inbox_focus, InboxFocus::Inbox);
+    let move_down = app.handle_key(key(KeyCode::Down));
+    assert_eq!(apply_action(&mut app, move_down), AppOutcome::Continue);
+    assert_eq!(app.messaging.inbox_preview_scroll, 0);
+
+    let mut switched = CaptureTerminal::new();
+    app.render(&mut switched).expect("switched preview render");
+    assert!(
+        switched
+            .lines
+            .iter()
+            .any(|line| line.contains("Short body"))
+    );
 }
 
 #[test]
