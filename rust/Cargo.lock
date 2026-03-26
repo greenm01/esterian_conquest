@@ -69,11 +69,11 @@ dependencies = [
 
 [[package]]
 name = "ec-classic"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 
 [[package]]
 name = "ec-cli"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "ec-compat",
  "ec-data",
@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "ec-compat"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "ec-classic",
  "ec-data",
@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "ec-data"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "ec-compat",
  "ec-engine",
@@ -103,14 +103,14 @@ dependencies = [
 
 [[package]]
 name = "ec-engine"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "ec-data",
 ]
 
 [[package]]
 name = "ec-game"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "crossterm",
  "ec-compat",
@@ -121,7 +121,7 @@ dependencies = [
 
 [[package]]
 name = "ec-harness"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "ec-compat",
  "ec-data",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "ec-sysop"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "ec-cli",
  "ec-data",
