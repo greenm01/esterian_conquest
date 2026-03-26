@@ -49,9 +49,9 @@ submit turns for one or more empires, and run maintenance locally. No network,
 no server — just you and your terminal.
 
 The Rust client is cross-platform, built on crossterm, and runs on Linux,
-macOS, and Windows. Linux x64 playtest bundles are now supported as standalone
-archives, and the [Quick Start](#quick-start) commands remain available for
-anyone running directly from a Rust workspace.
+macOS, and Windows. Linux and macOS playtest bundles are supported as
+standalone archives, and the [Quick Start](#quick-start) commands remain
+available for anyone running directly from a Rust workspace.
 
 Players can also switch between the campaign's available ANSI themes from the
 client itself. `ec-game` ships with `classic`, a larger bundle of alternate

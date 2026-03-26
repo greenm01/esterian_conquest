@@ -227,9 +227,9 @@ Use this when you want:
 - a small local package that opens with the repo's known-good `CHAIN.TXT`
 - a clean split between original packed and curated runnable unlocked variants
 
-### `build_linux_playtest_bundle.py`
+### `build_playtest_bundle.py`
 
-Builds a standalone Linux x64 `tar.gz` playtest bundle under `releases/`.
+Builds a standalone Linux or macOS `tar.gz` playtest bundle under `releases/`.
 
 It currently:
 
@@ -240,23 +240,42 @@ It currently:
 - includes a sample `config.kdl`
 - writes `README.md` and `BUILD-INFO.txt` into the bundle root
 - can unpack and smoke-test the bundle when `--verify` is passed
+- defaults to the current host Rust target, with explicit support for:
+  - `x86_64-unknown-linux-gnu`
+  - `aarch64-apple-darwin`
+  - `x86_64-apple-darwin`
 
 Example:
+
+```bash
+python3 scripts/build_playtest_bundle.py --verify
+```
+
+Explicit Apple Silicon example:
+
+```bash
+python3 scripts/build_playtest_bundle.py --target aarch64-apple-darwin --verify
+```
+
+Use this when you want:
+
+- a native Linux or macOS playtest bundle without requiring a Rust toolchain
+- one archive containing both the player and sysop binaries
+- a quick way to hand testers the manuals, themes, and startup instructions
+
+### `build_linux_playtest_bundle.py`
+
+Compatibility wrapper around `build_playtest_bundle.py` that keeps the old
+Linux x64 command working:
 
 ```bash
 python3 scripts/build_linux_playtest_bundle.py --verify
 ```
 
-Use this when you want:
-
-- a Linux x64 playtest bundle without requiring a Rust toolchain
-- one archive containing both the player and sysop binaries
-- a quick way to hand testers the manuals, themes, and startup instructions
-
 ### `publish_release_packages.sh`
 
 Builds the selected release bundles, verifies them, then uploads the generated
-zip files to an existing GitHub Release with `gh release upload --clobber`.
+assets to an existing GitHub Release with `gh release upload --clobber`.
 
 Default example:
 
@@ -276,10 +295,22 @@ Unlocked-only example:
 ./scripts/publish_release_packages.sh --variant unlocked
 ```
 
+Apple Silicon playtest bundle example:
+
+```bash
+./scripts/publish_release_packages.sh --playtest-target aarch64-apple-darwin
+```
+
+Mixed DOS + macOS example:
+
+```bash
+./scripts/publish_release_packages.sh --variant classic --playtest-target aarch64-apple-darwin
+```
+
 Use this when you want:
 
 - the easiest "build, verify, publish" release workflow
-- the generated zip files to stay untracked locally under `releases/`
+- the generated release assets to stay untracked locally under `releases/`
 - the public downloadable copies to live on GitHub Releases instead of `main`
 
 ### `run_client.py`

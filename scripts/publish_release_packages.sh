@@ -4,16 +4,24 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/publish_release_packages.sh [--tag TAG] [--variant classic|unlocked]
+  ./scripts/publish_release_packages.sh [--tag TAG] [--variant classic|unlocked] [--playtest-target TARGET]
 
-Builds the DOS release bundles under releases/ and uploads the selected assets
-to an existing GitHub Release with `gh release upload --clobber`.
+Builds the selected release assets under releases/ and uploads them to an
+existing GitHub Release with `gh release upload --clobber`.
+
+If you do not pass any asset-selection flags, the default stays the historical
+DOS release flow: both `classic` and `unlocked`.
 
 Options:
   --tag TAG                 GitHub release tag to update.
                             Default: release-artifacts
   --variant classic         Build and upload only the classic package.
   --variant unlocked        Build and upload only the unlocked package.
+  --playtest-target TARGET  Build and upload a native Rust playtest bundle.
+                            Supported targets:
+                              x86_64-unknown-linux-gnu
+                              aarch64-apple-darwin
+                              x86_64-apple-darwin
   -h, --help                Show this help text.
 EOF
 }
@@ -26,6 +34,8 @@ build_args=()
 assets=()
 want_classic=0
 want_unlocked=0
+playtest_targets=()
+selection_made=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,7 +57,22 @@ while [[ $# -gt 0 ]]; do
           exit 2
           ;;
       esac
+      selection_made=1
       build_args+=("--variant" "$2")
+      shift 2
+      ;;
+    --playtest-target)
+      case "$2" in
+        x86_64-unknown-linux-gnu|aarch64-apple-darwin|x86_64-apple-darwin)
+          ;;
+        *)
+          echo "Unknown playtest target: $2" >&2
+          usage >&2
+          exit 2
+          ;;
+      esac
+      selection_made=1
+      playtest_targets+=("$2")
       shift 2
       ;;
     -h|--help)
@@ -62,20 +87,36 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ $want_classic -eq 0 && $want_unlocked -eq 0 ]]; then
+if [[ $selection_made -eq 0 ]]; then
   want_classic=1
   want_unlocked=1
 fi
 
-if [[ $want_classic -eq 1 ]]; then
-  assets+=("releases/ec-v1.5-classic.zip")
+if [[ $want_classic -eq 1 || $want_unlocked -eq 1 ]]; then
+  if [[ $want_classic -eq 1 ]]; then
+    assets+=("releases/ec-v1.5-classic.zip")
+  fi
+
+  if [[ $want_unlocked -eq 1 ]]; then
+    assets+=("releases/ec-v1.5-unlocked.zip")
+  fi
+
+  python3 scripts/build_release_packages.py "${build_args[@]}" --verify
 fi
 
-if [[ $want_unlocked -eq 1 ]]; then
-  assets+=("releases/ec-v1.5-unlocked.zip")
+for target in "${playtest_targets[@]}"; do
+  archive_path="$(
+    python3 scripts/build_playtest_bundle.py --target "$target" --verify | tail -n 1
+  )"
+  assets+=("$archive_path")
+done
+
+if [[ ${#assets[@]} -eq 0 ]]; then
+  echo "No release assets selected." >&2
+  usage >&2
+  exit 2
 fi
 
-python3 scripts/build_release_packages.py "${build_args[@]}" --verify
 gh release upload "$release_tag" "${assets[@]}" --clobber
 
 echo "Updated release assets on tag: $release_tag"
