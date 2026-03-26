@@ -266,6 +266,25 @@ pub(crate) fn resolve_color(color: GameColor, mode: ColorMode) -> Color {
 // Color downgrade helpers
 // ---------------------------------------------------------------------------
 
+/// Perceptually-weighted squared color distance (redmean approximation).
+///
+/// Weights green highest (~4×), with red and blue weighted adaptively
+/// based on the average red level of the two colors.  Significantly more
+/// accurate than plain Euclidean distance in RGB space for human-perceived
+/// color similarity.
+///
+/// Returns the squared distance — no `sqrt` is needed because we only
+/// compare relative magnitudes.
+pub fn redmean_dist(r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) -> f32 {
+    let (r1, g1, b1) = (r1 as f32, g1 as f32, b1 as f32);
+    let (r2, g2, b2) = (r2 as f32, g2 as f32, b2 as f32);
+    let dr = r1 - r2;
+    let dg = g1 - g2;
+    let db = b1 - b2;
+    let rbar = (r1 + r2) * 0.5;
+    (2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db
+}
+
 /// Map an xterm-256 palette index to the nearest crossterm named 16-color.
 ///
 /// Indices 0–15 are the standard ANSI colors and map directly.
@@ -273,7 +292,7 @@ pub(crate) fn resolve_color(color: GameColor, mode: ColorMode) -> Color {
 /// matched to the nearest named 16-color.
 /// Indices 232–255 are the grayscale ramp; they map to Black, DarkGrey,
 /// Grey, or White depending on brightness.
-fn ansi256_to_named16(idx: u8) -> Color {
+pub fn ansi256_to_named16(idx: u8) -> Color {
     if idx < 16 {
         // Direct ANSI 0–15 mapping.
         ANSI16_COLORS[idx as usize]
@@ -300,8 +319,8 @@ fn ansi256_to_named16(idx: u8) -> Color {
 }
 
 /// Map an RGB value to the nearest crossterm named 16-color using
-/// squared Euclidean distance in RGB space.
-fn rgb_to_named16(r: u8, g: u8, b: u8) -> Color {
+/// redmean perceptually-weighted distance.
+pub fn rgb_to_named16(r: u8, g: u8, b: u8) -> Color {
     // Representative RGB values for the 16 ANSI colors (standard VGA palette).
     const PALETTE: [(u8, u8, u8); 16] = [
         (0, 0, 0),       // Black
@@ -323,12 +342,9 @@ fn rgb_to_named16(r: u8, g: u8, b: u8) -> Color {
     ];
 
     let mut best_idx = 0usize;
-    let mut best_dist = u32::MAX;
+    let mut best_dist = f32::MAX;
     for (i, &(pr, pg, pb)) in PALETTE.iter().enumerate() {
-        let dr = (r as i32) - (pr as i32);
-        let dg = (g as i32) - (pg as i32);
-        let db = (b as i32) - (pb as i32);
-        let dist = (dr * dr + dg * dg + db * db) as u32;
+        let dist = redmean_dist(r, g, b, pr, pg, pb);
         if dist < best_dist {
             best_dist = dist;
             best_idx = i;
@@ -339,25 +355,11 @@ fn rgb_to_named16(r: u8, g: u8, b: u8) -> Color {
 
 /// Map an RGB value to the nearest xterm-256 palette index.
 ///
-/// Uses the 6×6×6 color cube (indices 16–231) for chromatic colors and the
-/// grayscale ramp (indices 232–255) when R ≈ G ≈ B.
-fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
-    // Try grayscale ramp first when the three channels are close.
-    if (r as i16 - g as i16).abs() <= 10
-        && (g as i16 - b as i16).abs() <= 10
-        && (r as i16 - b as i16).abs() <= 10
-    {
-        let avg = (r as u16 + g as u16 + b as u16) / 3;
-        if avg < 8 {
-            return 16; // nearest black in cube
-        }
-        if avg > 247 {
-            return 231; // nearest white in cube
-        }
-        return ((avg - 8) / 10 + 232) as u8;
-    }
-
-    // Map each channel to the nearest cube step index (0–5).
+/// Computes both the nearest 6×6×6 color-cube entry (indices 16–231) and
+/// the nearest grayscale-ramp entry (indices 232–255), then picks whichever
+/// has the lower redmean perceptual distance to the input color.
+pub fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
+    // --- nearest color-cube entry ---
     let cube_idx = |v: u8| -> u8 {
         if v < 48 {
             0
@@ -367,11 +369,34 @@ fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
             (v - 35) / 40
         }
     };
-
     let ri = cube_idx(r);
     let gi = cube_idx(g);
     let bi = cube_idx(b);
-    16 + 36 * ri + 6 * gi + bi
+    let cube_index = 16 + 36 * ri + 6 * gi + bi;
+    let expand = |v: u8| -> u8 { if v == 0 { 0 } else { 55 + v * 40 } };
+    let cube_dist = redmean_dist(r, g, b, expand(ri), expand(gi), expand(bi));
+
+    // --- nearest grayscale-ramp entry ---
+    let avg = (r as u16 + g as u16 + b as u16) / 3;
+    let gray_index = if avg < 8 {
+        16u8 // black end of cube
+    } else if avg > 247 {
+        231u8 // white end of cube
+    } else {
+        ((avg - 8) / 10 + 232) as u8
+    };
+    let gray_rgb: u8 = match gray_index {
+        16 => 0,
+        231 => 255,
+        g => 8 + 10 * (g - 232),
+    };
+    let gray_dist = redmean_dist(r, g, b, gray_rgb, gray_rgb, gray_rgb);
+
+    if gray_dist < cube_dist {
+        gray_index
+    } else {
+        cube_index
+    }
 }
 
 /// The 16 crossterm named colors in standard ANSI index order (0–15).
