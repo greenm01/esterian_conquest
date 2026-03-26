@@ -404,6 +404,12 @@ fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
             None,
             None,
             true,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
         )
         .expect("planet menu inline auto-commission renders");
 

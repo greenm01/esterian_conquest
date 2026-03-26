@@ -1,3 +1,8 @@
+// Mag16 — ANSI-16 native theme for BBS, SyncTERM, and CP437 door terminals
+//
+// Uses only named 16-color ANSI values. No hex, no indexed. This is the
+// baseline theme for classic DOS-style presentation with zero downgrade loss.
+
 style "body" {
     fg "white"
     bg "black"

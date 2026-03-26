@@ -4,10 +4,10 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_prompt_at, draw_expert_menu,
-    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
-    draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice, draw_title_bar, menu_prompt_row,
-    new_playfield,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at, draw_command_prompt_at,
+    draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
+    draw_inline_planet_info_prompt, draw_inline_status_after, draw_inline_tax_prompt,
+    draw_menu_entry, draw_menu_notice, draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -64,6 +64,12 @@ impl PlanetMenuScreen {
         tax_error: Option<&str>,
         tax_notice: Option<&str>,
         inline_auto_commission: bool,
+        menu_prompt_label: Option<&str>,
+        menu_prompt_default: &str,
+        menu_prompt_input: &str,
+        menu_prompt_status: Option<&str>,
+        inline_transport_mode: Option<PlanetTransportMode>,
+        inline_transport_summary: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
@@ -94,6 +100,34 @@ impl PlanetMenuScreen {
                     &["Automatically commission all ships and starbases in stardock?"],
                     notice,
                 );
+            } else if let Some(mode) = inline_transport_mode {
+                draw_title_bar(&mut buffer, 6, mode.title());
+                if let Some(summary) = inline_transport_summary {
+                    buffer.write_text(8, 0, summary, classic::status_value_style());
+                }
+                let command_row = draw_command_line_default_input_at(
+                    &mut buffer,
+                    10,
+                    "PLANET COMMAND",
+                    menu_prompt_label.unwrap_or("How many armies? "),
+                    menu_prompt_default,
+                    menu_prompt_input,
+                );
+                if let Some(status) = menu_prompt_status {
+                    draw_inline_status_after(&mut buffer, command_row, status);
+                }
+            } else if menu_prompt_label.is_some() {
+                let command_row = draw_command_line_default_input_at(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    "PLANET COMMAND",
+                    menu_prompt_label.unwrap_or("Command "),
+                    menu_prompt_default,
+                    menu_prompt_input,
+                );
+                if let Some(status) = menu_prompt_status {
+                    draw_inline_status_after(&mut buffer, command_row, status);
+                }
             } else {
                 draw_expert_menu(
                     &mut buffer,
@@ -154,10 +188,43 @@ impl PlanetMenuScreen {
                 &["Automatically commission all ships and starbases in stardock?"],
                 notice,
             );
+        } else if let Some(mode) = inline_transport_mode {
+            draw_title_bar(&mut buffer, 5, mode.title());
+            if let Some(summary) = inline_transport_summary {
+                buffer.write_text(7, 0, summary, classic::status_value_style());
+            }
+            let quantity_row = draw_command_line_default_input_at(
+                &mut buffer,
+                9,
+                "PLANET COMMAND",
+                menu_prompt_label.unwrap_or("How many armies? "),
+                menu_prompt_default,
+                menu_prompt_input,
+            );
+            if let Some(status) = menu_prompt_status {
+                draw_inline_status_after(&mut buffer, quantity_row, status);
+            }
+        } else if menu_prompt_label.is_some() {
+            let prompt_row = draw_command_line_default_input_at(
+                &mut buffer,
+                command_row,
+                "PLANET COMMAND",
+                menu_prompt_label.unwrap_or("Command "),
+                menu_prompt_default,
+                menu_prompt_input,
+            );
+            if let Some(status) = menu_prompt_status {
+                draw_inline_status_after(&mut buffer, prompt_row, status);
+            }
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        if !inline_planet_info && !inline_tax && !inline_auto_commission {
+        if !inline_planet_info
+            && !inline_tax
+            && !inline_auto_commission
+            && menu_prompt_label.is_none()
+            && inline_transport_mode.is_none()
+        {
             draw_command_prompt_at(
                 &mut buffer,
                 command_row,
@@ -187,6 +254,12 @@ impl Screen for PlanetMenuScreen {
             None,
             None,
             false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
         )
     }
 

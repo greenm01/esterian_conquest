@@ -447,7 +447,7 @@ impl App {
         match crate::theme::discover_theme_entries(&self.game_dir) {
             Ok(rows) => {
                 let default_key =
-                    crate::theme::current_theme_key().unwrap_or_else(|| "classic".to_string());
+                    crate::theme::current_theme_key().unwrap_or_else(|| "tokyo_night".to_string());
                 self.startup_state.theme_picker_rows = rows;
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(&default_key);
@@ -521,8 +521,8 @@ impl App {
                     self.theme_picker_cursor_for_key(&entry.key);
             }
             Err(_) => {
-                crate::theme::apply_classic_theme();
-                let fallback_key = "classic";
+                crate::theme::apply_default_theme();
+                let fallback_key = "tokyo_night";
                 if self.player.is_joined {
                     let _ = self.planet.campaign_store.set_player_theme_preference(
                         self.player.record_index_1_based,
@@ -1179,7 +1179,7 @@ impl App {
                 self.startup_state
                     .theme_picker_rows
                     .iter()
-                    .position(|entry| entry.key == "classic")
+                    .position(|entry| entry.key == "tokyo_night")
             })
             .unwrap_or(0)
     }

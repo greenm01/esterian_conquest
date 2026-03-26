@@ -266,8 +266,8 @@ fn apply_player_theme_preference(
             return Ok(());
         }
     }
-    crate::theme::apply_classic_theme();
-    campaign_store.set_player_theme_preference(player.record_index_1_based, "classic")?;
+    crate::theme::apply_default_theme();
+    campaign_store.set_player_theme_preference(player.record_index_1_based, "tokyo_night")?;
     Ok(())
 }
 

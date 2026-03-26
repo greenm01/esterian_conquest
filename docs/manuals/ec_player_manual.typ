@@ -558,11 +558,11 @@ The immediate goal is a drop-in replacement that runs natively on modern systems
 The `ec-game` client is themable. Each campaign has a sysop-chosen default
 theme, but players can also open *A>nsi Theme* from the Main Menu or First
 Time Menu and choose their own session theme from the campaign's available
-theme files. The shipped bundle includes `classic`, `tokyo_night`, and several
+theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several
 other built-in palettes, plus a monochrome `Mono` option in the picker. Your
 last theme choice is remembered for your empire in that campaign. If a saved
 custom theme later disappears or becomes invalid, `ec-game` falls back to
-`classic`, with `Mono` kept as a safe last resort.
+`tokyo_night`, with `Mono` kept as a safe last resort.
 
 *Nostrian Conquest* \
 Looking further ahead, the project aims to free the game from centralized hosts entirely. Under the working title *Nostrian Conquest*, the next evolution will use the Nostr protocol as a transport layer --- players submit encrypted turn orders using cryptographic keys, and results are broadcast back through relays. No central server to shut down. No single point of failure. A serverless galaxy where the fog of war is enforced by cryptography. Freed from the shackles of the 80x25 Telnet screen, Nostrian Conquest will feature a full-screen modern ANSI/UTF-8 terminal interface worthy of the game's strategic depth.

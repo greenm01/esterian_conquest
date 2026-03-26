@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::screen::{CellStyle, GameColor};
 
-const DEFAULT_THEME_KDL: &str = include_str!("../config/themes/classic.kdl");
+const DEFAULT_THEME_KDL: &str = include_str!("../config/themes/tokyo_night.kdl");
 const CATPPUCCIN_MOCHA_THEME_KDL: &str = include_str!("../config/themes/catppuccin_mocha.kdl");
 const DRACULA_THEME_KDL: &str = include_str!("../config/themes/dracula.kdl");
 const EVERFOREST_THEME_KDL: &str = include_str!("../config/themes/everforest.kdl");
@@ -14,13 +14,13 @@ const NORD_THEME_KDL: &str = include_str!("../config/themes/nord.kdl");
 const ONE_DARK_THEME_KDL: &str = include_str!("../config/themes/one_dark.kdl");
 const ROSE_PINE_THEME_KDL: &str = include_str!("../config/themes/rose_pine.kdl");
 const SOLARIZED_THEME_KDL: &str = include_str!("../config/themes/solarized.kdl");
-const TOKYO_NIGHT_THEME_KDL: &str = include_str!("../config/themes/tokyo_night.kdl");
-const CLASSIC_THEME_KEY: &str = "classic";
+const MAG16_THEME_KDL: &str = include_str!("../config/themes/mag16.kdl");
+const DEFAULT_THEME_KEY: &str = "tokyo_night";
 const MONO_THEME_KEY: &str = "mono";
 
 const BUNDLED_THEME_FILES: &[(&str, &str)] = &[
     ("catppuccin_mocha.kdl", CATPPUCCIN_MOCHA_THEME_KDL),
-    ("classic.kdl", DEFAULT_THEME_KDL),
+    ("mag16.kdl", MAG16_THEME_KDL),
     ("dracula.kdl", DRACULA_THEME_KDL),
     ("everforest.kdl", EVERFOREST_THEME_KDL),
     ("gruvbox.kdl", GRUVBOX_THEME_KDL),
@@ -29,7 +29,7 @@ const BUNDLED_THEME_FILES: &[(&str, &str)] = &[
     ("one_dark.kdl", ONE_DARK_THEME_KDL),
     ("rose_pine.kdl", ROSE_PINE_THEME_KDL),
     ("solarized.kdl", SOLARIZED_THEME_KDL),
-    ("tokyo_night.kdl", TOKYO_NIGHT_THEME_KDL),
+    ("tokyo_night.kdl", DEFAULT_THEME_KDL),
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -324,7 +324,7 @@ thread_local! {
     static BASE_THEME: RefCell<Theme> = RefCell::new(Theme::bundled_default());
     static ANSI_MODE: RefCell<AnsiMode> = const { RefCell::new(AnsiMode::On) };
     static CURRENT_THEME_KEY: RefCell<Option<String>> =
-        RefCell::new(Some(CLASSIC_THEME_KEY.to_string()));
+        RefCell::new(Some(DEFAULT_THEME_KEY.to_string()));
 }
 
 fn active_theme() -> Theme {
@@ -360,7 +360,7 @@ pub fn bundled_theme_kdl() -> &'static str {
 pub fn bundled_theme_file_names() -> &'static [&'static str] {
     &[
         "catppuccin_mocha.kdl",
-        "classic.kdl",
+        "mag16.kdl",
         "dracula.kdl",
         "everforest.kdl",
         "gruvbox.kdl",
@@ -473,7 +473,7 @@ fn resolve_game_dir_theme(
         return Ok(abs);
     }
 
-    Ok(game_dir.join("themes").join("classic.kdl"))
+    Ok(game_dir.join("themes").join("tokyo_night.kdl"))
 }
 
 pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -506,11 +506,11 @@ pub fn apply_theme_entry(entry: &ThemeEntry) -> Result<(), Box<dyn std::error::E
     }
 }
 
-pub fn apply_classic_theme() {
+pub fn apply_default_theme() {
     set_theme_state(
         Theme::bundled_default(),
         AnsiMode::On,
-        Some(CLASSIC_THEME_KEY),
+        Some(DEFAULT_THEME_KEY),
     );
 }
 
