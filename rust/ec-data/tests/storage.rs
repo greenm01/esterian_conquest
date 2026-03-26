@@ -291,10 +291,22 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
     assert!(
         schema_rows
             .iter()
-            .any(|sql| sql.contains("compat_raw_hex TEXT NOT NULL")),
-        "normalized snapshot schema should preserve compat residue text columns"
+            .any(|sql| sql.contains("control_header_tail_raw_hex TEXT NOT NULL")),
+        "snapshot schema should preserve conquest control-header residue slices"
     );
     for sql in schema_rows {
+        assert!(
+            !sql.contains("compat_raw_hex"),
+            "legacy whole-record compat_raw_hex columns should be gone: {sql}"
+        );
+        assert!(
+            !sql.contains("compat_prelude_raw_hex"),
+            "setup residue slab should be gone: {sql}"
+        );
+        assert!(
+            !sql.contains("compat_control_tail_hex"),
+            "legacy conquest tail residue column should be gone: {sql}"
+        );
         assert!(
             !sql.to_ascii_uppercase().contains("BLOB"),
             "sqlite schema should not use BLOB columns: {sql}"
@@ -335,7 +347,7 @@ fn sqlite_store_rejects_legacy_byte_table_schema() {
         matches!(
             err,
             CampaignStoreError::SchemaVersionMismatch {
-                expected: 1,
+                expected: 3,
                 found: None
             }
         ),

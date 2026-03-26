@@ -14,14 +14,7 @@ mod runtime;
 mod snapshot_core;
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 1;
-const PLAYER_SNAPSHOTS_TABLE: &str = "snapshot_players";
-const PLANET_SNAPSHOTS_TABLE: &str = "snapshot_planets";
-const FLEET_SNAPSHOTS_TABLE: &str = "snapshot_fleets";
-const BASE_SNAPSHOTS_TABLE: &str = "snapshot_bases";
-const IPBM_SNAPSHOTS_TABLE: &str = "snapshot_ipbms";
-const SETUP_SNAPSHOTS_TABLE: &str = "snapshot_setup";
-const CONQUEST_SNAPSHOTS_TABLE: &str = "snapshot_conquest";
+const RUNTIME_SCHEMA_VERSION: i64 = 3;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -337,22 +330,23 @@ impl CampaignStore {
                  record_index INTEGER NOT NULL,
                  occupied_flag INTEGER NOT NULL,
                  owner_mode_raw INTEGER NOT NULL,
-                 handle_text TEXT NOT NULL,
-                 empire_name_text TEXT NOT NULL,
-                 tax_rate INTEGER NOT NULL,
-                 autopilot_flag INTEGER NOT NULL,
+                 handle_raw_hex TEXT NOT NULL,
+                 legacy_status_name_max_len_raw INTEGER NOT NULL,
+                 legacy_status_name_len_raw INTEGER NOT NULL,
+                 name_block_raw_hex TEXT NOT NULL,
                  fleet_chain_head_raw INTEGER NOT NULL,
+                 fleet_chain_tail_raw INTEGER NOT NULL,
                  starbase_count_raw INTEGER NOT NULL,
+                 starbase_presence_flag_raw INTEGER NOT NULL,
                  ipbm_count_raw INTEGER NOT NULL,
                  homeworld_planet_index_raw INTEGER NOT NULL,
                  last_run_year_raw INTEGER NOT NULL,
-                 classic_message_review_word_raw INTEGER NOT NULL,
-                 classic_message_review_carry_word_raw INTEGER NOT NULL,
-                 classic_results_review_word_raw INTEGER NOT NULL,
-                 classic_results_review_carry_word_raw INTEGER NOT NULL,
-                 classic_results_chain_flag_raw INTEGER NOT NULL,
-                 classic_results_chain_next_free_raw INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL,
+                 planet_count_raw INTEGER NOT NULL,
+                 tax_rate INTEGER NOT NULL,
+                 production_score_raw INTEGER NOT NULL,
+                 review_state_raw_hex TEXT NOT NULL,
+                 diplomacy_raw_hex TEXT NOT NULL,
+                 autopilot_flag INTEGER NOT NULL,
                  PRIMARY KEY(snapshot_id, record_index)
              );
              CREATE TABLE IF NOT EXISTS snapshot_planets (
@@ -360,88 +354,98 @@ impl CampaignStore {
                  record_index INTEGER NOT NULL,
                  coords_x INTEGER NOT NULL,
                  coords_y INTEGER NOT NULL,
-                 name_text TEXT NOT NULL,
-                 potential_production_points INTEGER NOT NULL,
-                 present_production_points INTEGER,
+                 potential_production_raw_hex TEXT NOT NULL,
+                 factories_raw_hex TEXT NOT NULL,
                  stored_production_points INTEGER NOT NULL,
-                 owner_empire_slot_raw INTEGER NOT NULL,
-                 ownership_status_raw INTEGER NOT NULL,
+                 economy_marker_raw INTEGER NOT NULL,
+                 name_len_raw INTEGER NOT NULL,
+                 name_buffer_raw_hex TEXT NOT NULL,
+                 name_suffix_raw_hex TEXT NOT NULL,
+                 build_queue_raw_hex TEXT NOT NULL,
+                 infrastructure_raw_hex TEXT NOT NULL,
+                 population_raw_hex TEXT NOT NULL,
                  armies_raw INTEGER NOT NULL,
                  ground_batteries_raw INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL,
+                 ownership_status_raw INTEGER NOT NULL,
+                 owner_empire_slot_raw INTEGER NOT NULL,
+                 tail_raw_hex TEXT NOT NULL,
                  PRIMARY KEY(snapshot_id, record_index)
              );
              CREATE TABLE IF NOT EXISTS snapshot_fleets (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  record_index INTEGER NOT NULL,
-                 local_slot_raw INTEGER NOT NULL,
+                 local_slot_word_raw INTEGER NOT NULL,
                  owner_empire_raw INTEGER NOT NULL,
-                 fleet_id_raw INTEGER NOT NULL,
+                 next_fleet_link_word_raw INTEGER NOT NULL,
+                 fleet_id_word_raw INTEGER NOT NULL,
+                 previous_fleet_id_raw INTEGER NOT NULL,
+                 invasion_army_count_raw INTEGER NOT NULL,
+                 max_speed INTEGER NOT NULL,
+                 current_speed INTEGER NOT NULL,
                  current_x INTEGER NOT NULL,
                  current_y INTEGER NOT NULL,
+                 tuple_a_raw_hex TEXT NOT NULL,
+                 tuple_b_raw_hex TEXT NOT NULL,
+                 tuple_c_raw_hex TEXT NOT NULL,
                  target_x INTEGER NOT NULL,
                  target_y INTEGER NOT NULL,
                  standing_order_code_raw INTEGER NOT NULL,
-                 max_speed INTEGER NOT NULL,
-                 current_speed INTEGER NOT NULL,
-                 rules_of_engagement INTEGER NOT NULL,
+                 mission_aux_raw_hex TEXT NOT NULL,
                  scout_count INTEGER NOT NULL,
+                 rules_of_engagement INTEGER NOT NULL,
                  battleship_count INTEGER NOT NULL,
                  cruiser_count INTEGER NOT NULL,
                  destroyer_count INTEGER NOT NULL,
                  troop_transport_count INTEGER NOT NULL,
                  army_count INTEGER NOT NULL,
                  etac_count INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL,
                  PRIMARY KEY(snapshot_id, record_index)
              );
              CREATE TABLE IF NOT EXISTS snapshot_bases (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  record_index INTEGER NOT NULL,
-                 local_slot_raw INTEGER NOT NULL,
-                 active_flag_raw INTEGER NOT NULL,
-                 base_id_raw INTEGER NOT NULL,
+                 header_raw_hex TEXT NOT NULL,
                  coords_x INTEGER NOT NULL,
                  coords_y INTEGER NOT NULL,
+                 tuple_a_raw_hex TEXT NOT NULL,
+                 tuple_b_raw_hex TEXT NOT NULL,
+                 tuple_c_raw_hex TEXT NOT NULL,
                  trailing_x INTEGER NOT NULL,
                  trailing_y INTEGER NOT NULL,
                  owner_empire_raw INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL,
                  PRIMARY KEY(snapshot_id, record_index)
              );
              CREATE TABLE IF NOT EXISTS snapshot_ipbms (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  record_index INTEGER NOT NULL,
-                 owner_empire_raw INTEGER NOT NULL,
-                 tuple_a_tag_raw INTEGER NOT NULL,
-                 tuple_b_tag_raw INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL,
+                 prefix_raw_hex TEXT NOT NULL,
+                 tuple_a_raw_hex TEXT NOT NULL,
+                 tuple_b_raw_hex TEXT NOT NULL,
+                 tuple_c_raw_hex TEXT NOT NULL,
+                 trailing_control_raw_hex TEXT NOT NULL,
                  PRIMARY KEY(snapshot_id, record_index)
              );
              CREATE TABLE IF NOT EXISTS snapshot_setup (
                  snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
-                 version_tag_text TEXT NOT NULL,
+                 version_tag_raw_hex TEXT NOT NULL,
+                 option_prefix_raw_hex TEXT NOT NULL,
                  snoop_enabled INTEGER NOT NULL,
                  max_time_between_keys_minutes_raw INTEGER NOT NULL,
+                 byte_514_raw INTEGER NOT NULL,
                  remote_timeout_enabled INTEGER NOT NULL,
                  local_timeout_enabled INTEGER NOT NULL,
                  minimum_time_granted_minutes_raw INTEGER NOT NULL,
                  purge_after_turns_raw INTEGER NOT NULL,
+                 byte_519_raw INTEGER NOT NULL,
                  autopilot_inactive_turns_raw INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL
+                 byte_521_raw INTEGER NOT NULL
              );
              CREATE TABLE IF NOT EXISTS snapshot_conquest (
                  snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
                  game_year INTEGER NOT NULL,
                  player_count INTEGER NOT NULL,
-                 maintenance_day_0_enabled INTEGER NOT NULL,
-                 maintenance_day_1_enabled INTEGER NOT NULL,
-                 maintenance_day_2_enabled INTEGER NOT NULL,
-                 maintenance_day_3_enabled INTEGER NOT NULL,
-                 maintenance_day_4_enabled INTEGER NOT NULL,
-                 maintenance_day_5_enabled INTEGER NOT NULL,
-                 maintenance_day_6_enabled INTEGER NOT NULL,
-                 compat_raw_hex TEXT NOT NULL
+                 maintenance_schedule_raw_hex TEXT NOT NULL,
+                 control_header_tail_raw_hex TEXT NOT NULL
              );",
         )?;
         ensure_column(&conn, "planet_intel", "known_docked_summary", "TEXT")?;
