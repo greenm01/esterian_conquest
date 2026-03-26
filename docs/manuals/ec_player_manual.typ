@@ -90,6 +90,8 @@
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Revision date: March 25, 2026]
+  #v(0.5em)
+  #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
 
 #pagebreak()

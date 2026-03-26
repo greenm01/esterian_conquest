@@ -5,6 +5,8 @@
 _Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
 A fan-built resurrection -- not affiliated with the original._
 
+**Status:** v1.0.0-beta.1 — feature-complete, seeking playtesters
+
 ## Premise
 
 Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy

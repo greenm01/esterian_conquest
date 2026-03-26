@@ -59,6 +59,8 @@
   #v(0.5em)
   #text(size: 18pt)[Sysop Manual]
   #v(2em)
+  #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
+  #v(0.5em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
   #text(size: 11pt, fill: luma(120))[Revision date: March 25, 2026]
