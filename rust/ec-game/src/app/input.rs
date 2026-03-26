@@ -235,7 +235,8 @@ impl App {
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
             ScreenId::PlanetDatabaseList => self.planet_database.handle_list_key(key),
             ScreenId::PlanetDatabaseFilterPrompt => {
-                self.planet_database.handle_filter_prompt_key(key)
+                self.planet_database
+                    .handle_filter_prompt_key_for_mode(key, self.planet.database_prompt_mode)
             }
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),

@@ -205,6 +205,8 @@ fn planet_database_screen_uses_stacked_header_table() {
     let rows = vec![PlanetDatabaseRow {
         planet_record_index_1_based: 1,
         coords: [12, 34],
+        known_owner_empire_id: Some(1),
+        known_max_production: Some(120),
         name_label: "Aurora".to_string(),
         owner_label: "01".to_string(),
         max_prod_label: "120".to_string(),
@@ -263,6 +265,8 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
     let rows = vec![PlanetDatabaseRow {
         planet_record_index_1_based: 1,
         coords: [12, 34],
+        known_owner_empire_id: Some(1),
+        known_max_production: Some(120),
         name_label: "Aurora".to_string(),
         owner_label: "01".to_string(),
         max_prod_label: "120".to_string(),
@@ -280,7 +284,8 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
             &rows,
             0,
             0,
-            [12, 34],
+            ec_game::screen::PlanetDatabasePromptMode::FilterMenu,
+            "",
             "",
             None,
             ec_game::screen::CommandMenu::Planet,
@@ -289,7 +294,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
 
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
     let prompt_row = (0..PLAYFIELD_HEIGHT)
-        .find(|row| buffer.plain_line(*row).contains("Filter <L>"))
+        .find(|row| buffer.plain_line(*row).contains("Filter <A>"))
         .expect("filter prompt row");
     assert_eq!(
         buffer

@@ -2,8 +2,9 @@ use crate::app::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
 use crate::screen::{
-    CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseRow, PlanetListMode, PlanetListSort,
-    ScreenId,
+    CommandMenu, PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode,
+    PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListMode,
+    PlanetListSort, ScreenId,
 };
 use ec_data::build_player_starmap_projection_from_snapshots;
 
@@ -85,8 +86,17 @@ impl App {
             self.planet.database_scroll_offset =
                 default_index.saturating_sub(crate::screen::PLANET_DATABASE_VISIBLE_ROWS / 2);
             self.planet.database_input.clear();
+            self.planet.database_prompt_default_value.clear();
+            self.planet.database_pending_range_anchor = None;
             self.planet.database_status = None;
+            self.planet.database_filter = PlanetDatabaseFilter::All;
+            self.planet.database_sort = PlanetDatabaseSort::Location;
         }
+        self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
+        self.planet.database_input.clear();
+        self.planet.database_prompt_default_value.clear();
+        self.planet.database_pending_range_anchor = None;
+        self.planet.database_status = None;
         self.current_screen = ScreenId::PlanetDatabaseList;
     }
 
@@ -94,6 +104,22 @@ impl App {
         if self.current_screen != ScreenId::PlanetDatabaseList {
             return;
         }
+        self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
+        self.planet.database_input.clear();
+        self.planet.database_prompt_default_value.clear();
+        self.planet.database_pending_range_anchor = None;
+        self.planet.database_status = None;
+        self.current_screen = ScreenId::PlanetDatabaseFilterPrompt;
+    }
+
+    pub fn open_planet_database_sort_prompt(&mut self) {
+        if self.current_screen != ScreenId::PlanetDatabaseList {
+            return;
+        }
+        self.planet.database_prompt_mode = PlanetDatabasePromptMode::SortMenu;
+        self.planet.database_input.clear();
+        self.planet.database_prompt_default_value.clear();
+        self.planet.database_pending_range_anchor = None;
         self.planet.database_status = None;
         self.current_screen = ScreenId::PlanetDatabaseFilterPrompt;
     }
@@ -293,23 +319,52 @@ impl App {
     }
 
     pub fn append_planet_database_char(&mut self, ch: char) {
-        if self.current_screen != ScreenId::PlanetDatabaseList {
-            return;
-        }
-        if self.planet.database_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ')
+        let accepts_input = match self.current_screen {
+            ScreenId::PlanetDatabaseList => true,
+            ScreenId::PlanetDatabaseFilterPrompt => matches!(
+                self.planet.database_prompt_mode,
+                PlanetDatabasePromptMode::FilterRangeCoords
+                    | PlanetDatabasePromptMode::FilterRangeDistance
+                    | PlanetDatabasePromptMode::FilterEmpireInput
+                    | PlanetDatabasePromptMode::FilterMaxProductionInput
+                    | PlanetDatabasePromptMode::SortRangeInput
+            ),
+            _ => false,
+        };
+        if accepts_input
+            && self.planet.database_input.len() < 16
+            && (ch.is_ascii_digit()
+                || matches!(self.planet.database_prompt_mode, PlanetDatabasePromptMode::FilterRangeCoords | PlanetDatabasePromptMode::SortRangeInput)
+                    && (ch == ',' || ch == ' '))
         {
             self.planet.database_input.push(ch);
-            self.sync_planet_database_cursor_to_input();
+            if self.current_screen == ScreenId::PlanetDatabaseList {
+                self.sync_planet_database_cursor_to_input();
+            }
             self.planet.database_status = None;
         }
     }
 
     pub fn backspace_planet_database_input(&mut self) {
-        if self.current_screen != ScreenId::PlanetDatabaseList {
+        let accepts_input = match self.current_screen {
+            ScreenId::PlanetDatabaseList => true,
+            ScreenId::PlanetDatabaseFilterPrompt => matches!(
+                self.planet.database_prompt_mode,
+                PlanetDatabasePromptMode::FilterRangeCoords
+                    | PlanetDatabasePromptMode::FilterRangeDistance
+                    | PlanetDatabasePromptMode::FilterEmpireInput
+                    | PlanetDatabasePromptMode::FilterMaxProductionInput
+                    | PlanetDatabasePromptMode::SortRangeInput
+            ),
+            _ => false,
+        };
+        if !accepts_input {
             return;
         }
         self.planet.database_input.pop();
-        self.sync_planet_database_cursor_to_input();
+        if self.current_screen == ScreenId::PlanetDatabaseList {
+            self.sync_planet_database_cursor_to_input();
+        }
         self.planet.database_status = None;
     }
 
@@ -324,7 +379,7 @@ impl App {
         }
         let Some(coords) = resolve_default_coords_input(
             &self.planet.database_input,
-            self.default_planet_prompt_coords(),
+            self.default_planet_database_coords(),
         ) else {
             self.planet.database_status = Some("Enter coordinates like 5,2".to_string());
             return;
@@ -349,18 +404,138 @@ impl App {
         if self.current_screen != ScreenId::PlanetDatabaseFilterPrompt {
             return;
         }
-        self.planet.database_status = Some(match mode {
-            PlanetDatabaseFilterMode::Range => {
-                "Range filtering is not implemented yet.".to_string()
+        match self.planet.database_prompt_mode {
+            PlanetDatabasePromptMode::FilterMenu => match mode {
+                PlanetDatabaseFilterMode::All => {
+                    self.apply_planet_database_filter(PlanetDatabaseFilter::All);
+                }
+                PlanetDatabaseFilterMode::Range => {
+                    self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterRangeCoords;
+                    self.planet.database_input.clear();
+                    self.planet.database_prompt_default_value =
+                        format!("{:02},{:02}", self.default_planet_database_coords()[0], self.default_planet_database_coords()[1]);
+                    self.planet.database_pending_range_anchor = None;
+                    self.planet.database_status = None;
+                }
+                PlanetDatabaseFilterMode::Empire => {
+                    self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterEmpireInput;
+                    self.planet.database_input.clear();
+                    self.planet.database_prompt_default_value = self
+                        .planet_database_rows()
+                        .get(self.planet.database_cursor)
+                        .and_then(|row| row.known_owner_empire_id)
+                        .unwrap_or(self.player.record_index_1_based as u8)
+                        .to_string();
+                    self.planet.database_status = None;
+                }
+                PlanetDatabaseFilterMode::MaxProduction => {
+                    self.planet.database_prompt_mode =
+                        PlanetDatabasePromptMode::FilterMaxProductionInput;
+                    self.planet.database_input.clear();
+                    self.planet.database_prompt_default_value = self
+                        .planet_database_rows()
+                        .get(self.planet.database_cursor)
+                        .and_then(|row| row.known_max_production)
+                        .unwrap_or(100)
+                        .to_string();
+                    self.planet.database_status = None;
+                }
+            },
+            PlanetDatabasePromptMode::FilterRangeCoords => {
+                let default_coords = self.default_planet_database_coords();
+                let Some(coords) =
+                    resolve_default_coords_input(self.planet.database_input.trim(), default_coords)
+                else {
+                    self.planet.database_status = Some("Enter coordinates like 5,2".to_string());
+                    return;
+                };
+                self.planet.database_pending_range_anchor = Some(coords);
+                self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterRangeDistance;
+                self.planet.database_input.clear();
+                self.planet.database_prompt_default_value = "5".to_string();
+                self.planet.database_status = None;
             }
-            PlanetDatabaseFilterMode::Empire => {
-                "Empire filtering is not implemented yet.".to_string()
+            PlanetDatabasePromptMode::FilterRangeDistance => {
+                let default_radius = self
+                    .planet
+                    .database_prompt_default_value
+                    .trim()
+                    .parse::<u8>()
+                    .unwrap_or(5);
+                let radius = resolve_default_u8_input(self.planet.database_input.trim(), default_radius)
+                    .unwrap_or(default_radius);
+                let anchor = self
+                    .planet
+                    .database_pending_range_anchor
+                    .unwrap_or_else(|| self.default_planet_database_coords());
+                self.apply_planet_database_filter(PlanetDatabaseFilter::Range { anchor, radius });
             }
-            PlanetDatabaseFilterMode::MaxProduction => {
-                "Max-production filtering is not implemented yet.".to_string()
+            PlanetDatabasePromptMode::FilterEmpireInput => {
+                let default_empire = self
+                    .planet
+                    .database_prompt_default_value
+                    .trim()
+                    .parse::<u8>()
+                    .unwrap_or(self.player.record_index_1_based as u8);
+                let Some(empire_id) =
+                    resolve_default_u8_input(self.planet.database_input.trim(), default_empire)
+                else {
+                    return;
+                };
+                self.apply_planet_database_filter(PlanetDatabaseFilter::Empire(empire_id));
             }
-        });
-        self.current_screen = ScreenId::PlanetDatabaseList;
+            PlanetDatabasePromptMode::FilterMaxProductionInput => {
+                let default_prod = self
+                    .planet
+                    .database_prompt_default_value
+                    .trim()
+                    .parse::<u16>()
+                    .unwrap_or(100);
+                let min_prod =
+                    resolve_default_u16_input(self.planet.database_input.trim(), default_prod)
+                        .unwrap_or(default_prod);
+                self.apply_planet_database_filter(PlanetDatabaseFilter::MaxProduction(min_prod));
+            }
+            PlanetDatabasePromptMode::SortMenu | PlanetDatabasePromptMode::SortRangeInput => {}
+        }
+    }
+
+    pub fn submit_planet_database_sort(&mut self, mode: PlanetDatabaseSortMode) {
+        if self.current_screen != ScreenId::PlanetDatabaseFilterPrompt {
+            return;
+        }
+        match self.planet.database_prompt_mode {
+            PlanetDatabasePromptMode::SortMenu => match mode {
+                PlanetDatabaseSortMode::Location => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Location);
+                }
+                PlanetDatabaseSortMode::Range => {
+                    self.planet.database_prompt_mode = PlanetDatabasePromptMode::SortRangeInput;
+                    self.planet.database_input.clear();
+                    let default = self.default_planet_database_coords();
+                    self.planet.database_prompt_default_value =
+                        format!("{:02},{:02}", default[0], default[1]);
+                    self.planet.database_status = None;
+                }
+                PlanetDatabaseSortMode::Empire => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::Empire);
+                }
+                PlanetDatabaseSortMode::MaxProduction => {
+                    self.apply_planet_database_sort(PlanetDatabaseSort::MaxProduction);
+                }
+            },
+            PlanetDatabasePromptMode::SortRangeInput => {
+                let default_coords = self.default_planet_database_coords();
+                let Some(coords) =
+                    resolve_default_coords_input(self.planet.database_input.trim(), default_coords)
+                else {
+                    self.planet.database_status = Some("Enter coordinates like 5,2".to_string());
+                    return;
+                };
+                self.apply_planet_database_sort(PlanetDatabaseSort::Range(coords));
+            }
+            _ => {}
+        }
     }
 
     pub fn append_planet_tax_char(&mut self, ch: char) {
@@ -610,6 +785,8 @@ impl App {
             PlanetDatabaseRow {
                 planet_record_index_1_based: world.planet_record_index_1_based,
                 coords: world.coords,
+                known_owner_empire_id: world.known_owner_empire_id,
+                known_max_production: world.known_potential_production,
                 name_label: world.known_name.unwrap_or_else(|| "?".to_string()),
                 owner_label,
                 max_prod_label: world
@@ -641,8 +818,110 @@ impl App {
             }
         })
         .collect::<Vec<_>>();
-        rows.sort_by_key(|row| row.coords);
+        rows.retain(|row| match self.planet.database_filter {
+            PlanetDatabaseFilter::All => true,
+            PlanetDatabaseFilter::Range { anchor, radius } => {
+                planet_database_distance_sq(anchor, row.coords) <= u32::from(radius) * u32::from(radius)
+            }
+            PlanetDatabaseFilter::Empire(empire_id) => row.known_owner_empire_id == Some(empire_id),
+            PlanetDatabaseFilter::MaxProduction(min_prod) => {
+                row.known_max_production.is_some_and(|value| value >= min_prod)
+            }
+        });
+
+        match self.planet.database_sort {
+            PlanetDatabaseSort::Location => rows.sort_by_key(|row| row.coords),
+            PlanetDatabaseSort::Range(anchor) => rows.sort_by_key(|row| {
+                (planet_database_distance_sq(anchor, row.coords), row.coords)
+            }),
+            PlanetDatabaseSort::Empire => rows.sort_by_key(|row| {
+                (
+                    row.known_owner_empire_id.is_none(),
+                    row.known_owner_empire_id.unwrap_or(0),
+                    row.coords,
+                )
+            }),
+            PlanetDatabaseSort::MaxProduction => rows.sort_by(|left, right| {
+                right
+                    .known_max_production
+                    .cmp(&left.known_max_production)
+                    .then_with(|| left.coords.cmp(&right.coords))
+            }),
+        }
         rows
+    }
+
+    pub(crate) fn default_planet_database_coords(&self) -> [u8; 2] {
+        self.planet_database_rows()
+            .get(self.planet.database_cursor)
+            .map(|row| row.coords)
+            .unwrap_or([0, 0])
+    }
+
+    fn apply_planet_database_filter(&mut self, filter: PlanetDatabaseFilter) {
+        let selected_record = self
+            .planet_database_rows()
+            .get(self.planet.database_cursor)
+            .map(|row| row.planet_record_index_1_based);
+        self.planet.database_filter = filter;
+        self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
+        self.planet.database_status = None;
+        self.planet.database_input.clear();
+        self.planet.database_prompt_default_value.clear();
+        self.planet.database_pending_range_anchor = None;
+        self.current_screen = ScreenId::PlanetDatabaseList;
+
+        let rows = self.planet_database_rows();
+        if rows.is_empty() {
+            self.planet.database_cursor = 0;
+            self.planet.database_scroll_offset = 0;
+            return;
+        }
+
+        self.planet.database_cursor = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        sync_scroll_to_cursor(
+            &mut self.planet.database_scroll_offset,
+            self.planet.database_cursor,
+            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+        );
+    }
+
+    fn apply_planet_database_sort(&mut self, sort: PlanetDatabaseSort) {
+        let selected_record = self
+            .planet_database_rows()
+            .get(self.planet.database_cursor)
+            .map(|row| row.planet_record_index_1_based);
+        self.planet.database_sort = sort;
+        self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
+        self.planet.database_status = None;
+        self.planet.database_input.clear();
+        self.planet.database_prompt_default_value.clear();
+        self.planet.database_pending_range_anchor = None;
+        self.current_screen = ScreenId::PlanetDatabaseList;
+
+        let rows = self.planet_database_rows();
+        if rows.is_empty() {
+            self.planet.database_cursor = 0;
+            self.planet.database_scroll_offset = 0;
+            return;
+        }
+
+        self.planet.database_cursor = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        sync_scroll_to_cursor(
+            &mut self.planet.database_scroll_offset,
+            self.planet.database_cursor,
+            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+        );
     }
 
     pub(crate) fn handle_planet_info_prompt_key(
@@ -775,4 +1054,26 @@ impl App {
         self.open_planet_build_menu();
         Ok(())
     }
+}
+
+fn planet_database_distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
+    let dx = i32::from(a[0]) - i32::from(b[0]);
+    let dy = i32::from(a[1]) - i32::from(b[1]);
+    (dx * dx + dy * dy) as u32
+}
+
+fn resolve_default_u8_input(input: &str, default: u8) -> Option<u8> {
+    let raw = input.trim();
+    if raw.is_empty() {
+        return Some(default);
+    }
+    raw.parse::<u8>().ok()
+}
+
+fn resolve_default_u16_input(input: &str, default: u16) -> Option<u16> {
+    let raw = input.trim();
+    if raw.is_empty() {
+        return Some(default);
+    }
+    raw.parse::<u16>().ok()
 }

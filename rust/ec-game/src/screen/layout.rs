@@ -762,20 +762,33 @@ pub fn draw_command_line_default_input_at(
     default: &str,
     input: &str,
 ) {
+    draw_command_line_default_input_at_col(buffer, row, 0, label, prompt, default, input)
+}
+
+pub fn draw_command_line_default_input_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+) {
     buffer.fill_row(row, classic::prompt_style());
-    let mut col = buffer.write_spans(
+    let mut cursor_col = col
+        + buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <- ", classic::prompt_style()),
         ],
     );
-    col = write_prompt_markup(buffer, row, col, prompt);
+    cursor_col = write_prompt_markup(buffer, row, cursor_col, prompt);
     if !default.is_empty() {
-        col += buffer.write_spans(
+        cursor_col += buffer.write_spans(
             row,
-            col,
+            cursor_col,
             &[
                 StyledSpan::new("[", classic::prompt_style()),
                 StyledSpan::new(default, classic::prompt_hotkey_style()),
@@ -783,9 +796,9 @@ pub fn draw_command_line_default_input_at(
             ],
         );
     }
-    col = write_prompt_markup(buffer, row, col, "<Q> -> ");
-    let written = buffer.write_text(row, col, input, classic::prompt_hotkey_style());
-    let cursor_col = col + written;
+    cursor_col = write_prompt_markup(buffer, row, cursor_col, "<Q> -> ");
+    let written = buffer.write_text(row, cursor_col, input, classic::prompt_hotkey_style());
+    let cursor_col = cursor_col + written;
     buffer.set_cursor(cursor_col as u16, row as u16);
 }
 

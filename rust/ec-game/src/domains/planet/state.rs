@@ -1,6 +1,8 @@
 use crate::domains::planet::screens::planet_commission::PlanetCommissionDraftRow;
 use crate::domains::planet::screens::planet_transport::PlanetTransportMode;
-use crate::screen::PlanetListSort;
+use crate::screen::{
+    PlanetDatabaseFilter, PlanetDatabasePromptMode, PlanetDatabaseSort, PlanetListSort,
+};
 use crossterm::event::KeyCode;
 use ec_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
 use std::collections::{BTreeMap, BTreeSet};
@@ -30,7 +32,12 @@ pub struct PlanetState {
     pub database_scroll_offset: usize,
     pub database_cursor: usize,
     pub database_input: String,
+    pub database_prompt_default_value: String,
+    pub database_pending_range_anchor: Option<[u8; 2]>,
     pub database_status: Option<String>,
+    pub database_prompt_mode: PlanetDatabasePromptMode,
+    pub database_filter: PlanetDatabaseFilter,
+    pub database_sort: PlanetDatabaseSort,
     pub commission_index: usize,
     pub commission_picker_scroll_offset: usize,
     pub commission_cursor: usize,
@@ -114,7 +121,12 @@ impl PlanetState {
             database_scroll_offset: 0,
             database_cursor: 0,
             database_input: String::new(),
+            database_prompt_default_value: String::new(),
+            database_pending_range_anchor: None,
             database_status: None,
+            database_prompt_mode: PlanetDatabasePromptMode::FilterMenu,
+            database_filter: PlanetDatabaseFilter::All,
+            database_sort: PlanetDatabaseSort::Location,
             commission_index: 0,
             commission_picker_scroll_offset: 0,
             commission_cursor: 0,

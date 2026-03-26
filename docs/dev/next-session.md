@@ -7,8 +7,7 @@ Keep this file short. Historical detail belongs in
 
 - Public gameplay work is centered on `ec-game` and `ec-sysop`.
 - `ec-game` is broadly feature-complete and the player TUI is in good shape.
-  The main explicit remaining TUI placeholder is planet database filtering
-  (`Range`, `Empire`, and `Max Production`).
+- The total planet database now supports both `F` filters and `S` sorting.
 - SQLite is the live runtime store and the runtime/storage architecture is now
   effectively production-complete for normal gameplay use.
 - Snapshot families use normalized per-family tables rather than the old
@@ -41,7 +40,6 @@ Keep this file short. Historical detail belongs in
 
 - There is no major runtime-storage blocker left.
 - The main remaining engineering work is incremental polish:
-  - planet database filtering in `ec-game`
   - `ec-sysop` and surrounding admin workflow polish
   - semantic naming cleanup only where it pays for itself
 - New gameplay features should not deepen the offset-shaped storage path.
@@ -49,13 +47,11 @@ Keep this file short. Historical detail belongs in
 
 ## Immediate Next Steps
 
-1. Finish planet database filtering (`Range`, `Empire`, `Max Production`) in
-   `ec-game`.
-2. Keep `ec-sysop` moving toward the same level of completeness and polish as
+1. Keep `ec-sysop` moving toward the same level of completeness and polish as
    the player TUI.
-3. Preserve the exact roundtrip storage tests and source-policy guardrails so
+2. Preserve the exact roundtrip storage tests and source-policy guardrails so
    runtime code does not drift back toward raw-offset dependence.
-4. Only rename/decompose remaining classic-derived control fields when the
+3. Only rename/decompose remaining classic-derived control fields when the
    semantics are clear and actually useful.
-5. Keep this file concise and current instead of turning it back into a running
+4. Keep this file concise and current instead of turning it back into a running
    notebook.

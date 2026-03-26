@@ -11535,6 +11535,341 @@ fn planet_database_render_uses_classic_stacked_headers() {
 }
 
 #[test]
+fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "COMMANDS <- Filter <A>").trim(),
+        "COMMANDS <- Filter <A>, <R>, <E>, <M>, or <Q>? [A] ->"
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::Range,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    let prompt = line_containing(&terminal, "COMMANDS <- Range from").trim();
+    assert!(prompt.starts_with("COMMANDS <- Range from ["));
+    assert!(prompt.ends_with("] <Q> ->"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseSortPrompt)),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(
+        line_containing(&terminal, "COMMANDS <- Sort <L>").trim(),
+        "COMMANDS <- Sort <L>, <R>, <E>, <M>, or <Q>? [L] ->"
+    );
+}
+
+#[test]
+fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    let sample_worlds = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .take(3)
+        .map(|(idx, planet)| (idx + 1, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    assert_eq!(sample_worlds.len(), 3, "fixture should contain non-owned worlds");
+
+    let owners = [Some(3), Some(0), Some(2)];
+    let max_prods = [Some(90), Some(220), Some(150)];
+    for (sample_idx, ((planet_record_index_1_based, _), (owner, max_prod))) in sample_worlds
+        .iter()
+        .zip(owners.into_iter().zip(max_prods))
+        .enumerate()
+    {
+        app.planet_intel_snapshots.insert(
+            *planet_record_index_1_based,
+            PlanetIntelSnapshot {
+                planet_record_index_1_based: *planet_record_index_1_based,
+                intel_tier: IntelTier::Full,
+                compat_is_orbit_seed: false,
+                last_intel_year: Some(3000),
+                seen_year: Some(3000),
+                scout_year: Some(3000),
+                known_name: Some(format!("Sample {}", sample_idx + 1)),
+                known_owner_empire_id: owner,
+                known_potential_production: max_prod,
+                known_armies: Some(1),
+                known_ground_batteries: Some(1),
+                known_starbase_count: Some(0),
+                known_current_production: Some(1),
+                known_stored_points: Some(1),
+                known_docked_summary: Some("Nothing".to_string()),
+                known_orbit_summary: Some("Nothing".to_string()),
+                compat_word_1e: None,
+            },
+        );
+    }
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::MaxProduction,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::MaxProduction,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!(
+                "({:02},{:02})",
+                sample_worlds[1].1[0], sample_worlds[1].1[1]
+            ))),
+        "220 max-production world should survive the default >=100 filter"
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!(
+                "({:02},{:02})",
+                sample_worlds[0].1[0], sample_worlds[0].1[1]
+            ))),
+        "90 max-production world should be filtered out"
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::Empire,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceDatabaseInput)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::AppendDatabaseChar('3'))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::Empire,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!(
+                "({:02},{:02})",
+                sample_worlds[0].1[0], sample_worlds[0].1[1]
+            ))),
+        "empire 3 world should remain after empire filter"
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!(
+                "({:02},{:02})",
+                sample_worlds[1].1[0], sample_worlds[1].1[1]
+            ))),
+        "non-matching empire worlds should be filtered out"
+    );
+
+    let range_anchor = sample_worlds[0].1;
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::Range,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    for ch in format!("{},{}", range_anchor[0], range_anchor[1]).chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::Planet(PlanetAction::AppendDatabaseChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::Range,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceDatabaseInput)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::AppendDatabaseChar('0'))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::Range,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!("({:02},{:02})", range_anchor[0], range_anchor[1]))),
+        "exact anchor world should remain when filtering at radius 0"
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!(
+                "({:02},{:02})",
+                sample_worlds[1].1[0], sample_worlds[1].1[1]
+            ))),
+        "non-anchor worlds should be filtered out at radius 0"
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseFilterPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                ec_game::screen::PlanetDatabaseFilterMode::All,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseSortPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitDatabaseSort(
+                ec_game::screen::PlanetDatabaseSortMode::MaxProduction,
+            ))
+        ),
+        AppOutcome::Continue
+    );
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    let max_positions = sample_worlds
+        .iter()
+        .map(|(_, coords)| {
+            terminal
+                .lines
+                .iter()
+                .position(|line| line.contains(&format!("({:02},{:02})", coords[0], coords[1])))
+                .expect("max-prod row present")
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        max_positions[1] < max_positions[2] && max_positions[2] < max_positions[0],
+        "sort should order 220 > 150 > 90 after clearing filters: {max_positions:?}"
+    );
+}
+
+#[test]
 fn starmap_dump_page_uses_plain_bottom_left_slap_a_key_prompt() {
     let mut screen = ec_game::screen::StarmapScreen::new();
     let lines = (1..=21)
