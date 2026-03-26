@@ -23,10 +23,7 @@ fn unique_temp_dir(prefix: &str) -> PathBuf {
 }
 
 fn run_ec_sysop(args: &[&str]) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_ec-sysop"))
-        .args(args)
-        .output()
-        .expect("ec-sysop should run");
+    let output = run_ec_sysop_output(args, None);
 
     assert!(
         output.status.success(),
@@ -39,10 +36,7 @@ fn run_ec_sysop(args: &[&str]) -> String {
 }
 
 fn run_ec_sysop_failure(args: &[&str]) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_ec-sysop"))
-        .args(args)
-        .output()
-        .expect("ec-sysop should run");
+    let output = run_ec_sysop_output(args, None);
 
     assert!(
         !output.status.success(),
@@ -52,6 +46,15 @@ fn run_ec_sysop_failure(args: &[&str]) -> String {
     );
 
     String::from_utf8(output.stderr).expect("stderr should be utf-8")
+}
+
+fn run_ec_sysop_output(args: &[&str], cwd: Option<&PathBuf>) -> std::process::Output {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_ec-sysop"));
+    cmd.args(args);
+    if let Some(cwd) = cwd {
+        cmd.current_dir(cwd);
+    }
+    cmd.output().expect("ec-sysop should run")
 }
 
 #[test]
@@ -105,4 +108,49 @@ fn ec_sysop_maint_runs_rust_maintenance() {
     assert_eq!(runtime.game_data.conquest.game_year(), 3001);
 
     let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn ec_sysop_help_lists_public_subcommands() {
+    let output = run_ec_sysop_output(&["--help"], None);
+    assert!(output.status.success(), "help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("ec-sysop new-game"));
+    assert!(stdout.contains("ec-sysop maint"));
+}
+
+#[test]
+fn ec_sysop_new_game_help_does_not_treat_help_as_target_dir() {
+    let cwd = unique_temp_dir("ec-sysop-help-cwd");
+    let output = run_ec_sysop_output(&["new-game", "--help"], Some(&cwd));
+    assert!(output.status.success(), "new-game help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("ec-sysop new-game <target_dir>"));
+    assert!(!stdout.contains("Initialized new game"));
+    assert!(!cwd.join("--help").exists(), "help must not create a campaign");
+    let _ = fs::remove_dir_all(&cwd);
+}
+
+#[test]
+fn ec_sysop_maint_help_prints_usage_without_running_maintenance() {
+    let cwd = unique_temp_dir("ec-sysop-maint-help");
+    let output = run_ec_sysop_output(&["maint", "--help"], Some(&cwd));
+    assert!(output.status.success(), "maint help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
+    assert!(stdout.contains("ec-sysop maint <dir> [turns]"));
+    assert!(!stdout.contains("Running Rust maintenance"));
+    assert!(stderr.is_empty(), "maint help should not emit an error");
+    let _ = fs::remove_dir_all(&cwd);
+}
+
+#[test]
+fn ec_sysop_unknown_subcommand_fails_with_full_usage() {
+    let output = run_ec_sysop_output(&["badcmd"], None);
+    assert!(!output.status.success(), "unknown subcommand should fail");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
+    assert!(stdout.contains("ec-sysop new-game"));
+    assert!(stdout.contains("ec-sysop maint"));
+    assert!(stderr.contains("unknown subcommand: badcmd"));
 }

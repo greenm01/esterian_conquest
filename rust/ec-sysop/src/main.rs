@@ -15,13 +15,38 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         usage::print_usage();
         return Ok(());
     };
+    let rest = args.collect::<Vec<_>>();
 
     match cmd.as_str() {
-        "--help" | "-h" => {
+        "--help" | "-h" | "help" => {
             usage::print_usage();
             Ok(())
         }
-        "maint" => ec_cli::run_maintenance_cli("ec-sysop maint", args),
-        _ => ec_cli::run_sysop_cli("ec-sysop", std::iter::once(cmd).chain(args)),
+        "new-game" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_new_game_usage();
+                return Ok(());
+            }
+            if rest.is_empty() {
+                usage::print_new_game_usage();
+                return Err("missing target_dir for new-game".into());
+            }
+            ec_cli::run_sysop_cli("ec-sysop", std::iter::once(cmd).chain(rest))
+        }
+        "maint" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_maint_usage();
+                return Ok(());
+            }
+            if rest.is_empty() {
+                usage::print_maint_usage();
+                return Err("missing dir for maint".into());
+            }
+            ec_cli::run_maintenance_cli("ec-sysop maint", rest.into_iter())
+        }
+        _ => {
+            usage::print_usage();
+            Err(format!("unknown subcommand: {cmd}").into())
+        }
     }
 }
