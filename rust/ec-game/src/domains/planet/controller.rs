@@ -20,6 +20,7 @@ impl App {
         self.close_planet_auto_commission_prompt();
         self.clear_planet_auto_commission_report();
         self.close_planet_tax_prompt();
+        self.clear_planet_transport_prompt();
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;
     }
@@ -529,6 +530,10 @@ impl App {
 
     pub(crate) fn inline_planet_tax_active_on_current_screen(&self) -> bool {
         self.planet.tax_prompt_active && self.current_screen == ScreenId::PlanetMenu
+    }
+
+    pub(crate) fn inline_planet_transport_prompt_active_on_current_screen(&self) -> bool {
+        self.current_screen == ScreenId::PlanetMenu && self.planet.transport_prompt_mode.is_some()
     }
 
     pub(crate) fn inline_planet_auto_commission_active_on_current_screen(&self) -> bool {

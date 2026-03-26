@@ -412,6 +412,39 @@ fn submit_fleet_menu_prompt_value(app: &mut App, value: &str) {
     );
 }
 
+fn submit_planet_transport_prompt(app: &mut App, value: Option<&str>) {
+    if let Some(value) = value {
+        submit_planet_transport_prompt_value(app, value);
+        return;
+    }
+    assert_eq!(
+        apply_action(
+            &mut *app,
+            Action::Planet(PlanetAction::SubmitTransportPrompt)
+        ),
+        AppOutcome::Continue
+    );
+}
+
+fn submit_planet_transport_prompt_value(app: &mut App, value: &str) {
+    for ch in value.chars() {
+        assert_eq!(
+            apply_action(
+                &mut *app,
+                Action::Planet(PlanetAction::AppendTransportPromptChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut *app,
+            Action::Planet(PlanetAction::SubmitTransportPrompt)
+        ),
+        AppOutcome::Continue
+    );
+}
+
 fn open_review_from_fleet_menu(app: &mut App, fleet_number: Option<u16>) {
     assert_eq!(
         apply_action(app, Action::Fleet(FleetAction::OpenReviewPrompt)),
@@ -6843,6 +6876,590 @@ fn fleet_transport_unload_default_skips_empty_fleets_and_caps_qty_by_planet_capa
         .expect("fleet unload quantity prompt should render");
     let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to unload?");
     assert!(prompt.contains("[2]"));
+}
+
+#[test]
+fn planet_menu_load_and_unload_use_inline_transport_prompts() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(8);
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    let extra_planet = &mut state.game_data.planets.records[extra_owned_idx];
+    extra_planet.set_owner_empire_slot_raw(1);
+    extra_planet.set_army_count_raw(200);
+    let extra_coords = extra_planet.coords_raw();
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.recompute_max_speed_from_composition();
+    }
+    let load_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    load_fleet.set_current_location_coords_raw(home_coords);
+    load_fleet.set_troop_transport_count(4);
+    load_fleet.set_army_count(1);
+    load_fleet.recompute_max_speed_from_composition();
+    let unload_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    unload_fleet.set_current_location_coords_raw(extra_coords);
+    unload_fleet.set_troop_transport_count(5);
+    unload_fleet.set_army_count(3);
+    unload_fleet.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('l'))),
+        Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+            ec_game::screen::PlanetTransportMode::Load,
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+                ec_game::screen::PlanetTransportMode::Load,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet load prompt should render");
+    let prompt = line_containing(&terminal, "PLANET COMMAND <- Load Planet");
+    assert!(prompt.contains("Load Planet"));
+    assert!(prompt.contains("<Q> ->"));
+
+    submit_planet_transport_prompt(&mut app, None);
+    app.render(&mut terminal)
+        .expect("planet load fleet prompt should render");
+    let prompt = line_containing(&terminal, "PLANET COMMAND <- Load Fleet #");
+    assert!(prompt.contains("Load Fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
+
+    submit_planet_transport_prompt(&mut app, None);
+    app.render(&mut terminal)
+        .expect("planet load quantity prompt should render inline");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("LOAD ARMIES ONTO TROOP TRANSPORTS:"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Planet:") && line.contains("Fleet "))
+    );
+    let prompt = line_containing(&terminal, "PLANET COMMAND <- How many armies to load?");
+    assert!(prompt.contains("<Q> ->"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("COMMANDS <ARROWS"))
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::Planet(PlanetAction::CancelTransportPrompt)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::CancelTransportPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("planet load fleet prompt should re-render");
+    assert!(
+        line_containing(&terminal, "PLANET COMMAND <- Load Fleet #").contains("Load Fleet # [")
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::CancelTransportPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::CancelTransportPrompt)
+        ),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('u'))),
+        Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+            ec_game::screen::PlanetTransportMode::Unload,
+        ))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+                ec_game::screen::PlanetTransportMode::Unload,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("planet unload prompt should render");
+    let prompt = line_containing(&terminal, "PLANET COMMAND <- Unload Planet");
+    assert!(prompt.contains("Unload Planet"));
+    submit_planet_transport_prompt(&mut app, None);
+    app.render(&mut terminal)
+        .expect("planet unload fleet prompt should render");
+    let prompt = line_containing(&terminal, "PLANET COMMAND <- Unload Fleet #");
+    assert!(prompt.contains("Unload Fleet # ["));
+}
+
+#[test]
+fn planet_transport_load_default_chooses_best_planet_and_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(2);
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    let extra_planet = &mut state.game_data.planets.records[extra_owned_idx];
+    extra_planet.set_owner_empire_slot_raw(1);
+    extra_planet.set_army_count_raw(10);
+    let extra_coords = extra_planet.coords_raw();
+
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.recompute_max_speed_from_composition();
+    }
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(home_coords);
+    fleet_one.set_troop_transport_count(4);
+    fleet_one.set_army_count(0);
+    fleet_one.recompute_max_speed_from_composition();
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(extra_coords);
+    fleet_two.set_troop_transport_count(3);
+    fleet_two.set_army_count(1);
+    fleet_two.recompute_max_speed_from_composition();
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw(extra_coords);
+    fleet_three.set_troop_transport_count(5);
+    fleet_three.set_army_count(0);
+    fleet_three.recompute_max_speed_from_composition();
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+                ec_game::screen::PlanetTransportMode::Load,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.planet.transport_prompt_default_value,
+        format!("{:02},{:02}", extra_coords[0], extra_coords[1])
+    );
+    submit_planet_transport_prompt(&mut app, None);
+    assert_eq!(app.planet.transport_prompt_default_value, "3");
+
+    let mut terminal = CaptureTerminal::new();
+    submit_planet_transport_prompt(&mut app, None);
+    app.render(&mut terminal)
+        .expect("planet load quantity prompt should render");
+    assert!(
+        line_containing(&terminal, "PLANET COMMAND <- How many armies to load?").contains("[5]")
+    );
+}
+
+#[test]
+fn planet_transport_unload_default_chooses_best_planet_and_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(250);
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    let extra_planet = &mut state.game_data.planets.records[extra_owned_idx];
+    extra_planet.set_owner_empire_slot_raw(1);
+    extra_planet.set_army_count_raw(200);
+    let extra_coords = extra_planet.coords_raw();
+
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.recompute_max_speed_from_composition();
+    }
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(home_coords);
+    fleet_one.set_troop_transport_count(6);
+    fleet_one.set_army_count(2);
+    fleet_one.recompute_max_speed_from_composition();
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(extra_coords);
+    fleet_two.set_troop_transport_count(5);
+    fleet_two.set_army_count(1);
+    fleet_two.recompute_max_speed_from_composition();
+
+    let fleet_three = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    fleet_three.set_current_location_coords_raw(extra_coords);
+    fleet_three.set_troop_transport_count(4);
+    fleet_three.set_army_count(4);
+    fleet_three.recompute_max_speed_from_composition();
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+                ec_game::screen::PlanetTransportMode::Unload,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.planet.transport_prompt_default_value,
+        format!("{:02},{:02}", extra_coords[0], extra_coords[1])
+    );
+    submit_planet_transport_prompt(&mut app, None);
+    assert_eq!(app.planet.transport_prompt_default_value, "3");
+
+    let mut terminal = CaptureTerminal::new();
+    submit_planet_transport_prompt(&mut app, None);
+    app.render(&mut terminal)
+        .expect("planet unload quantity prompt should render");
+    assert!(
+        line_containing(&terminal, "PLANET COMMAND <- How many armies to unload?").contains("[4]")
+    );
+}
+
+#[test]
+fn planet_transport_load_prompt_rejects_non_owned_planet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(6);
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.recompute_max_speed_from_composition();
+    }
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet.set_current_location_coords_raw(home_coords);
+    fleet.set_troop_transport_count(4);
+    fleet.set_army_count(0);
+    fleet.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let invalid_coords = (1..=18u8)
+        .flat_map(|y| (1..=18u8).map(move |x| [x, y]))
+        .find(|coords| {
+            latest_runtime_state(&fixture_dir)
+                .game_data
+                .planets
+                .records
+                .iter()
+                .all(|planet| planet.coords_raw() != *coords)
+        })
+        .expect("fixture should have at least one empty sector");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+                ec_game::screen::PlanetTransportMode::Load,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    submit_planet_transport_prompt_value(
+        &mut app,
+        &format!("{},{}", invalid_coords[0], invalid_coords[1]),
+    );
+    let expected = format!(
+        "Planet [{},{}] is not one of your worlds.",
+        invalid_coords[0], invalid_coords[1]
+    );
+    assert_eq!(
+        app.planet.transport_status.as_deref(),
+        Some(expected.as_str())
+    );
+}
+
+#[test]
+fn planet_transport_load_prompt_rejects_fleet_not_at_selected_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    state.game_data.planets.records[homeworld_index].set_army_count_raw(8);
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    let extra_planet = &mut state.game_data.planets.records[extra_owned_idx];
+    extra_planet.set_owner_empire_slot_raw(1);
+    extra_planet.set_army_count_raw(8);
+    let extra_coords = extra_planet.coords_raw();
+
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.recompute_max_speed_from_composition();
+    }
+
+    let fleet_one = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet_one.set_current_location_coords_raw(home_coords);
+    fleet_one.set_troop_transport_count(4);
+    fleet_one.set_army_count(0);
+    fleet_one.recompute_max_speed_from_composition();
+
+    let fleet_two = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    fleet_two.set_current_location_coords_raw(extra_coords);
+    fleet_two.set_troop_transport_count(4);
+    fleet_two.set_army_count(0);
+    fleet_two.recompute_max_speed_from_composition();
+
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+                ec_game::screen::PlanetTransportMode::Load,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    submit_planet_transport_prompt_value(
+        &mut app,
+        &format!("{},{}", home_coords[0], home_coords[1]),
+    );
+    submit_planet_transport_prompt_value(&mut app, "2");
+    let expected = format!(
+        "Fleet #2 is not at [{},{}].",
+        home_coords[0], home_coords[1]
+    );
+    assert_eq!(
+        app.planet.transport_status.as_deref(),
+        Some(expected.as_str())
+    );
 }
 
 #[test]

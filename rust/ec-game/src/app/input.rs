@@ -20,6 +20,9 @@ impl App {
         if let Some(action) = self.handle_planet_commission_dismiss_latch(key) {
             return action;
         }
+        if self.inline_planet_transport_prompt_active_on_current_screen() {
+            return self.handle_planet_transport_prompt_key(key);
+        }
         if self.inline_planet_tax_active_on_current_screen() {
             return self.planet_tax.handle_inline_key(key);
         }

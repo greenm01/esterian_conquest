@@ -1,5 +1,8 @@
 use crate::app::state::App;
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, ScreenId, build_unit_spec_by_kind};
+use crate::domains::planet::state::PlanetMenuTransportPromptMode;
+use crate::screen::{
+    PlayfieldBuffer, Screen, ScreenFrame, ScreenId, build_unit_spec_by_kind, format_sector_coords,
+};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
@@ -8,6 +11,22 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+    };
+    let inline_transport = match app.planet.transport_prompt_mode {
+        Some(PlanetMenuTransportPromptMode::Quantity(mode)) => {
+            let planet = app.current_planet_transport_planet_row(mode)?;
+            let fleet = app.current_planet_transport_fleet_row(mode)?;
+            Some((
+                mode,
+                format!(
+                    "Planet: {} {}   Fleet {:02}",
+                    planet.planet_name,
+                    format_sector_coords(planet.coords),
+                    fleet.fleet_number
+                ),
+            ))
+        }
+        _ => None,
     };
     match app.current_screen {
         ScreenId::PlanetMenu => app.planet_menu.render_with_notice(
@@ -26,6 +45,14 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.tax_error.as_deref(),
             app.planet.tax_notice.as_deref(),
             app.planet.auto_commission_prompt_active,
+            app.planet_transport_prompt_label().as_deref(),
+            &app.planet.transport_prompt_default_value,
+            &app.planet.transport_prompt_input,
+            app.planet.transport_status.as_deref(),
+            inline_transport.as_ref().map(|(mode, _)| *mode),
+            inline_transport
+                .as_ref()
+                .map(|(_, summary)| summary.as_str()),
         ),
         ScreenId::PlanetHelp => app.planet_help.render(&frame),
         ScreenId::PlanetTransportPlanetSelect(mode) => app.planet_transport.render_planet_select(

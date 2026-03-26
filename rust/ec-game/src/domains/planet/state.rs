@@ -5,6 +5,13 @@ use crossterm::event::KeyCode;
 use ec_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetMenuTransportPromptMode {
+    Planet(PlanetTransportMode),
+    Fleet(PlanetTransportMode),
+    Quantity(PlanetTransportMode),
+}
+
 pub struct PlanetState {
     pub campaign_store: CampaignStore,
     pub intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
@@ -41,6 +48,9 @@ pub struct PlanetState {
     pub transport_selected_planet_record: Option<usize>,
     pub transport_selected_fleet_record: Option<usize>,
     pub transport_fleet_first: bool,
+    pub transport_prompt_mode: Option<PlanetMenuTransportPromptMode>,
+    pub transport_prompt_input: String,
+    pub transport_prompt_default_value: String,
     pub transport_planet_input: String,
     pub transport_fleet_cursor: usize,
     pub transport_fleet_scroll_offset: usize,
@@ -116,6 +126,9 @@ impl PlanetState {
             transport_selected_planet_record: None,
             transport_selected_fleet_record: None,
             transport_fleet_first: false,
+            transport_prompt_mode: None,
+            transport_prompt_input: String::new(),
+            transport_prompt_default_value: String::new(),
             transport_planet_input: String::new(),
             transport_fleet_cursor: 0,
             transport_fleet_scroll_offset: 0,

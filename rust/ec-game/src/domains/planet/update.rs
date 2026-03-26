@@ -30,9 +30,13 @@ pub fn update(app: &mut App, action: PlanetAction) {
             app.dismiss_planet_commission_result(key_code)
         }
         PlanetAction::ClearCommissionDismissKey => app.clear_planet_commission_dismiss_key(),
-        PlanetAction::OpenTransportPlanetSelect(mode) => {
-            app.open_planet_transport_planet_select(mode)
+        PlanetAction::OpenTransportPlanetSelect(mode) => app.open_planet_transport_prompt(mode),
+        PlanetAction::SubmitTransportPrompt => app.submit_planet_transport_prompt(),
+        PlanetAction::AppendTransportPromptChar(ch) => app.append_planet_transport_prompt_char(ch),
+        PlanetAction::BackspaceTransportPromptInput => {
+            app.backspace_planet_transport_prompt_input()
         }
+        PlanetAction::CancelTransportPrompt => app.cancel_planet_transport_prompt(),
         PlanetAction::OpenBuildMenu => app.open_planet_build_menu(),
         PlanetAction::OpenBuildHelp => app.open_planet_build_help(),
         PlanetAction::OpenBuildReview => app.open_planet_build_review(),
