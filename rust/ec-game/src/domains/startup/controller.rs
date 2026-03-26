@@ -2,10 +2,10 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext};
-use crate::reports::{has_visible_runtime_messages, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
-    CommandMenu, ScreenId, StartupReviewMode, FIRST_TIME_INTRO_PAGE_COUNT,
-    STARTUP_SPLASH_PAGE_COUNT,
+    CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
+    StartupReviewMode,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 

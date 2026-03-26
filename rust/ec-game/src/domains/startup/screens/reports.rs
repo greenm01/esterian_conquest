@@ -2,19 +2,19 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::domains::messaging::state::{
-    InboxFocus, InboxPromptMode, InboxTypeFilter, INBOX_VISIBLE_ROWS,
+    INBOX_VISIBLE_ROWS, InboxFocus, InboxPromptMode, InboxTypeFilter,
 };
 use crate::reports::InboxDisplayItem;
 use crate::screen::layout::{
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at, new_playfield, wrap_text,
-    PromptFeedback, COMMAND_LINE_ROW, PLAYFIELD_WIDTH,
+    COMMAND_LINE_ROW, PLAYFIELD_WIDTH, PromptFeedback, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, new_playfield, wrap_text,
 };
 use crate::screen::table::{
-    fit_table_columns, table_column_start, table_render_width, write_table_window_with_states_at,
-    TableAlign, TableColumn,
+    TableAlign, TableColumn, fit_table_columns, table_column_start, table_render_width,
+    write_table_window_with_states_at,
 };
 use crate::screen::{
-    command_menu_label, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan,
+    CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, command_menu_label,
 };
 use crate::theme::classic;
 

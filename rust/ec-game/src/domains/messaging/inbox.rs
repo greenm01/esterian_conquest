@@ -1,17 +1,17 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
+use crate::app::Action;
 use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
-use crate::app::Action;
-use crate::domains::messaging::state::{
-    InboxFocus, InboxPromptMode, InboxTypeFilter, INBOX_VISIBLE_ROWS,
-};
 use crate::domains::messaging::MessagingAction;
-use crate::reports::{
-    runtime_inbox_items, InboxDisplayItem, InboxItem, InboxItemSource, InboxItemType,
+use crate::domains::messaging::state::{
+    INBOX_VISIBLE_ROWS, InboxFocus, InboxPromptMode, InboxTypeFilter,
 };
-use crate::screen::layout::PromptFeedback;
+use crate::reports::{
+    InboxDisplayItem, InboxItem, InboxItemSource, InboxItemType, runtime_inbox_items,
+};
 use crate::screen::ScreenId;
+use crate::screen::layout::PromptFeedback;
 
 const INBOX_PREVIEW_PAGE_DELTA: i8 = INBOX_VISIBLE_ROWS as i8;
 
