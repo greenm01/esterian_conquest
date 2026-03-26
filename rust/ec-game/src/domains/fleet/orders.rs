@@ -525,7 +525,7 @@ impl App {
             row.fleet_record_index_1_based - 1,
             destination,
             fleet_order_target_requires_planet_system(mission_code),
-            true,
+            false,
         )
     }
 

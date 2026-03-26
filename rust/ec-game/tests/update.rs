@@ -178,6 +178,16 @@ fn first_empty_sector(game_data: &CoreGameData) -> [u8; 2] {
     panic!("fixture should contain at least one empty sector");
 }
 
+fn first_other_planet_coords(game_data: &CoreGameData, excluded: [u8; 2]) -> [u8; 2] {
+    game_data
+        .planets
+        .records
+        .iter()
+        .map(|planet| planet.coords_raw())
+        .find(|coords| *coords != excluded)
+        .expect("fixture should contain another planet")
+}
+
 fn temp_game_with_auto_commission_copy() -> PathBuf {
     let root = temp_game_copy();
     let mut state = latest_runtime_state(&root);
@@ -8708,6 +8718,199 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
 }
 
 #[test]
+fn fleet_order_confirm_uses_stopped_eta_when_selected_fleet_speed_is_zero() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let current_coords = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .current_location_coords_raw();
+    let target = first_other_planet_coords(&state.game_data, current_coords);
+    state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .set_current_speed(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_order_target(&mut app, target);
+
+    app.render(&mut terminal)
+        .expect("fleet order confirm should render");
+    let message = line_containing(&terminal, "Fleet 1 is stopped and cannot reach");
+    assert!(message.contains(&format!(
+        "Fleet 1 is stopped and cannot reach ({:02},{:02}).",
+        target[0], target[1]
+    )));
+}
+
+#[test]
+fn fleet_list_live_eta_shows_s_for_stopped_fleet_after_new_order() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let current_coords = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .current_location_coords_raw();
+    let target = first_other_planet_coords(&state.game_data, current_coords);
+    state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .set_current_speed(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_order_target(&mut app, target);
+    confirm_fleet_order(&mut app, true);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(
+        terminal.lines.iter().any(|line| {
+            line.contains("│ 1│")
+                && line.contains("View")
+                && line.contains(&format!("({:02},{:02})", target[0], target[1]))
+                && line.contains("│  S│")
+        }),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
+fn fleet_group_selection_live_eta_shows_s_for_stopped_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let current_coords = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .current_location_coords_raw();
+    let target = first_other_planet_coords(&state.game_data, current_coords);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet.set_current_speed(0);
+    fleet.set_standing_order_kind(ec_data::Order::ViewWorld);
+    fleet.set_standing_order_target_coords_raw(target);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal)
+        .expect("group fleet order should render");
+    assert!(
+        terminal.lines.iter().any(|line| {
+            line.contains("│ 1│")
+                && line.contains("View")
+                && line.contains(&format!("({:02},{:02})", target[0], target[1]))
+                && line.contains("│  S│")
+        }),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
 fn fit_table_columns_keeps_header_width_for_blank_cells() {
     let columns = [TableColumn::right("ROE", 1), TableColumn::left("Status", 1)];
     let rows = vec![
@@ -9190,12 +9393,10 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
     );
     assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
     assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("arriving in"))
-    );
+    assert!(terminal.lines.iter().any(|line| line.contains(&format!(
+        "cannot reach ({:02},{:02})",
+        bombard_target[0], bombard_target[1]
+    ))));
     assert!(
         !terminal
             .lines
@@ -9303,12 +9504,10 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
     assert!(selected.len() >= 2);
     assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
     assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("arriving in"))
-    );
+    assert!(terminal.lines.iter().any(|line| line.contains(&format!(
+        "cannot reach ({:02},{:02})",
+        bombard_target[0], bombard_target[1]
+    ))));
     assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
     assert!(!terminal.lines.iter().any(|line| line.contains("│Sel│")));
     assert!(!terminal.lines.iter().any(|line| line.contains('│')));
@@ -12173,6 +12372,33 @@ fn fleet_list_eta_column_shows_turns_remaining_for_arrived_fleets() {
         "{:#?}",
         terminal.lines
     );
+}
+
+#[test]
+fn fleet_list_table_renders_x_for_unreachable_eta_label() {
+    let mut screen = ec_game::screen::FleetListScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 1,
+        coords: [8, 9],
+        target_coords: [0, 0],
+        order_code: 1,
+        current_speed: 3,
+        max_speed: 6,
+        eta_label: "N/A".to_string(),
+        list_eta_label: "X".to_string(),
+        rules_of_engagement: 6,
+        order_label: "Move fleet to Sector (0,0)".to_string(),
+        composition_label: "DD=1".to_string(),
+        table_composition_label: "DD".to_string(),
+    }];
+
+    let buffer = screen
+        .render(&rows, 0, 0, "", None)
+        .expect("fleet list renders");
+
+    assert!(buffer.plain_line(4).contains("Move"));
+    assert!(buffer.plain_line(4).contains("│  X│"));
 }
 
 #[test]

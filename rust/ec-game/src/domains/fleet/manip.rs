@@ -1256,8 +1256,8 @@ pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> Str
 pub(super) fn fleet_list_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
     match estimate_fleet_eta(game_data, fleet_idx) {
         FleetEtaEstimate::Arrived => "0".to_string(),
-        FleetEtaEstimate::Stopped => "0".to_string(),
-        FleetEtaEstimate::Unreachable => "0".to_string(),
+        FleetEtaEstimate::Stopped => "S".to_string(),
+        FleetEtaEstimate::Unreachable => "X".to_string(),
         FleetEtaEstimate::Years(years) => years.to_string(),
     }
 }
