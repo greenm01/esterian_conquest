@@ -15,7 +15,7 @@ impl CampaignStore {
         snapshot_id: i64,
     ) -> Result<CoreGameData, CampaignStoreError> {
         let mut conn = self.connection()?;
-        super::records::load_snapshot_game_data(&mut conn, snapshot_id)
+        super::snapshot_core::load_snapshot_game_data(&mut conn, snapshot_id)
     }
 
     pub fn load_latest_runtime_state(
@@ -27,7 +27,7 @@ impl CampaignStore {
         else {
             return Ok(None);
         };
-        let game_data = super::records::load_snapshot_game_data(&mut conn, snapshot_id)?;
+        let game_data = super::snapshot_core::load_snapshot_game_data(&mut conn, snapshot_id)?;
         let planet_scorch_orders =
             super::planet_scorch_orders::load_planet_scorch_orders(&mut conn, snapshot_id)?;
         let report_block_rows =
@@ -142,55 +142,7 @@ impl CampaignStore {
             params![i64::from(year)],
         )?;
         let snapshot_id = tx.last_insert_rowid();
-        super::records::write_typed_record_rows(
-            &tx,
-            super::PLAYER_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.player.to_bytes(),
-            crate::PLAYER_RECORD_SIZE,
-        )?;
-        super::records::write_typed_record_rows(
-            &tx,
-            super::PLANET_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.planets.to_bytes(),
-            crate::PLANET_RECORD_SIZE,
-        )?;
-        super::records::write_typed_record_rows(
-            &tx,
-            super::FLEET_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.fleets.to_bytes(),
-            crate::FLEET_RECORD_SIZE,
-        )?;
-        super::records::write_typed_record_rows(
-            &tx,
-            super::BASE_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.bases.to_bytes(),
-            crate::BASE_RECORD_SIZE,
-        )?;
-        super::records::write_typed_record_rows(
-            &tx,
-            super::IPBM_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.ipbm.to_bytes(),
-            crate::IPBM_RECORD_SIZE,
-        )?;
-        super::records::write_typed_record_rows(
-            &tx,
-            super::SETUP_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.setup.to_bytes(),
-            crate::SETUP_DAT_SIZE,
-        )?;
-        super::records::write_typed_record_rows(
-            &tx,
-            super::CONQUEST_RECORD_FIELDS_TABLE,
-            snapshot_id,
-            &game_data.conquest.to_bytes(),
-            crate::CONQUEST_DAT_SIZE,
-        )?;
+        super::snapshot_core::write_snapshot_core_rows(&tx, snapshot_id, game_data)?;
         super::planet_scorch_orders::write_planet_scorch_orders(
             &tx,
             snapshot_id,

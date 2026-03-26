@@ -9,7 +9,7 @@ use ec_compat::{
     DatabaseDat, export_latest_snapshot_to_dir, import_directory_snapshot,
     import_directory_snapshot_with_seed,
 };
-use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
+use ec_data::{CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME};
 use rusqlite::Connection;
 
 fn repo_root() -> PathBuf {
@@ -242,6 +242,34 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
             .any(|name| name == "compat_database_record_fields"),
         "compat_database_record_fields table should be gone: {table_names:?}"
     );
+    for legacy in [
+        "player_record_fields",
+        "planet_record_fields",
+        "fleet_record_fields",
+        "base_record_fields",
+        "ipbm_record_fields",
+        "setup_record_fields",
+        "conquest_record_fields",
+    ] {
+        assert!(
+            !table_names.iter().any(|name| name == legacy),
+            "legacy byte table {legacy} should be gone: {table_names:?}"
+        );
+    }
+    for current in [
+        "snapshot_players",
+        "snapshot_planets",
+        "snapshot_fleets",
+        "snapshot_bases",
+        "snapshot_ipbms",
+        "snapshot_setup",
+        "snapshot_conquest",
+    ] {
+        assert!(
+            table_names.iter().any(|name| name == current),
+            "normalized snapshot table {current} should exist: {table_names:?}"
+        );
+    }
 
     let schema_rows = conn
         .prepare(
@@ -260,10 +288,57 @@ fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
             .any(|sql| sql.contains("known_starbase_count INTEGER")),
         "planet_intel schema should include known_starbase_count"
     );
+    assert!(
+        schema_rows
+            .iter()
+            .any(|sql| sql.contains("compat_raw_hex TEXT NOT NULL")),
+        "normalized snapshot schema should preserve compat residue text columns"
+    );
     for sql in schema_rows {
         assert!(
             !sql.to_ascii_uppercase().contains("BLOB"),
             "sqlite schema should not use BLOB columns: {sql}"
         );
     }
+}
+
+#[test]
+fn sqlite_store_rejects_legacy_byte_table_schema() {
+    let imported = temp_dir("ec-data-storage-legacy-schema");
+    fs::create_dir_all(&imported).expect("create temp dir");
+    let store_path = imported.join(DEFAULT_CAMPAIGN_DB_NAME);
+    let conn = Connection::open(&store_path).expect("open sqlite db");
+    conn.execute_batch(
+        "PRAGMA foreign_keys = ON;
+         CREATE TABLE snapshots (
+             id INTEGER PRIMARY KEY,
+             game_year INTEGER NOT NULL UNIQUE
+         );
+         CREATE TABLE campaign_metadata (
+             key TEXT PRIMARY KEY,
+             int_value INTEGER NOT NULL
+         );
+         CREATE TABLE player_record_fields (
+             snapshot_id INTEGER NOT NULL,
+             record_index INTEGER NOT NULL,
+             byte_offset INTEGER NOT NULL,
+             byte_value INTEGER NOT NULL,
+             PRIMARY KEY(snapshot_id, record_index, byte_offset)
+         );
+         INSERT INTO snapshots(id, game_year) VALUES (1, 3000);",
+    )
+    .expect("seed legacy schema");
+    drop(conn);
+
+    let err = CampaignStore::open(&store_path).expect_err("legacy schema should be rejected");
+    assert!(
+        matches!(
+            err,
+            CampaignStoreError::SchemaVersionMismatch {
+                expected: 1,
+                found: None
+            }
+        ),
+        "unexpected error: {err}"
+    );
 }

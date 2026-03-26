@@ -25,6 +25,18 @@ pub(super) fn load_campaign_seed(conn: &mut Connection) -> Result<Option<u64>, C
     .map_err(CampaignStoreError::Sql)
 }
 
+pub(super) fn load_runtime_schema_version(
+    conn: &mut Connection,
+) -> Result<Option<i64>, CampaignStoreError> {
+    conn.query_row(
+        "SELECT int_value FROM campaign_metadata WHERE key = 'runtime_schema_version'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )
+    .optional()
+    .map_err(CampaignStoreError::Sql)
+}
+
 pub(super) fn load_campaign_seed_tx(
     tx: &rusqlite::Transaction<'_>,
 ) -> Result<Option<u64>, CampaignStoreError> {
@@ -47,6 +59,19 @@ pub(super) fn persist_campaign_seed(
          VALUES ('campaign_seed', ?1)
          ON CONFLICT(key) DO UPDATE SET int_value = excluded.int_value",
         params![seed as i64],
+    )?;
+    Ok(())
+}
+
+pub(super) fn persist_runtime_schema_version(
+    conn: &mut Connection,
+    version: i64,
+) -> Result<(), CampaignStoreError> {
+    conn.execute(
+        "INSERT INTO campaign_metadata(key, int_value)
+         VALUES ('runtime_schema_version', ?1)
+         ON CONFLICT(key) DO UPDATE SET int_value = excluded.int_value",
+        params![version],
     )?;
     Ok(())
 }

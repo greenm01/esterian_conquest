@@ -1,25 +1,36 @@
 use std::path::{Path, PathBuf};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
 use crate::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
+mod hex;
 mod intel;
 mod mail;
 mod metadata;
 mod planet_scorch_orders;
-mod records;
 mod report_blocks;
 mod runtime;
+mod snapshot_core;
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
-const PLAYER_RECORD_FIELDS_TABLE: &str = "player_record_fields";
-const PLANET_RECORD_FIELDS_TABLE: &str = "planet_record_fields";
-const FLEET_RECORD_FIELDS_TABLE: &str = "fleet_record_fields";
-const BASE_RECORD_FIELDS_TABLE: &str = "base_record_fields";
-const IPBM_RECORD_FIELDS_TABLE: &str = "ipbm_record_fields";
-const SETUP_RECORD_FIELDS_TABLE: &str = "setup_record_fields";
-const CONQUEST_RECORD_FIELDS_TABLE: &str = "conquest_record_fields";
+const RUNTIME_SCHEMA_VERSION: i64 = 1;
+const PLAYER_SNAPSHOTS_TABLE: &str = "snapshot_players";
+const PLANET_SNAPSHOTS_TABLE: &str = "snapshot_planets";
+const FLEET_SNAPSHOTS_TABLE: &str = "snapshot_fleets";
+const BASE_SNAPSHOTS_TABLE: &str = "snapshot_bases";
+const IPBM_SNAPSHOTS_TABLE: &str = "snapshot_ipbms";
+const SETUP_SNAPSHOTS_TABLE: &str = "snapshot_setup";
+const CONQUEST_SNAPSHOTS_TABLE: &str = "snapshot_conquest";
+const LEGACY_RECORD_TABLES: [&str; 7] = [
+    "player_record_fields",
+    "planet_record_fields",
+    "fleet_record_fields",
+    "base_record_fields",
+    "ipbm_record_fields",
+    "setup_record_fields",
+    "conquest_record_fields",
+];
 
 #[derive(Debug)]
 pub enum CampaignStoreError {
@@ -30,6 +41,10 @@ pub enum CampaignStoreError {
     Sql(rusqlite::Error),
     Parse(crate::ParseError),
     Directory(crate::GameDirectoryError),
+    SchemaVersionMismatch {
+        expected: i64,
+        found: Option<i64>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -131,6 +146,16 @@ impl std::fmt::Display for CampaignStoreError {
             Self::Sql(source) => write!(f, "{source}"),
             Self::Parse(source) => write!(f, "{source}"),
             Self::Directory(source) => write!(f, "{source}"),
+            Self::SchemaVersionMismatch { expected, found } => match found {
+                Some(found) => write!(
+                    f,
+                    "runtime sqlite schema version {found} is unsupported; expected {expected}. recreate or refresh ecgame.db"
+                ),
+                None => write!(
+                    f,
+                    "runtime sqlite schema is missing or legacy; expected version {expected}. recreate or refresh ecgame.db"
+                ),
+            },
         }
     }
 }
@@ -142,6 +167,7 @@ impl std::error::Error for CampaignStoreError {
             Self::Sql(source) => Some(source),
             Self::Parse(source) => Some(source),
             Self::Directory(source) => Some(source),
+            Self::SchemaVersionMismatch { .. } => None,
         }
     }
 }
@@ -305,38 +331,148 @@ impl CampaignStore {
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  planet_record_index INTEGER NOT NULL,
                  PRIMARY KEY(snapshot_id, planet_record_index)
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_players (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 record_index INTEGER NOT NULL,
+                 occupied_flag INTEGER NOT NULL,
+                 owner_mode_raw INTEGER NOT NULL,
+                 handle_text TEXT NOT NULL,
+                 empire_name_text TEXT NOT NULL,
+                 tax_rate INTEGER NOT NULL,
+                 autopilot_flag INTEGER NOT NULL,
+                 fleet_chain_head_raw INTEGER NOT NULL,
+                 starbase_count_raw INTEGER NOT NULL,
+                 ipbm_count_raw INTEGER NOT NULL,
+                 homeworld_planet_index_raw INTEGER NOT NULL,
+                 last_run_year_raw INTEGER NOT NULL,
+                 classic_message_review_word_raw INTEGER NOT NULL,
+                 classic_message_review_carry_word_raw INTEGER NOT NULL,
+                 classic_results_review_word_raw INTEGER NOT NULL,
+                 classic_results_review_carry_word_raw INTEGER NOT NULL,
+                 classic_results_chain_flag_raw INTEGER NOT NULL,
+                 classic_results_chain_next_free_raw INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL,
+                 PRIMARY KEY(snapshot_id, record_index)
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_planets (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 record_index INTEGER NOT NULL,
+                 coords_x INTEGER NOT NULL,
+                 coords_y INTEGER NOT NULL,
+                 name_text TEXT NOT NULL,
+                 potential_production_points INTEGER NOT NULL,
+                 present_production_points INTEGER,
+                 stored_production_points INTEGER NOT NULL,
+                 owner_empire_slot_raw INTEGER NOT NULL,
+                 ownership_status_raw INTEGER NOT NULL,
+                 armies_raw INTEGER NOT NULL,
+                 ground_batteries_raw INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL,
+                 PRIMARY KEY(snapshot_id, record_index)
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_fleets (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 record_index INTEGER NOT NULL,
+                 local_slot_raw INTEGER NOT NULL,
+                 owner_empire_raw INTEGER NOT NULL,
+                 fleet_id_raw INTEGER NOT NULL,
+                 current_x INTEGER NOT NULL,
+                 current_y INTEGER NOT NULL,
+                 target_x INTEGER NOT NULL,
+                 target_y INTEGER NOT NULL,
+                 standing_order_code_raw INTEGER NOT NULL,
+                 max_speed INTEGER NOT NULL,
+                 current_speed INTEGER NOT NULL,
+                 rules_of_engagement INTEGER NOT NULL,
+                 scout_count INTEGER NOT NULL,
+                 battleship_count INTEGER NOT NULL,
+                 cruiser_count INTEGER NOT NULL,
+                 destroyer_count INTEGER NOT NULL,
+                 troop_transport_count INTEGER NOT NULL,
+                 army_count INTEGER NOT NULL,
+                 etac_count INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL,
+                 PRIMARY KEY(snapshot_id, record_index)
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_bases (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 record_index INTEGER NOT NULL,
+                 local_slot_raw INTEGER NOT NULL,
+                 active_flag_raw INTEGER NOT NULL,
+                 base_id_raw INTEGER NOT NULL,
+                 coords_x INTEGER NOT NULL,
+                 coords_y INTEGER NOT NULL,
+                 trailing_x INTEGER NOT NULL,
+                 trailing_y INTEGER NOT NULL,
+                 owner_empire_raw INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL,
+                 PRIMARY KEY(snapshot_id, record_index)
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_ipbms (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 record_index INTEGER NOT NULL,
+                 owner_empire_raw INTEGER NOT NULL,
+                 tuple_a_tag_raw INTEGER NOT NULL,
+                 tuple_b_tag_raw INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL,
+                 PRIMARY KEY(snapshot_id, record_index)
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_setup (
+                 snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
+                 version_tag_text TEXT NOT NULL,
+                 snoop_enabled INTEGER NOT NULL,
+                 max_time_between_keys_minutes_raw INTEGER NOT NULL,
+                 remote_timeout_enabled INTEGER NOT NULL,
+                 local_timeout_enabled INTEGER NOT NULL,
+                 minimum_time_granted_minutes_raw INTEGER NOT NULL,
+                 purge_after_turns_raw INTEGER NOT NULL,
+                 autopilot_inactive_turns_raw INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS snapshot_conquest (
+                 snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
+                 game_year INTEGER NOT NULL,
+                 player_count INTEGER NOT NULL,
+                 maintenance_day_0_enabled INTEGER NOT NULL,
+                 maintenance_day_1_enabled INTEGER NOT NULL,
+                 maintenance_day_2_enabled INTEGER NOT NULL,
+                 maintenance_day_3_enabled INTEGER NOT NULL,
+                 maintenance_day_4_enabled INTEGER NOT NULL,
+                 maintenance_day_5_enabled INTEGER NOT NULL,
+                 maintenance_day_6_enabled INTEGER NOT NULL,
+                 compat_raw_hex TEXT NOT NULL
              );",
         )?;
         ensure_column(&conn, "planet_intel", "known_docked_summary", "TEXT")?;
         ensure_column(&conn, "planet_intel", "known_orbit_summary", "TEXT")?;
         ensure_column(&conn, "planet_intel", "known_starbase_count", "INTEGER")?;
-        create_typed_record_table(&conn, PLAYER_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, PLANET_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, FLEET_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, BASE_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, IPBM_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, SETUP_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, CONQUEST_RECORD_FIELDS_TABLE)?;
+        let mut conn = conn;
+        let schema_version = metadata::load_runtime_schema_version(&mut conn)?;
+        match schema_version {
+            Some(found) if found == RUNTIME_SCHEMA_VERSION => {}
+            Some(found) => {
+                return Err(CampaignStoreError::SchemaVersionMismatch {
+                    expected: RUNTIME_SCHEMA_VERSION,
+                    found: Some(found),
+                });
+            }
+            None => {
+                if legacy_record_schema_present(&conn)? {
+                    return Err(CampaignStoreError::SchemaVersionMismatch {
+                        expected: RUNTIME_SCHEMA_VERSION,
+                        found: None,
+                    });
+                }
+                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
+            }
+        }
         Ok(())
     }
 
     fn connection(&self) -> Result<Connection, CampaignStoreError> {
         Connection::open(&self.path).map_err(CampaignStoreError::Sql)
     }
-}
-
-fn create_typed_record_table(conn: &Connection, table: &str) -> Result<(), CampaignStoreError> {
-    let sql = format!(
-        "CREATE TABLE IF NOT EXISTS {table} (
-             snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-             record_index INTEGER NOT NULL,
-             byte_offset INTEGER NOT NULL,
-             byte_value INTEGER NOT NULL,
-             PRIMARY KEY(snapshot_id, record_index, byte_offset)
-         )"
-    );
-    conn.execute_batch(&sql)?;
-    Ok(())
 }
 
 fn ensure_column(
@@ -357,4 +493,20 @@ fn ensure_column(
         conn.execute(&sql, [])?;
     }
     Ok(())
+}
+
+fn legacy_record_schema_present(conn: &Connection) -> Result<bool, CampaignStoreError> {
+    for table in LEGACY_RECORD_TABLES {
+        let exists: Option<i64> = conn
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1 LIMIT 1",
+                [table],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if exists.is_some() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
