@@ -28,7 +28,7 @@ impl CoreGameData {
                     .map(|idx| idx + 1)
                     .unwrap_or(0)
             };
-        player.set_owner_empire_raw(player_record_index_1_based as u8);
+        player.set_player_mode_raw(0x01);
         player.set_controlled_empire_name_raw(empire_name);
         player.set_tax_rate_raw(tax_rate);
         player.set_ipbm_count_raw(ipbm_count);

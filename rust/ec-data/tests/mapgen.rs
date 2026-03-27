@@ -157,7 +157,7 @@ fn seeded_new_game_supports_nine_player_manual_tier() {
 fn seeded_initialized_game_retains_active_campaign_builder_semantics() {
     let data =
         build_seeded_initialized_game(4, 3000, 1515).expect("initialized seeded game should build");
-    assert_eq!(data.player.records[0].owner_mode_raw(), 1);
+    assert!(data.player.records.iter().all(|player| player.owner_mode_raw() == 1));
     assert_eq!(data.player.records[0].autopilot_flag(), 1);
     assert_eq!(data.planets.records[0].owner_empire_slot_raw(), 1);
     assert_eq!(data.planets.records[0].planet_name(), "Player 1 HW");

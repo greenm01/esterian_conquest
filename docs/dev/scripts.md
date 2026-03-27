@@ -46,6 +46,17 @@ Then enter as player 1:
 python3 scripts/run_client.py /tmp/ec-player1-ui --player 1
 ```
 
+`run_client.py` now preserves the existing `ecgame.db` runtime state by
+default. This is the normal workflow for repeated `ec-game` login/logout
+testing.
+
+If you intentionally changed the classic `.DAT` files outside the Rust runtime
+and want to refresh `ecgame.db` from them before launch, opt in explicitly:
+
+```bash
+python3 scripts/run_client.py /tmp/ec-player1-ui --player 1 --refresh-from-dat
+```
+
 ## Useful Options
 
 ### `--turn`

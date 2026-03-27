@@ -11,7 +11,6 @@ pub(crate) fn set_player_name(
     empire_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     with_runtime_game_mut_and_export(dir, |data| {
-        let owner_empire = player_record_index_1_based as u8;
         let player = data
             .player
             .records
@@ -19,8 +18,7 @@ pub(crate) fn set_player_name(
             .ok_or_else(|| {
                 format!("player record index out of range: {player_record_index_1_based}")
             })?;
-        player.set_owner_empire_raw(owner_empire);
-        player.set_occupied_flag(owner_empire);
+        player.set_player_mode_raw(0x01);
         player.set_assigned_player_handle_raw(handle);
         player.set_controlled_empire_name_raw(empire_name);
         player.set_autopilot_flag(0);
@@ -80,7 +78,6 @@ pub(crate) fn prepare_classic_login(
     let empire_name = empire_name_override.unwrap_or(&current_empire_name);
 
     with_runtime_game_mut_and_export(dir, |data| {
-        let owner_empire = player_record_index_1_based as u8;
         let player = data
             .player
             .records
@@ -88,8 +85,7 @@ pub(crate) fn prepare_classic_login(
             .ok_or_else(|| {
                 format!("player record index out of range: {player_record_index_1_based}")
             })?;
-        player.set_owner_empire_raw(owner_empire);
-        player.set_occupied_flag(owner_empire);
+        player.set_player_mode_raw(0x01);
         player.set_assigned_player_handle_raw(caller_alias);
         if let Some(empire_name) = empire_name_override {
             player.set_controlled_empire_name_raw(empire_name);

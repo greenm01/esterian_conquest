@@ -117,6 +117,12 @@ Explicit-seed example:
 python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --seed 1515
 ```
 
+Explicit-year example:
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --year 3012 --seed 1515
+```
+
 Use this when you want:
 
 - a busy player 1 startup flow with unread reports and messages
@@ -327,6 +333,18 @@ Release build example:
 
 ```bash
 python3 scripts/run_client.py /tmp/ec-ui-stress --player 1 --release
+```
+
+By default `run_client.py` launches `ec-game` against the existing
+`ecgame.db` runtime state and does not refresh from classic `.DAT` files.
+This preserves joins, theme choices, and other in-client changes across
+re-entry.
+
+If you intentionally changed the `.DAT` files outside the Rust runtime and
+need to resync the runtime DB before launch, opt in explicitly:
+
+```bash
+python3 scripts/run_client.py /tmp/ec-ui-stress --player 1 --refresh-from-dat
 ```
 
 ## Recommended Workflow

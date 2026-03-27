@@ -19,24 +19,43 @@ impl PlayerRecord {
         }
     }
 
+    /// Raw player mode byte at offset `0x00`.
+    ///
+    /// Confirmed classic meanings:
+    /// - `0x00` = civil disorder / unjoined
+    /// - `0x01` = active human player
+    /// - `0xff` = rogue empire
+    pub fn player_mode_raw(&self) -> u8 {
+        self.raw[0]
+    }
+
     pub fn occupied_flag(&self) -> u8 {
         self.raw[0]
     }
 
+    /// Compatibility alias for the raw player mode byte.
     pub fn owner_mode_raw(&self) -> u8 {
-        self.raw[0]
+        self.player_mode_raw()
+    }
+
+    pub fn is_civil_disorder_player(&self) -> bool {
+        self.player_mode_raw() == 0x00
+    }
+
+    pub fn is_active_human_player(&self) -> bool {
+        self.player_mode_raw() == 0x01
     }
 
     pub fn is_active_player(&self) -> bool {
-        self.owner_mode_raw() == 0x01
+        self.is_active_human_player()
     }
 
     pub fn is_rogue_player(&self) -> bool {
-        self.owner_mode_raw() == 0xff
+        self.player_mode_raw() == 0xff
     }
 
     pub fn is_active_or_rogue_player(&self) -> bool {
-        matches!(self.owner_mode_raw(), 0x01 | 0xff)
+        self.is_active_human_player() || self.is_rogue_player()
     }
 
     pub fn handle_bytes(&self) -> &[u8] {
@@ -244,7 +263,7 @@ impl PlayerRecord {
     }
 
     pub fn set_civil_disorder_mode(&mut self) {
-        self.set_owner_empire_raw(0x00);
+        self.set_player_mode_raw(0x00);
         self.raw[1..0x1A].fill(0);
         self.set_legacy_status_name_raw("In Civil Disorder");
     }
@@ -254,7 +273,7 @@ impl PlayerRecord {
         let handle = self.assigned_player_handle_summary();
         let empire = self.controlled_empire_name_summary();
 
-        if self.owner_mode_raw() == 0xff {
+        if self.is_rogue_player() {
             format!("rogue label='{legacy}'")
         } else if legacy.starts_with("In Civil Disorder") || legacy == "Unowned" {
             format!("unowned label='{legacy}'")
@@ -385,16 +404,20 @@ impl PlayerRecord {
         self.raw[0x6D] = value;
     }
 
-    /// Set the occupied/present flag at offset 0x00.
-    /// This indicates whether a player slot is active (1) or unjoined (0).
-    pub fn set_occupied_flag(&mut self, value: u8) {
+    /// Set the raw player mode byte at offset `0x00`.
+    pub fn set_player_mode_raw(&mut self, value: u8) {
         self.raw[0] = value;
     }
 
-    /// Set the owner empire byte at offset 0x00.
-    /// Same as occupied_flag for player records.
+    /// Set the occupied/present flag at offset `0x00`.
+    /// This is a compatibility alias for the raw player mode byte.
+    pub fn set_occupied_flag(&mut self, value: u8) {
+        self.set_player_mode_raw(value);
+    }
+
+    /// Compatibility alias for the raw player mode byte.
     pub fn set_owner_empire_raw(&mut self, value: u8) {
-        self.raw[0] = value;
+        self.set_player_mode_raw(value);
     }
 
     /// Stored diplomatic relation toward another empire.
@@ -430,11 +453,7 @@ impl PlayerRecord {
         Some(self.raw[0x54 + other_empire_raw as usize - 1])
     }
 
-    pub fn set_diplomatic_relation_byte_raw(
-        &mut self,
-        other_empire_raw: u8,
-        raw: u8,
-    ) -> bool {
+    pub fn set_diplomatic_relation_byte_raw(&mut self, other_empire_raw: u8, raw: u8) -> bool {
         if !(1..=25).contains(&other_empire_raw) {
             return false;
         }
@@ -453,9 +472,9 @@ impl PlayerRecord {
         self.set_diplomatic_relation_byte_raw(
             other_empire_raw,
             match relation {
-            DiplomaticRelation::Neutral => 0x00,
-            DiplomaticRelation::Enemy => 0x01,
-        },
+                DiplomaticRelation::Neutral => 0x00,
+                DiplomaticRelation::Enemy => 0x01,
+            },
         );
         true
     }

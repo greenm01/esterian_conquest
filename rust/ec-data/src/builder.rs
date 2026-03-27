@@ -227,7 +227,7 @@ impl GameStateBuilder {
 
         // Configure player records
         for (idx, player) in data.player.records.iter_mut().enumerate() {
-            player.set_owner_empire_raw((idx + 1) as u8);
+            player.set_player_mode_raw(0x01);
             player.set_tax_rate_raw(DEFAULT_EMPIRE_TAX_RATE);
             player.set_ipbm_count_raw(self.ipbm_count);
             player.set_autopilot_flag(if idx == 0 { 1 } else { 0 });
@@ -485,7 +485,7 @@ fn seed_unjoined_player_slot(
     ipbm_count: u16,
 ) {
     *player = PlayerRecord::new_zeroed();
-    player.set_owner_empire_raw(0x00);
+    player.set_player_mode_raw(0x00);
     player.set_assigned_player_handle_raw("");
     player.set_legacy_status_name_field_raw(0x18, "In Civil Disorder");
     player.set_fleet_chain_head_raw(fleet_start);

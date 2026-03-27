@@ -72,7 +72,7 @@ impl ClassicLoginState {
             return Self::FirstTimeMenu;
         };
 
-        if player.owner_mode_raw() != empire_raw {
+        if !player.is_active_human_player() {
             return Self::FirstTimeMenu;
         }
 

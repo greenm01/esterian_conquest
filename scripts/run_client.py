@@ -60,10 +60,20 @@ def main() -> None:
         action="store_true",
         help="Run the release build instead of debug.",
     )
+    parser.add_argument(
+        "--refresh-from-dat",
+        action="store_true",
+        help=(
+            "Re-import classic .DAT files into ecgame.db before launch. "
+            "Use this only when you intentionally want the runtime DB to be refreshed "
+            "from classic files."
+        ),
+    )
     args = parser.parse_args()
 
     game_dir = Path(args.game_dir).resolve()
-    refresh_campaign_snapshot(game_dir, args.release)
+    if args.refresh_from_dat:
+        refresh_campaign_snapshot(game_dir, args.release)
     client_binary = build_workspace_binary("ec-game", args.release)
     subprocess.run(
         [

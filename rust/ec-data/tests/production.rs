@@ -116,7 +116,7 @@ fn empire_economy_helpers_use_classic_production_terms() {
     let mut player1 = player_with_empire_name("Alpha", 50, 0);
     let mut player2 = player_with_empire_name("Beta", 60, 20);
     player1.set_owner_empire_raw(1);
-    player2.set_owner_empire_raw(2);
+    player2.set_owner_empire_raw(1);
 
     let game = CoreGameData {
         player: PlayerDat {

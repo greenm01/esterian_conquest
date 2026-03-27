@@ -77,9 +77,13 @@ fn temp_first_time_game_copy() -> PathBuf {
 }
 
 fn temp_joined_needs_homeworld_copy() -> PathBuf {
+    temp_joined_needs_homeworld_copy_for_player(1)
+}
+
+fn temp_joined_needs_homeworld_copy_for_player(player_record_index_1_based: usize) -> PathBuf {
     let root = temp_first_time_game_copy();
     let mut data = CoreGameData::load(&root).expect("load joinable fixture");
-    data.join_player(1, "Codex Dominion")
+    data.join_player(player_record_index_1_based, &format!("Empire {player_record_index_1_based}"))
         .expect("join player without naming homeworld");
     data.save(&root).expect("save partially joined fixture");
     let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
@@ -1186,6 +1190,37 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
         }
         app.advance_startup();
     }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
+}
+
+#[test]
+fn player_two_joined_with_unnamed_homeworld_is_not_retreated_as_first_time() {
+    let fixture_dir = temp_joined_needs_homeworld_copy_for_player(2);
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 2,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        app.classic_login_state(),
+        ClassicLoginState::MatchedPreloadedFirstLogin
+    );
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+
     assert_eq!(
         app.current_screen(),
         ScreenId::FirstTimePreloadedRenamePrompt

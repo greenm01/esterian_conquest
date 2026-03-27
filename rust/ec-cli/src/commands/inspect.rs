@@ -502,7 +502,7 @@ fn classify_classic_login_state(
         return "unknown";
     };
 
-    if player.owner_mode_raw() != empire_raw {
+    if !player.is_active_human_player() {
         return "first-time-menu";
     }
 
