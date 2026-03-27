@@ -86,7 +86,7 @@ pub fn provision_key(
     let expires_at = now + config.key_ttl;
 
     let command = format!(
-        "{} --dir {} --player {}",
+        "exec {} --dir {} --player {}",
         config.ec_game_path.display(),
         game_dir.display(),
         seat.player

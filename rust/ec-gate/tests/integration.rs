@@ -157,11 +157,8 @@ fn full_pipeline_first_time_join_with_invite_code() {
     let config = gate_config_command(keys_dir);
     let provisioned =
         provision_key(&config, &seat, ssh_pubkey, &game_dir).expect("provision_key should succeed");
-    assert!(
-        provisioned
-            .entry
-            .contains("--player-record-index-1-based 1")
-    );
+    assert!(provisioned.entry.contains("exec "));
+    assert!(provisioned.entry.contains("--player 1"));
     assert!(provisioned.entry.contains(ssh_pubkey));
 
     // Verify key file exists.

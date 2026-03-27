@@ -140,9 +140,11 @@ fn command_key_entry_has_command_restriction() {
         "entry should contain command= restriction"
     );
     assert!(
-        provisioned
-            .entry
-            .contains("--player-record-index-1-based 2"),
+        provisioned.entry.contains("exec "),
+        "entry should exec ec-game directly"
+    );
+    assert!(
+        provisioned.entry.contains("--player 2"),
         "entry should contain the seat index"
     );
     assert!(

@@ -375,18 +375,34 @@ where
     Ok(rt.block_on(fut))
 }
 
-/// Print the `SessionOutcome` and convert to a Result.
-fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Error>> {
+#[doc(hidden)]
+pub fn successful_session_handoff_lines(outcome: &SessionOutcome) -> Option<Vec<String>> {
     match outcome {
         SessionOutcome::Done {
             exit_code: 0,
             notice,
         } => {
-            if let Some(msg) = notice {
-                eprintln!("{msg}");
+            let mut lines = Vec::new();
+            if let Some(msg) = notice.as_deref().filter(|msg| !msg.trim().is_empty()) {
+                lines.push(msg.to_string());
             }
-            Ok(())
+            lines.push("For Griffith and glory.".to_string());
+            Some(lines)
         }
+        _ => None,
+    }
+}
+
+/// Print the `SessionOutcome` and convert to a Result.
+fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(lines) = successful_session_handoff_lines(&outcome) {
+        for line in lines {
+            eprintln!("{line}");
+        }
+        return Ok(());
+    }
+
+    match outcome {
         SessionOutcome::Done { exit_code, notice } => {
             if let Some(msg) = notice {
                 eprintln!("{msg}");

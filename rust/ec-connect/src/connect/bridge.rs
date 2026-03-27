@@ -21,8 +21,9 @@
 //! empty (old gate version), any key is accepted.
 
 use std::env;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
 
 use crossterm::cursor::Show;
@@ -35,7 +36,8 @@ use russh::keys::ssh_key::{
 };
 use russh::keys::{PrivateKey, PrivateKeyWithHashAlg};
 use russh::{ChannelMsg, Disconnect, client};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc;
 use tokio::time::timeout;
 
 use crate::connect::handshake::SessionReadyPayload;
@@ -46,6 +48,43 @@ use crate::connect::ssh_key::EphemeralKeypair;
 /// Error type for bridge operations.
 pub type BridgeError = Box<dyn std::error::Error + Send + Sync>;
 const POST_EXIT_DRAIN_GRACE: Duration = Duration::from_millis(150);
+const SESSION_DISCONNECT_GRACE: Duration = Duration::from_secs(1);
+
+fn terminal_channel_event(msg: &ChannelMsg) -> bool {
+    matches!(msg, ChannelMsg::Eof | ChannelMsg::Close)
+}
+
+enum StdinEvent {
+    Data(Vec<u8>),
+    Eof,
+    Error(String),
+}
+
+fn spawn_stdin_pump() -> mpsc::UnboundedReceiver<StdinEvent> {
+    let (tx, rx) = mpsc::unbounded_channel();
+    thread::spawn(move || {
+        let mut stdin = std::io::stdin();
+        let mut buf = [0u8; 4096];
+        loop {
+            match stdin.read(&mut buf) {
+                Ok(0) => {
+                    let _ = tx.send(StdinEvent::Eof);
+                    break;
+                }
+                Ok(n) => {
+                    if tx.send(StdinEvent::Data(buf[..n].to_vec())).is_err() {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    let _ = tx.send(StdinEvent::Error(err.to_string()));
+                    break;
+                }
+            }
+        }
+    });
+    rx
+}
 
 /// Connect to the SSH server described by `payload`, authenticate with
 /// `keypair`, run the forced command (empty exec string), and bridge
@@ -107,9 +146,14 @@ pub async fn run_bridge(
     let _ = disable_raw_mode();
     let _ = restore_local_terminal_after_bridge();
 
-    session
-        .disconnect(Disconnect::ByApplication, "", "English")
-        .await?;
+    match timeout(
+        SESSION_DISCONNECT_GRACE,
+        session.disconnect(Disconnect::ByApplication, "", "English"),
+    )
+    .await
+    {
+        Ok(Ok(())) | Ok(Err(_)) | Err(_) => {}
+    }
 
     exit_code
 }
@@ -118,9 +162,8 @@ pub async fn run_bridge(
 
 /// Drive stdin → channel and channel → stdout until the remote side closes.
 async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, BridgeError> {
-    let mut stdin = tokio::io::stdin();
+    let mut stdin_events = spawn_stdin_pump();
     let mut stdout = tokio::io::stdout();
-    let mut buf = vec![0u8; 4096];
     let mut stdin_closed = false;
     #[allow(unused_assignments)] // set inside select! arm; false positive
     let mut exit_code: Option<u32> = None;
@@ -140,20 +183,24 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
 
         tokio::select! {
             // Forward stdin bytes to the SSH channel.
-            r = stdin.read(&mut buf), if !stdin_closed => {
-                match r {
-                    Ok(0) => {
+            maybe_event = stdin_events.recv(), if !stdin_closed => {
+                match maybe_event {
+                    Some(StdinEvent::Eof) | None => {
                         stdin_closed = true;
-                        channel.eof().await?;
+                        let _ = channel.eof().await;
                     }
-                    Ok(n) => {
-                        channel.data(std::io::Cursor::new(&buf[..n])).await?;
+                    Some(StdinEvent::Data(data)) => {
+                        channel.data(std::io::Cursor::new(&data)).await?;
                     }
-                    Err(e) => return Err(Box::new(e)),
+                    Some(StdinEvent::Error(err)) => return Err(err.into()),
                 }
             }
             // Handle events from the SSH channel.
-            Some(msg) = channel.wait() => {
+            msg = channel.wait() => {
+                let Some(msg) = msg else {
+                    exit_code.get_or_insert(0);
+                    break;
+                };
                 match msg {
                     ChannelMsg::Data { ref data } => {
                         stdout.write_all(data).await?;
@@ -166,10 +213,13 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
                         }
                         break;
                     }
+                    msg if terminal_channel_event(&msg) => {
+                        exit_code.get_or_insert(0);
+                        break;
+                    }
                     ChannelMsg::WindowAdjusted { .. }
                     | ChannelMsg::Success
-                    | ChannelMsg::Failure
-                    | ChannelMsg::Close => {}
+                    | ChannelMsg::Failure => {}
                     _ => {}
                 }
             }
@@ -250,7 +300,8 @@ impl client::Handler for FingerprintHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::write_bridge_cleanup_sequence;
+    use super::{terminal_channel_event, write_bridge_cleanup_sequence};
+    use russh::ChannelMsg;
 
     #[test]
     fn bridge_cleanup_restores_cursor_and_ends_on_new_line() {
@@ -264,6 +315,13 @@ mod tests {
             actual.starts_with(b"\x1b["),
             "cleanup should emit terminal reset/show escapes before the newline: {actual:?}"
         );
+    }
+
+    #[test]
+    fn close_events_are_terminal_conditions() {
+        assert!(terminal_channel_event(&ChannelMsg::Eof));
+        assert!(terminal_channel_event(&ChannelMsg::Close));
+        assert!(!terminal_channel_event(&ChannelMsg::Success));
     }
 }
 

@@ -29,7 +29,7 @@ dirs = "5"
 rpassword = "7"
 
 # Async runtime (needed for relay handshake)
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "signal", "sync"] }
 
 # SSH client: ephemeral keypair auth, PTY channel I/O
 russh = "0.58.1"
