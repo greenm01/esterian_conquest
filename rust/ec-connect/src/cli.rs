@@ -4,7 +4,7 @@ use nostr_sdk::Keys;
 
 use crate::config::{load_config, ConnectConfig};
 use crate::connect::resolve::{resolve_invite, resolve_server};
-use crate::connect::session::{run_session, DisambigMode, SessionOutcome};
+use crate::connect::session::{resolve_gate_npub, run_session, DisambigMode, SessionOutcome};
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
@@ -202,10 +202,6 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
 // ── Direct mode ───────────────────────────────────────────────────────────────
 
 fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
-    let gate_npub = opts
-        .gate_npub
-        .ok_or("direct mode requires --gate <npub> (the server's Nostr public key)")?;
-
     // Load config (optional).
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
 
@@ -224,6 +220,11 @@ fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error:
 
     // Inject cached game_id hint if we have exactly one game for this server.
     inject_cached_game_id(&mut target, &npub);
+
+    // Resolve gate npub: explicit --gate takes priority, then cache lookup.
+    let cache = crate::cache::load_cache().unwrap_or_else(|_| crate::cache::GameCache::empty());
+    let gate_npub = resolve_gate_npub(&target.server_host, &cache, opts.gate_npub.as_deref())
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
     eprintln!("Connecting...");
 
@@ -356,6 +357,10 @@ fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Err
         }
         SessionOutcome::Error(msg) => Err(msg.into()),
         SessionOutcome::Timeout => Err("handshake timed out (no response from server)".into()),
+        SessionOutcome::NeedsDisambiguation { .. } => {
+            // Should never happen in CLI mode (DisambigMode::Prompt handles this inline).
+            Err("unexpected disambiguation required (use picker mode)".into())
+        }
     }
 }
 

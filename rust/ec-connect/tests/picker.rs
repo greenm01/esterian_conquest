@@ -4,7 +4,8 @@
 //! `picker::render`.  No live terminal or Nostr connection is needed.
 
 use ec_connect::cache::{CachedGame, GameCache};
-use ec_connect::picker::render::{centered_rect, short_npub, truncate};
+use ec_connect::connect::handshake::GameEntry;
+use ec_connect::picker::render::{centered_rect, relative_time, short_npub, truncate};
 use ec_connect::picker::{PickerState, Screen};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ fn make_game(id: &str, last_connected: Option<&str>) -> CachedGame {
         port: 22,
         seat: 1,
         npub: "npub1test".to_string(),
+        gate_npub: String::new(),
         joined: "2026-03-01T10:00:00Z".to_string(),
         last_connected: last_connected.map(|s| s.to_string()),
     }
@@ -117,6 +119,33 @@ fn screen_enum_eq() {
     assert_eq!(Screen::JoinPrompt, Screen::JoinPrompt);
     assert_eq!(Screen::IdentityOverlay, Screen::IdentityOverlay);
     assert_ne!(Screen::GameList, Screen::JoinPrompt);
+}
+
+#[test]
+fn screen_game_select_eq_and_ne() {
+    let g = GameEntry {
+        game_id: "g1".to_string(),
+        name: "Game One".to_string(),
+        seat: 1,
+    };
+    let s1 = Screen::GameSelect {
+        games: vec![g.clone()],
+        selected: 0,
+        server_host: "play.example.com".to_string(),
+        server_port: 22,
+        relay_url: "wss://play.example.com:7777".to_string(),
+        gate_npub: "npub1gate".to_string(),
+    };
+    let s2 = Screen::GameSelect {
+        games: vec![g],
+        selected: 0,
+        server_host: "play.example.com".to_string(),
+        server_port: 22,
+        relay_url: "wss://play.example.com:7777".to_string(),
+        gate_npub: "npub1gate".to_string(),
+    };
+    assert_eq!(s1, s2);
+    assert_ne!(s2, Screen::GameList);
 }
 
 // ── truncate ──────────────────────────────────────────────────────────────────
@@ -250,4 +279,52 @@ fn sorted_no_last_connected_appears_after_connected() {
 fn sorted_empty_cache_returns_empty() {
     let cache = GameCache::empty();
     assert!(cache.sorted().is_empty());
+}
+
+// ── relative_time ─────────────────────────────────────────────────────────────
+
+#[test]
+fn relative_time_none_returns_dash() {
+    assert_eq!(relative_time(None), "—");
+}
+
+#[test]
+fn relative_time_far_past_returns_days_ago() {
+    // 2020-01-01T00:00:00Z is well in the past (>1000 days before 2026).
+    let result = relative_time(Some("2020-01-01T00:00:00Z"));
+    assert!(
+        result.ends_with("days ago"),
+        "expected 'N days ago', got: {result}"
+    );
+}
+
+#[test]
+fn relative_time_very_old_is_many_days() {
+    // 2000-01-01T00:00:00Z — roughly 26 years before 2026.
+    let result = relative_time(Some("2000-01-01T00:00:00Z"));
+    assert!(
+        result.ends_with("days ago"),
+        "expected 'N days ago', got: {result}"
+    );
+    // The number of days should be >= 9000.
+    let days: u64 = result
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+        .expect("numeric days prefix");
+    assert!(days >= 9000, "expected >= 9000 days, got {days}");
+}
+
+#[test]
+fn relative_time_invalid_returns_connected_fallback() {
+    // An unparseable string should fall back to "connected".
+    let result = relative_time(Some("not-a-timestamp"));
+    assert_eq!(result, "connected");
+}
+
+#[test]
+fn relative_time_future_timestamp_returns_connected_fallback() {
+    // A future date should produce checked_sub None → "connected".
+    let result = relative_time(Some("2099-12-31T23:59:59Z"));
+    assert_eq!(result, "connected");
 }

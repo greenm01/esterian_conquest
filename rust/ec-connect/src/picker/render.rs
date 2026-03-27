@@ -7,6 +7,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
 use super::{PickerState, Screen};
+use crate::connect::handshake::GameEntry;
 
 /// Draw the full picker UI into `frame`.
 pub fn draw(frame: &mut Frame, state: &PickerState) {
@@ -27,8 +28,16 @@ pub fn draw(frame: &mut Frame, state: &PickerState) {
     draw_footer(frame, chunks[2], state);
 
     // Overlay on top of everything if needed.
-    if state.screen == Screen::IdentityOverlay {
-        draw_identity_overlay(frame, area, state);
+    match &state.screen {
+        super::Screen::IdentityOverlay => {
+            draw_identity_overlay(frame, area, state);
+        }
+        super::Screen::GameSelect {
+            games, selected, ..
+        } => {
+            draw_game_select_overlay(frame, area, games, *selected);
+        }
+        _ => {}
     }
 }
 
@@ -158,16 +167,103 @@ pub fn truncate(s: &str, max: usize) -> String {
 
 /// Return a relative time string for an ISO-8601 timestamp (or "—" if None).
 ///
-/// This is a minimal approximation that avoids pulling in a time library:
-/// it compares the timestamp string against the current system time obtained
-/// from `SystemTime`.
-pub fn relative_time(ts: Option<&str>) -> &'static str {
-    // Full relative-time formatting is deferred to step 12.
-    // For now, show a static placeholder based on whether we have a timestamp.
-    match ts {
-        None => "—",
-        Some(_) => "connected",
+/// Parses timestamps of the form `YYYY-MM-DDThh:mm:ssZ` using only string
+/// slicing (no external time library).  Computes elapsed seconds against
+/// `SystemTime::now()` and returns a human-readable label such as:
+/// "just now", "3 min ago", "2 hours ago", "5 days ago".
+pub fn relative_time(ts: Option<&str>) -> String {
+    let Some(ts) = ts else {
+        return "—".to_string();
+    };
+    match parse_elapsed_secs(ts) {
+        None => "connected".to_string(),
+        Some(secs) if secs < 60 => "just now".to_string(),
+        Some(secs) if secs < 3600 => format!("{} min ago", secs / 60),
+        Some(secs) if secs < 86400 => format!("{} hr ago", secs / 3600),
+        Some(secs) => format!("{} days ago", secs / 86400),
     }
+}
+
+/// Parse an ISO-8601 UTC timestamp (`YYYY-MM-DDThh:mm:ssZ`) and return the
+/// number of seconds elapsed since that moment, or `None` if the timestamp
+/// cannot be parsed or is in the future.
+fn parse_elapsed_secs(ts: &str) -> Option<u64> {
+    // Accept both `Z` and `+00:00` suffixes by requiring at least 19 chars
+    // for the `YYYY-MM-DDThh:mm:ss` portion.
+    if ts.len() < 19 {
+        return None;
+    }
+    let year: u64 = ts[0..4].parse().ok()?;
+    let month: u64 = ts[5..7].parse().ok()?;
+    let day: u64 = ts[8..10].parse().ok()?;
+    let hour: u64 = ts[11..13].parse().ok()?;
+    let min: u64 = ts[14..16].parse().ok()?;
+    let sec: u64 = ts[17..19].parse().ok()?;
+
+    if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 59 {
+        return None;
+    }
+
+    // Convert the parsed timestamp to a Unix epoch count (seconds since
+    // 1970-01-01T00:00:00Z) using the proleptic Gregorian calendar formula.
+    let days_before_year = days_since_epoch_for_year(year);
+    let days_in_year = days_before_month(year, month) + (day - 1);
+    let total_days = days_before_year + days_in_year;
+    let ts_epoch: u64 = total_days * 86400 + hour * 3600 + min * 60 + sec;
+
+    // Obtain current time as Unix epoch seconds.
+    let now_epoch = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs();
+
+    now_epoch.checked_sub(ts_epoch)
+}
+
+/// Days from 1970-01-01 to the start of the given year.
+fn days_since_epoch_for_year(year: u64) -> u64 {
+    if year < 1970 {
+        return 0;
+    }
+    let y = year - 1970;
+    // Every 4 years is a leap year, except centuries, except 400-year marks.
+    // Approximate: 365*y + leap days.
+    let base = 1970u64;
+    // Count leap years in [1970, year).
+    let leaps = count_leaps(base, year);
+    y * 365 + leaps
+}
+
+/// Count leap years in the range [from, to) (exclusive upper bound).
+fn count_leaps(from: u64, to: u64) -> u64 {
+    if to <= from {
+        return 0;
+    }
+    let count_leaps_before = |y: u64| -> u64 {
+        if y == 0 {
+            return 0;
+        }
+        let y1 = y - 1;
+        y1 / 4 - y1 / 100 + y1 / 400
+    };
+    count_leaps_before(to) - count_leaps_before(from)
+}
+
+/// Days before the start of `month` (1-based) within `year`.
+fn days_before_month(year: u64, month: u64) -> u64 {
+    const DAYS: [u64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    let m = (month as usize).saturating_sub(1).min(11);
+    let base = DAYS[m];
+    // Add one if month > February and year is a leap year.
+    if month > 2 && is_leap(year) {
+        base + 1
+    } else {
+        base
+    }
+}
+
+fn is_leap(year: u64) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
 /// Shorten an npub to the first 16 and last 8 characters.
@@ -187,4 +283,51 @@ pub fn centered_rect(percent_x: u16, height: u16, r: Rect) -> Rect {
     let x = r.x + (r.width.saturating_sub(popup_width)) / 2;
     let y = r.y + (r.height.saturating_sub(height)) / 2;
     Rect::new(x, y, popup_width.min(r.width), height.min(r.height))
+}
+
+// ── Game-select overlay ───────────────────────────────────────────────────────
+
+/// Draw the game-selection disambiguation overlay.
+///
+/// Shows a pop-up listing the candidate games returned by the gate when
+/// the player has multiple active games on the same server.  The player
+/// uses arrow keys to select one and Enter to connect.
+fn draw_game_select_overlay(frame: &mut Frame, area: Rect, games: &[GameEntry], selected: usize) {
+    // Height: title row + one row per game + footer hint row, capped at 20.
+    let height = (games.len() as u16 + 3).min(20).max(5);
+    let popup = centered_rect(70, height, area);
+    frame.render_widget(Clear, popup);
+
+    let rows: Vec<Line> = games
+        .iter()
+        .enumerate()
+        .map(|(i, g)| {
+            let cursor = if i == selected { "> " } else { "  " };
+            let line = format!("{}{} (Seat {})", cursor, g.name, g.seat);
+            let style = if i == selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            Line::styled(line, style)
+        })
+        .collect();
+
+    let mut all_lines = rows;
+    all_lines.push(Line::from(Span::styled(
+        " [↑↓] Select   [Enter] Connect   [Esc] Cancel",
+        Style::default().fg(Color::DarkGray),
+    )));
+
+    let para = Paragraph::new(all_lines)
+        .block(
+            Block::default()
+                .title(" Multiple Games — Select One ")
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::Yellow)),
+        )
+        .alignment(Alignment::Left);
+    frame.render_widget(para, popup);
 }

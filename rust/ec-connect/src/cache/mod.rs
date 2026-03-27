@@ -6,7 +6,7 @@
 //!
 //! Format:
 //! ```kdl
-//! game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+//! game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 //! game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." joined="2026-03-27T10:00:00Z"
 //! ```
 //!
@@ -33,6 +33,9 @@ pub struct CachedGame {
     pub seat: u32,
     /// The identity (npub) that joined this game.
     pub npub: String,
+    /// The gate's Nostr public key (bech32).  Empty string if not known
+    /// (e.g. entries written by older versions of ec-connect).
+    pub gate_npub: String,
     /// ISO-8601 timestamp of first join.
     pub joined: String,
     /// ISO-8601 timestamp of most recent connection, if any.
@@ -67,6 +70,18 @@ impl GameCache {
         if let Some(g) = self.games.iter_mut().find(|g| g.id == id) {
             g.last_connected = Some(timestamp.to_string());
         }
+    }
+
+    /// Return the gate npub for the given server hostname, if one has been
+    /// cached from a previous successful session.
+    ///
+    /// Returns `None` when no game entry for this server has a non-empty
+    /// `gate_npub` field (e.g. first-time connect, or old cache entries).
+    pub fn gate_npub_for_server(&self, server_host: &str) -> Option<&str> {
+        self.games
+            .iter()
+            .find(|g| g.server == server_host && !g.gate_npub.is_empty())
+            .map(|g| g.gate_npub.as_str())
     }
 
     /// Return games sorted by `last-connected` descending, with games that

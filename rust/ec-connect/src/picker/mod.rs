@@ -27,6 +27,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use crate::cache::{load_cache, GameCache};
+use crate::connect::handshake::GameEntry;
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{run_session, DisambigMode, SessionOutcome};
 
@@ -41,6 +42,19 @@ pub enum Screen {
     JoinPrompt,
     /// Identity info overlay.
     IdentityOverlay,
+    /// Disambiguation sub-screen: the gate returned multiple games;
+    /// the player must pick one before the session can start.
+    GameSelect {
+        /// The list of candidate games returned by the gate.
+        games: Vec<GameEntry>,
+        /// The currently highlighted row.
+        selected: usize,
+        /// The pending server/relay coordinates to retry with.
+        server_host: String,
+        server_port: u16,
+        relay_url: String,
+        gate_npub: String,
+    },
 }
 
 /// Full picker application state.
@@ -179,6 +193,9 @@ fn run_loop(
                 // Any key dismisses the overlay.
                 state.screen = Screen::GameList;
             }
+            Screen::GameSelect { .. } => {
+                handle_game_select_key(key.code, state, keys, rt)?;
+            }
         }
 
         if state.quit {
@@ -269,6 +286,92 @@ fn handle_join_prompt_key(
     Ok(())
 }
 
+/// Handle key presses on the game-selection disambiguation sub-screen.
+fn handle_game_select_key(
+    code: crossterm::event::KeyCode,
+    state: &mut PickerState,
+    keys: &Keys,
+    rt: &tokio::runtime::Runtime,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::connect::resolve::ResolvedTarget;
+    use crossterm::event::KeyCode;
+
+    let Screen::GameSelect {
+        ref games,
+        ref mut selected,
+        ref server_host,
+        server_port,
+        ref relay_url,
+        ref gate_npub,
+    } = state.screen
+    else {
+        return Ok(());
+    };
+    let game_count = games.len();
+
+    match code {
+        KeyCode::Esc => {
+            state.screen = Screen::GameList;
+        }
+        KeyCode::Up => {
+            if *selected > 0 {
+                *selected -= 1;
+            }
+        }
+        KeyCode::Down => {
+            if game_count > 0 && *selected < game_count - 1 {
+                *selected += 1;
+            }
+        }
+        KeyCode::Enter => {
+            if game_count == 0 {
+                state.screen = Screen::GameList;
+                return Ok(());
+            }
+            // Clone all data out of the screen state before modifying `state.screen`.
+            let chosen = games[*selected].game_id.clone();
+            let target = ResolvedTarget {
+                server_host: server_host.clone(),
+                server_port,
+                relay_url: relay_url.clone(),
+                invite_code: None,
+                game_id: Some(chosen),
+            };
+            let gate = gate_npub.clone();
+            let npub = state.npub.clone();
+
+            // Switch back to game list before running the session.
+            state.screen = Screen::GameList;
+
+            let outcome = rt.block_on(run_session(
+                keys,
+                target,
+                &npub,
+                &gate,
+                DisambigMode::Prompt,
+            ));
+
+            state.refresh_cache();
+
+            match outcome {
+                SessionOutcome::Done { .. } => {}
+                SessionOutcome::Error(msg) => {
+                    state.status_msg = Some(format!("Error: {msg}"));
+                }
+                SessionOutcome::Timeout => {
+                    state.status_msg = Some("Handshake timed out.".into());
+                }
+                SessionOutcome::NeedsDisambiguation { .. } => {
+                    // Should not happen since game_id was supplied; treat as error.
+                    state.status_msg = Some("Unexpected disambiguation error.".into());
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 // ── Session actions ───────────────────────────────────────────────────────────
 
 /// Connect to the currently selected game.
@@ -292,12 +395,22 @@ fn connect_selected(
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
     target.game_id = Some(game.id.clone());
 
+    // Prefer the per-game cached gate_npub; fall back to the global override.
+    // Materialize as String so the borrow of `game` (from sorted) is dropped.
+    let effective_gate: String = if !game.gate_npub.is_empty() {
+        game.gate_npub.clone()
+    } else {
+        gate_npub.to_string()
+    };
+    // Drop the borrow of state.cache before calling refresh_cache.
+    drop(sorted);
+
     let outcome = rt.block_on(run_session(
         keys,
-        target,
+        target.clone(),
         &state.npub,
-        gate_npub,
-        DisambigMode::Prompt,
+        &effective_gate,
+        DisambigMode::Picker,
     ));
 
     state.refresh_cache();
@@ -309,6 +422,17 @@ fn connect_selected(
         }
         SessionOutcome::Timeout => {
             state.status_msg = Some("Handshake timed out.".into());
+        }
+        SessionOutcome::NeedsDisambiguation { games } => {
+            // Switch to the game-selection sub-screen.
+            state.screen = Screen::GameSelect {
+                games,
+                selected: 0,
+                server_host: target.server_host.clone(),
+                server_port: target.server_port,
+                relay_url: target.relay_url.clone(),
+                gate_npub: effective_gate,
+            };
         }
     }
 
@@ -337,10 +461,10 @@ fn join_with_code(
 
     let outcome = rt.block_on(run_session(
         keys,
-        target,
+        target.clone(),
         &state.npub,
         gate_npub,
-        DisambigMode::Prompt,
+        DisambigMode::Picker,
     ));
 
     state.refresh_cache();
@@ -354,6 +478,16 @@ fn join_with_code(
         }
         SessionOutcome::Timeout => {
             state.status_msg = Some("Handshake timed out.".into());
+        }
+        SessionOutcome::NeedsDisambiguation { games } => {
+            state.screen = Screen::GameSelect {
+                games,
+                selected: 0,
+                server_host: target.server_host.clone(),
+                server_port: target.server_port,
+                relay_url: target.relay_url.clone(),
+                gate_npub: gate_npub.to_string(),
+            };
         }
     }
 

@@ -58,8 +58,10 @@ pub struct ResolvedTarget {
 
 /// Parse an invite code string.
 ///
-/// Returns `Err` if the code is empty or structurally invalid (e.g. the port
-/// suffix is not a valid `u16`).
+/// Returns `Err` if the code is empty or structurally invalid.  The words
+/// portion must match `^[a-z]+-[a-z]+$` (exactly two lowercase-alpha runs
+/// separated by a single hyphen).  Input is normalized to lowercase before
+/// validation.
 pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
     let code = code.trim();
     if code.is_empty() {
@@ -67,10 +69,11 @@ pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
     }
 
     if let Some(at) = code.find('@') {
-        let words = code[..at].to_string();
-        if words.is_empty() {
+        let raw_words = &code[..at];
+        if raw_words.is_empty() {
             return Err("invite code words must not be empty".into());
         }
+        let words = validate_and_normalize_words(raw_words)?;
         let host_part = &code[at + 1..];
         let (host, port) = split_host_port(host_part)?;
         Ok(ParsedInviteCode {
@@ -78,11 +81,40 @@ pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
             server: Some((host, port)),
         })
     } else {
+        let words = validate_and_normalize_words(code)?;
         Ok(ParsedInviteCode {
-            words: code.to_string(),
+            words,
             server: None,
         })
     }
+}
+
+/// Validate that `s` is a `word-word` invite code slug (exactly two runs of
+/// one or more ASCII lowercase letters joined by a single hyphen), normalize
+/// to lowercase, and return the canonical form.
+fn validate_and_normalize_words(s: &str) -> Result<String, String> {
+    let lower = s.to_lowercase();
+    // Must contain exactly one hyphen.
+    let hyphen_count = lower.chars().filter(|&c| c == '-').count();
+    if hyphen_count != 1 {
+        return Err(format!(
+            "invite code must be two words joined by a single hyphen (got '{s}')"
+        ));
+    }
+    let idx = lower.find('-').unwrap();
+    let left = &lower[..idx];
+    let right = &lower[idx + 1..];
+    if left.is_empty() || right.is_empty() {
+        return Err(format!("invite code words must not be empty (got '{s}')"));
+    }
+    if !left.chars().all(|c| c.is_ascii_lowercase())
+        || !right.chars().all(|c| c.is_ascii_lowercase())
+    {
+        return Err(format!(
+            "invite code words must contain only lowercase letters (got '{s}')"
+        ));
+    }
+    Ok(lower)
 }
 
 /// Resolve an invite code to a [`ResolvedTarget`].

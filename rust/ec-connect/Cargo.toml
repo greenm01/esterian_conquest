@@ -29,19 +29,23 @@ dirs = "5"
 rpassword = "7"
 
 # Async runtime (needed for relay handshake)
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "signal"] }
 
-# SSH ephemeral keypair generation
+# SSH client: ephemeral keypair auth, PTY channel I/O
+russh = "0.58.1"
+
+# SSH keypair generation using russh's key type
+# (ed25519-dalek is transitively provided by russh)
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 
 # Base64 encoding for OpenSSH public key wire format
 base64 = "0.22"
 
-# TUI picker screen
-# ratatui = "..."
+# Terminal raw mode + resize events
+crossterm = "0.29"
 
-# Terminal raw mode + resize
-# crossterm = "0.28"
+# TUI picker screen
+ratatui = "0.29"
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }

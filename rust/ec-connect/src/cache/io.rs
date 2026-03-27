@@ -103,6 +103,11 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
             .ok_or("game node missing required `seat` property")?;
 
         let npub = req_str(node, "npub", "game")?;
+        let gate_npub = node
+            .get("gate-npub")
+            .and_then(|v| v.as_string())
+            .map(str::to_string)
+            .unwrap_or_default();
         let joined = req_str(node, "joined", "game")?;
         let last_connected = node
             .get("last-connected")
@@ -116,6 +121,7 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
             port,
             seat,
             npub,
+            gate_npub,
             joined,
             last_connected,
         });
@@ -138,6 +144,9 @@ pub fn render_cache(cache: &GameCache) -> String {
             kdl_escape(&g.npub),
             kdl_escape(&g.joined),
         ));
+        if !g.gate_npub.is_empty() {
+            out.push_str(&format!(" gate-npub=\"{}\"", kdl_escape(&g.gate_npub)));
+        }
         if let Some(lc) = &g.last_connected {
             out.push_str(&format!(" last-connected=\"{}\"", kdl_escape(lc)));
         }

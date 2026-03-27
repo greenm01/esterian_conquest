@@ -15,7 +15,7 @@ fn parse_empty_string_returns_empty_cache() {
     assert!(cache.games.is_empty());
 }
 
-const SAMPLE_CACHE: &str = r#"game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+const SAMPLE_CACHE: &str = r#"game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa" gate-npub="npub1gate" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1bbb" joined="2026-03-27T10:00:00Z"
 "#;
 
@@ -31,12 +31,14 @@ fn parse_sample_cache() {
     assert_eq!(g0.port, 22);
     assert_eq!(g0.seat, 2);
     assert_eq!(g0.npub, "npub1aaa");
+    assert_eq!(g0.gate_npub, "npub1gate");
     assert_eq!(g0.joined, "2026-03-26T12:00:00Z");
     assert_eq!(g0.last_connected.as_deref(), Some("2026-03-28T19:30:00Z"));
 
     let g1 = &cache.games[1];
     assert_eq!(g1.id, "saturday-showdown");
     assert_eq!(g1.seat, 5);
+    assert_eq!(g1.gate_npub, ""); // no gate-npub in KDL → empty string
     assert!(g1.last_connected.is_none());
 }
 
@@ -99,6 +101,92 @@ fn render_roundtrip() {
     assert!(cache2.games[1].last_connected.is_none());
 }
 
+#[test]
+fn render_includes_gate_npub_when_set() {
+    let mut cache = GameCache::empty();
+    cache.games.push(CachedGame {
+        id: "g".to_string(),
+        name: "G".to_string(),
+        server: "s.example.com".to_string(),
+        port: 22,
+        seat: 1,
+        npub: "npub1p".to_string(),
+        gate_npub: "npub1gate".to_string(),
+        joined: "2026-01-01T00:00:00Z".to_string(),
+        last_connected: None,
+    });
+    let rendered = render_cache(&cache);
+    assert!(rendered.contains("gate-npub=\"npub1gate\""));
+}
+
+#[test]
+fn render_omits_gate_npub_when_empty() {
+    let mut cache = GameCache::empty();
+    cache.games.push(CachedGame {
+        id: "g".to_string(),
+        name: "G".to_string(),
+        server: "s.example.com".to_string(),
+        port: 22,
+        seat: 1,
+        npub: "npub1p".to_string(),
+        gate_npub: String::new(),
+        joined: "2026-01-01T00:00:00Z".to_string(),
+        last_connected: None,
+    });
+    let rendered = render_cache(&cache);
+    assert!(!rendered.contains("gate-npub"));
+}
+
+#[test]
+fn gate_npub_round_trip() {
+    let kdl = r#"game id="g" name="G" server="s.example.com" port=22 seat=1 npub="npub1p" gate-npub="npub1gate" joined="2026-01-01T00:00:00Z"
+"#;
+    let cache = parse_cache_str(kdl).unwrap();
+    assert_eq!(cache.games[0].gate_npub, "npub1gate");
+    let rendered = render_cache(&cache);
+    let cache2 = parse_cache_str(&rendered).unwrap();
+    assert_eq!(cache2.games[0].gate_npub, "npub1gate");
+}
+
+#[test]
+fn gate_npub_for_server_returns_known_npub() {
+    let mut cache = GameCache::empty();
+    cache.games.push(CachedGame {
+        id: "g".to_string(),
+        name: "G".to_string(),
+        server: "play.example.com".to_string(),
+        port: 22,
+        seat: 1,
+        npub: "npub1p".to_string(),
+        gate_npub: "npub1gate".to_string(),
+        joined: "2026-01-01T00:00:00Z".to_string(),
+        last_connected: None,
+    });
+    assert_eq!(
+        cache.gate_npub_for_server("play.example.com"),
+        Some("npub1gate")
+    );
+    assert_eq!(cache.gate_npub_for_server("other.example.com"), None);
+}
+
+#[test]
+fn gate_npub_for_server_ignores_empty_gate_npub() {
+    let mut cache = GameCache::empty();
+    cache.games.push(CachedGame {
+        id: "g".to_string(),
+        name: "G".to_string(),
+        server: "play.example.com".to_string(),
+        port: 22,
+        seat: 1,
+        npub: "npub1p".to_string(),
+        gate_npub: String::new(), // old-format entry
+        joined: "2026-01-01T00:00:00Z".to_string(),
+        last_connected: None,
+    });
+    // Empty gate_npub should not satisfy a lookup.
+    assert_eq!(cache.gate_npub_for_server("play.example.com"), None);
+}
+
 // ---------------------------------------------------------------------------
 // GameCache helpers
 // ---------------------------------------------------------------------------
@@ -111,6 +199,7 @@ fn make_game(id: &str, joined: &str, last: Option<&str>) -> CachedGame {
         port: 22,
         seat: 1,
         npub: "npub1test".to_string(),
+        gate_npub: String::new(),
         joined: joined.to_string(),
         last_connected: last.map(str::to_string),
     }

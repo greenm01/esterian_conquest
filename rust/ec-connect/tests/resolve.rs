@@ -297,3 +297,58 @@ fn resolve_server_derived_relay_for_localhost() {
     let t = resolve_server("localhost:2222", &config).unwrap();
     assert_eq!(t.relay_url, "ws://localhost:7777");
 }
+
+// ── parse_invite_code strict format validation ────────────────────────────────
+
+#[test]
+fn parse_uppercase_words_normalized_to_lowercase() {
+    let p = parse_invite_code("VELVET-MOUNTAIN").unwrap();
+    assert_eq!(p.words, "velvet-mountain");
+}
+
+#[test]
+fn parse_mixed_case_words_normalized() {
+    let p = parse_invite_code("Velvet-Mountain").unwrap();
+    assert_eq!(p.words, "velvet-mountain");
+}
+
+#[test]
+fn parse_no_hyphen_is_err() {
+    assert!(parse_invite_code("velvetmountain").is_err());
+}
+
+#[test]
+fn parse_three_words_is_err() {
+    assert!(parse_invite_code("velvet-mountain-peak").is_err());
+}
+
+#[test]
+fn parse_hyphen_only_is_err() {
+    assert!(parse_invite_code("-").is_err());
+}
+
+#[test]
+fn parse_leading_hyphen_is_err() {
+    assert!(parse_invite_code("-mountain").is_err());
+}
+
+#[test]
+fn parse_trailing_hyphen_is_err() {
+    assert!(parse_invite_code("velvet-").is_err());
+}
+
+#[test]
+fn parse_digits_in_words_is_err() {
+    assert!(parse_invite_code("velvet1-mountain").is_err());
+    assert!(parse_invite_code("velvet-mountain2").is_err());
+}
+
+#[test]
+fn parse_uppercase_with_host_normalized() {
+    let p = parse_invite_code("RED-FOX@play.example.com").unwrap();
+    assert_eq!(p.words, "red-fox");
+    assert_eq!(
+        p.server,
+        Some(("play.example.com".to_string(), DEFAULT_SSH_PORT))
+    );
+}
