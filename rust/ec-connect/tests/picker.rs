@@ -5,7 +5,7 @@
 
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
-use ec_connect::picker::render::{centered_rect, relative_time, short_npub, truncate};
+use ec_connect::picker::render::{Rect, centered_rect, relative_time, short_npub, truncate};
 use ec_connect::picker::{PickerState, Screen};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -218,7 +218,6 @@ fn short_npub_long_string_truncated() {
 
 #[test]
 fn centered_rect_fits_inside_parent() {
-    use ratatui::layout::Rect;
     let parent = Rect::new(0, 0, 100, 30);
     let popup = centered_rect(60, 5, parent);
     assert!(popup.x >= parent.x);
@@ -229,7 +228,6 @@ fn centered_rect_fits_inside_parent() {
 
 #[test]
 fn centered_rect_width_is_approximately_percent() {
-    use ratatui::layout::Rect;
     let parent = Rect::new(0, 0, 100, 30);
     let popup = centered_rect(60, 5, parent);
     assert_eq!(popup.width, 60); // 100 * 60 / 100 = 60
@@ -237,7 +235,6 @@ fn centered_rect_width_is_approximately_percent() {
 
 #[test]
 fn centered_rect_height_matches_request() {
-    use ratatui::layout::Rect;
     let parent = Rect::new(0, 0, 100, 30);
     let popup = centered_rect(60, 5, parent);
     assert_eq!(popup.height, 5);
@@ -245,7 +242,6 @@ fn centered_rect_height_matches_request() {
 
 #[test]
 fn centered_rect_clamped_when_larger_than_parent() {
-    use ratatui::layout::Rect;
     let parent = Rect::new(0, 0, 10, 4);
     // Request 200% width and 20 rows — both should be clamped.
     let popup = centered_rect(200, 20, parent);

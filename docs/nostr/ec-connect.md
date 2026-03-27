@@ -2,7 +2,7 @@
 
 `ec-connect` is the player-side client binary. It manages Nostr identity,
 authenticates with game servers, and bridges the player's terminal to an
-SSH session running `ec-game`. It operates in two modes: a ratatui game
+SSH session running `ec-game`. It operates in two modes: a crossterm game
 picker for browsing and selecting games, and a direct mode for fast
 reconnection via bookmarks.
 
@@ -16,8 +16,11 @@ and `ec-connect` handles the identity, handshake, and terminal bridge.
 
 ```
 $ ec-connect --join velvet-mountain@play.example.com --gate npub1...
-No identity found. Creating one.
-Choose a password: ********
+[centered password window]
+This password encrypts your wallet.
+If you lose it, you will be locked out.
+No IT support.
+New password: ********
 Confirm password: ********
 Identity created.
 
@@ -33,6 +36,7 @@ relays, or key management directly.
 
 ```
 $ ec-connect friday
+[centered password window]
 Password: ********
 Connecting...
 
@@ -45,10 +49,12 @@ the game session ends, `ec-connect` exits.
 
 ### Picker Mode
 
-When run with no arguments, `ec-connect` shows a ratatui game picker:
+When run with no arguments, `ec-connect` first shows a centered masked
+password window and then opens the game picker:
 
 ```
 $ ec-connect
+[centered password window]
 Password: ********
 
  ESTERIAN CONQUEST ── CONNECT
@@ -57,16 +63,16 @@ Password: ********
  > Friday Night EC     play.example.com    Seat 2
    Saturday Showdown   war.example.com     Seat 5
 
- ─────────────────────────────────────────────────
- [J] Join new game   [I] Identity info   [Q] Quit
+ COMMANDS <- J K ^U ^D <N> <I> <M> <Q> ->
 ```
 
-Arrow keys select a game. Enter connects. When the game session ends, the
-player returns to the picker and can connect to another game or quit.
+`J` and `K` move the selection, with arrow keys accepted as aliases. `Enter`
+connects. When the game session ends, the player returns to the picker and
+can connect to another game or quit.
 
 ### Join Flow from Picker
 
-Pressing `J` in the picker opens an inline invite prompt:
+Pressing `N` in the picker opens an inline invite prompt:
 
 ```
  Enter invite code: velvet-mountain@play.example.com
@@ -89,6 +95,7 @@ Enter your nsec: nsec1...
 Identity imported.
 
 $ ec-connect --join copper-sunrise@play.example.com --gate npub1...
+[centered password window]
 Password: ********
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
@@ -99,6 +106,10 @@ Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
 Identity operations use CLI subcommands rather than TUI screens, since
 they are infrequent and work better as one-shot commands.
+
+On first wallet creation from `ec-connect id new` or `ec-connect id import`,
+the CLI prints the same left-justified wallet-loss warning before asking for
+`New password:` and `Confirm password:` with masked input.
 
 ### Wallet
 

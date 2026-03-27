@@ -47,9 +47,7 @@ zstd = "0.13"
 
 # Terminal raw mode + resize events
 crossterm = "0.29"
-
-# TUI picker screen
-ratatui = "0.29"
+ec-ui = { path = "../ec-ui" }
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }

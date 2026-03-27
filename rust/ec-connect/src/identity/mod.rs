@@ -7,6 +7,7 @@
 
 use nostr_sdk::{Keys, ToBech32};
 
+use crate::password::{prompt_new_password_with_warning, prompt_password, wallet_exists};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
 use crate::wallet::{Identity, IdentityType, Wallet};
 
@@ -60,8 +61,8 @@ pub fn cmd_id_list() -> Result<(), Box<dyn std::error::Error>> {
 
 /// `ec-connect id new` — generate a new keypair and add it to the wallet.
 pub fn cmd_id_new() -> Result<(), Box<dyn std::error::Error>> {
-    let password = prompt_password("Password: ")?;
     let path = wallet_path();
+    let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
 
     if wallet.identities.len() >= 10 {
@@ -94,8 +95,8 @@ pub fn cmd_id_import() -> Result<(), Box<dyn std::error::Error>> {
     let nsec = keys.secret_key().to_bech32()?;
     let npub = keys.public_key().to_bech32()?;
 
-    let password = prompt_password("Password: ")?;
     let path = wallet_path();
+    let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
 
     if wallet.identities.len() >= 10 {
@@ -156,11 +157,6 @@ pub fn cmd_id_switch(n_str: &str) -> Result<(), Box<dyn std::error::Error>> {
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/// Prompt for a password without echoing.
-fn prompt_password(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-    rpassword::prompt_password(prompt).map_err(|e| e.into())
-}
-
 /// Prompt for a plain (echoed) line of input.
 fn prompt_line(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     use std::io::{self, Write};
@@ -169,6 +165,16 @@ fn prompt_line(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut buf = String::new();
     io::stdin().read_line(&mut buf)?;
     Ok(buf)
+}
+
+fn prompt_wallet_password_for_write(
+    path: &std::path::Path,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if wallet_exists(path) {
+        prompt_password("Password: ")
+    } else {
+        prompt_new_password_with_warning()
+    }
 }
 
 /// Load the wallet from the default path, returning an error if it doesn't exist.

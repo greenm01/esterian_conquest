@@ -1,31 +1,13 @@
-//! Game picker TUI.
-//!
-//! Entry point: `run_picker(keys, npub, gate_npub_fn)`.
-//!
-//! The picker is a minimal ratatui application that shows the player's
-//! joined games and provides navigation to connect, join new games, or
-//! manage identity.  All async work (handshake, bridge) is run via a
-//! tokio runtime that is created once and reused across sessions.
-//!
-//! Module layout:
-//!   mod.rs   — public entry point and shared state types
-//!   render.rs — ratatui draw functions
-//!   event.rs  — key event handling and state transitions
-
 pub mod event;
 pub mod render;
 
-use std::io;
 use std::path::{Path, PathBuf};
 
-use crossterm::event::EnableMouseCapture;
-use crossterm::execute;
-use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
-};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, poll, read};
 use nostr_sdk::Keys;
-use ratatui::Terminal;
-use ratatui::backend::CrosstermBackend;
+
+use ec_ui::paint::render_to_stdout;
+use ec_ui::session::TerminalSession;
 
 use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
@@ -34,25 +16,14 @@ use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
 use crate::map_store::save_map_bundle;
 
-// ── State ─────────────────────────────────────────────────────────────────────
-
-/// Which screen is being shown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Screen {
-    /// Main game list.
     GameList,
-    /// Inline join-code input (bottom bar replaced with prompt).
     JoinPrompt,
-    /// Identity info overlay.
     IdentityOverlay,
-    /// Disambiguation sub-screen: the gate returned multiple games;
-    /// the player must pick one before the session can start.
     GameSelect {
-        /// The list of candidate games returned by the gate.
         games: Vec<GameEntry>,
-        /// The currently highlighted row.
         selected: usize,
-        /// The pending server/relay coordinates to retry with.
         server_host: String,
         server_port: u16,
         relay_url: String,
@@ -60,25 +31,15 @@ pub enum Screen {
     },
 }
 
-/// Full picker application state.
 pub struct PickerState {
-    /// Sorted game list (refreshed after each session).
     pub cache: GameCache,
-    /// Currently selected row index.
     pub selected: usize,
-    /// Which screen is active.
     pub screen: Screen,
-    /// Text being typed in the join prompt.
     pub join_input: String,
-    /// Status message shown at the bottom (cleared on next key).
     pub status_msg: Option<String>,
-    /// The player's active npub (for display and gate queries).
     pub npub: String,
-    /// Count of identities in the wallet (for identity overlay).
     pub identity_count: usize,
-    /// Active identity type ("local" or "imported").
     pub identity_type: String,
-    /// Whether the user has requested quit.
     pub quit: bool,
 }
 
@@ -89,7 +50,7 @@ impl PickerState {
         identity_count: usize,
         identity_type: String,
     ) -> Self {
-        PickerState {
+        Self {
             cache,
             selected: 0,
             screen: Screen::GameList,
@@ -102,7 +63,6 @@ impl PickerState {
         }
     }
 
-    /// Reload the cache from disk and clamp selection.
     pub fn refresh_cache(&mut self) {
         if let Ok(cache) = load_cache() {
             self.cache = cache;
@@ -114,15 +74,6 @@ impl PickerState {
     }
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
-
-/// Run the picker TUI.  Blocks until the user quits.
-///
-/// `keys`          — active identity's Nostr keypair  
-/// `npub`          — active identity's npub string (for display + SSH username)  
-/// `gate_npub`     — gate's Nostr public key (required for handshake)  
-/// `identity_count`— total identities in wallet  
-/// `identity_type` — "local" or "imported"  
 pub fn run_picker(
     keys: Keys,
     npub: String,
@@ -133,80 +84,51 @@ pub fn run_picker(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cache = load_cache().unwrap_or_else(|_| GameCache::empty());
     let mut state = PickerState::new(cache, npub, identity_count, identity_type);
-
-    // Set up terminal.
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // Build tokio runtime for async session calls.
+    let mut session = TerminalSession::enter_picker()?;
     let rt = tokio::runtime::Runtime::new()?;
-
-    let result = run_loop(
-        &mut terminal,
-        &mut state,
-        &keys,
-        &gate_npub,
-        &maps_root,
-        &rt,
-    );
-
-    // Restore terminal unconditionally.
-    let _ = disable_raw_mode();
-    let _ = execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        crossterm::event::DisableMouseCapture,
-    );
-    let _ = terminal.show_cursor();
-
+    let result = run_loop(&mut state, &keys, &gate_npub, &maps_root, &rt, &mut session);
+    let _ = session.restore();
     result
 }
 
-// ── Main event loop ───────────────────────────────────────────────────────────
-
 fn run_loop(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
+    session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use crossterm::event::{self, Event, KeyEventKind};
     use std::time::Duration;
 
     loop {
-        terminal.draw(|f| render::draw(f, state))?;
+        let (width, height) = crossterm::terminal::size().unwrap_or((80, 25));
+        let buffer = render::render_buffer(state, width, height);
+        render_to_stdout(&buffer)?;
 
-        if !event::poll(Duration::from_millis(250))? {
+        if !poll(Duration::from_millis(250))? {
             continue;
         }
-
-        let Event::Key(key) = event::read()? else {
+        let Event::Key(key) = read()? else {
             continue;
         };
         if key.kind != KeyEventKind::Press {
             continue;
         }
-
         state.status_msg = None;
 
         match state.screen {
             Screen::GameList => {
-                handle_game_list_key(key.code, state, keys, gate_npub, maps_root, rt)?;
+                handle_game_list_key(key, state, keys, gate_npub, maps_root, rt, session)?;
             }
             Screen::JoinPrompt => {
-                handle_join_prompt_key(key.code, state, keys, gate_npub, maps_root, rt)?;
+                handle_join_prompt_key(key, state, keys, gate_npub, maps_root, rt, session)?;
             }
             Screen::IdentityOverlay => {
-                // Any key dismisses the overlay.
                 state.screen = Screen::GameList;
             }
             Screen::GameSelect { .. } => {
-                handle_game_select_key(key.code, state, keys, maps_root, rt)?;
+                handle_game_select_key(key, state, keys, maps_root, rt, session)?;
             }
         }
 
@@ -218,50 +140,87 @@ fn run_loop(
     Ok(())
 }
 
-// ── Key handlers ──────────────────────────────────────────────────────────────
-
 fn handle_game_list_key(
-    code: crossterm::event::KeyCode,
+    key: KeyEvent,
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
+    session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use crossterm::event::KeyCode;
-
     let game_count = state.cache.sorted().len();
-
-    match code {
-        KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-            state.quit = true;
+    match key {
+        KeyEvent {
+            code: KeyCode::Char('q' | 'Q'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
         }
-        KeyCode::Char('i') | KeyCode::Char('I') => {
-            state.screen = Screen::IdentityOverlay;
-        }
-        KeyCode::Char('j') | KeyCode::Char('J') => {
+        | KeyEvent {
+            code: KeyCode::Esc, ..
+        } => state.quit = true,
+        KeyEvent {
+            code: KeyCode::Char('i' | 'I'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => state.screen = Screen::IdentityOverlay,
+        KeyEvent {
+            code: KeyCode::Char('n' | 'N'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
             state.screen = Screen::JoinPrompt;
             state.join_input.clear();
         }
-        KeyCode::Char('m') | KeyCode::Char('M') => {
-            redownload_selected_maps(state, keys, gate_npub, maps_root, rt)?;
+        KeyEvent {
+            code: KeyCode::Char('m' | 'M'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => redownload_selected_maps(state, keys, gate_npub, maps_root, rt)?,
+        KeyEvent {
+            code: KeyCode::Char('j'),
+            modifiers: KeyModifiers::NONE,
+            ..
         }
-        KeyCode::Up => {
-            if state.selected > 0 {
-                state.selected -= 1;
-            }
+        | KeyEvent {
+            code: KeyCode::Down,
+            ..
+        } => move_selection(&mut state.selected, 1, game_count),
+        KeyEvent {
+            code: KeyCode::Char('k'),
+            modifiers: KeyModifiers::NONE,
+            ..
         }
-        KeyCode::Down => {
-            if game_count > 0 && state.selected < game_count - 1 {
-                state.selected += 1;
-            }
+        | KeyEvent {
+            code: KeyCode::Up, ..
+        } => move_selection(&mut state.selected, -1, game_count),
+        KeyEvent {
+            code: KeyCode::Char('d'),
+            modifiers: KeyModifiers::CONTROL,
+            ..
         }
-        KeyCode::Enter => {
+        | KeyEvent {
+            code: KeyCode::PageDown,
+            ..
+        } => move_selection(&mut state.selected, 10, game_count),
+        KeyEvent {
+            code: KeyCode::Char('u'),
+            modifiers: KeyModifiers::CONTROL,
+            ..
+        }
+        | KeyEvent {
+            code: KeyCode::PageUp,
+            ..
+        } => move_selection(&mut state.selected, -10, game_count),
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
             if game_count == 0 {
-                state.status_msg = Some("No games yet. Press J to join a game.".into());
-                return Ok(());
+                state.status_msg = Some("No games yet. Press N to join a game.".into());
+            } else {
+                connect_selected(state, keys, gate_npub, maps_root, rt, session)?;
             }
-            connect_selected(state, keys, gate_npub, maps_root, rt)?;
         }
         _ => {}
     }
@@ -269,50 +228,66 @@ fn handle_game_list_key(
 }
 
 fn handle_join_prompt_key(
-    code: crossterm::event::KeyCode,
+    key: KeyEvent,
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
+    session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use crossterm::event::KeyCode;
-
-    match code {
-        KeyCode::Esc => {
+    match key {
+        KeyEvent {
+            code: KeyCode::Esc, ..
+        } => {
             state.screen = Screen::GameList;
             state.join_input.clear();
         }
-        KeyCode::Backspace => {
+        KeyEvent {
+            code: KeyCode::Char('q' | 'Q'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } if state.join_input.is_empty() => {
+            state.screen = Screen::GameList;
+        }
+        KeyEvent {
+            code: KeyCode::Backspace,
+            ..
+        } => {
             state.join_input.pop();
         }
-        KeyCode::Char(c) => {
-            state.join_input.push(c);
-        }
-        KeyCode::Enter => {
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
             let code = state.join_input.trim().to_string();
+            state.screen = Screen::GameList;
             if code.is_empty() {
-                state.screen = Screen::GameList;
                 return Ok(());
             }
-            state.screen = Screen::GameList;
-            join_with_code(state, &code, keys, gate_npub, maps_root, rt)?;
+            join_with_code(state, &code, keys, gate_npub, maps_root, rt, session)?;
+        }
+        KeyEvent {
+            code: KeyCode::Char(c),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
+            state.join_input.push(c);
         }
         _ => {}
     }
     Ok(())
 }
 
-/// Handle key presses on the game-selection disambiguation sub-screen.
 fn handle_game_select_key(
-    code: crossterm::event::KeyCode,
+    key: KeyEvent,
     state: &mut PickerState,
     keys: &Keys,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
+    session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::connect::resolve::ResolvedTarget;
-    use crossterm::event::KeyCode;
 
     let Screen::GameSelect {
         ref games,
@@ -327,26 +302,40 @@ fn handle_game_select_key(
     };
     let game_count = games.len();
 
-    match code {
-        KeyCode::Esc => {
-            state.screen = Screen::GameList;
+    match key {
+        KeyEvent {
+            code: KeyCode::Esc, ..
         }
-        KeyCode::Up => {
-            if *selected > 0 {
-                *selected -= 1;
-            }
+        | KeyEvent {
+            code: KeyCode::Char('q' | 'Q'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => state.screen = Screen::GameList,
+        KeyEvent {
+            code: KeyCode::Char('j'),
+            modifiers: KeyModifiers::NONE,
+            ..
         }
-        KeyCode::Down => {
-            if game_count > 0 && *selected < game_count - 1 {
-                *selected += 1;
-            }
+        | KeyEvent {
+            code: KeyCode::Down,
+            ..
+        } => move_selection(selected, 1, game_count),
+        KeyEvent {
+            code: KeyCode::Char('k'),
+            modifiers: KeyModifiers::NONE,
+            ..
         }
-        KeyCode::Enter => {
+        | KeyEvent {
+            code: KeyCode::Up, ..
+        } => move_selection(selected, -1, game_count),
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
             if game_count == 0 {
                 state.screen = Screen::GameList;
                 return Ok(());
             }
-            // Clone all data out of the screen state before modifying `state.screen`.
             let chosen = games[*selected].game_id.clone();
             let target = ResolvedTarget {
                 server_host: server_host.clone(),
@@ -357,53 +346,33 @@ fn handle_game_select_key(
             };
             let gate = gate_npub.clone();
             let npub = state.npub.clone();
-
-            // Switch back to game list before running the session.
             state.screen = Screen::GameList;
 
-            let outcome = rt.block_on(run_session(
-                keys,
-                target,
-                &npub,
-                &gate,
-                DisambigMode::Prompt,
-                maps_root,
-            ));
-
+            let outcome = run_suspended(session, || {
+                rt.block_on(run_session(
+                    keys,
+                    target,
+                    &npub,
+                    &gate,
+                    DisambigMode::Prompt,
+                    maps_root,
+                ))
+            })?;
             state.refresh_cache();
-
-            match outcome {
-                SessionOutcome::Done { notice, .. } => {
-                    if let Some(msg) = notice {
-                        state.status_msg = Some(msg);
-                    }
-                }
-                SessionOutcome::Error(msg) => {
-                    state.status_msg = Some(format!("Error: {msg}"));
-                }
-                SessionOutcome::Timeout => {
-                    state.status_msg = Some("Handshake timed out.".into());
-                }
-                SessionOutcome::NeedsDisambiguation { .. } => {
-                    // Should not happen since game_id was supplied; treat as error.
-                    state.status_msg = Some("Unexpected disambiguation error.".into());
-                }
-            }
+            apply_session_outcome(state, outcome, None);
         }
         _ => {}
     }
     Ok(())
 }
 
-// ── Session actions ───────────────────────────────────────────────────────────
-
-/// Connect to the currently selected game.
 fn connect_selected(
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
+    session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::config::ConnectConfig;
     use crate::config::load_config;
@@ -418,57 +387,28 @@ fn connect_selected(
     let mut target = resolve_server(&server_str, &config)
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
     target.game_id = Some(game.id.clone());
-
-    // Prefer the per-game cached gate_npub; fall back to the global override.
-    // Materialize as String so the borrow of `game` (from sorted) is dropped.
     let effective_gate: String = if !game.gate_npub.is_empty() {
         game.gate_npub.clone()
     } else {
         gate_npub.to_string()
     };
-    // Drop the borrow of state.cache before calling refresh_cache.
     drop(sorted);
 
-    let outcome = rt.block_on(run_session(
-        keys,
-        target.clone(),
-        &state.npub,
-        &effective_gate,
-        DisambigMode::Picker,
-        maps_root,
-    ));
-
+    let outcome = run_suspended(session, || {
+        rt.block_on(run_session(
+            keys,
+            target.clone(),
+            &state.npub,
+            &effective_gate,
+            DisambigMode::Picker,
+            maps_root,
+        ))
+    })?;
     state.refresh_cache();
-
-    match outcome {
-        SessionOutcome::Done { notice, .. } => {
-            if let Some(msg) = notice {
-                state.status_msg = Some(msg);
-            }
-        }
-        SessionOutcome::Error(msg) => {
-            state.status_msg = Some(format!("Error: {msg}"));
-        }
-        SessionOutcome::Timeout => {
-            state.status_msg = Some("Handshake timed out.".into());
-        }
-        SessionOutcome::NeedsDisambiguation { games } => {
-            // Switch to the game-selection sub-screen.
-            state.screen = Screen::GameSelect {
-                games,
-                selected: 0,
-                server_host: target.server_host.clone(),
-                server_port: target.server_port,
-                relay_url: target.relay_url.clone(),
-                gate_npub: effective_gate,
-            };
-        }
-    }
-
+    apply_session_outcome(state, outcome, Some((target, effective_gate)));
     Ok(())
 }
 
-/// Join a game using an invite code entered in the prompt.
 fn join_with_code(
     state: &mut PickerState,
     code: &str,
@@ -476,6 +416,7 @@ fn join_with_code(
     gate_npub: &str,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
+    session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::config::ConnectConfig;
     use crate::config::load_config;
@@ -489,43 +430,19 @@ fn join_with_code(
         }
     };
 
-    let outcome = rt.block_on(run_session(
-        keys,
-        target.clone(),
-        &state.npub,
-        gate_npub,
-        DisambigMode::Picker,
-        maps_root,
-    ));
-
+    let outcome = run_suspended(session, || {
+        rt.block_on(run_session(
+            keys,
+            target.clone(),
+            &state.npub,
+            gate_npub,
+            DisambigMode::Picker,
+            maps_root,
+        ))
+    })?;
     state.refresh_cache();
-    // After joining, select the newly added game (top of sorted list).
     state.selected = 0;
-
-    match outcome {
-        SessionOutcome::Done { notice, .. } => {
-            if let Some(msg) = notice {
-                state.status_msg = Some(msg);
-            }
-        }
-        SessionOutcome::Error(msg) => {
-            state.status_msg = Some(format!("Error: {msg}"));
-        }
-        SessionOutcome::Timeout => {
-            state.status_msg = Some("Handshake timed out.".into());
-        }
-        SessionOutcome::NeedsDisambiguation { games } => {
-            state.screen = Screen::GameSelect {
-                games,
-                selected: 0,
-                server_host: target.server_host.clone(),
-                server_port: target.server_port,
-                relay_url: target.relay_url.clone(),
-                gate_npub: gate_npub.to_string(),
-            };
-        }
-    }
-
+    apply_session_outcome(state, outcome, Some((target, gate_npub.to_string())));
     Ok(())
 }
 
@@ -569,11 +486,9 @@ fn redownload_selected_maps(
         }
     };
     target.game_id = Some(game_id.clone());
-
     drop(sorted);
 
-    let result = rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game_id));
-    match result {
+    match rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game_id)) {
         Ok(bundle) => {
             match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root) {
                 Ok(path) => {
@@ -590,4 +505,58 @@ fn redownload_selected_maps(
     }
 
     Ok(())
+}
+
+fn move_selection(selected: &mut usize, delta: isize, game_count: usize) {
+    if game_count == 0 {
+        *selected = 0;
+        return;
+    }
+    let current = *selected as isize;
+    let max = game_count.saturating_sub(1) as isize;
+    *selected = (current + delta).clamp(0, max) as usize;
+}
+
+fn run_suspended<T>(
+    session: &mut TerminalSession,
+    action: impl FnOnce() -> T,
+) -> Result<T, Box<dyn std::error::Error>> {
+    session.suspend_for_bridge()?;
+    let result = action();
+    session.resume_after_bridge()?;
+    Ok(result)
+}
+
+fn apply_session_outcome(
+    state: &mut PickerState,
+    outcome: SessionOutcome,
+    retry_context: Option<(crate::connect::resolve::ResolvedTarget, String)>,
+) {
+    match outcome {
+        SessionOutcome::Done { notice, .. } => {
+            if let Some(msg) = notice {
+                state.status_msg = Some(msg);
+            }
+        }
+        SessionOutcome::Error(msg) => {
+            state.status_msg = Some(format!("Error: {msg}"));
+        }
+        SessionOutcome::Timeout => {
+            state.status_msg = Some("Handshake timed out.".into());
+        }
+        SessionOutcome::NeedsDisambiguation { games } => {
+            if let Some((target, gate_npub)) = retry_context {
+                state.screen = Screen::GameSelect {
+                    games,
+                    selected: 0,
+                    server_host: target.server_host,
+                    server_port: target.server_port,
+                    relay_url: target.relay_url,
+                    gate_npub,
+                };
+            } else {
+                state.status_msg = Some("Unexpected disambiguation error.".into());
+            }
+        }
+    }
 }
