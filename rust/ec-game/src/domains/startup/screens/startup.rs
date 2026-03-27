@@ -120,6 +120,7 @@ impl StartupScreen {
         &self,
         frame: &ScreenFrame<'_>,
         phase: StartupPhase,
+        status: Option<&str>,
         splash_page: usize,
         intro_page: usize,
         results_block: usize,
@@ -141,7 +142,7 @@ impl StartupScreen {
             StartupPhase::Intro => {
                 render_game_intro_page(frame.geometry, intro_page, "(slap a key)")
             }
-            StartupPhase::LoginSummary => self.render_login_summary(frame),
+            StartupPhase::LoginSummary => self.render_login_summary(frame, status),
             StartupPhase::Results => self.render_review(
                 frame,
                 "report",
@@ -157,6 +158,7 @@ impl StartupScreen {
                 results_nonstop,
                 results_deleted_any,
                 game_year,
+                status,
             ),
             StartupPhase::Messages => {
                 let prior_results_rows = if self.summary.pending_results {
@@ -187,6 +189,7 @@ impl StartupScreen {
                     messages_nonstop,
                     messages_deleted_any,
                     game_year,
+                    status,
                 )
             }
             StartupPhase::Complete => Ok(new_playfield_for(frame.geometry)),
@@ -210,6 +213,7 @@ impl StartupScreen {
         nonstop: bool,
         deleted_any: bool,
         game_year: u16,
+        status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
         let delete_prompt = format!("Delete this {singular} [Y]/N ->");
@@ -337,6 +341,7 @@ impl StartupScreen {
                 );
             }
         }
+        draw_startup_status(&mut buffer, frame.geometry, status);
 
         Ok(buffer)
     }
@@ -344,10 +349,12 @@ impl StartupScreen {
     fn render_login_summary(
         &self,
         frame: &ScreenFrame<'_>,
+        status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
         let rows = startup_login_summary_rows(frame, self.summary.game_year);
         render_review_transcript(frame.geometry, &mut buffer, &rows);
+        draw_startup_status(&mut buffer, frame.geometry, status);
         draw_plain_prompt(
             &mut buffer,
             command_line_row_for(frame.geometry),
@@ -355,6 +362,18 @@ impl StartupScreen {
         );
         Ok(buffer)
     }
+}
+
+fn draw_startup_status(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    status: Option<&str>,
+) {
+    let Some(status) = status else {
+        return;
+    };
+    let row = command_line_row_for(geometry).saturating_sub(1);
+    buffer.write_text(row, 0, status, classic::status_value_style());
 }
 
 pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();

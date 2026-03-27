@@ -859,7 +859,9 @@ dependencies = [
  "ec-compat",
  "ec-data",
  "ec-engine",
+ "ec-log",
  "kdl",
+ "tracing",
 ]
 
 [[package]]
@@ -886,11 +888,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ec-log"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "ec-sysop"
 version = "1.0.0-beta.1"
 dependencies = [
  "ec-cli",
  "ec-data",
+ "ec-log",
+ "tracing",
 ]
 
 [[package]]

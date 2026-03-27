@@ -19,6 +19,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::Startup(phase) => app.startup.render_phase(
             &frame,
             phase,
+            app.startup_state.startup_status.as_deref(),
             app.startup_state.splash_page,
             app.startup_state.intro_page,
             app.startup_state.results_block,
@@ -44,11 +45,9 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FirstTimeIntro => app
             .first_time_intro
             .render_page(frame.geometry, app.startup_state.first_time_intro_page),
-        ScreenId::FirstTimeReservedPrompt => {
-            crate::screen::render_first_time_reserved_prompt(
-                app.startup_state.reserved_seat_alias.as_deref(),
-            )
-        }
+        ScreenId::FirstTimeReservedPrompt => crate::screen::render_first_time_reserved_prompt(
+            app.startup_state.reserved_seat_alias.as_deref(),
+        ),
         ScreenId::ThemePicker => app.theme_picker.render(
             frame.geometry,
             &app.startup_state.theme_picker_rows,

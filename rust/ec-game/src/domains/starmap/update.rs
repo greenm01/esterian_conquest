@@ -9,7 +9,14 @@ pub fn update(app: &mut App, action: StarmapAction) {
         StarmapAction::AdvancePage => app.advance_starmap_page(),
         StarmapAction::Export => {
             if let Err(err) = app.export_starmap() {
-                eprintln!("export starmap failed: {err}");
+                app.log_action_error("export_starmap", err.as_ref());
+                let status =
+                    Some("Unable to export the star map right now. Please try again.".to_string());
+                if app.current_screen == crate::screen::ScreenId::PartialStarmapView {
+                    app.starmap_state.partial_status = status;
+                } else {
+                    app.starmap_state.status = status;
+                }
             }
         }
         StarmapAction::MovePartial(dx, dy) => app.move_partial_starmap(dx, dy),

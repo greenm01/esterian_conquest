@@ -184,6 +184,23 @@ fn rename_owned_planet_updates_name_for_matching_owner() {
 }
 
 #[test]
+fn join_player_normalizes_zero_tax_slots_to_seeded_opening_tax_rate() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(2)
+        .build_joinable_new_game_baseline()
+        .expect("joinable baseline should build");
+
+    data.player.records[0].set_tax_rate_raw(0);
+    data.planets.records[0].set_stored_production_points(0);
+
+    data.join_player(1, "Codex Dominion")
+        .expect("join player should succeed");
+
+    assert_eq!(data.player.records[0].tax_rate(), 50);
+    assert_eq!(data.planets.records[0].stored_production_points(), 50);
+}
+
+#[test]
 fn stardock_slots_round_trip_through_contiguous_classic_offsets() {
     let mut planet = PlanetRecord::new_zeroed();
 

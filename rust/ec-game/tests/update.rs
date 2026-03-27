@@ -83,8 +83,11 @@ fn temp_joined_needs_homeworld_copy() -> PathBuf {
 fn temp_joined_needs_homeworld_copy_for_player(player_record_index_1_based: usize) -> PathBuf {
     let root = temp_first_time_game_copy();
     let mut data = CoreGameData::load(&root).expect("load joinable fixture");
-    data.join_player(player_record_index_1_based, &format!("Empire {player_record_index_1_based}"))
-        .expect("join player without naming homeworld");
+    data.join_player(
+        player_record_index_1_based,
+        &format!("Empire {player_record_index_1_based}"),
+    )
+    .expect("join player without naming homeworld");
     data.save(&root).expect("save partially joined fixture");
     let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
     import_directory_snapshot(&store, &root).expect("refresh sqlite snapshot");
@@ -1276,7 +1279,11 @@ fn reserved_first_time_player_skips_menu_and_sees_reserved_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("reserved prompt should render");
-    assert!(terminal.line(2).contains("This player seat is reserved for you."));
+    assert!(
+        terminal
+            .line(2)
+            .contains("This player seat is reserved for you.")
+    );
     assert!(terminal.line(6).contains("You may name your empire now"));
 }
 
@@ -2518,7 +2525,11 @@ fn reserved_first_time_join_flow_updates_player_and_homeworld_then_enters_main_m
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("reserved join name should render");
-    assert!(terminal.line(2).contains("This player seat is reserved for you."));
+    assert!(
+        terminal
+            .line(2)
+            .contains("This player seat is reserved for you.")
+    );
 
     for ch in "Codex Dominion".chars() {
         assert_eq!(
@@ -5409,6 +5420,29 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
 #[test]
 fn planet_build_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
+    let direct = CoreGameData::load(&fixture_dir).expect("reload direct joined fixture");
+    let direct_homeworld = direct
+        .planets
+        .records
+        .iter()
+        .find(|planet| {
+            planet.owner_empire_slot_raw() == 1 && planet.status_or_name_summary() == "Codex Prime"
+        })
+        .expect("direct joined homeworld exists");
+    assert_eq!(direct_homeworld.present_production_points(), Some(100));
+    assert_eq!(direct_homeworld.stored_production_points(), 50);
+    let runtime = latest_runtime_state(&fixture_dir);
+    let homeworld = runtime
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| {
+            planet.owner_empire_slot_raw() == 1 && planet.status_or_name_summary() == "Codex Prime"
+        })
+        .expect("joined homeworld exists");
+    assert_eq!(homeworld.present_production_points(), Some(100));
+    assert_eq!(homeworld.stored_production_points(), 50);
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
         player_record_index_1_based: 1,
@@ -5462,7 +5496,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(15).trim_end(),
-        "You have spent 0 out of 0 points.  You have 0 points left to spend."
+        "You have spent 0 out of 50 points.  You have 50 points left to spend."
     );
     assert_eq!(
         terminal.lines[17].trim_end(),

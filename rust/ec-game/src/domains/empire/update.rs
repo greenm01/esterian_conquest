@@ -13,7 +13,10 @@ pub fn update(app: &mut App, action: EmpireAction) {
         EmpireAction::BackspaceEnemiesInput => app.backspace_enemies_input(),
         EmpireAction::SubmitEnemiesInput => {
             if let Err(err) = app.submit_enemies_input() {
-                eprintln!("submit enemies input failed: {err}");
+                app.log_action_error("submit_enemies_input", err.as_ref());
+                app.empire.enemies_status = Some(
+                    "Unable to save diplomatic changes right now. Please try again.".to_string(),
+                );
             }
         }
     }

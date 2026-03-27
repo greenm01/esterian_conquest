@@ -7,18 +7,27 @@ pub fn update(app: &mut App, action: StartupAction) {
         StartupAction::ScrollReview(delta) => app.scroll_startup_review(delta),
         StartupAction::SkipIntro => app.skip_startup_intro(),
         StartupAction::AcceptDefault => {
+            app.startup_state.startup_status = None;
             if let Err(err) = app.startup_accept_default() {
-                eprintln!("startup accept failed: {err}");
+                app.log_action_error("startup_accept_default", err.as_ref());
+                app.startup_state.startup_status =
+                    Some("Unable to continue startup right now. Please try again.".to_string());
             }
         }
         StartupAction::RejectChoice => {
+            app.startup_state.startup_status = None;
             if let Err(err) = app.startup_reject_choice() {
-                eprintln!("startup reject failed: {err}");
+                app.log_action_error("startup_reject_choice", err.as_ref());
+                app.startup_state.startup_status =
+                    Some("Unable to continue startup right now. Please try again.".to_string());
             }
         }
         StartupAction::EnableNonstop => {
+            app.startup_state.startup_status = None;
             if let Err(err) = app.startup_enable_nonstop() {
-                eprintln!("startup nonstop transition failed: {err}");
+                app.log_action_error("startup_enable_nonstop", err.as_ref());
+                app.startup_state.startup_status =
+                    Some("Unable to continue startup right now. Please try again.".to_string());
             }
         }
         StartupAction::OpenFirstTimeMenu => app.open_first_time_menu(),

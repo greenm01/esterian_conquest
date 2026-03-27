@@ -21,6 +21,8 @@ struct ParsedLaunchArgs {
     explicit_player_record_index_1_based: Option<usize>,
     export_root: Option<PathBuf>,
     queue_dir: Option<PathBuf>,
+    log_file: Option<PathBuf>,
+    log_level: ec_log::LogLevel,
     encoding: OutputEncoding,
     color_mode: ColorMode,
     screen_geometry: ScreenGeometry,
@@ -42,6 +44,14 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         return crate::submit_turn::run_submit_turn_args(&parsed_args[2..]);
     }
     let parsed = parse_args(&parsed_args)?;
+    if let Some(log_file) = &parsed.log_file {
+        ec_log::init_file_logging(log_file, parsed.log_level)?;
+        tracing::info!(
+            log_file = %log_file.display(),
+            level = ?parsed.log_level,
+            "ec-game logging initialized"
+        );
+    }
 
     // Load (or bootstrap) config.kdl before anything else.
     let game_config = load_or_bootstrap_game_config(&parsed.game_dir)?;
@@ -57,6 +67,13 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     };
 
     let mut app = App::load(config)?;
+    tracing::info!(
+        game_dir = %parsed.game_dir.display(),
+        player = player_record_index_1_based,
+        door_mode = parsed.use_door_terminal,
+        dropfile_alias = parsed.dropfile_alias.as_deref().unwrap_or(""),
+        "loaded ec-game app"
+    );
     app.screen_geometry = parsed.screen_geometry;
     app.door_mode = parsed.use_door_terminal;
     if app.door_mode {
@@ -118,6 +135,8 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut queue_dir = std::env::var_os("EC_GAME_QUEUE_DIR")
         .or_else(|| std::env::var_os("EC_CLIENT_QUEUE_DIR"))
         .map(PathBuf::from);
+    let mut log_file = None;
+    let mut log_level = ec_log::LogLevel::Info;
     let mut encoding = OutputEncoding::Utf8;
     let mut explicit_color_mode: Option<ColorMode> = None;
     let mut dropfile_path: Option<PathBuf> = None;
@@ -151,6 +170,22 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
                     return Err("missing value for --queue-dir".into());
                 };
                 queue_dir = Some(PathBuf::from(value));
+                idx += 2;
+            }
+            "--log-file" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --log-file".into());
+                };
+                log_file = Some(PathBuf::from(value));
+                idx += 2;
+            }
+            "--log-level" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err(
+                        "missing value for --log-level (error, warn, info, debug, or trace)".into(),
+                    );
+                };
+                log_level = ec_log::LogLevel::parse(value)?;
                 idx += 2;
             }
             "--encoding" => {
@@ -267,6 +302,8 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         explicit_player_record_index_1_based: player,
         export_root,
         queue_dir,
+        log_file,
+        log_level,
         encoding,
         color_mode,
         screen_geometry,
@@ -306,7 +343,8 @@ fn print_usage() {
         "  ec-game --dir <game_dir> [--player <1-based empire index>] \
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
          [--dropfile <path>] [--timeout <minutes>] \
-         [--export-root <dir>] [--queue-dir <dir>]"
+         [--export-root <dir>] [--queue-dir <dir>] \
+         [--log-file <path>] [--log-level <error|warn|info|debug|trace>]"
     );
     println!(
         "  ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>"
@@ -318,6 +356,10 @@ fn print_usage() {
     println!("                      Defaults encoding to cp437 when no --encoding is given.");
     println!("                      Reserved aliases in config.kdl can omit --player.");
     println!("  --timeout <minutes> Session time limit in minutes.");
+    println!();
+    println!("Logging:");
+    println!("  --log-file <path>   Append diagnostic logs to a text file.");
+    println!("  --log-level <lvl>   error, warn, info, debug, or trace (default: info).");
     println!();
     println!("Color modes:");
     println!("  ansi16     Classic 16-color ANSI (BBS doors, legacy terminals)");

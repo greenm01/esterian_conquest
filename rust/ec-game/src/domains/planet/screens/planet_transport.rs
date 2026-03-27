@@ -138,7 +138,7 @@ impl PlanetTransportScreen {
                 &format!("{},{}", default_coords[0], default_coords[1]),
                 input,
             );
-            let _message_end_row = draw_general_message_after_command(
+            let message_end_row = draw_general_message_after_command(
                 &mut buffer,
                 command_row,
                 "",
@@ -147,7 +147,9 @@ impl PlanetTransportScreen {
                     mode.verb()
                 ),
             );
-            let _ = status;
+            if let Some(status) = status {
+                draw_prompt_error_after(&mut buffer, message_end_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -214,7 +216,7 @@ impl PlanetTransportScreen {
                 &max_qty.to_string(),
                 input,
             );
-            let _message_end_row = draw_general_message_after_command(
+            let message_end_row = draw_general_message_after_command(
                 &mut buffer,
                 command_row,
                 "",
@@ -224,7 +226,9 @@ impl PlanetTransportScreen {
                     format_sector_coords(planet.coords)
                 ),
             );
-            let _ = status;
+            if let Some(status) = status {
+                draw_prompt_error_after(&mut buffer, message_end_row, status);
+            }
         }
         Ok(buffer)
     }

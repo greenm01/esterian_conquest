@@ -125,11 +125,27 @@ cargo run -q -p ec-sysop -- maint /tmp/ec-game 3
 Schedule `ec-sysop maint` with your host tools — `systemd` timers, `cron`,
 BBS event hooks, or manual invocation. EC does not manage its own scheduler.
 
+If you want sysop-side diagnostics, `ec-sysop` also accepts opt-in file
+logging flags before the subcommand:
+
+```bash
+cd rust
+cargo run -q -p ec-sysop -- --log-file /tmp/ec-sysop.log --log-level info maint /tmp/ec-game 3
+```
+
 Launch the player client:
 
 ```bash
 cd rust
 cargo run -q -p ec-game -- --dir /tmp/ec-game --player 1
+```
+
+To capture client diagnostics without polluting the terminal session, add
+`--log-file` and optionally `--log-level`:
+
+```bash
+cd rust
+cargo run -q -p ec-game -- --dir /tmp/ec-game --player 1 --log-file /tmp/ec-game-p1.log --log-level debug
 ```
 
 On a BBS, pass the drop file directly. If the caller alias is reserved in

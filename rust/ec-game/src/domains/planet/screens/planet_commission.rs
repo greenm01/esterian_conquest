@@ -224,7 +224,9 @@ impl PlanetCommissionScreen {
             "",
             "ENTER drafts a fleet from the current selection.",
         );
-        let _ = (message_end_row, status);
+        if let Some(status) = status {
+            crate::screen::layout::draw_prompt_error_after(&mut buffer, message_end_row, status);
+        }
         Ok(buffer)
     }
 

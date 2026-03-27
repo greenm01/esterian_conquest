@@ -12,4 +12,6 @@ crossterm = "0.28"
 ec-compat = { path = "../ec-compat" }
 ec-data = { path = "../ec-data" }
 ec-engine = { path = "../ec-engine" }
+ec-log = { path = "../ec-log" }
 kdl = "6"
+tracing = "0.1"

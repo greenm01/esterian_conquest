@@ -1,10 +1,38 @@
 use super::*;
+
+const DEFAULT_JOIN_TAX_RATE: u8 = 50;
+
 impl CoreGameData {
     pub fn join_player(
         &mut self,
         player_record_index_1_based: usize,
         empire_name: &str,
     ) -> Result<(), GameStateMutationError> {
+        let (ipbm_count, homeworld_planet_index_1_based) = {
+            let player = self
+                .player
+                .records
+                .get(player_record_index_1_based - 1)
+                .ok_or(GameStateMutationError::MissingPlayerRecord {
+                    index_1_based: player_record_index_1_based,
+                })?;
+            let homeworld_planet_index_1_based =
+                if player.homeworld_planet_index_1_based_raw() as usize != 0 {
+                    player.homeworld_planet_index_1_based_raw() as usize
+                } else {
+                    self.planets
+                        .records
+                        .iter()
+                        .position(|planet| {
+                            planet.owner_empire_slot_raw() as usize == player_record_index_1_based
+                                && planet.is_homeworld_seed_ignoring_name()
+                        })
+                        .map(|idx| idx + 1)
+                        .unwrap_or(0)
+                };
+            (player.ipbm_count_raw(), homeworld_planet_index_1_based)
+        };
+        let tax_rate = DEFAULT_JOIN_TAX_RATE;
         let player = self
             .player
             .records
@@ -12,22 +40,6 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingPlayerRecord {
                 index_1_based: player_record_index_1_based,
             })?;
-        let tax_rate = player.tax_rate();
-        let ipbm_count = player.ipbm_count_raw();
-        let homeworld_planet_index_1_based =
-            if player.homeworld_planet_index_1_based_raw() as usize != 0 {
-                player.homeworld_planet_index_1_based_raw() as usize
-            } else {
-                self.planets
-                    .records
-                    .iter()
-                    .position(|planet| {
-                        planet.owner_empire_slot_raw() as usize == player_record_index_1_based
-                            && planet.is_homeworld_seed_ignoring_name()
-                    })
-                    .map(|idx| idx + 1)
-                    .unwrap_or(0)
-            };
         player.set_player_mode_raw(0x01);
         player.set_controlled_empire_name_raw(empire_name);
         player.set_tax_rate_raw(tax_rate);

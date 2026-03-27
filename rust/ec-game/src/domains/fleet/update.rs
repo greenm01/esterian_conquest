@@ -55,19 +55,28 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),
         FleetAction::SubmitOrder => {
             if let Err(err) = app.submit_fleet_order() {
-                eprintln!("submit fleet order failed: {err}");
+                app.log_action_error("submit_fleet_order", err.as_ref());
+                app.fleet.order_status = Some(
+                    "Unable to save this fleet order right now. Please try again.".to_string(),
+                );
             }
         }
         FleetAction::SubmitGroupOrder => app.submit_fleet_group_order(),
         FleetAction::SubmitMissionPicker => app.submit_fleet_mission_picker(),
         FleetAction::SubmitTransfer => {
             if let Err(err) = app.submit_fleet_transfer() {
-                eprintln!("submit fleet transfer failed: {err}");
+                app.log_action_error("submit_fleet_transfer", err.as_ref());
+                app.fleet.transfer_status = Some(
+                    "Unable to save this fleet transfer right now. Please try again.".to_string(),
+                );
             }
         }
         FleetAction::SubmitDetach => {
             if let Err(err) = app.submit_fleet_detach() {
-                eprintln!("submit fleet detach failed: {err}");
+                app.log_action_error("submit_fleet_detach", err.as_ref());
+                app.fleet.detach_status = Some(
+                    "Unable to save this fleet detach right now. Please try again.".to_string(),
+                );
             }
         }
         FleetAction::SubmitEta => app.submit_fleet_eta(),

@@ -2,6 +2,16 @@ use super::state::App;
 use crate::screen::{CommandMenu, PlanetListMode, ScreenId};
 
 impl App {
+    pub(crate) fn log_action_error(&self, action: &'static str, err: &dyn std::error::Error) {
+        tracing::error!(
+            action,
+            player = self.player.record_index_1_based,
+            screen = ?self.current_screen,
+            error = %err,
+            "ec-game action failed"
+        );
+    }
+
     pub fn current_screen(&self) -> ScreenId {
         self.current_screen
     }

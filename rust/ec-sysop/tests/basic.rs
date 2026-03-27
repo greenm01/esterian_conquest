@@ -136,8 +136,8 @@ fn ec_sysop_help_lists_public_subcommands() {
     let output = run_ec_sysop_output(&["--help"], None);
     assert!(output.status.success(), "help should succeed");
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("ec-sysop new-game"));
-    assert!(stdout.contains("ec-sysop maint"));
+    assert!(stdout.contains("new-game <target_dir>"));
+    assert!(stdout.contains("maint <dir> [turns]"));
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn ec_sysop_new_game_help_does_not_treat_help_as_target_dir() {
     let output = run_ec_sysop_output(&["new-game", "--help"], Some(&cwd));
     assert!(output.status.success(), "new-game help should succeed");
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("ec-sysop new-game <target_dir>"));
+    assert!(stdout.contains("new-game <target_dir>"));
     assert!(!stdout.contains("Initialized new game"));
     assert!(
         !cwd.join("--help").exists(),
@@ -162,7 +162,7 @@ fn ec_sysop_maint_help_prints_usage_without_running_maintenance() {
     assert!(output.status.success(), "maint help should succeed");
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
-    assert!(stdout.contains("ec-sysop maint <dir> [turns]"));
+    assert!(stdout.contains("maint <dir> [turns]"));
     assert!(!stdout.contains("Running Rust maintenance"));
     assert!(stderr.is_empty(), "maint help should not emit an error");
     let _ = fs::remove_dir_all(&cwd);
@@ -174,7 +174,70 @@ fn ec_sysop_unknown_subcommand_fails_with_full_usage() {
     assert!(!output.status.success(), "unknown subcommand should fail");
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
-    assert!(stdout.contains("ec-sysop new-game"));
-    assert!(stdout.contains("ec-sysop maint"));
+    assert!(stdout.contains("new-game <target_dir>"));
+    assert!(stdout.contains("maint <dir> [turns]"));
     assert!(stderr.contains("unknown subcommand: badcmd"));
+}
+
+#[test]
+fn ec_sysop_help_mentions_logging_flags() {
+    let output = run_ec_sysop_output(&["--help"], None);
+    assert!(output.status.success(), "help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("--log-file <path>"));
+    assert!(stdout.contains("--log-level <error|warn|info|debug|trace>"));
+}
+
+#[test]
+fn ec_sysop_opt_in_log_file_captures_command_lifecycle() {
+    let root = unique_temp_dir("ec-sysop-log-file");
+    let target = root.join("game");
+    let log_path = root.join("ec-sysop.log");
+
+    let output = run_ec_sysop_output(
+        &[
+            "--log-file",
+            log_path.to_str().expect("utf-8 path"),
+            "--log-level",
+            "debug",
+            "new-game",
+            target.to_str().expect("utf-8 path"),
+            "--seed",
+            "1515",
+        ],
+        None,
+    );
+
+    assert!(
+        output.status.success(),
+        "ec-sysop failed: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("Initialized new game"),
+        "stdout={:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "successful ec-sysop run should not emit stderr: {:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let log = fs::read_to_string(&log_path).expect("log file should exist");
+    assert!(log.contains("ec-sysop logging initialized"));
+    assert!(log.contains("running ec-sysop new-game"));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn ec_sysop_rejects_invalid_log_level() {
+    let output = run_ec_sysop_output(&["--log-level", "loud", "--help"], None);
+    assert!(!output.status.success(), "invalid log level should fail");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
+    assert!(
+        stderr.contains("unknown log level 'loud'; expected error, warn, info, debug, or trace")
+    );
 }

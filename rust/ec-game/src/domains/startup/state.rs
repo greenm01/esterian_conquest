@@ -3,6 +3,7 @@ use crate::screen::ScreenId;
 use crate::theme::ThemeEntry;
 
 pub struct StartupState {
+    pub startup_status: Option<String>,
     pub splash_page: usize,
     pub intro_page: usize,
     pub results_block: usize,
@@ -38,6 +39,7 @@ pub struct StartupState {
 impl Default for StartupState {
     fn default() -> Self {
         Self {
+            startup_status: None,
             splash_page: 0,
             intro_page: 0,
             results_block: 0,

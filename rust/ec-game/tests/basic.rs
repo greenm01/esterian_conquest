@@ -226,3 +226,64 @@ fn reserved_dropfile_alias_rejects_conflicting_stored_player_handle() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn ec_game_opt_in_log_file_captures_startup_without_stderr_noise() {
+    let fixture_dir = temp_fixture_copy();
+    let log_path = fixture_dir.join("ec-game.log");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_ec-game"))
+        .args([
+            "--dir",
+            fixture_dir.to_str().expect("fixture path should be utf-8"),
+            "--player",
+            "1",
+            "--log-file",
+            log_path.to_str().expect("log path should be utf-8"),
+            "--log-level",
+            "debug",
+        ])
+        .output()
+        .expect("ec-game should run");
+
+    assert!(
+        output.status.success(),
+        "ec-game failed: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "successful ec-game launch should stay silent on stderr: {:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let log = fs::read_to_string(&log_path).expect("log file should be created");
+    assert!(log.contains("ec-game logging initialized"));
+    assert!(log.contains("loaded ec-game app"));
+}
+
+#[test]
+fn ec_game_rejects_invalid_log_level() {
+    let fixture_dir = temp_fixture_copy();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_ec-game"))
+        .args([
+            "--dir",
+            fixture_dir.to_str().expect("fixture path should be utf-8"),
+            "--player",
+            "1",
+            "--log-level",
+            "loud",
+        ])
+        .output()
+        .expect("ec-game should run");
+
+    assert!(!output.status.success(), "invalid log level should fail");
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("unknown log level 'loud'; expected error, warn, info, debug, or trace"),
+        "stderr={:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

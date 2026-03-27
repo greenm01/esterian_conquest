@@ -22,7 +22,11 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::CloseCommissionPlanet => app.close_planet_commission_planet(),
         PlanetAction::MoveCommissionDraftRow(delta) => {
             if let Err(err) = app.move_planet_commission_draft_row(delta) {
-                eprintln!("move commission draft row failed: {err}");
+                app.log_action_error("move_planet_commission_draft_row", err.as_ref());
+                app.planet.commission_draft_status = Some(
+                    "Unable to update this commission draft right now. Please try again."
+                        .to_string(),
+                );
             }
         }
         PlanetAction::AppendCommissionDraftChar(ch) => app.append_planet_commission_draft_char(ch),
@@ -31,7 +35,10 @@ pub fn update(app: &mut App, action: PlanetAction) {
         }
         PlanetAction::SubmitCommissionDraft => {
             if let Err(err) = app.submit_planet_commission_draft() {
-                eprintln!("submit commission draft failed: {err}");
+                app.log_action_error("submit_planet_commission_draft", err.as_ref());
+                app.planet.commission_draft_status = Some(
+                    "Unable to save this commission draft right now. Please try again.".to_string(),
+                );
             }
         }
         PlanetAction::CloseCommissionDraft => app.close_planet_commission_draft(),
@@ -78,12 +85,18 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::BackspaceDeleteBuildQtyInput => app.backspace_delete_build_qty_input(),
         PlanetAction::SubmitDeleteBuildQty => {
             if let Err(err) = app.submit_delete_build_qty() {
-                eprintln!("submit delete planet build quantity failed: {err}");
+                app.log_action_error("submit_delete_build_qty", err.as_ref());
+                app.planet.build_list_delete_qty_status = Some(
+                    "Unable to update this build order right now. Please try again.".to_string(),
+                );
             }
         }
         PlanetAction::ConfirmDeleteBuildSlot => {
             if let Err(err) = app.confirm_delete_planet_build_slot() {
-                eprintln!("confirm delete planet build slot failed: {err}");
+                app.log_action_error("confirm_delete_planet_build_slot", err.as_ref());
+                app.planet.build_list_delete_qty_status = Some(
+                    "Unable to delete this build order right now. Please try again.".to_string(),
+                );
             }
         }
         PlanetAction::CancelDeleteBuildSlot => app.cancel_delete_planet_build_slot(),
@@ -93,7 +106,11 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::ToggleCommissionSelection => app.toggle_planet_commission_selection(),
         PlanetAction::CommissionStardockSelection => {
             if let Err(err) = app.commission_selected_stardock_row() {
-                eprintln!("commission stardock selection failed: {err}");
+                app.log_action_error("commission_selected_stardock_row", err.as_ref());
+                app.planet.commission_status = Some(
+                    "Unable to open that stardock selection right now. Please try again."
+                        .to_string(),
+                );
             }
         }
         PlanetAction::MoveTransportPlanet(delta) => app.move_planet_transport_planet(delta),
@@ -109,7 +126,10 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::BackspaceTransportQty => app.backspace_planet_transport_qty(),
         PlanetAction::SubmitTransportQty => {
             if let Err(err) = app.submit_planet_transport_qty() {
-                eprintln!("submit planet transport qty failed: {err}");
+                app.log_action_error("submit_planet_transport_qty", err.as_ref());
+                app.planet.transport_status = Some(
+                    "Unable to save this transport order right now. Please try again.".to_string(),
+                );
             }
         }
         PlanetAction::MoveDatabaseList(delta) => app.move_planet_database_list(delta),
@@ -120,7 +140,9 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::BackspaceTaxInput => app.backspace_planet_tax_input(),
         PlanetAction::SubmitTax => {
             if let Err(err) = app.submit_planet_tax() {
-                eprintln!("submit planet tax failed: {err}");
+                app.log_action_error("submit_planet_tax", err.as_ref());
+                app.planet.tax_notice =
+                    Some("Unable to save this tax change right now. Please try again.".to_string());
             }
         }
         PlanetAction::AppendBuildUnitChar(ch) => app.append_planet_build_unit_char(ch),
@@ -130,17 +152,28 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::BackspaceBuildQuantityInput => app.backspace_planet_build_quantity_input(),
         PlanetAction::SubmitBuildQuantity => {
             if let Err(err) = app.submit_planet_build_quantity() {
-                eprintln!("submit planet build quantity failed: {err}");
+                app.log_action_error("submit_planet_build_quantity", err.as_ref());
+                app.planet.build_quantity_status = Some(
+                    "Unable to save this build order right now. Please try again.".to_string(),
+                );
             }
         }
         PlanetAction::ConfirmBuildAbort => {
             if let Err(err) = app.abort_current_planet_builds() {
-                eprintln!("confirm planet build abort failed: {err}");
+                app.log_action_error("abort_current_planet_builds", err.as_ref());
+                app.planet.build_status = Some(
+                    "Unable to abort these build orders right now. Please try again.".to_string(),
+                );
             }
         }
         PlanetAction::ConfirmAutoCommission => {
             if let Err(err) = app.confirm_planet_auto_commission() {
-                eprintln!("confirm planet auto commission failed: {err}");
+                app.log_action_error("confirm_planet_auto_commission", err.as_ref());
+                app.show_command_menu_notice(
+                    crate::screen::CommandMenu::Planet,
+                    "Unable to auto-commission these stardock units right now. Please try again.",
+                );
+                app.planet.auto_commission_prompt_active = true;
             }
         }
         PlanetAction::OpenInfoPrompt(menu) => app.open_planet_info_prompt(menu),
