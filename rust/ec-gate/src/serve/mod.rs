@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
 use tokio::time::{Duration, interval};
+use tracing::{debug, error, info, info_span, warn, Instrument};
 
 use crate::config::GateConfig;
 use crate::roster::io::load_roster;
@@ -37,8 +38,8 @@ pub async fn run_serve(
         .to_bech32()
         .map_err(|e| format!("npub bech32: {e}"))?;
 
-    eprintln!("ec-gate: connecting to relay {}", config.relay);
-    eprintln!("ec-gate: daemon pubkey {npub}");
+    info!(relay = %config.relay, "connecting to relay");
+    info!(npub = %npub, "daemon pubkey");
 
     // Load all rosters up front.
     let game_dirs: Vec<_> = config.games.clone();
@@ -47,14 +48,11 @@ pub async fn run_serve(
         let roster_path = dir.join("roster.kdl");
         match load_roster(&roster_path) {
             Ok(r) => {
-                eprintln!("ec-gate: loaded roster {} ({})", r.id, r.name);
+                info!(game_id = %r.id, game_name = %r.name, "loaded roster");
                 rosters.push(r);
             }
             Err(e) => {
-                eprintln!(
-                    "ec-gate: warning: cannot load roster at {}: {e}",
-                    roster_path.display()
-                );
+                warn!(path = %roster_path.display(), error = %e, "cannot load roster");
             }
         }
     }
@@ -79,20 +77,22 @@ pub async fn run_serve(
         .await
         .map_err(|e| format!("subscribe: {e}"))?;
 
-    eprintln!("ec-gate: subscribed — waiting for session requests");
+    info!("subscribed — waiting for session requests");
 
     // Publish 30500 GameDefinition for each loaded game on startup.
     {
         let rosters = shared_rosters.lock().unwrap();
         for roster in rosters.iter() {
             match game_def::publish_game_definition(&client, keys, roster).await {
-                Ok(id) => eprintln!(
-                    "ec-gate: published 30500 for {} (event {})",
-                    roster.id, id
+                Ok(event_id) => info!(
+                    game_id = %roster.id,
+                    event_id = %event_id,
+                    "published 30500 GameDefinition"
                 ),
-                Err(e) => eprintln!(
-                    "ec-gate: warning: failed to publish 30500 for {}: {e}",
-                    roster.id
+                Err(e) => warn!(
+                    game_id = %roster.id,
+                    error = %e,
+                    "failed to publish 30500 GameDefinition"
                 ),
             }
         }
@@ -107,8 +107,8 @@ pub async fn run_serve(
             ticker.tick().await;
             match provision::reap_expired_keys(&reap_config) {
                 Ok(0) => {}
-                Ok(n) => eprintln!("ec-gate: reaped {n} expired SSH key(s)"),
-                Err(e) => eprintln!("ec-gate: reap error: {e}"),
+                Ok(n) => info!(count = n, "reaped expired SSH key(s)"),
+                Err(e) => error!(error = %e, "reap error"),
             }
         }
     });
@@ -127,107 +127,25 @@ pub async fn run_serve(
                 if let RelayPoolNotification::Event { event, .. } = notification {
                     match request::parse_session_request(&event) {
                         Ok(req) => {
-                            // Parse the player's public key for encryption.
-                            let player_pubkey = match PublicKey::from_hex(&req.player_pubkey) {
-                                Ok(pk) => pk,
-                                Err(e) => {
-                                    eprintln!(
-                                        "ec-gate: cannot parse player pubkey {}: {e}",
-                                        req.player_pubkey
-                                    );
-                                    return Ok(false);
-                                }
-                            };
-
-                            let dirs_ref: Vec<&Path> =
-                                shared_dirs.iter().map(|p| p.as_path()).collect();
-                            let (decision, game_dir) = {
-                                let mut rosters = shared_rosters.lock().unwrap();
-                                let d = routing::route(&req, &mut rosters, &dirs_ref);
-                                // Capture the game dir that matched, for provisioning.
-                                let gd = if let routing::RoutingDecision::Provisioned(ref seat) =
-                                    d
-                                {
-                                    rosters
-                                        .iter()
-                                        .position(|r| r.id == seat.game_id)
-                                        .and_then(|i| shared_dirs.get(i))
-                                        .cloned()
-                                } else {
-                                    None
-                                };
-                                (d, gd)
-                            };
-
-                            match decision {
-                                routing::RoutingDecision::Provisioned(seat) => {
-                                    let game_dir = match game_dir {
-                                        Some(d) => d,
-                                        None => {
-                                            eprintln!(
-                                                "ec-gate: no game dir for game {}",
-                                                seat.game_id
-                                            );
-                                            return Ok(false);
-                                        }
-                                    };
-
-                                    match provision::provision_key(
-                                        &shared_config,
-                                        &seat,
-                                        &req.ssh_pubkey,
-                                        &game_dir,
-                                    ) {
-                                        Ok(provisioned) => {
-                                            eprintln!(
-                                                "ec-gate: provisioned {} seat {} game={}",
-                                                seat.player_npub, seat.player, seat.game_id
-                                            );
-                                            if let Err(e) = response::publish_session_ready(
-                                                &client_clone,
-                                                &shared_keys,
-                                                &player_pubkey,
-                                                &req.nonce,
-                                                &shared_config,
-                                                &seat,
-                                                &provisioned,
-                                            )
-                                            .await
-                                            {
-                                                eprintln!(
-                                                    "ec-gate: failed to publish 30502: {e}"
-                                                );
-                                            }
-                                        }
-                                        Err(e) => {
-                                            eprintln!(
-                                                "ec-gate: provision failed for {}: {e}",
-                                                req.player_pubkey
-                                            );
-                                        }
-                                    }
-                                }
-                                routing::RoutingDecision::Error(route_err) => {
-                                    eprintln!(
-                                        "ec-gate: route error for {}: {route_err}",
-                                        req.player_pubkey
-                                    );
-                                    if let Err(e) = response::publish_session_error(
-                                        &client_clone,
-                                        &shared_keys,
-                                        &player_pubkey,
-                                        &req.nonce,
-                                        &route_err,
-                                    )
-                                    .await
-                                    {
-                                        eprintln!("ec-gate: failed to publish 30503: {e}");
-                                    }
-                                }
-                            }
+                            // Build the per-request span with fields known at parse time.
+                            let span = info_span!(
+                                "request",
+                                player_npub = %req.player_pubkey,
+                                nonce = %req.nonce,
+                            );
+                            handle_request(
+                                req,
+                                shared_rosters,
+                                shared_dirs,
+                                shared_keys,
+                                shared_config,
+                                client_clone,
+                            )
+                            .instrument(span)
+                            .await;
                         }
                         Err(e) => {
-                            eprintln!("ec-gate: rejected event: {e}");
+                            debug!(error = %e, "rejected event");
                         }
                     }
                 }
@@ -239,4 +157,101 @@ pub async fn run_serve(
         .map_err(|e| format!("notification loop: {e}"))?;
 
     Ok(())
+}
+
+/// Process one validated session request inside its tracing span.
+async fn handle_request(
+    req: request::SessionRequest,
+    shared_rosters: Arc<Mutex<Vec<Roster>>>,
+    shared_dirs: Arc<Vec<std::path::PathBuf>>,
+    shared_keys: Arc<Keys>,
+    shared_config: Arc<GateConfig>,
+    client: Client,
+) {
+    // Parse the player's public key for encryption.
+    let player_pubkey = match PublicKey::from_hex(&req.player_pubkey) {
+        Ok(pk) => pk,
+        Err(e) => {
+            warn!(error = %e, "cannot parse player pubkey");
+            return;
+        }
+    };
+
+    let dirs_ref: Vec<&Path> = shared_dirs.iter().map(|p| p.as_path()).collect();
+    let (decision, game_dir) = {
+        let mut rosters = shared_rosters.lock().unwrap();
+        let d = routing::route(&req, &mut rosters, &dirs_ref);
+        // Capture the game dir that matched, for provisioning.
+        let gd = if let routing::RoutingDecision::Provisioned(ref seat) = d {
+            rosters
+                .iter()
+                .position(|r| r.id == seat.game_id)
+                .and_then(|i| shared_dirs.get(i))
+                .cloned()
+        } else {
+            None
+        };
+        (d, gd)
+    };
+
+    match decision {
+        routing::RoutingDecision::Provisioned(seat) => {
+            let game_dir = match game_dir {
+                Some(d) => d,
+                None => {
+                    error!(game_id = %seat.game_id, "no game dir for provisioned seat");
+                    return;
+                }
+            };
+
+            match provision::provision_key(
+                &shared_config,
+                &seat,
+                &req.ssh_pubkey,
+                &game_dir,
+            ) {
+                Ok(provisioned) => {
+                    info!(
+                        game_id = %seat.game_id,
+                        player = seat.player,
+                        "provisioned seat"
+                    );
+                    if let Err(e) = response::publish_session_ready(
+                        &client,
+                        &shared_keys,
+                        &player_pubkey,
+                        &req.nonce,
+                        &shared_config,
+                        &seat,
+                        &provisioned,
+                    )
+                    .await
+                    {
+                        error!(error = %e, "failed to publish 30502 SessionReady");
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "provision failed");
+                }
+            }
+        }
+        routing::RoutingDecision::Error(route_err) => {
+            warn!(
+                error_code = route_err.error_code(),
+                reason = %route_err,
+                "routing error"
+            );
+            if let Err(e) = response::publish_session_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                &route_err,
+            )
+            .await
+            {
+                error!(error = %e, "failed to publish 30503 SessionError");
+            }
+        }
+    }
 }

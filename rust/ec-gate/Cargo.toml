@@ -26,5 +26,9 @@ sha2 = "0.10"
 # SSH key formatting
 # russh-keys = "..."
 
+# Structured async-friendly logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }

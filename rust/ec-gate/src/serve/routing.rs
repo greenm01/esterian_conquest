@@ -6,6 +6,8 @@
 
 use std::path::Path;
 
+use tracing::warn;
+
 use crate::roster::io::save_roster;
 use crate::roster::lookup::find_seats_by_npub;
 use crate::roster::{Roster, SeatStatus};
@@ -165,12 +167,9 @@ fn route_by_code(
     if let Some(dir) = game_dirs.get(ri) {
         let roster_path = dir.join("roster.kdl");
         if let Err(e) = save_roster(&roster_path, &rosters[ri]) {
-            // Log and continue — provisioning should still succeed even if
+            // Warn and continue — provisioning should still succeed even if
             // the save fails; the operator will see the error in logs.
-            eprintln!(
-                "ec-gate: warning: failed to save roster {}: {e}",
-                roster_path.display()
-            );
+            warn!(path = %roster_path.display(), error = %e, "failed to save roster after claim");
         }
     }
 
