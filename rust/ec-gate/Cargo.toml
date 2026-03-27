@@ -8,17 +8,23 @@ name = "ec-gate"
 path = "src/main.rs"
 
 [dependencies]
-# Nostr protocol
-# nostr-sdk = "..."
+# Config/roster parsing
+kdl = "6"
 
-# Async runtime
-# tokio = { version = "...", features = ["full"] }
+# Invite code generation
+rand = "0.8"
+
+# Nostr protocol: key generation, bech32 encoding, event signing, NIP-44 encryption
+nostr-sdk = { version = "0.44", features = ["nip44"] }
+
+# Async runtime for relay listener
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
+# SHA-256 for invite code hashing in 30500 GameDefinition events
+sha2 = "0.10"
 
 # SSH key formatting
 # russh-keys = "..."
-
-# Config/roster parsing
-# kdl = "6"
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }
