@@ -480,6 +480,8 @@ All required style tokens:
   [`menu`], [Menu item text.],
   [`menu_hotkey`], [Menu hotkey letters.],
   [`prompt`], [Input prompt text.],
+  [`prompt_angle_delimiter`], [Angle prompt punctuation such as the `< >` around explicit quit/cancel tokens like `<Q>`.],
+  [`prompt_square_delimiter`], [Square prompt punctuation such as the `[ ]` around defaults like `[03,03]` or yes/no defaults like `[Y]`.],
   [`prompt_hotkey`], [Prompt hotkey letters.],
   [`prompt_notice_action`], [Action-notice accent in prompts.],
   [`bright`], [Emphasized body text.],
@@ -510,6 +512,12 @@ All required style tokens:
   [`indicator_on`], [Active indicator (e.g. status lit).],
   [`indicator_off`], [Inactive indicator.],
 )
+
+The prompt delimiters are styled separately from the key text they contain.
+In command rails and inline prompts, the inner letters still use
+`prompt_hotkey`, while `< >` and `[ ]` come from their own delimiter styles.
+This lets a theme keep the command keys legible while giving quit markers and
+defaults their own visual distinction.
 
 == Mono Theme
 
@@ -806,8 +814,10 @@ Interactive client flags:
 
 = Theme Token Reference
 
-The default bundled theme values are listed below for reference. All colors use
-named ANSI-16 values.
+The ANSI-compatible reference palette below matches the bundled `mag16` theme.
+The default bootstrapped game theme is still `tokyo_night.kdl`, but `mag16`
+is a useful baseline because it shows the semantic token split using portable
+named ANSI colors.
 
 #table(
   columns: (auto, auto, auto, auto),
@@ -817,6 +827,8 @@ named ANSI-16 values.
   [`menu`], [`white`], [`black`], [—],
   [`menu_hotkey`], [`yellow`], [`black`], [yes],
   [`prompt`], [`white`], [`black`], [—],
+  [`prompt_angle_delimiter`], [`green`], [`black`], [yes],
+  [`prompt_square_delimiter`], [`red`], [`black`], [yes],
   [`prompt_hotkey`], [`yellow`], [`black`], [yes],
   [`prompt_notice_action`], [`bright_cyan`], [`black`], [yes],
   [`bright`], [`bright_white`], [`black`], [yes],
