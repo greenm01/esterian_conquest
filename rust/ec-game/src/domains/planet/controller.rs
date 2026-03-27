@@ -635,48 +635,47 @@ impl App {
     }
 
     fn sync_planet_brief_cursor_to_input(&mut self, sort: PlanetListSort) {
-        let raw = self.planet.brief_input.trim();
-        if raw.is_empty() {
-            return;
-        }
         let rows = self.sorted_planet_rows(sort);
-        let default_coords = rows
-            .get(self.planet.brief_cursor)
-            .map(|row| row.coords)
-            .unwrap_or([0, 0]);
-        let Some(coords) = resolve_default_coords_input(raw, default_coords) else {
+        let match_rows = rows
+            .iter()
+            .map(|row| vec![crate::screen::format_sector_coords_table(row.coords)])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &match_rows,
+            0,
+            &self.planet.brief_input,
+        ) else {
             return;
         };
-        if let Some(index) = rows.iter().position(|row| row.coords == coords) {
-            self.planet.brief_cursor = index;
-            let visible_rows = self.planet_brief_visible_rows();
-            sync_scroll_to_cursor(
-                &mut self.planet.brief_scroll_offset,
-                self.planet.brief_cursor,
-                visible_rows,
-            );
-        }
+        self.planet.brief_cursor = index;
+        let visible_rows = self.planet_brief_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.planet.brief_scroll_offset,
+            self.planet.brief_cursor,
+            visible_rows,
+        );
     }
 
     fn sync_planet_database_cursor_to_input(&mut self) {
-        let raw = self.planet.database_input.trim();
-        if raw.is_empty() {
-            return;
-        }
         let rows = self.planet_database_rows();
-        let default_coords = self.default_planet_prompt_coords();
-        let Some(coords) = resolve_default_coords_input(raw, default_coords) else {
+        let match_rows = rows
+            .iter()
+            .map(|row| vec![crate::screen::format_sector_coords_table(row.coords)])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &match_rows,
+            0,
+            &self.planet.database_input,
+        ) else {
             return;
         };
-        if let Some(index) = rows.iter().position(|row| row.coords == coords) {
-            self.planet.database_cursor = index;
-            let visible_rows = self.planet_database_visible_rows();
-            sync_scroll_to_cursor(
-                &mut self.planet.database_scroll_offset,
-                self.planet.database_cursor,
-                visible_rows,
-            );
-        }
+        self.planet.database_cursor = index;
+        let visible_rows = self.planet_database_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.planet.database_scroll_offset,
+            self.planet.database_cursor,
+            visible_rows,
+        );
     }
 
     pub fn backspace_planet_info_input(&mut self) {

@@ -339,6 +339,7 @@ impl StarbaseListScreen {
             } else {
                 Some(cursor)
             },
+            0,
         );
         draw_table_command_bar_at(
             &mut buffer,
@@ -421,6 +422,7 @@ impl StarbaseReviewScreen {
             } else {
                 Some(cursor)
             },
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {

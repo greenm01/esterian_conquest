@@ -402,6 +402,7 @@ impl FleetListScreen {
             } else {
                 Some(cursor)
             },
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
@@ -954,6 +955,7 @@ impl FleetGroupScreen {
             } else {
                 Some(cursor)
             },
+            0,
             None,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
@@ -1304,6 +1306,7 @@ impl FleetMissionPickerScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             Some(cursor),
+            0,
             Some(&row_states),
         );
         let command_row = table_prompt_row(metrics.bottom_row);

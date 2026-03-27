@@ -6,7 +6,8 @@ use ec_game::model::{ClassicLoginState, PlayerContext};
 use ec_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_game::screen::table::{
     SplitTableRow, TableColumn, TableRowState, table_render_width, write_split_table,
-    write_stacked_table_window_with_states, write_table_row, write_table_window_with_states,
+    write_stacked_table_window_with_states, write_table_row, write_table_window_with_cursor,
+    write_table_window_with_states,
 };
 use ec_game::screen::{
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow,
@@ -68,6 +69,7 @@ fn standard_table_places_scrollbar_just_right_of_table_border() {
         classic::status_value_style(),
         classic::status_value_style(),
         Some(2),
+        0,
         Some(&row_states),
     );
 
@@ -105,6 +107,7 @@ fn scrollable_table_panics_when_border_would_consume_last_playfield_col() {
         classic::status_value_style(),
         classic::status_value_style(),
         None,
+        0,
         None,
     );
 }
@@ -148,6 +151,7 @@ fn stacked_header_table_renders_top_and_bottom_headers() {
         classic::status_value_style(),
         classic::status_value_style(),
         Some(0),
+        0,
         None,
     );
 
@@ -422,10 +426,41 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
         buffer.row(5)[border_col + 1].style,
         classic::selected_row_style()
     );
+    let name_col = buffer.plain_line(5).find("Player 1 HW").expect("name col");
+    assert_eq!(buffer.row(5)[name_col].style, classic::table_body_style());
     assert_ne!(
         buffer.row(5)[border_col].style,
         classic::selected_row_style()
     );
+}
+
+#[test]
+fn selected_column_can_target_second_column_without_highlighting_first() {
+    let columns = [
+        TableColumn::center("", 1),
+        TableColumn::left("Theme", 12),
+        TableColumn::left("Type", 8),
+    ];
+    let rows = vec![vec!["*".to_string(), "Mono".to_string(), "Mono".to_string()]];
+    let mut buffer = PlayfieldBuffer::new(40, 8, classic::body_style());
+
+    write_table_window_with_cursor(
+        &mut buffer,
+        1,
+        &columns,
+        &rows,
+        0,
+        1,
+        classic::status_value_style(),
+        classic::status_value_style(),
+        Some(0),
+        1,
+    );
+
+    let marker_col = buffer.row(4).iter().position(|cell| cell.ch == '*').expect("marker col");
+    let name_col = buffer.row(4).iter().position(|cell| cell.ch == 'M').expect("name col");
+    assert_eq!(buffer.row(4)[marker_col].style, classic::table_body_style());
+    assert_eq!(buffer.row(4)[name_col].style, classic::selected_row_style());
 }
 
 #[test]

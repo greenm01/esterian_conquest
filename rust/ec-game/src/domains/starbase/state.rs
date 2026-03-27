@@ -118,17 +118,20 @@ impl StarbaseState {
         player_idx: usize,
         visible_rows: usize,
     ) {
-        if self.review_input.trim().is_empty() {
-            return;
-        }
-        let Ok(target_base_id) = self.review_input.trim().parse::<u8>() else {
+        let rows = self.starbase_rows(game_data, player_idx);
+        let match_rows = rows
+            .iter()
+            .map(|row| vec![row.base_id.to_string()])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &match_rows,
+            0,
+            &self.review_input,
+        ) else {
             return;
         };
-        let rows = self.starbase_rows(game_data, player_idx);
-        if let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) {
-            self.cursor = index;
-            self.sync_scroll(rows.len(), visible_rows);
-        }
+        self.cursor = index;
+        self.sync_scroll(rows.len(), visible_rows);
     }
 
     pub fn sync_scroll(&mut self, total: usize, visible_rows: usize) {

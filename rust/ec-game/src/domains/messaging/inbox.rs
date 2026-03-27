@@ -460,18 +460,16 @@ impl App {
     }
 
     fn sync_inbox_cursor_to_id_input(&mut self) {
-        let raw = self.messaging.inbox_id_input.trim();
-        if raw.is_empty() {
-            return;
-        }
-        let Ok(id) = raw.parse::<usize>() else {
-            return;
-        };
-        let Some(index) = self
+        let rows = self
             .filtered_inbox_display_items()
             .iter()
-            .position(|item| item.display_id == id)
-        else {
+            .map(|item| vec![format!("{:02}", item.display_id)])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &rows,
+            0,
+            &self.messaging.inbox_id_input,
+        ) else {
             return;
         };
         self.messaging.inbox_cursor = index;

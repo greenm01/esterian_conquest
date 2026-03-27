@@ -104,6 +104,7 @@ impl ReportsScreen {
             classic::table_header_style(),
             classic::table_body_style(),
             None,
+            0,
             None,
         );
         if focus == InboxFocus::Inbox {

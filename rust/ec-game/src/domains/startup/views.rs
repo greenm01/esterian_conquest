@@ -49,6 +49,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.startup_state.theme_picker_scroll_offset,
             app.startup_state.theme_picker_cursor,
             crate::theme::current_theme_key().as_deref(),
+            &app.startup_state.theme_picker_input,
             app.startup_state.theme_picker_status.as_deref(),
         ),
         ScreenId::FirstTimePreloadedRenamePrompt => {

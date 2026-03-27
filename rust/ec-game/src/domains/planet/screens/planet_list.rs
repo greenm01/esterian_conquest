@@ -119,6 +119,7 @@ impl PlanetListScreen {
             } else {
                 Some(cursor)
             },
+            0,
             None,
         );
 

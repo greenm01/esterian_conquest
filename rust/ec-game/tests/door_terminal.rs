@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_game::screen::{FirstTimeMenuScreen, PlayfieldBuffer, ScreenGeometry};
-use ec_game::terminal::door::{decode_input_bytes_for_test, serialize_playfield_frame};
+use ec_game::terminal::door::{
+    decode_fragmented_input_for_test, decode_input_bytes_for_test, serialize_playfield_frame,
+};
 use ec_game::terminal::{ColorMode, OutputEncoding};
 
 fn apply_mag16_theme() {
@@ -141,7 +143,17 @@ fn door_input_decoder_maps_ansi_navigation_sequences() {
 }
 
 #[test]
-fn door_serializer_downgrades_selected_row_background_to_bbs_safe_white_bg() {
+fn door_input_decoder_keeps_fragmented_arrow_sequences_as_arrows() {
+    let got = decode_fragmented_input_for_test(b"\x1b", b"[A").expect("decode fragmented");
+    assert_eq!(got, KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+
+    let got = decode_fragmented_input_for_test(b"\x1b[1;", b"2D").expect("decode fragmented");
+    assert_eq!(got, KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+}
+
+#[test]
+fn door_serializer_uses_bbs_safe_selected_row_cyan_background() {
+    apply_mag16_theme();
     let mut buffer = PlayfieldBuffer::new(80, 25, ec_game::theme::classic::body_style());
     buffer.write_text(5, 1, "01", ec_game::theme::classic::selected_row_style());
 
@@ -153,6 +165,6 @@ fn door_serializer_downgrades_selected_row_background_to_bbs_safe_white_bg() {
     );
     let frame_text = String::from_utf8_lossy(&frame);
 
-    assert!(frame_text.contains("\x1b[0;30;47m01"));
-    assert!(!frame_text.contains("\x1b[0;30;100m"));
+    assert!(frame_text.contains("\x1b[0;97;46m01"));
+    assert!(!frame_text.contains("\x1b[0;97;106m"));
 }

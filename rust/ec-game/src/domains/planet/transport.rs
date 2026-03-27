@@ -1024,24 +1024,25 @@ impl App {
     }
 
     fn sync_planet_transport_planet_cursor_to_input(&mut self, mode: PlanetTransportMode) {
-        let raw = self.planet.transport_planet_input.trim();
-        if raw.is_empty() {
-            return;
-        }
         let rows = self.planet_transport_planet_rows(mode);
-        let default_coords = self.planet_transport_planet_default_coords(mode);
-        let Some(coords) = resolve_default_coords_input(raw, default_coords) else {
+        let match_rows = rows
+            .iter()
+            .map(|row| vec![row.planet_name.clone()])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &match_rows,
+            0,
+            &self.planet.transport_planet_input,
+        ) else {
             return;
         };
-        if let Some(index) = rows.iter().position(|row| row.coords == coords) {
-            self.planet.transport_planet_cursor = index;
-            let visible_rows = self.planet_transport_visible_rows();
-            sync_scroll_to_cursor(
-                &mut self.planet.transport_planet_scroll_offset,
-                self.planet.transport_planet_cursor,
-                visible_rows,
-            );
-        }
+        self.planet.transport_planet_cursor = index;
+        let visible_rows = self.planet_transport_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.planet.transport_planet_scroll_offset,
+            self.planet.transport_planet_cursor,
+            visible_rows,
+        );
     }
 
     pub(crate) fn planet_transport_planet_rows(

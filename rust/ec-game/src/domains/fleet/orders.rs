@@ -1128,13 +1128,15 @@ impl App {
         if self.current_screen != ScreenId::FleetMissionPicker {
             return;
         }
-        let Ok(target_code) = self.fleet.mission_picker_input.trim().parse::<u8>() else {
-            return;
-        };
-        let Some(index) = FLEET_MISSION_OPTIONS
+        let rows = FLEET_MISSION_OPTIONS
             .iter()
-            .position(|option| option.code == target_code)
-        else {
+            .map(|option| vec![format!("{:02}", option.code)])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &rows,
+            0,
+            &self.fleet.mission_picker_input,
+        ) else {
             return;
         };
         if self

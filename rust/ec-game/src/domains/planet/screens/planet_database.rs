@@ -147,6 +147,7 @@ impl PlanetDatabaseScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
             None,
         );
 

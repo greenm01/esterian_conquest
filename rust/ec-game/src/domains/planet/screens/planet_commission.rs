@@ -145,6 +145,7 @@ impl PlanetCommissionScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
         );
 
         let default = rows
@@ -212,6 +213,7 @@ impl PlanetCommissionScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
         );
 
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
@@ -267,6 +269,7 @@ impl PlanetCommissionScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             if rows.is_empty() { None } else { Some(cursor) },
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let has_ship_draft = rows

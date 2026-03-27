@@ -119,6 +119,7 @@ impl PlanetTransportScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
@@ -193,6 +194,7 @@ impl PlanetTransportScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let max_qty = fleets.get(cursor).map(|row| row.available_qty).unwrap_or(0);

@@ -12,6 +12,8 @@ pub enum StartupAction {
     OpenFirstTimeIntro,
     OpenThemePicker,
     MoveThemePicker(isize),
+    AppendThemePickerChar(char),
+    BackspaceThemePickerInput,
     ApplyThemePickerSelection,
     ExitThemePicker,
     OpenFirstTimeJoinName,

@@ -143,6 +143,7 @@ pub fn write_table_window<'a>(
         header_style,
         body_style,
         None,
+        0,
         None,
     )
 }
@@ -158,6 +159,7 @@ pub fn write_table_window_with_cursor<'a>(
     body_style: crate::screen::CellStyle,
     // Absolute row index (0-based into `rows`) to highlight as selected.
     selected: Option<usize>,
+    selection_col: usize,
 ) -> TableRenderMetrics {
     write_table_window_with_states(
         buffer,
@@ -169,6 +171,7 @@ pub fn write_table_window_with_cursor<'a>(
         header_style,
         body_style,
         selected,
+        selection_col,
         None,
     )
 }
@@ -183,6 +186,7 @@ pub fn write_table_window_with_states<'a>(
     _header_style: crate::screen::CellStyle,
     _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
+    selection_col: usize,
     row_states: Option<&[TableRowState]>,
 ) -> TableRenderMetrics {
     write_table_window_with_states_at(
@@ -196,6 +200,7 @@ pub fn write_table_window_with_states<'a>(
         _header_style,
         _body_style,
         selected,
+        selection_col,
         row_states,
     )
 }
@@ -211,6 +216,7 @@ pub fn write_table_window_with_states_at<'a>(
     _header_style: crate::screen::CellStyle,
     _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
+    selection_col: usize,
     row_states: Option<&[TableRowState]>,
 ) -> TableRenderMetrics {
     let area = TableArea::new(
@@ -247,6 +253,7 @@ pub fn write_table_window_with_states_at<'a>(
         body_style,
         chrome_style,
         selected,
+        selection_col,
         row_states,
     );
     let bottom_row = area.row + 3 + displayed_rows;
@@ -281,6 +288,7 @@ pub fn write_stacked_table_window_with_states<'a>(
     _header_style: crate::screen::CellStyle,
     _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
+    selection_col: usize,
     row_states: Option<&[TableRowState]>,
 ) -> TableRenderMetrics {
     write_stacked_table_window_with_states_at(
@@ -295,6 +303,7 @@ pub fn write_stacked_table_window_with_states<'a>(
         _header_style,
         _body_style,
         selected,
+        selection_col,
         row_states,
     )
 }
@@ -311,6 +320,7 @@ pub fn write_stacked_table_window_with_states_at<'a>(
     _header_style: crate::screen::CellStyle,
     _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
+    selection_col: usize,
     row_states: Option<&[TableRowState]>,
 ) -> TableRenderMetrics {
     let area = TableArea::new(
@@ -356,6 +366,7 @@ pub fn write_stacked_table_window_with_states_at<'a>(
         body_style,
         chrome_style,
         selected,
+        selection_col,
         row_states,
     );
     let bottom_row = area.row + 4 + displayed_rows;
@@ -405,6 +416,7 @@ pub fn write_split_table(
         style,
         style,
         None,
+        0,
         None,
     )
 }
@@ -552,6 +564,7 @@ fn render_standard_body(
     body_style: crate::screen::CellStyle,
     chrome_style: crate::screen::CellStyle,
     selected: Option<usize>,
+    selection_col: usize,
     row_states: Option<&[TableRowState]>,
 ) -> usize {
     let mut displayed_rows = 0usize;
@@ -581,7 +594,14 @@ fn render_standard_body(
             chrome_style,
         );
         if selected == Some(abs_idx) {
-            highlight_identity_cell(buffer, area.row + idx, area.col, columns, &refs);
+            highlight_selected_row_cell(
+                buffer,
+                area.row + idx,
+                area.col,
+                columns,
+                &refs,
+                selection_col,
+            );
         }
         displayed_rows = idx + 1;
     }
@@ -598,23 +618,25 @@ fn render_standard_body(
     displayed_rows
 }
 
-fn highlight_identity_cell(
+fn highlight_selected_row_cell(
     buffer: &mut PlayfieldBuffer,
     row: usize,
     col: usize,
     columns: &[TableColumn<'_>],
     cells: &[&str],
+    selection_col: usize,
 ) {
-    let Some(first_column) = columns.first().copied() else {
+    let selected_style = crate::theme::classic::selected_row_style();
+    let Some(column) = columns.get(selection_col).copied() else {
         return;
     };
-    let first_cell = cells.first().copied().unwrap_or("");
-    let rendered = format_cell(first_cell, first_column);
+    let cell = cells.get(selection_col).copied().unwrap_or("");
+    let rendered = format_cell(cell, column);
     buffer.write_text(
         row,
-        col + 1,
+        col + column_start(columns, selection_col),
         &rendered,
-        crate::theme::classic::selected_row_style(),
+        selected_style,
     );
 }
 

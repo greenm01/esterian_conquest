@@ -464,6 +464,7 @@ impl App {
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(&default_key);
                 self.startup_state.theme_picker_scroll_offset = 0;
+                self.startup_state.theme_picker_input.clear();
                 let visible_rows = self.theme_picker_visible_rows();
                 crate::app::helpers::sync_scroll_to_cursor(
                     &mut self.startup_state.theme_picker_scroll_offset,
@@ -508,6 +509,27 @@ impl App {
         );
     }
 
+    pub fn append_theme_picker_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::ThemePicker {
+            return;
+        }
+        if self.startup_state.theme_picker_input.len() >= 22 {
+            return;
+        }
+        self.startup_state.theme_picker_input.push(ch);
+        self.sync_theme_picker_cursor_to_input();
+        self.startup_state.theme_picker_status = None;
+    }
+
+    pub fn backspace_theme_picker_input(&mut self) {
+        if self.current_screen != ScreenId::ThemePicker {
+            return;
+        }
+        self.startup_state.theme_picker_input.pop();
+        self.sync_theme_picker_cursor_to_input();
+        self.startup_state.theme_picker_status = None;
+    }
+
     pub fn apply_theme_picker_selection(&mut self) {
         if self.current_screen != ScreenId::ThemePicker {
             return;
@@ -544,6 +566,7 @@ impl App {
                 }
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(&entry.key);
+                self.startup_state.theme_picker_input.clear();
                 let visible_rows = self.theme_picker_visible_rows();
                 crate::app::helpers::sync_scroll_to_cursor(
                     &mut self.startup_state.theme_picker_scroll_offset,
@@ -568,6 +591,7 @@ impl App {
                 ));
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(fallback_key);
+                self.startup_state.theme_picker_input.clear();
                 let visible_rows = self.theme_picker_visible_rows();
                 crate::app::helpers::sync_scroll_to_cursor(
                     &mut self.startup_state.theme_picker_scroll_offset,
@@ -585,6 +609,7 @@ impl App {
         self.startup_state.theme_picker_rows.clear();
         self.startup_state.theme_picker_cursor = 0;
         self.startup_state.theme_picker_scroll_offset = 0;
+        self.startup_state.theme_picker_input.clear();
         self.startup_state.theme_picker_status = None;
         self.current_screen = self
             .startup_state
@@ -1214,6 +1239,29 @@ impl App {
                     .position(|entry| entry.key == "tokyo_night")
             })
             .unwrap_or(0)
+    }
+
+    fn sync_theme_picker_cursor_to_input(&mut self) {
+        let rows = self
+            .startup_state
+            .theme_picker_rows
+            .iter()
+            .map(|row| vec![String::new(), row.display_name.clone()])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &rows,
+            1,
+            &self.startup_state.theme_picker_input,
+        ) else {
+            return;
+        };
+        self.startup_state.theme_picker_cursor = index;
+        let visible_rows = self.theme_picker_visible_rows();
+        crate::app::helpers::sync_scroll_to_cursor(
+            &mut self.startup_state.theme_picker_scroll_offset,
+            self.startup_state.theme_picker_cursor,
+            visible_rows,
+        );
     }
 
     fn colony_world_target_planet_index(&self) -> Option<usize> {

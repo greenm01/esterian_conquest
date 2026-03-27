@@ -3554,8 +3554,8 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     app.render(&mut terminal)
         .expect("theme picker should render");
     assert_eq!(terminal.line(0).trim_end(), "ANSI THEMES:");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K ENTER Q>")
-        .contains("<ARROWS J K ENTER Q>"));
+    assert!(line_containing(&terminal, "COMMANDS <ARROWS PGUP PGDN ENTER Q>")
+        .contains("<ARROWS PGUP PGDN ENTER Q>"));
 
     theme_picker_select(&mut app, "tokyo_night");
     assert_eq!(

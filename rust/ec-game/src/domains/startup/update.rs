@@ -27,6 +27,8 @@ pub fn update(app: &mut App, action: StartupAction) {
         StartupAction::OpenFirstTimeIntro => app.open_first_time_intro(),
         StartupAction::OpenThemePicker => app.open_theme_picker(),
         StartupAction::MoveThemePicker(delta) => app.move_theme_picker_cursor(delta),
+        StartupAction::AppendThemePickerChar(ch) => app.append_theme_picker_char(ch),
+        StartupAction::BackspaceThemePickerInput => app.backspace_theme_picker_input(),
         StartupAction::ApplyThemePickerSelection => app.apply_theme_picker_selection(),
         StartupAction::ExitThemePicker => app.exit_theme_picker(),
         StartupAction::OpenFirstTimeJoinName => app.open_first_time_join_name(),

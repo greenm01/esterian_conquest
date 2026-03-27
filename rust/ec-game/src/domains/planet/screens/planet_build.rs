@@ -391,6 +391,7 @@ impl PlanetBuildScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
 
@@ -646,6 +647,7 @@ impl PlanetBuildScreen {
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
+            0,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
 

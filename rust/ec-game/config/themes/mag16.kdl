@@ -101,8 +101,8 @@ style "disabled_row" {
     bg "black"
 }
 style "selected" {
-    fg "black"
-    bg "bright_blue"
+    fg "bright_white"
+    bg "cyan"
 }
 style "alert" {
     fg "bright_white"

@@ -687,14 +687,16 @@ impl App {
         let ScreenId::FleetList = self.current_screen else {
             return;
         };
-        let Ok(target_fleet_id) = self.fleet.list_input.trim().parse::<u16>() else {
-            return;
-        };
         let rows = self.fleet_list_rows();
-        let Some(index) = rows
+        let match_rows = rows
             .iter()
-            .position(|row| row.fleet_number == target_fleet_id)
-        else {
+            .map(|row| vec![row.fleet_number.to_string()])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &match_rows,
+            0,
+            &self.fleet.list_input,
+        ) else {
             return;
         };
         self.fleet.cursor = index;

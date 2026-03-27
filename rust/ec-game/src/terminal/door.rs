@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -12,7 +13,9 @@ use crate::theme::classic;
 
 use super::stdout::resolve_color;
 
-const ESC_SEQUENCE_TIMEOUT_MS: i32 = 100;
+const ESC_INITIAL_TIMEOUT_MS: i32 = 500;
+const ESC_FOLLOWUP_TIMEOUT_MS: i32 = 150;
+const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
 
 pub struct DoorTerminal {
     encoding: OutputEncoding,
@@ -20,6 +23,7 @@ pub struct DoorTerminal {
     geometry: ScreenGeometry,
     trace_dir: Option<PathBuf>,
     frame_seq: u64,
+    pending_input: VecDeque<u8>,
 }
 
 impl DoorTerminal {
@@ -28,12 +32,17 @@ impl DoorTerminal {
         color_mode: ColorMode,
         geometry: ScreenGeometry,
     ) -> Self {
+        let trace_dir = std::env::var_os("EC_GAME_DOOR_TRACE_DIR").map(PathBuf::from);
+        if let Some(path) = trace_dir.as_deref() {
+            let _ = std::fs::create_dir_all(path);
+        }
         Self {
             encoding,
             color_mode,
             geometry,
-            trace_dir: std::env::var_os("EC_GAME_DOOR_TRACE_DIR").map(PathBuf::from),
+            trace_dir,
             frame_seq: 0,
+            pending_input: VecDeque::new(),
         }
     }
 }
@@ -53,7 +62,7 @@ impl Terminal for DoorTerminal {
     }
 
     fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-        read_key_from_stdin(self.trace_dir.as_deref())
+        read_key_from_stdin(&mut self.pending_input, self.trace_dir.as_deref())
     }
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -211,106 +220,126 @@ fn ansi_bg_code(color: crossterm::style::Color) -> u8 {
     }
 }
 
-fn read_key_from_stdin(trace_dir: Option<&Path>) -> Result<KeyEvent, Box<dyn std::error::Error>> {
+fn read_key_from_stdin(
+    pending: &mut VecDeque<u8>,
+    trace_dir: Option<&Path>,
+) -> Result<KeyEvent, Box<dyn std::error::Error>> {
     let stdin = io::stdin();
     let mut lock = stdin.lock();
-    let first = read_one(&mut lock)?;
-    if let Some(trace_dir) = trace_dir {
-        append_input_trace(trace_dir, &[first])?;
+    loop {
+        if pending.is_empty() {
+            read_and_enqueue(&mut lock, pending, trace_dir)?;
+        }
+        match decode_pending_input(pending) {
+            PendingDecode::Key { event, consumed } => {
+                drain_pending(pending, consumed);
+                return Ok(event);
+            }
+            PendingDecode::NeedMore(timeout_ms) => {
+                if stdin_ready(timeout_ms)? {
+                    read_and_enqueue(&mut lock, pending, trace_dir)?;
+                    continue;
+                }
+                let (event, consumed) = finalize_pending_after_timeout(pending);
+                drain_pending(pending, consumed);
+                return Ok(event);
+            }
+        }
     }
-    decode_first_byte(&mut lock, first, &|| stdin_ready(ESC_SEQUENCE_TIMEOUT_MS), trace_dir)
 }
 
-fn decode_first_byte(
-    input: &mut impl Read,
-    byte: u8,
-    is_ready: &dyn Fn() -> Result<bool, Box<dyn std::error::Error>>,
-    trace_dir: Option<&Path>,
-) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    Ok(match byte {
-        0x03 => KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
-        0x05 => KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL),
-        0x18 => KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL),
-        0x00 | 0xe0 => decode_dos_extended_sequence(input, trace_dir)?,
-        b'\r' | b'\n' => KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
-        b'\t' => KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
-        0x08 | 0x7f => KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
-        0x1b => decode_escape_sequence(input, is_ready, trace_dir)?,
-        0x20..=0x7e => KeyEvent::new(KeyCode::Char(byte as char), KeyModifiers::NONE),
-        _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-    })
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PendingDecode {
+    Key { event: KeyEvent, consumed: usize },
+    NeedMore(i32),
 }
 
-fn decode_escape_sequence(
-    input: &mut impl Read,
-    is_ready: &dyn Fn() -> Result<bool, Box<dyn std::error::Error>>,
-    trace_dir: Option<&Path>,
-) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    if !is_ready()? {
-        return Ok(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+fn decode_pending_input(pending: &VecDeque<u8>) -> PendingDecode {
+    let Some(&first) = pending.front() else {
+        return PendingDecode::Key {
+            event: KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+            consumed: 0,
+        };
+    };
+
+    match first {
+        0x03 => key_decode(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL), 1),
+        0x05 => key_decode(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL), 1),
+        0x18 => key_decode(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL), 1),
+        b'\r' | b'\n' => key_decode(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), 1),
+        b'\t' => key_decode(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE), 1),
+        0x08 | 0x7f => key_decode(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE), 1),
+        0x20..=0x7e => key_decode(KeyEvent::new(KeyCode::Char(first as char), KeyModifiers::NONE), 1),
+        0x00 | 0xe0 => decode_dos_pending(pending),
+        0x1b => decode_escape_pending(pending),
+        _ => key_decode(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 1),
     }
-    let second = read_one(input)?;
-    if let Some(trace_dir) = trace_dir {
-        append_input_trace(trace_dir, &[second])?;
-    }
+}
+
+fn key_decode(event: KeyEvent, consumed: usize) -> PendingDecode {
+    PendingDecode::Key { event, consumed }
+}
+
+fn decode_dos_pending(pending: &VecDeque<u8>) -> PendingDecode {
+    let Some(byte) = pending.get(1).copied() else {
+        return PendingDecode::NeedMore(ESC_FOLLOWUP_TIMEOUT_MS);
+    };
+    key_decode(map_dos_extended(byte), 2)
+}
+
+fn decode_escape_pending(pending: &VecDeque<u8>) -> PendingDecode {
+    let Some(second) = pending.get(1).copied() else {
+        return PendingDecode::NeedMore(ESC_INITIAL_TIMEOUT_MS);
+    };
     match second {
-        b'[' => decode_csi_sequence(input, is_ready, trace_dir),
-        b'O' => decode_ss3_sequence(input, is_ready, trace_dir),
-        _ => Ok(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
+        b'[' => decode_csi_pending(pending),
+        b'O' => decode_ss3_pending(pending),
+        b'A' => key_decode(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), 2),
+        b'B' => key_decode(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), 2),
+        b'C' => key_decode(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), 2),
+        b'D' => key_decode(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), 2),
+        b'H' => key_decode(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), 2),
+        b'F' => key_decode(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), 2),
+        _ => key_decode(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 2),
     }
 }
 
-fn decode_csi_sequence(
-    input: &mut impl Read,
-    is_ready: &dyn Fn() -> Result<bool, Box<dyn std::error::Error>>,
-    trace_dir: Option<&Path>,
-) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    let mut seq = Vec::new();
-    for _ in 0..8 {
-        if !is_ready()? {
-            break;
-        }
-        let byte = read_one(input)?;
-        if let Some(trace_dir) = trace_dir {
-            append_input_trace(trace_dir, &[byte])?;
-        }
-        seq.push(byte);
+fn decode_csi_pending(pending: &VecDeque<u8>) -> PendingDecode {
+    let bytes = pending.iter().copied().collect::<Vec<_>>();
+    for (idx, byte) in bytes.iter().copied().enumerate().skip(2) {
         match byte {
-            b'A' => return Ok(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
-            b'B' => return Ok(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
-            b'C' => return Ok(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
-            b'D' => return Ok(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
-            b'H' => return Ok(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
-            b'F' => return Ok(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+            b'A' => return key_decode(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), idx + 1),
+            b'B' => return key_decode(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), idx + 1),
+            b'C' => return key_decode(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), idx + 1),
+            b'D' => return key_decode(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), idx + 1),
+            b'H' => return key_decode(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), idx + 1),
+            b'F' => return key_decode(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), idx + 1),
             b'~' => {
-                return Ok(match seq.as_slice() {
+                let event = match &bytes[2..=idx] {
                     b"1~" | b"7~" => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
                     b"4~" | b"8~" => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
                     b"3~" => KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
                     b"5~" => KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
                     b"6~" => KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
                     _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-                });
+                };
+                return key_decode(event, idx + 1);
             }
             _ => {}
         }
     }
-    Ok(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+    if pending.len() >= MAX_ESCAPE_SEQUENCE_BYTES {
+        key_decode(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), pending.len())
+    } else {
+        PendingDecode::NeedMore(ESC_FOLLOWUP_TIMEOUT_MS)
+    }
 }
 
-fn decode_ss3_sequence(
-    input: &mut impl Read,
-    is_ready: &dyn Fn() -> Result<bool, Box<dyn std::error::Error>>,
-    trace_dir: Option<&Path>,
-) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    if !is_ready()? {
-        return Ok(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-    }
-    let byte = read_one(input)?;
-    if let Some(trace_dir) = trace_dir {
-        append_input_trace(trace_dir, &[byte])?;
-    }
-    Ok(match byte {
+fn decode_ss3_pending(pending: &VecDeque<u8>) -> PendingDecode {
+    let Some(byte) = pending.get(2).copied() else {
+        return PendingDecode::NeedMore(ESC_FOLLOWUP_TIMEOUT_MS);
+    };
+    let event = match byte {
         b'A' => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
         b'B' => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
         b'C' => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
@@ -318,18 +347,21 @@ fn decode_ss3_sequence(
         b'H' => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
         b'F' => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
         _ => KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-    })
+    };
+    key_decode(event, 3)
 }
 
-fn decode_dos_extended_sequence(
-    input: &mut impl Read,
-    trace_dir: Option<&Path>,
-) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    let byte = read_one(input)?;
-    if let Some(trace_dir) = trace_dir {
-        append_input_trace(trace_dir, &[byte])?;
+fn finalize_pending_after_timeout(pending: &VecDeque<u8>) -> (KeyEvent, usize) {
+    match pending.front().copied() {
+        Some(0x1b) => (KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), pending.len().max(1)),
+        Some(0x00 | 0xe0) => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), pending.len().min(2)),
+        Some(_) => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 1),
+        None => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 0),
     }
-    Ok(match byte {
+}
+
+fn map_dos_extended(byte: u8) -> KeyEvent {
+    match byte {
         b'H' => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
         b'P' => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
         b'M' => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
@@ -340,7 +372,26 @@ fn decode_dos_extended_sequence(
         b'I' => KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
         b'Q' => KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
         _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-    })
+    }
+}
+
+fn read_and_enqueue(
+    input: &mut impl Read,
+    pending: &mut VecDeque<u8>,
+    trace_dir: Option<&Path>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let byte = read_one(input)?;
+    pending.push_back(byte);
+    if let Some(trace_dir) = trace_dir {
+        append_input_trace(trace_dir, &[byte])?;
+    }
+    Ok(())
+}
+
+fn drain_pending(pending: &mut VecDeque<u8>, consumed: usize) {
+    for _ in 0..consumed.min(pending.len()) {
+        pending.pop_front();
+    }
 }
 
 fn read_one(input: &mut impl Read) -> Result<u8, Box<dyn std::error::Error>> {
@@ -412,68 +463,27 @@ fn append_input_trace(trace_dir: &Path, bytes: &[u8]) -> Result<(), Box<dyn std:
 
 #[doc(hidden)]
 pub fn decode_input_bytes_for_test(bytes: &[u8]) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    let Some(&first) = bytes.first() else {
+    let pending = bytes.iter().copied().collect::<VecDeque<_>>();
+    if pending.is_empty() {
         return Ok(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    };
-    Ok(match first {
-        0x03 => KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
-        0x05 => KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL),
-        0x18 => KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL),
-        0x00 | 0xe0 => match bytes.get(1).copied() {
-            Some(b'H') => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
-            Some(b'P') => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
-            Some(b'M') => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
-            Some(b'K') => KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
-            Some(b'G') => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-            Some(b'O') => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
-            Some(b'S') => KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
-            Some(b'I') => KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
-            Some(b'Q') => KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
-            _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-        },
-        b'\r' | b'\n' => KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
-        b'\t' => KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
-        0x08 | 0x7f => KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
-        0x1b => decode_escape_bytes_for_test(&bytes[1..]),
-        0x20..=0x7e => KeyEvent::new(KeyCode::Char(first as char), KeyModifiers::NONE),
-        _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+    }
+    Ok(match decode_pending_input(&pending) {
+        PendingDecode::Key { event, .. } => event,
+        PendingDecode::NeedMore(_) => finalize_pending_after_timeout(&pending).0,
     })
 }
 
-fn decode_escape_bytes_for_test(bytes: &[u8]) -> KeyEvent {
-    let Some(&second) = bytes.first() else {
-        return KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
-    };
-    match second {
-        b'[' => match bytes.last().copied() {
-            Some(b'A') => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
-            Some(b'B') => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
-            Some(b'C') => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
-            Some(b'D') => KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
-            Some(b'H') => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-            Some(b'F') => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
-            _ => match &bytes[1..] {
-            [b'1', b'~', ..] | [b'7', b'~', ..] => {
-                KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)
-            }
-            [b'4', b'~', ..] | [b'8', b'~', ..] => {
-                KeyEvent::new(KeyCode::End, KeyModifiers::NONE)
-            }
-            [b'3', b'~', ..] => KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
-            [b'5', b'~', ..] => KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
-            [b'6', b'~', ..] => KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
-            _ => KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-            },
-        },
-        b'O' => match bytes.get(1).copied() {
-            Some(b'A') => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
-            Some(b'B') => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
-            Some(b'C') => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
-            Some(b'D') => KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
-            Some(b'H') => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-            Some(b'F') => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
-            _ => KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-        },
-        _ => KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+#[doc(hidden)]
+pub fn decode_fragmented_input_for_test(
+    initial: &[u8],
+    continuation: &[u8],
+) -> Result<KeyEvent, Box<dyn std::error::Error>> {
+    let mut pending = initial.iter().copied().collect::<VecDeque<_>>();
+    if matches!(decode_pending_input(&pending), PendingDecode::NeedMore(_)) {
+        pending.extend(continuation.iter().copied());
     }
+    Ok(match decode_pending_input(&pending) {
+        PendingDecode::Key { event, .. } => event,
+        PendingDecode::NeedMore(_) => finalize_pending_after_timeout(&pending).0,
+    })
 }

@@ -172,13 +172,6 @@ impl App {
     }
 
     fn sync_enemies_cursor_to_input(&mut self) {
-        let raw = self.empire.enemies_input.trim();
-        if raw.is_empty() {
-            return;
-        }
-        let Ok(target_empire_id) = raw.parse::<u8>() else {
-            return;
-        };
         let ids = self
             .game_data
             .player
@@ -188,14 +181,23 @@ impl App {
             .filter(|(idx, _)| *idx + 1 != self.player.record_index_1_based)
             .map(|(idx, _)| (idx + 1) as u8)
             .collect::<Vec<_>>();
-        if let Some(index) = ids.iter().position(|&id| id == target_empire_id) {
-            self.empire.enemies_cursor = index;
-            let visible_rows = self.enemies_visible_rows();
-            sync_scroll_to_cursor(
-                &mut self.empire.enemies_scroll_offset,
-                self.empire.enemies_cursor,
-                visible_rows,
-            );
-        }
+        let rows = ids
+            .iter()
+            .map(|id| vec![format!("{id:02}")])
+            .collect::<Vec<_>>();
+        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+            &rows,
+            0,
+            &self.empire.enemies_input,
+        ) else {
+            return;
+        };
+        self.empire.enemies_cursor = index;
+        let visible_rows = self.enemies_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.empire.enemies_scroll_offset,
+            self.empire.enemies_cursor,
+            visible_rows,
+        );
     }
 }

@@ -1,6 +1,7 @@
 pub mod buffer;
 pub mod layout;
 pub mod table;
+pub mod table_selection;
 
 pub mod build_help {
     pub use crate::domains::planet::screens::build_help::*;

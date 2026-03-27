@@ -22,6 +22,7 @@ const THEME_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::left("Theme", 22),
     TableColumn::left("Type", 8),
 ];
+const THEME_SELECTION_COL: usize = 1;
 
 pub struct ThemePickerScreen;
 
@@ -37,6 +38,7 @@ impl ThemePickerScreen {
         scroll_offset: usize,
         cursor: usize,
         active_key: Option<&str>,
+        input: &str,
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
@@ -78,9 +80,19 @@ impl ThemePickerScreen {
             } else {
                 Some(cursor.min(table_rows.len().saturating_sub(1)))
             },
+            THEME_SELECTION_COL,
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
-        draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K ENTER Q>", None, "");
+        let default_theme = rows
+            .get(cursor.min(rows.len().saturating_sub(1)))
+            .map(|row| row.display_name.as_str());
+        draw_table_command_bar_at(
+            &mut buffer,
+            command_row,
+            "<ARROWS PGUP PGDN ENTER Q>",
+            default_theme,
+            input,
+        );
         Ok(buffer)
     }
 }
@@ -90,23 +102,23 @@ impl Screen for ThemePickerScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render(ScreenGeometry::local_default(), &[], 0, 0, None, None)
+        self.render(ScreenGeometry::local_default(), &[], 0, 0, None, "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                Action::Startup(StartupAction::MoveThemePicker(-1))
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                Action::Startup(StartupAction::MoveThemePicker(1))
-            }
+            KeyCode::Up => Action::Startup(StartupAction::MoveThemePicker(-1)),
+            KeyCode::Down => Action::Startup(StartupAction::MoveThemePicker(1)),
             KeyCode::PageUp => Action::Startup(StartupAction::MoveThemePicker(
                 -(THEME_PICKER_VISIBLE_ROWS as isize),
             )),
             KeyCode::PageDown => Action::Startup(StartupAction::MoveThemePicker(
                 THEME_PICKER_VISIBLE_ROWS as isize,
             )),
+            KeyCode::Backspace => Action::Startup(StartupAction::BackspaceThemePickerInput),
+            KeyCode::Char(ch) if ch.is_ascii_alphanumeric() || matches!(ch, ' ' | '-' | '_') => {
+                Action::Startup(StartupAction::AppendThemePickerChar(ch))
+            }
             KeyCode::Enter => Action::Startup(StartupAction::ApplyThemePickerSelection),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Startup(StartupAction::ExitThemePicker)
