@@ -142,6 +142,11 @@ wrapper scripts or format massaging required. The `--timeout <minutes>` flag
 overrides the session timeout from the command line if needed. Unreserved
 callers can still use `--player` explicitly.
 
+The current Rust door client is verified on both Mystic and ENiGMA. In BBS
+door mode, the stable control contract is `HJKL` for movement, `Ctrl-U` /
+`Ctrl-D` for paging, and `Q` or `Esc` for back/quit. Do not rely on arrows or
+`PgUp` / `PgDn` as primary controls through BBS hosts.
+
 Submit a player turn from a KDL file:
 
 Players normally use the interactive TUI, but `ec-game` also supports a

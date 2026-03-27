@@ -406,7 +406,7 @@ impl FleetListScreen {
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D Q>", None, "");
             draw_command_message_stack(
                 &mut buffer,
                 command_row,
@@ -420,7 +420,7 @@ impl FleetListScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<ARROWS J K Q>",
+                "<J K ^U ^D Q>",
                 Some(&default_fleet_number),
                 input,
             );
@@ -503,7 +503,7 @@ impl FleetReviewScreen {
                 &mut buffer,
                 menu_prompt_row(12),
                 "FLEET COMMAND",
-                "ARROWS H J K L Q",
+                "HJKL Q",
             );
         } else {
             draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
@@ -971,7 +971,7 @@ impl FleetGroupScreen {
                 &mut buffer,
                 command_row,
                 start_col,
-                "<ARROWS J K SPACE Q>",
+                "<J K ^U ^D SPACE Q>",
                 None,
                 "",
             );
@@ -1324,7 +1324,7 @@ impl FleetMissionPickerScreen {
                 &mut buffer,
                 command_row,
                 start_col,
-                "<ARROWS J K Q>",
+                "<J K ^U ^D Q>",
                 Some(&default),
                 input,
             );

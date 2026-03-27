@@ -47,7 +47,7 @@ impl ThemePickerScreen {
             &mut buffer,
             1,
             "",
-            "Use arrows or J/K to move. ENTER applies the theme. Q returns.",
+            "Use J/K to move, ^U/^D to page. ENTER applies the theme. Q returns.",
         );
         let table_rows = rows
             .iter()
@@ -89,7 +89,7 @@ impl ThemePickerScreen {
         draw_table_command_bar_at(
             &mut buffer,
             command_row,
-            "<ARROWS PGUP PGDN ENTER Q>",
+            "<J K ^U ^D ENTER Q>",
             default_theme,
             input,
         );
@@ -107,8 +107,12 @@ impl Screen for ThemePickerScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up => Action::Startup(StartupAction::MoveThemePicker(-1)),
-            KeyCode::Down => Action::Startup(StartupAction::MoveThemePicker(1)),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Startup(StartupAction::MoveThemePicker(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Startup(StartupAction::MoveThemePicker(1))
+            }
             KeyCode::PageUp => Action::Startup(StartupAction::MoveThemePicker(
                 -(THEME_PICKER_VISIBLE_ROWS as isize),
             )),

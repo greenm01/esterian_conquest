@@ -154,7 +154,7 @@ impl PlanetCommissionScreen {
         draw_table_command_bar_at(
             &mut buffer,
             table_prompt_row_for(geometry, metrics.bottom_row),
-            "<ARROWS J K Q>",
+            "<J K ^U ^D Q>",
             default.as_deref(),
             "",
         );
@@ -217,7 +217,7 @@ impl PlanetCommissionScreen {
         );
 
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
-        draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
+        draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D SPACE Q>", None, "");
         let message_end_row = draw_general_message_after_command(
             &mut buffer,
             command_row,

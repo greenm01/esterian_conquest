@@ -84,7 +84,7 @@ impl MessageComposeScreen {
         );
         let command_row = table_prompt_row_for(frame.geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K D Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D D Q>", None, "");
         } else {
             let default_empire = rows
                 .get(cursor)
@@ -94,7 +94,7 @@ impl MessageComposeScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<ARROWS J K D Q>",
+                "<J K ^U ^D D Q>",
                 Some(default_empire),
                 input,
             );
@@ -286,7 +286,7 @@ impl MessageComposeScreen {
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D Q>", None, "");
         } else {
             let default_queue_no = if rows.is_empty() {
                 String::new()
@@ -296,7 +296,7 @@ impl MessageComposeScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<ARROWS J K Q>",
+                "<J K ^U ^D Q>",
                 Some(&default_queue_no),
                 input,
             );
@@ -364,10 +364,18 @@ impl MessageComposeScreen {
             {
                 Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)
             }
-            KeyCode::Left => Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft),
-            KeyCode::Right => Action::Messaging(MessagingAction::MoveComposeBodyCursorRight),
-            KeyCode::Up => Action::Messaging(MessagingAction::MoveComposeBodyCursorUp),
-            KeyCode::Down => Action::Messaging(MessagingAction::MoveComposeBodyCursorDown),
+            KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+                Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
+            }
+            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
+            }
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+            }
             KeyCode::Home => Action::Messaging(MessagingAction::MoveComposeBodyCursorHome),
             KeyCode::End => Action::Messaging(MessagingAction::MoveComposeBodyCursorEnd),
             KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceComposeBody),

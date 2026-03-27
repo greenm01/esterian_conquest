@@ -22,6 +22,9 @@ Keep this file short. Historical detail belongs in
   - core player/sysop workflows exist
   - the main remaining unknowns are real-world usability issues and bugs found
     during campaign play
+- The Rust BBS door client is now verified on both Mystic and ENiGMA½.
+- For BBS play, the stable door control contract is `HJKL` movement, `^U` /
+  `^D` paging, and `Q` / `Esc` for back/quit.
 - Latest broad baselines before new work:
   - `cargo test -q`
   - `cargo test -q -p ec-game`

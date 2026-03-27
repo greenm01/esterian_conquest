@@ -30,7 +30,7 @@ use ec_game::screen::table::{fit_table_columns, TableColumn};
 use ec_game::screen::{
     CommandMenu, FleetGroupOrderMode, FleetGroupScreen, FleetRow, PlanetBuildMenuView,
     PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionDraftRow, PlanetListMode, PlanetListSort,
-    ScreenId,
+    ScreenId, MessageComposeScreen,
 };
 use ec_game::startup::StartupPhase;
 use ec_game::terminal::Terminal;
@@ -238,6 +238,10 @@ fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
 }
 
+fn ctrl_key(ch: char) -> KeyEvent {
+    KeyEvent::new(KeyCode::Char(ch), KeyModifiers::CONTROL)
+}
+
 fn key_with_kind(code: KeyCode, kind: KeyEventKind) -> KeyEvent {
     KeyEvent {
         code,
@@ -269,6 +273,52 @@ fn save_runtime_state(root: &Path, state: &CampaignRuntimeState) {
         })
         .collect::<Vec<_>>();
     save_runtime_state_with_intel(root, state, &planet_intel_by_viewer);
+}
+
+#[test]
+fn navigation_hotkeys_map_ctrl_d_to_page_down_actions() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    app.current_screen = ScreenId::PlanetDatabaseList;
+
+    assert_eq!(
+        app.handle_key(ctrl_key('d')),
+        Action::Planet(PlanetAction::MoveDatabaseList(8))
+    );
+    assert_eq!(
+        app.handle_key(ctrl_key('u')),
+        Action::Planet(PlanetAction::MoveDatabaseList(-8))
+    );
+}
+
+#[test]
+fn compose_body_accepts_hjkl_cursor_movement() {
+    let screen = MessageComposeScreen::new();
+
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Char('h'))),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Char('j'))),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Char('k'))),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Char('l'))),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
+    );
 }
 
 fn save_runtime_state_with_intel(
@@ -3568,8 +3618,8 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     app.render(&mut terminal)
         .expect("theme picker should render");
     assert_eq!(terminal.line(0).trim_end(), "ANSI THEMES:");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS PGUP PGDN ENTER Q>")
-        .contains("<ARROWS PGUP PGDN ENTER Q>"));
+    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D ENTER Q>")
+        .contains("<J K ^U ^D ENTER Q>"));
 
     theme_picker_select(&mut app, "tokyo_night");
     assert_eq!(
@@ -8326,7 +8376,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         .expect("fleet group order screen should render");
     let top_border_line = line_containing(&terminal, "┌");
     let header_line = line_containing(&terminal, "│ID");
-    let command_line = line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>");
+    let command_line = line_containing(&terminal, "COMMANDS <J K ^U ^D SPACE Q>");
     let table_left = top_border_line
         .chars()
         .position(|ch| ch == '┌')
@@ -8478,9 +8528,9 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     );
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
-    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    let prompt = line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [");
     assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
-    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(prompt.contains("COMMANDS <J K ^U ^D Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -8544,9 +8594,9 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         terminal.line(0).find("FLEET MISSION ORDERS:"),
         Some(left_padding)
     );
-    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    let prompt = line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [");
     assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
-    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(prompt.contains("COMMANDS <J K ^U ^D Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -10021,7 +10071,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D Q>").contains("COMMANDS"));
     assert!(terminal
         .lines
         .iter()
@@ -11182,7 +11232,7 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order should render normal command line");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D SPACE Q>").contains("COMMANDS"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(!terminal
         .lines
@@ -11295,7 +11345,7 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group join should return to normal command line");
-    assert!(line_containing(&terminal, "COMMANDS <ARROWS J K SPACE Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D SPACE Q>").contains("COMMANDS"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(!terminal
         .lines
@@ -12868,7 +12918,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
-    assert_eq!(buffer.plain_line(6), "COMMANDS <ARROWS J K Q> [4] ->");
+    assert_eq!(buffer.plain_line(6), "COMMANDS <J K ^U ^D Q> [4] ->");
 }
 
 #[test]
@@ -12997,8 +13047,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <ARROWS J K Q> [").trim_end(),
-        "COMMANDS <ARROWS J K Q> [4] ->"
+        line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [").trim_end(),
+        "COMMANDS <J K ^U ^D Q> [4] ->"
     );
 
     assert_eq!(
@@ -13008,8 +13058,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <ARROWS J K Q> [").trim_end(),
-        "COMMANDS <ARROWS J K Q> [1] -> 1"
+        line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [").trim_end(),
+        "COMMANDS <J K ^U ^D Q> [1] -> 1"
     );
 
     assert_eq!(

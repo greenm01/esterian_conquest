@@ -227,6 +227,16 @@ Run maintenance:
 ./bin/ec-sysop maint /tmp/ec-game 1
 ```
 
+## BBS Door Note
+
+If you host `ec-game` as a BBS door, the current stable door-mode controls are:
+
+- `HJKL` for movement
+- `Ctrl-U` / `Ctrl-D` for paging
+- `Q` or `Esc` for back/quit
+
+Arrow keys and `PgUp` / `PgDn` are not part of the primary door-mode contract.
+
 ## config.kdl
 
 The bundled `config.kdl` is a template for sysops to review or copy. The live

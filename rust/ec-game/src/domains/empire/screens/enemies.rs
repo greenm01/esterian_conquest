@@ -107,7 +107,7 @@ impl EnemiesScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<ARROWS J K Q>",
+                "<J K ^U ^D Q>",
                 Some(default_empire),
                 input,
             );

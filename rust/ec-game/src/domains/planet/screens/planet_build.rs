@@ -438,7 +438,7 @@ impl PlanetBuildScreen {
                     &mut buffer,
                     command_row,
                     "BUILD COMMAND",
-                    "ARROWS [D]elete Q",
+                    "J K ^U ^D [D]elete Q",
                 );
             }
         } else {
@@ -446,7 +446,7 @@ impl PlanetBuildScreen {
                 &mut buffer,
                 command_row,
                 "BUILD COMMAND",
-                "ARROWS [D]elete Q",
+                "J K ^U ^D [D]elete Q",
             );
             if rows.is_empty() {
                 draw_command_message_stack(
@@ -616,7 +616,7 @@ impl PlanetBuildScreen {
         buffer.write_text(
             2,
             0,
-            "Select a planet with ARROWS then press ENTER, or press Q to cancel.",
+            "Select a planet with J/K then press ENTER, or press Q to cancel.",
             classic::body_style(),
         );
 
@@ -660,7 +660,7 @@ impl PlanetBuildScreen {
             );
         }
 
-        draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "ARROWS ENTER Q");
+        draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "J K ^U ^D ENTER Q");
         Ok(buffer)
     }
 

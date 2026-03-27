@@ -2,7 +2,8 @@ use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -14,7 +15,7 @@ use crate::theme::classic;
 
 use super::stdout::resolve_color;
 
-const DOOR_ESCAPE_TIMEOUT_MS: i32 = 1500;
+const DOOR_ESCAPE_TIMEOUT_MS: i32 = 400;
 const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
 
 pub struct DoorTerminal {
@@ -224,6 +225,8 @@ fn ansi_bg_code(color: crossterm::style::Color) -> u8 {
 
 struct DoorInputDecoder {
     pending: VecDeque<u8>,
+    sequence_deadline: Option<Instant>,
+    orphaned_escape_suffix_deadline: Option<Instant>,
 }
 
 enum ParseResult {
@@ -236,6 +239,8 @@ impl DoorInputDecoder {
     fn new() -> Self {
         Self {
             pending: VecDeque::new(),
+            sequence_deadline: None,
+            orphaned_escape_suffix_deadline: None,
         }
     }
 
@@ -248,37 +253,77 @@ impl DoorInputDecoder {
             match try_decode_complete(&self.pending) {
                 ParseResult::Event(event, consumed) => {
                     drain_pending(&mut self.pending, consumed);
+                    self.sequence_deadline = None;
+                    self.orphaned_escape_suffix_deadline = None;
                     return Ok(event);
                 }
                 ParseResult::Drop(consumed) => {
                     drain_pending(&mut self.pending, consumed);
+                    self.sequence_deadline = None;
+                    self.orphaned_escape_suffix_deadline = None;
                 }
                 ParseResult::NeedMore => {
                     if self.pending.is_empty() {
-                        read_burst(input, &mut self.pending, trace_dir, None)?;
+                        self.sequence_deadline = None;
+                        self.read_burst(input, trace_dir, None)?;
                         continue;
                     }
-                    if read_burst(
-                        input,
-                        &mut self.pending,
-                        trace_dir,
-                        Some(DOOR_ESCAPE_TIMEOUT_MS),
-                    )? {
+                    let timeout_ms = self.remaining_sequence_timeout_ms();
+                    if timeout_ms > 0 && self.read_burst(input, trace_dir, Some(timeout_ms))? {
                         continue;
                     }
                     match finalize_pending_after_timeout(&self.pending) {
                         ParseResult::Event(event, consumed) => {
                             drain_pending(&mut self.pending, consumed);
+                            self.sequence_deadline = None;
+                            self.orphaned_escape_suffix_deadline = orphaned_suffix_deadline(
+                                event,
+                                &self.pending,
+                                consumed,
+                            );
                             return Ok(event);
                         }
                         ParseResult::Drop(consumed) => {
                             drain_pending(&mut self.pending, consumed);
+                            self.sequence_deadline = None;
+                            self.orphaned_escape_suffix_deadline = None;
                         }
                         ParseResult::NeedMore => {}
                     }
                 }
             }
         }
+    }
+
+    fn read_burst(
+        &mut self,
+        input: &mut impl Read,
+        trace_dir: Option<&Path>,
+        timeout_ms: Option<i32>,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        let mut burst = read_burst(input, trace_dir, timeout_ms)?;
+        drop_orphaned_escape_suffix(
+            &mut burst,
+            self.orphaned_escape_suffix_deadline
+                .filter(|deadline| *deadline > Instant::now()),
+        );
+        if burst.is_empty() {
+            self.orphaned_escape_suffix_deadline = None;
+            return Ok(false);
+        }
+        self.orphaned_escape_suffix_deadline = None;
+        self.pending.extend(burst);
+        Ok(true)
+    }
+
+    fn remaining_sequence_timeout_ms(&mut self) -> i32 {
+        let deadline = self.sequence_deadline.get_or_insert_with(|| {
+            Instant::now() + Duration::from_millis(DOOR_ESCAPE_TIMEOUT_MS as u64)
+        });
+        deadline
+            .saturating_duration_since(Instant::now())
+            .as_millis()
+            .min(i32::MAX as u128) as i32
     }
 }
 
@@ -289,7 +334,9 @@ fn try_decode_complete(pending: &VecDeque<u8>) -> ParseResult {
 
     match first {
         0x03 => ParseResult::Event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL), 1),
+        0x04 => ParseResult::Event(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL), 1),
         0x05 => ParseResult::Event(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL), 1),
+        0x15 => ParseResult::Event(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL), 1),
         0x18 => ParseResult::Event(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL), 1),
         b'\r' | b'\n' => ParseResult::Event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), 1),
         b'\t' => ParseResult::Event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE), 1),
@@ -322,12 +369,6 @@ fn try_decode_escape_complete(pending: &VecDeque<u8>) -> ParseResult {
     match second {
         b'[' => try_decode_csi_complete(pending),
         b'O' => try_decode_ss3_complete(pending),
-        b'A' => ParseResult::Event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), 2),
-        b'B' => ParseResult::Event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), 2),
-        b'C' => ParseResult::Event(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), 2),
-        b'D' => ParseResult::Event(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), 2),
-        b'H' => ParseResult::Event(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), 2),
-        b'F' => ParseResult::Event(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), 2),
         _ => ParseResult::Event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
     }
 }
@@ -335,53 +376,11 @@ fn try_decode_escape_complete(pending: &VecDeque<u8>) -> ParseResult {
 fn try_decode_csi_complete(pending: &VecDeque<u8>) -> ParseResult {
     let bytes = pending.iter().copied().collect::<Vec<_>>();
     for (idx, byte) in bytes.iter().copied().enumerate().skip(2) {
-        match byte {
-            b'A' => {
-                return ParseResult::Event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), idx + 1);
-            }
-            b'B' => {
-                return ParseResult::Event(
-                    KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
-                    idx + 1,
-                );
-            }
-            b'C' => {
-                return ParseResult::Event(
-                    KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
-                    idx + 1,
-                );
-            }
-            b'D' => {
-                return ParseResult::Event(
-                    KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
-                    idx + 1,
-                );
-            }
-            b'H' => {
-                return ParseResult::Event(
-                    KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-                    idx + 1,
-                );
-            }
-            b'F' => {
-                return ParseResult::Event(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), idx + 1);
-            }
-            b'~' => {
-                let event = match &bytes[2..=idx] {
-                    b"1~" | b"7~" => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
-                    b"4~" | b"8~" => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
-                    b"3~" => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
-                    b"5~" => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
-                    b"6~" => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
-                    _ => None,
-                };
-                return match event {
-                    Some(event) => ParseResult::Event(event, idx + 1),
-                    None => ParseResult::Drop(idx + 1),
-                };
-            }
-            0x40..=0x7e => return ParseResult::Drop(idx + 1),
-            _ => {}
+        if let Some(event) = map_csi_event(byte, &bytes[2..=idx]) {
+            return ParseResult::Event(event, idx + 1);
+        }
+        if is_csi_final(byte) {
+            return ParseResult::Drop(idx + 1);
         }
     }
     if pending.len() >= MAX_ESCAPE_SEQUENCE_BYTES {
@@ -396,10 +395,6 @@ fn try_decode_ss3_complete(pending: &VecDeque<u8>) -> ParseResult {
         return ParseResult::NeedMore;
     };
     let event = match byte {
-        b'A' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
-        b'B' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
-        b'C' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
-        b'D' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
         b'H' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
         b'F' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
         _ => None,
@@ -429,28 +424,82 @@ fn finalize_escape_after_timeout(pending: &VecDeque<u8>) -> ParseResult {
 
 fn map_dos_extended(byte: u8) -> Option<KeyEvent> {
     match byte {
-        b'H' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
-        b'P' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
-        b'M' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
-        b'K' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
         b'G' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
         b'O' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
         b'S' => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
-        b'I' => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
-        b'Q' => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
         _ => None,
+    }
+}
+
+fn map_csi_event(byte: u8, sequence: &[u8]) -> Option<KeyEvent> {
+    match byte {
+        b'H' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
+        b'F' | b'K' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+        b'~' => match sequence {
+            b"1~" | b"7~" => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
+            b"4~" | b"8~" => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+            b"3~" => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn is_csi_final(byte: u8) -> bool {
+    (0x40..=0x7e).contains(&byte)
+}
+
+fn orphaned_suffix_deadline(
+    event: KeyEvent,
+    pending: &VecDeque<u8>,
+    consumed: usize,
+) -> Option<Instant> {
+    let is_bare_escape = event.code == KeyCode::Esc
+        && matches!(pending.front().copied(), Some(0x1b))
+        && consumed == 1
+        && pending.len() == 1;
+    is_bare_escape.then(|| Instant::now() + Duration::from_millis(DOOR_ESCAPE_TIMEOUT_MS as u64))
+}
+
+fn drop_orphaned_escape_suffix(burst: &mut Vec<u8>, orphan_deadline: Option<Instant>) {
+    if orphan_deadline.is_none() || burst.is_empty() {
+        return;
+    }
+    let consumed = match burst[0] {
+        b'[' => orphan_csi_suffix_len(&burst[1..]).map(|len| len + 1),
+        b'O' => orphan_ss3_suffix_len(&burst[1..]).map(|len| len + 1),
+        _ => None,
+    };
+    if let Some(consumed) = consumed {
+        burst.drain(..consumed.min(burst.len()));
+    }
+}
+
+fn orphan_csi_suffix_len(bytes: &[u8]) -> Option<usize> {
+    for (idx, byte) in bytes.iter().copied().enumerate() {
+        if is_csi_final(byte) {
+            return Some(idx + 1);
+        }
+    }
+    (!bytes.is_empty()).then_some(bytes.len())
+}
+
+fn orphan_ss3_suffix_len(bytes: &[u8]) -> Option<usize> {
+    match bytes.first().copied() {
+        Some(b'A' | b'B' | b'C' | b'D' | b'H' | b'F') => Some(1),
+        Some(_) => Some(1),
+        None => None,
     }
 }
 
 fn read_burst(
     input: &mut impl Read,
-    pending: &mut VecDeque<u8>,
     trace_dir: Option<&Path>,
     timeout_ms: Option<i32>,
-) -> Result<bool, Box<dyn std::error::Error>> {
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     if let Some(timeout_ms) = timeout_ms {
         if !stdin_ready(timeout_ms)? {
-            return Ok(false);
+            return Ok(Vec::new());
         }
     }
 
@@ -458,11 +507,10 @@ fn read_burst(
     while burst.len() < MAX_ESCAPE_SEQUENCE_BYTES && stdin_ready(0)? {
         burst.push(read_one(input)?);
     }
-    pending.extend(burst.iter().copied());
     if let Some(trace_dir) = trace_dir {
         append_input_trace(trace_dir, &burst)?;
     }
-    Ok(true)
+    Ok(burst)
 }
 
 fn drain_pending(pending: &mut VecDeque<u8>, consumed: usize) {
@@ -541,9 +589,8 @@ fn append_input_trace(trace_dir: &Path, bytes: &[u8]) -> Result<(), Box<dyn std:
 
     let log_path = trace_dir.join("input.log");
     let mut log = OpenOptions::new().create(true).append(true).open(log_path)?;
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
+    let ts = trace_clock_start()
+        .elapsed()
         .as_millis();
     write!(log, "{ts}")?;
     for byte in bytes {
@@ -551,6 +598,11 @@ fn append_input_trace(trace_dir: &Path, bytes: &[u8]) -> Result<(), Box<dyn std:
     }
     writeln!(log)?;
     Ok(())
+}
+
+fn trace_clock_start() -> &'static Instant {
+    static START: OnceLock<Instant> = OnceLock::new();
+    START.get_or_init(Instant::now)
 }
 
 #[doc(hidden)]
@@ -620,4 +672,108 @@ pub fn decode_input_stream_for_test(
         }
     }
     Ok(events)
+}
+
+#[doc(hidden)]
+pub fn decode_timed_input_stream_for_test(
+    chunks: &[(u64, &[u8])],
+) -> Result<Vec<KeyEvent>, Box<dyn std::error::Error>> {
+    let mut pending = VecDeque::new();
+    let mut events = Vec::new();
+    let mut deadline_ms = None;
+    let mut orphan_deadline_ms = None;
+
+    for &(chunk_time_ms, bytes) in chunks {
+        if let Some(deadline) = deadline_ms {
+            if chunk_time_ms > deadline {
+                finalize_timed_pending(
+                    &mut pending,
+                    &mut events,
+                    &mut orphan_deadline_ms,
+                    chunk_time_ms,
+                );
+                deadline_ms = None;
+            }
+        }
+
+        let mut burst = bytes.to_vec();
+        if orphan_deadline_ms.is_some_and(|deadline| chunk_time_ms <= deadline) {
+            drop_orphaned_escape_suffix(
+                &mut burst,
+                Some(Instant::now() + Duration::from_millis(DOOR_ESCAPE_TIMEOUT_MS as u64)),
+            );
+        }
+        orphan_deadline_ms = None;
+        pending.extend(burst.iter().copied());
+        loop {
+            match try_decode_complete(&pending) {
+                ParseResult::Event(event, consumed) => {
+                    drain_pending(&mut pending, consumed);
+                    events.push(event);
+                    deadline_ms = None;
+                    orphan_deadline_ms = None;
+                }
+                ParseResult::Drop(consumed) => {
+                    drain_pending(&mut pending, consumed);
+                    deadline_ms = None;
+                    orphan_deadline_ms = None;
+                }
+                ParseResult::NeedMore => {
+                    if pending.is_empty() {
+                        deadline_ms = None;
+                    } else if deadline_ms.is_none() {
+                        deadline_ms = Some(chunk_time_ms + DOOR_ESCAPE_TIMEOUT_MS as u64);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    if deadline_ms.is_some() {
+        finalize_timed_pending(&mut pending, &mut events, &mut orphan_deadline_ms, u64::MAX);
+    }
+    while !pending.is_empty() {
+        match try_decode_complete(&pending) {
+            ParseResult::Event(event, consumed) => {
+                drain_pending(&mut pending, consumed);
+                events.push(event);
+            }
+            ParseResult::Drop(consumed) => {
+                drain_pending(&mut pending, consumed);
+            }
+            ParseResult::NeedMore => {
+                finalize_timed_pending(&mut pending, &mut events, &mut orphan_deadline_ms, u64::MAX);
+            }
+        }
+    }
+    Ok(events)
+}
+
+fn finalize_timed_pending(
+    pending: &mut VecDeque<u8>,
+    events: &mut Vec<KeyEvent>,
+    orphan_deadline_ms: &mut Option<u64>,
+    now_ms: u64,
+) {
+    match finalize_pending_after_timeout(pending) {
+        ParseResult::Event(event, consumed) => {
+            if event.code == KeyCode::Esc
+                && matches!(pending.front().copied(), Some(0x1b))
+                && consumed == 1
+                && pending.len() == 1
+            {
+                *orphan_deadline_ms = Some(now_ms.saturating_add(DOOR_ESCAPE_TIMEOUT_MS as u64));
+            } else {
+                *orphan_deadline_ms = None;
+            }
+            drain_pending(pending, consumed);
+            events.push(event);
+        }
+        ParseResult::Drop(consumed) => {
+            drain_pending(pending, consumed);
+            *orphan_deadline_ms = None;
+        }
+        ParseResult::NeedMore => {}
+    }
 }

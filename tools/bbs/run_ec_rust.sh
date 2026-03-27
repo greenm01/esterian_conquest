@@ -14,6 +14,7 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 RUST_DIR="$REPO_ROOT/rust"
 RELEASE_BIN="$RUST_DIR/target/release/ec-game"
 DEBUG_BIN="$RUST_DIR/target/debug/ec-game"
+TRACE_TRIGGER=/tmp/ec-door-trace.trigger
 
 if [ ! -d "$GAME_DIR" ]; then
     echo "ec-game launcher error: game dir not found: $GAME_DIR" >&2
@@ -32,6 +33,13 @@ mkdir -p "$EC_CLIENT_EXPORT_ROOT"
 
 if [ -n "${EC_CLIENT_QUEUE_DIR:-}" ]; then
     mkdir -p "$EC_CLIENT_QUEUE_DIR"
+fi
+
+if [ -z "${EC_GAME_DOOR_TRACE_DIR:-}" ] && [ -f "$TRACE_TRIGGER" ]; then
+    EC_GAME_DOOR_TRACE_DIR=$(head -n 1 "$TRACE_TRIGGER" | tr -d '\r')
+    if [ -n "$EC_GAME_DOOR_TRACE_DIR" ]; then
+        export EC_GAME_DOOR_TRACE_DIR
+    fi
 fi
 
 COMMON_ARGS=(

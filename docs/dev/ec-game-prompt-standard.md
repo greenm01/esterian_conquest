@@ -190,7 +190,7 @@ COMMAND <- Delete how many Destroyers? <A>ll or 1-2 <Q> ->
 
 This document does not govern:
 
-- table command bars such as `COMMANDS <ARROWS J K S Q> [03,03] ->`
+- table command bars such as `COMMANDS <J K S Q> [03,03] ->`
 - table command-prompt replacement rows described in
   [ec-game-table-standard.md](ec-game-table-standard.md)
 - main-menu and expert-menu rails such as `GENERAL COMMAND <-H,Q,X->`

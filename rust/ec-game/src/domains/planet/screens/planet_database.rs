@@ -169,7 +169,7 @@ impl PlanetDatabaseScreen {
                 &mut buffer,
                 command_row,
                 start_col,
-                "<ARROWS J K F S Q>",
+                "<J K ^U ^D F S Q>",
                 Some(&default),
                 input,
             );

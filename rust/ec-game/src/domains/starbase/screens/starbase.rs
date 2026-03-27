@@ -307,7 +307,7 @@ impl StarbaseListScreen {
             &mut buffer,
             1,
             "",
-            "Use arrows or J/K to move through the list. ENTER reviews a starbase.",
+            "Use J/K to move, ^U/^D to page. ENTER reviews a starbase.",
         );
         let table_rows = rows
             .iter()
@@ -344,7 +344,7 @@ impl StarbaseListScreen {
         draw_table_command_bar_at(
             &mut buffer,
             table_prompt_row_for(geometry, metrics.bottom_row),
-            "<ARROWS J K Q>",
+            "<J K ^U ^D Q>",
             None,
             "",
         );
@@ -426,7 +426,7 @@ impl StarbaseReviewScreen {
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D Q>", None, "");
         } else {
             let default_base = rows
                 .get(cursor)
@@ -435,7 +435,7 @@ impl StarbaseReviewScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<ARROWS J K Q>",
+                "<J K ^U ^D Q>",
                 Some(&default_base),
                 input,
             );

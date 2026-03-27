@@ -2,14 +2,10 @@
 
 Status note:
 
-- this path is not the current validated baseline
-- live testing still shows broken full-screen rendering through ENiGMA's
-  `abracadabra` local-door path
-- prefer [mystic-rust-setup.md](mystic-rust-setup.md) or SSH/local hosting for
-  real Rust play right now
-
-This document remains useful for ENiGMA-specific experimentation while the
-separate bridge-service path is being built.
+- this path is now verified with the current Rust door client
+- ENiGMA callers should use `HJKL` for movement and `^U` / `^D` for paging in
+  door mode
+- `Esc` and `Q` remain the supported back/quit keys
 
 Use the native Rust stack:
 
@@ -105,6 +101,12 @@ Why `stdio`:
   `{srvPort}`
 - native `ec-game` reads and writes directly on stdin/stdout
 - `DOOR32` is still useful for caller alias and timeout metadata
+
+Door-control note:
+
+- treat `HJKL` as the primary movement keys in the Rust door
+- use `^U` / `^D` for paging long tables and reports
+- do not rely on arrows or `PgUp` / `PgDn` in door sessions
 
 ## 5. Optional map-export staging
 

@@ -3,6 +3,13 @@
 This is the current baseline local-door BBS host for the Rust-native
 `ec-game` client.
 
+Status note:
+
+- this path is validated with the current Rust door client
+- callers should use `HJKL` for movement and `^U` / `^D` for paging in door
+  mode
+- `Esc` and `Q` remain the supported back/quit keys
+
 Use:
 
 - `ec-sysop` to create and maintain the campaign
@@ -103,7 +110,5 @@ The expected first-pass smoke test is:
 3. launch the EC entry
 4. confirm the EC first-time menu renders in color and sits on the normal
    `80x25` playfield
-5. choose `J` and verify the join flow reaches empire naming
-
-If Mystic works and ENiGMA does not, treat ENiGMA as a separate integration
-problem rather than a generic Rust-door failure.
+5. verify that `HJKL` navigation and `^U` / `^D` paging work on list screens
+6. choose `J` and verify the join flow reaches empire naming

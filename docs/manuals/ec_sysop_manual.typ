@@ -581,12 +581,13 @@ agree on the same empire slot.
 
 == Enigma BBS (Rust Client)
 
-To run the native `ec-game` as an Enigma BBS door, use the `abracadabra`
-module with `dropFileType: DOOR32`, `io: stdio`, and `encoding: cp437`.
-Pass `--dir`, `--dropfile`, `--encoding cp437`, and `--color-mode ansi16` to
-the client, or use the helper wrapper at `tools/bbs/run_ec_rust.sh`. Use
-`--player` for unreserved callers, or reserve the alias in `config.kdl` and
-let `--dropfile` resolve the seat.
+The native Rust `ec-game` door is now verified on both Mystic and ENiGMA½.
+For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
+`io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
+`--encoding cp437`, and `--color-mode ansi16` to the client, or use the
+helper wrapper at `tools/bbs/run_ec_rust.sh`. Use `--player` for unreserved
+callers, or reserve the alias in `config.kdl` and let `--dropfile` resolve
+the seat.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
 
@@ -598,6 +599,14 @@ ec-game \
 
 For a fuller ENiGMA½ Rust-door setup, including a ready `abracadabra`
 configuration, see `docs/sysop/enigma-rust-setup.md`.
+
+In BBS door mode, the reliable control contract is:
+
+- `HJKL` for movement
+- `^U` / `^D` for paging
+- `Q` or `Esc` for back/quit
+
+Do not rely on arrows or `PgUp` / `PgDn` for normal play through BBS hosts.
 
 // ─── 8. SSH Access ────────────────────────────────────────────────────────────
 

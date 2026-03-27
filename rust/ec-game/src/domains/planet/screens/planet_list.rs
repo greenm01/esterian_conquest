@@ -131,7 +131,7 @@ impl PlanetListScreen {
             &mut buffer,
             table_prompt_row_for(frame.geometry, metrics.bottom_row),
             start_col,
-            "<ARROWS J K S Q>",
+            "<J K S Q>",
             Some(&default_coords),
             input,
         );
@@ -158,12 +158,14 @@ impl PlanetListScreen {
 
     pub fn handle_brief_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
         match key.code {
-            KeyCode::Up => Action::Planet(PlanetAction::MoveBrief(-1)),
-            KeyCode::Down => Action::Planet(PlanetAction::MoveBrief(1)),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Planet(PlanetAction::MoveBrief(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Planet(PlanetAction::MoveBrief(1))
+            }
             KeyCode::PageUp => Action::Planet(PlanetAction::MoveBrief(-5)),
             KeyCode::PageDown => Action::Planet(PlanetAction::MoveBrief(5)),
-            KeyCode::Char('k') | KeyCode::Char('K') => Action::Planet(PlanetAction::MoveBrief(-1)),
-            KeyCode::Char('j') | KeyCode::Char('J') => Action::Planet(PlanetAction::MoveBrief(1)),
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 Action::Planet(PlanetAction::OpenListSortPrompt(mode))
             }

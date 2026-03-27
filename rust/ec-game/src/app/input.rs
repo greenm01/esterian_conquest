@@ -10,6 +10,7 @@ use crate::startup::StartupPhase;
 
 impl App {
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> Action {
+        let key = self.normalize_navigation_hotkeys(key);
         if key.code == crossterm::event::KeyCode::Char('c')
             && key
                 .modifiers
@@ -261,6 +262,33 @@ impl App {
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
             ScreenId::Rankings(_) => self.rankings.handle_key(key),
             ScreenId::Reports => self.handle_reports_key(key),
+        }
+    }
+
+    fn normalize_navigation_hotkeys(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crossterm::event::KeyEvent {
+        match (key.code, key.modifiers) {
+            (
+                crossterm::event::KeyCode::Char('u') | crossterm::event::KeyCode::Char('U'),
+                modifiers,
+            ) if modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                crossterm::event::KeyEvent::new(
+                    crossterm::event::KeyCode::PageUp,
+                    crossterm::event::KeyModifiers::NONE,
+                )
+            }
+            (
+                crossterm::event::KeyCode::Char('d') | crossterm::event::KeyCode::Char('D'),
+                modifiers,
+            ) if modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                crossterm::event::KeyEvent::new(
+                    crossterm::event::KeyCode::PageDown,
+                    crossterm::event::KeyModifiers::NONE,
+                )
+            }
+            _ => key,
         }
     }
 
