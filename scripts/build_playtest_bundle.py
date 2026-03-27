@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import tarfile
@@ -109,12 +110,15 @@ def run(
     cwd: Path | None = None,
     capture_output: bool = False,
 ) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    env["RUSTC_WRAPPER"] = ""
     return subprocess.run(
         argv,
         cwd=cwd or REPO_ROOT,
         check=True,
         text=True,
         capture_output=capture_output,
+        env=env,
     )
 
 
@@ -218,10 +222,17 @@ Create a fresh campaign:
 ./bin/ec-sysop new-game /tmp/ec-game --players 4 --seed 1515
 ```
 
-Launch the player client:
+Initialize and run the Nostr hosting daemon:
 
 ```bash
-./bin/ec-game --dir /tmp/ec-game --player 1
+./bin/ec-sysop nostr init
+./bin/ec-sysop nostr serve
+```
+
+The recommended player join path is `ec-connect`:
+
+```bash
+./bin/ec-connect --join amber-river@play.example.com --gate npub1...
 ```
 
 Run maintenance:
@@ -230,11 +241,10 @@ Run maintenance:
 ./bin/ec-sysop maint /tmp/ec-game 1
 ```
 
-Initialize and run the Nostr hosting daemon:
+For localhost or hotseat play, you can still launch the game client directly:
 
 ```bash
-./bin/ec-sysop nostr init
-./bin/ec-sysop nostr serve
+./bin/ec-game --dir /tmp/ec-game --player 1
 ```
 
 ## BBS Door Note
