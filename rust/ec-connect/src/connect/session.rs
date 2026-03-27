@@ -126,9 +126,7 @@ async fn run_session_with_keypair(
                     DisambigMode::Picker => {
                         // Return control to the picker so it can show a
                         // game-selection screen and retry with the chosen id.
-                        SessionOutcome::NeedsDisambiguation {
-                            games: err.games,
-                        }
+                        SessionOutcome::NeedsDisambiguation { games: err.games }
                     }
                 }
             } else {
@@ -184,11 +182,7 @@ fn prompt_game_selection(games: &[GameEntry]) -> Result<GameEntry, String> {
         .map_err(|_| format!("invalid selection: '{}'", line.trim()))?;
 
     if n < 1 || n > games.len() {
-        return Err(format!(
-            "selection {} out of range (1–{})",
-            n,
-            games.len()
-        ));
+        return Err(format!("selection {} out of range (1–{})", n, games.len()));
     }
 
     Ok(games[n - 1].clone())

@@ -2,9 +2,9 @@ use std::env;
 
 use nostr_sdk::Keys;
 
-use crate::config::{load_config, ConnectConfig};
+use crate::config::{ConnectConfig, load_config};
 use crate::connect::resolve::{resolve_invite, resolve_server};
-use crate::connect::session::{resolve_gate_npub, run_session, DisambigMode, SessionOutcome};
+use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };

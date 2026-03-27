@@ -1,6 +1,6 @@
 use ec_connect::connect::handshake::{
-    parse_session_error, parse_session_ready, random_nonce_hex, GameEntry, SessionErrorPayload,
-    SessionReadyPayload,
+    GameEntry, SessionErrorPayload, SessionReadyPayload, parse_session_error, parse_session_ready,
+    random_nonce_hex,
 };
 
 // ── parse_session_ready ───────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 use ec_connect::config::{ConnectConfig, ServerBookmark};
 use ec_connect::connect::resolve::{
-    derive_relay_url, parse_invite_code, resolve_invite, resolve_server, ParsedInviteCode,
-    DEFAULT_SSH_PORT,
+    DEFAULT_SSH_PORT, ParsedInviteCode, derive_relay_url, parse_invite_code, resolve_invite,
+    resolve_server,
 };
 
 // ── parse_invite_code ────────────────────────────────────────────────────────

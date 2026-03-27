@@ -139,11 +139,7 @@ pub async fn run_handshake(
         }
 
         let kind = event.kind.as_u16();
-        let plaintext = nip44::decrypt(
-            player_keys.secret_key(),
-            &event.pubkey,
-            &event.content,
-        )?;
+        let plaintext = nip44::decrypt(player_keys.secret_key(), &event.pubkey, &event.content)?;
 
         if kind == 30502 {
             let payload = parse_session_ready(&plaintext)?;
@@ -250,10 +246,14 @@ pub fn parse_session_error(json: &str) -> Result<SessionErrorPayload, String> {
 /// Handles basic JSON escapes `\\` and `\"` within the value.
 fn extract_str(json: &str, key: &str) -> Result<String, String> {
     let needle = format!("\"{}\"", key);
-    let key_pos = json.find(&needle).ok_or_else(|| format!("missing field '{key}'"))?;
+    let key_pos = json
+        .find(&needle)
+        .ok_or_else(|| format!("missing field '{key}'"))?;
     let after_key = &json[key_pos + needle.len()..];
     // Skip whitespace and colon.
-    let colon_pos = after_key.find(':').ok_or_else(|| format!("malformed field '{key}'"))?;
+    let colon_pos = after_key
+        .find(':')
+        .ok_or_else(|| format!("malformed field '{key}'"))?;
     let after_colon = after_key[colon_pos + 1..].trim_start();
     if !after_colon.starts_with('"') {
         return Err(format!("field '{key}' is not a string"));
@@ -290,7 +290,9 @@ fn extract_u32(json: &str, key: &str) -> Option<u32> {
     let after_key = &json[key_pos + needle.len()..];
     let colon_pos = after_key.find(':')?;
     let after_colon = after_key[colon_pos + 1..].trim_start();
-    let end = after_colon.find(|c: char| !c.is_ascii_digit()).unwrap_or(after_colon.len());
+    let end = after_colon
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(after_colon.len());
     after_colon[..end].parse().ok()
 }
 
@@ -324,7 +326,11 @@ fn parse_game_entries(json: &str) -> Vec<GameEntry> {
         let name = extract_str(&wrapped, "name").unwrap_or_default();
         let seat = extract_u32(&wrapped, "seat").unwrap_or(0);
         if !game_id.is_empty() {
-            entries.push(GameEntry { game_id, name, seat });
+            entries.push(GameEntry {
+                game_id,
+                name,
+                seat,
+            });
         }
         remaining = &body[obj_end + 1..];
     }
@@ -341,10 +347,7 @@ pub fn random_nonce_hex() -> String {
 }
 
 /// Extract the content (index-1 value) of the first tag with the given name.
-fn tag_value<'a>(
-    mut tags: impl Iterator<Item = &'a nostr_sdk::Tag>,
-    name: &str,
-) -> Option<String> {
+fn tag_value<'a>(mut tags: impl Iterator<Item = &'a nostr_sdk::Tag>, name: &str) -> Option<String> {
     tags.find_map(|t| {
         if t.kind().as_str() == name {
             t.content().map(str::to_string)

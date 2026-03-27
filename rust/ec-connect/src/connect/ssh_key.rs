@@ -13,7 +13,7 @@
 //!
 //! The whole blob is base64-encoded and prefixed with `"ssh-ed25519 "`.
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
@@ -27,6 +27,14 @@ impl EphemeralKeypair {
     pub fn generate() -> Self {
         let signing_key = SigningKey::generate(&mut OsRng);
         EphemeralKeypair { signing_key }
+    }
+
+    /// Return the raw 32-byte seed (private scalar) of the signing key.
+    ///
+    /// Used by the bridge to convert the keypair into a `russh::keys::PrivateKey`
+    /// without storing the secret bytes outside of memory.
+    pub fn signing_key_bytes(&self) -> [u8; 32] {
+        self.signing_key.to_bytes()
     }
 
     /// Return the public key in OpenSSH single-line format:

@@ -20,16 +20,16 @@ use std::io;
 use crossterm::event::EnableMouseCapture;
 use crossterm::execute;
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 use nostr_sdk::Keys;
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 
-use crate::cache::{load_cache, GameCache};
+use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
 use crate::connect::resolve::{resolve_invite, resolve_server};
-use crate::connect::session::{run_session, DisambigMode, SessionOutcome};
+use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -381,8 +381,8 @@ fn connect_selected(
     gate_npub: &str,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::config::load_config;
     use crate::config::ConnectConfig;
+    use crate::config::load_config;
 
     let sorted = state.cache.sorted();
     let Some(game) = sorted.get(state.selected).copied() else {
@@ -447,8 +447,8 @@ fn join_with_code(
     gate_npub: &str,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::config::load_config;
     use crate::config::ConnectConfig;
+    use crate::config::load_config;
 
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let target = match resolve_invite(code, &config) {

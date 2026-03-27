@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use ec_connect::wallet::crypto::{
-    decrypt_wallet, derive_key, encrypt_wallet, KEY_LEN, NONCE_LEN, PBKDF2_ITERATIONS, SALT_LEN,
+    KEY_LEN, NONCE_LEN, PBKDF2_ITERATIONS, SALT_LEN, decrypt_wallet, derive_key, encrypt_wallet,
 };
 use ec_connect::wallet::io::{
     format_iso8601, load_wallet_from, now_iso8601, parse_wallet_str, render_wallet, save_wallet_to,
