@@ -1,0 +1,299 @@
+use ec_connect::config::{ConnectConfig, ServerBookmark};
+use ec_connect::connect::resolve::{
+    derive_relay_url, parse_invite_code, resolve_invite, resolve_server, ParsedInviteCode,
+    DEFAULT_SSH_PORT,
+};
+
+// ── parse_invite_code ────────────────────────────────────────────────────────
+
+#[test]
+fn parse_bare_words() {
+    let p = parse_invite_code("velvet-mountain").unwrap();
+    assert_eq!(
+        p,
+        ParsedInviteCode {
+            words: "velvet-mountain".into(),
+            server: None,
+        }
+    );
+}
+
+#[test]
+fn parse_with_host() {
+    let p = parse_invite_code("velvet-mountain@play.example.com").unwrap();
+    assert_eq!(
+        p,
+        ParsedInviteCode {
+            words: "velvet-mountain".into(),
+            server: Some(("play.example.com".into(), DEFAULT_SSH_PORT)),
+        }
+    );
+}
+
+#[test]
+fn parse_with_host_and_port() {
+    let p = parse_invite_code("velvet-mountain@play.example.com:2222").unwrap();
+    assert_eq!(
+        p,
+        ParsedInviteCode {
+            words: "velvet-mountain".into(),
+            server: Some(("play.example.com".into(), 2222)),
+        }
+    );
+}
+
+#[test]
+fn parse_with_localhost_port() {
+    let p = parse_invite_code("red-fox@localhost:2222").unwrap();
+    assert_eq!(
+        p,
+        ParsedInviteCode {
+            words: "red-fox".into(),
+            server: Some(("localhost".into(), 2222)),
+        }
+    );
+}
+
+#[test]
+fn parse_trims_whitespace() {
+    let p = parse_invite_code("  velvet-mountain  ").unwrap();
+    assert_eq!(p.words, "velvet-mountain");
+    assert_eq!(p.server, None);
+}
+
+#[test]
+fn parse_empty_is_err() {
+    assert!(parse_invite_code("").is_err());
+    assert!(parse_invite_code("   ").is_err());
+}
+
+#[test]
+fn parse_empty_words_at_sign_is_err() {
+    assert!(parse_invite_code("@play.example.com").is_err());
+}
+
+#[test]
+fn parse_invalid_port_is_err() {
+    assert!(parse_invite_code("red-fox@host:99999").is_err());
+    assert!(parse_invite_code("red-fox@host:abc").is_err());
+}
+
+#[test]
+fn parse_ipv6_with_port() {
+    let p = parse_invite_code("blue-sky@[::1]:2222").unwrap();
+    assert_eq!(
+        p,
+        ParsedInviteCode {
+            words: "blue-sky".into(),
+            server: Some(("[::1]".into(), 2222)),
+        }
+    );
+}
+
+#[test]
+fn parse_ipv6_without_port() {
+    let p = parse_invite_code("blue-sky@[::1]").unwrap();
+    assert_eq!(
+        p,
+        ParsedInviteCode {
+            words: "blue-sky".into(),
+            server: Some(("[::1]".into(), DEFAULT_SSH_PORT)),
+        }
+    );
+}
+
+// ── derive_relay_url ─────────────────────────────────────────────────────────
+
+#[test]
+fn relay_url_public_host_uses_wss() {
+    assert_eq!(
+        derive_relay_url("play.example.com"),
+        "wss://play.example.com:7777"
+    );
+}
+
+#[test]
+fn relay_url_localhost_uses_ws() {
+    assert_eq!(derive_relay_url("localhost"), "ws://localhost:7777");
+}
+
+#[test]
+fn relay_url_127_uses_ws() {
+    assert_eq!(derive_relay_url("127.0.0.1"), "ws://127.0.0.1:7777");
+}
+
+#[test]
+fn relay_url_10_dot_uses_ws() {
+    assert_eq!(derive_relay_url("10.0.0.1"), "ws://10.0.0.1:7777");
+}
+
+#[test]
+fn relay_url_192_168_uses_ws() {
+    assert_eq!(derive_relay_url("192.168.1.5"), "ws://192.168.1.5:7777");
+}
+
+#[test]
+fn relay_url_172_16_uses_ws() {
+    assert_eq!(derive_relay_url("172.16.0.1"), "ws://172.16.0.1:7777");
+}
+
+#[test]
+fn relay_url_172_31_uses_ws() {
+    assert_eq!(
+        derive_relay_url("172.31.255.255"),
+        "ws://172.31.255.255:7777"
+    );
+}
+
+#[test]
+fn relay_url_172_32_uses_wss() {
+    // 172.32.x.x is outside 172.16/12, so public.
+    assert_eq!(derive_relay_url("172.32.0.1"), "wss://172.32.0.1:7777");
+}
+
+#[test]
+fn relay_url_ipv6_loopback_uses_ws() {
+    assert_eq!(derive_relay_url("[::1]"), "ws://[::1]:7777");
+}
+
+// ── resolve_invite ───────────────────────────────────────────────────────────
+
+fn config_with_default(host: &str, port: u16, relay: Option<&str>) -> ConnectConfig {
+    ConnectConfig {
+        relay: relay.map(|s| s.to_string()),
+        servers: vec![ServerBookmark {
+            name: "default".into(),
+            host: host.to_string(),
+            port,
+        }],
+        default_server: Some("default".into()),
+    }
+}
+
+#[test]
+fn resolve_invite_uses_inline_host() {
+    let config = ConnectConfig::empty();
+    let t = resolve_invite("red-fox@play.example.com:2222", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, 2222);
+    assert_eq!(t.invite_code, Some("red-fox".into()));
+    assert_eq!(t.game_id, None);
+    assert_eq!(t.relay_url, "wss://play.example.com:7777");
+}
+
+#[test]
+fn resolve_invite_uses_default_bookmark_when_no_inline_host() {
+    let config = config_with_default("play.example.com", 22, None);
+    let t = resolve_invite("red-fox", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, 22);
+    assert_eq!(t.invite_code, Some("red-fox".into()));
+}
+
+#[test]
+fn resolve_invite_prefers_inline_host_over_default() {
+    let config = config_with_default("other.example.com", 22, None);
+    let t = resolve_invite("red-fox@play.example.com", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+}
+
+#[test]
+fn resolve_invite_uses_config_relay_over_derived() {
+    let config = ConnectConfig {
+        relay: Some("wss://relay.custom.com".into()),
+        servers: vec![],
+        default_server: None,
+    };
+    let t = resolve_invite("red-fox@play.example.com", &config).unwrap();
+    assert_eq!(t.relay_url, "wss://relay.custom.com");
+}
+
+#[test]
+fn resolve_invite_no_server_is_err() {
+    let config = ConnectConfig::empty();
+    assert!(resolve_invite("red-fox", &config).is_err());
+}
+
+#[test]
+fn resolve_invite_missing_default_bookmark_is_err() {
+    let config = ConnectConfig {
+        relay: None,
+        servers: vec![],
+        default_server: Some("ghost".into()),
+    };
+    assert!(resolve_invite("red-fox", &config).is_err());
+}
+
+// ── resolve_server ───────────────────────────────────────────────────────────
+
+fn config_with_bookmark(name: &str, host: &str, port: u16) -> ConnectConfig {
+    ConnectConfig {
+        relay: None,
+        servers: vec![ServerBookmark {
+            name: name.to_string(),
+            host: host.to_string(),
+            port,
+        }],
+        default_server: None,
+    }
+}
+
+#[test]
+fn resolve_server_by_bookmark_name() {
+    let config = config_with_bookmark("friday", "play.example.com", 22);
+    let t = resolve_server("friday", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, 22);
+    assert_eq!(t.invite_code, None);
+    assert_eq!(t.game_id, None);
+}
+
+#[test]
+fn resolve_server_by_host_only() {
+    let config = ConnectConfig::empty();
+    let t = resolve_server("play.example.com", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, DEFAULT_SSH_PORT);
+}
+
+#[test]
+fn resolve_server_by_host_and_port() {
+    let config = ConnectConfig::empty();
+    let t = resolve_server("play.example.com:2222", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, 2222);
+}
+
+#[test]
+fn resolve_server_prefers_bookmark_over_literal() {
+    // "friday" is also a valid hostname literal but we resolve bookmark first.
+    let config = config_with_bookmark("friday", "play.example.com", 2222);
+    let t = resolve_server("friday", &config).unwrap();
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, 2222);
+}
+
+#[test]
+fn resolve_server_relay_from_config() {
+    let config = ConnectConfig {
+        relay: Some("wss://relay.custom.com".into()),
+        servers: vec![],
+        default_server: None,
+    };
+    let t = resolve_server("play.example.com", &config).unwrap();
+    assert_eq!(t.relay_url, "wss://relay.custom.com");
+}
+
+#[test]
+fn resolve_server_empty_is_err() {
+    let config = ConnectConfig::empty();
+    assert!(resolve_server("", &config).is_err());
+    assert!(resolve_server("   ", &config).is_err());
+}
+
+#[test]
+fn resolve_server_derived_relay_for_localhost() {
+    let config = ConnectConfig::empty();
+    let t = resolve_server("localhost:2222", &config).unwrap();
+    assert_eq!(t.relay_url, "ws://localhost:7777");
+}

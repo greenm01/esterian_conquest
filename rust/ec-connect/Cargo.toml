@@ -28,11 +28,14 @@ dirs = "5"
 # Password prompting without echo
 rpassword = "7"
 
-# Async runtime (needed for relay handshake in later steps)
-# tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+# Async runtime (needed for relay handshake)
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 
-# SSH client
-# russh = "..."
+# SSH ephemeral keypair generation
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+
+# Base64 encoding for OpenSSH public key wire format
+base64 = "0.22"
 
 # TUI picker screen
 # ratatui = "..."
