@@ -89,14 +89,10 @@ pub mod theme_picker {
 
 pub use crate::domains::empire::screens::empire_profile::EmpireProfileScreen;
 pub use crate::domains::empire::screens::empire_status::EmpireStatusScreen;
-pub(crate) use crate::domains::empire::screens::enemies::ENEMIES_VISIBLE_ROWS;
 pub use crate::domains::empire::screens::enemies::EnemiesScreen;
 pub use crate::domains::empire::screens::rankings::RankingsScreen;
 pub use crate::domains::fleet::missions::{
     FLEET_MISSION_OPTIONS, FleetMissionOption, FleetMissionRequirement,
-};
-pub(crate) use crate::domains::fleet::screens::fleet::{
-    FLEET_LIST_VISIBLE_ROWS, FLEET_VISIBLE_ROWS,
 };
 pub use crate::domains::fleet::screens::fleet::{
     FleetDetachClass, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
@@ -107,7 +103,7 @@ pub use crate::domains::fleet::screens::fleet::{
 pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;
 pub(crate) use crate::domains::messaging::screens::message_compose::{
-    COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
+    COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT,
 };
 pub use crate::domains::planet::screens::build_help::BuildHelpScreen;
 pub use crate::domains::planet::screens::planet_build::{
@@ -115,34 +111,24 @@ pub use crate::domains::planet::screens::planet_build::{
     PlanetBuildScreen, build_kind_count_label, build_kind_name, build_order_summary,
     build_unit_spec, build_unit_spec_by_kind, infer_quantity, max_quantity,
 };
-pub(crate) use crate::domains::planet::screens::planet_build::{
-    PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS,
-};
-pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS;
-pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_COMMISSION_PICKER_VISIBLE_ROWS;
-pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_COMMISSION_VISIBLE_ROWS;
 pub use crate::domains::planet::screens::planet_commission::{
     PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow,
     PlanetCommissionScreen, PlanetCommissionView,
 };
-pub(crate) use crate::domains::planet::screens::planet_database::PLANET_DATABASE_VISIBLE_ROWS;
 pub use crate::domains::planet::screens::planet_database::{
     PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode, PlanetDatabaseRow,
     PlanetDatabaseScreen, PlanetDatabaseSort, PlanetDatabaseSortMode,
 };
 pub use crate::domains::planet::screens::planet_help::PlanetHelpScreen;
 pub use crate::domains::planet::screens::planet_info::{PlanetInfoScreen, parse_planet_coords};
-pub(crate) use crate::domains::planet::screens::planet_list::PLANET_BRIEF_VISIBLE_ROWS;
 pub use crate::domains::planet::screens::planet_list::{
     PlanetListMode, PlanetListScreen, PlanetListSort,
 };
 pub use crate::domains::planet::screens::planet_menu::PlanetMenuScreen;
 pub use crate::domains::planet::screens::planet_tax::PlanetTaxScreen;
-pub(crate) use crate::domains::planet::screens::planet_transport::PLANET_TRANSPORT_VISIBLE_ROWS;
 pub use crate::domains::planet::screens::planet_transport::{
     PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen,
 };
-pub(crate) use crate::domains::starbase::screens::starbase::STARBASE_VISIBLE_ROWS;
 pub use crate::domains::starbase::screens::starbase::{
     StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow,
 };
@@ -164,11 +150,9 @@ pub use crate::domains::startup::screens::reports::ReportsScreen;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use crate::domains::startup::screens::startup::{StartupReviewMode, StartupScreen};
-pub use crate::domains::startup::screens::theme_picker::{
-    THEME_PICKER_VISIBLE_ROWS, ThemePickerScreen,
-};
+pub use crate::domains::startup::screens::theme_picker::ThemePickerScreen;
 pub use buffer::{AnsiColor, Cell, CellStyle, GameColor, PlayfieldBuffer, StyledSpan};
-pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, ScreenGeometry};
 pub(crate) use table::format_fleet_number;
 
 use std::collections::BTreeMap;
@@ -301,6 +285,7 @@ pub struct ScreenFrame<'a> {
     pub player: &'a PlayerContext,
     pub campaign_seed: u64,
     pub planet_intel_snapshots: &'a BTreeMap<usize, PlanetIntelSnapshot>,
+    pub geometry: ScreenGeometry,
 }
 
 pub trait Screen {

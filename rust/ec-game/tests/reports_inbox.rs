@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use ec_data::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 use ec_game::domains::messaging::state::{InboxFocus, InboxPromptMode, InboxTypeFilter};
 use ec_game::reports::{InboxDisplayItem, InboxItem, InboxItemType, runtime_inbox_items};
-use ec_game::screen::{CommandMenu, ReportsScreen};
+use ec_game::screen::{CommandMenu, ReportsScreen, ScreenGeometry};
 use ec_game::theme::classic;
 
 fn repo_root() -> PathBuf {
@@ -130,6 +130,7 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
 
     let inbox_buffer = screen
         .render_inbox(
+            ScreenGeometry::local_default(),
             CommandMenu::General,
             &items,
             InboxTypeFilter::All,
@@ -180,6 +181,7 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
 
     let preview_buffer = screen
         .render_inbox(
+            ScreenGeometry::local_default(),
             CommandMenu::General,
             &items,
             InboxTypeFilter::All,
@@ -229,6 +231,7 @@ fn reports_screen_uses_themed_scrollbar_thumb_style() {
     let mut screen = ReportsScreen::new();
     let buffer = screen
         .render_inbox(
+            ScreenGeometry::local_default(),
             CommandMenu::General,
             &items,
             InboxTypeFilter::All,

@@ -4,11 +4,12 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, CommandMessage, dismiss_prompt_row, draw_bottom_aligned_transcript_rows,
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at,
-    draw_command_message_stack, draw_dismiss_prompt, draw_general_message_after_command,
-    draw_plain_prompt, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    CommandMessage, ScreenGeometry, command_line_row_for, dismiss_prompt_row,
+    draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_message_stack, draw_dismiss_prompt,
+    draw_general_message_after_command, draw_plain_prompt, draw_table_command_bar_at,
+    draw_title_bar, new_playfield, new_playfield_for, standard_table_visible_rows_for,
+    table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -19,12 +20,25 @@ use ec_data::ProductionItemKind;
 
 pub struct PlanetCommissionScreen;
 
-pub(crate) const PLANET_COMMISSION_PICKER_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
-pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
-pub(crate) const PLANET_COMMISSION_DRAFT_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
-pub(crate) const PLANET_AUTO_COMMISSION_REPORT_LAST_ROW: usize = COMMAND_LINE_ROW - 2;
-pub(crate) const PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS: usize =
-    PLANET_AUTO_COMMISSION_REPORT_LAST_ROW + 1;
+pub fn planet_commission_picker_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 2)
+}
+
+pub fn planet_commission_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 2)
+}
+
+pub fn planet_commission_draft_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 2)
+}
+
+pub fn planet_auto_commission_report_last_row(geometry: ScreenGeometry) -> usize {
+    command_line_row_for(geometry).saturating_sub(2)
+}
+
+pub fn planet_auto_commission_report_page_rows(geometry: ScreenGeometry) -> usize {
+    planet_auto_commission_report_last_row(geometry) + 1
+}
 
 const COMMISSION_PICKER_COLUMNS: [TableColumn<'static>; 9] = [
     TableColumn::left("(X,Y)", 7),
@@ -95,11 +109,12 @@ impl PlanetCommissionScreen {
 
     pub fn render_picker(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[PlanetCommissionPickerRow],
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "COMMISSION SHIPS:");
 
         let table_rows: Vec<Vec<String>> = rows
@@ -126,7 +141,7 @@ impl PlanetCommissionScreen {
             &COMMISSION_PICKER_COLUMNS,
             &table_rows,
             scroll_offset,
-            PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+            planet_commission_picker_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
@@ -137,7 +152,7 @@ impl PlanetCommissionScreen {
             .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
         draw_table_command_bar_at(
             &mut buffer,
-            table_prompt_row(metrics.bottom_row),
+            table_prompt_row_for(geometry, metrics.bottom_row),
             "<ARROWS J K Q>",
             default.as_deref(),
             "",
@@ -147,13 +162,14 @@ impl PlanetCommissionScreen {
 
     pub fn render_menu(
         &mut self,
+        geometry: ScreenGeometry,
         view: &PlanetCommissionView,
         scroll_offset: usize,
         cursor: usize,
         selected_slots: &BTreeSet<usize>,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(
             &mut buffer,
             0,
@@ -192,13 +208,13 @@ impl PlanetCommissionScreen {
             &COMMISSION_COLUMNS,
             &table_rows,
             scroll_offset,
-            PLANET_COMMISSION_VISIBLE_ROWS,
+            planet_commission_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
 
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K SPACE Q>", None, "");
         let message_end_row = draw_general_message_after_command(
             &mut buffer,
@@ -213,6 +229,7 @@ impl PlanetCommissionScreen {
     #[allow(clippy::too_many_arguments)]
     pub fn render_draft(
         &mut self,
+        geometry: ScreenGeometry,
         title: &str,
         rows: &[PlanetCommissionDraftRow],
         cursor: usize,
@@ -220,7 +237,7 @@ impl PlanetCommissionScreen {
         status: Option<&str>,
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, title);
         let table_rows: Vec<Vec<String>> = rows
             .iter()
@@ -246,12 +263,12 @@ impl PlanetCommissionScreen {
             &COMMISSION_DRAFT_COLUMNS,
             &table_rows,
             0,
-            PLANET_COMMISSION_DRAFT_VISIBLE_ROWS,
+            planet_commission_draft_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             if rows.is_empty() { None } else { Some(cursor) },
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let has_ship_draft = rows
             .iter()
             .any(|row| row.accepts_fleet_qty() && row.fleet_qty > 0);
@@ -330,19 +347,21 @@ impl PlanetCommissionScreen {
 
     pub fn render_auto_commission_report(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[String],
         revealed_rows: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
+        let last_row = planet_auto_commission_report_last_row(geometry);
         draw_bottom_aligned_transcript_rows(
             &mut buffer,
             rows,
             revealed_rows,
             0,
-            PLANET_AUTO_COMMISSION_REPORT_LAST_ROW,
+            last_row,
             |buffer, row, line| write_auto_commission_report_line(buffer, row, line),
         );
-        draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, "(slap a key)");
+        draw_plain_prompt(&mut buffer, command_line_row_for(geometry), "(slap a key)");
         Ok(buffer)
     }
 

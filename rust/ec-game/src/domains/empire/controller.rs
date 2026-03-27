@@ -3,6 +3,10 @@ use crate::app::state::App;
 use crate::screen::ScreenId;
 
 impl App {
+    fn enemies_visible_rows(&self) -> usize {
+        crate::domains::empire::screens::enemies::enemies_visible_rows(self.screen_geometry)
+    }
+
     pub fn open_enemies(&mut self) {
         self.empire.enemies_input.clear();
         self.empire.enemies_status = None;
@@ -27,6 +31,16 @@ impl App {
     }
 
     pub fn open_reports(&mut self) {
+        if self.current_screen == ScreenId::GeneralMenu
+            && self.inbox_items_for_filters(
+                crate::domains::messaging::state::InboxTypeFilter::All,
+                None,
+            )
+            .is_empty()
+        {
+            self.show_command_menu_notice(self.origin_command_menu(), "Inbox is empty.");
+            return;
+        }
         self.open_reports_inbox();
     }
 
@@ -35,7 +49,7 @@ impl App {
             return;
         }
         let total = self.game_data.player.records.len().saturating_sub(1);
-        let max_offset = total.saturating_sub(crate::screen::ENEMIES_VISIBLE_ROWS);
+        let max_offset = total.saturating_sub(self.enemies_visible_rows());
         self.empire.enemies_scroll_offset = self
             .empire
             .enemies_scroll_offset
@@ -54,10 +68,11 @@ impl App {
         }
         let next = self.empire.enemies_cursor as isize + delta as isize;
         self.empire.enemies_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.enemies_visible_rows();
         sync_scroll_to_cursor(
             &mut self.empire.enemies_scroll_offset,
             self.empire.enemies_cursor,
-            crate::screen::ENEMIES_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -175,10 +190,11 @@ impl App {
             .collect::<Vec<_>>();
         if let Some(index) = ids.iter().position(|&id| id == target_empire_id) {
             self.empire.enemies_cursor = index;
+            let visible_rows = self.enemies_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.empire.enemies_scroll_offset,
                 self.empire.enemies_cursor,
-                crate::screen::ENEMIES_VISIBLE_ROWS,
+                visible_rows,
             );
         }
     }

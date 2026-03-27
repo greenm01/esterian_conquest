@@ -8,15 +8,22 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        geometry: app.screen_geometry,
     };
     match app.current_screen {
-        ScreenId::Starmap if app.starmap_state.capture_complete => app.starmap.render_complete(),
+        ScreenId::Starmap if app.starmap_state.capture_complete => {
+            app.starmap.render_complete(frame.geometry)
+        }
         ScreenId::Starmap if app.starmap_state.dump_active => app
             .starmap
-            .render_dump_page(&app.starmap_state.dump_lines, app.starmap_state.dump_offset),
+            .render_dump_page(
+                frame.geometry,
+                &app.starmap_state.dump_lines,
+                app.starmap_state.dump_offset,
+            ),
         ScreenId::Starmap => app
             .starmap
-            .render_prompt(app.starmap_state.status.as_deref()),
+            .render_prompt(frame.geometry, app.starmap_state.status.as_deref()),
         ScreenId::PartialStarmapView => app.partial_starmap.render_view(
             &frame,
             app.starmap_state.partial_center,

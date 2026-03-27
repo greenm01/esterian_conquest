@@ -13,6 +13,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        geometry: app.screen_geometry,
     };
     match app.current_screen {
         ScreenId::Startup(phase) => app.startup.render_phase(
@@ -38,12 +39,14 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FirstTimeHelp => app.first_time_help.render(&frame),
         ScreenId::FirstTimeEmpires => app
             .first_time_empires
-            .render_rows(&app.first_time_empire_rows()),
+            .render_rows(frame.geometry, &app.first_time_empire_rows()),
         ScreenId::FirstTimeIntro => app
             .first_time_intro
-            .render_page(app.startup_state.first_time_intro_page),
+            .render_page(frame.geometry, app.startup_state.first_time_intro_page),
         ScreenId::ThemePicker => app.theme_picker.render(
+            frame.geometry,
             &app.startup_state.theme_picker_rows,
+            app.startup_state.theme_picker_scroll_offset,
             app.startup_state.theme_picker_cursor,
             crate::theme::current_theme_key().as_deref(),
             app.startup_state.theme_picker_status.as_deref(),
@@ -127,6 +130,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         ScreenId::GeneralHelp => app.general_help.render(&frame),
         ScreenId::Reports => app.reports.render_inbox(
+            frame.geometry,
             app.command_return_menu,
             &app.filtered_inbox_display_items(),
             app.messaging.inbox_type_filter,

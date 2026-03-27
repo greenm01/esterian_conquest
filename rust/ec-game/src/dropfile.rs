@@ -29,6 +29,10 @@ pub struct DropfileInfo {
     pub alias: Option<String>,
     /// Session time limit in minutes sourced from the dropfile.
     pub timeout_minutes: Option<u32>,
+    /// Terminal width reported by the BBS, when the format provides it.
+    pub screen_columns: Option<usize>,
+    /// Terminal height reported by the BBS, when the format provides it.
+    pub screen_rows: Option<usize>,
 }
 
 /// Errors that can occur while parsing a dropfile.
@@ -134,6 +138,8 @@ fn parse_door32(lines: &[&str]) -> DropfileInfo {
     DropfileInfo {
         alias: line(lines, 7).map(ToOwned::to_owned),
         timeout_minutes: parse_u32(lines, 9),
+        screen_columns: parse_u32(lines, 11).map(|value| value as usize),
+        screen_rows: parse_u32(lines, 12).map(|value| value as usize),
     }
 }
 
@@ -161,6 +167,8 @@ fn parse_door_sys(lines: &[&str]) -> DropfileInfo {
     DropfileInfo {
         alias: line(lines, 10).map(ToOwned::to_owned),
         timeout_minutes: parse_u32(lines, 19),
+        screen_columns: None,
+        screen_rows: parse_u32(lines, 21).map(|value| value as usize),
     }
 }
 
@@ -192,5 +200,7 @@ fn parse_chain_txt(lines: &[&str]) -> DropfileInfo {
     DropfileInfo {
         alias: line(lines, 2).map(ToOwned::to_owned),
         timeout_minutes,
+        screen_columns: parse_u32(lines, 9).map(|value| value as usize),
+        screen_rows: parse_u32(lines, 10).map(|value| value as usize),
     }
 }

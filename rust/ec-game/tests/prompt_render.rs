@@ -11,8 +11,8 @@ use ec_game::screen::PlanetCommissionScreen;
 use ec_game::screen::PlanetMenuScreen;
 use ec_game::screen::PlayfieldBuffer;
 use ec_game::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, dismiss_prompt_row,
-    draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
+    dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
     draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt, draw_plain_prompt,
     draw_prompt_error_after, draw_prompt_feedback_after, draw_table_command_prompt,
@@ -316,7 +316,15 @@ fn compose_body_soft_wraps_at_spaces_instead_of_splitting_words() {
     let mut screen = MessageComposeScreen::new();
     let body = format!("{} splitword", "a".repeat(70));
     let buffer = screen
-        .render_body("Empire 2 (Red Horizon Pact)", "test", &body, 0, 0, None)
+        .render_body(
+            ScreenGeometry::local_default(),
+            "Empire 2 (Red Horizon Pact)",
+            "test",
+            &body,
+            0,
+            0,
+            None,
+        )
         .expect("body prompt renders");
 
     assert_eq!(row_text(&buffer, 5).trim_end(), "a".repeat(70));
@@ -331,7 +339,15 @@ fn compose_body_uses_full_80x25_vertical_editor_space() {
         .collect::<Vec<_>>()
         .join("\n");
     let buffer = screen
-        .render_body("Empire 2 (Red Horizon Pact)", "test", &body, 0, 0, None)
+        .render_body(
+            ScreenGeometry::local_default(),
+            "Empire 2 (Red Horizon Pact)",
+            "test",
+            &body,
+            0,
+            0,
+            None,
+        )
         .expect("body prompt renders");
     assert!(row_text(&buffer, 20).contains("line 16"));
     assert!(row_text(&buffer, 21).trim().is_empty());
@@ -340,11 +356,16 @@ fn compose_body_uses_full_80x25_vertical_editor_space() {
     assert!(row_text(&buffer, 24).contains("GENERAL COMMAND <-CTRL-E CTRL-X->"));
 }
 
-#[test]
-fn compose_discard_confirm_uses_default_no_prompt_markup() {
-    let mut screen = MessageComposeScreen::new();
-    let buffer = screen
-        .render_discard_confirm("Empire 2 (Red Horizon Pact)", "test", "hello")
+    #[test]
+    fn compose_discard_confirm_uses_default_no_prompt_markup() {
+        let mut screen = MessageComposeScreen::new();
+        let buffer = screen
+        .render_discard_confirm(
+            ScreenGeometry::local_default(),
+            "Empire 2 (Red Horizon Pact)",
+            "test",
+            "hello",
+        )
         .expect("discard confirm renders");
 
     assert!(!row_text(&buffer, 20).contains("Discard this unsent message draft?"));
@@ -363,7 +384,12 @@ fn compose_discard_confirm_uses_default_no_prompt_markup() {
 fn compose_send_confirm_uses_default_no_prompt_markup() {
     let mut screen = MessageComposeScreen::new();
     let buffer = screen
-        .render_send_confirm("Empire 2 (Red Horizon Pact)", "test", "hello")
+        .render_send_confirm(
+            ScreenGeometry::local_default(),
+            "Empire 2 (Red Horizon Pact)",
+            "test",
+            "hello",
+        )
         .expect("send confirm renders");
 
     assert!(!row_text(&buffer, 20).contains("Send this message after turn maintenance?"));
@@ -533,7 +559,7 @@ fn commission_picker_renders_planets_with_stardock_counts() {
     ];
 
     let buffer = screen
-        .render_picker(&rows, 0, 0)
+        .render_picker(ScreenGeometry::local_default(), &rows, 0, 0)
         .expect("commission picker renders");
 
     assert!(row_text(&buffer, 1).trim().is_empty());
@@ -570,6 +596,7 @@ fn commission_draft_starts_table_under_title_and_defaults_ship_prompt_to_remaini
 
     let buffer = screen
         .render_draft(
+            ScreenGeometry::local_default(),
             "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
             &rows,
             0,
@@ -612,6 +639,7 @@ fn commission_draft_switches_prompt_for_starbase_rows() {
 
     let buffer = screen
         .render_draft(
+            ScreenGeometry::local_default(),
             "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
             &rows,
             1,
@@ -653,6 +681,7 @@ fn commission_draft_renders_inline_notice_below_command_row() {
 
     let buffer = screen
         .render_draft(
+            ScreenGeometry::local_default(),
             "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
             &rows,
             0,
@@ -692,6 +721,7 @@ fn commission_draft_zero_pads_live_input_in_this_fleet_column() {
 
     let buffer = screen
         .render_draft(
+            ScreenGeometry::local_default(),
             "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
             &rows,
             0,
@@ -730,7 +760,7 @@ fn auto_commission_report_bottom_aligns_text_and_leaves_blank_row_above_prompt()
     ];
 
     let buffer = screen
-        .render_auto_commission_report(&rows, rows.len())
+        .render_auto_commission_report(ScreenGeometry::local_default(), &rows, rows.len())
         .expect("auto commission report renders");
 
     assert!(row_text(&buffer, 22).contains("Fleet 03 commissioned from"));
@@ -747,6 +777,25 @@ fn auto_commission_report_bottom_aligns_text_and_leaves_blank_row_above_prompt()
     assert_eq!(row[coords + 2].style, classic::status_value_style());
     assert_eq!(row[coords + 4].style, classic::status_value_style());
     assert_eq!(row[coords + 5].style, classic::status_value_style());
+}
+
+#[test]
+fn auto_commission_report_24_row_door_keeps_prompt_on_last_visible_row() {
+    let mut screen = PlanetCommissionScreen::new();
+    let geometry = ScreenGeometry::for_door(Some(24));
+    let rows = vec![
+        "Fleet 03 commissioned from \"Aurora Prime\" in sector (08,09) with DD 04, CA 02."
+            .to_string(),
+    ];
+
+    let buffer = screen
+        .render_auto_commission_report(geometry, &rows, rows.len())
+        .expect("auto commission report renders on 24-row door");
+
+    assert_eq!(buffer.height(), 24);
+    assert!(row_text(&buffer, 21).contains("Fleet 03 commissioned from"));
+    assert!(row_text(&buffer, 22).trim().is_empty());
+    assert_eq!(row_text(&buffer, 23).trim_end(), "(slap a key)");
 }
 
 #[test]
@@ -848,4 +897,20 @@ fn help_panel_reserves_one_blank_row_above_dismiss_prompt() {
     assert!(!row_text(&buffer, COMMAND_LINE_ROW - 2).trim().is_empty());
     assert!(row_text(&buffer, COMMAND_LINE_ROW - 1).trim().is_empty());
     assert!(row_text(&buffer, COMMAND_LINE_ROW).contains("(slap a key)"));
+}
+
+#[test]
+fn startup_intro_page_24_row_door_keeps_visible_slap_a_key_prompt() {
+    let buffer = ec_game::screen::startup::render_game_intro_page(
+        ScreenGeometry::for_door(Some(24)),
+        0,
+        "(slap a key)",
+    )
+    .expect("startup intro renders on 24-row door");
+
+    assert_eq!(buffer.height(), 24);
+    assert_eq!(row_text(&buffer, 16).trim_end(), "(slap a key)");
+    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
+    assert_eq!(cursor_row as usize, 16);
+    assert_eq!(cursor_col as usize, "(slap a key)".chars().count());
 }

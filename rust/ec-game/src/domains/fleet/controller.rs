@@ -11,6 +11,14 @@ use crate::screen::{CommandMenu, FleetEtaMode, FleetRow, PlanetTransportMode, Sc
 use std::cmp::Reverse;
 
 impl App {
+    fn fleet_list_visible_rows(&self) -> usize {
+        crate::domains::fleet::screens::fleet::fleet_list_visible_rows(self.screen_geometry)
+    }
+
+    fn fleet_group_visible_rows(&self) -> usize {
+        crate::domains::fleet::screens::fleet::fleet_visible_rows(self.screen_geometry)
+    }
+
     pub fn open_fleet_menu(&mut self) {
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
@@ -221,10 +229,11 @@ impl App {
         }
         self.fleet.cursor = self.fleet.review_index.min(total - 1);
         if self.fleet.review_return_to_list {
+            let visible_rows = self.fleet_list_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.fleet.scroll_offset,
                 self.fleet.cursor,
-                crate::screen::FLEET_LIST_VISIBLE_ROWS,
+                visible_rows,
             );
             self.current_screen = ScreenId::FleetList;
         } else {
@@ -400,10 +409,11 @@ impl App {
         }
         let next = self.fleet.cursor as isize + delta as isize;
         self.fleet.cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.fleet_list_visible_rows();
         sync_scroll_to_cursor(
             &mut self.fleet.scroll_offset,
             self.fleet.cursor,
-            crate::screen::FLEET_LIST_VISIBLE_ROWS,
+            visible_rows,
         );
         self.fleet.list_status = None;
     }
@@ -427,14 +437,15 @@ impl App {
                 .min(total - 1),
         };
         self.fleet.cursor = self.fleet.review_index;
+        let visible_rows = if self.fleet.review_return_to_list {
+            self.fleet_list_visible_rows()
+        } else {
+            self.fleet_group_visible_rows()
+        };
         sync_scroll_to_cursor(
             &mut self.fleet.scroll_offset,
             self.fleet.cursor,
-            if self.fleet.review_return_to_list {
-                crate::screen::FLEET_LIST_VISIBLE_ROWS
-            } else {
-                crate::screen::FLEET_VISIBLE_ROWS
-            },
+            visible_rows,
         );
     }
 
@@ -687,10 +698,11 @@ impl App {
             return;
         };
         self.fleet.cursor = index;
+        let visible_rows = self.fleet_list_visible_rows();
         sync_scroll_to_cursor(
             &mut self.fleet.scroll_offset,
             self.fleet.cursor,
-            crate::screen::FLEET_LIST_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 

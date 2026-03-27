@@ -9,6 +9,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        geometry: app.screen_geometry,
     };
     match app.current_screen {
         ScreenId::ComposeMessageRecipient => app.message_compose.render_recipient(
@@ -24,6 +25,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.messaging.compose_subject_status.as_deref(),
         ),
         ScreenId::ComposeMessageBody => app.message_compose.render_body(
+            frame.geometry,
             &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
             &app.messaging.compose_subject,
             &app.messaging.compose_body,
@@ -32,6 +34,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.messaging.compose_body_status.as_deref(),
         ),
         ScreenId::ComposeMessageOutbox => app.message_compose.render_outbox(
+            frame.geometry,
             &app.compose_outbox_queue()?,
             &app.messaging.compose_outbox_input,
             app.messaging.compose_outbox_status.as_deref(),
@@ -40,11 +43,13 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.game_data,
         ),
         ScreenId::ComposeMessageDiscardConfirm => app.message_compose.render_discard_confirm(
+            frame.geometry,
             &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
             &app.messaging.compose_subject,
             &app.messaging.compose_body,
         ),
         ScreenId::ComposeMessageSendConfirm => app.message_compose.render_send_confirm(
+            frame.geometry,
             &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
             &app.messaging.compose_subject,
             &app.messaging.compose_body,

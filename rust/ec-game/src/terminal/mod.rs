@@ -1,4 +1,5 @@
 pub mod cp437;
+pub mod door;
 pub mod stdout;
 
 use crossterm::event::KeyEvent;

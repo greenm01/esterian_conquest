@@ -1,6 +1,5 @@
 use super::state::App;
 use crate::screen::ScreenId;
-use crate::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::terminal::Terminal;
 
 impl App {
@@ -89,27 +88,30 @@ impl App {
                 domains::starmap::views::render(self)?
             }
         };
+        let geometry = self.screen_geometry;
         assert_eq!(
             playfield.width(),
-            PLAYFIELD_WIDTH,
+            geometry.width(),
             "screen {:?} rendered width {} instead of {}",
             self.current_screen,
             playfield.width(),
-            PLAYFIELD_WIDTH
+            geometry.width()
         );
         assert_eq!(
+            playfield.height().max(geometry.height()),
             playfield.height(),
-            PLAYFIELD_HEIGHT,
-            "screen {:?} rendered height {} instead of {}",
+            "screen {:?} rendered height {} smaller than visible height {}",
             self.current_screen,
             playfield.height(),
-            PLAYFIELD_HEIGHT
+            geometry.height()
         );
         if let Some((column, row)) = playfield.cursor() {
             assert!(
-                usize::from(column) < PLAYFIELD_WIDTH && usize::from(row) < PLAYFIELD_HEIGHT,
-                "screen {:?} set cursor ({column},{row}) outside {PLAYFIELD_WIDTH}x{PLAYFIELD_HEIGHT}",
-                self.current_screen
+                usize::from(column) < playfield.width() && usize::from(row) < playfield.height(),
+                "screen {:?} set cursor ({column},{row}) outside {}x{}",
+                self.current_screen,
+                playfield.width(),
+                playfield.height()
             );
         }
         terminal.render(&playfield)

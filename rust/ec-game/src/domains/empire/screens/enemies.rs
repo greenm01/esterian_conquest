@@ -4,15 +4,18 @@ use ec_data::DiplomaticRelation;
 use crate::app::Action;
 use crate::domains::empire::EmpireAction;
 use crate::screen::layout::{
-    draw_command_line_text_at, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    ScreenGeometry, draw_command_line_text_at, draw_table_command_bar_at, draw_title_bar,
+    new_playfield_for, standard_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EnemiesScreen;
-pub(crate) const ENEMIES_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
+
+pub fn enemies_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 3)
+}
 
 const ENEMIES_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::right("ID", 3),
@@ -33,7 +36,7 @@ impl EnemiesScreen {
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(frame.geometry);
         draw_title_bar(&mut buffer, 0, "ENEMIES, DECLARE OR LIST:");
         buffer.write_text(
             1,
@@ -85,12 +88,12 @@ impl EnemiesScreen {
             &ENEMIES_COLUMNS,
             &rows,
             scroll_offset,
-            ENEMIES_VISIBLE_ROWS,
+            enemies_visible_rows(frame.geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(frame.geometry, metrics.bottom_row);
 
         if rows.is_empty() {
             draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", "No empires found.");

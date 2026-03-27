@@ -14,21 +14,29 @@ use crate::screen::layout::{
     draw_menu_entry, draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after,
     draw_status_line, draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar,
     draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, table_prompt_row, CommandMessage, MenuEntry, PromptFeedback,
-    EXPERT_MENU_PROMPT_ROW,
+    standard_table_visible_rows, standard_table_visible_rows_for, table_prompt_row,
+    table_prompt_row_for, CommandMessage, MenuEntry, PromptFeedback, EXPERT_MENU_PROMPT_ROW,
 };
 use crate::screen::table::{
     centered_table_start_col, fit_table_columns, fleet_id_column_width, format_fleet_number,
     write_table_window_with_cursor, write_table_window_with_states_at, TableColumn, TableRowState,
 };
 use crate::screen::{
-    format_sector_coords, format_sector_coords_table, PlanetTransportMode, PlayfieldBuffer, Screen,
-    ScreenFrame, StyledSpan,
+    ScreenGeometry, format_sector_coords, format_sector_coords_table, PlanetTransportMode,
+    PlayfieldBuffer, Screen, ScreenFrame, StyledSpan,
 };
 use crate::theme::classic;
 
 pub const FLEET_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
 pub const FLEET_LIST_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
+
+pub fn fleet_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 3)
+}
+
+pub fn fleet_list_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 1)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
@@ -353,13 +361,14 @@ impl FleetListScreen {
 
     pub fn render(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[FleetRow],
         scroll_offset: usize,
         cursor: usize,
         input: &str,
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         let max_fleet_number = max_fleet_number(rows);
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "FLEET LIST:", classic::title_style());
@@ -385,7 +394,7 @@ impl FleetListScreen {
             &columns,
             &table_rows,
             scroll_offset,
-            FLEET_LIST_VISIBLE_ROWS,
+            fleet_list_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -394,7 +403,7 @@ impl FleetListScreen {
                 Some(cursor)
             },
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
             draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
             draw_command_message_stack(
@@ -832,6 +841,7 @@ impl FleetGroupScreen {
 
     pub fn render(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[FleetRow],
         scroll_offset: usize,
         cursor: usize,
@@ -852,6 +862,7 @@ impl FleetGroupScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if mode == FleetGroupOrderMode::SelectingFleets {
             return self.render_selection_table(
+                geometry,
                 rows,
                 scroll_offset,
                 cursor,
@@ -889,13 +900,14 @@ impl FleetGroupScreen {
 
     fn render_selection_table(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[FleetRow],
         scroll_offset: usize,
         cursor: usize,
         selected_fleet_record_indexes: &BTreeSet<usize>,
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         buffer.fill_row(0, classic::menu_style());
         let max_fleet_number = max_fleet_number(rows);
         let table_rows = rows
@@ -934,7 +946,7 @@ impl FleetGroupScreen {
             &columns,
             &table_rows,
             scroll_offset,
-            FLEET_VISIBLE_ROWS,
+            fleet_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -944,7 +956,7 @@ impl FleetGroupScreen {
             },
             None,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
             draw_table_command_bar_at_col(&mut buffer, command_row, start_col, "<Q>", None, "");
         } else {

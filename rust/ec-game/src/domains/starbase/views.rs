@@ -8,6 +8,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        geometry: app.screen_geometry,
     };
     match app.current_screen {
         ScreenId::StarbaseMenu => app.starbase_menu.render_with_notice(
@@ -26,11 +27,13 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         ScreenId::StarbaseHelp => app.starbase_help.render(&frame),
         ScreenId::StarbaseList => app.starbase_list.render(
+            frame.geometry,
             &app.starbase_rows(),
             app.starbase.scroll_offset,
             app.starbase.cursor,
         ),
         ScreenId::StarbaseReviewSelect => app.starbase_review.render_select(
+            frame.geometry,
             &app.starbase_rows(),
             app.starbase.scroll_offset,
             app.starbase.cursor,

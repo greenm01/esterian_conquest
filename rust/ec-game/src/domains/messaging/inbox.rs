@@ -11,7 +11,7 @@ use crate::reports::{
     InboxDisplayItem, InboxItem, InboxItemSource, InboxItemType, runtime_inbox_items,
 };
 use crate::screen::ScreenId;
-use crate::screen::layout::PromptFeedback;
+use crate::screen::layout::{PromptFeedback, command_line_row_for};
 
 const INBOX_PREVIEW_PAGE_DELTA: i8 = INBOX_VISIBLE_ROWS as i8;
 
@@ -366,7 +366,7 @@ impl App {
         Ok(())
     }
 
-    fn inbox_items_for_filters(
+    pub(crate) fn inbox_items_for_filters(
         &self,
         type_filter: InboxTypeFilter,
         year_filter: Option<u16>,
@@ -517,7 +517,7 @@ impl App {
     }
 
     pub fn inbox_preview_body_rows(&self) -> usize {
-        crate::screen::layout::COMMAND_LINE_ROW
+        command_line_row_for(self.screen_geometry)
             .saturating_sub(self.inbox_preview_start_row() + 1)
             .saturating_sub(1)
     }

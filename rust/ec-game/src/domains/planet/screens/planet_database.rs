@@ -4,19 +4,18 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     draw_command_line_default_input_at_col, draw_command_line_text_at_col,
-    draw_table_command_bar_at_col, draw_table_command_prompt_at_col, new_playfield,
-    stacked_table_visible_rows, table_prompt_row,
+    draw_table_command_bar_at_col, draw_table_command_prompt_at_col, new_playfield_for,
+    stacked_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{
     TableColumn, centered_table_start_col, fit_table_columns,
     write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, format_sector_coords_default, format_sector_coords_table,
+    CommandMenu, PlayfieldBuffer, ScreenGeometry, format_sector_coords_default,
+    format_sector_coords_table,
 };
 use crate::theme::classic;
-
-pub const PLANET_DATABASE_VISIBLE_ROWS: usize = stacked_table_visible_rows(1);
 
 const DATABASE_FILTER_PROMPT: &str = "Filter <A>, <R>, <E>, <M>, or <Q>? [A] ->";
 const DATABASE_SORT_PROMPT: &str = "Sort <L>, <R>, <E>, <M>, or <Q>? [L] ->";
@@ -109,6 +108,7 @@ impl PlanetDatabaseScreen {
 
     pub fn render_list(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[PlanetDatabaseRow],
         scroll_offset: usize,
         cursor: usize,
@@ -117,7 +117,8 @@ impl PlanetDatabaseScreen {
         _status: Option<&str>,
         _menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
+        let visible_rows = stacked_table_visible_rows_for(geometry, 1);
 
         let table_rows = database_table_rows(rows);
         let columns = fit_table_columns(&DATABASE_COLUMNS, &table_rows);
@@ -142,14 +143,14 @@ impl PlanetDatabaseScreen {
             &columns,
             &table_rows,
             scroll_offset,
-            PLANET_DATABASE_VISIBLE_ROWS,
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
             None,
         );
 
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
             draw_command_line_text_at_col(
                 &mut buffer,
@@ -177,6 +178,7 @@ impl PlanetDatabaseScreen {
 
     pub fn render_filter_prompt(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[PlanetDatabaseRow],
         scroll_offset: usize,
         cursor: usize,
@@ -187,6 +189,7 @@ impl PlanetDatabaseScreen {
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = self.render_list(
+            geometry,
             rows,
             scroll_offset,
             cursor,
@@ -197,7 +200,7 @@ impl PlanetDatabaseScreen {
         )?;
         let columns = fit_table_columns(&DATABASE_COLUMNS, &database_table_rows(rows));
         let start_col = centered_table_start_col(buffer.width(), &columns);
-        let command_row = database_command_row(rows.len(), scroll_offset);
+        let command_row = database_command_row(geometry, rows.len(), scroll_offset);
         match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => {
                 draw_table_command_prompt_at_col(
@@ -419,11 +422,11 @@ impl PlanetDatabaseScreen {
     }
 }
 
-fn database_command_row(total_rows: usize, scroll_offset: usize) -> usize {
+fn database_command_row(geometry: ScreenGeometry, total_rows: usize, scroll_offset: usize) -> usize {
     let displayed_rows = total_rows
         .saturating_sub(scroll_offset)
-        .min(PLANET_DATABASE_VISIBLE_ROWS);
-    table_prompt_row(1 + 4 + displayed_rows)
+        .min(stacked_table_visible_rows_for(geometry, 1));
+    table_prompt_row_for(geometry, 1 + 4 + displayed_rows)
 }
 
 fn database_table_rows(rows: &[PlanetDatabaseRow]) -> Vec<Vec<String>> {

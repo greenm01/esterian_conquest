@@ -13,6 +13,12 @@ use ec_data::GameStateMutationError;
 use std::cmp::Reverse;
 
 impl App {
+    fn planet_transport_visible_rows(&self) -> usize {
+        crate::domains::planet::screens::planet_transport::planet_transport_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
     fn owned_planet_row_at_coords(
         &self,
         coords: [u8; 2],
@@ -671,10 +677,11 @@ impl App {
         }
         let next = self.planet.transport_planet_cursor as isize + delta as isize;
         self.planet.transport_planet_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.planet_transport_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.transport_planet_scroll_offset,
             self.planet.transport_planet_cursor,
-            crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+            visible_rows,
         );
         self.planet.transport_planet_input.clear();
         self.planet.transport_status = None;
@@ -765,10 +772,11 @@ impl App {
             return;
         };
         self.planet.transport_planet_cursor = index;
+        let visible_rows = self.planet_transport_visible_rows();
         center_scroll_to_cursor(
             &mut self.planet.transport_planet_scroll_offset,
             self.planet.transport_planet_cursor,
-            crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+            visible_rows,
             rows.len(),
         );
         self.planet.transport_planet_input.clear();
@@ -790,10 +798,11 @@ impl App {
         }
         let next = self.planet.transport_fleet_cursor as isize + delta as isize;
         self.planet.transport_fleet_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.planet_transport_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.transport_fleet_scroll_offset,
             self.planet.transport_fleet_cursor,
-            crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+            visible_rows,
         );
         self.planet.transport_qty_input.clear();
         self.planet.transport_status = None;
@@ -1026,10 +1035,11 @@ impl App {
         };
         if let Some(index) = rows.iter().position(|row| row.coords == coords) {
             self.planet.transport_planet_cursor = index;
+            let visible_rows = self.planet_transport_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.planet.transport_planet_scroll_offset,
                 self.planet.transport_planet_cursor,
-                crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+                visible_rows,
             );
         }
     }

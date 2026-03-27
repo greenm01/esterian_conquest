@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, CommandMessage, MenuEntry, dismiss_prompt_row,
+    CommandMessage, MenuEntry, ScreenGeometry, dismiss_prompt_row,
     draw_command_line_default_input_at, draw_command_line_prompt_text_at,
     draw_command_message_stack, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
     draw_menu_notice, draw_plain_prompt, draw_title_bar, menu_prompt_row, new_playfield,
@@ -293,7 +293,7 @@ pub fn render_first_time_join_summary(
         classic::body_style(),
     );
     buffer.write_text(10, 0, "Autopilot is off.", classic::body_style());
-    draw_plain_prompt(&mut buffer, dismiss_prompt_row(10), "(Slap a key)");
+    draw_plain_prompt(&mut buffer, dismiss_prompt_row(10), "(slap a key)");
     Ok(buffer)
 }
 
@@ -302,7 +302,7 @@ pub fn render_first_time_join_no_pending() -> Result<PlayfieldBuffer, Box<dyn st
     draw_title_bar(&mut buffer, 0, "JOIN COMPLETE:");
     buffer.write_text(2, 0, "You have no reports pending.", classic::body_style());
     buffer.write_text(4, 0, "You have no messages pending.", classic::body_style());
-    draw_plain_prompt(&mut buffer, dismiss_prompt_row(4), "(Slap a key)");
+    draw_plain_prompt(&mut buffer, dismiss_prompt_row(4), "(slap a key)");
     Ok(buffer)
 }
 
@@ -487,12 +487,14 @@ impl FirstTimeEmpiresScreen {
 
     pub fn render_rows(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[String],
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "CURRENT EMPIRES:");
         let start_row = 2usize;
-        let visible_rows = COMMAND_LINE_ROW.saturating_sub(start_row + 2);
+        let visible_rows = crate::screen::layout::command_line_row_for(geometry)
+            .saturating_sub(start_row + 2);
         let mut last_content_row = 0usize;
         for (idx, row) in rows.iter().take(visible_rows).enumerate() {
             let render_row = start_row + idx;
@@ -500,7 +502,10 @@ impl FirstTimeEmpiresScreen {
             last_content_row = render_row;
         }
         let last_content_row = if rows.is_empty() { 0 } else { last_content_row };
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(last_content_row));
+        draw_dismiss_prompt(
+            &mut buffer,
+            crate::screen::layout::dismiss_prompt_row_for(geometry, last_content_row),
+        );
         Ok(buffer)
     }
 }
@@ -508,9 +513,9 @@ impl FirstTimeEmpiresScreen {
 impl Screen for FirstTimeEmpiresScreen {
     fn render(
         &mut self,
-        _frame: &ScreenFrame<'_>,
+        frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_rows(&[])
+        self.render_rows(frame.geometry, &[])
     }
 
     fn handle_key(&self, _key: KeyEvent) -> Action {
@@ -525,9 +530,11 @@ impl FirstTimeIntroScreen {
 
     pub fn render_page(
         &mut self,
+        geometry: ScreenGeometry,
         page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         crate::screen::startup::render_game_intro_page(
+            geometry,
             page,
             "(Slap a key to return to the First Time Menu)",
         )
@@ -537,9 +544,9 @@ impl FirstTimeIntroScreen {
 impl Screen for FirstTimeIntroScreen {
     fn render(
         &mut self,
-        _frame: &ScreenFrame<'_>,
+        frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_page(0)
+        self.render_page(frame.geometry, 0)
     }
 
     fn handle_key(&self, _key: KeyEvent) -> Action {

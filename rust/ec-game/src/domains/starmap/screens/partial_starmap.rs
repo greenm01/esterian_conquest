@@ -4,8 +4,8 @@ use ec_data::build_player_starmap_projection_from_snapshots;
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_WIDTH, centered_row, draw_command_prompt_at, draw_status_line,
-    draw_title_bar, new_playfield,
+    PLAYFIELD_WIDTH, centered_row, command_line_row_for, draw_command_prompt_at, draw_status_line,
+    new_playfield_for,
 };
 use crate::screen::{PlayfieldBuffer, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -13,7 +13,6 @@ use crate::theme::classic;
 pub struct PartialStarmapScreen;
 
 const MAP_TOP_ROW: usize = 1;
-const MAP_BOTTOM_FRAME_ROW: usize = COMMAND_LINE_ROW - 1;
 const SEPARATOR_COL: usize = 3;
 const AXIS_LABEL_COL: usize = 4;
 const MAP_CELL_START_COL: usize = 5;
@@ -46,19 +45,22 @@ impl PartialStarmapScreen {
             frame.planet_intel_snapshots,
             frame.player.record_index_1_based as u8,
         );
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(frame.geometry);
         let title = format!("Map Center at Sector {}", format_sector_coords(center));
-        draw_title_bar(&mut buffer, 0, &title);
+        buffer.fill_row(0, classic::menu_style());
+        let title_col = PLAYFIELD_WIDTH.saturating_sub(title.chars().count()) / 2;
+        buffer.write_text(0, title_col, &title, classic::title_style());
         let map_top_frame_row = if let Some(status) = status {
             draw_status_line(&mut buffer, 1, "Status: ", status);
             MAP_TOP_ROW + 1
         } else {
             MAP_TOP_ROW
         };
+        let map_bottom_frame_row = command_line_row_for(frame.geometry).saturating_sub(1);
 
         let map_width = projection.map_width as usize;
         let map_height = projection.map_height as usize;
-        let available_map_rows = MAP_BOTTOM_FRAME_ROW.saturating_sub(map_top_frame_row);
+        let available_map_rows = map_bottom_frame_row.saturating_sub(map_top_frame_row);
         let horizontal_overflow = map_width > VISIBLE_MAP_COLUMNS;
         let vertical_overflow = map_height > available_map_rows;
         let visible_columns = if horizontal_overflow {
@@ -75,13 +77,13 @@ impl PartialStarmapScreen {
         let (map_cell_start_col, map_top_row, map_bottom_row, x_axis_row) = if fits_entirely {
             // Center the grid of cells in the playfield; axes sit just outside.
             let cell_start = (PLAYFIELD_WIDTH - grid_width(visible_columns)) / 2;
-            let top = centered_row(map_top_frame_row, MAP_BOTTOM_FRAME_ROW, visible_rows);
+            let top = centered_row(map_top_frame_row, map_bottom_frame_row, visible_rows);
             let bottom = top + visible_rows - 1;
             let x_axis = bottom + 1;
             (cell_start, top, bottom, x_axis)
         } else {
             // Anchor axes at col 0 / row 23; fill all available space.
-            let x_axis = MAP_BOTTOM_FRAME_ROW;
+            let x_axis = map_bottom_frame_row;
             let bottom = x_axis - 1;
             let top = bottom + 1 - visible_rows;
             (MAP_CELL_START_COL, top, bottom, x_axis)
@@ -183,7 +185,7 @@ impl PartialStarmapScreen {
 
         draw_command_prompt_at(
             &mut buffer,
-            COMMAND_LINE_ROW,
+            command_line_row_for(frame.geometry),
             "MAP COMMAND",
             "ARROWS H J K L 1 2 3 4 6 7 8 9 ENTER Q",
         );

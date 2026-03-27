@@ -4,9 +4,9 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_table_command_bar_at_col,
-    draw_table_command_prompt_at_col, draw_title_bar, new_playfield, stacked_table_visible_rows,
-    table_prompt_row,
+    dismiss_prompt_row_for, draw_dismiss_prompt, draw_status_line, draw_table_command_bar_at_col,
+    draw_table_command_prompt_at_col, draw_title_bar, new_playfield_for,
+    stacked_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{
     TableColumn, centered_table_start_col, fit_table_columns,
@@ -16,8 +16,6 @@ use crate::screen::{
     PlayfieldBuffer, ScreenFrame, format_sector_coords_default, format_sector_coords_table,
 };
 use crate::theme::classic;
-
-pub const PLANET_BRIEF_VISIBLE_ROWS: usize = stacked_table_visible_rows(1);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetListMode {
@@ -71,10 +69,10 @@ impl PlanetListScreen {
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if let PlanetListMode::Stub(message) = mode {
-            let mut buffer = new_playfield();
+            let mut buffer = new_playfield_for(frame.geometry);
             draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
             draw_status_line(&mut buffer, 3, "Notice: ", message);
-            draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(3));
+            draw_dismiss_prompt(&mut buffer, dismiss_prompt_row_for(frame.geometry, 3));
             return Ok(buffer);
         }
 
@@ -82,7 +80,7 @@ impl PlanetListScreen {
             self.render_brief_list(frame, mode, rows, sort, scroll_offset, cursor, input)?;
         let columns = fit_table_columns(&BRIEF_COLUMNS, &planet_table_rows(frame, rows));
         let start_col = centered_table_start_col(buffer.width(), &columns);
-        let command_row = brief_list_command_row(rows.len(), scroll_offset);
+        let command_row = brief_list_command_row(frame.geometry, rows.len(), scroll_offset);
         draw_table_command_prompt_at_col(&mut buffer, command_row, start_col, BRIEF_SORT_PROMPT);
         Ok(buffer)
     }
@@ -97,7 +95,8 @@ impl PlanetListScreen {
         cursor: usize,
         input: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(frame.geometry);
+        let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
         let table_rows = planet_table_rows(frame, rows);
         let columns = fit_table_columns(&BRIEF_COLUMNS, &table_rows);
         let start_col = centered_table_start_col(buffer.width(), &columns);
@@ -112,7 +111,7 @@ impl PlanetListScreen {
             &columns,
             &table_rows,
             scroll_offset,
-            PLANET_BRIEF_VISIBLE_ROWS,
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -129,7 +128,7 @@ impl PlanetListScreen {
             .unwrap_or_else(|| "00,00".to_string());
         draw_table_command_bar_at_col(
             &mut buffer,
-            table_prompt_row(metrics.bottom_row),
+            table_prompt_row_for(frame.geometry, metrics.bottom_row),
             start_col,
             "<ARROWS J K S Q>",
             Some(&default_coords),
@@ -182,11 +181,15 @@ impl PlanetListScreen {
     }
 }
 
-fn brief_list_command_row(total_rows: usize, scroll_offset: usize) -> usize {
+fn brief_list_command_row(
+    geometry: crate::screen::ScreenGeometry,
+    total_rows: usize,
+    scroll_offset: usize,
+) -> usize {
     let displayed_rows = total_rows
         .saturating_sub(scroll_offset)
-        .min(PLANET_BRIEF_VISIBLE_ROWS);
-    table_prompt_row(1 + 4 + displayed_rows)
+        .min(stacked_table_visible_rows_for(geometry, 1));
+    table_prompt_row_for(geometry, 1 + 4 + displayed_rows)
 }
 
 fn brief_list_title(mode: PlanetListMode) -> &'static str {

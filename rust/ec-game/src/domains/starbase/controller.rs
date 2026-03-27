@@ -10,6 +10,10 @@ use crate::screen::{
 use ec_data::{Order, map_size_for_player_count};
 
 impl App {
+    fn starbase_visible_rows(&self) -> usize {
+        crate::domains::starbase::screens::starbase::starbase_visible_rows(self.screen_geometry)
+    }
+
     pub fn open_starbase_menu(&mut self) {
         self.clear_command_menu_notice();
         self.clear_starbase_move_prompt();
@@ -31,10 +35,11 @@ impl App {
         self.clear_command_menu_notice();
         self.clear_starbase_move_prompt();
         self.starbase.cursor = self.starbase.cursor.min(total - 1);
+        let visible_rows = self.starbase_visible_rows();
         center_scroll_to_cursor(
             &mut self.starbase.scroll_offset,
             self.starbase.cursor,
-            crate::screen::STARBASE_VISIBLE_ROWS,
+            visible_rows,
             total,
         );
         self.current_screen = ScreenId::StarbaseList;
@@ -51,10 +56,11 @@ impl App {
         self.starbase.cursor = self.starbase.cursor.min(total - 1);
         self.starbase.review_input.clear();
         self.starbase.review_status = None;
+        let visible_rows = self.starbase_visible_rows();
         center_scroll_to_cursor(
             &mut self.starbase.scroll_offset,
             self.starbase.cursor,
-            crate::screen::STARBASE_VISIBLE_ROWS,
+            visible_rows,
             total,
         );
         self.current_screen = ScreenId::StarbaseReviewSelect;
@@ -96,7 +102,12 @@ impl App {
             return;
         }
         self.starbase
-            .move_select(delta, &self.game_data, self.player.record_index_1_based);
+            .move_select(
+                delta,
+                &self.game_data,
+                self.player.record_index_1_based,
+                self.starbase_visible_rows(),
+            );
     }
 
     pub fn append_starbase_char(&mut self, ch: char) {
@@ -107,7 +118,12 @@ impl App {
             return;
         }
         self.starbase
-            .append_char(ch, &self.game_data, self.player.record_index_1_based);
+            .append_char(
+                ch,
+                &self.game_data,
+                self.player.record_index_1_based,
+                self.starbase_visible_rows(),
+            );
     }
 
     pub fn backspace_starbase_input(&mut self) {
@@ -115,7 +131,11 @@ impl App {
             return;
         }
         self.starbase
-            .backspace_input(&self.game_data, self.player.record_index_1_based);
+            .backspace_input(
+                &self.game_data,
+                self.player.record_index_1_based,
+                self.starbase_visible_rows(),
+            );
     }
 
     pub fn submit_starbase_review_select(&mut self) {
@@ -142,10 +162,11 @@ impl App {
                 return;
             };
             self.starbase.cursor = index;
+            let visible_rows = self.starbase_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.starbase.scroll_offset,
                 self.starbase.cursor,
-                crate::screen::STARBASE_VISIBLE_ROWS,
+                visible_rows,
             );
         }
         self.starbase.review_input.clear();
@@ -398,7 +419,8 @@ impl App {
             return Err(format!("Starbase #{base_id} is not in your list."));
         };
         self.starbase.cursor = index;
-        self.starbase.sync_scroll(rows.len());
+        self.starbase
+            .sync_scroll(rows.len(), self.starbase_visible_rows());
         Ok(rows[index].clone())
     }
 

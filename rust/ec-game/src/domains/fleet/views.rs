@@ -8,6 +8,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        geometry: app.screen_geometry,
     };
     let inline_transport = match app.fleet.menu_prompt_mode {
         Some(crate::domains::fleet::state::FleetMenuPromptMode::TransportQuantity(mode)) => {
@@ -46,6 +47,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.info_error.as_deref(),
         ),
         ScreenId::FleetList => app.fleet_list.render(
+            frame.geometry,
             &app.fleet_list_rows(),
             app.fleet.scroll_offset,
             app.fleet.cursor,
@@ -113,6 +115,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             let target_y_default = app.fleet_group_target_y_default_value();
             let target_y_input = app.fleet_group_target_y_display_input();
             app.fleet_group.render(
+                frame.geometry,
                 &rows,
                 app.fleet.group_scroll_offset,
                 app.fleet.group_cursor,

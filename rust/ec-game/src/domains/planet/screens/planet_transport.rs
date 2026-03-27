@@ -3,9 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_text_at,
-    draw_dismiss_prompt, draw_general_message_after_command, draw_prompt_error_after,
-    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_at,
+    draw_command_line_text_at, draw_dismiss_prompt, draw_general_message_after_command,
+    draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield, new_playfield_for,
+    standard_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -15,7 +16,9 @@ use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
 
-pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
+pub fn planet_transport_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 2)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetTransportMode {
@@ -78,6 +81,7 @@ impl PlanetTransportScreen {
 
     pub fn render_planet_select(
         &mut self,
+        geometry: ScreenGeometry,
         prompt_label: &str,
         mode: PlanetTransportMode,
         rows: &[PlanetTransportPlanetRow],
@@ -87,7 +91,7 @@ impl PlanetTransportScreen {
         default_coords: [u8; 2],
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, mode.title());
         let table_rows = rows
             .iter()
@@ -111,12 +115,12 @@ impl PlanetTransportScreen {
             &PLANET_COLUMNS,
             &table_rows,
             scroll_offset,
-            PLANET_TRANSPORT_VISIBLE_ROWS,
+            planet_transport_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
             draw_command_line_text_at(
                 &mut buffer,
@@ -149,6 +153,7 @@ impl PlanetTransportScreen {
 
     pub fn render_fleet_select(
         &mut self,
+        geometry: ScreenGeometry,
         prompt_label: &str,
         mode: PlanetTransportMode,
         planet: &PlanetTransportPlanetRow,
@@ -158,7 +163,7 @@ impl PlanetTransportScreen {
         input: &str,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, mode.title());
         let max_fleet_number = max_fleet_number(fleets);
         let fleet_columns = fleet_columns(max_fleet_number);
@@ -184,12 +189,12 @@ impl PlanetTransportScreen {
             &fleet_columns,
             &table_rows,
             scroll_offset,
-            PLANET_TRANSPORT_VISIBLE_ROWS,
+            planet_transport_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let max_qty = fleets.get(cursor).map(|row| row.available_qty).unwrap_or(0);
         if table_rows.is_empty() {
             draw_command_line_text_at(

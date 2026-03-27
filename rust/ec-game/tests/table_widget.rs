@@ -11,6 +11,7 @@ use ec_game::screen::table::{
 use ec_game::screen::{
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow,
     PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer, ScreenFrame,
+    ScreenGeometry,
 };
 use ec_game::theme::classic;
 
@@ -221,6 +222,7 @@ fn planet_database_screen_uses_stacked_header_table() {
 
     let buffer = screen
         .render_list(
+            ScreenGeometry::local_default(),
             &rows,
             0,
             0,
@@ -281,6 +283,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
 
     let buffer = screen
         .render_filter_prompt(
+            ScreenGeometry::local_default(),
             &rows,
             0,
             0,
@@ -306,6 +309,46 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
 }
 
 #[test]
+fn planet_database_24_row_door_keeps_bottom_border_above_command_line() {
+    let mut screen = PlanetDatabaseScreen::new();
+    let rows = (0..30)
+        .map(|idx| PlanetDatabaseRow {
+            planet_record_index_1_based: idx + 1,
+            coords: [idx as u8 % 20, idx as u8 / 20],
+            known_owner_empire_id: Some(1),
+            known_max_production: Some(120),
+            name_label: format!("Aurora {idx:02}"),
+            owner_label: "01".to_string(),
+            max_prod_label: "120".to_string(),
+            year_seen_label: "3001".to_string(),
+            armies_label: "10".to_string(),
+            batteries_label: "4".to_string(),
+            starbase_count_label: "1".to_string(),
+            current_prod_label: "80".to_string(),
+            stored_points_label: "25".to_string(),
+            year_scout_label: "3001".to_string(),
+        })
+        .collect::<Vec<_>>();
+
+    let buffer = screen
+        .render_list(
+            ScreenGeometry::for_door(Some(24)),
+            &rows,
+            0,
+            0,
+            [0, 0],
+            "",
+            None,
+            ec_game::screen::CommandMenu::Planet,
+        )
+        .expect("render 24-row database list");
+
+    assert_eq!(buffer.height(), 24);
+    assert!(buffer.plain_line(22).contains('└'));
+    assert!(buffer.plain_line(23).contains("COMMANDS"));
+}
+
+#[test]
 fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns() {
     let mut screen = PlanetListScreen::new();
     let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
@@ -318,6 +361,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
         player: &player,
         campaign_seed: 0,
         planet_intel_snapshots: &planet_intel_snapshots,
+        geometry: ScreenGeometry::local_default(),
     };
     let rows = vec![EmpirePlanetEconomyRow {
         planet_record_index_1_based: 1,

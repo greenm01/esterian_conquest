@@ -5,9 +5,11 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 use crate::app::{App, AppConfig, AppOutcome, apply_action};
 use crate::dropfile;
+use crate::screen::ScreenGeometry;
 use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
+use crate::terminal::door::DoorTerminal;
 use crate::terminal::stdout::StdoutTerminal;
 use ec_data::{
     CampaignStore,
@@ -21,8 +23,10 @@ struct ParsedLaunchArgs {
     queue_dir: Option<PathBuf>,
     encoding: OutputEncoding,
     color_mode: ColorMode,
+    screen_geometry: ScreenGeometry,
     dropfile_alias: Option<String>,
     session_timeout_secs: Option<u32>,
+    use_door_terminal: bool,
 }
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -53,20 +57,31 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     };
 
     let mut app = App::load(config)?;
+    app.screen_geometry = parsed.screen_geometry;
     app.startup_state.caller_alias = parsed.dropfile_alias.clone();
-    let mut terminal =
-        StdoutTerminal::with_encoding_and_color_mode(parsed.encoding, parsed.color_mode);
+    let mut terminal: Box<dyn Terminal> = if parsed.use_door_terminal {
+        Box::new(DoorTerminal::with_encoding_and_color_mode(
+            parsed.encoding,
+            parsed.color_mode,
+            parsed.screen_geometry,
+        ))
+    } else {
+        Box::new(StdoutTerminal::with_encoding_and_color_mode(
+            parsed.encoding,
+            parsed.color_mode,
+        ))
+    };
 
     if std::io::stdout().is_terminal() {
-        run_interactive(&mut app, &mut terminal)
+        run_interactive(&mut app, terminal.as_mut())
     } else {
-        app.render(&mut terminal)
+        app.render(terminal.as_mut())
     }
 }
 
 fn run_interactive(
     app: &mut App,
-    terminal: &mut StdoutTerminal,
+    terminal: &mut dyn Terminal,
 ) -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
     let result = run_interactive_inner(app, terminal);
@@ -77,7 +92,7 @@ fn run_interactive(
 
 fn run_interactive_inner(
     app: &mut App,
-    terminal: &mut StdoutTerminal,
+    terminal: &mut dyn Terminal,
 ) -> Result<(), Box<dyn std::error::Error>> {
     loop {
         app.render(terminal)?;
@@ -204,6 +219,8 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     // Parse dropfile and apply any fields not already set by explicit flags.
     let mut dropfile_alias: Option<String> = None;
     let mut dropfile_timeout_minutes: Option<u32> = None;
+    let mut screen_geometry = ScreenGeometry::local_default();
+    let mut use_door_terminal = false;
 
     if let Some(path) = &dropfile_path {
         let info = dropfile::parse(path).map_err(|e| format!("{e}"))?;
@@ -212,6 +229,8 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
             .map(|alias| alias.trim().to_string())
             .filter(|alias| !alias.is_empty());
         dropfile_timeout_minutes = info.timeout_minutes;
+        screen_geometry = ScreenGeometry::for_door(info.screen_rows);
+        use_door_terminal = true;
     }
 
     // If a dropfile was given without an explicit --encoding, default to cp437.
@@ -246,8 +265,10 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         queue_dir,
         encoding,
         color_mode,
+        screen_geometry,
         dropfile_alias,
         session_timeout_secs,
+        use_door_terminal,
     })
 }
 

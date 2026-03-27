@@ -5,66 +5,141 @@ use crate::theme::classic;
 pub const PLAYFIELD_WIDTH: usize = 80;
 pub const PLAYFIELD_HEIGHT: usize = 25;
 pub const COMMAND_LINE_ROW: usize = PLAYFIELD_HEIGHT - 1;
+pub const DOOR_FALLBACK_HEIGHT: usize = 24;
 pub const EXPERT_MENU_PROMPT_ROW: usize = 0;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ScreenGeometry {
+    width: usize,
+    height: usize,
+}
+
+impl ScreenGeometry {
+    pub const fn local_default() -> Self {
+        Self {
+            width: PLAYFIELD_WIDTH,
+            height: PLAYFIELD_HEIGHT,
+        }
+    }
+
+    pub fn for_door(rows: Option<usize>) -> Self {
+        let height = rows
+            .unwrap_or(DOOR_FALLBACK_HEIGHT)
+            .clamp(DOOR_FALLBACK_HEIGHT, PLAYFIELD_HEIGHT);
+        Self {
+            width: PLAYFIELD_WIDTH,
+            height,
+        }
+    }
+
+    pub const fn width(self) -> usize {
+        self.width
+    }
+
+    pub const fn height(self) -> usize {
+        self.height
+    }
+}
+
+pub const fn command_line_row_for(geometry: ScreenGeometry) -> usize {
+    geometry.height - 1
+}
+
+pub const fn last_body_row_for(geometry: ScreenGeometry) -> usize {
+    command_line_row_for(geometry) - 1
+}
+
 pub const fn last_body_row() -> usize {
-    COMMAND_LINE_ROW - 1
+    last_body_row_for(ScreenGeometry::local_default())
+}
+
+pub const fn menu_prompt_row_for(geometry: ScreenGeometry, last_content_row: usize) -> usize {
+    let desired = last_content_row + 2;
+    let command_line_row = command_line_row_for(geometry);
+    if desired > command_line_row {
+        command_line_row
+    } else {
+        desired
+    }
 }
 
 pub const fn menu_prompt_row(last_content_row: usize) -> usize {
+    menu_prompt_row_for(ScreenGeometry::local_default(), last_content_row)
+}
+
+pub const fn dismiss_prompt_row_for(geometry: ScreenGeometry, last_content_row: usize) -> usize {
     let desired = last_content_row + 2;
-    if desired > COMMAND_LINE_ROW {
-        COMMAND_LINE_ROW
+    let command_line_row = command_line_row_for(geometry);
+    if desired > command_line_row {
+        command_line_row
     } else {
         desired
     }
 }
 
 pub const fn dismiss_prompt_row(last_content_row: usize) -> usize {
-    let desired = last_content_row + 2;
-    if desired > COMMAND_LINE_ROW {
-        COMMAND_LINE_ROW
+    dismiss_prompt_row_for(ScreenGeometry::local_default(), last_content_row)
+}
+
+pub const fn menu_notice_row_for(geometry: ScreenGeometry, command_row: usize) -> usize {
+    let desired = command_row + 4;
+    let last_body_row = last_body_row_for(geometry);
+    if desired > last_body_row {
+        last_body_row
     } else {
         desired
     }
 }
 
 pub const fn menu_notice_row(command_row: usize) -> usize {
-    let desired = command_row + 4;
-    if desired > last_body_row() {
-        last_body_row()
+    menu_notice_row_for(ScreenGeometry::local_default(), command_row)
+}
+
+pub const fn menu_general_message_row_for(geometry: ScreenGeometry, command_row: usize) -> usize {
+    let desired = command_row + 2;
+    let last_body_row = last_body_row_for(geometry);
+    if desired > last_body_row {
+        last_body_row
     } else {
         desired
     }
 }
 
 pub const fn menu_general_message_row(command_row: usize) -> usize {
-    let desired = command_row + 2;
-    if desired > last_body_row() {
-        last_body_row()
+    menu_general_message_row_for(ScreenGeometry::local_default(), command_row)
+}
+
+pub const fn table_prompt_row_for(geometry: ScreenGeometry, table_bottom_row: usize) -> usize {
+    let desired = table_bottom_row + 1;
+    let command_line_row = command_line_row_for(geometry);
+    if desired > command_line_row {
+        command_line_row
     } else {
         desired
     }
 }
 
 pub const fn table_prompt_row(table_bottom_row: usize) -> usize {
+    table_prompt_row_for(ScreenGeometry::local_default(), table_bottom_row)
+}
+
+pub const fn table_dismiss_prompt_row_for(
+    geometry: ScreenGeometry,
+    table_bottom_row: usize,
+) -> usize {
     let desired = table_bottom_row + 1;
-    if desired > COMMAND_LINE_ROW {
-        COMMAND_LINE_ROW
+    let command_line_row = command_line_row_for(geometry);
+    if desired > command_line_row {
+        command_line_row
     } else {
         desired
     }
 }
 
 pub const fn table_dismiss_prompt_row(table_bottom_row: usize) -> usize {
-    let desired = table_bottom_row + 1;
-    if desired > COMMAND_LINE_ROW {
-        COMMAND_LINE_ROW
-    } else {
-        desired
-    }
+    table_dismiss_prompt_row_for(ScreenGeometry::local_default(), table_bottom_row)
 }
 
 pub const fn centered_row(first_row: usize, last_row: usize, block_height: usize) -> usize {
@@ -72,12 +147,12 @@ pub const fn centered_row(first_row: usize, last_row: usize, block_height: usize
     first_row + available_rows.saturating_sub(block_height) / 2
 }
 
-pub const fn standard_table_visible_rows(start_row: usize) -> usize {
-    COMMAND_LINE_ROW.saturating_sub(start_row + 4)
+pub const fn standard_table_visible_rows_for(geometry: ScreenGeometry, start_row: usize) -> usize {
+    command_line_row_for(geometry).saturating_sub(start_row + 4)
 }
 
-pub const fn stacked_table_visible_rows(start_row: usize) -> usize {
-    COMMAND_LINE_ROW.saturating_sub(start_row + 5)
+pub const fn standard_table_visible_rows(start_row: usize) -> usize {
+    standard_table_visible_rows_for(ScreenGeometry::local_default(), start_row)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -128,8 +203,20 @@ impl<'a> MenuEntry<'a> {
     }
 }
 
+pub const fn stacked_table_visible_rows_for(geometry: ScreenGeometry, start_row: usize) -> usize {
+    command_line_row_for(geometry).saturating_sub(start_row + 5)
+}
+
+pub const fn stacked_table_visible_rows(start_row: usize) -> usize {
+    stacked_table_visible_rows_for(ScreenGeometry::local_default(), start_row)
+}
+
+pub fn new_playfield_for(geometry: ScreenGeometry) -> PlayfieldBuffer {
+    PlayfieldBuffer::new(geometry.width(), geometry.height(), classic::body_style())
+}
+
 pub fn new_playfield() -> PlayfieldBuffer {
-    PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style())
+    new_playfield_for(ScreenGeometry::local_default())
 }
 
 pub fn draw_title_bar(buffer: &mut PlayfieldBuffer, row: usize, title: &str) {

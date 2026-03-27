@@ -8365,6 +8365,7 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
     let mut screen = FleetGroupScreen::new();
     let buffer = screen
         .render(
+            ec_game::screen::ScreenGeometry::local_default(),
             &rows,
             0,
             0,
@@ -10684,6 +10685,77 @@ fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
 }
 
 #[test]
+fn partial_starmap_view_24_row_door_keeps_command_prompt_visible_and_title_centered() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.screen_geometry = ec_game::screen::ScreenGeometry::for_door(Some(24));
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("partial starmap view should render on 24-row door");
+
+    assert_eq!(terminal.lines.len(), 24);
+    let title = format!(
+        "Map Center at Sector {}",
+        ec_game::screen::format_sector_coords(app.starmap_state.partial_center)
+    );
+    let expected_title_col = (80 - title.chars().count()) / 2;
+    let leading_spaces = terminal.line(0).chars().take_while(|ch| *ch == ' ').count();
+    assert_eq!(leading_spaces, expected_title_col);
+    assert!(terminal.line(0).contains(&title));
+    assert!(terminal.line(23).contains("MAP COMMAND"));
+}
+
+#[test]
+fn opening_reports_from_general_menu_with_empty_inbox_stays_on_menu_with_notice() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("general menu should render after empty inbox notice");
+    assert!(line_containing(&terminal, "Inbox is empty.").contains("Inbox is empty."));
+}
+
+#[test]
 fn partial_starmap_small_map_stays_centered_while_crosshair_tracks_selected_sector() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -11877,7 +11949,7 @@ fn starmap_dump_page_uses_plain_bottom_left_slap_a_key_prompt() {
         .collect::<Vec<_>>();
 
     let buffer = screen
-        .render_dump_page(&lines, 0)
+        .render_dump_page(ec_game::screen::ScreenGeometry::local_default(), &lines, 0)
         .expect("starmap dump page renders");
 
     assert_eq!(buffer.plain_line(22), "line 21");
@@ -11891,7 +11963,9 @@ fn starmap_dump_page_uses_plain_bottom_left_slap_a_key_prompt() {
 fn starmap_prompt_uses_plain_dismiss_prompt_below_last_text_line() {
     let mut screen = ec_game::screen::StarmapScreen::new();
 
-    let buffer = screen.render_prompt(None).expect("starmap prompt renders");
+    let buffer = screen
+        .render_prompt(ec_game::screen::ScreenGeometry::local_default(), None)
+        .expect("starmap prompt renders");
 
     assert_eq!(buffer.plain_line(8), "");
     assert_eq!(buffer.plain_line(9), "(slap a key)");
@@ -12679,7 +12753,14 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
     ];
 
     let buffer = screen
-        .render(&rows, 0, 0, "", None)
+        .render(
+            ec_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            "",
+            None,
+        )
         .expect("fleet list renders");
 
     assert!(buffer.plain_line(4).contains("│001│"));
@@ -12707,7 +12788,14 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     }];
 
     let buffer = screen
-        .render(&rows, 0, 0, "", None)
+        .render(
+            ec_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            "",
+            None,
+        )
         .expect("fleet list renders");
 
     assert_eq!(buffer.plain_line(0), "FLEET LIST:");
@@ -12815,7 +12903,14 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
     }];
 
     let buffer = screen
-        .render(&rows, 0, 0, "", None)
+        .render(
+            ec_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            "",
+            None,
+        )
         .expect("fleet list renders");
 
     assert!(buffer.plain_line(4).contains("Move"));

@@ -4,18 +4,16 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_prompt_text_at,
-    draw_command_prompt_at, draw_dismiss_prompt, draw_prompt_error_after,
-    draw_table_command_bar_at, draw_title_bar, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    ScreenGeometry, command_line_row_for, dismiss_prompt_row,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_prompt_error_after, draw_table_command_bar_at, draw_title_bar,
+    new_playfield, new_playfield_for, standard_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct MessageComposeScreen;
-pub(crate) const RECIPIENT_VISIBLE_ROWS: usize = standard_table_visible_rows(5);
-pub(crate) const OUTBOX_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
 pub(crate) const COMPOSE_SUBJECT_LIMIT: usize = 60;
 pub(crate) const COMPOSE_BODY_LIMIT: usize = 1000;
 pub(crate) const COMPOSE_BODY_WRAP_WIDTH: usize = 79;
@@ -47,7 +45,7 @@ impl MessageComposeScreen {
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(frame.geometry);
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
         buffer.write_text(2, 0, "Available empires:", classic::body_style());
         buffer.write_text(
@@ -78,12 +76,12 @@ impl MessageComposeScreen {
             &RECIPIENT_COLUMNS,
             &rows,
             scroll_offset,
-            RECIPIENT_VISIBLE_ROWS,
+            recipient_visible_rows(frame.geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(frame.geometry, metrics.bottom_row);
         if rows.is_empty() {
             draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K D Q>", None, "");
         } else {
@@ -134,6 +132,7 @@ impl MessageComposeScreen {
 
     pub fn render_body(
         &mut self,
+        geometry: ScreenGeometry,
         recipient_label: &str,
         subject: &str,
         body: &str,
@@ -141,7 +140,7 @@ impl MessageComposeScreen {
         cursor_col: usize,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
         buffer.write_text(
             1,
@@ -195,7 +194,7 @@ impl MessageComposeScreen {
         );
         draw_command_prompt_at(
             &mut buffer,
-            crate::screen::layout::COMMAND_LINE_ROW,
+            command_line_row_for(geometry),
             "GENERAL COMMAND",
             "CTRL-E CTRL-X",
         );
@@ -206,14 +205,15 @@ impl MessageComposeScreen {
 
     pub fn render_send_confirm(
         &mut self,
+        geometry: ScreenGeometry,
         recipient_label: &str,
         subject: &str,
         body: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render_body(recipient_label, subject, body, 0, 0, None)?;
+        let mut buffer = self.render_body(geometry, recipient_label, subject, body, 0, 0, None)?;
         draw_command_line_prompt_text_at(
             &mut buffer,
-            crate::screen::layout::COMMAND_LINE_ROW,
+            command_line_row_for(geometry),
             "SEND MESSAGE",
             "Y/[N] ->",
         );
@@ -223,14 +223,15 @@ impl MessageComposeScreen {
 
     pub fn render_discard_confirm(
         &mut self,
+        geometry: ScreenGeometry,
         recipient_label: &str,
         subject: &str,
         body: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render_body(recipient_label, subject, body, 0, 0, None)?;
+        let mut buffer = self.render_body(geometry, recipient_label, subject, body, 0, 0, None)?;
         draw_command_line_prompt_text_at(
             &mut buffer,
-            crate::screen::layout::COMMAND_LINE_ROW,
+            command_line_row_for(geometry),
             "CANCEL MESSAGE",
             "Y/[N] ->",
         );
@@ -240,6 +241,7 @@ impl MessageComposeScreen {
 
     pub fn render_outbox(
         &mut self,
+        geometry: ScreenGeometry,
         queue: &[QueuedPlayerMail],
         input: &str,
         _status: Option<&str>,
@@ -247,7 +249,7 @@ impl MessageComposeScreen {
         cursor: usize,
         game_data: &ec_data::CoreGameData,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
         buffer.write_text(
             2,
@@ -275,12 +277,12 @@ impl MessageComposeScreen {
             &OUTBOX_COLUMNS,
             &rows,
             scroll_offset,
-            OUTBOX_VISIBLE_ROWS,
+            outbox_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
             draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
         } else {
@@ -420,6 +422,14 @@ impl MessageComposeScreen {
     pub fn handle_sent_key(&self, _key: KeyEvent) -> Action {
         Action::OpenGeneralMenu
     }
+}
+
+pub fn recipient_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 5)
+}
+
+pub fn outbox_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 4)
 }
 
 #[derive(Debug, Clone)]

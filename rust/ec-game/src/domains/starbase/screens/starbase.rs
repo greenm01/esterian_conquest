@@ -11,15 +11,21 @@ use crate::screen::layout::{
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
     draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt, draw_menu_entry,
     draw_menu_notice, draw_prompt_error_after, draw_status_line, draw_table_command_bar_at,
-    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows,
+    standard_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded, format_sector_coords_table,
+    PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, format_sector_coords_padded,
+    format_sector_coords_table,
 };
 use crate::theme::classic;
 
 pub const STARBASE_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
+
+pub fn starbase_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 3)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StarbaseRow {
@@ -290,11 +296,12 @@ impl StarbaseListScreen {
 
     pub fn render(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[StarbaseRow],
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "STARBASE LIST:");
         draw_status_line(
             &mut buffer,
@@ -324,7 +331,7 @@ impl StarbaseListScreen {
             &STARBASE_COLUMNS,
             &table_rows,
             scroll_offset,
-            STARBASE_VISIBLE_ROWS,
+            starbase_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -335,7 +342,7 @@ impl StarbaseListScreen {
         );
         draw_table_command_bar_at(
             &mut buffer,
-            table_prompt_row(metrics.bottom_row),
+            table_prompt_row_for(geometry, metrics.bottom_row),
             "<ARROWS J K Q>",
             None,
             "",
@@ -369,13 +376,14 @@ impl StarbaseReviewScreen {
 
     pub fn render_select(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[StarbaseRow],
         scroll_offset: usize,
         cursor: usize,
         input: &str,
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "REVIEW A STARBASE:");
         draw_status_line(
             &mut buffer,
@@ -405,7 +413,7 @@ impl StarbaseReviewScreen {
             &STARBASE_COLUMNS,
             &table_rows,
             scroll_offset,
-            STARBASE_VISIBLE_ROWS,
+            starbase_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -414,7 +422,7 @@ impl StarbaseReviewScreen {
                 Some(cursor)
             },
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
             draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
         } else {

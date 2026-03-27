@@ -12,6 +12,18 @@ use ec_data::{CoreGameData, QueuedPlayerMail, validate_queue_message_limit};
 const COMPOSE_TAB_WIDTH: usize = 4;
 
 impl App {
+    fn compose_recipient_visible_rows(&self) -> usize {
+        crate::domains::messaging::screens::message_compose::recipient_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
+    fn compose_outbox_visible_rows(&self) -> usize {
+        crate::domains::messaging::screens::message_compose::outbox_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
     pub fn open_delete_reviewables(&mut self) {
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
@@ -116,7 +128,7 @@ impl App {
             return;
         }
         let total = self.game_data.player.records.len().saturating_sub(1);
-        let max_offset = total.saturating_sub(crate::screen::RECIPIENT_VISIBLE_ROWS);
+        let max_offset = total.saturating_sub(self.compose_recipient_visible_rows());
         self.messaging.compose_recipient_scroll_offset = self
             .messaging
             .compose_recipient_scroll_offset
@@ -134,10 +146,11 @@ impl App {
         }
         let next = self.messaging.compose_recipient_cursor as isize + delta as isize;
         self.messaging.compose_recipient_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.compose_recipient_visible_rows();
         sync_scroll_to_cursor(
             &mut self.messaging.compose_recipient_scroll_offset,
             self.messaging.compose_recipient_cursor,
-            crate::screen::RECIPIENT_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -397,7 +410,7 @@ impl App {
             return;
         }
         let total = self.compose_outbox_queue_len();
-        let max_offset = total.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
+        let max_offset = total.saturating_sub(self.compose_outbox_visible_rows());
         self.messaging.compose_outbox_scroll_offset = self
             .messaging
             .compose_outbox_scroll_offset
@@ -415,10 +428,11 @@ impl App {
         }
         let next = self.messaging.compose_outbox_cursor as isize + delta as isize;
         self.messaging.compose_outbox_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.compose_outbox_visible_rows();
         sync_scroll_to_cursor(
             &mut self.messaging.compose_outbox_scroll_offset,
             self.messaging.compose_outbox_cursor,
-            crate::screen::OUTBOX_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -488,7 +502,7 @@ impl App {
             .messaging
             .compose_outbox_cursor
             .min(new_len.saturating_sub(1));
-        let max_offset = new_len.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
+        let max_offset = new_len.saturating_sub(self.compose_outbox_visible_rows());
         self.messaging.compose_outbox_scroll_offset =
             self.messaging.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
@@ -513,10 +527,11 @@ impl App {
             .collect::<Vec<_>>();
         if let Some(index) = ids.iter().position(|&id| id == target_empire_id) {
             self.messaging.compose_recipient_cursor = index;
+            let visible_rows = self.compose_recipient_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.messaging.compose_recipient_scroll_offset,
                 self.messaging.compose_recipient_cursor,
-                crate::screen::RECIPIENT_VISIBLE_ROWS,
+                visible_rows,
             );
         }
     }
@@ -537,10 +552,11 @@ impl App {
             return;
         }
         self.messaging.compose_outbox_cursor = queue_no - 1;
+        let visible_rows = self.compose_outbox_visible_rows();
         sync_scroll_to_cursor(
             &mut self.messaging.compose_outbox_scroll_offset,
             self.messaging.compose_outbox_cursor,
-            crate::screen::OUTBOX_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 

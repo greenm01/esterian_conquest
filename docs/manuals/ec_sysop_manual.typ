@@ -582,10 +582,11 @@ agree on the same empire slot.
 == Enigma BBS (Rust Client)
 
 To run the native `ec-game` as an Enigma BBS door, use the `abracadabra`
-module with `io: socket` and pass `--dir`, `--encoding cp437`, and
-`--color-mode ansi16` as arguments. Use `--player` for unreserved callers, or
-reserve the alias in `config.kdl` and let `--dropfile` resolve the seat. The
-client will inherit the socket from Enigma's stdio handoff.
+module with `dropFileType: DOOR32`, `io: stdio`, and `encoding: cp437`.
+Pass `--dir`, `--dropfile`, `--encoding cp437`, and `--color-mode ansi16` to
+the client, or use the helper wrapper at `tools/bbs/run_ec_rust.sh`. Use
+`--player` for unreserved callers, or reserve the alias in `config.kdl` and
+let `--dropfile` resolve the seat.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
 
@@ -594,6 +595,9 @@ ec-game \
   --dir /path/to/mygame \
   --dropfile /path/to/DOOR32.SYS
 ```
+
+For a fuller ENiGMA½ Rust-door setup, including a ready `abracadabra`
+configuration, see `docs/sysop/enigma-rust-setup.md`.
 
 // ─── 8. SSH Access ────────────────────────────────────────────────────────────
 

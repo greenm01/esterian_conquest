@@ -5,13 +5,14 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CMD_COL_1, CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, centered_row, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at,
+    CMD_COL_1, CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, ScreenGeometry, centered_row,
+    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_prompt_text_at,
     draw_command_message_stack, draw_command_message_stack_after, draw_command_prompt_at,
     draw_dismiss_prompt, draw_expert_menu, draw_general_message_after_command,
     draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
     draw_menu_notice, draw_menu_row, draw_prompt_error_after, draw_title_bar, last_body_row,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    menu_prompt_row, new_playfield, new_playfield_for, standard_table_visible_rows_for,
+    table_prompt_row, table_prompt_row_for,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -24,8 +25,13 @@ use crate::theme::classic;
 
 pub struct PlanetBuildScreen;
 
-pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
-pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
+pub fn planet_build_list_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 4)
+}
+
+pub fn planet_build_change_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 4)
+}
 
 const CHANGE_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::left("Planet Name", 20),
@@ -341,6 +347,7 @@ impl PlanetBuildScreen {
 
     pub fn render_list(
         &mut self,
+        geometry: ScreenGeometry,
         view: &PlanetBuildMenuView,
         rows: &[PlanetBuildListRow],
         scroll_offset: usize,
@@ -351,7 +358,7 @@ impl PlanetBuildScreen {
         delete_qty_status: Option<&str>,
         pending_delete_qty: Option<u32>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(
             &mut buffer,
             0,
@@ -380,12 +387,12 @@ impl PlanetBuildScreen {
             &BUILD_LIST_COLUMNS,
             &table_rows,
             scroll_offset,
-            PLANET_BUILD_LIST_VISIBLE_ROWS,
+            planet_build_list_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
 
         if confirming {
             draw_inline_confirm_prompt(&mut buffer, command_row, "BUILD COMMAND");
@@ -598,11 +605,12 @@ impl PlanetBuildScreen {
 
     pub fn render_change(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[PlanetBuildChangeRow],
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "CHANGE CURRENT PLANET:");
         buffer.write_text(
             2,
@@ -634,12 +642,12 @@ impl PlanetBuildScreen {
             &CHANGE_COLUMNS,
             &table_rows,
             scroll_offset,
-            PLANET_BUILD_CHANGE_VISIBLE_ROWS,
+            planet_build_change_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
 
         if rows.is_empty() {
             buffer.write_text(

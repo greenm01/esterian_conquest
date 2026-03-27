@@ -11,6 +11,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        geometry: app.screen_geometry,
     };
     let inline_transport = match app.planet.transport_prompt_mode {
         Some(PlanetMenuTransportPromptMode::Quantity(mode)) => {
@@ -88,6 +89,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         ScreenId::PlanetHelp => app.planet_help.render(&frame),
         ScreenId::PlanetTransportPlanetSelect(mode) => app.planet_transport.render_planet_select(
+            frame.geometry,
             "COMMAND",
             mode,
             &app.planet_transport_planet_rows(mode),
@@ -98,6 +100,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.transport_status.as_deref(),
         ),
         ScreenId::PlanetTransportFleetSelect(mode) => app.planet_transport.render_fleet_select(
+            frame.geometry,
             "COMMAND",
             mode,
             &app.current_planet_transport_planet_row(mode)?,
@@ -132,12 +135,14 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 return render(app);
             }
             app.planet_commission.render_picker(
+                frame.geometry,
                 &rows,
                 app.planet.commission_picker_scroll_offset,
                 app.planet.commission_index,
             )
         }
         ScreenId::PlanetCommissionMenu => app.planet_commission.render_menu(
+            frame.geometry,
             &app.current_planet_commission_view()?,
             app.planet.commission_scroll_offset,
             app.planet.commission_cursor,
@@ -145,6 +150,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.commission_status.as_deref(),
         ),
         ScreenId::PlanetCommissionDraft => app.planet_commission.render_draft(
+            frame.geometry,
             &app.current_planet_commission_draft_title()
                 .unwrap_or_else(|_| "DRAFT COMMISSION FLEET:".to_string()),
             &app.planet.commission_draft_rows,
@@ -169,6 +175,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 return render(app);
             }
             app.planet_commission.render_auto_commission_report(
+                frame.geometry,
                 &app.planet.auto_commission_report_rows,
                 app.planet.auto_commission_report_revealed_rows,
             )
@@ -187,6 +194,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.build_abort_prompt_active,
         ),
         ScreenId::PlanetBuildList => app.planet_build.render_list(
+            frame.geometry,
             &app.current_planet_build_view()?,
             &app.planet_build_list_rows(),
             app.planet.build_list_scroll_offset,
@@ -198,6 +206,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.build_list_delete_qty_pending,
         ),
         ScreenId::PlanetBuildChange => app.planet_build.render_change(
+            frame.geometry,
             &app.build_change_rows(),
             app.planet.build_change_scroll_offset,
             app.planet.build_change_cursor,
@@ -242,6 +251,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.brief_input,
         ),
         ScreenId::PlanetDatabaseList => app.planet_database.render_list(
+            frame.geometry,
             &app.planet_database_rows(),
             app.planet.database_scroll_offset,
             app.planet.database_cursor,
@@ -251,6 +261,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.command_return_menu,
         ),
         ScreenId::PlanetDatabaseFilterPrompt => app.planet_database.render_filter_prompt(
+            frame.geometry,
             &app.planet_database_rows(),
             app.planet.database_scroll_offset,
             app.planet.database_cursor,

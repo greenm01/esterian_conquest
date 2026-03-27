@@ -4,6 +4,7 @@ use ec_game::app::Action;
 use ec_game::domains::planet::PlanetAction;
 use ec_game::screen::{
     PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen,
+    ScreenGeometry,
 };
 
 #[test]
@@ -105,7 +106,18 @@ fn build_list_renders_queue_columns_without_dock() {
     ];
 
     let buffer = screen
-        .render_list(&view, &rows, 0, 0, false, false, "", None, None)
+        .render_list(
+            ScreenGeometry::local_default(),
+            &view,
+            &rows,
+            0,
+            0,
+            false,
+            false,
+            "",
+            None,
+            None,
+        )
         .expect("render list");
 
     assert_eq!(buffer.plain_line(1), "");
@@ -169,7 +181,18 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
     }];
 
     let buffer = screen
-        .render_list(&view, &rows, 0, 0, true, false, "", None, Some(1))
+        .render_list(
+            ScreenGeometry::local_default(),
+            &view,
+            &rows,
+            0,
+            0,
+            true,
+            false,
+            "",
+            None,
+            Some(1),
+        )
         .expect("render confirming build list");
 
     let command_row = (0..25)
@@ -217,7 +240,18 @@ fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
     };
 
     let buffer = screen
-        .render_list(&view, &[], 0, 0, false, false, "", None, None)
+        .render_list(
+            ScreenGeometry::local_default(),
+            &view,
+            &[],
+            0,
+            0,
+            false,
+            false,
+            "",
+            None,
+            None,
+        )
         .expect("render empty build list");
 
     assert!(buffer.plain_line(2).starts_with("┌"));
@@ -288,7 +322,18 @@ fn build_list_delete_qty_prompt_renders_all_as_default() {
     }];
 
     let buffer = screen
-        .render_list(&view, &rows, 0, 0, false, true, "", None, None)
+        .render_list(
+            ScreenGeometry::local_default(),
+            &view,
+            &rows,
+            0,
+            0,
+            false,
+            true,
+            "",
+            None,
+            None,
+        )
         .expect("render build list delete quantity prompt");
 
     assert!((0..25).any(|row| {
@@ -310,7 +355,9 @@ fn build_change_renders_pp_and_spent_columns() {
         committed_points: 20,
     }];
 
-    let buffer = screen.render_change(&rows, 0, 0).expect("render change");
+    let buffer = screen
+        .render_change(ScreenGeometry::local_default(), &rows, 0, 0)
+        .expect("render change");
 
     assert!(buffer.plain_line(4).starts_with("┌"));
     assert!(buffer.plain_line(5).contains("Planet Name"));
@@ -320,4 +367,28 @@ fn build_change_renders_pp_and_spent_columns() {
     assert!(buffer.plain_line(5).contains("Spent"));
     assert!(buffer.plain_line(7).contains("50"));
     assert!(buffer.plain_line(7).contains("20"));
+}
+
+#[test]
+fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
+    let mut screen = PlanetBuildScreen::new();
+    let geometry = ScreenGeometry::for_door(Some(24));
+    let rows = (0..32)
+        .map(|idx| PlanetBuildChangeRow {
+            planet_name: format!("Planet {idx:02}"),
+            coords: [idx as u8, idx as u8],
+            present_production: 100,
+            potential_production: 100,
+            available_points: 50,
+            committed_points: 20,
+        })
+        .collect::<Vec<_>>();
+
+    let buffer = screen
+        .render_change(geometry, &rows, 0, 0)
+        .expect("render 24-row change");
+
+    assert_eq!(buffer.height(), 24);
+    assert_eq!(buffer.plain_line(22).chars().next(), Some('└'));
+    assert!(buffer.plain_line(23).contains("BUILD COMMAND <-ARROWS ENTER Q->"));
 }

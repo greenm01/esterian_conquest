@@ -1,10 +1,13 @@
 use crate::app::state::App;
-use crate::domains::starmap::screens::starmap::STARMAP_DUMP_PAGE_LINES;
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::build_player_starmap_projection_from_snapshots;
 use ec_engine::map_size_for_player_count;
 
 impl App {
+    fn starmap_dump_page_lines(&self) -> usize {
+        crate::domains::starmap::screens::starmap::starmap_dump_page_lines(self.screen_geometry)
+    }
+
     pub fn open_partial_starmap_view(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
         self.return_screen = None;
@@ -111,7 +114,7 @@ impl App {
         let next_offset = self
             .starmap_state
             .dump_offset
-            .saturating_add(STARMAP_DUMP_PAGE_LINES);
+            .saturating_add(self.starmap_dump_page_lines());
         if next_offset >= self.starmap_state.dump_lines.len() {
             self.starmap_state.dump_active = false;
             self.starmap_state.capture_complete = true;

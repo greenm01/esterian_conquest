@@ -50,8 +50,7 @@ impl Terminal for StdoutTerminal {
         let fg = resolve_color(classic::terminal_foreground(), self.color_mode);
         if stdout.is_terminal() {
             let (term_width, term_height) = terminal::size()?;
-            let offset_x = term_width.saturating_sub(PLAYFIELD_WIDTH as u16) / 2;
-            let offset_y = term_height.saturating_sub(PLAYFIELD_HEIGHT as u16) / 2;
+            let (offset_x, offset_y) = render_origin(term_width, term_height, self.encoding);
             execute!(
                 stdout,
                 SetBackgroundColor(bg),
@@ -60,10 +59,12 @@ impl Terminal for StdoutTerminal {
                 MoveTo(0, 0)
             )?;
             let blank_playfield = " ".repeat(PLAYFIELD_WIDTH);
-            let blank_terminal_row = " ".repeat(term_width as usize);
-            for row in 0..term_height {
-                execute!(stdout, MoveTo(0, row))?;
-                stdout.write_all(blank_terminal_row.as_bytes())?;
+            if self.encoding == OutputEncoding::Utf8 {
+                let blank_terminal_row = " ".repeat(term_width as usize);
+                for row in 0..term_height {
+                    execute!(stdout, MoveTo(0, row))?;
+                    stdout.write_all(blank_terminal_row.as_bytes())?;
+                }
             }
             for row in 0..playfield.height() {
                 execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
@@ -147,6 +148,24 @@ impl Terminal for StdoutTerminal {
     }
 }
 
+fn render_origin(
+    term_width: u16,
+    term_height: u16,
+    encoding: OutputEncoding,
+) -> (u16, u16) {
+    match encoding {
+        // BBS doors often report large terminal dimensions (for example SyncTERM
+        // full-window sessions), but the EC client is still a fixed 80x25
+        // playfield. In door mode, pin to the classic top-left origin instead of
+        // centering inside the remote window.
+        OutputEncoding::Cp437 => (0, 0),
+        OutputEncoding::Utf8 => (
+            term_width.saturating_sub(PLAYFIELD_WIDTH as u16) / 2,
+            term_height.saturating_sub(PLAYFIELD_HEIGHT as u16) / 2,
+        ),
+    }
+}
+
 fn write_styled_row(
     stdout: &mut io::Stdout,
     row: &[crate::screen::Cell],
@@ -195,6 +214,10 @@ fn flush_run(
             queue!(stdout, Print(run))?;
         }
         OutputEncoding::Cp437 => {
+            // In CP437 mode we emit raw text bytes directly. Flush any queued ANSI
+            // style/cursor escapes first so the control sequences land before the
+            // text they are meant to affect.
+            stdout.flush()?;
             stdout.write_all(&cp437::str_to_cp437(run))?;
         }
     }

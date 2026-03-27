@@ -6,8 +6,9 @@ use crate::domains::messaging::state::{
 };
 use crate::reports::InboxDisplayItem;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_WIDTH, PromptFeedback, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, new_playfield, wrap_text,
+    PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry, command_line_row_for,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at, new_playfield_for,
+    wrap_text,
 };
 use crate::screen::table::{
     TableAlign, TableColumn, fit_table_columns, table_column_start, table_render_width,
@@ -33,6 +34,7 @@ impl ReportsScreen {
     #[allow(clippy::too_many_arguments)]
     pub fn render_inbox(
         &mut self,
+        geometry: ScreenGeometry,
         menu: CommandMenu,
         items: &[InboxDisplayItem],
         type_filter: InboxTypeFilter,
@@ -47,7 +49,7 @@ impl ReportsScreen {
         feedback: Option<&PromptFeedback>,
         current_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         buffer.write_spans(
             STATUS_ROW,
             0,
@@ -123,7 +125,8 @@ impl ReportsScreen {
         }
 
         let preview_top_row = metrics.bottom_row + 1;
-        let preview_bottom_row = COMMAND_LINE_ROW.saturating_sub(1);
+        let command_line_row = command_line_row_for(geometry);
+        let preview_bottom_row = command_line_row.saturating_sub(1);
         draw_preview_border(&mut buffer, preview_top_row, preview_bottom_row, focus);
 
         let preview_body_row = preview_top_row + 1;
@@ -172,7 +175,7 @@ impl ReportsScreen {
                 );
                 draw_command_line_prompt_text_at(
                     &mut buffer,
-                    COMMAND_LINE_ROW,
+                    command_line_row,
                     command_menu_label(menu),
                     &prompt,
                 );
@@ -189,7 +192,7 @@ impl ReportsScreen {
             InboxPromptMode::YearInput => {
                 draw_command_line_default_input_at(
                     &mut buffer,
-                    COMMAND_LINE_ROW,
+                    command_line_row,
                     command_menu_label(menu),
                     "Year ",
                     &current_year.to_string(),
@@ -199,7 +202,7 @@ impl ReportsScreen {
             InboxPromptMode::DeleteConfirm => {
                 draw_command_line_prompt_text_at(
                     &mut buffer,
-                    COMMAND_LINE_ROW,
+                    command_line_row,
                     command_menu_label(menu),
                     &format!(
                         "Delete item {}? [Y]/N -> ",
@@ -219,6 +222,7 @@ impl Screen for ReportsScreen {
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         self.render_inbox(
+            ScreenGeometry::local_default(),
             CommandMenu::General,
             &[],
             InboxTypeFilter::All,

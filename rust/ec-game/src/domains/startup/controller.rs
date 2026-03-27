@@ -10,6 +10,18 @@ use crate::screen::{
 use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
+    fn theme_picker_visible_rows(&self) -> usize {
+        crate::domains::startup::screens::theme_picker::theme_picker_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
+    fn startup_review_visible_lines(&self) -> usize {
+        crate::domains::startup::screens::startup::startup_review_visible_lines(
+            self.screen_geometry,
+        )
+    }
+
     fn startup_review_row_count(&self, is_results: bool) -> usize {
         if is_results {
             self.startup
@@ -30,7 +42,7 @@ impl App {
 
     fn startup_review_max_scroll_offset(&self, is_results: bool) -> usize {
         self.startup_review_row_count(is_results)
-            .saturating_sub(crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES)
+            .saturating_sub(self.startup_review_visible_lines())
     }
 
     fn startup_review_is_at_end(&self, is_results: bool) -> bool {
@@ -451,6 +463,13 @@ impl App {
                 self.startup_state.theme_picker_rows = rows;
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(&default_key);
+                self.startup_state.theme_picker_scroll_offset = 0;
+                let visible_rows = self.theme_picker_visible_rows();
+                crate::app::helpers::sync_scroll_to_cursor(
+                    &mut self.startup_state.theme_picker_scroll_offset,
+                    self.startup_state.theme_picker_cursor,
+                    visible_rows,
+                );
                 self.startup_state.theme_picker_status = None;
                 self.startup_state.theme_picker_return_screen = Some(return_screen);
                 self.current_screen = ScreenId::ThemePicker;
@@ -481,6 +500,12 @@ impl App {
         let current = self.startup_state.theme_picker_cursor as isize;
         let max = len.saturating_sub(1) as isize;
         self.startup_state.theme_picker_cursor = (current + delta).clamp(0, max) as usize;
+        let visible_rows = self.theme_picker_visible_rows();
+        crate::app::helpers::sync_scroll_to_cursor(
+            &mut self.startup_state.theme_picker_scroll_offset,
+            self.startup_state.theme_picker_cursor,
+            visible_rows,
+        );
     }
 
     pub fn apply_theme_picker_selection(&mut self) {
@@ -519,6 +544,12 @@ impl App {
                 }
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(&entry.key);
+                let visible_rows = self.theme_picker_visible_rows();
+                crate::app::helpers::sync_scroll_to_cursor(
+                    &mut self.startup_state.theme_picker_scroll_offset,
+                    self.startup_state.theme_picker_cursor,
+                    visible_rows,
+                );
             }
             Err(_) => {
                 crate::theme::apply_default_theme();
@@ -537,6 +568,12 @@ impl App {
                 ));
                 self.startup_state.theme_picker_cursor =
                     self.theme_picker_cursor_for_key(fallback_key);
+                let visible_rows = self.theme_picker_visible_rows();
+                crate::app::helpers::sync_scroll_to_cursor(
+                    &mut self.startup_state.theme_picker_scroll_offset,
+                    self.startup_state.theme_picker_cursor,
+                    visible_rows,
+                );
             }
         }
     }
@@ -547,6 +584,7 @@ impl App {
         }
         self.startup_state.theme_picker_rows.clear();
         self.startup_state.theme_picker_cursor = 0;
+        self.startup_state.theme_picker_scroll_offset = 0;
         self.startup_state.theme_picker_status = None;
         self.current_screen = self
             .startup_state
@@ -753,21 +791,18 @@ impl App {
             }
             StartupPhase::Results => {
                 if self.startup_state.results_mode == StartupReviewMode::ItemBody {
+                    let review_page = self.startup_review_visible_lines() as isize;
                     if !self.startup_review_is_at_end(true) {
                         return match key.code {
                             KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                                 Action::Startup(StartupAction::ScrollReview(-1))
                             }
-                            KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(
-                                -(crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES as isize),
-                            )),
+                            KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(-review_page)),
                             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                                 Action::Startup(StartupAction::ScrollReview(1))
                             }
-                            KeyCode::PageDown => Action::Startup(StartupAction::ScrollReview(
-                                crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES as isize,
-                            )),
+                            KeyCode::PageDown => Action::Startup(StartupAction::ScrollReview(review_page)),
                             _ => Action::Startup(StartupAction::Advance),
                         };
                     }
@@ -806,7 +841,7 @@ impl App {
                             Action::Startup(StartupAction::ScrollReview(-1))
                         }
                         KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(
-                            -(crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES as isize),
+                            -(self.startup_review_visible_lines() as isize),
                         )),
                         _ => Action::Startup(StartupAction::Advance),
                     },
@@ -828,21 +863,18 @@ impl App {
             }
             StartupPhase::Messages => {
                 if self.startup_state.messages_mode == StartupReviewMode::ItemBody {
+                    let review_page = self.startup_review_visible_lines() as isize;
                     if !self.startup_review_is_at_end(false) {
                         return match key.code {
                             KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                                 Action::Startup(StartupAction::ScrollReview(-1))
                             }
-                            KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(
-                                -(crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES as isize),
-                            )),
+                            KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(-review_page)),
                             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                                 Action::Startup(StartupAction::ScrollReview(1))
                             }
-                            KeyCode::PageDown => Action::Startup(StartupAction::ScrollReview(
-                                crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES as isize,
-                            )),
+                            KeyCode::PageDown => Action::Startup(StartupAction::ScrollReview(review_page)),
                             _ => Action::Startup(StartupAction::Advance),
                         };
                     }
@@ -881,7 +913,7 @@ impl App {
                             Action::Startup(StartupAction::ScrollReview(-1))
                         }
                         KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(
-                            -(crate::domains::startup::screens::startup::STARTUP_REVIEW_VISIBLE_LINES as isize),
+                            -(self.startup_review_visible_lines() as isize),
                         )),
                         _ => Action::Startup(StartupAction::Advance),
                     },

@@ -3,14 +3,19 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    draw_status_line, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    ScreenGeometry, draw_status_line, draw_table_command_bar_at, draw_title_bar,
+    new_playfield_for, standard_table_visible_rows, standard_table_visible_rows_for,
+    table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::{ThemeEntry, ThemeEntryKind, classic};
 
 pub const THEME_PICKER_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
+
+pub fn theme_picker_visible_rows(geometry: ScreenGeometry) -> usize {
+    standard_table_visible_rows_for(geometry, 4)
+}
 
 const THEME_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::center("", 1),
@@ -27,12 +32,14 @@ impl ThemePickerScreen {
 
     pub fn render(
         &mut self,
+        geometry: ScreenGeometry,
         rows: &[ThemeEntry],
+        scroll_offset: usize,
         cursor: usize,
         active_key: Option<&str>,
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "ANSI THEMES:");
         draw_status_line(
             &mut buffer,
@@ -62,8 +69,8 @@ impl ThemePickerScreen {
             3,
             &THEME_COLUMNS,
             &table_rows,
-            0,
-            THEME_PICKER_VISIBLE_ROWS,
+            scroll_offset,
+            theme_picker_visible_rows(geometry),
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -72,7 +79,7 @@ impl ThemePickerScreen {
                 Some(cursor.min(table_rows.len().saturating_sub(1)))
             },
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
+        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K ENTER Q>", None, "");
         Ok(buffer)
     }
@@ -83,7 +90,7 @@ impl Screen for ThemePickerScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render(&[], 0, None, None)
+        self.render(ScreenGeometry::local_default(), &[], 0, 0, None, None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

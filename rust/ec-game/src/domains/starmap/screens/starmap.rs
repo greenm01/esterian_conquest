@@ -4,14 +4,18 @@ use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::PlayfieldBuffer;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, dismiss_prompt_row, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    ScreenGeometry, command_line_row_for, dismiss_prompt_row_for, draw_dismiss_prompt,
+    draw_title_bar, new_playfield_for,
 };
 use crate::theme::classic;
 
 pub struct StarmapScreen;
 
 pub const STARMAP_DUMP_START_ROW: usize = 2;
-pub const STARMAP_DUMP_PAGE_LINES: usize = COMMAND_LINE_ROW - STARMAP_DUMP_START_ROW - 1;
+
+pub fn starmap_dump_page_lines(geometry: ScreenGeometry) -> usize {
+    command_line_row_for(geometry).saturating_sub(STARMAP_DUMP_START_ROW + 1)
+}
 
 impl StarmapScreen {
     pub fn new() -> Self {
@@ -20,9 +24,10 @@ impl StarmapScreen {
 
     pub fn render_prompt(
         &mut self,
+        geometry: ScreenGeometry,
         export_status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
         buffer.write_text(
             2,
@@ -54,12 +59,18 @@ impl StarmapScreen {
             buffer.write_text(9, 0, status, classic::status_value_style());
             last_content_row = 9;
         }
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(last_content_row));
+        draw_dismiss_prompt(
+            &mut buffer,
+            dismiss_prompt_row_for(geometry, last_content_row),
+        );
         Ok(buffer)
     }
 
-    pub fn render_complete(&mut self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+    pub fn render_complete(
+        &mut self,
+        geometry: ScreenGeometry,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
         buffer.write_text(3, 0, "Text dump complete.", classic::body_style());
         buffer.write_text(
@@ -68,29 +79,33 @@ impl StarmapScreen {
             "Turn off screen capture in your telnet client now.",
             classic::status_value_style(),
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(5));
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row_for(geometry, 5));
         Ok(buffer)
     }
 
     pub fn render_dump_page(
         &mut self,
+        geometry: ScreenGeometry,
         lines: &[String],
         offset: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
         let mut last_content_row = 0;
         for (row, line) in lines
             .iter()
             .skip(offset)
-            .take(STARMAP_DUMP_PAGE_LINES)
+            .take(starmap_dump_page_lines(geometry))
             .enumerate()
         {
             let screen_row = STARMAP_DUMP_START_ROW + row;
             buffer.write_text(screen_row, 0, line, classic::body_style());
             last_content_row = screen_row;
         }
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(last_content_row));
+        draw_dismiss_prompt(
+            &mut buffer,
+            dismiss_prompt_row_for(geometry, last_content_row),
+        );
         Ok(buffer)
     }
 

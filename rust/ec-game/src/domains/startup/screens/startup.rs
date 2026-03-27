@@ -1,7 +1,7 @@
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, centered_row, dismiss_prompt_row,
-    draw_bottom_aligned_transcript_rows, draw_plain_prompt, last_body_row, new_playfield,
+    PLAYFIELD_WIDTH, ScreenGeometry, centered_row, command_line_row_for, dismiss_prompt_row_for,
+    draw_bottom_aligned_transcript_rows, draw_plain_prompt, last_body_row_for, new_playfield_for,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -63,9 +63,11 @@ pub struct StartupScreen {
     message_blocks: Vec<ReviewBlock>,
 }
 
-const STARTUP_TRANSCRIPT_LAST_ROW: usize = COMMAND_LINE_ROW - 2;
-pub(crate) const STARTUP_REVIEW_VISIBLE_LINES: usize = PLAYFIELD_HEIGHT - 5;
 const ITEM_PREFIX: &str = " -> ";
+
+pub(crate) fn startup_review_visible_lines(geometry: ScreenGeometry) -> usize {
+    geometry.height().saturating_sub(5)
+}
 
 impl StartupScreen {
     pub fn new(summary: StartupSummary, reports: ReportsPreview) -> Self {
@@ -133,8 +135,10 @@ impl StartupScreen {
         game_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
-            StartupPhase::Splash => render_splash(splash_page, Some(frame.campaign_seed)),
-            StartupPhase::Intro => render_game_intro_page(intro_page, "(Slap a key)"),
+            StartupPhase::Splash => render_splash(frame.geometry, splash_page, Some(frame.campaign_seed)),
+            StartupPhase::Intro => {
+                render_game_intro_page(frame.geometry, intro_page, "(slap a key)")
+            }
             StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => self.render_review(
                 frame,
@@ -183,7 +187,7 @@ impl StartupScreen {
                     game_year,
                 )
             }
-            StartupPhase::Complete => Ok(new_playfield()),
+            StartupPhase::Complete => Ok(new_playfield_for(frame.geometry)),
         }
     }
 
@@ -205,12 +209,14 @@ impl StartupScreen {
         deleted_any: bool,
         game_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(frame.geometry);
         let delete_prompt = format!("Delete this {singular} [Y]/N ->");
         let view_prompt =
             format!("You have undeleted {plural}. View them? [Y]es, <N>o, <NS> (non-stop) ->");
         let continue_prompt =
             format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
+
+        let command_line_row = command_line_row_for(frame.geometry);
 
         match mode {
             StartupReviewMode::ViewPrompt => {
@@ -225,11 +231,11 @@ impl StartupScreen {
                         wrap_review_text_preserving_spacing(empty_notice, PLAYFIELD_WIDTH)
                             .into_iter(),
                     );
-                    render_review_transcript(&mut buffer, &transcript_rows);
-                    draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, "(Slap a key)");
+                    render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
+                    draw_plain_prompt(&mut buffer, command_line_row, "(slap a key)");
                 } else {
-                    render_review_transcript(&mut buffer, &transcript_rows);
-                    draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, &view_prompt);
+                    render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
+                    draw_plain_prompt(&mut buffer, command_line_row, &view_prompt);
                 }
             }
             StartupReviewMode::ItemBody | StartupReviewMode::DeletePrompt => {
@@ -259,18 +265,18 @@ impl StartupScreen {
 
                 let rows = block_review_rows(block_lines(blocks, block), empty_notice);
                 let revealed_end =
-                    usize::min(scroll_offset + STARTUP_REVIEW_VISIBLE_LINES, rows.len());
+                    usize::min(scroll_offset + startup_review_visible_lines(frame.geometry), rows.len());
                 transcript_rows.extend(rows[..revealed_end].iter().cloned());
 
-                render_review_transcript(&mut buffer, &transcript_rows);
+                render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
 
-                let prompt_row = PLAYFIELD_HEIGHT - 1;
+                let prompt_row = command_line_row;
                 if revealed_end < rows.len() {
                     draw_plain_prompt(&mut buffer, prompt_row, "(Slap a key for more)");
                 } else if !nonstop {
                     draw_plain_prompt(&mut buffer, prompt_row, &delete_prompt);
                 } else {
-                    draw_plain_prompt(&mut buffer, prompt_row, "(Slap a key)");
+                    draw_plain_prompt(&mut buffer, prompt_row, "(slap a key)");
                 }
             }
             StartupReviewMode::ContinuePrompt => {
@@ -298,8 +304,8 @@ impl StartupScreen {
                         include_continue_prompt,
                     );
                 }
-                render_review_transcript(&mut buffer, &transcript_rows);
-                draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, &continue_prompt);
+                render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
+                draw_plain_prompt(&mut buffer, command_line_row, &continue_prompt);
             }
             StartupReviewMode::EndStatus => {
                 let mut transcript_rows = startup_login_summary_rows(frame, game_year);
@@ -319,10 +325,10 @@ impl StartupScreen {
                     game_year,
                     section_label,
                 ));
-                render_review_transcript(&mut buffer, &transcript_rows);
+                render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
                 draw_plain_prompt(
                     &mut buffer,
-                    PLAYFIELD_HEIGHT - 1,
+                    command_line_row,
                     &format!("All {plural} seen. (Slap a key)"),
                 );
             }
@@ -335,10 +341,10 @@ impl StartupScreen {
         &self,
         frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
+        let mut buffer = new_playfield_for(frame.geometry);
         let rows = startup_login_summary_rows(frame, self.summary.game_year);
-        render_review_transcript(&mut buffer, &rows);
-        draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, "(Slap a key)");
+        render_review_transcript(frame.geometry, &mut buffer, &rows);
+        draw_plain_prompt(&mut buffer, command_line_row_for(frame.geometry), "(slap a key)");
         Ok(buffer)
     }
 }
@@ -362,10 +368,11 @@ const INTRO_ACCENT_PHRASES: &[&str] = &[
 ];
 
 pub fn render_game_intro_page(
+    geometry: ScreenGeometry,
     intro_page: usize,
     final_prompt: &str,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-    let mut buffer = new_playfield();
+    let mut buffer = new_playfield_for(geometry);
     let text_start_row = 2;
     let lines = INTRO_PAGES
         .get(intro_page)
@@ -393,26 +400,31 @@ pub fn render_game_intro_page(
         }
     }
     let prompt = if intro_page + 1 < INTRO_PAGES.len() {
-        "(Slap a key)"
+        "(slap a key)"
     } else {
         final_prompt
     };
-    draw_plain_prompt(&mut buffer, dismiss_prompt_row(last_content_row), prompt);
+    draw_plain_prompt(
+        &mut buffer,
+        dismiss_prompt_row_for(geometry, last_content_row),
+        prompt,
+    );
     Ok(buffer)
 }
 
 fn render_splash(
+    geometry: ScreenGeometry,
     splash_page: usize,
     campaign_seed: Option<u64>,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-    let mut buffer = new_playfield();
+    let mut buffer = new_playfield_for(geometry);
 
     if splash_page == 0 {
         // First page: centered logo with attribution and version.
         let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
         let logo_left = 80usize.saturating_sub(logo_width) / 2;
         let block_height = INTRO_LOGO.len() + 4 + 1;
-        let start_row = centered_row(0, last_body_row(), block_height);
+        let start_row = centered_row(0, last_body_row_for(geometry), block_height);
 
         // Render logo with randomized star-decoration colors.
         let mut rng = campaign_seed
@@ -447,7 +459,7 @@ fn render_splash(
         );
         draw_plain_prompt(
             &mut buffer,
-            COMMAND_LINE_ROW,
+            command_line_row_for(geometry),
             "View the game introduction? Y/[N] -> ",
         );
     } else {
@@ -473,13 +485,13 @@ fn render_splash(
                 transcript.push(format!(" {line}"));
             }
         }
-        render_review_transcript(&mut buffer, &transcript);
+        render_review_transcript(geometry, &mut buffer, &transcript);
         let prompt = if intro_index + 1 < INTRO_PAGES.len() {
-            "(Slap a key)"
+            "(slap a key)"
         } else {
-            "(Slap a key)"
+            "(slap a key)"
         };
-        draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, prompt);
+        draw_plain_prompt(&mut buffer, command_line_row_for(geometry), prompt);
     }
 
     Ok(buffer)
@@ -548,13 +560,19 @@ fn review_line_style(line: &str) -> CellStyle {
     }
 }
 
-fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[String]) {
+fn render_review_transcript(
+    geometry: ScreenGeometry,
+    buffer: &mut PlayfieldBuffer,
+    transcript_rows: &[String],
+) {
+    let transcript_last_row = command_line_row_for(geometry).saturating_sub(2);
+    let visible_lines = startup_review_visible_lines(geometry);
     draw_bottom_aligned_transcript_rows(
         buffer,
         transcript_rows,
         transcript_rows.len(),
-        STARTUP_TRANSCRIPT_LAST_ROW + 1 - STARTUP_REVIEW_VISIBLE_LINES,
-        STARTUP_TRANSCRIPT_LAST_ROW,
+        transcript_last_row + 1 - visible_lines,
+        transcript_last_row,
         |buffer, y, line| {
             let line_style = review_line_style(line);
             if let Some(stardate_pos) = line.find("Stardate: ") {

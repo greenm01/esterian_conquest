@@ -1,4 +1,4 @@
-use crate::domains::starbase::screens::starbase::{STARBASE_VISIBLE_ROWS, StarbaseRow};
+use crate::domains::starbase::screens::starbase::StarbaseRow;
 use ec_data::CoreGameData;
 use ec_engine::estimate_direct_eta;
 
@@ -72,7 +72,13 @@ impl StarbaseState {
         rows
     }
 
-    pub fn move_select(&mut self, delta: i8, game_data: &CoreGameData, player_idx: usize) {
+    pub fn move_select(
+        &mut self,
+        delta: i8,
+        game_data: &CoreGameData,
+        player_idx: usize,
+        visible_rows: usize,
+    ) {
         let total = self.starbase_rows(game_data, player_idx).len();
         if total == 0 {
             return;
@@ -82,20 +88,36 @@ impl StarbaseState {
             .cursor
             .saturating_add_signed(delta as isize)
             .min(max_idx);
-        self.sync_scroll(total);
+        self.sync_scroll(total, visible_rows);
     }
 
-    pub fn append_char(&mut self, ch: char, game_data: &CoreGameData, player_idx: usize) {
+    pub fn append_char(
+        &mut self,
+        ch: char,
+        game_data: &CoreGameData,
+        player_idx: usize,
+        visible_rows: usize,
+    ) {
         self.review_input.push(ch);
-        self.sync_cursor_to_input(game_data, player_idx);
+        self.sync_cursor_to_input(game_data, player_idx, visible_rows);
     }
 
-    pub fn backspace_input(&mut self, game_data: &CoreGameData, player_idx: usize) {
+    pub fn backspace_input(
+        &mut self,
+        game_data: &CoreGameData,
+        player_idx: usize,
+        visible_rows: usize,
+    ) {
         self.review_input.pop();
-        self.sync_cursor_to_input(game_data, player_idx);
+        self.sync_cursor_to_input(game_data, player_idx, visible_rows);
     }
 
-    fn sync_cursor_to_input(&mut self, game_data: &CoreGameData, player_idx: usize) {
+    fn sync_cursor_to_input(
+        &mut self,
+        game_data: &CoreGameData,
+        player_idx: usize,
+        visible_rows: usize,
+    ) {
         if self.review_input.trim().is_empty() {
             return;
         }
@@ -105,17 +127,17 @@ impl StarbaseState {
         let rows = self.starbase_rows(game_data, player_idx);
         if let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) {
             self.cursor = index;
-            self.sync_scroll(rows.len());
+            self.sync_scroll(rows.len(), visible_rows);
         }
     }
 
-    pub fn sync_scroll(&mut self, total: usize) {
-        if total <= STARBASE_VISIBLE_ROWS {
+    pub fn sync_scroll(&mut self, total: usize, visible_rows: usize) {
+        if total <= visible_rows {
             self.scroll_offset = 0;
             return;
         }
-        let half = STARBASE_VISIBLE_ROWS / 2;
-        let max_offset = total - STARBASE_VISIBLE_ROWS;
+        let half = visible_rows / 2;
+        let max_offset = total - visible_rows;
         self.scroll_offset = self.cursor.saturating_sub(half).min(max_offset);
     }
 }

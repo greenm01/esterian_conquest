@@ -9,6 +9,14 @@ use crate::screen::{
 use ec_data::build_player_starmap_projection_from_snapshots;
 
 impl App {
+    fn planet_database_visible_rows(&self) -> usize {
+        crate::screen::layout::stacked_table_visible_rows_for(self.screen_geometry, 1)
+    }
+
+    fn planet_brief_visible_rows(&self) -> usize {
+        crate::screen::layout::stacked_table_visible_rows_for(self.screen_geometry, 1)
+    }
+
     fn command_menu_for_planet_list_mode(mode: PlanetListMode) -> CommandMenu {
         match mode {
             PlanetListMode::Brief | PlanetListMode::Stub(_) => CommandMenu::Planet,
@@ -84,7 +92,7 @@ impl App {
             let default_index = 0usize;
             self.planet.database_cursor = default_index;
             self.planet.database_scroll_offset =
-                default_index.saturating_sub(crate::screen::PLANET_DATABASE_VISIBLE_ROWS / 2);
+                default_index.saturating_sub(self.planet_database_visible_rows() / 2);
             self.planet.database_input.clear();
             self.planet.database_prompt_default_value.clear();
             self.planet.database_pending_range_anchor = None;
@@ -187,7 +195,7 @@ impl App {
             return;
         };
         let total = self.sorted_planet_rows(sort).len();
-        let max_offset = total.saturating_sub(crate::screen::PLANET_BRIEF_VISIBLE_ROWS);
+        let max_offset = total.saturating_sub(self.planet_brief_visible_rows());
         self.planet.brief_scroll_offset = self
             .planet
             .brief_scroll_offset
@@ -204,12 +212,13 @@ impl App {
             self.planet.brief_cursor = 0;
             return;
         }
+        let visible_rows = self.planet_brief_visible_rows();
         let next = self.planet.brief_cursor as isize + delta as isize;
         self.planet.brief_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
             &mut self.planet.brief_scroll_offset,
             self.planet.brief_cursor,
-            crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -279,10 +288,11 @@ impl App {
         };
 
         self.planet.brief_cursor = index;
+        let visible_rows = self.planet_brief_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.brief_scroll_offset,
             self.planet.brief_cursor,
-            crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+            visible_rows,
         );
         self.planet.brief_input.clear();
         self.planet.list_sort_status = None;
@@ -309,12 +319,13 @@ impl App {
             self.planet.database_cursor = 0;
             return;
         }
+        let visible_rows = self.planet_database_visible_rows();
         let next = self.planet.database_cursor as isize + delta as isize;
         self.planet.database_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
-            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -390,10 +401,11 @@ impl App {
             return;
         };
         self.planet.database_cursor = index;
+        let visible_rows = self.planet_database_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
-            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+            visible_rows,
         );
         self.planet.database_status = None;
         self.planet.database_input.clear();
@@ -637,10 +649,11 @@ impl App {
         };
         if let Some(index) = rows.iter().position(|row| row.coords == coords) {
             self.planet.brief_cursor = index;
+            let visible_rows = self.planet_brief_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.planet.brief_scroll_offset,
                 self.planet.brief_cursor,
-                crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+                visible_rows,
             );
         }
     }
@@ -657,10 +670,11 @@ impl App {
         };
         if let Some(index) = rows.iter().position(|row| row.coords == coords) {
             self.planet.database_cursor = index;
+            let visible_rows = self.planet_database_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.planet.database_scroll_offset,
                 self.planet.database_cursor,
-                crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+                visible_rows,
             );
         }
     }
@@ -884,10 +898,11 @@ impl App {
                     .position(|row| row.planet_record_index_1_based == record)
             })
             .unwrap_or(0);
+        let visible_rows = self.planet_database_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
-            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -917,10 +932,11 @@ impl App {
                     .position(|row| row.planet_record_index_1_based == record)
             })
             .unwrap_or(0);
+        let visible_rows = self.planet_database_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
-            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -1030,10 +1046,11 @@ impl App {
             return;
         };
         self.planet.brief_cursor = index;
+        let visible_rows = self.planet_brief_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.brief_scroll_offset,
             self.planet.brief_cursor,
-            crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 

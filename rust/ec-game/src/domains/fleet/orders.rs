@@ -80,7 +80,7 @@ impl App {
         center_scroll_to_cursor(
             &mut self.fleet.group_scroll_offset,
             self.fleet.group_cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
+            crate::domains::fleet::screens::fleet::fleet_visible_rows(self.screen_geometry),
             total,
         );
         self.current_screen = ScreenId::FleetGroupOrder;
@@ -160,10 +160,12 @@ impl App {
         }
         let next = self.fleet.group_cursor as isize + delta as isize;
         self.fleet.group_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows =
+            crate::domains::fleet::screens::fleet::fleet_visible_rows(self.screen_geometry);
         sync_scroll_to_cursor(
             &mut self.fleet.group_scroll_offset,
             self.fleet.group_cursor,
-            crate::screen::FLEET_VISIBLE_ROWS,
+            visible_rows,
         );
         if self.fleet.group_mode == FleetGroupOrderMode::SelectingFleets {
             self.fleet.group_input.clear();

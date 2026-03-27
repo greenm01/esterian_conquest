@@ -1,11 +1,10 @@
 use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::screen::{
-    CommandMenu, PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS, PlanetBuildChangeRow, PlanetBuildListRow,
-    PlanetBuildMenuView, PlanetBuildOrder, PlanetCommissionDraftRow, PlanetCommissionPickerRow,
-    PlanetCommissionRow, PlanetCommissionView, PlanetListSort, ScreenId, build_unit_spec,
-    build_unit_spec_by_kind, format_fleet_number, format_sector_coords, format_sector_coords_table,
-    max_quantity,
+    CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow,
+    PlanetCommissionView, PlanetListSort, ScreenId, build_unit_spec, build_unit_spec_by_kind,
+    format_fleet_number, format_sector_coords, format_sector_coords_table, max_quantity,
 };
 use crossterm::event::KeyCode;
 use ec_data::{
@@ -16,6 +15,36 @@ use ec_data::{
 use std::collections::BTreeMap;
 
 impl App {
+    fn planet_commission_picker_visible_rows(&self) -> usize {
+        crate::domains::planet::screens::planet_commission::planet_commission_picker_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
+    fn planet_commission_visible_rows(&self) -> usize {
+        crate::domains::planet::screens::planet_commission::planet_commission_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
+    fn planet_build_change_visible_rows(&self) -> usize {
+        crate::domains::planet::screens::planet_build::planet_build_change_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
+    fn planet_build_list_visible_rows(&self) -> usize {
+        crate::domains::planet::screens::planet_build::planet_build_list_visible_rows(
+            self.screen_geometry,
+        )
+    }
+
+    fn planet_auto_commission_report_page_rows(&self) -> usize {
+        crate::domains::planet::screens::planet_commission::planet_auto_commission_report_page_rows(
+            self.screen_geometry,
+        )
+    }
+
     pub fn open_planet_commission_menu(&mut self) {
         self.command_return_menu = CommandMenu::Planet;
         self.close_planet_tax_prompt();
@@ -42,10 +71,11 @@ impl App {
             return;
         }
         self.planet.commission_index = self.planet.commission_index.min(total - 1);
+        let visible_rows = self.planet_commission_picker_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.commission_picker_scroll_offset,
             self.planet.commission_index,
-            crate::screen::PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+            visible_rows,
         );
         self.current_screen = ScreenId::PlanetCommissionPicker;
     }
@@ -103,10 +133,11 @@ impl App {
                 return;
             }
             self.planet.commission_index = self.planet.commission_index.min(total - 1);
+            let visible_rows = self.planet_commission_picker_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.planet.commission_picker_scroll_offset,
                 self.planet.commission_index,
-                crate::screen::PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+                visible_rows,
             );
             self.planet.commission_result_dismiss_key = Some(key_code);
             self.current_screen = ScreenId::PlanetCommissionPicker;
@@ -134,10 +165,11 @@ impl App {
             return;
         }
         self.planet.commission_index = self.planet.commission_index.min(total - 1);
+        let visible_rows = self.planet_commission_picker_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.commission_picker_scroll_offset,
             self.planet.commission_index,
-            crate::screen::PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+            visible_rows,
         );
         self.planet.commission_result_dismiss_key = Some(key_code);
         self.current_screen = ScreenId::PlanetCommissionPicker;
@@ -206,10 +238,11 @@ impl App {
         // Pre-position cursor on the current planet so it's already highlighted.
         self.planet.build_change_cursor = self.planet.build_index;
         self.planet.build_change_scroll_offset = 0;
+        let visible_rows = self.planet_build_change_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.build_change_scroll_offset,
             self.planet.build_change_cursor,
-            crate::screen::PLANET_BUILD_CHANGE_VISIBLE_ROWS,
+            visible_rows,
         );
         self.current_screen = ScreenId::PlanetBuildChange;
     }
@@ -224,10 +257,11 @@ impl App {
         }
         let next = self.planet.build_change_cursor as isize + delta as isize;
         self.planet.build_change_cursor = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.planet_build_change_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.build_change_scroll_offset,
             self.planet.build_change_cursor,
-            crate::screen::PLANET_BUILD_CHANGE_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -299,10 +333,11 @@ impl App {
         }
         let next = self.planet.commission_index as isize + delta as isize;
         self.planet.commission_index = next.rem_euclid(total as isize) as usize;
+        let visible_rows = self.planet_commission_picker_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.commission_picker_scroll_offset,
             self.planet.commission_index,
-            crate::screen::PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+            visible_rows,
         );
     }
 
@@ -319,11 +354,14 @@ impl App {
         self.planet.commission_cursor = next.rem_euclid(total as isize) as usize;
         if self.planet.commission_cursor < self.planet.commission_scroll_offset {
             self.planet.commission_scroll_offset = self.planet.commission_cursor;
-        } else if self.planet.commission_cursor
-            >= self.planet.commission_scroll_offset + crate::screen::PLANET_COMMISSION_VISIBLE_ROWS
-        {
-            self.planet.commission_scroll_offset =
-                self.planet.commission_cursor + 1 - crate::screen::PLANET_COMMISSION_VISIBLE_ROWS;
+        } else {
+            let visible_rows = self.planet_commission_visible_rows();
+            if self.planet.commission_cursor
+                >= self.planet.commission_scroll_offset + visible_rows
+            {
+                self.planet.commission_scroll_offset =
+                    self.planet.commission_cursor + 1 - visible_rows;
+            }
         }
         self.planet.commission_status = None;
     }
@@ -521,10 +559,11 @@ impl App {
             self.planet.commission_picker_scroll_offset = 0;
         } else {
             self.planet.commission_index = self.planet.commission_index.min(planet_rows.len() - 1);
+            let visible_rows = self.planet_commission_picker_visible_rows();
             sync_scroll_to_cursor(
                 &mut self.planet.commission_picker_scroll_offset,
                 self.planet.commission_index,
-                crate::screen::PLANET_COMMISSION_PICKER_VISIBLE_ROWS,
+                visible_rows,
             );
         }
         self.planet.commission_selected_slots.clear();
@@ -664,7 +703,7 @@ impl App {
             return Ok(());
         }
         self.planet.auto_commission_report_revealed_rows =
-            rows.len().min(PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS);
+            rows.len().min(self.planet_auto_commission_report_page_rows());
         self.planet.auto_commission_report_rows = rows;
         self.current_screen = ScreenId::PlanetAutoCommissionReport;
         Ok(())
@@ -685,7 +724,7 @@ impl App {
         }
         self.planet.auto_commission_report_revealed_rows = usize::min(
             self.planet.auto_commission_report_revealed_rows
-                + PLANET_AUTO_COMMISSION_REPORT_PAGE_ROWS,
+                + self.planet_auto_commission_report_page_rows(),
             total_rows,
         );
     }
@@ -752,7 +791,7 @@ impl App {
             return;
         }
         let total = self.planet_build_list_rows().len();
-        let max_offset = total.saturating_sub(crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS);
+        let max_offset = total.saturating_sub(self.planet_build_list_visible_rows());
         self.planet.build_list_scroll_offset = self
             .planet
             .build_list_scroll_offset
@@ -774,11 +813,14 @@ impl App {
         // Keep scroll window in sync: ensure cursor is visible.
         if self.planet.build_list_cursor < self.planet.build_list_scroll_offset {
             self.planet.build_list_scroll_offset = self.planet.build_list_cursor;
-        } else if self.planet.build_list_cursor
-            >= self.planet.build_list_scroll_offset + crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS
-        {
+        } else {
+            let visible_rows = self.planet_build_list_visible_rows();
+            if self.planet.build_list_cursor
+                >= self.planet.build_list_scroll_offset + visible_rows
+            {
             self.planet.build_list_scroll_offset =
-                self.planet.build_list_cursor + 1 - crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS;
+                    self.planet.build_list_cursor + 1 - visible_rows;
+            }
         }
     }
 
