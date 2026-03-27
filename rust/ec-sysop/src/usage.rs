@@ -6,6 +6,12 @@ pub fn print_usage() {
     println!(
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint <dir> [turns]"
     );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr init [--identity <path>]"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
+    );
 }
 
 pub fn print_new_game_usage() {
@@ -19,5 +25,29 @@ pub fn print_maint_usage() {
     println!("Usage:");
     println!(
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint <dir> [turns]"
+    );
+}
+
+pub fn print_nostr_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr init [--identity <path>]"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
+    );
+}
+
+pub fn print_nostr_init_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr init [--identity <path>]"
+    );
+}
+
+pub fn print_nostr_serve_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
     );
 }

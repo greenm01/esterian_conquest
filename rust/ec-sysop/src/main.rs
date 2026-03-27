@@ -3,6 +3,7 @@ mod usage;
 use std::env;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 struct ParsedArgs {
     log_file: Option<PathBuf>,
     log_level: ec_log::LogLevel,
@@ -19,15 +20,7 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let parsed = parse_args(env::args().skip(1))?;
-    if let Some(log_file) = &parsed.log_file {
-        ec_log::init_file_logging(log_file, parsed.log_level)?;
-        tracing::info!(
-            log_file = %log_file.display(),
-            level = ?parsed.log_level,
-            "ec-sysop logging initialized"
-        );
-    }
-    let mut args = parsed.args.into_iter();
+    let mut args = parsed.args.clone().into_iter();
     let Some(cmd) = args.next() else {
         usage::print_usage();
         return Ok(());
@@ -40,6 +33,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         "new-game" => {
+            init_logging(&parsed, false)?;
             if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
                 usage::print_new_game_usage();
                 return Ok(());
@@ -52,6 +46,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             ec_cli::run_sysop_cli("ec-sysop", std::iter::once(cmd).chain(rest))
         }
         "maint" => {
+            init_logging(&parsed, false)?;
             if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
                 usage::print_maint_usage();
                 return Ok(());
@@ -63,11 +58,114 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!(dir = %rest[0], "running ec-sysop maint");
             ec_cli::run_maintenance_cli("ec-sysop maint", rest.into_iter())
         }
+        "nostr" => run_nostr(&parsed, rest),
         _ => {
             usage::print_usage();
             Err(format!("unknown subcommand: {cmd}").into())
         }
     }
+}
+
+fn init_logging(
+    parsed: &ParsedArgs,
+    default_to_stderr: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(log_file) = &parsed.log_file {
+        ec_log::init_file_logging(log_file, parsed.log_level)?;
+        tracing::info!(
+            log_file = %log_file.display(),
+            level = ?parsed.log_level,
+            "ec-sysop logging initialized"
+        );
+    } else if default_to_stderr {
+        ec_log::init_stderr_logging(parsed.log_level)?;
+        tracing::info!(level = ?parsed.log_level, "ec-sysop stderr logging initialized");
+    }
+    Ok(())
+}
+
+fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut args = rest.into_iter();
+    let Some(cmd) = args.next() else {
+        usage::print_nostr_usage();
+        return Ok(());
+    };
+    let rest = args.collect::<Vec<_>>();
+
+    match cmd.as_str() {
+        "--help" | "-h" | "help" => {
+            usage::print_nostr_usage();
+            Ok(())
+        }
+        "init" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_init_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let identity_path = parse_single_path_flag(&rest, "--identity")?;
+            tracing::info!(
+                identity_path = ?identity_path.as_ref().map(|path| path.display().to_string()),
+                "running ec-sysop nostr init"
+            );
+            let initialized = ec_gate::init_identity_at(identity_path)?;
+            if initialized.already_exists {
+                println!(
+                    "Daemon identity already exists at: {}",
+                    initialized.path.display()
+                );
+                println!("Public key (npub): {}", initialized.npub);
+                println!("Created: {}", initialized.created);
+            } else {
+                println!("Daemon identity created at: {}", initialized.path.display());
+                println!("Public key (npub): {}", initialized.npub);
+            }
+            Ok(())
+        }
+        "serve" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_serve_usage();
+                return Ok(());
+            }
+            init_logging(parsed, true)?;
+            let config_path = parse_single_path_flag(&rest, "--config")?;
+            let identity_path = parse_single_path_flag(&rest, "--identity")?;
+            tracing::info!(
+                config_path = ?config_path.as_ref().map(|path| path.display().to_string()),
+                identity_path = ?identity_path.as_ref().map(|path| path.display().to_string()),
+                "running ec-sysop nostr serve"
+            );
+            ec_gate::serve_from_paths(config_path, identity_path)
+        }
+        _ => {
+            usage::print_nostr_usage();
+            Err(format!("unknown nostr subcommand: {cmd}").into())
+        }
+    }
+}
+
+fn parse_single_path_flag(
+    args: &[String],
+    flag: &str,
+) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+    let mut value = None;
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if arg == flag {
+            i += 1;
+            let Some(next) = args.get(i) else {
+                return Err(format!("missing value for {flag}").into());
+            };
+            value = Some(PathBuf::from(next));
+        } else if let Some(next) = arg.strip_prefix(&format!("{flag}=")) {
+            value = Some(PathBuf::from(next));
+        } else {
+            return Err(format!("unexpected argument: {arg}").into());
+        }
+        i += 1;
+    }
+    Ok(value)
 }
 
 fn parse_args(

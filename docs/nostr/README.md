@@ -47,7 +47,7 @@ client with a richer interface.
 | Component | Role | Location |
 |-----------|------|----------|
 | `ec-connect` | Player-side client. Ratatui game picker, identity management, Nostr auth handshake, and SSH terminal bridging. Cross-platform (Linux, macOS, Windows). | Player's machine |
-| `ec-gate` | Server-side daemon. Validates identity, manages invites and seats, provisions SSH sessions. Handles multi-game routing. | VPS |
+| `ec-sysop nostr` | Public sysop/operator surface for Nostr hosting. Internally backed by the `ec-gate` crate. Validates identity, manages invites and seats, provisions SSH sessions, and handles multi-game routing. | VPS |
 | `ec-game` | The game TUI. Unchanged. Runs in a PTY on the server. | VPS |
 
 ## Auth Model Overview
@@ -86,7 +86,8 @@ On Windows and macOS, platform-appropriate equivalents are used via the
    and transport rationale
 2. [ec-connect.md](ec-connect.md) -- player-side client: identity
    management, game picker, invite redemption, session lifecycle
-3. [ec-gate.md](ec-gate.md) -- server-side daemon: invite codes, seat
-   management, multi-game routing, SSH provisioning, deployment
+3. [ec-gate.md](ec-gate.md) -- server-side daemon backend and public
+   `ec-sysop nostr` workflow: invite codes, seat management, multi-game
+   routing, SSH provisioning, deployment
 4. [protocol.md](protocol.md) -- Nostr event kinds, session handshake,
    encryption, and security model

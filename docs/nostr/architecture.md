@@ -15,14 +15,15 @@ logic.
 ## Components
 
 ```
-ec-connect (player terminal)          Nostr relay             ec-gate (VPS)
-────────────────────────────          ───────────             ─────────────
-                                                              ec-game (PTY)
-                                                              sshd
+ec-connect (player terminal)          Nostr relay      ec-sysop nostr / ec-gate (VPS)
+────────────────────────────          ───────────      ───────────────────────────────
+                                                           ec-game (PTY)
+                                                           sshd
 ```
 
-There are three components. Two are new (`ec-connect` and `ec-gate`) and
-one is unchanged (`ec-game`).
+There are three components. Two are new (`ec-connect` and the Nostr
+hosting subsystem surfaced as `ec-sysop nostr`, internally backed by
+`ec-gate`) and one is unchanged (`ec-game`).
 
 **ec-connect** runs on the player's machine. It is a hybrid CLI and
 ratatui TUI application. When run with no arguments, it shows a game
@@ -34,11 +35,12 @@ authentication handshake over a Nostr relay, and bridges the player's
 terminal to an SSH session on the server. The player never interacts with
 SSH directly. It works cross-platform on Linux, macOS, and Windows.
 
-**ec-gate** runs on the VPS as a daemon. It listens on one or more Nostr
-relays for session requests, validates player identity and invite codes,
-manages the player roster, and provisions ephemeral SSH keys that can
-only run `ec-game` for the correct player seat. It also handles invite
-code generation and lifecycle management.
+**ec-sysop nostr** is the public sysop command surface for the VPS daemon.
+Internally, the current implementation lives in the `ec-gate` crate. It
+listens on one or more Nostr relays for session requests, validates player
+identity and invite codes, manages the player roster, and provisions
+ephemeral SSH keys that can only run `ec-game` for the correct player
+seat. It also handles invite code generation and lifecycle management.
 
 **ec-game** is the existing game TUI. It runs inside a PTY spawned by
 sshd when a player connects with a provisioned ephemeral key. It receives
@@ -256,14 +258,15 @@ cache are managed by `ec-connect` and should not be hand-edited.
 ## Coexistence with Other Auth Paths
 
 The three auth paths are independent and do not interfere with each
-other. A single VPS could run `ec-gate` for Nostr-authenticated games
-alongside an Enigma BBS serving the same or different game directories
-via dropfiles. `ec-game` does not care which path spawned its PTY.
+other. A single VPS could run the `ec-sysop nostr serve` daemon for
+Nostr-authenticated games alongside an Enigma BBS serving the same or
+different game directories via dropfiles. `ec-game` does not care which
+path spawned its PTY.
 
 The only constraint is that a given game directory should be served by
 one auth path at a time to avoid concurrent access conflicts. The admin
-is responsible for not pointing both `ec-gate` and a BBS door at the
-same game directory simultaneously with overlapping player sessions.
+is responsible for not pointing both the Nostr daemon and a BBS door at
+the same game directory simultaneously with overlapping player sessions.
 
 ## Future: Nostrian Conquest
 
@@ -284,13 +287,14 @@ does not need to be rebuilt when the transport changes.
 
 ## Crate Placement
 
-Both `ec-connect` and `ec-gate` are separate binaries with no dependency
-on `ec-game` internals. Proposed workspace layout:
+`ec-connect` is a separate public binary. The public VPS/operator surface
+lives under `ec-sysop nostr`, backed internally by the `ec-gate` crate,
+with no dependency on `ec-game` internals. Proposed workspace layout:
 
 ```
 rust/
 ├── ec-connect/     # player-side client (new crate)
-├── ec-gate/        # server-side daemon (new crate)
+├── ec-gate/        # internal server-side Nostr daemon crate
 ├── ec-game/        # unchanged
 ├── ec-sysop/       # gains invite code generation commands
 └── ...
@@ -298,5 +302,5 @@ rust/
 
 `ec-connect` and `ec-gate` share a common dependency on `nostr-sdk` for
 Nostr protocol handling. They do not depend on `ec-data`, `ec-engine`,
-or any other game crate. The only integration point is `ec-sysop`, which
-gains commands for invite code generation and roster management.
+or any other game crate. The public integration point is `ec-sysop`,
+which owns the `nostr` command surface and related roster management.

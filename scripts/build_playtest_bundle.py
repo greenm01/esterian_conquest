@@ -15,7 +15,7 @@ import re
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
-BINARIES = ("ec-game", "ec-sysop")
+BINARIES = ("ec-game", "ec-sysop", "ec-connect")
 THEMES_DIR = RUST_ROOT / "ec-game" / "config" / "themes"
 CONFIG_TEMPLATE = RUST_ROOT / "ec-data" / "config" / "config.kdl"
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_player_manual.pdf"
@@ -69,7 +69,7 @@ class BundleSpec:
 def parse_args(default_target: str | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a native ec-game/ec-sysop playtest bundle for Linux or macOS."
+            "Build a native ec-game/ec-sysop/ec-connect playtest bundle for Linux or macOS."
         )
     )
     parser.add_argument(
@@ -153,6 +153,8 @@ def build_binaries(spec: BundleSpec) -> dict[str, Path]:
             "ec-game",
             "-p",
             "ec-sysop",
+            "-p",
+            "ec-connect",
         ],
         cwd=RUST_ROOT,
     )
@@ -188,7 +190,7 @@ blocks them after download, remove the quarantine attribute from the unpacked
 bundle root:
 
 ```bash
-xattr -d com.apple.quarantine ./bin/ec-game ./bin/ec-sysop
+xattr -d com.apple.quarantine ./bin/ec-game ./bin/ec-sysop ./bin/ec-connect
 ```
 """.rstrip()
 
@@ -198,6 +200,7 @@ This bundle contains the public Rust playtest binaries for {spec.platform.displa
 
 - `bin/ec-game`
 - `bin/ec-sysop`
+- `bin/ec-connect`
 
 It also includes:
 
@@ -225,6 +228,13 @@ Run maintenance:
 
 ```bash
 ./bin/ec-sysop maint /tmp/ec-game 1
+```
+
+Initialize and run the Nostr hosting daemon:
+
+```bash
+./bin/ec-sysop nostr init
+./bin/ec-sysop nostr serve
 ```
 
 ## BBS Door Note
@@ -313,6 +323,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             "docs/ec_sysop_manual.pdf",
             "bin/ec-game",
             "bin/ec-sysop",
+            "bin/ec-connect",
             "themes/tokyo_night.kdl",
         ):
             path = bundle_root / relative
@@ -328,6 +339,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
 
         run([str(bundle_root / "bin" / "ec-game"), "--help"], cwd=bundle_root)
         run([str(bundle_root / "bin" / "ec-sysop"), "--help"], cwd=bundle_root)
+        run([str(bundle_root / "bin" / "ec-connect"), "--help"], cwd=bundle_root)
 
         campaign_dir = temp_root / "playtest-campaign"
         run(

@@ -176,8 +176,8 @@ fn load_config_missing_file_is_error() {
 
 #[test]
 fn config_path_returns_xdg_config_home_when_set() {
-    // Temporarily override XDG_CONFIG_HOME; unset /etc/ec-gate (not present in
-    // a normal test environment).
+    // XDG_CONFIG_HOME controls the user-level fallback, but the implementation
+    // still prefers /etc/ec-gate when that directory exists.
     let tmp = std::env::temp_dir().join("ec-gate-xdg-test");
     // SAFETY: single-threaded test; no other thread reads XDG_CONFIG_HOME here.
     unsafe {
@@ -188,7 +188,11 @@ fn config_path_returns_xdg_config_home_when_set() {
         std::env::remove_var("XDG_CONFIG_HOME");
     }
 
-    assert_eq!(path, tmp.join("ec-gate").join("config.kdl"));
+    if PathBuf::from("/etc/ec-gate").exists() {
+        assert_eq!(path, PathBuf::from("/etc/ec-gate/config.kdl"));
+    } else {
+        assert_eq!(path, tmp.join("ec-gate").join("config.kdl"));
+    }
 }
 
 #[test]

@@ -3,10 +3,6 @@ name = "ec-gate"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
-name = "ec-gate"
-path = "src/main.rs"
-
 [dependencies]
 # Config/roster parsing
 kdl = "6"
@@ -28,7 +24,6 @@ sha2 = "0.10"
 
 # Structured async-friendly logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }

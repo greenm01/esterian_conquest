@@ -53,6 +53,10 @@ macOS, and Windows. Linux and macOS playtest bundles are supported as
 standalone archives, and the [Quick Start](#quick-start) commands remain
 available for anyone running directly from a Rust workspace.
 
+For hosted multiplayer over Nostr, the public operator surface is
+`ec-sysop nostr ...`. `ec-cli` remains developer/oracle tooling and is not
+part of the shipped player/sysop bundle.
+
 In local terminal sessions, players can switch between the campaign's
 available ANSI themes from the client itself. `ec-game` ships with `classic`,
 a larger bundle of alternate palettes, and a `Mono` option, and each empire's
@@ -131,6 +135,14 @@ logging flags before the subcommand:
 ```bash
 cd rust
 cargo run -q -p ec-sysop -- --log-file /tmp/ec-sysop.log --log-level info maint /tmp/ec-game 3
+```
+
+Initialize and run the Nostr hosting daemon:
+
+```bash
+cd rust
+cargo run -q -p ec-sysop -- nostr init
+cargo run -q -p ec-sysop -- nostr serve
 ```
 
 Launch the player client:

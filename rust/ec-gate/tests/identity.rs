@@ -4,7 +4,7 @@ use std::fs;
 
 use nostr_sdk::{Keys, ToBech32};
 
-use ec_gate::cli::format_iso8601;
+use ec_gate::format_iso8601;
 use ec_gate::identity::io::{load_identity, parse_identity_str, render_identity, save_identity};
 
 // --- KDL round-trip ---

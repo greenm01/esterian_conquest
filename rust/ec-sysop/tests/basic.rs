@@ -138,6 +138,8 @@ fn ec_sysop_help_lists_public_subcommands() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("new-game <target_dir>"));
     assert!(stdout.contains("maint <dir> [turns]"));
+    assert!(stdout.contains("nostr init [--identity <path>]"));
+    assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
 }
 
 #[test]
@@ -176,7 +178,85 @@ fn ec_sysop_unknown_subcommand_fails_with_full_usage() {
     let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
     assert!(stdout.contains("new-game <target_dir>"));
     assert!(stdout.contains("maint <dir> [turns]"));
+    assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stderr.contains("unknown subcommand: badcmd"));
+}
+
+#[test]
+fn ec_sysop_nostr_help_prints_usage() {
+    let output = run_ec_sysop_output(&["nostr", "--help"], None);
+    assert!(output.status.success(), "nostr help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("nostr init [--identity <path>]"));
+    assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
+}
+
+#[test]
+fn ec_sysop_nostr_init_help_prints_usage_without_creating_identity() {
+    let cwd = unique_temp_dir("ec-sysop-nostr-init-help");
+    let output = run_ec_sysop_output(&["nostr", "init", "--help"], Some(&cwd));
+    assert!(output.status.success(), "nostr init help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("nostr init [--identity <path>]"));
+    assert!(
+        fs::read_dir(&cwd)
+            .expect("cwd should exist")
+            .next()
+            .is_none(),
+        "nostr init help must not create files"
+    );
+    let _ = fs::remove_dir_all(&cwd);
+}
+
+#[test]
+fn ec_sysop_nostr_serve_help_prints_usage() {
+    let output = run_ec_sysop_output(&["nostr", "serve", "--help"], None);
+    assert!(output.status.success(), "nostr serve help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
+}
+
+#[test]
+fn ec_sysop_nostr_init_creates_identity_at_requested_path() {
+    let root = unique_temp_dir("ec-sysop-nostr-init");
+    let identity_path = root.join("identity.kdl");
+
+    let stdout = run_ec_sysop(&[
+        "nostr",
+        "init",
+        "--identity",
+        identity_path.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stdout.contains("Daemon identity created at:"));
+    assert!(stdout.contains("Public key (npub): npub1"));
+    assert!(identity_path.exists(), "identity file should be created");
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn ec_sysop_nostr_init_is_safe_to_rerun() {
+    let root = unique_temp_dir("ec-sysop-nostr-init-rerun");
+    let identity_path = root.join("identity.kdl");
+
+    let first = run_ec_sysop(&[
+        "nostr",
+        "init",
+        "--identity",
+        identity_path.to_str().expect("utf-8 path"),
+    ]);
+    assert!(first.contains("Daemon identity created at:"));
+
+    let second = run_ec_sysop(&[
+        "nostr",
+        "init",
+        "--identity",
+        identity_path.to_str().expect("utf-8 path"),
+    ]);
+    assert!(second.contains("Daemon identity already exists at:"));
+    assert!(second.contains("Created:"));
+
+    let _ = fs::remove_dir_all(&root);
 }
 
 #[test]

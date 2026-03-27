@@ -60,3 +60,12 @@ pub fn init_file_logging(path: &Path, level: LogLevel) -> Result<(), Box<dyn std
     tracing_subscriber::registry().with(fmt_layer).try_init()?;
     Ok(())
 }
+
+pub fn init_stderr_logging(level: LogLevel) -> Result<(), Box<dyn std::error::Error>> {
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(true)
+        .with_target(true)
+        .with_filter(LevelFilter::from_level(level.as_level()));
+    tracing_subscriber::registry().with(fmt_layer).try_init()?;
+    Ok(())
+}

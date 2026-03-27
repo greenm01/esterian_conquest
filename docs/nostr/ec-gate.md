@@ -4,6 +4,9 @@
 and provisions SSH sessions for `ec-game`. It runs on the VPS alongside
 `sshd` and manages the bridge between Nostr identity and SSH access.
 
+For sysops, the public command surface is `ec-sysop nostr ...`. The
+`ec-gate` name remains the current internal crate/backend name.
+
 ## Responsibilities
 
 - Listen on Nostr relays for session request events from players
@@ -21,7 +24,7 @@ and provisions SSH sessions for `ec-game`. It runs on the VPS alongside
 initialization:
 
 ```
-$ ec-gate init
+$ ec-sysop nostr init
 Daemon identity created at: /etc/ec-gate/identity.kdl
 Public key (npub): npub1abc...xyz
 ```
@@ -349,13 +352,13 @@ if the admin prefers fully private games.
 
 ### Setup Steps
 
-1. Install `ec-gate` binary
-2. Run `ec-gate init` to generate the daemon identity
+1. Install the `ec-sysop` binary
+2. Run `ec-sysop nostr init` to generate the daemon identity
 3. Create the `ecgame` system user
 4. Configure sshd for the `ecgame` user (see sshd integration above)
 5. Create games with `ec-sysop new-game --nostr`
 6. Configure `ec-gate` with relay URL and game directories
-7. Start `ec-gate` (systemd unit recommended)
+7. Start the daemon with `ec-sysop nostr serve` (systemd unit recommended)
 8. Share invite codes with players
 
 ### systemd Unit
@@ -368,7 +371,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ec-gate serve
+ExecStart=/usr/local/bin/ec-sysop nostr serve
 Restart=on-failure
 RestartSec=5
 User=ecgame
@@ -386,4 +389,4 @@ WantedBy=multi-user.target
 | `tokio` | Async runtime for relay listener and key reaper |
 | `russh-keys` | ed25519 key generation and OpenSSH authorized_keys formatting |
 | `kdl` | Config and roster file parsing |
-| `clap` | CLI argument parsing (init, serve subcommands) |
+| `clap` | CLI argument parsing if the daemon gains direct developer-only helper entrypoints again |
