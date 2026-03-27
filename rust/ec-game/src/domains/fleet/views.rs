@@ -64,7 +64,12 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .get(app.fleet.review_index)
                 .ok_or("fleet review row missing")?;
             app.fleet_review
-                .render(row, app.fleet.review_index, rows.len())
+                .render(
+                    row,
+                    app.fleet.review_index,
+                    rows.len(),
+                    app.fleet.review_return_to_list,
+                )
         }
         ScreenId::FleetOrder => {
             let row = app

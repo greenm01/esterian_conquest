@@ -184,7 +184,13 @@ impl App {
             ScreenId::StarbaseReview => Action::Starbase(StarbaseAction::OpenReviewSelect),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList => self.fleet_list.handle_key(key),
-            ScreenId::FleetReview => self.fleet_review.handle_key(key),
+            ScreenId::FleetReview => {
+                if self.fleet.review_return_to_list {
+                    self.fleet_review.handle_key(key)
+                } else {
+                    Action::Fleet(crate::domains::fleet::FleetAction::CloseReview)
+                }
+            }
             ScreenId::FleetOrder => self.handle_fleet_order_key(key),
             ScreenId::FleetGroupOrder => self.handle_fleet_group_order_key(key),
             ScreenId::FleetMissionPicker => self.handle_fleet_mission_picker_key(key),

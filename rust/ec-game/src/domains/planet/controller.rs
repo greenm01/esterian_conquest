@@ -590,9 +590,11 @@ impl App {
         self.game_data
             .set_player_tax_rate(self.player.record_index_1_based, parsed)?;
         self.save_game_data()?;
-        self.planet.tax_input.clear();
-        self.planet.tax_error = None;
-        self.planet.tax_notice = Some(format!("Empire tax rate set to {parsed}%."));
+        self.close_planet_tax_prompt();
+        self.show_command_menu_notice(
+            CommandMenu::Planet,
+            format!("Empire tax rate set to {parsed}%."),
+        );
         Ok(())
     }
 

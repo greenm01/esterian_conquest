@@ -461,6 +461,7 @@ impl FleetReviewScreen {
         row: &FleetRow,
         selected_index: usize,
         total: usize,
+        return_to_list: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
@@ -497,12 +498,16 @@ impl FleetReviewScreen {
             "Fleet Record #: ",
             &row.fleet_record_index_1_based.to_string(),
         );
-        draw_command_prompt_at(
-            &mut buffer,
-            menu_prompt_row(12),
-            "FLEET COMMAND",
-            "ARROWS H J K L Q",
-        );
+        if return_to_list {
+            draw_command_prompt_at(
+                &mut buffer,
+                menu_prompt_row(12),
+                "FLEET COMMAND",
+                "ARROWS H J K L Q",
+            );
+        } else {
+            draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
+        }
         Ok(buffer)
     }
 

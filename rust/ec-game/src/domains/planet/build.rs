@@ -228,6 +228,11 @@ impl App {
             self.open_planet_build_menu();
             return;
         }
+        if self.current_planet_build_orders().is_empty() {
+            self.planet.build_status = Some("No build orders are queued.".to_string());
+            self.current_screen = ScreenId::PlanetBuildMenu;
+            return;
+        }
         self.planet.build_list_scroll_offset = 0;
         self.planet.build_list_cursor = 0;
         self.reset_planet_build_list_delete_state();

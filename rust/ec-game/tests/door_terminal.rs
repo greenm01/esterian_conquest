@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_game::screen::{FirstTimeMenuScreen, PlayfieldBuffer, ScreenGeometry};
 use ec_game::terminal::door::{
-    decode_fragmented_input_for_test, decode_input_bytes_for_test, serialize_playfield_frame,
+    decode_fragmented_input_for_test, decode_input_bytes_for_test, decode_input_stream_for_test,
+    serialize_playfield_frame,
 };
 use ec_game::terminal::{ColorMode, OutputEncoding};
 
@@ -56,7 +57,7 @@ fn door_serializer_emits_classic_ansi16_colors_for_mag16_theme() {
 }
 
 #[test]
-fn door_serializer_avoids_alt_screen_and_cursor_visibility_sequences() {
+fn door_serializer_avoids_alt_screen_and_hides_no_cursor() {
     apply_mag16_theme();
     let mut screen = FirstTimeMenuScreen::new();
     let buffer = screen.render(None).expect("first-time menu renders");
@@ -70,7 +71,7 @@ fn door_serializer_avoids_alt_screen_and_cursor_visibility_sequences() {
 
     assert!(!frame_text.contains("\x1b[?1049"));
     assert!(!frame_text.contains("\x1b[?25l"));
-    assert!(!frame_text.contains("\x1b[?25h"));
+    assert!(frame_text.contains("\x1b[?25h"));
 }
 
 #[test]
@@ -152,6 +153,18 @@ fn door_input_decoder_keeps_fragmented_arrow_sequences_as_arrows() {
 
     let got = decode_fragmented_input_for_test(b"\x1b[1;", b"2D").expect("decode fragmented");
     assert_eq!(got, KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+}
+
+#[test]
+fn door_input_decoder_handles_back_to_back_csi_arrows_without_literal_tail_text() {
+    let got = decode_input_stream_for_test(b"\x1b[B\x1b[D").expect("decode stream");
+    assert_eq!(
+        got,
+        vec![
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
+        ]
+    );
 }
 
 #[test]

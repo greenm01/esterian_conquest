@@ -22,6 +22,7 @@ impl App {
     pub fn open_fleet_menu(&mut self) {
         self.clear_command_menu_notice();
         self.clear_fleet_menu_prompt();
+        self.fleet.order_return_to_menu = false;
         self.current_screen = ScreenId::FleetMenu;
     }
 
@@ -237,16 +238,7 @@ impl App {
             );
             self.current_screen = ScreenId::FleetList;
         } else {
-            let default_fleet_number = self
-                .fleet_review_rows()
-                .get(self.fleet.review_index)
-                .map(|row| row.fleet_number);
-            self.open_fleet_menu_prompt(
-                FleetMenuPromptMode::Review,
-                default_fleet_number
-                    .map(|value| value.to_string())
-                    .unwrap_or_default(),
-            );
+            self.current_screen = ScreenId::FleetMenu;
         }
     }
 
@@ -331,6 +323,7 @@ impl App {
                 );
                 self.clear_fleet_menu_prompt();
                 self.current_screen = ScreenId::FleetMenu;
+                self.fleet.order_return_to_menu = false;
             }
             FleetChangeField::Id => {
                 let local_slot = raw
@@ -358,6 +351,7 @@ impl App {
                 );
                 self.clear_fleet_menu_prompt();
                 self.current_screen = ScreenId::FleetMenu;
+                self.fleet.order_return_to_menu = false;
             }
             FleetChangeField::Speed => {
                 let speed = raw
@@ -393,6 +387,7 @@ impl App {
                 );
                 self.clear_fleet_menu_prompt();
                 self.current_screen = ScreenId::FleetMenu;
+                self.fleet.order_return_to_menu = false;
             }
         }
         Ok(())

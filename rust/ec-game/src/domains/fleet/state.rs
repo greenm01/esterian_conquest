@@ -33,7 +33,8 @@ pub enum FleetMenuPromptMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetMissionPickerCaller {
     GroupOrder,
-    SingleOrder,
+    SingleOrderReturnToOrder,
+    SingleOrderReturnToMenu,
 }
 
 pub struct FleetState {
@@ -57,6 +58,7 @@ pub struct FleetState {
     pub order_confirm_input: String,
     pub order_status: Option<String>,
     pub order_mission_code: Option<u8>,
+    pub order_return_to_menu: bool,
     pub group_scroll_offset: usize,
     pub group_cursor: usize,
     pub group_mode: FleetGroupOrderMode,
@@ -115,6 +117,7 @@ impl Default for FleetState {
             order_confirm_input: String::new(),
             order_status: None,
             order_mission_code: None,
+            order_return_to_menu: false,
             group_scroll_offset: 0,
             group_cursor: 0,
             group_mode: FleetGroupOrderMode::SelectingFleets,

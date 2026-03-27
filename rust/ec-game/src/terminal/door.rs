@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -13,8 +14,7 @@ use crate::theme::classic;
 
 use super::stdout::resolve_color;
 
-const ESC_INITIAL_TIMEOUT_MS: i32 = 500;
-const ESC_SEQUENCE_TIMEOUT_MS: i32 = 1200;
+const DOOR_ESCAPE_TIMEOUT_MS: i32 = 1500;
 const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
 
 pub struct DoorTerminal {
@@ -23,7 +23,7 @@ pub struct DoorTerminal {
     geometry: ScreenGeometry,
     trace_dir: Option<PathBuf>,
     frame_seq: u64,
-    pending_input: VecDeque<u8>,
+    decoder: DoorInputDecoder,
 }
 
 impl DoorTerminal {
@@ -42,7 +42,7 @@ impl DoorTerminal {
             geometry,
             trace_dir,
             frame_seq: 0,
-            pending_input: VecDeque::new(),
+            decoder: DoorInputDecoder::new(),
         }
     }
 }
@@ -62,12 +62,14 @@ impl Terminal for DoorTerminal {
     }
 
     fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-        read_key_from_stdin(&mut self.pending_input, self.trace_dir.as_deref())
+        let stdin = io::stdin();
+        let mut lock = stdin.lock();
+        self.decoder.next_key(&mut lock, self.trace_dir.as_deref())
     }
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
-        stdout.write_all(b"\x1b[0m\x1b[2J\x1b[H")?;
+        stdout.write_all(b"\x1b[0m\x1b[?25h\x1b[2J\x1b[H")?;
         stdout.write_all(text.as_bytes())?;
         if !text.ends_with('\n') {
             stdout.write_all(b"\r\n")?;
@@ -85,7 +87,7 @@ impl Terminal for DoorTerminal {
             false,
             self.color_mode,
         ));
-        bytes.extend_from_slice(b"\x1b[2J\x1b[H");
+        bytes.extend_from_slice(b"\x1b[?25h\x1b[2J\x1b[H");
         stdout.write_all(&bytes)?;
         stdout.flush()?;
         Ok(())
@@ -109,7 +111,7 @@ pub fn serialize_playfield_frame(
         false,
         color_mode,
     ));
-    bytes.extend_from_slice(b"\x1b[2J\x1b[H");
+    bytes.extend_from_slice(b"\x1b[?25h\x1b[2J\x1b[H");
 
     let visible_height = playfield.height().min(geometry.height());
     for row_idx in 0..visible_height {
@@ -220,186 +222,247 @@ fn ansi_bg_code(color: crossterm::style::Color) -> u8 {
     }
 }
 
-fn read_key_from_stdin(
-    pending: &mut VecDeque<u8>,
-    trace_dir: Option<&Path>,
-) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    let stdin = io::stdin();
-    let mut lock = stdin.lock();
-    loop {
-        if pending.is_empty() {
-            read_and_enqueue(&mut lock, pending, trace_dir)?;
+struct DoorInputDecoder {
+    pending: VecDeque<u8>,
+}
+
+enum ParseResult {
+    Event(KeyEvent, usize),
+    NeedMore,
+    Drop(usize),
+}
+
+impl DoorInputDecoder {
+    fn new() -> Self {
+        Self {
+            pending: VecDeque::new(),
         }
-        match decode_pending_input(pending) {
-            PendingDecode::Key { event, consumed } => {
-                drain_pending(pending, consumed);
-                return Ok(event);
-            }
-            PendingDecode::NeedMore(timeout_ms) => {
-                if stdin_ready(timeout_ms)? {
-                    read_and_enqueue(&mut lock, pending, trace_dir)?;
-                    continue;
+    }
+
+    fn next_key(
+        &mut self,
+        input: &mut impl Read,
+        trace_dir: Option<&Path>,
+    ) -> Result<KeyEvent, Box<dyn std::error::Error>> {
+        loop {
+            match try_decode_complete(&self.pending) {
+                ParseResult::Event(event, consumed) => {
+                    drain_pending(&mut self.pending, consumed);
+                    return Ok(event);
                 }
-                let (event, consumed) = finalize_pending_after_timeout(pending);
-                drain_pending(pending, consumed);
-                return Ok(event);
+                ParseResult::Drop(consumed) => {
+                    drain_pending(&mut self.pending, consumed);
+                }
+                ParseResult::NeedMore => {
+                    if self.pending.is_empty() {
+                        read_burst(input, &mut self.pending, trace_dir, None)?;
+                        continue;
+                    }
+                    if read_burst(
+                        input,
+                        &mut self.pending,
+                        trace_dir,
+                        Some(DOOR_ESCAPE_TIMEOUT_MS),
+                    )? {
+                        continue;
+                    }
+                    match finalize_pending_after_timeout(&self.pending) {
+                        ParseResult::Event(event, consumed) => {
+                            drain_pending(&mut self.pending, consumed);
+                            return Ok(event);
+                        }
+                        ParseResult::Drop(consumed) => {
+                            drain_pending(&mut self.pending, consumed);
+                        }
+                        ParseResult::NeedMore => {}
+                    }
+                }
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PendingDecode {
-    Key { event: KeyEvent, consumed: usize },
-    NeedMore(i32),
-}
-
-fn decode_pending_input(pending: &VecDeque<u8>) -> PendingDecode {
+fn try_decode_complete(pending: &VecDeque<u8>) -> ParseResult {
     let Some(&first) = pending.front() else {
-        return PendingDecode::Key {
-            event: KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-            consumed: 0,
-        };
+        return ParseResult::NeedMore;
     };
 
     match first {
-        0x03 => key_decode(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL), 1),
-        0x05 => key_decode(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL), 1),
-        0x18 => key_decode(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL), 1),
-        b'\r' | b'\n' => key_decode(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), 1),
-        b'\t' => key_decode(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE), 1),
-        0x08 | 0x7f => key_decode(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE), 1),
-        0x20..=0x7e => key_decode(KeyEvent::new(KeyCode::Char(first as char), KeyModifiers::NONE), 1),
-        0x00 | 0xe0 => decode_dos_pending(pending),
-        0x1b => decode_escape_pending(pending),
-        _ => key_decode(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 1),
+        0x03 => ParseResult::Event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL), 1),
+        0x05 => ParseResult::Event(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL), 1),
+        0x18 => ParseResult::Event(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL), 1),
+        b'\r' | b'\n' => ParseResult::Event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), 1),
+        b'\t' => ParseResult::Event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE), 1),
+        0x08 | 0x7f => {
+            ParseResult::Event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE), 1)
+        }
+        0x20..=0x7e => {
+            ParseResult::Event(KeyEvent::new(KeyCode::Char(first as char), KeyModifiers::NONE), 1)
+        }
+        0x00 | 0xe0 => try_decode_dos_complete(pending),
+        0x1b => try_decode_escape_complete(pending),
+        _ => ParseResult::Drop(1),
     }
 }
 
-fn key_decode(event: KeyEvent, consumed: usize) -> PendingDecode {
-    PendingDecode::Key { event, consumed }
-}
-
-fn decode_dos_pending(pending: &VecDeque<u8>) -> PendingDecode {
+fn try_decode_dos_complete(pending: &VecDeque<u8>) -> ParseResult {
     let Some(byte) = pending.get(1).copied() else {
-        return PendingDecode::NeedMore(ESC_SEQUENCE_TIMEOUT_MS);
+        return ParseResult::NeedMore;
     };
-    key_decode(map_dos_extended(byte), 2)
+    match map_dos_extended(byte) {
+        Some(event) => ParseResult::Event(event, 2),
+        None => ParseResult::Drop(2),
+    }
 }
 
-fn decode_escape_pending(pending: &VecDeque<u8>) -> PendingDecode {
+fn try_decode_escape_complete(pending: &VecDeque<u8>) -> ParseResult {
     let Some(second) = pending.get(1).copied() else {
-        return PendingDecode::NeedMore(ESC_INITIAL_TIMEOUT_MS);
+        return ParseResult::NeedMore;
     };
     match second {
-        b'[' => decode_csi_pending(pending),
-        b'O' => decode_ss3_pending(pending),
-        b'A' => key_decode(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), 2),
-        b'B' => key_decode(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), 2),
-        b'C' => key_decode(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), 2),
-        b'D' => key_decode(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), 2),
-        b'H' => key_decode(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), 2),
-        b'F' => key_decode(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), 2),
-        _ => key_decode(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
+        b'[' => try_decode_csi_complete(pending),
+        b'O' => try_decode_ss3_complete(pending),
+        b'A' => ParseResult::Event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), 2),
+        b'B' => ParseResult::Event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), 2),
+        b'C' => ParseResult::Event(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), 2),
+        b'D' => ParseResult::Event(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), 2),
+        b'H' => ParseResult::Event(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), 2),
+        b'F' => ParseResult::Event(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), 2),
+        _ => ParseResult::Event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
     }
 }
 
-fn decode_csi_pending(pending: &VecDeque<u8>) -> PendingDecode {
+fn try_decode_csi_complete(pending: &VecDeque<u8>) -> ParseResult {
     let bytes = pending.iter().copied().collect::<Vec<_>>();
     for (idx, byte) in bytes.iter().copied().enumerate().skip(2) {
         match byte {
-            b'A' => return key_decode(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), idx + 1),
-            b'B' => return key_decode(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), idx + 1),
-            b'C' => return key_decode(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), idx + 1),
-            b'D' => return key_decode(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), idx + 1),
-            b'H' => return key_decode(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), idx + 1),
-            b'F' => return key_decode(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), idx + 1),
+            b'A' => {
+                return ParseResult::Event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), idx + 1);
+            }
+            b'B' => {
+                return ParseResult::Event(
+                    KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+                    idx + 1,
+                );
+            }
+            b'C' => {
+                return ParseResult::Event(
+                    KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
+                    idx + 1,
+                );
+            }
+            b'D' => {
+                return ParseResult::Event(
+                    KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
+                    idx + 1,
+                );
+            }
+            b'H' => {
+                return ParseResult::Event(
+                    KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
+                    idx + 1,
+                );
+            }
+            b'F' => {
+                return ParseResult::Event(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), idx + 1);
+            }
             b'~' => {
                 let event = match &bytes[2..=idx] {
-                    b"1~" | b"7~" => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-                    b"4~" | b"8~" => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
-                    b"3~" => KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
-                    b"5~" => KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
-                    b"6~" => KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
-                    _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+                    b"1~" | b"7~" => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
+                    b"4~" | b"8~" => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+                    b"3~" => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
+                    b"5~" => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
+                    b"6~" => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
+                    _ => None,
                 };
-                return key_decode(event, idx + 1);
+                return match event {
+                    Some(event) => ParseResult::Event(event, idx + 1),
+                    None => ParseResult::Drop(idx + 1),
+                };
             }
+            0x40..=0x7e => return ParseResult::Drop(idx + 1),
             _ => {}
         }
     }
     if pending.len() >= MAX_ESCAPE_SEQUENCE_BYTES {
-        key_decode(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), pending.len())
+        ParseResult::Drop(pending.len())
     } else {
-        PendingDecode::NeedMore(ESC_SEQUENCE_TIMEOUT_MS)
+        ParseResult::NeedMore
     }
 }
 
-fn decode_ss3_pending(pending: &VecDeque<u8>) -> PendingDecode {
+fn try_decode_ss3_complete(pending: &VecDeque<u8>) -> ParseResult {
     let Some(byte) = pending.get(2).copied() else {
-        return PendingDecode::NeedMore(ESC_SEQUENCE_TIMEOUT_MS);
+        return ParseResult::NeedMore;
     };
     let event = match byte {
-        b'A' => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
-        b'B' => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
-        b'C' => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
-        b'D' => KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
-        b'H' => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-        b'F' => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
-        _ => KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+        b'A' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
+        b'B' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+        b'C' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
+        b'D' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
+        b'H' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
+        b'F' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+        _ => None,
     };
-    key_decode(event, 3)
+    match event {
+        Some(event) => ParseResult::Event(event, 3),
+        None => ParseResult::Drop(3),
+    }
 }
 
-fn finalize_pending_after_timeout(pending: &VecDeque<u8>) -> (KeyEvent, usize) {
+fn finalize_pending_after_timeout(pending: &VecDeque<u8>) -> ParseResult {
     match pending.front().copied() {
         Some(0x1b) => finalize_escape_after_timeout(pending),
-        Some(0x00 | 0xe0) => (
-            KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-            pending.len().min(2),
-        ),
-        Some(_) => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 1),
-        None => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 0),
+        Some(0x00 | 0xe0) => ParseResult::Drop(pending.len().min(2)),
+        Some(_) => ParseResult::Drop(1),
+        None => ParseResult::NeedMore,
     }
 }
 
-fn finalize_escape_after_timeout(pending: &VecDeque<u8>) -> (KeyEvent, usize) {
+fn finalize_escape_after_timeout(pending: &VecDeque<u8>) -> ParseResult {
     match pending.get(1).copied() {
-        None => (KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
-        Some(b'[' | b'O') => (
-            KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
-            pending.len(),
-        ),
-        Some(_) => (KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
+        None => ParseResult::Event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
+        Some(b'[' | b'O') => ParseResult::Drop(pending.len()),
+        Some(_) => ParseResult::Event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
     }
 }
 
-fn map_dos_extended(byte: u8) -> KeyEvent {
+fn map_dos_extended(byte: u8) -> Option<KeyEvent> {
     match byte {
-        b'H' => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
-        b'P' => KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
-        b'M' => KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
-        b'K' => KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
-        b'G' => KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
-        b'O' => KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
-        b'S' => KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
-        b'I' => KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
-        b'Q' => KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
-        _ => KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+        b'H' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
+        b'P' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+        b'M' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
+        b'K' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
+        b'G' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
+        b'O' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+        b'S' => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
+        b'I' => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
+        b'Q' => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
+        _ => None,
     }
 }
 
-fn read_and_enqueue(
+fn read_burst(
     input: &mut impl Read,
     pending: &mut VecDeque<u8>,
     trace_dir: Option<&Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let byte = read_one(input)?;
-    pending.push_back(byte);
-    if let Some(trace_dir) = trace_dir {
-        append_input_trace(trace_dir, &[byte])?;
+    timeout_ms: Option<i32>,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    if let Some(timeout_ms) = timeout_ms {
+        if !stdin_ready(timeout_ms)? {
+            return Ok(false);
+        }
     }
-    Ok(())
+
+    let mut burst = vec![read_one(input)?];
+    while burst.len() < MAX_ESCAPE_SEQUENCE_BYTES && stdin_ready(0)? {
+        burst.push(read_one(input)?);
+    }
+    pending.extend(burst.iter().copied());
+    if let Some(trace_dir) = trace_dir {
+        append_input_trace(trace_dir, &burst)?;
+    }
+    Ok(true)
 }
 
 fn drain_pending(pending: &mut VecDeque<u8>, consumed: usize) {
@@ -469,22 +532,52 @@ fn trace_output_frame(
 
 fn append_input_trace(trace_dir: &Path, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(trace_dir)?;
-    let path = trace_dir.join("input.bin");
-    let mut file = OpenOptions::new().create(true).append(true).open(path)?;
-    file.write_all(bytes)?;
+    let raw_path = trace_dir.join("input.bin");
+    let mut raw = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(raw_path)?;
+    raw.write_all(bytes)?;
+
+    let log_path = trace_dir.join("input.log");
+    let mut log = OpenOptions::new().create(true).append(true).open(log_path)?;
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    write!(log, "{ts}")?;
+    for byte in bytes {
+        write!(log, " {:02x}", byte)?;
+    }
+    writeln!(log)?;
     Ok(())
 }
 
 #[doc(hidden)]
 pub fn decode_input_bytes_for_test(bytes: &[u8]) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-    let pending = bytes.iter().copied().collect::<VecDeque<_>>();
+    let mut pending = bytes.iter().copied().collect::<VecDeque<_>>();
     if pending.is_empty() {
         return Ok(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
     }
-    Ok(match decode_pending_input(&pending) {
-        PendingDecode::Key { event, .. } => event,
-        PendingDecode::NeedMore(_) => finalize_pending_after_timeout(&pending).0,
-    })
+    loop {
+        match try_decode_complete(&pending) {
+            ParseResult::Event(event, _) => return Ok(event),
+            ParseResult::Drop(consumed) => {
+                drain_pending(&mut pending, consumed);
+                if pending.is_empty() {
+                    return Ok(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+                }
+            }
+            ParseResult::NeedMore => {
+                return Ok(match finalize_pending_after_timeout(&pending) {
+                    ParseResult::Event(event, _) => event,
+                    ParseResult::Drop(_) | ParseResult::NeedMore => {
+                        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE)
+                    }
+                });
+            }
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -493,11 +586,38 @@ pub fn decode_fragmented_input_for_test(
     continuation: &[u8],
 ) -> Result<KeyEvent, Box<dyn std::error::Error>> {
     let mut pending = initial.iter().copied().collect::<VecDeque<_>>();
-    if matches!(decode_pending_input(&pending), PendingDecode::NeedMore(_)) {
+    if matches!(try_decode_complete(&pending), ParseResult::NeedMore) {
         pending.extend(continuation.iter().copied());
     }
-    Ok(match decode_pending_input(&pending) {
-        PendingDecode::Key { event, .. } => event,
-        PendingDecode::NeedMore(_) => finalize_pending_after_timeout(&pending).0,
-    })
+    decode_input_bytes_for_test(&pending.iter().copied().collect::<Vec<_>>())
+}
+
+#[doc(hidden)]
+pub fn decode_input_stream_for_test(
+    bytes: &[u8],
+) -> Result<Vec<KeyEvent>, Box<dyn std::error::Error>> {
+    let mut pending = bytes.iter().copied().collect::<VecDeque<_>>();
+    let mut events = Vec::new();
+    while !pending.is_empty() {
+        match try_decode_complete(&pending) {
+            ParseResult::Event(event, consumed) => {
+                drain_pending(&mut pending, consumed);
+                events.push(event);
+            }
+            ParseResult::Drop(consumed) => {
+                drain_pending(&mut pending, consumed);
+            }
+            ParseResult::NeedMore => match finalize_pending_after_timeout(&pending) {
+                ParseResult::Event(event, consumed) => {
+                    drain_pending(&mut pending, consumed);
+                    events.push(event);
+                }
+                ParseResult::Drop(consumed) => {
+                    drain_pending(&mut pending, consumed);
+                }
+                ParseResult::NeedMore => break,
+            },
+        }
+    }
+    Ok(events)
 }

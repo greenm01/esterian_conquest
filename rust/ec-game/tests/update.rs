@@ -863,14 +863,17 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetBuildList);
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("build menu should render list-empty notice");
+    assert!(line_containing(&terminal, "Notice: ").contains("No build orders are queued."));
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
-    let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("build menu should render abort-empty notice");
     assert!(line_containing(&terminal, "Notice: ").contains("No build orders are queued."));
@@ -2584,7 +2587,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 }
 
 #[test]
-fn fleet_review_detail_q_returns_to_review_picker() {
+fn fleet_review_detail_from_menu_uses_dismiss_prompt_and_returns_to_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
@@ -2609,8 +2612,15 @@ fn fleet_review_detail_q_returns_to_review_picker() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet review should render");
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("(slap a key)")));
     assert_eq!(
-        app.handle_key(key(KeyCode::Char('q'))),
+        app.handle_key(key(KeyCode::Char('x'))),
         Action::Fleet(FleetAction::CloseReview)
     );
     assert_eq!(
@@ -2618,6 +2628,10 @@ fn fleet_review_detail_q_returns_to_review_picker() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('r'))),
+        Action::Fleet(FleetAction::OpenReviewPrompt)
+    );
 }
 
 #[test]
@@ -4815,12 +4829,15 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         AppOutcome::Continue
     );
     app.render(&mut terminal)
-        .expect("build list should still render normally");
+        .expect("empty build list should leave expert build menu visible");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "BUILD LIST: \"Codex Prime\" AT (16,13):"
+        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
     );
-    assert!(terminal.lines[2].contains("┌"));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Notice: No build orders are queued.")));
 }
 
 #[test]
@@ -6435,7 +6452,7 @@ fn fleet_review_prompt_accepts_typed_fleet_id_and_opens_that_fleet() {
 }
 
 #[test]
-fn fleet_review_close_returns_to_prompt_for_the_current_fleet() {
+fn fleet_review_close_returns_to_menu_without_restoring_review_prompt() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -6464,9 +6481,15 @@ fn fleet_review_close_returns_to_prompt_for_the_current_fleet() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet menu prompt should render after closing review");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Review Fleet #");
-    assert!(prompt.contains("Review Fleet # [3] <Q> ->"), "{prompt}");
+        .expect("fleet menu should render after closing review");
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("FLEET COMMAND <- Review Fleet #")));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('r'))),
+        Action::Fleet(FleetAction::OpenReviewPrompt)
+    );
 }
 
 #[test]
@@ -8536,8 +8559,15 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
-        .expect("fleet order prompt should render after cancel");
-    assert!(line_containing(&terminal, "FLEET COMMAND <- Order Fleet #").contains("[2]"));
+        .expect("fleet menu should render after cancel");
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("FLEET COMMAND <- Order Fleet #")));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('o'))),
+        Action::Fleet(FleetAction::OpenOrder)
+    );
 }
 
 #[test]
@@ -8577,7 +8607,10 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet menu should render success notice");
-    assert!(line_containing(&terminal, "FLEET COMMAND <- Order Fleet #").contains("[2]"));
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("FLEET COMMAND <- Order Fleet #")));
     assert!(terminal
         .lines
         .iter()
@@ -12377,7 +12410,7 @@ fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
 }
 
 #[test]
-fn planet_menu_tax_prompt_stays_inline_for_errors_and_success() {
+fn planet_menu_tax_prompt_stays_inline_for_errors_and_returns_to_menu_on_success() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -12442,13 +12475,13 @@ fn planet_menu_tax_prompt_stays_inline_for_errors_and_success() {
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert_eq!(
-        line_containing(&terminal, "PLANET COMMAND <- Empire tax rate").trim_end(),
-        "PLANET COMMAND <- Empire tax rate (0 - 100) [65] <Q> ->"
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("PLANET COMMAND <- Empire tax rate")));
     assert!(
         line_containing(&terminal, "Notice: ").contains("Empire tax rate set to 65%."),
-        "expected inline success notice after saving tax"
+        "expected command-menu success notice after saving tax"
     );
 }
 
