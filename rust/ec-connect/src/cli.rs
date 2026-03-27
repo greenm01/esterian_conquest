@@ -1,5 +1,9 @@
 use std::env;
 
+use crate::identity::{
+    cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
+};
+
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
     let cmd = args.next();
@@ -21,29 +25,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("id") => {
             let sub = args.next();
             match sub.as_deref() {
-                None => {
-                    eprintln!("ec-connect id: not yet implemented");
-                    Ok(())
-                }
-                Some("--secret") => {
-                    eprintln!("ec-connect id --secret: not yet implemented");
-                    Ok(())
-                }
-                Some("list") => {
-                    eprintln!("ec-connect id list: not yet implemented");
-                    Ok(())
-                }
-                Some("new") => {
-                    eprintln!("ec-connect id new: not yet implemented");
-                    Ok(())
-                }
-                Some("import") => {
-                    eprintln!("ec-connect id import: not yet implemented");
-                    Ok(())
-                }
+                None => cmd_id_show(),
+                Some("--secret") => cmd_id_secret(),
+                Some("list") => cmd_id_list(),
+                Some("new") => cmd_id_new(),
+                Some("import") => cmd_id_import(),
                 Some("switch") => {
-                    eprintln!("ec-connect id switch: not yet implemented");
-                    Ok(())
+                    let n = args.next().ok_or("usage: ec-connect id switch <N>")?;
+                    cmd_id_switch(&n)
                 }
                 Some(other) => Err(format!("unknown id subcommand: {other}").into()),
             }

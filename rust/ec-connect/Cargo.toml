@@ -9,7 +9,27 @@ path = "src/main.rs"
 
 [dependencies]
 # Nostr identity + relay handshake
-# nostr-sdk = "..."
+nostr-sdk = { version = "0.44", features = ["nip44"] }
+
+# Wallet encryption: ChaCha20-Poly1305 + PBKDF2-HMAC-SHA256
+chacha20poly1305 = "0.10"
+pbkdf2 = { version = "0.12", features = ["hmac"] }
+sha2 = "0.10"
+
+# Randomness (salt, nonce generation)
+rand = "0.8"
+
+# Config/wallet/cache file format
+kdl = "6"
+
+# Platform-appropriate config/data directories
+dirs = "5"
+
+# Password prompting without echo
+rpassword = "7"
+
+# Async runtime (needed for relay handshake in later steps)
+# tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 
 # SSH client
 # russh = "..."
@@ -19,19 +39,6 @@ path = "src/main.rs"
 
 # Terminal raw mode + resize
 # crossterm = "0.28"
-
-# Wallet encryption
-# chacha20poly1305 = "..."
-# pbkdf2 = "..."
-
-# Config/wallet/cache file format
-# kdl = "6"
-
-# Platform-appropriate directories
-# dirs = "..."
-
-# Async runtime
-# tokio = { version = "...", features = ["full"] }
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }
