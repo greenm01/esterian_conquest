@@ -64,6 +64,26 @@ fn planet_tail_fields_expose_owner_slot_army_and_battery_fields() {
 }
 
 #[test]
+fn planet_stardock_accessors_cover_all_ten_slots_with_u16_counts() {
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_stardock_count_raw(0, 1);
+    planet.set_stardock_kind_raw(0, 2);
+    planet.set_stardock_count_raw(9, 300);
+    planet.set_stardock_kind_raw(9, 9);
+
+    assert_eq!(planet.stardock_count_raw(0), 1);
+    assert_eq!(planet.stardock_kind_raw(0), 2);
+    assert_eq!(planet.stardock_count_raw(9), 300);
+    assert_eq!(planet.stardock_kind_raw(9), 9);
+    assert_eq!(planet.raw[0x38], 1);
+    assert_eq!(planet.raw[0x39], 0);
+    assert_eq!(planet.raw[0x4A], 44);
+    assert_eq!(planet.raw[0x4B], 1);
+    assert_eq!(planet.raw[0x4C], 2);
+    assert_eq!(planet.raw[0x55], 9);
+}
+
+#[test]
 fn round_trip_setup_dat() {
     let bytes = read_fixture("SETUP.DAT");
     let parsed = SetupDat::parse(&bytes).unwrap();

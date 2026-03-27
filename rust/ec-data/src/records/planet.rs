@@ -1,10 +1,9 @@
 use crate::PLANET_RECORD_SIZE;
 use crate::support::{ParseError, copy_array, decode_real48, encode_real48};
 
-pub const STARDOCK_SLOT_COUNT: usize = 6;
-
-const STARDOCK_COUNT_OFFSETS: [usize; STARDOCK_SLOT_COUNT] = [0x38, 0x39, 0x3C, 0x3D, 0x40, 0x41];
-const STARDOCK_KIND_OFFSETS: [usize; STARDOCK_SLOT_COUNT] = [0x4C, 0x4D, 0x50, 0x51, 0x54, 0x55];
+pub const STARDOCK_SLOT_COUNT: usize = 10;
+const STARDOCK_COUNT_BASE_OFFSET: usize = 0x38;
+const STARDOCK_KIND_BASE_OFFSET: usize = 0x4C;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProductionItemKind {
@@ -231,11 +230,12 @@ impl PlanetRecord {
     }
 
     pub fn stardock_count_raw(&self, slot: usize) -> u16 {
-        u16::from(self.raw[STARDOCK_COUNT_OFFSETS[slot]])
+        let offset = STARDOCK_COUNT_BASE_OFFSET + slot * 2;
+        u16::from_le_bytes([self.raw[offset], self.raw[offset + 1]])
     }
 
     pub fn stardock_kind_raw(&self, slot: usize) -> u8 {
-        self.raw[STARDOCK_KIND_OFFSETS[slot]]
+        self.raw[STARDOCK_KIND_BASE_OFFSET + slot]
     }
 
     pub fn stardock_item_kind_current_known(&self, slot: usize) -> ProductionItemKind {
@@ -243,11 +243,14 @@ impl PlanetRecord {
     }
 
     pub fn set_stardock_count_raw(&mut self, slot: usize, value: u16) {
-        self.raw[STARDOCK_COUNT_OFFSETS[slot]] = value.min(u16::from(u8::MAX)) as u8;
+        let offset = STARDOCK_COUNT_BASE_OFFSET + slot * 2;
+        let bytes = value.to_le_bytes();
+        self.raw[offset] = bytes[0];
+        self.raw[offset + 1] = bytes[1];
     }
 
     pub fn set_stardock_kind_raw(&mut self, slot: usize, value: u8) {
-        self.raw[STARDOCK_KIND_OFFSETS[slot]] = value;
+        self.raw[STARDOCK_KIND_BASE_OFFSET + slot] = value;
     }
 
     /// Set the 7 raw bytes at [0x1d..0x24] — the region between the end of the

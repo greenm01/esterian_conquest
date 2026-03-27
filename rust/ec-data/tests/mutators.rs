@@ -184,33 +184,32 @@ fn rename_owned_planet_updates_name_for_matching_owner() {
 }
 
 #[test]
-fn stardock_secondary_slots_round_trip_through_sparse_classic_offsets() {
+fn stardock_slots_round_trip_through_contiguous_classic_offsets() {
     let mut planet = PlanetRecord::new_zeroed();
 
     planet.set_stardock_count_raw(0, 1);
     planet.set_stardock_kind_raw(0, 1);
-    planet.set_stardock_count_raw(1, 2);
+    planet.set_stardock_count_raw(1, 258);
     planet.set_stardock_kind_raw(1, 4);
-    planet.set_stardock_count_raw(2, 3);
-    planet.set_stardock_kind_raw(2, 9);
+    planet.set_stardock_count_raw(9, 3);
+    planet.set_stardock_kind_raw(9, 9);
 
     assert_eq!(planet.stardock_count_raw(0), 1);
-    assert_eq!(planet.stardock_count_raw(1), 2);
-    assert_eq!(planet.stardock_count_raw(2), 3);
+    assert_eq!(planet.stardock_count_raw(1), 258);
+    assert_eq!(planet.stardock_count_raw(9), 3);
     assert_eq!(planet.stardock_kind_raw(0), 1);
     assert_eq!(planet.stardock_kind_raw(1), 4);
-    assert_eq!(planet.stardock_kind_raw(2), 9);
+    assert_eq!(planet.stardock_kind_raw(9), 9);
 
     assert_eq!(planet.raw[0x38], 1);
-    assert_eq!(planet.raw[0x39], 2);
-    assert_eq!(planet.raw[0x3A], 0);
-    assert_eq!(planet.raw[0x3B], 0);
-    assert_eq!(planet.raw[0x3C], 3);
+    assert_eq!(planet.raw[0x39], 0);
+    assert_eq!(planet.raw[0x3A], 2);
+    assert_eq!(planet.raw[0x3B], 1);
+    assert_eq!(planet.raw[0x4A], 3);
+    assert_eq!(planet.raw[0x4B], 0);
     assert_eq!(planet.raw[0x4C], 1);
     assert_eq!(planet.raw[0x4D], 4);
-    assert_eq!(planet.raw[0x4E], 0);
-    assert_eq!(planet.raw[0x4F], 0);
-    assert_eq!(planet.raw[0x50], 9);
+    assert_eq!(planet.raw[0x55], 9);
 }
 
 #[test]

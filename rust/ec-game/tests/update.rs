@@ -5466,7 +5466,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.lines[17].trim_end(),
-        "Build queue: [0/10]   Stardock: [4/10]"
+        "Build queue: [0/10]   Stardock: [0/10]"
     );
 }
 

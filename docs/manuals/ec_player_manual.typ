@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 26),
+  date: datetime(year: 2026, month: 3, day: 27),
 )
 
 #set page(
@@ -89,7 +89,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 26, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: March 27, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -858,9 +858,13 @@ legible and playable on modern systems while documenting the exact engine
 rules that matter to players, operators, client authors, and future
 maintainers.
 
-=== Original References
+=== Source Hierarchy
 
-The preserved originals in `original/v1.5/` remain the primary reference:
+This manual is the authoritative player manual for the Rust edition of
+Esterian Conquest.
+
+The preserved originals in `original/v1.5/` remain historical references and
+an ambiguity fallback:
 
 - `ECQSTART.DOC` --- Quick-start guide
 - `ECPLAYER.DOC` --- Detailed player manual
@@ -871,7 +875,9 @@ The preserved originals in `original/v1.5/` remain the primary reference:
 
 === Preservation Policy
 
-- Original manuals are the primary source for intended player-facing behavior.
+- This manual is the authoritative player-facing manual for the Rust edition.
+- The original manuals are preserved historical references and an ambiguity
+  fallback for classic intent and terminology.
 - The original DOS binaries are the acceptance oracle for compatibility work.
 - The Rust engine preserves player-visible classic behavior where it matters,
   but it does not chase hidden byte-for-byte quirks when they do not materially
@@ -879,6 +885,9 @@ The preserved originals in `original/v1.5/` remain the primary reference:
 - When an exact classic formula remains unrecovered, this manual documents the
   current engine rule explicitly rather than pretending the original value is
   known.
+- When the preserved originals clarify an ambiguity, that clarification should
+  be folded back into the current manuals/specs rather than left only in the
+  legacy `.DOC` set.
 
 === BBS Drop File Compatibility
 

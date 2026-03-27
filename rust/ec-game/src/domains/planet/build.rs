@@ -1471,7 +1471,7 @@ impl App {
                     queue_used: 0,
                     queue_capacity: 10,
                     stardock_used: 0,
-                    stardock_capacity: 10,
+                    stardock_capacity: ec_data::STARDOCK_SLOT_COUNT,
                 });
             }
         };
@@ -1490,7 +1490,7 @@ impl App {
         let queue_used = (0..queue_capacity)
             .filter(|&s| record.build_count_raw(s) != 0 || record.build_kind_raw(s) != 0)
             .count();
-        let stardock_capacity: usize = 10;
+        let stardock_capacity: usize = ec_data::STARDOCK_SLOT_COUNT;
         let stardock_open_now = self
             .game_data
             .planet_open_stardock_slots_now(row.planet_record_index_1_based)?;

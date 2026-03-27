@@ -3,20 +3,23 @@
 _Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
 A fan-built resurrection -- not affiliated with the original._
 
-These are the reference manuals for players and operators.
+These are archival transcriptions and reference notes derived from the
+preserved Esterian Conquest `v1.5` manuals.
 
-They are based on readable Markdown transcriptions of the preserved Esterian
-Conquest `v1.5` manuals, with light framing so they work as the current
-documentation surface for the Rust continuation of the game.
+The authoritative manuals for the Rust edition now live in:
+
+- [`docs/manuals/ec_player_manual.typ`](../ec_player_manual.typ)
+- [`docs/manuals/ec_sysop_manual.typ`](../ec_sysop_manual.typ)
 
 The original `.DOC` files remain preserved in
 [`original/v1.5`](../../original/v1.5) as the
-source artifacts. These Markdown copies exist for easier reading, linking, and
-quoting.
+source artifacts. These Markdown copies exist for easier reading, linking,
+quoting, and provenance work.
 
 ## Recommended Reading Order
 
-- **ec_player_manual.adoc** (primary — polished, combined PDF manual with TOC)
+- [ec_player_manual.typ](../ec_player_manual.typ) — authoritative player manual source
+- [ec_sysop_manual.typ](../ec_sysop_manual.typ) — authoritative sysop manual source
 - [ec_qstart.md](ec_qstart.md) — quick reference
 - [ec_player.md](ec_player.md) — detailed Markdown source
 - [ec_readme.md](ec_readme.md) — historical context
@@ -31,9 +34,8 @@ quoting.
 
 ## Using EC Rust
 
-- treat these manuals as the current gameplay reference unless a Rust-specific
-  doc explicitly overrides a workflow
-- treat the original `.DOC` files as the preserved source of truth behind the
-  transcriptions
-- treat Rust client/UI differences as interface changes, not automatic rules
-  changes
+- treat the Typst Rust manuals as the authoritative gameplay/sysop manuals
+- treat these archive transcriptions and the original `.DOC` files as
+  historical reference and ambiguity fallback material
+- if the archive/originals clarify a gap, fold that clarification back into
+  the current manuals/specs rather than leaving it only in the archive

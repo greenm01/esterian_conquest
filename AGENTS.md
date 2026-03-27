@@ -65,17 +65,29 @@ At the start of a development or agent session, read these in order:
 5. [README.md](README.md)
    Check current user-facing commands/workflows before changing the CLI surface.
 
-Before making gameplay or rules assumptions, also check the shipped game docs in
-[original/v1.5](original/v1.5):
+Before making gameplay or rules assumptions, first check the current Rust
+manual sources:
+
+- [docs/manuals/ec_player_manual.typ](docs/manuals/ec_player_manual.typ)
+- [docs/manuals/ec_sysop_manual.typ](docs/manuals/ec_sysop_manual.typ)
+
+These Typst manuals are the authoritative user-facing manuals for the modern
+Rust edition.
+
+If a rule, workflow, or terminology point is ambiguous or still uncovered
+there, then check the shipped game docs in [original/v1.5](original/v1.5):
 
 - [ECREADME.DOC](original/v1.5/ECREADME.DOC)
 - [ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
 - [ECQSTART.DOC](original/v1.5/ECQSTART.DOC)
 - [WHATSNEW.DOC](original/v1.5/WHATSNEW.DOC)
 
-These docs shall be treated as a primary source for intended game behavior,
-startup conditions, turn structure, and user-facing mechanics. Agents shall
-check them before turning an observed pattern into a semantic claim.
+The preserved original docs are historical/provenance references and an
+ambiguity fallback for intended classic behavior, startup conditions, turn
+structure, and user-facing mechanics. Agents shall consult them when the Rust
+manuals or stable docs are incomplete, then reconcile the result back into the
+current manuals/docs rather than treating the originals as a higher-authority
+product surface.
 
 If the task is Ghidra-heavy, also check:
 
@@ -104,9 +116,14 @@ If the task is DOSBox-heavy, also check:
   - the relevant spec doc, if the finding changes implementation guidance
 - prefer headless Ghidra scripts and reproducible artifacts over ad hoc manual notes
 - do not treat guessed semantics as settled; keep unknown fields raw until supported
-- agents shall check the shipped game docs in `original/v1.5/*.DOC` before
-  making gameplay/rules assumptions; binary RE and fixture diffs shall be
-  reconciled with the original docs rather than replacing them
+- agents shall treat `docs/manuals/ec_player_manual.typ` and
+  `docs/manuals/ec_sysop_manual.typ` as the authoritative manual sources for
+  the Rust edition
+- agents shall check the shipped game docs in `original/v1.5/*.DOC` when the
+  current manuals/docs are ambiguous or incomplete; binary RE and fixture
+  diffs shall be reconciled with the original docs and then folded back into
+  the current manuals/specs rather than leaving the originals as the only
+  source
 - agents shall use escalating RE depth:
   - start with Rust-generated scenarios, preserved fixtures, and black-box
     oracle testing against the original binaries

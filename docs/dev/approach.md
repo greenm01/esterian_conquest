@@ -10,20 +10,25 @@ binaries and data remain the reference implementation throughout.
 
 ## Principles
 
-### Manuals as spec, binaries as oracle
+### Current manuals as spec, binaries as oracle
 
-The shipped manuals define intended player-facing rules and mechanics. The
-three original executables each serve a distinct role: `ECGAME.EXE` is the
-player-facing command UI, `ECUTIL.EXE` is the sysop/configuration utility, and
-`ECMAINT.EXE` is the yearly maintenance and simulation engine.
+The current Rust manuals define intended player-facing rules and mechanics for
+this edition. The preserved original `.DOC` manuals remain historical
+references and an ambiguity fallback when the current manuals or stable specs
+do not yet cover a case clearly. The three original executables each serve a
+distinct role: `ECGAME.EXE` is the player-facing command UI, `ECUTIL.EXE` is
+the sysop/configuration utility, and `ECMAINT.EXE` is the yearly maintenance
+and simulation engine.
 
-When semantics and implementation quirks diverge, prefer the manuals for
-gameplay meaning and the binaries for file compatibility, accepted directory
-structure, and proven cross-file invariants. Do not chase byte-perfect parity
-if it would force Rust away from the original documented rules without adding
-compatibility value. Document original logic bugs when they matter for oracle
-work, but do not intentionally reproduce them in Rust unless they are required
-for classic file safety or parser acceptance.
+When semantics and implementation quirks diverge, prefer the current manuals
+for gameplay meaning and the binaries for file compatibility, accepted
+directory structure, and proven cross-file invariants. Use the original `.DOC`
+set to clarify legacy intent when needed, then fold that clarification back
+into the current manuals/specs. Do not chase byte-perfect parity if it would
+force Rust away from the current documented rules without adding compatibility
+value. Document original logic bugs when they matter for oracle work, but do
+not intentionally reproduce them in Rust unless they are required for classic
+file safety or parser acceptance.
 
 ### Confirmed behavior over guessed structure
 
@@ -124,7 +129,7 @@ binaries, preserved fixtures, and controlled Rust-generated scenarios.
 
 | Tool / source | What it was used for | Why it mattered |
 | --- | --- | --- |
-| Original EC manuals in [`original/v1.5/*.DOC`](../../original/v1.5) | Canonical guide for player-facing rules, setup constraints, turn structure, and terminology | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
+| Current Rust manuals plus preserved originals in [`original/v1.5/*.DOC`](../../original/v1.5) | Current manuals are the authoritative gameplay/sysop docs; the preserved originals are the ambiguity fallback for classic terminology and intent | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
 | Ghidra disassembly and headless scripts | Static recovery of file layouts, maint flow, scheduler logic, and helper call structure | Turned opaque Pascal-era code paths into stable Rust-facing specs |
 | DOSBox-X debugger, INT 21 tracing, and memory dumps | Dynamic tracing of `ECGAME` / `ECMAINT` behavior, file I/O order, token handling, and live state changes | Proved phase ordering, runtime transitions, and report/output boundaries that static RE alone could not settle |
 | Controlled gamestate file diffs | Compared Rust-generated or hand-shaped directories against classic `.DAT` outputs before and after maintenance | Exposed real cross-file invariants and kept the Rust side honest at the compatibility boundary |

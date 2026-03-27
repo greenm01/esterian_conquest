@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 25),
+  date: datetime(year: 2026, month: 3, day: 27),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(0.5em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: March 25, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: March 27, 2026]
 ]
 
 #pagebreak()
@@ -114,6 +114,12 @@ instance. It covers:
 - turn processing and maintenance
 
 For player-facing rules and gameplay, see the *Player Manual*.
+
+This manual is the authoritative sysop manual for the Rust edition of
+Esterian Conquest. The preserved original `.DOC` set in `original/v1.5/`
+remains historical reference material and an ambiguity fallback for classic
+operator intent, not a higher-authority replacement for the current Rust
+manuals.
 
 == Terminology
 

@@ -15,7 +15,7 @@ binaries, preserved fixtures, and controlled Rust-generated scenarios.
 
 | Tool / source | What it was used for | Why it mattered |
 | --- | --- | --- |
-| Original EC manuals in [`original/v1.5/*.DOC`](../../original/v1.5) | Canonical guide for player-facing rules, setup constraints, turn structure, and terminology | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
+| Current Rust manuals plus original EC manuals in [`original/v1.5/*.DOC`](../../original/v1.5) | Current manuals are authoritative for the Rust edition; original manuals are the historical/ambiguity fallback for classic rules, setup constraints, turn structure, and terminology | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
 | Ghidra disassembly and headless scripts | Static recovery of file layouts, maint flow, scheduler logic, and helper call structure | Turned opaque Pascal-era code paths into stable Rust-facing specs |
 | DOSBox-X debugger, INT 21 tracing, and memory dumps | Dynamic tracing of `ECGAME` / `ECMAINT` behavior, file I/O order, token handling, and live state changes | Proved phase ordering, runtime transitions, and report/output boundaries that static RE alone could not settle |
 | Controlled gamestate file diffs | Compared Rust-generated or hand-shaped directories against classic `.DAT` outputs before and after maintenance | Exposed real cross-file invariants and kept the Rust side honest at the compatibility boundary |
@@ -26,7 +26,8 @@ binaries, preserved fixtures, and controlled Rust-generated scenarios.
 
 The rule that fell out of that recovery work is simple:
 
-- the manuals are the gameplay guide
+- the current Rust manuals are the gameplay/sysop guide
+- the original `.DOC` set is the historical/ambiguity fallback
 - the original binaries are the compatibility oracle
 - classic `.DAT` files are the interchange boundary
 - Rust may be explicit, deterministic, and testable where the original
