@@ -332,11 +332,12 @@ busy-campaign probe:
 
 ## License
 
-The new source code and tooling in this repository are licensed under the MIT
-License. See [LICENSE](LICENSE).
+The new source code and tooling in this repository are licensed under the
+O'Saasy License Agreement. See [LICENSE](LICENSE) or
+[osaasy.dev](https://osaasy.dev/).
 
 The original Esterian Conquest DOS binaries, data files, manuals, logs, and
 other preserved game materials remain original works of Bentley C. Griffith and
 their original rights holders. Their inclusion here is for preservation,
-research, and compatibility work; they are not relicensed under MIT by this
-repository.
+research, and compatibility work; they are not relicensed under the O'Saasy
+License Agreement by this repository.
