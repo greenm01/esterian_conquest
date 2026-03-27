@@ -830,7 +830,10 @@ fn write_command_rail_token(
     col: usize,
     token: &str,
 ) -> usize {
-    if let Some(inner) = token.strip_prefix('<').and_then(|value| value.strip_suffix('>')) {
+    if let Some(inner) = token
+        .strip_prefix('<')
+        .and_then(|value| value.strip_suffix('>'))
+    {
         buffer.write_spans(
             row,
             col,
@@ -1210,14 +1213,12 @@ fn write_prompt_markup(
                     col += buffer.write_text(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col +=
-                    buffer.write_text(row, col, "<", classic::prompt_angle_delimiter_style());
+                col += buffer.write_text(row, col, "<", classic::prompt_angle_delimiter_style());
                 if close_idx > idx + 1 {
                     let segment = chars[idx + 1..close_idx].iter().collect::<String>();
                     col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
                 }
-                col +=
-                    buffer.write_text(row, col, ">", classic::prompt_angle_delimiter_style());
+                col += buffer.write_text(row, col, ">", classic::prompt_angle_delimiter_style());
                 idx = close_idx + 1;
                 continue;
             }
@@ -1232,14 +1233,12 @@ fn write_prompt_markup(
                     col += buffer.write_text(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col +=
-                    buffer.write_text(row, col, "[", classic::prompt_square_delimiter_style());
+                col += buffer.write_text(row, col, "[", classic::prompt_square_delimiter_style());
                 if close_idx > idx + 1 {
                     let segment = chars[idx + 1..close_idx].iter().collect::<String>();
                     col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
                 }
-                col +=
-                    buffer.write_text(row, col, "]", classic::prompt_square_delimiter_style());
+                col += buffer.write_text(row, col, "]", classic::prompt_square_delimiter_style());
                 idx = close_idx + 1;
                 continue;
             }

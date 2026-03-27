@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -29,18 +30,24 @@ PLAYER_SPECS = [
 
 
 def run_ec_cli(*args: str) -> None:
+    env = os.environ.copy()
+    env["RUSTC_WRAPPER"] = ""
     subprocess.run(
         ["cargo", "run", "-q", "-p", "ec-cli", "--", *args],
         cwd=RUST_DIR,
         check=True,
+        env=env,
     )
 
 
 def run_ec_sysop(*args: str) -> None:
+    env = os.environ.copy()
+    env["RUSTC_WRAPPER"] = ""
     subprocess.run(
         ["cargo", "run", "-q", "-p", "ec-sysop", "--", *args],
         cwd=RUST_DIR,
         check=True,
+        env=env,
     )
 
 

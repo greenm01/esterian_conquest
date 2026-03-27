@@ -442,12 +442,7 @@ impl PlanetBuildScreen {
                 );
             }
         } else {
-            draw_command_prompt_at(
-                &mut buffer,
-                command_row,
-                "BUILD COMMAND",
-                "J K ^U ^D D <Q>",
-            );
+            draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "J K ^U ^D D <Q>");
             if rows.is_empty() {
                 draw_command_message_stack(
                     &mut buffer,
@@ -613,12 +608,7 @@ impl PlanetBuildScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "CHANGE CURRENT PLANET:");
-        buffer.write_text(
-            2,
-            0,
-            "Select a planet with J/K.",
-            classic::body_style(),
-        );
+        buffer.write_text(2, 0, "Select a planet with J/K.", classic::body_style());
 
         let table_rows: Vec<Vec<String>> = rows
             .iter()
@@ -660,12 +650,7 @@ impl PlanetBuildScreen {
             );
         }
 
-        draw_command_prompt_at(
-            &mut buffer,
-            command_row,
-            "BUILD COMMAND",
-            "J K ^U ^D <Q>",
-        );
+        draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "J K ^U ^D <Q>");
         Ok(buffer)
     }
 

@@ -303,12 +303,7 @@ impl StarbaseListScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "STARBASE LIST:");
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Use J/K to move, ^U/^D to page.",
-        );
+        draw_status_line(&mut buffer, 1, "", "Use J/K to move, ^U/^D to page.");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -386,12 +381,7 @@ impl StarbaseReviewScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "REVIEW A STARBASE:");
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Select a starbase with J/K.",
-        );
+        draw_status_line(&mut buffer, 1, "", "Select a starbase with J/K.");
         let table_rows = rows
             .iter()
             .map(|row| {

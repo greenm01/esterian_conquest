@@ -15,7 +15,12 @@ fn builder_creates_valid_gamestate() {
     // Validate with preflight
     let errors = data.ecmaint_preflight_errors();
     assert!(errors.is_empty(), "Preflight errors: {:?}", errors);
-    assert!(data.player.records.iter().all(|player| player.owner_mode_raw() == 1));
+    assert!(
+        data.player
+            .records
+            .iter()
+            .all(|player| player.owner_mode_raw() == 1)
+    );
     assert_eq!(data.player.records[0].tax_rate(), 50);
     assert_eq!(
         data.planets.records[0].present_production_points(),

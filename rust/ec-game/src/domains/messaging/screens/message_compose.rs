@@ -364,18 +364,10 @@ impl MessageComposeScreen {
             {
                 Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)
             }
-            KeyCode::Left => {
-                Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
-            }
-            KeyCode::Right => {
-                Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
-            }
-            KeyCode::Up => {
-                Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
-            }
-            KeyCode::Down => {
-                Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
-            }
+            KeyCode::Left => Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft),
+            KeyCode::Right => Action::Messaging(MessagingAction::MoveComposeBodyCursorRight),
+            KeyCode::Up => Action::Messaging(MessagingAction::MoveComposeBodyCursorUp),
+            KeyCode::Down => Action::Messaging(MessagingAction::MoveComposeBodyCursorDown),
             KeyCode::Home => Action::Messaging(MessagingAction::MoveComposeBodyCursorHome),
             KeyCode::End => Action::Messaging(MessagingAction::MoveComposeBodyCursorEnd),
             KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceComposeBody),

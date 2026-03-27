@@ -15,7 +15,8 @@ impl App {
     }
 
     fn is_reserved_first_time_login(&self) -> bool {
-        self.player.classic_login_state == ClassicLoginState::FirstTimeMenu && self.has_reserved_seat()
+        self.player.classic_login_state == ClassicLoginState::FirstTimeMenu
+            && self.has_reserved_seat()
     }
 
     fn theme_picker_visible_rows(&self) -> usize {
@@ -804,21 +805,19 @@ impl App {
                     }
                 }
             }
-            ScreenId::ColonyWorldConfirm => {
-                match self.complete_colony_world_name() {
-                    Ok(()) => {
-                        self.current_screen =
-                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
-                    }
-                    Err(_) => {
-                        self.restore_first_time_input_after_failure(
-                            ScreenId::ColonyWorldName,
-                            self.startup_state.colony_world_name.clone(),
-                            "Unable to save the world name right now. Please try again.",
-                        );
-                    }
+            ScreenId::ColonyWorldConfirm => match self.complete_colony_world_name() {
+                Ok(()) => {
+                    self.current_screen =
+                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
                 }
-            }
+                Err(_) => {
+                    self.restore_first_time_input_after_failure(
+                        ScreenId::ColonyWorldName,
+                        self.startup_state.colony_world_name.clone(),
+                        "Unable to save the world name right now. Please try again.",
+                    );
+                }
+            },
             _ => {}
         }
     }
