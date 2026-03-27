@@ -343,9 +343,9 @@ pub fn render_first_time_join_name_confirm(
 
 fn first_time_command_keys(door_mode: bool) -> &'static str {
     if door_mode {
-        "H Q L J A V"
+        "H L J A V <Q>"
     } else {
-        "H Q L J C V"
+        "H L J C V <Q>"
     }
 }
 

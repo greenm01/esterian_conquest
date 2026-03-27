@@ -110,7 +110,7 @@ impl StarbaseMenuScreen {
                     notice,
                 );
             } else {
-                draw_expert_menu(&mut buffer, "STARBASE COMMAND", "H,Q,X,S,R,V,I,M", notice);
+                draw_expert_menu(&mut buffer, "STARBASE COMMAND", "H X S R V I M <Q>", notice);
             }
             return Ok(buffer);
         }
@@ -158,7 +158,7 @@ impl StarbaseMenuScreen {
                 &mut buffer,
                 command_row,
                 "STARBASE COMMAND",
-                "H,Q,X,S,R,V,I,M",
+                "H X S R V I M <Q>",
             );
         }
         Ok(buffer)
@@ -307,7 +307,7 @@ impl StarbaseListScreen {
             &mut buffer,
             1,
             "",
-            "Use J/K to move, ^U/^D to page. ENTER reviews a starbase.",
+            "Use J/K to move, ^U/^D to page.",
         );
         let table_rows = rows
             .iter()
@@ -344,7 +344,7 @@ impl StarbaseListScreen {
         draw_table_command_bar_at(
             &mut buffer,
             table_prompt_row_for(geometry, metrics.bottom_row),
-            "<J K ^U ^D Q>",
+            "J K ^U ^D <Q>",
             None,
             "",
         );
@@ -390,7 +390,7 @@ impl StarbaseReviewScreen {
             &mut buffer,
             1,
             "",
-            "Select a starbase, then press ENTER to review it.",
+            "Select a starbase with J/K.",
         );
         let table_rows = rows
             .iter()
@@ -426,7 +426,7 @@ impl StarbaseReviewScreen {
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D <Q>", None, "");
         } else {
             let default_base = rows
                 .get(cursor)
@@ -435,7 +435,7 @@ impl StarbaseReviewScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<J K ^U ^D Q>",
+                "J K ^U ^D <Q>",
                 Some(&default_base),
                 input,
             );

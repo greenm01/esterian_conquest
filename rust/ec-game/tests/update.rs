@@ -2933,7 +2933,7 @@ fn starbase_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         line_containing(&terminal, "STARBASE COMMAND <-").trim_end(),
-        "STARBASE COMMAND <-H,Q,X,S,R,V,I,M->"
+        "STARBASE COMMAND <- H X S R V I M <Q> ->"
     );
 }
 
@@ -3533,7 +3533,7 @@ fn main_menu_matches_verified_v15_command_layout() {
     assert_eq!(terminal.line(5).trim_end(), "");
     assert_eq!(
         terminal.line(6).trim_end(),
-        "MAIN COMMAND <-H,Q,X,V,C,G,P,F,T,I,B,D->"
+        "MAIN COMMAND <- H X V C G P F T I B D <Q> ->"
     );
     assert!(terminal.line(23).contains("-- "));
 }
@@ -3581,7 +3581,7 @@ fn general_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         line_containing(&terminal, "GENERAL COMMAND <-").trim_end(),
-        "GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E->"
+        "GENERAL COMMAND <- H X V I A S P M C R D O E <Q> ->"
     );
 }
 
@@ -3604,7 +3604,7 @@ fn main_menu_notice_renders_below_fixed_command_row() {
     app.render(&mut terminal).expect("main menu should render");
     assert_eq!(
         terminal.lines[6].trim_end(),
-        "MAIN COMMAND <-H,Q,X,V,C,G,P,F,T,I,B,D->"
+        "MAIN COMMAND <- H X V C G P F T I B D <Q> ->"
     );
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
@@ -3642,7 +3642,7 @@ fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert main menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "MAIN COMMAND <-H,Q,X,V,C,G,P,F,T,I,B,D->"
+        "MAIN COMMAND <- H X V C G P F T I B D <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
     assert_eq!(terminal.lines[23].trim_end(), "");
@@ -3689,7 +3689,7 @@ fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert general menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E->"
+        "GENERAL COMMAND <- H X V I A S P M C R D O E <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 }
@@ -3819,7 +3819,7 @@ fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
     );
     assert_eq!(
         terminal.line(6).trim_end(),
-        "MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D->"
+        "MAIN COMMAND <- H X V A G P F T I B D <Q> ->"
     );
 
     let toggle = app.handle_key(key(KeyCode::Char('a')));
@@ -3851,7 +3851,7 @@ fn door_mode_first_time_menu_and_help_use_ansi_toggle_text() {
     );
     assert_eq!(
         terminal.line(4).trim_end(),
-        "FIRST TIME COMMAND <-H Q L J A V->"
+        "FIRST TIME COMMAND <- H L J A V <Q> ->"
     );
 
     assert_eq!(
@@ -3885,9 +3885,10 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("theme picker should render");
-    assert_eq!(terminal.line(0).trim_end(), "ANSI THEMES:");
+    assert_eq!(terminal.line(0).trim_end(), "COLOR THEMES:");
     assert!(
-        line_containing(&terminal, "COMMANDS <J K ^U ^D ENTER Q>").contains("<J K ^U ^D ENTER Q>")
+        line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q>")
+            .contains("COMMANDS <- J K ^U ^D <Q>")
     );
 
     theme_picker_select(&mut app, "tokyo_night");
@@ -4183,7 +4184,7 @@ fn first_time_menu_status_renders_below_fixed_command_row() {
         .expect("first-time menu should render");
     assert_eq!(
         terminal.lines[4].trim_end(),
-        "FIRST TIME COMMAND <-H Q L J C V->"
+        "FIRST TIME COMMAND <- H L J C V <Q> ->"
     );
     assert_eq!(terminal.lines[5].trim_end(), "");
     assert_eq!(terminal.lines[6].trim_end(), "");
@@ -4255,7 +4256,7 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
         .expect("planet menu should render");
     assert_eq!(
         terminal.lines[5].trim_end(),
-        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,P,T,S,L,U->"
+        "PLANET COMMAND <- H X V C A B I P T S L U <Q> ->"
     );
     assert_eq!(terminal.lines[6].trim_end(), "");
     assert_eq!(terminal.lines[7].trim_end(), "");
@@ -4288,7 +4289,7 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,P,T,S,L,U->"
+        "PLANET COMMAND <- H X V C A B I P T S L U <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
     assert_eq!(terminal.lines[2].trim_end(), "");
@@ -5100,7 +5101,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(7).trim_end(),
-        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+        "BUILD COMMAND <- H X V P R C N S A L I <Q> ->"
     );
     assert_eq!(
         terminal.line(13).trim_end(),
@@ -5149,7 +5150,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,P,T,S,L,U->"
+        "PLANET COMMAND <- H X V C A B I P T S L U <Q> ->"
     );
 
     assert_eq!(
@@ -5160,7 +5161,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert build menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+        "BUILD COMMAND <- H X V P R C N S A L I <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 
@@ -5172,7 +5173,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("empty build list should leave expert build menu visible");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+        "BUILD COMMAND <- H X V P R C N S A L I <Q> ->"
     );
     assert!(
         terminal
@@ -8374,7 +8375,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         .expect("fleet menu should render wrapped notice");
     assert_eq!(
         terminal.lines[6].trim_end(),
-        "FLEET COMMAND <-H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U->"
+        "FLEET COMMAND <- H X V S F R E C I D T O G M L U <Q> ->"
     );
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
@@ -8429,7 +8430,7 @@ fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert fleet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "FLEET COMMAND <-H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U->"
+        "FLEET COMMAND <- H X V S F R E C I D T O G M L U <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 }
@@ -8779,7 +8780,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         .expect("fleet group order screen should render");
     let top_border_line = line_containing(&terminal, "┌");
     let header_line = line_containing(&terminal, "│ID");
-    let command_line = line_containing(&terminal, "COMMANDS <J K ^U ^D SPACE Q>");
+    let command_line = line_containing(&terminal, "COMMANDS <- J K ^U ^D SPACE <Q>");
     let table_left = top_border_line
         .chars()
         .position(|ch| ch == '┌')
@@ -8933,9 +8934,9 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     );
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
-    let prompt = line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [");
+    let prompt = line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [");
     assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
-    assert!(prompt.contains("COMMANDS <J K ^U ^D Q> ["));
+    assert!(prompt.contains("COMMANDS <- J K ^U ^D <Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -8999,9 +9000,9 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         terminal.line(0).find("FLEET MISSION ORDERS:"),
         Some(left_padding)
     );
-    let prompt = line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [");
+    let prompt = line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [");
     assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
-    assert!(prompt.contains("COMMANDS <J K ^U ^D Q> ["));
+    assert!(prompt.contains("COMMANDS <- J K ^U ^D <Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -10514,7 +10515,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
-    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q>").contains("COMMANDS"));
     assert!(
         terminal
             .lines
@@ -11698,7 +11699,7 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order should render normal command line");
-    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D SPACE Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMANDS <- J K ^U ^D SPACE <Q>").contains("COMMANDS"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
         !terminal
@@ -11817,7 +11818,7 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group join should return to normal command line");
-    assert!(line_containing(&terminal, "COMMANDS <J K ^U ^D SPACE Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMANDS <- J K ^U ^D SPACE <Q>").contains("COMMANDS"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
         !terminal
@@ -12190,7 +12191,7 @@ fn planet_database_render_uses_classic_stacked_headers() {
     assert!(terminal.line(3).contains("SBs"));
     assert!(!terminal.line(3).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
-    let prompt = line_containing(&terminal, "COMMANDS <");
+    let prompt = line_containing(&terminal, "COMMANDS <- ");
     assert_eq!(prompt.find("COMMANDS").expect("commands col"), border_col);
     assert!(prompt.contains("["));
     assert!(prompt.contains("->"));
@@ -13446,7 +13447,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
-    assert_eq!(buffer.plain_line(6), "COMMANDS <J K ^U ^D Q> [4] ->");
+    assert_eq!(buffer.plain_line(6), "COMMANDS <- J K ^U ^D <Q> [4] ->");
 }
 
 #[test]
@@ -13575,8 +13576,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [").trim_end(),
-        "COMMANDS <J K ^U ^D Q> [4] ->"
+        line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [").trim_end(),
+        "COMMANDS <- J K ^U ^D <Q> [4] ->"
     );
 
     assert_eq!(
@@ -13586,8 +13587,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <J K ^U ^D Q> [").trim_end(),
-        "COMMANDS <J K ^U ^D Q> [1] -> 1"
+        line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [").trim_end(),
+        "COMMANDS <- J K ^U ^D <Q> [1] -> 1"
     );
 
     assert_eq!(

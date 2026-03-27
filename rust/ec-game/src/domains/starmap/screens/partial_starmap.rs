@@ -188,7 +188,7 @@ impl PartialStarmapScreen {
             table_prompt_row_for(frame.geometry, x_axis_row),
             map_left_col,
             "MAP COMMAND",
-            "HJKL 1 2 3 4 6 7 8 9 ENTER Q",
+            "HJKL 1 2 3 4 6 7 8 9 <Q>",
         );
         Ok(buffer)
     }

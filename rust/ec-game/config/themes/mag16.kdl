@@ -25,6 +25,16 @@ style "prompt" {
     fg "white"
     bg "black"
 }
+style "prompt_angle_delimiter" {
+    fg "green"
+    bg "black"
+    bold #true
+}
+style "prompt_square_delimiter" {
+    fg "red"
+    bg "black"
+    bold #true
+}
 style "prompt_hotkey" {
     fg "yellow"
     bg "black"

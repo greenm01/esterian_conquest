@@ -3,18 +3,17 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    ScreenGeometry, draw_status_line, draw_table_command_bar_at, draw_title_bar,
-    new_playfield_for, standard_table_visible_rows, standard_table_visible_rows_for,
-    table_prompt_row_for,
+    ScreenGeometry, draw_table_command_bar_at, draw_title_bar, new_playfield_for,
+    standard_table_visible_rows, standard_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::{ThemeEntry, ThemeEntryKind, classic};
 
-pub const THEME_PICKER_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
+pub const THEME_PICKER_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
 
 pub fn theme_picker_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 4)
+    standard_table_visible_rows_for(geometry, 2)
 }
 
 const THEME_COLUMNS: [TableColumn<'static>; 3] = [
@@ -42,13 +41,7 @@ impl ThemePickerScreen {
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, "ANSI THEMES:");
-        draw_status_line(
-            &mut buffer,
-            1,
-            "",
-            "Use J/K to move, ^U/^D to page. ENTER applies the theme. Q returns.",
-        );
+        draw_title_bar(&mut buffer, 0, "COLOR THEMES:");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -68,7 +61,7 @@ impl ThemePickerScreen {
             .collect::<Vec<_>>();
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            3,
+            1,
             &THEME_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -89,7 +82,7 @@ impl ThemePickerScreen {
         draw_table_command_bar_at(
             &mut buffer,
             command_row,
-            "<J K ^U ^D ENTER Q>",
+            "J K ^U ^D <Q>",
             default_theme,
             input,
         );
@@ -120,13 +113,13 @@ impl Screen for ThemePickerScreen {
                 THEME_PICKER_VISIBLE_ROWS as isize,
             )),
             KeyCode::Backspace => Action::Startup(StartupAction::BackspaceThemePickerInput),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Startup(StartupAction::ExitThemePicker)
+            }
             KeyCode::Char(ch) if ch.is_ascii_alphanumeric() || matches!(ch, ' ' | '-' | '_') => {
                 Action::Startup(StartupAction::AppendThemePickerChar(ch))
             }
             KeyCode::Enter => Action::Startup(StartupAction::ApplyThemePickerSelection),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Startup(StartupAction::ExitThemePicker)
-            }
             _ => Action::Noop,
         }
     }

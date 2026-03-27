@@ -42,6 +42,7 @@ impl MainMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
+        door_mode: bool,
         expert_mode: bool,
         inline_planet_info: bool,
         info_default_coords: [u8; 2],
@@ -63,7 +64,7 @@ impl MainMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "MAIN COMMAND",
-                    "H,Q,X,V,A,G,P,F,T,I,B,D",
+                    main_menu_command_keys(door_mode),
                     notice,
                 );
             }
@@ -75,7 +76,7 @@ impl MainMenuScreen {
             1,
             &[
                 MenuEntry::new(2, "H", "elp with commands"),
-                MenuEntry::new(24, "A", "nsi Theme"),
+                main_menu_theme_entry(door_mode),
                 MenuEntry::new(51, "T", "otal Planet Database"),
             ],
         );
@@ -120,7 +121,7 @@ impl MainMenuScreen {
                 &mut buffer,
                 MENU_PROMPT_ROW,
                 "MAIN COMMAND",
-                "H,Q,X,V,A,G,P,F,T,I,B,D",
+                main_menu_command_keys(door_mode),
             );
             draw_menu_notice(&mut buffer, MENU_PROMPT_ROW, notice);
         } else {
@@ -128,11 +129,36 @@ impl MainMenuScreen {
                 &mut buffer,
                 MENU_PROMPT_ROW,
                 "MAIN COMMAND",
-                "H,Q,X,V,A,G,P,F,T,I,B,D",
+                main_menu_command_keys(door_mode),
             );
             self.draw_quote(&mut buffer);
         }
         Ok(buffer)
+    }
+
+    pub fn handle_key_for_mode(&self, key: KeyEvent, door_mode: bool) -> Action {
+        match key.code {
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
+            KeyCode::Char('a') | KeyCode::Char('A') if door_mode => Action::ToggleAnsiMode,
+            KeyCode::Char('c') | KeyCode::Char('C') if !door_mode => {
+                Action::Startup(crate::domains::startup::StartupAction::OpenThemePicker)
+            }
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
+            KeyCode::Char('b') | KeyCode::Char('B') => Action::Empire(EmpireAction::OpenStatus),
+            KeyCode::Char('d') | KeyCode::Char('D') => Action::Empire(EmpireAction::OpenProfile),
+            KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenMenu),
+            KeyCode::Char('g') | KeyCode::Char('G') => Action::OpenGeneralMenu,
+            KeyCode::Char('i') | KeyCode::Char('I') => {
+                Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
+            }
+            KeyCode::Char('p') | KeyCode::Char('P') => Action::Planet(PlanetAction::OpenMenu),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
+            KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenDatabase),
+            KeyCode::Char('v') | KeyCode::Char('V') => {
+                Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+            }
+            _ => Action::Noop,
+        }
     }
 
     fn draw_quote(&self, buffer: &mut PlayfieldBuffer) {
@@ -175,30 +201,26 @@ impl Screen for MainMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, false, false, [0, 0], "", None)
+        self.render_with_notice(None, false, false, false, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
-        match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
-            KeyCode::Char('a') | KeyCode::Char('A') => {
-                Action::Startup(crate::domains::startup::StartupAction::OpenThemePicker)
-            }
-            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
-            KeyCode::Char('b') | KeyCode::Char('B') => Action::Empire(EmpireAction::OpenStatus),
-            KeyCode::Char('d') | KeyCode::Char('D') => Action::Empire(EmpireAction::OpenProfile),
-            KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenMenu),
-            KeyCode::Char('g') | KeyCode::Char('G') => Action::OpenGeneralMenu,
-            KeyCode::Char('i') | KeyCode::Char('I') => {
-                Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
-            }
-            KeyCode::Char('p') | KeyCode::Char('P') => Action::Planet(PlanetAction::OpenMenu),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
-            KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenDatabase),
-            KeyCode::Char('v') | KeyCode::Char('V') => {
-                Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
-            }
-            _ => Action::Noop,
-        }
+        self.handle_key_for_mode(key, false)
+    }
+}
+
+fn main_menu_command_keys(door_mode: bool) -> &'static str {
+    if door_mode {
+        "H X V A G P F T I B D <Q>"
+    } else {
+        "H X V C G P F T I B D <Q>"
+    }
+}
+
+fn main_menu_theme_entry(door_mode: bool) -> MenuEntry<'static> {
+    if door_mode {
+        MenuEntry::new(24, "A", "nsi color ON/OFF")
+    } else {
+        MenuEntry::new(24, "C", "olor Theme")
     }
 }

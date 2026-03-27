@@ -237,7 +237,7 @@ impl PlanetBuildScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "BUILD COMMAND",
-                    "H,Q,X,V,P,R,C,N,S,A,L,I",
+                    "H X V P R C N S A L I <Q>",
                     status,
                 );
             }
@@ -336,7 +336,7 @@ impl PlanetBuildScreen {
                 &mut buffer,
                 command_row,
                 "BUILD COMMAND",
-                "H,Q,X,V,P,R,C,N,S,A,L,I",
+                "H X V P R C N S A L I <Q>",
             );
             if let Some(status) = status {
                 draw_menu_notice(&mut buffer, command_row, status);
@@ -438,7 +438,7 @@ impl PlanetBuildScreen {
                     &mut buffer,
                     command_row,
                     "BUILD COMMAND",
-                    "J K ^U ^D [D]elete Q",
+                    "J K ^U ^D D <Q>",
                 );
             }
         } else {
@@ -446,7 +446,7 @@ impl PlanetBuildScreen {
                 &mut buffer,
                 command_row,
                 "BUILD COMMAND",
-                "J K ^U ^D [D]elete Q",
+                "J K ^U ^D D <Q>",
             );
             if rows.is_empty() {
                 draw_command_message_stack(
@@ -616,7 +616,7 @@ impl PlanetBuildScreen {
         buffer.write_text(
             2,
             0,
-            "Select a planet with J/K then press ENTER, or press Q to cancel.",
+            "Select a planet with J/K.",
             classic::body_style(),
         );
 
@@ -660,7 +660,12 @@ impl PlanetBuildScreen {
             );
         }
 
-        draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "J K ^U ^D ENTER Q");
+        draw_command_prompt_at(
+            &mut buffer,
+            command_row,
+            "BUILD COMMAND",
+            "J K ^U ^D <Q>",
+        );
         Ok(buffer)
     }
 

@@ -2,28 +2,28 @@ use crossterm::event::{KeyCode, KeyEvent};
 use std::collections::BTreeSet;
 
 use crate::app::Action;
+use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::missions::FLEET_MISSION_OPTIONS;
 use crate::domains::fleet::state::FleetMenuPromptMode;
-use crate::domains::fleet::FleetAction;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_message_stack,
-    draw_command_prompt_at, draw_dismiss_prompt, draw_expert_menu, draw_inline_planet_info_prompt,
-    draw_menu_entry, draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after,
-    draw_status_line, draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar,
-    draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, standard_table_visible_rows_for, table_prompt_row,
-    table_prompt_row_for, CommandMessage, MenuEntry, PromptFeedback, EXPERT_MENU_PROMPT_ROW,
+    CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, PromptFeedback, dismiss_prompt_row,
+    draw_command_line_default_input_at, draw_command_message_stack, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry,
+    draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
+    draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar, draw_wrapped_message,
+    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows,
+    standard_table_visible_rows_for, table_prompt_row, table_prompt_row_for,
 };
 use crate::screen::table::{
-    centered_table_start_col, fit_table_columns, fleet_id_column_width, format_fleet_number,
-    write_table_window_with_cursor, write_table_window_with_states_at, TableColumn, TableRowState,
+    TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
+    format_fleet_number, write_table_window_with_cursor, write_table_window_with_states_at,
 };
 use crate::screen::{
-    ScreenGeometry, format_sector_coords, format_sector_coords_table, PlanetTransportMode,
-    PlayfieldBuffer, Screen, ScreenFrame, StyledSpan,
+    PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, StyledSpan,
+    format_sector_coords, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -215,7 +215,7 @@ impl FleetMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "FLEET COMMAND",
-                    "H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U",
+                    "H X V S F R E C I D T O G M L U <Q>",
                     notice,
                 );
             }
@@ -293,7 +293,7 @@ impl FleetMenuScreen {
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
-                "H,Q,X,V,S,F,R,E,C,I,D,T,O,G,M,L,U",
+                "H X V S F R E C I D T O G M L U <Q>",
             );
         }
         Ok(buffer)
@@ -406,7 +406,7 @@ impl FleetListScreen {
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D <Q>", None, "");
             draw_command_message_stack(
                 &mut buffer,
                 command_row,
@@ -420,7 +420,7 @@ impl FleetListScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<J K ^U ^D Q>",
+                "J K ^U ^D <Q>",
                 Some(&default_fleet_number),
                 input,
             );
@@ -503,7 +503,7 @@ impl FleetReviewScreen {
                 &mut buffer,
                 menu_prompt_row(12),
                 "FLEET COMMAND",
-                "HJKL Q",
+                "HJKL <Q>",
             );
         } else {
             draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
@@ -971,7 +971,7 @@ impl FleetGroupScreen {
                 &mut buffer,
                 command_row,
                 start_col,
-                "<J K ^U ^D SPACE Q>",
+                "J K ^U ^D SPACE <Q>",
                 None,
                 "",
             );
@@ -1324,7 +1324,7 @@ impl FleetMissionPickerScreen {
                 &mut buffer,
                 command_row,
                 start_col,
-                "<J K ^U ^D Q>",
+                "J K ^U ^D <Q>",
                 Some(&default),
                 input,
             );
@@ -1568,10 +1568,13 @@ fn draw_confirm_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &str,
         &[
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <- Confirm ", classic::prompt_style()),
-            StyledSpan::new("[", classic::prompt_style()),
+            StyledSpan::new("[", classic::prompt_square_delimiter_style()),
             StyledSpan::new("Y", classic::prompt_hotkey_style()),
-            StyledSpan::new("]/N ", classic::prompt_style()),
-            StyledSpan::new("<Q>", classic::prompt_hotkey_style()),
+            StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+            StyledSpan::new("/N ", classic::prompt_style()),
+            StyledSpan::new("<", classic::prompt_angle_delimiter_style()),
+            StyledSpan::new("Q", classic::prompt_hotkey_style()),
+            StyledSpan::new(">", classic::prompt_angle_delimiter_style()),
             StyledSpan::new(" -> ", classic::prompt_style()),
         ],
     );

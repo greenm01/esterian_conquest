@@ -169,7 +169,7 @@ impl PlanetDatabaseScreen {
                 &mut buffer,
                 command_row,
                 start_col,
-                "<J K ^U ^D F S Q>",
+                "J K ^U ^D F S <Q>",
                 Some(&default),
                 input,
             );
@@ -315,11 +315,9 @@ impl PlanetDatabaseScreen {
     ) -> Action {
         match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => match key.code {
-                KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
-                    Action::Planet(PlanetAction::SubmitDatabaseFilter(
-                        PlanetDatabaseFilterMode::All,
-                    ))
-                }
+                KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => Action::Planet(
+                    PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::All),
+                ),
                 KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
                     PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Range),
                 ),
@@ -338,9 +336,9 @@ impl PlanetDatabaseScreen {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
-                KeyCode::Enter => {
-                    Action::Planet(PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Range))
-                }
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                    PlanetDatabaseFilterMode::Range,
+                )),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
@@ -351,9 +349,9 @@ impl PlanetDatabaseScreen {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
-                KeyCode::Enter => {
-                    Action::Planet(PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Range))
-                }
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                    PlanetDatabaseFilterMode::Range,
+                )),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
@@ -364,9 +362,9 @@ impl PlanetDatabaseScreen {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
-                KeyCode::Enter => {
-                    Action::Planet(PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::Empire))
-                }
+                KeyCode::Enter => Action::Planet(PlanetAction::SubmitDatabaseFilter(
+                    PlanetDatabaseFilterMode::Empire,
+                )),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
@@ -387,11 +385,9 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::SortMenu => match key.code {
-                KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => {
-                    Action::Planet(PlanetAction::SubmitDatabaseSort(
-                        PlanetDatabaseSortMode::Location,
-                    ))
-                }
+                KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
+                    PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Location),
+                ),
                 KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
                     PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Range),
                 ),
@@ -423,7 +419,11 @@ impl PlanetDatabaseScreen {
     }
 }
 
-fn database_command_row(geometry: ScreenGeometry, total_rows: usize, scroll_offset: usize) -> usize {
+fn database_command_row(
+    geometry: ScreenGeometry,
+    total_rows: usize,
+    scroll_offset: usize,
+) -> usize {
     let displayed_rows = total_rows
         .saturating_sub(scroll_offset)
         .min(stacked_table_visible_rows_for(geometry, 1));

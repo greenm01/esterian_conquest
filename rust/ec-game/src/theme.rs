@@ -59,6 +59,8 @@ struct Theme {
     menu: CellStyle,
     menu_hotkey: CellStyle,
     prompt: CellStyle,
+    prompt_angle_delimiter: CellStyle,
+    prompt_square_delimiter: CellStyle,
     prompt_hotkey: CellStyle,
     prompt_notice_action: CellStyle,
     bright: CellStyle,
@@ -98,6 +100,8 @@ impl Theme {
             .map_err(|err| format!("parse theme.kdl: {err}"))?;
 
         let require_style = |name: &str| parse_named_style(&document, name);
+        let optional_style =
+            |name: &str, fallback: &str| parse_named_style_or(&document, name, fallback);
 
         Ok(Self {
             body: require_style("body")?,
@@ -105,6 +109,8 @@ impl Theme {
             menu: require_style("menu")?,
             menu_hotkey: require_style("menu_hotkey")?,
             prompt: require_style("prompt")?,
+            prompt_angle_delimiter: optional_style("prompt_angle_delimiter", "prompt")?,
+            prompt_square_delimiter: optional_style("prompt_square_delimiter", "prompt")?,
             prompt_hotkey: require_style("prompt_hotkey")?,
             prompt_notice_action: require_style("prompt_notice_action")?,
             bright: require_style("bright")?,
@@ -150,6 +156,8 @@ impl Theme {
         theme.menu = mono_dim(theme.menu);
         theme.menu_hotkey = mono_bright(theme.menu_hotkey);
         theme.prompt = mono_dim(theme.prompt);
+        theme.prompt_angle_delimiter = mono_dim(theme.prompt_angle_delimiter);
+        theme.prompt_square_delimiter = mono_dim(theme.prompt_square_delimiter);
         theme.prompt_hotkey = mono_bright(theme.prompt_hotkey);
         theme.prompt_notice_action = mono_bright(theme.prompt_notice_action);
         theme.bright = mono_bright(theme.bright);
@@ -215,6 +223,14 @@ fn parse_named_style(document: &kdl::KdlDocument, style_name: &str) -> Result<Ce
         })
         .ok_or_else(|| format!("missing style {style_name:?}"))?;
     parse_style_node(node)
+}
+
+fn parse_named_style_or(
+    document: &kdl::KdlDocument,
+    style_name: &str,
+    fallback_name: &str,
+) -> Result<CellStyle, String> {
+    parse_named_style(document, style_name).or_else(|_| parse_named_style(document, fallback_name))
 }
 
 fn parse_style_node(node: &kdl::KdlNode) -> Result<CellStyle, String> {
@@ -597,6 +613,14 @@ pub mod classic {
 
     pub fn prompt_style() -> CellStyle {
         active_theme().prompt
+    }
+
+    pub fn prompt_angle_delimiter_style() -> CellStyle {
+        active_theme().prompt_angle_delimiter
+    }
+
+    pub fn prompt_square_delimiter_style() -> CellStyle {
+        active_theme().prompt_square_delimiter
     }
 
     pub fn prompt_hotkey_style() -> CellStyle {

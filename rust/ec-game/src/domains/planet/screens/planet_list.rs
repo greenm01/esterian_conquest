@@ -131,7 +131,7 @@ impl PlanetListScreen {
             &mut buffer,
             table_prompt_row_for(frame.geometry, metrics.bottom_row),
             start_col,
-            "<J K S Q>",
+            "J K S <Q>",
             Some(&default_coords),
             input,
         );

@@ -41,7 +41,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
 
     assert_eq!(
         buffer.plain_line(7),
-        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+        "BUILD COMMAND <- H X V P R C N S A L I <Q> ->"
     );
     assert_eq!(
         buffer.plain_line(13),
@@ -134,7 +134,7 @@ fn build_list_renders_queue_columns_without_dock() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("BUILD COMMAND <-J K ^U ^D [D]elete Q->")
+                .contains("BUILD COMMAND <- J K ^U ^D D <Q> ->")
         })
         .expect("build list command row should render");
     let _ = command_row;
@@ -262,7 +262,7 @@ fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("BUILD COMMAND <-J K ^U ^D [D]elete Q->")
+                .contains("BUILD COMMAND <- J K ^U ^D D <Q> ->")
         })
         .expect("build list command row should render");
     assert_eq!(buffer.plain_line(command_row + 1), "");
@@ -390,5 +390,9 @@ fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
 
     assert_eq!(buffer.height(), 24);
     assert_eq!(buffer.plain_line(22).chars().next(), Some('└'));
-    assert!(buffer.plain_line(23).contains("BUILD COMMAND <-J K ^U ^D ENTER Q->"));
+    assert!(
+        buffer
+            .plain_line(23)
+            .contains("BUILD COMMAND <- J K ^U ^D <Q> ->")
+    );
 }

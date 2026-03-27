@@ -4,10 +4,10 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    ScreenGeometry, command_line_row_for, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_prompt_error_after, draw_table_command_bar_at, draw_title_bar,
-    new_playfield, new_playfield_for, standard_table_visible_rows_for, table_prompt_row_for,
+    ScreenGeometry, command_line_row_for, dismiss_prompt_row, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
+    draw_prompt_error_after, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    new_playfield_for, standard_table_visible_rows_for, table_prompt_row_for,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -84,7 +84,7 @@ impl MessageComposeScreen {
         );
         let command_row = table_prompt_row_for(frame.geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D D Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D D <Q>", None, "");
         } else {
             let default_empire = rows
                 .get(cursor)
@@ -94,7 +94,7 @@ impl MessageComposeScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<J K ^U ^D D Q>",
+                "J K ^U ^D D <Q>",
                 Some(default_empire),
                 input,
             );
@@ -286,7 +286,7 @@ impl MessageComposeScreen {
         );
         let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "<J K ^U ^D Q>", None, "");
+            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D <Q>", None, "");
         } else {
             let default_queue_no = if rows.is_empty() {
                 String::new()
@@ -296,7 +296,7 @@ impl MessageComposeScreen {
             draw_table_command_bar_at(
                 &mut buffer,
                 command_row,
-                "<J K ^U ^D Q>",
+                "J K ^U ^D <Q>",
                 Some(&default_queue_no),
                 input,
             );

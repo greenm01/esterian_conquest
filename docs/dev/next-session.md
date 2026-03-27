@@ -53,5 +53,7 @@ Keep this file short. Historical detail belongs in
 2. Fix reported bugs and UX issues in small, well-tested increments.
 3. Preserve the storage roundtrip tests and source-policy guardrails so runtime
    code does not drift back toward raw-offset dependence.
-4. Only do deeper semantic cleanup when it materially helps a real gameplay,
+4. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
+   so screen-local key discoverability can move out of crowded command rails.
+5. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.

@@ -773,17 +773,16 @@ pub fn draw_command_prompt_at_col(
     keys: &str,
 ) {
     buffer.fill_row(row, classic::prompt_style());
-    let prefix_width = buffer.write_spans(
-        row,
-        col,
-        &[
-            StyledSpan::new(label, classic::title_style()),
-            StyledSpan::new(" <-", classic::prompt_style()),
-        ],
-    );
-    let prefix_col = col + prefix_width;
     let suffix = "-> ";
     if keys == "SLAP A KEY" {
+        buffer.write_spans(
+            row,
+            col,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <-", classic::prompt_style()),
+            ],
+        );
         let slap_width = "(slap a key)".chars().count();
         let suffix_col = buffer.width().saturating_sub(suffix.chars().count() + 1);
         let slap_col = suffix_col.saturating_sub(slap_width);
@@ -792,16 +791,70 @@ pub fn draw_command_prompt_at_col(
         let cursor_col = suffix_col + written;
         buffer.set_cursor(cursor_col as u16, row as u16);
     } else {
-        let written = buffer.write_spans(
-            row,
-            prefix_col,
-            &[
-                StyledSpan::new(keys, classic::prompt_hotkey_style()),
-                StyledSpan::new(suffix, classic::prompt_style()),
-            ],
-        );
-        let cursor_col = prefix_col + written;
+        let prefix_col = col
+            + buffer.write_spans(
+                row,
+                col,
+                &[
+                    StyledSpan::new(label, classic::title_style()),
+                    StyledSpan::new(" <- ", classic::prompt_style()),
+                ],
+            );
+        let mut cursor_col = write_command_rail_tokens(buffer, row, prefix_col, keys);
+        cursor_col += buffer.write_text(row, cursor_col, " -> ", classic::prompt_style());
         buffer.set_cursor(cursor_col as u16, row as u16);
+    }
+}
+
+fn write_command_rail_tokens(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    start_col: usize,
+    tokens: &str,
+) -> usize {
+    let mut col = start_col;
+    let mut first = true;
+    for token in tokens.split_whitespace() {
+        if !first {
+            col += buffer.write_text(row, col, " ", classic::prompt_style());
+        }
+        col += write_command_rail_token(buffer, row, col, token);
+        first = false;
+    }
+    col
+}
+
+fn write_command_rail_token(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    token: &str,
+) -> usize {
+    if let Some(inner) = token.strip_prefix('<').and_then(|value| value.strip_suffix('>')) {
+        buffer.write_spans(
+            row,
+            col,
+            &[
+                StyledSpan::new("<", classic::prompt_angle_delimiter_style()),
+                StyledSpan::new(inner, classic::prompt_hotkey_style()),
+                StyledSpan::new(">", classic::prompt_angle_delimiter_style()),
+            ],
+        )
+    } else if let Some(inner) = token
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+    {
+        buffer.write_spans(
+            row,
+            col,
+            &[
+                StyledSpan::new("[", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(inner, classic::prompt_hotkey_style()),
+                StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+            ],
+        )
+    } else {
+        buffer.write_text(row, col, token, classic::prompt_hotkey_style())
     }
 }
 
@@ -875,22 +928,23 @@ pub fn draw_command_line_default_input_at_col(
     buffer.fill_row(row, classic::prompt_style());
     let mut cursor_col = col
         + buffer.write_spans(
-        row,
-        col,
-        &[
-            StyledSpan::new(label, classic::title_style()),
-            StyledSpan::new(" <- ", classic::prompt_style()),
-        ],
-    );
+            row,
+            col,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
     cursor_col = write_prompt_markup(buffer, row, cursor_col, prompt);
     if !default.is_empty() {
         cursor_col += buffer.write_spans(
             row,
             cursor_col,
             &[
-                StyledSpan::new("[", classic::prompt_style()),
+                StyledSpan::new("[", classic::prompt_square_delimiter_style()),
                 StyledSpan::new(default, classic::prompt_hotkey_style()),
-                StyledSpan::new("] ", classic::prompt_style()),
+                StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(" ", classic::prompt_style()),
             ],
         );
     }
@@ -934,18 +988,20 @@ pub fn draw_table_command_bar_at_col(
             col,
             &[
                 StyledSpan::new("COMMANDS", classic::title_style()),
-                StyledSpan::new(" ", classic::prompt_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
             ],
         );
-    cursor_col = write_prompt_markup(buffer, row, cursor_col, hotkeys_markup);
+    cursor_col = write_command_rail_tokens(buffer, row, cursor_col, hotkeys_markup);
     if let Some(default) = default {
         cursor_col += buffer.write_spans(
             row,
             cursor_col,
             &[
-                StyledSpan::new(" [", classic::prompt_style()),
+                StyledSpan::new(" ", classic::prompt_style()),
+                StyledSpan::new("[", classic::prompt_square_delimiter_style()),
                 StyledSpan::new(default, classic::prompt_hotkey_style()),
-                StyledSpan::new("] -> ", classic::prompt_style()),
+                StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(" -> ", classic::prompt_style()),
             ],
         );
         let written = buffer.write_text(row, cursor_col, input, classic::prompt_hotkey_style());
@@ -1154,12 +1210,14 @@ fn write_prompt_markup(
                     col += buffer.write_text(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col += buffer.write_text(row, col, "<", classic::prompt_style());
+                col +=
+                    buffer.write_text(row, col, "<", classic::prompt_angle_delimiter_style());
                 if close_idx > idx + 1 {
                     let segment = chars[idx + 1..close_idx].iter().collect::<String>();
                     col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
                 }
-                col += buffer.write_text(row, col, ">", classic::prompt_style());
+                col +=
+                    buffer.write_text(row, col, ">", classic::prompt_angle_delimiter_style());
                 idx = close_idx + 1;
                 continue;
             }
@@ -1174,12 +1232,14 @@ fn write_prompt_markup(
                     col += buffer.write_text(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col += buffer.write_text(row, col, "[", classic::prompt_style());
+                col +=
+                    buffer.write_text(row, col, "[", classic::prompt_square_delimiter_style());
                 if close_idx > idx + 1 {
                     let segment = chars[idx + 1..close_idx].iter().collect::<String>();
                     col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
                 }
-                col += buffer.write_text(row, col, "]", classic::prompt_style());
+                col +=
+                    buffer.write_text(row, col, "]", classic::prompt_square_delimiter_style());
                 idx = close_idx + 1;
                 continue;
             }

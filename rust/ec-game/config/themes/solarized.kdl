@@ -26,6 +26,16 @@ style "prompt" {
     fg "#839496"
     bg "#002b36"
 }
+style "prompt_angle_delimiter" {
+    fg "#859900"
+    bg "#002b36"
+    bold #true
+}
+style "prompt_square_delimiter" {
+    fg "#dc322f"
+    bg "#002b36"
+    bold #true
+}
 style "prompt_hotkey" {
     fg "#b58900"
     bg "#002b36"

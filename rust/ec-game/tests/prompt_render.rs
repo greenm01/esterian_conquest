@@ -14,10 +14,9 @@ use ec_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
     dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
-    draw_help_panel,
-    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt, draw_plain_prompt,
-    draw_prompt_error_after, draw_prompt_feedback_after, draw_table_command_prompt,
-    table_dismiss_prompt_row,
+    draw_help_panel, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
+    draw_plain_prompt, draw_prompt_error_after, draw_prompt_feedback_after,
+    draw_table_command_prompt, table_dismiss_prompt_row,
 };
 use ec_game::theme::classic;
 
@@ -42,20 +41,20 @@ fn draw_plain_prompt_highlights_square_and_angle_hotkeys() {
 
     let row = buffer.row(19);
     let bracket = find_in_row(&buffer, 19, "[Y]");
-    assert_eq!(row[bracket].style, classic::prompt_style());
+    assert_eq!(row[bracket].style, classic::prompt_square_delimiter_style());
     assert_eq!(row[bracket + 1].style, classic::prompt_hotkey_style());
-    assert_eq!(row[bracket + 2].style, classic::prompt_style());
+    assert_eq!(row[bracket + 2].style, classic::prompt_square_delimiter_style());
 
     let no = find_in_row(&buffer, 19, "<N>");
-    assert_eq!(row[no].style, classic::prompt_style());
+    assert_eq!(row[no].style, classic::prompt_angle_delimiter_style());
     assert_eq!(row[no + 1].style, classic::prompt_hotkey_style());
-    assert_eq!(row[no + 2].style, classic::prompt_style());
+    assert_eq!(row[no + 2].style, classic::prompt_angle_delimiter_style());
 
     let nonstop = find_in_row(&buffer, 19, "<NS>");
-    assert_eq!(row[nonstop].style, classic::prompt_style());
+    assert_eq!(row[nonstop].style, classic::prompt_angle_delimiter_style());
     assert_eq!(row[nonstop + 1].style, classic::prompt_hotkey_style());
     assert_eq!(row[nonstop + 2].style, classic::prompt_hotkey_style());
-    assert_eq!(row[nonstop + 3].style, classic::prompt_style());
+    assert_eq!(row[nonstop + 3].style, classic::prompt_angle_delimiter_style());
 }
 
 #[test]
@@ -65,9 +64,9 @@ fn draw_plain_prompt_highlights_bare_slash_separated_choices() {
 
     let row = buffer.row(19);
     let choice = find_in_row(&buffer, 19, "[Y]/N");
-    assert_eq!(row[choice].style, classic::prompt_style()); // [
+    assert_eq!(row[choice].style, classic::prompt_square_delimiter_style()); // [
     assert_eq!(row[choice + 1].style, classic::prompt_hotkey_style()); // Y
-    assert_eq!(row[choice + 2].style, classic::prompt_style()); // ]
+    assert_eq!(row[choice + 2].style, classic::prompt_square_delimiter_style()); // ]
     assert_eq!(row[choice + 3].style, classic::prompt_style()); // /
     assert_eq!(row[choice + 4].style, classic::prompt_hotkey_style()); // N
 }
@@ -84,9 +83,9 @@ fn draw_command_line_prompt_text_highlights_confirm_prompt_hotkeys() {
 
     let row = buffer.row(COMMAND_LINE_ROW);
     let choice = find_in_row(&buffer, COMMAND_LINE_ROW, "[Y]/N");
-    assert_eq!(row[choice].style, classic::prompt_style());
+    assert_eq!(row[choice].style, classic::prompt_square_delimiter_style());
     assert_eq!(row[choice + 1].style, classic::prompt_hotkey_style());
-    assert_eq!(row[choice + 2].style, classic::prompt_style());
+    assert_eq!(row[choice + 2].style, classic::prompt_square_delimiter_style());
     assert_eq!(row[choice + 3].style, classic::prompt_style());
     assert_eq!(row[choice + 4].style, classic::prompt_hotkey_style());
 }
@@ -103,18 +102,24 @@ fn draw_plain_prompt_highlights_general_letter_commands() {
     let row = buffer.row(19);
     for token in ["<C>", "<L>", "<M>", "<Q>"] {
         let start = find_in_row(&buffer, 19, token);
-        assert_eq!(row[start].style, classic::prompt_style());
+        assert_eq!(row[start].style, classic::prompt_angle_delimiter_style());
         assert_eq!(row[start + 1].style, classic::prompt_hotkey_style());
-        assert_eq!(row[start + 2].style, classic::prompt_style());
+        assert_eq!(row[start + 2].style, classic::prompt_angle_delimiter_style());
     }
 
     let default_choice = find_in_row(&buffer, 19, "[C]");
-    assert_eq!(row[default_choice].style, classic::prompt_style());
+    assert_eq!(
+        row[default_choice].style,
+        classic::prompt_square_delimiter_style()
+    );
     assert_eq!(
         row[default_choice + 1].style,
         classic::prompt_hotkey_style()
     );
-    assert_eq!(row[default_choice + 2].style, classic::prompt_style());
+    assert_eq!(
+        row[default_choice + 2].style,
+        classic::prompt_square_delimiter_style()
+    );
 }
 
 #[test]
@@ -132,23 +137,29 @@ fn draw_command_line_default_input_highlights_prompt_choices_and_default() {
     let row = buffer.row(COMMAND_LINE_ROW);
     for token in ["<R>", "<I>", "<S>"] {
         let start = find_in_row(&buffer, COMMAND_LINE_ROW, token);
-        assert_eq!(row[start].style, classic::prompt_style());
+        assert_eq!(row[start].style, classic::prompt_angle_delimiter_style());
         assert_eq!(row[start + 1].style, classic::prompt_hotkey_style());
-        assert_eq!(row[start + 2].style, classic::prompt_style());
+        assert_eq!(row[start + 2].style, classic::prompt_angle_delimiter_style());
     }
 
     let default_choice = find_in_row(&buffer, COMMAND_LINE_ROW, "[R]");
-    assert_eq!(row[default_choice].style, classic::prompt_style());
+    assert_eq!(
+        row[default_choice].style,
+        classic::prompt_square_delimiter_style()
+    );
     assert_eq!(
         row[default_choice + 1].style,
         classic::prompt_hotkey_style()
     );
-    assert_eq!(row[default_choice + 2].style, classic::prompt_style());
+    assert_eq!(
+        row[default_choice + 2].style,
+        classic::prompt_square_delimiter_style()
+    );
 
     let quit = find_in_row(&buffer, COMMAND_LINE_ROW, "<Q>");
-    assert_eq!(row[quit].style, classic::prompt_style());
+    assert_eq!(row[quit].style, classic::prompt_angle_delimiter_style());
     assert_eq!(row[quit + 1].style, classic::prompt_hotkey_style());
-    assert_eq!(row[quit + 2].style, classic::prompt_style());
+    assert_eq!(row[quit + 2].style, classic::prompt_angle_delimiter_style());
 }
 
 #[test]
@@ -217,13 +228,13 @@ fn draw_plain_prompt_highlights_command_rail_inside_angle_brackets() {
 
     let row = buffer.row(19);
     let rail = find_in_row(&buffer, 19, "<J K S Q>");
-    assert_eq!(row[rail].style, classic::prompt_style());
+    assert_eq!(row[rail].style, classic::prompt_angle_delimiter_style());
     for idx in rail + 1..rail + "<J K S Q>".len() - 1 {
         assert_eq!(row[idx].style, classic::prompt_hotkey_style());
     }
     assert_eq!(
         row[rail + "<J K S Q>".len() - 1].style,
-        classic::prompt_style()
+        classic::prompt_angle_delimiter_style()
     );
 }
 
@@ -273,23 +284,29 @@ fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
 #[test]
 fn draw_command_prompt_places_cursor_after_arrow_space() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt_at(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "H,Q,X");
+    draw_command_prompt_at(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "H X <Q>");
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
-    assert!(line.contains("GENERAL COMMAND <-H,Q,X-> "));
+    assert!(line.contains("GENERAL COMMAND <- H X <Q> -> "));
 }
 
 #[test]
 fn draw_command_prompt_at_col_offsets_label_keys_and_cursor_together() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt_at_col(&mut buffer, COMMAND_LINE_ROW, 9, "MAP COMMAND", "HJKL ENTER Q");
+    draw_command_prompt_at_col(
+        &mut buffer,
+        COMMAND_LINE_ROW,
+        9,
+        "MAP COMMAND",
+        "HJKL <Q>",
+    );
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     let label_col = find_in_row(&buffer, COMMAND_LINE_ROW, "MAP COMMAND");
-    let keys_col = find_in_row(&buffer, COMMAND_LINE_ROW, "HJKL ENTER Q");
+    let keys_col = find_in_row(&buffer, COMMAND_LINE_ROW, "HJKL <Q>");
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
 
     assert_eq!(label_col, 9);
@@ -370,13 +387,13 @@ fn compose_body_uses_full_80x25_vertical_editor_space() {
     assert!(row_text(&buffer, 21).trim().is_empty());
     assert!(row_text(&buffer, 22).contains("Chars:"));
     assert!(row_text(&buffer, 23).trim().is_empty());
-    assert!(row_text(&buffer, 24).contains("GENERAL COMMAND <-CTRL-E CTRL-X->"));
+    assert!(row_text(&buffer, 24).contains("GENERAL COMMAND <- CTRL-E CTRL-X ->"));
 }
 
-    #[test]
-    fn compose_discard_confirm_uses_default_no_prompt_markup() {
-        let mut screen = MessageComposeScreen::new();
-        let buffer = screen
+#[test]
+fn compose_discard_confirm_uses_default_no_prompt_markup() {
+    let mut screen = MessageComposeScreen::new();
+    let buffer = screen
         .render_discard_confirm(
             ScreenGeometry::local_default(),
             "Empire 2 (Red Horizon Pact)",
@@ -392,9 +409,9 @@ fn compose_body_uses_full_80x25_vertical_editor_space() {
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());
     assert_eq!(row[choice + 1].style, classic::prompt_style());
-    assert_eq!(row[choice + 2].style, classic::prompt_style());
+    assert_eq!(row[choice + 2].style, classic::prompt_square_delimiter_style());
     assert_eq!(row[choice + 3].style, classic::prompt_hotkey_style());
-    assert_eq!(row[choice + 4].style, classic::prompt_style());
+    assert_eq!(row[choice + 4].style, classic::prompt_square_delimiter_style());
 }
 
 #[test]
@@ -416,9 +433,9 @@ fn compose_send_confirm_uses_default_no_prompt_markup() {
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());
     assert_eq!(row[choice + 1].style, classic::prompt_style());
-    assert_eq!(row[choice + 2].style, classic::prompt_style());
+    assert_eq!(row[choice + 2].style, classic::prompt_square_delimiter_style());
     assert_eq!(row[choice + 3].style, classic::prompt_hotkey_style());
-    assert_eq!(row[choice + 4].style, classic::prompt_style());
+    assert_eq!(row[choice + 4].style, classic::prompt_square_delimiter_style());
 }
 
 #[test]
@@ -441,9 +458,15 @@ fn inline_delete_reviewables_prompt_uses_notice_style_and_cursor_gap() {
     let choice = find_in_row(&buffer, 10, "Y/[N]");
     assert_eq!(prompt_row[choice].style, classic::prompt_hotkey_style());
     assert_eq!(prompt_row[choice + 1].style, classic::prompt_style());
-    assert_eq!(prompt_row[choice + 2].style, classic::prompt_style());
+    assert_eq!(
+        prompt_row[choice + 2].style,
+        classic::prompt_square_delimiter_style()
+    );
     assert_eq!(prompt_row[choice + 3].style, classic::prompt_hotkey_style());
-    assert_eq!(prompt_row[choice + 4].style, classic::prompt_style());
+    assert_eq!(
+        prompt_row[choice + 4].style,
+        classic::prompt_square_delimiter_style()
+    );
 
     let title = "DELETE ALL MESSAGES / RESULTS:";
     let title_col = find_in_row(&buffer, 12, title);

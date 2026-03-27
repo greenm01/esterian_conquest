@@ -108,7 +108,7 @@ PLANET COMMAND:
 │(08,08) │New Carthage          │  61│  90│    40│  33│   +2│     6│ Y│  5│  2│
 │(10,12) │Haven                 │  18│  60│     4│   9│   +5│     0│ N│  1│  0│
 └────────┴──────────────────────┴────┴────┴──────┴────┴─────┴──────┴──┴───┴───┘
-COMMANDS <J K S Q> [03,03] ->
+COMMANDS <- J K S <Q> [03,03] ->
 ```
 
 ## Command Bar Grammar
@@ -118,13 +118,13 @@ COMMANDS <J K S Q> [03,03] ->
 Standard browse bar:
 
 ```text
-COMMANDS <HOTKEYS> ->
+COMMANDS <- HOTKEYS <Q> ->
 ```
 
 Coordinate-aware browse bar:
 
 ```text
-COMMANDS <HOTKEYS> [03,03] ->
+COMMANDS <- HOTKEYS <Q> [03,03] ->
 ```
 
 Rules:
@@ -158,8 +158,8 @@ Rules:
 - `F` is the standard filter hotkey for filterable tables
 - `Q` is quit/back
 - sort prompts use the first letter of the column they actually sort
-- hotkey letters inside both `<...>` and `[C]` / `[L]` render in yellow
-- outer `< >` and `[ ]` stay in the neutral prompt color
+- hotkey letters inside both `<...>` and `[C]` / `[L]` render in the hotkey color
+- outer `< >` and `[ ]` use their delimiter theme styles
 - `ENTER` remains implicit and is not listed in the hotkey rail
 
 ## Total Planet Database

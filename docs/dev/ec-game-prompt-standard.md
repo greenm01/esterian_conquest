@@ -17,6 +17,7 @@ Read it together with:
 
 - The player TUI targets a fixed `80x25` playfield.
 - Live command-line prompts leave a space after `-> ` before the cursor.
+- Command rails use the universal frame `LABEL <- ... ->`.
 - For non-table, non-main-menu command-line prompts:
   - angle brackets `<...>` mean available command key(s)
   - square brackets `[...]` mean the default value only
@@ -30,8 +31,7 @@ Read it together with:
   - `SEND MESSAGE`
   - `HOMEWORLD`
   - and similar screen-owned labels
-- Table command bars and main-menu command rails are governed by their own
-  standards and are not normalized by this document.
+- Command rails never list `ENTER`.
 
 ## Standard Grammar
 
@@ -103,12 +103,8 @@ Do not rewrite these to `<Y>, <N> [N]`.
 
 - Prompt row background uses the semantic `prompt` style.
 - Prompt label uses the semantic `title` style.
-- Bracket and angle punctuation:
-  - `<`
-  - `>`
-  - `[`
-  - `]`
-  use the neutral `prompt` style.
+- Angle punctuation `<` and `>` use `prompt_angle_delimiter`.
+- Square punctuation `[` and `]` use `prompt_square_delimiter`.
 - Inner hotkey/default text inside those delimiters uses `prompt_hotkey`.
 - Live typed input also uses `prompt_hotkey`.
 - The special phrase `slap a key` keeps its current accent behavior through
@@ -124,6 +120,12 @@ Implementation consequence:
 ## Normalization Rules
 
 - Use `<Q>` consistently in command-line prompts when quit/cancel is available.
+- In command rails, `Q` is always rendered as `<Q>`.
+- In command rails, other tokens stay bare and use space separation.
+- In command rails, `[default]` stays rightmost and `<Q>` sits immediately to
+  its left when both are present.
+- In command rails, `ENTER` remains implicit and should not be repeated in the
+  rail or nearby subtitle text.
 - When a prompt is rendered through `draw_command_line_default_input_at(...)`,
   do not include `Q` in the prompt-body command list; that helper already
   appends the canonical trailing `<Q> ->`.
@@ -186,14 +188,15 @@ COMMAND <- <ENTER> commissions the highlighted starbase. <Q> ->
 COMMAND <- Delete how many Destroyers? <A>ll or 1-2 <Q> ->
 ```
 
-## Out of Scope
+## Command Rail Examples
 
-This document does not govern:
+```text
+MAIN COMMAND <- H X V C G P F T I B D <Q> ->
+GENERAL COMMAND <- H X V I A S P M C R D O E <Q> ->
+MAP COMMAND <- HJKL 1 2 3 4 6 7 8 9 <Q> ->
+COMMANDS <- J K ^U ^D <Q> [03,03] ->
+```
 
-- table command bars such as `COMMANDS <J K S Q> [03,03] ->`
-- table command-prompt replacement rows described in
-  [ec-game-table-standard.md](ec-game-table-standard.md)
-- main-menu and expert-menu rails such as `GENERAL COMMAND <-H,Q,X->`
-
-Those surfaces should still remain visually compatible with this prompt spec,
-but their grammar is owned elsewhere.
+This document does not change the prompt-replacement table rows described in
+[ec-game-table-standard.md](ec-game-table-standard.md). Those still use normal
+prompt markup such as `COMMANDS <- Sort by <C>urrent Prod ... [C] ->`.
