@@ -112,7 +112,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, state: &PickerState) {
             let content = if let Some(msg) = &state.status_msg {
                 Span::styled(msg.as_str(), Style::default().fg(Color::Red))
             } else {
-                Span::raw(" [J] Join new game   [I] Identity info   [Q] Quit")
+                Span::raw(" [J] Join new game   [M] Download maps   [I] Identity info   [Q] Quit")
             };
             let para = Paragraph::new(Line::from(vec![content]))
                 .block(Block::default().borders(Borders::TOP));

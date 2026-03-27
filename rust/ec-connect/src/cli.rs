@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 
 use nostr_sdk::Keys;
 
@@ -8,6 +9,7 @@ use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, r
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
+use crate::map_store::resolve_maps_root;
 use crate::picker::run_picker;
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
 use crate::wallet::{Identity, IdentityType, Wallet};
@@ -121,6 +123,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 struct ConnectOpts {
     gate_npub: Option<String>,
     relay_override: Option<String>,
+    maps_dir: Option<PathBuf>,
 }
 
 fn parse_connect_opts(
@@ -128,6 +131,7 @@ fn parse_connect_opts(
 ) -> Result<ConnectOpts, Box<dyn std::error::Error>> {
     let mut gate_npub = None;
     let mut relay_override = None;
+    let mut maps_dir = None;
 
     let remaining: Vec<String> = args.collect();
     let mut i = 0;
@@ -151,6 +155,15 @@ fn parse_connect_opts(
                         .ok_or("--relay requires a URL argument")?,
                 );
             }
+            "--maps-dir" => {
+                i += 1;
+                maps_dir = Some(PathBuf::from(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--maps-dir requires a path argument")?,
+                ));
+            }
             other => return Err(format!("unexpected argument: {other}").into()),
         }
         i += 1;
@@ -160,6 +173,7 @@ fn parse_connect_opts(
     Ok(ConnectOpts {
         gate_npub,
         relay_override,
+        maps_dir,
     })
 }
 
@@ -172,6 +186,7 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
 
     // Load config (optional).
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
     // Load wallet — auto-create identity if wallet is missing.
     let password = prompt_password("Password: ")?;
@@ -194,6 +209,7 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
         &npub,
         &gate_npub,
         DisambigMode::Prompt,
+        &maps_root,
     ))?;
 
     report_outcome(outcome)
@@ -204,6 +220,7 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
 fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
     // Load config (optional).
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
     // Load wallet — must exist for direct mode.
     let password = prompt_password("Password: ")?;
@@ -234,6 +251,7 @@ fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error:
         &npub,
         &gate_npub,
         DisambigMode::Prompt,
+        &maps_root,
     ))?;
 
     report_outcome(outcome)
@@ -256,8 +274,17 @@ fn cmd_picker(opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
         .active_identity()
         .map(|id| id.identity_type.as_str().to_string())
         .unwrap_or_else(|| "local".to_string());
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
-    run_picker(keys, npub, gate_npub, identity_count, identity_type)
+    run_picker(
+        keys,
+        npub,
+        gate_npub,
+        identity_count,
+        identity_type,
+        maps_root,
+    )
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -351,8 +378,19 @@ where
 /// Print the `SessionOutcome` and convert to a Result.
 fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Error>> {
     match outcome {
-        SessionOutcome::Done { exit_code: 0 } => Ok(()),
-        SessionOutcome::Done { exit_code } => {
+        SessionOutcome::Done {
+            exit_code: 0,
+            notice,
+        } => {
+            if let Some(msg) = notice {
+                eprintln!("{msg}");
+            }
+            Ok(())
+        }
+        SessionOutcome::Done { exit_code, notice } => {
+            if let Some(msg) = notice {
+                eprintln!("{msg}");
+            }
             Err(format!("session exited with code {exit_code}").into())
         }
         SessionOutcome::Error(msg) => Err(msg.into()),
@@ -387,6 +425,7 @@ Identity:
 Options:
   --gate <NPUB>    Gate server Nostr public key (required for connect/join)
   --relay <URL>    Override Nostr relay URL
+  --maps-dir <PATH> Override where downloaded starmap bundles are stored
   --version        Print version
   --help           Print this help"
     );

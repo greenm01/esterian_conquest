@@ -76,9 +76,11 @@ a game ID in reconnection requests for disambiguation.
 | Config | `~/.config/ec/config.kdl` | Server bookmarks, default Nostr relay |
 | Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
+| Maps | `~/.local/share/ec/maps/` | Downloaded static starmap bundles |
 
 On Windows and macOS, platform-appropriate equivalents are used via the
-`dirs` crate.
+`dirs` crate. Players can override the maps root with `maps-dir` in the
+config file or `--maps-dir` on the command line.
 
 ## Reading Order
 

@@ -10,7 +10,10 @@
 //! server "friday" host="play.example.com" port=22
 //! server "local"  host="localhost"        port=2222
 //! default "friday"
+//! maps-dir "/path/to/maps"
 //! ```
+
+use std::path::PathBuf;
 
 pub mod io;
 
@@ -36,6 +39,8 @@ pub struct ConnectConfig {
     pub servers: Vec<ServerBookmark>,
     /// Name of the default server bookmark, if configured.
     pub default_server: Option<String>,
+    /// Optional override for where downloaded starmap bundles are stored.
+    pub maps_dir: Option<PathBuf>,
 }
 
 impl ConnectConfig {
@@ -45,6 +50,7 @@ impl ConnectConfig {
             relay: None,
             servers: Vec::new(),
             default_server: None,
+            maps_dir: None,
         }
     }
 

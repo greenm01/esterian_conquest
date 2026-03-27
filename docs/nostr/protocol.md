@@ -1,9 +1,10 @@
 # Nostr Protocol
 
 This document specifies the Nostr event kinds and message flows used by
-`ec-connect` and `ec-gate` for session authentication. The protocol is
-minimal: four event kinds handle game discovery, session requests,
-session establishment, and errors.
+`ec-connect` and `ec-gate` for session authentication and static player
+starmap delivery. The protocol is intentionally small: seven event kinds
+handle game discovery, session requests, session establishment, starmap
+requests, starmap delivery, and errors.
 
 ## Design Principles
 
@@ -24,6 +25,9 @@ kind collisions.
 | 30501 | SessionRequest | ec-connect | None | Player requests a session |
 | 30502 | SessionReady | ec-gate | NIP-44 | Session provisioned, SSH details enclosed |
 | 30503 | SessionError | ec-gate | NIP-44 | Session request failed |
+| 30504 | MapRequest | ec-connect | None | Player requests the static map bundle for a joined game |
+| 30505 | MapBundle | ec-gate | NIP-44 | Compressed static map bundle |
+| 30506 | MapError | ec-gate | NIP-44 | Map request failed |
 
 All four kinds are parameterized replaceable events (NIP-33). The `d` tag
 serves as the deduplication key.
@@ -36,6 +40,9 @@ serves as the deduplication key.
 | 30501 | `d` (session-nonce), `p` (gate npub), `ssh-pubkey` | `game-id` |
 | 30502 | `d` (session-nonce), `p` (player npub) | |
 | 30503 | `d` (session-nonce), `p` (player npub) | |
+| 30504 | `d` (map-request-nonce), `p` (gate npub), `game-id` | |
+| 30505 | `d` (map-request-nonce), `p` (player npub) | |
+| 30506 | `d` (map-request-nonce), `p` (player npub) | |
 
 ## Event Specifications
 
@@ -230,6 +237,127 @@ Error codes:
 | `game_not_active` | The game is not currently accepting connections |
 | `rate_limited` | Too many session requests from this npub |
 
+### 30504: MapRequest
+
+Published by `ec-connect` after a successful first-time invite-code join,
+or later when the player manually re-downloads maps from the picker.
+
+```json
+{
+  "kind": 30504,
+  "pubkey": "<player-npub>",
+  "created_at": 1711468910,
+  "tags": [
+    ["d", "<map-request-nonce>"],
+    ["p", "<gate-npub>"],
+    ["game-id", "friday-night"]
+  ],
+  "content": "",
+  "sig": "..."
+}
+```
+
+**Tag definitions:**
+
+- `d`: A unique request nonce, used to match the response.
+- `p`: The gate daemon npub.
+- `game-id`: The joined game's slug.
+
+The event is signed by the player's Nostr identity. Authorization is by
+signed player npub plus `game-id`; invite codes are not part of the map
+request flow.
+
+### 30505: MapBundle
+
+Published by `ec-gate` when the player is authorized to receive the
+static starmap bundle for a joined game.
+
+```json
+{
+  "kind": 30505,
+  "pubkey": "<gate-npub>",
+  "created_at": 1711468911,
+  "tags": [
+    ["d", "<map-request-nonce>"],
+    ["p", "<player-npub>"]
+  ],
+  "content": "<NIP-44-encrypted-payload>",
+  "sig": "..."
+}
+```
+
+**Encrypted payload** (NIP-44 encrypted to the player's npub):
+
+```json
+{
+  "game_id": "friday-night",
+  "game_name": "Friday Night EC",
+  "seat": 2,
+  "files": [
+    {
+      "name": "starmap.txt",
+      "codec": "zstd+base64",
+      "sha256": "<sha256-of-original-bytes>",
+      "content": "<base64-zstd-bytes>"
+    },
+    {
+      "name": "starmap.csv",
+      "codec": "zstd+base64",
+      "sha256": "<sha256-of-original-bytes>",
+      "content": "<base64-zstd-bytes>"
+    },
+    {
+      "name": "starmap-DETAILS.csv",
+      "codec": "zstd+base64",
+      "sha256": "<sha256-of-original-bytes>",
+      "content": "<base64-zstd-bytes>"
+    }
+  ]
+}
+```
+
+The bundle always contains the same three player-safe files. Each file is
+compressed individually with `zstd` and then base64-encoded for JSON
+transport. If the final encoded payload would exceed 64 KiB, `ec-gate`
+does not chunk it in this protocol version; it returns a 30506
+`payload_too_large` error instead.
+
+### 30506: MapError
+
+Published by `ec-gate` when a map request cannot be fulfilled.
+
+```json
+{
+  "kind": 30506,
+  "pubkey": "<gate-npub>",
+  "created_at": 1711468911,
+  "tags": [
+    ["d", "<map-request-nonce>"],
+    ["p", "<player-npub>"]
+  ],
+  "content": "<NIP-44-encrypted-payload>",
+  "sig": "..."
+}
+```
+
+**Encrypted payload** (NIP-44 encrypted to the player's npub):
+
+```json
+{
+  "error": "map_unavailable",
+  "message": "Unable to build map bundle right now."
+}
+```
+
+Map error codes:
+
+| Code | Description |
+|------|-------------|
+| `game_not_found` | The requested `game-id` is not served by this gate |
+| `unknown_player` | The requesting npub is not bound to a seat in that game |
+| `map_unavailable` | The game exists, but the map bundle could not be built |
+| `payload_too_large` | The encoded map bundle exceeded the protocol size limit |
+
 ### multiple_games Error Payload
 
 When a returning player's npub matches seats in more than one game on the
@@ -257,6 +385,33 @@ are added to the local cache so future connections can include the
 
 ### First-Time Join (Invite Redemption)
 
+```
+
+### Static Map Download
+
+On first successful invite-code join, `ec-connect` performs a second,
+short Nostr round-trip before opening SSH so the player receives the
+campaign's static starmap bundle once. Players can later trigger the
+same flow manually from the picker.
+
+```
+ec-connect                       Relay                     ec-gate
+    │                              │                          │
+    │  30504 MapRequest            │                          │
+    │  (game-id tag)               │                          │
+    ├─────────────────────────────►│─────────────────────────►│
+    │                              │                          │
+    │                              │      Authorize by npub   │
+    │                              │      + game-id           │
+    │                              │      Build map bundle    │
+    │                              │      Compress files      │
+    │                              │                          │
+    │  30505 MapBundle             │                          │
+    │  (encrypted zstd+base64      │                          │
+    │   file bundle)               │                          │
+    │◄─────────────────────────────│◄─────────────────────────┤
+    │                              │                          │
+    │  Write local map files       │                          │
 ```
 ec-connect                       Relay                     ec-gate
     │                              │                          │
@@ -375,7 +530,8 @@ a `created_at` timestamp. `ec-gate` rejects requests with:
 - A `d` nonce that has been seen before (prevents immediate replays)
 
 The nonce also binds the response to the request: `ec-connect` only
-accepts a 30502/30503 whose `d` tag matches the nonce it generated.
+accepts a 30502/30503 or 30505/30506 whose `d` tag matches the nonce it
+generated.
 
 ### Invite Code Security
 
@@ -408,10 +564,11 @@ key (which only exists in `ec-connect`'s memory).
 
 ### NIP-44 Encryption
 
-SessionReady (30502) and SessionError (30503) payloads are NIP-44
-encrypted to the player's npub. This prevents relay operators and
-observers from reading SSH connection details or error messages. The
-encryption uses secp256k1 ECDH shared secret with XChaCha20-Poly1305.
+SessionReady (30502), SessionError (30503), MapBundle (30505), and
+MapError (30506) payloads are NIP-44 encrypted to the player's npub.
+This prevents relay operators and observers from reading SSH connection
+details, map contents, or error messages. The encryption uses secp256k1
+ECDH shared secret with XChaCha20-Poly1305.
 
 SessionRequest (30501) content (the invite code) is not encrypted by
 default. The code is a one-time bearer token that becomes useless after

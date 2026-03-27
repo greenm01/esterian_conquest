@@ -120,6 +120,13 @@ pub fn parse_config_str(kdl: &str) -> Result<ConnectConfig, Box<dyn std::error::
                     .to_string();
                 config.default_server = Some(name);
             }
+            "maps-dir" => {
+                let path = node
+                    .get(0usize)
+                    .and_then(|v| v.as_string())
+                    .ok_or("maps-dir node requires a string argument")?;
+                config.maps_dir = Some(PathBuf::from(path));
+            }
             // Unknown nodes are silently ignored for forward compatibility.
             _ => {}
         }
@@ -144,6 +151,12 @@ pub fn render_config(config: &ConnectConfig) -> String {
     }
     if let Some(default) = &config.default_server {
         out.push_str(&format!("default \"{}\"\n", kdl_escape(default)));
+    }
+    if let Some(maps_dir) = &config.maps_dir {
+        out.push_str(&format!(
+            "maps-dir \"{}\"\n",
+            kdl_escape(&maps_dir.to_string_lossy())
+        ));
     }
     out
 }

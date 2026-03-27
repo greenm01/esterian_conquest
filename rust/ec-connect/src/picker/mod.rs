@@ -16,6 +16,7 @@ pub mod event;
 pub mod render;
 
 use std::io;
+use std::path::{Path, PathBuf};
 
 use crossterm::event::EnableMouseCapture;
 use crossterm::execute;
@@ -28,8 +29,10 @@ use ratatui::backend::CrosstermBackend;
 
 use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
+use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
+use crate::map_store::save_map_bundle;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -126,6 +129,7 @@ pub fn run_picker(
     gate_npub: String,
     identity_count: usize,
     identity_type: String,
+    maps_root: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cache = load_cache().unwrap_or_else(|_| GameCache::empty());
     let mut state = PickerState::new(cache, npub, identity_count, identity_type);
@@ -140,7 +144,14 @@ pub fn run_picker(
     // Build tokio runtime for async session calls.
     let rt = tokio::runtime::Runtime::new()?;
 
-    let result = run_loop(&mut terminal, &mut state, &keys, &gate_npub, &rt);
+    let result = run_loop(
+        &mut terminal,
+        &mut state,
+        &keys,
+        &gate_npub,
+        &maps_root,
+        &rt,
+    );
 
     // Restore terminal unconditionally.
     let _ = disable_raw_mode();
@@ -161,6 +172,7 @@ fn run_loop(
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
+    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crossterm::event::{self, Event, KeyEventKind};
@@ -184,17 +196,17 @@ fn run_loop(
 
         match state.screen {
             Screen::GameList => {
-                handle_game_list_key(key.code, state, keys, gate_npub, rt)?;
+                handle_game_list_key(key.code, state, keys, gate_npub, maps_root, rt)?;
             }
             Screen::JoinPrompt => {
-                handle_join_prompt_key(key.code, state, keys, gate_npub, rt)?;
+                handle_join_prompt_key(key.code, state, keys, gate_npub, maps_root, rt)?;
             }
             Screen::IdentityOverlay => {
                 // Any key dismisses the overlay.
                 state.screen = Screen::GameList;
             }
             Screen::GameSelect { .. } => {
-                handle_game_select_key(key.code, state, keys, rt)?;
+                handle_game_select_key(key.code, state, keys, maps_root, rt)?;
             }
         }
 
@@ -213,6 +225,7 @@ fn handle_game_list_key(
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
+    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crossterm::event::KeyCode;
@@ -230,6 +243,9 @@ fn handle_game_list_key(
             state.screen = Screen::JoinPrompt;
             state.join_input.clear();
         }
+        KeyCode::Char('m') | KeyCode::Char('M') => {
+            redownload_selected_maps(state, keys, gate_npub, maps_root, rt)?;
+        }
         KeyCode::Up => {
             if state.selected > 0 {
                 state.selected -= 1;
@@ -245,7 +261,7 @@ fn handle_game_list_key(
                 state.status_msg = Some("No games yet. Press J to join a game.".into());
                 return Ok(());
             }
-            connect_selected(state, keys, gate_npub, rt)?;
+            connect_selected(state, keys, gate_npub, maps_root, rt)?;
         }
         _ => {}
     }
@@ -257,6 +273,7 @@ fn handle_join_prompt_key(
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
+    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crossterm::event::KeyCode;
@@ -279,7 +296,7 @@ fn handle_join_prompt_key(
                 return Ok(());
             }
             state.screen = Screen::GameList;
-            join_with_code(state, &code, keys, gate_npub, rt)?;
+            join_with_code(state, &code, keys, gate_npub, maps_root, rt)?;
         }
         _ => {}
     }
@@ -291,6 +308,7 @@ fn handle_game_select_key(
     code: crossterm::event::KeyCode,
     state: &mut PickerState,
     keys: &Keys,
+    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::connect::resolve::ResolvedTarget;
@@ -349,12 +367,17 @@ fn handle_game_select_key(
                 &npub,
                 &gate,
                 DisambigMode::Prompt,
+                maps_root,
             ));
 
             state.refresh_cache();
 
             match outcome {
-                SessionOutcome::Done { .. } => {}
+                SessionOutcome::Done { notice, .. } => {
+                    if let Some(msg) = notice {
+                        state.status_msg = Some(msg);
+                    }
+                }
                 SessionOutcome::Error(msg) => {
                     state.status_msg = Some(format!("Error: {msg}"));
                 }
@@ -379,6 +402,7 @@ fn connect_selected(
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
+    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::config::ConnectConfig;
@@ -411,12 +435,17 @@ fn connect_selected(
         &state.npub,
         &effective_gate,
         DisambigMode::Picker,
+        maps_root,
     ));
 
     state.refresh_cache();
 
     match outcome {
-        SessionOutcome::Done { .. } => {}
+        SessionOutcome::Done { notice, .. } => {
+            if let Some(msg) = notice {
+                state.status_msg = Some(msg);
+            }
+        }
         SessionOutcome::Error(msg) => {
             state.status_msg = Some(format!("Error: {msg}"));
         }
@@ -445,6 +474,7 @@ fn join_with_code(
     code: &str,
     keys: &Keys,
     gate_npub: &str,
+    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::config::ConnectConfig;
@@ -465,6 +495,7 @@ fn join_with_code(
         &state.npub,
         gate_npub,
         DisambigMode::Picker,
+        maps_root,
     ));
 
     state.refresh_cache();
@@ -472,7 +503,11 @@ fn join_with_code(
     state.selected = 0;
 
     match outcome {
-        SessionOutcome::Done { .. } => {}
+        SessionOutcome::Done { notice, .. } => {
+            if let Some(msg) = notice {
+                state.status_msg = Some(msg);
+            }
+        }
         SessionOutcome::Error(msg) => {
             state.status_msg = Some(format!("Error: {msg}"));
         }
@@ -488,6 +523,69 @@ fn join_with_code(
                 relay_url: target.relay_url.clone(),
                 gate_npub: gate_npub.to_string(),
             };
+        }
+    }
+
+    Ok(())
+}
+
+fn redownload_selected_maps(
+    state: &mut PickerState,
+    keys: &Keys,
+    gate_npub: &str,
+    maps_root: &Path,
+    rt: &tokio::runtime::Runtime,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::config::ConnectConfig;
+    use crate::config::load_config;
+
+    let sorted = state.cache.sorted();
+    let Some(game) = sorted.get(state.selected).copied() else {
+        state.status_msg = Some("No joined games yet.".into());
+        return Ok(());
+    };
+    let game_id = game.id.clone();
+    let game_server = game.server.clone();
+    let game_port = game.port;
+    let cached_gate_npub = game.gate_npub.clone();
+
+    let effective_gate: String = if !cached_gate_npub.is_empty() {
+        cached_gate_npub
+    } else if !gate_npub.is_empty() {
+        gate_npub.to_string()
+    } else {
+        state.status_msg =
+            Some("Gate key not known for this game. Reconnect once, then try M again.".into());
+        return Ok(());
+    };
+
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let server_str = format!("{}:{}", game_server, game_port);
+    let mut target = match resolve_server(&server_str, &config) {
+        Ok(target) => target,
+        Err(err) => {
+            state.status_msg = Some(format!("Unable to resolve server: {err}"));
+            return Ok(());
+        }
+    };
+    target.game_id = Some(game_id.clone());
+
+    drop(sorted);
+
+    let result = rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game_id));
+    match result {
+        Ok(bundle) => {
+            match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root) {
+                Ok(path) => {
+                    state.status_msg = Some(format!("Maps saved to {}", path.display()));
+                }
+                Err(err) => {
+                    state.status_msg = Some(format!("Unable to save maps: {err}"));
+                }
+            }
+        }
+        Err(err) => {
+            state.status_msg = Some(format!("Unable to download maps: {err}"));
         }
     }
 

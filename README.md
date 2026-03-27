@@ -55,7 +55,10 @@ available for anyone running directly from a Rust workspace.
 
 For hosted multiplayer over Nostr, the public operator surface is
 `ec-sysop nostr ...`. `ec-cli` remains developer/oracle tooling and is not
-part of the shipped player/sysop bundle.
+part of the shipped player/sysop bundle. On a successful first-time
+invite-code join, `ec-connect` also downloads the campaign's static
+player-safe starmap bundle so the player has the printable text map and
+CSV exports locally without needing separate sysop file delivery.
 
 In local terminal sessions, players can switch between the campaign's
 available ANSI themes from the client itself. `ec-game` ships with `classic`,

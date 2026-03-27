@@ -23,6 +23,7 @@ pub mod game_config;
 mod intel;
 pub mod maintenance_types;
 mod map_dimensions;
+mod map_export;
 mod player_mail;
 mod records;
 mod report_blocks;
@@ -64,6 +65,10 @@ pub use maintenance_types::{
     ShipLosses, StarbaseDestroyedEvent,
 };
 pub use map_dimensions::map_size_for_player_count;
+pub use map_export::{
+    PlayerMapExportData, PlayerMapExportFile, STARMAP_CSV_FILE_NAME, STARMAP_DETAILS_CSV_FILE_NAME,
+    STARMAP_TEXT_FILE_NAME, build_player_map_export_data,
+};
 pub use player_mail::{
     MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, QueuedPlayerMail, append_mail_queue,
     clear_mail_queue, load_mail_queue, queued_message_count_for_sender_recipient_year,

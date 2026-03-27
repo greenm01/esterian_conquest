@@ -18,8 +18,10 @@ use nostr_sdk::Keys;
 use crate::cache::{CachedGame, GameCache, load_cache, save_cache};
 use crate::connect::bridge::run_bridge;
 use crate::connect::handshake::{GameEntry, HandshakeResult, SessionReadyPayload, run_handshake};
+use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::ResolvedTarget;
 use crate::connect::ssh_key::EphemeralKeypair;
+use crate::map_store::save_map_bundle;
 use crate::wallet::io::now_iso8601;
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -37,7 +39,10 @@ pub enum DisambigMode {
 #[derive(Debug)]
 pub enum SessionOutcome {
     /// The session completed normally; `exit_code` is the SSH exit status.
-    Done { exit_code: u32 },
+    Done {
+        exit_code: u32,
+        notice: Option<String>,
+    },
     /// A non-recoverable error (auth failure, network error, etc.).
     Error(String),
     /// The handshake timed out.
@@ -66,9 +71,19 @@ pub async fn run_session(
     username: &str,
     gate_npub: &str,
     disambig: DisambigMode,
+    maps_root: &std::path::Path,
 ) -> SessionOutcome {
     let keypair = EphemeralKeypair::generate();
-    run_session_with_keypair(player_keys, target, username, gate_npub, disambig, keypair).await
+    run_session_with_keypair(
+        player_keys,
+        target,
+        username,
+        gate_npub,
+        disambig,
+        maps_root,
+        keypair,
+    )
+    .await
 }
 
 // ── Inner implementation (allows retry with same keypair after disambig) ───────
@@ -79,8 +94,10 @@ async fn run_session_with_keypair(
     username: &str,
     gate_npub: &str,
     disambig: DisambigMode,
+    maps_root: &std::path::Path,
     keypair: EphemeralKeypair,
 ) -> SessionOutcome {
+    let first_join = target.invite_code.is_some();
     // ── Handshake ─────────────────────────────────────────────────────────────
     let result = match run_handshake(
         player_keys,
@@ -116,6 +133,7 @@ async fn run_session_with_keypair(
                                     username,
                                     gate_npub,
                                     DisambigMode::Prompt,
+                                    maps_root,
                                     retry_keypair,
                                 ))
                                 .await
@@ -137,17 +155,40 @@ async fn run_session_with_keypair(
         HandshakeResult::Ready(payload) => {
             // Update game cache before starting the bridge.
             upsert_cache_entry(&payload, username, gate_npub, &target);
+            let map_notice = if first_join {
+                auto_fetch_maps(player_keys, &target, gate_npub, &payload, maps_root).await
+            } else {
+                None
+            };
 
             // Run the SSH bridge.
             match run_bridge(&payload, &keypair, username).await {
                 Ok(exit_code) => {
                     // Update last-connected timestamp.
                     touch_cache_entry(&payload.game_id);
-                    SessionOutcome::Done { exit_code }
+                    SessionOutcome::Done {
+                        exit_code,
+                        notice: map_notice,
+                    }
                 }
                 Err(e) => SessionOutcome::Error(format!("bridge error: {e}")),
             }
         }
+    }
+}
+
+async fn auto_fetch_maps(
+    player_keys: &Keys,
+    target: &ResolvedTarget,
+    gate_npub: &str,
+    payload: &SessionReadyPayload,
+    maps_root: &std::path::Path,
+) -> Option<String> {
+    match fetch_map_bundle(player_keys, target, gate_npub, &payload.game_id).await {
+        Ok(bundle) => save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root)
+            .err()
+            .map(|err| format!("Warning: unable to save starmaps: {err}")),
+        Err(err) => Some(format!("Warning: unable to download starmaps: {err}")),
     }
 }
 

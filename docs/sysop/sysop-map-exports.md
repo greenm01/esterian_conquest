@@ -3,11 +3,12 @@
 This document covers the EC player map-delivery workflow.
 
 The goal is to keep the classic printable starmap while making it practical for
-modern local play and BBS-hosted Rust deployments:
+modern local play, BBS-hosted Rust deployments, and hosted Nostr play:
 
-- players can still trigger a full text starmap dump from `M`
-- the Rust client can also write downloadable map files
-- sysops can stage those files into a BBS download/queue area
+- hosted Nostr players receive the static map bundle automatically on first join
+- hosted Nostr players can manually re-download the bundle later from `ec-connect`
+- local and BBS players can still export the same player-safe map files directly
+- sysops can still stage those files into a BBS download/queue area when needed
 
 ## What Gets Exported
 
@@ -31,6 +32,28 @@ Fog-of-war policy:
 - world details only come from that player's `DATABASE.DAT`
 - undiscovered worlds still appear on the map as locations
 - undiscovered detail fields stay blank/unknown in the companion exports
+
+## Hosted Nostr Delivery
+
+When a player joins a game through `ec-connect` with an invite code,
+`ec-connect` automatically requests the static map bundle from the daemon
+behind `ec-sysop nostr serve` before it opens SSH into `ec-game`.
+
+Current behavior:
+
+- the bundle contains `starmap.txt`, `starmap.csv`, and `starmap-DETAILS.csv`
+- the payload is NIP-44 encrypted and each file is compressed with `zstd`
+- the download is best-effort and does not block gameplay if it fails
+- reconnects do not auto-refresh maps, because the star layout does not
+  change during the campaign
+- players can re-download the selected game's bundle from the picker with
+  `M`
+
+By default, `ec-connect` stores bundles in its platform-local data area.
+Players can override the root with:
+
+- `maps-dir` in `~/.config/ec/config.kdl`
+- `--maps-dir <PATH>` on the `ec-connect` command line
 
 ## Local / Hotseat Usage
 
@@ -129,7 +152,8 @@ web-backed delivery path after the door exits.
 
 ## Telnet Screen Capture
 
-The `M` command still supports the classic map-capture workflow.
+Inside `ec-game`, the `M` command still supports the classic map-capture
+workflow.
 
 Current Rust behavior:
 

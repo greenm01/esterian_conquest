@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use ec_gate::config::AuthKeysMethod;
 use ec_gate::config::io::{config_path, load_config, parse_config_str};
@@ -19,6 +20,11 @@ key-ttl 60
 game "/srv/ec/friday-night"
 game "/srv/ec/saturday-showdown"
 "#;
+
+fn env_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[test]
 fn parse_canonical_config() {
@@ -176,16 +182,26 @@ fn load_config_missing_file_is_error() {
 
 #[test]
 fn config_path_returns_xdg_config_home_when_set() {
+    let _guard = env_lock().lock().expect("env lock");
     // XDG_CONFIG_HOME controls the user-level fallback, but the implementation
     // still prefers /etc/ec-gate when that directory exists.
     let tmp = std::env::temp_dir().join("ec-gate-xdg-test");
-    // SAFETY: single-threaded test; no other thread reads XDG_CONFIG_HOME here.
+    let previous_xdg = std::env::var_os("XDG_CONFIG_HOME");
+    // SAFETY: guarded by the test-local environment mutex.
     unsafe {
         std::env::set_var("XDG_CONFIG_HOME", tmp.to_str().unwrap());
     }
     let path = config_path();
-    unsafe {
-        std::env::remove_var("XDG_CONFIG_HOME");
+    if let Some(value) = previous_xdg {
+        // SAFETY: guarded by the test-local environment mutex.
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", value);
+        }
+    } else {
+        // SAFETY: guarded by the test-local environment mutex.
+        unsafe {
+            std::env::remove_var("XDG_CONFIG_HOME");
+        }
     }
 
     if PathBuf::from("/etc/ec-gate").exists() {
@@ -197,13 +213,21 @@ fn config_path_returns_xdg_config_home_when_set() {
 
 #[test]
 fn config_path_falls_back_to_home_config() {
+    let _guard = env_lock().lock().expect("env lock");
     // Remove XDG_CONFIG_HOME so the fallback path is used.
-    // SAFETY: single-threaded test; no other thread reads XDG_CONFIG_HOME here.
+    let previous_xdg = std::env::var_os("XDG_CONFIG_HOME");
+    // SAFETY: guarded by the test-local environment mutex.
     unsafe {
         std::env::remove_var("XDG_CONFIG_HOME");
     }
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     let path = config_path();
+    if let Some(value) = previous_xdg {
+        // SAFETY: guarded by the test-local environment mutex.
+        unsafe {
+            std::env::set_var("XDG_CONFIG_HOME", value);
+        }
+    }
     // Path should be under HOME/.config/ec-gate/config.kdl (unless /etc/ec-gate exists).
     if !PathBuf::from("/etc/ec-gate").exists() {
         assert_eq!(

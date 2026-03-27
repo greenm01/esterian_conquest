@@ -14,6 +14,7 @@ For sysops, the public command surface is `ec-sysop nostr ...`. The
 - Manage the player roster (npub-to-seat mappings per game)
 - Provision ephemeral SSH authorized keys with `command=` restrictions
 - Publish session-ready or session-error responses to players
+- Publish compressed static map bundles to authorized players
 - Publish game definition events for discovery
 - Expire stale ephemeral keys
 - Disambiguate multi-game players
@@ -187,6 +188,32 @@ game's roster, it returns an `unknown_player` error.
   `ec-connect` presents the list to the player and retries with the
   selected `game-id` tag.
 - **No matches:** Return an `unknown_player` error.
+
+## Static Map Delivery
+
+`ec-gate` also answers player map requests after a seat has been claimed.
+This is part of the daemon behind `ec-sysop nostr serve`; there is no
+separate public map-serving command.
+
+When `ec-gate` receives a 30504 `MapRequest`:
+
+1. Read the signed player npub from the event
+2. Read the requested `game-id` tag
+3. Authorize the request by checking that the npub is bound to a seat in
+   that game's roster
+4. Build the player-safe fog-of-war starmap bundle for that seat
+5. Compress each file individually with `zstd`, base64-encode it for
+   JSON transport, and publish 30505 `MapBundle`
+
+The bundle always contains:
+
+- `starmap.txt`
+- `starmap.csv`
+- `starmap-DETAILS.csv`
+
+If the request cannot be fulfilled, `ec-gate` returns a 30506
+`MapError`. Failures here do not invalidate the player's seat or session;
+they only prevent that particular map transfer.
 
 ## SSH Key Provisioning
 

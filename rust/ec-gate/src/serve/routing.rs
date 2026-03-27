@@ -114,6 +114,31 @@ pub fn route(
     }
 }
 
+pub fn resolve_player_in_game(
+    player_pubkey: &str,
+    game_id: &str,
+    rosters: &[Roster],
+) -> Result<ResolvedSeat, RouteError> {
+    let Some(roster) = rosters.iter().find(|r| r.id == game_id) else {
+        return Err(RouteError::GameNotFound);
+    };
+
+    let Some(seat) = roster
+        .seats
+        .iter()
+        .find(|s| s.npub.as_deref() == Some(player_pubkey))
+    else {
+        return Err(RouteError::UnknownPlayerInGame);
+    };
+
+    Ok(ResolvedSeat {
+        game_id: roster.id.clone(),
+        game_name: roster.name.clone(),
+        player: seat.player,
+        player_npub: player_pubkey.to_string(),
+    })
+}
+
 // --- private routing paths ---
 
 fn route_by_code(
@@ -186,24 +211,10 @@ fn route_by_game_id(
     game_id: &str,
     rosters: &[Roster],
 ) -> RoutingDecision {
-    let Some(roster) = rosters.iter().find(|r| r.id == game_id) else {
-        return RoutingDecision::Error(RouteError::GameNotFound);
-    };
-
-    let Some(seat) = roster
-        .seats
-        .iter()
-        .find(|s| s.npub.as_deref() == Some(&request.player_pubkey))
-    else {
-        return RoutingDecision::Error(RouteError::UnknownPlayerInGame);
-    };
-
-    RoutingDecision::Provisioned(ResolvedSeat {
-        game_id: roster.id.clone(),
-        game_name: roster.name.clone(),
-        player: seat.player,
-        player_npub: request.player_pubkey.clone(),
-    })
+    match resolve_player_in_game(&request.player_pubkey, game_id, rosters) {
+        Ok(seat) => RoutingDecision::Provisioned(seat),
+        Err(err) => RoutingDecision::Error(err),
+    }
 }
 
 fn route_by_npub(request: &SessionRequest, rosters: &[Roster]) -> RoutingDecision {

@@ -69,7 +69,10 @@ Pressing `J` in the picker opens an inline invite prompt:
 ```
 
 After a successful join, the new game appears in the list and the player
-is connected immediately.
+is connected immediately. On that first successful join, `ec-connect`
+also requests the game's static starmap bundle before opening SSH. The
+download is best-effort: if it fails, the player still enters the game
+and can retry later from the picker.
 
 ### Nostr User
 
@@ -172,6 +175,9 @@ Format:
 // Default Nostr relay for session handshakes
 relay "wss://relay.example.com"
 
+// Optional override for downloaded starmap bundles
+maps-dir "/home/alice/Documents/Esterian Maps"
+
 // Server bookmarks
 server "friday" host="play.example.com" port=22
 server "local" host="localhost" port=2222
@@ -185,6 +191,7 @@ Fields:
 | Field | Description |
 |-------|-------------|
 | `relay` | Default Nostr relay URL for session handshakes. Used when no relay is specified by invite code suffix or command-line flag. |
+| `maps-dir` | Optional root directory for downloaded starmap bundles. If omitted, `ec-connect` uses the platform default local data directory. |
 | `server` | Named bookmark for a game server. `host` is required; `port` defaults to 22. |
 | `default` | Name of the server bookmark to use when `ec-connect` is invoked in direct mode with no argument and there is only one game cached for that server. |
 
@@ -221,8 +228,8 @@ Cache file at:
 Format:
 
 ```kdl
-game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
-game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." joined="2026-03-27T10:00:00Z"
+game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-27T10:00:00Z"
 ```
 
 Fields:
@@ -235,6 +242,7 @@ Fields:
 | `port` | SSH port |
 | `seat` | Player seat number (1-based) |
 | `npub` | The identity that joined this game |
+| `gate-npub` | The Nostr public key for the daemon that served this game. Used for reconnects and manual map downloads. |
 | `joined` | Timestamp of first join |
 | `last-connected` | Timestamp of most recent connection (updated each session) |
 
@@ -276,7 +284,9 @@ ec-connect id switch N               Switch active identity to index N
 ### Options
 
 ```
+--gate <NPUB>           Gate daemon Nostr public key (required for direct mode and first-time joins)
 --relay <URL>          Override Nostr relay URL
+--maps-dir <PATH>      Override where downloaded starmap bundles are stored
 --version              Print version
 --help                 Print help
 ```
@@ -297,7 +307,7 @@ manage identity.
    Saturday Showdown   war.example.com     Seat 5    (2 days ago)
 
  ─────────────────────────────────────────────────────────────────
- [J] Join new game   [I] Identity info   [Q] Quit
+ [J] Join new game   [M] Download maps   [I] Identity info   [Q] Quit
 ```
 
 Columns: game name, server hostname, seat number, relative time since
@@ -312,6 +322,7 @@ prompting the player to join a game.
 | Up/Down | Move selection |
 | Enter | Connect to selected game |
 | `J` | Enter invite code to join a new game |
+| `M` | Re-download the selected game's static starmap bundle |
 | `I` | Show active identity (npub, number of identities in wallet) |
 | `Q` / Esc | Quit |
 
@@ -328,6 +339,12 @@ presses Enter. `ec-connect` resolves the server, runs the Nostr
 handshake, and if successful, adds the game to the list and connects
 immediately. Esc cancels and returns to the game list.
 
+After a successful first-time join, `ec-connect` performs a second Nostr
+request to download the campaign's static map bundle. The bundle is
+saved locally before SSH starts if the transfer succeeds. If the bundle
+cannot be fetched or written, `ec-connect` shows a warning but still
+continues into gameplay.
+
 ### Identity Display
 
 Pressing `I` shows a brief overlay or status line:
@@ -338,6 +355,18 @@ Pressing `I` shows a brief overlay or status line:
 
 Full identity management (import, switch, backup) uses the CLI
 subcommands rather than TUI screens.
+
+### Manual Map Re-Download
+
+Pressing `M` in the picker downloads the selected game's current static
+map bundle again and overwrites the local copy atomically. This is meant
+for recovering the files on a new machine, after moving the save path,
+or after manually deleting the local bundle.
+
+The static star layout does not change during the campaign, so
+`ec-connect` does not refresh maps automatically on normal reconnects.
+Players fetch once on first join, then only when they explicitly ask to
+download again.
 
 ### Post-Session Behavior
 
@@ -424,23 +453,27 @@ Connecting...
    the SSH host, port, server host key fingerprint, game ID, game name,
    and seat number.
 9. Update the local game cache with the connection details.
-10. Disconnect from the Nostr relay. The relay is no longer needed.
-11. Tear down the picker screen (if in picker mode) and put the local
+10. If this was a first-time invite-code join, issue a 30504 MapRequest
+    for the joined game. On 30505, save the decrypted `starmap.txt`,
+    `starmap.csv`, and `starmap-DETAILS.csv` bundle under the resolved
+    maps directory. If the request fails, record a warning and continue.
+11. Disconnect from the Nostr relay. The relay is no longer needed.
+12. Tear down the picker screen (if in picker mode) and put the local
     terminal into raw mode.
-12. Open an SSH connection to the server using the ephemeral keypair.
+13. Open an SSH connection to the server using the ephemeral keypair.
     Verify the host key fingerprint matches the one in the SessionReady
     payload (or a cached known host).
-13. Attach stdin/stdout to the SSH channel. Forward terminal resize
+14. Attach stdin/stdout to the SSH channel. Forward terminal resize
     events (SIGWINCH on Unix, console events on Windows) as SSH
     window-change requests.
-14. The player is now in `ec-game`.
+15. The player is now in `ec-game`.
 
 ### Disconnect
 
-15. When the SSH channel closes (player quits the game or connection
+16. When the SSH channel closes (player quits the game or connection
     drops), restore the local terminal to normal mode.
-16. The ephemeral SSH keypair is discarded (it was only in memory).
-17. In picker mode: redraw the picker screen with updated
+17. The ephemeral SSH keypair is discarded (it was only in memory).
+18. In picker mode: redraw the picker screen with updated
     `last-connected` timestamps. In direct mode: exit.
 
 ### Error
@@ -502,14 +535,32 @@ hosts use `wss://`.
 
 ## File Locations
 
-| File | Path | Purpose |
+By default, `ec-connect` stores its files under the platform's local app
+data directory. On Linux this is typically XDG-style under
+`~/.local/share`. On macOS and Windows, `ec-connect` uses the equivalent
+local application-data location provided by the `dirs` crate.
+
+| File | Default Linux-style path | Purpose |
 |------|------|---------|
-| Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay |
+| Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay, optional `maps-dir` override |
 | Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
+| Maps root | `~/.local/share/ec/maps/` | Downloaded static map bundles |
 
-On Windows, these use the platform-equivalent directories via the `dirs`
-crate (e.g., `%APPDATA%\ec\config.kdl`).
+Within the maps root, bundles are stored as:
+
+```text
+<maps-root>/<server_host>_<port>/<game_id>/
+  starmap.txt
+  starmap.csv
+  starmap-DETAILS.csv
+```
+
+Path resolution priority for the maps root is:
+
+1. `--maps-dir <PATH>` on the current `ec-connect` invocation
+2. `maps-dir` in `config.kdl`
+3. Platform default local app-data directory
 
 ## Crate Dependencies
 

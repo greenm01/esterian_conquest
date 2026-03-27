@@ -4,9 +4,12 @@
 //! events addressed to this daemon's npub, and dispatches each event through
 //! the routing layer.  On a successful route it provisions an SSH key and
 //! publishes 30502 SessionReady.  On a routing error it publishes 30503
-//! SessionError.  A background reaper task periodically removes expired keys.
+//! SessionError.  It also serves 30504 starmap requests with 30505 MapBundle
+//! or 30506 MapError.  A background reaper task periodically removes expired
+//! keys.
 
 pub mod game_def;
+pub mod map;
 pub mod provision;
 pub mod request;
 pub mod response;
@@ -15,6 +18,7 @@ pub mod routing;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use ec_data::build_player_map_export_data;
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
 use tokio::time::{Duration, interval};
 use tracing::{Instrument, debug, error, info, info_span, warn};
@@ -28,7 +32,8 @@ use crate::roster::io::load_roster;
 /// Connects to `config.relay`, loads all configured game rosters into memory,
 /// subscribes to 30501 events tagged to this daemon's npub, routes each event,
 /// provisions SSH keys on success, and publishes 30502/30503 back to the player.
-/// A background tokio task reaps expired keys on each `key_ttl` interval.
+/// It also serves 30504 map requests with 30505/30506 responses. A background
+/// tokio task reaps expired keys on each `key_ttl` interval.
 pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn std::error::Error>> {
     let npub = keys
         .public_key()
@@ -64,9 +69,9 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
         .map_err(|e| format!("add_relay: {e}"))?;
     client.connect().await;
 
-    // Subscribe: kind 30501 events addressed to our pubkey via `p` tag.
+    // Subscribe: kind 30501 and 30504 events addressed to our pubkey via `p` tag.
     let filter = Filter::new()
-        .kind(Kind::Custom(30501))
+        .kinds([Kind::Custom(30501), Kind::Custom(30504)])
         .pubkey(keys.public_key());
 
     client
@@ -122,28 +127,52 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
             let client_clone = client.clone();
             async move {
                 if let RelayPoolNotification::Event { event, .. } = notification {
-                    match request::parse_session_request(&event) {
-                        Ok(req) => {
-                            // Build the per-request span with fields known at parse time.
-                            let span = info_span!(
-                                "request",
-                                player_npub = %req.player_pubkey,
-                                nonce = %req.nonce,
-                            );
-                            handle_request(
-                                req,
-                                shared_rosters,
-                                shared_dirs,
-                                shared_keys,
-                                shared_config,
-                                client_clone,
-                            )
-                            .instrument(span)
-                            .await;
-                        }
-                        Err(e) => {
-                            debug!(error = %e, "rejected event");
-                        }
+                    match event.kind.as_u16() {
+                        30501 => match request::parse_session_request(&event) {
+                            Ok(req) => {
+                                let span = info_span!(
+                                    "request",
+                                    player_npub = %req.player_pubkey,
+                                    nonce = %req.nonce,
+                                );
+                                handle_request(
+                                    req,
+                                    shared_rosters,
+                                    shared_dirs,
+                                    shared_keys,
+                                    shared_config,
+                                    client_clone,
+                                )
+                                .instrument(span)
+                                .await;
+                            }
+                            Err(e) => {
+                                debug!(error = %e, "rejected event");
+                            }
+                        },
+                        30504 => match map::parse_map_request(&event) {
+                            Ok(req) => {
+                                let span = info_span!(
+                                    "map_request",
+                                    player_npub = %req.player_pubkey,
+                                    nonce = %req.nonce,
+                                    game_id = %req.game_id,
+                                );
+                                handle_map_request(
+                                    req,
+                                    shared_rosters,
+                                    shared_dirs,
+                                    shared_keys,
+                                    client_clone,
+                                )
+                                .instrument(span)
+                                .await;
+                            }
+                            Err(e) => {
+                                debug!(error = %e, "rejected map event");
+                            }
+                        },
+                        _ => {}
                     }
                 }
                 // Return false to keep the loop running.
@@ -154,6 +183,151 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
         .map_err(|e| format!("notification loop: {e}"))?;
 
     Ok(())
+}
+
+async fn handle_map_request(
+    req: map::MapRequest,
+    shared_rosters: Arc<Mutex<Vec<Roster>>>,
+    shared_dirs: Arc<Vec<std::path::PathBuf>>,
+    shared_keys: Arc<Keys>,
+    client: Client,
+) {
+    let player_pubkey = match PublicKey::from_hex(&req.player_pubkey) {
+        Ok(pk) => pk,
+        Err(e) => {
+            warn!(error = %e, "cannot parse player pubkey for map request");
+            return;
+        }
+    };
+
+    let (seat, game_dir) = {
+        let rosters = shared_rosters.lock().unwrap();
+        match routing::resolve_player_in_game(&req.player_pubkey, &req.game_id, &rosters) {
+            Ok(seat) => {
+                let game_dir = rosters
+                    .iter()
+                    .position(|roster| roster.id == seat.game_id)
+                    .and_then(|idx| shared_dirs.get(idx))
+                    .cloned();
+                (Ok(seat), game_dir)
+            }
+            Err(err) => (Err(err), None),
+        }
+    };
+
+    let seat = match seat {
+        Ok(seat) => seat,
+        Err(routing::RouteError::GameNotFound) => {
+            if let Err(err) = map::publish_map_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "game_not_found",
+                "The requested game was not found on this server.",
+            )
+            .await
+            {
+                error!(error = %err, "failed to publish 30506 MapError");
+            }
+            return;
+        }
+        Err(_) => {
+            if let Err(err) = map::publish_map_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "unknown_player",
+                "Your identity is not enrolled in that game.",
+            )
+            .await
+            {
+                error!(error = %err, "failed to publish 30506 MapError");
+            }
+            return;
+        }
+    };
+
+    let Some(game_dir) = game_dir else {
+        if let Err(err) = map::publish_map_error(
+            &client,
+            &shared_keys,
+            &player_pubkey,
+            &req.nonce,
+            "map_unavailable",
+            "The starmap bundle is not available right now.",
+        )
+        .await
+        {
+            error!(error = %err, "failed to publish 30506 MapError");
+        }
+        return;
+    };
+
+    let export = match build_player_map_export_data(&game_dir, seat.player) {
+        Ok(export) => export,
+        Err(err) => {
+            warn!(game_id = %seat.game_id, error = %err, "unable to build starmap bundle");
+            if let Err(pub_err) = map::publish_map_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "map_unavailable",
+                "The starmap bundle is not available right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30506 MapError");
+            }
+            return;
+        }
+    };
+
+    match map::publish_map_bundle(
+        &client,
+        &shared_keys,
+        &player_pubkey,
+        &req.nonce,
+        &seat,
+        &export,
+    )
+    .await
+    {
+        Ok(event_id) => {
+            info!(game_id = %seat.game_id, event_id = %event_id, "published 30505 MapBundle");
+        }
+        Err(map::PublishMapBundleError::PayloadTooLarge) => {
+            if let Err(err) = map::publish_map_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "payload_too_large",
+                "The starmap bundle is too large to deliver in one message.",
+            )
+            .await
+            {
+                error!(error = %err, "failed to publish 30506 MapError");
+            }
+        }
+        Err(err) => {
+            warn!(game_id = %seat.game_id, error = %err, "failed to publish map bundle");
+            if let Err(pub_err) = map::publish_map_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "map_unavailable",
+                "The starmap bundle is not available right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30506 MapError");
+            }
+        }
+    }
 }
 
 /// Process one validated session request inside its tracing span.

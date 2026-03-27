@@ -15,6 +15,7 @@ fn parse_empty_string_returns_empty_config() {
     assert!(config.relay.is_none());
     assert!(config.servers.is_empty());
     assert!(config.default_server.is_none());
+    assert!(config.maps_dir.is_none());
 }
 
 #[test]
@@ -24,6 +25,7 @@ relay "wss://relay.example.com"
 server "friday" host="play.example.com" port=22
 server "local" host="localhost" port=2222
 default "friday"
+maps-dir "/tmp/ec-maps"
 "#;
     let config = parse_config_str(kdl).unwrap();
     assert_eq!(config.relay.as_deref(), Some("wss://relay.example.com"));
@@ -35,6 +37,7 @@ default "friday"
     assert_eq!(config.servers[1].host, "localhost");
     assert_eq!(config.servers[1].port, 2222);
     assert_eq!(config.default_server.as_deref(), Some("friday"));
+    assert_eq!(config.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
 }
 
 #[test]
@@ -98,6 +101,7 @@ fn render_full_config_roundtrip() {
             },
         ],
         default_server: Some("alpha".to_string()),
+        maps_dir: Some(PathBuf::from("/tmp/ec-maps")),
     };
 
     let rendered = render_config(&config);
@@ -110,6 +114,7 @@ fn render_full_config_roundtrip() {
     assert_eq!(parsed.servers[1].name, "local");
     assert_eq!(parsed.servers[1].port, 2222);
     assert_eq!(parsed.default_server.as_deref(), Some("alpha"));
+    assert_eq!(parsed.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
 }
 
 #[test]
@@ -118,6 +123,7 @@ fn render_escapes_special_chars() {
         relay: Some("wss://re\"lay.example.com".to_string()),
         servers: vec![],
         default_server: None,
+        maps_dir: None,
     };
     let rendered = render_config(&config);
     // Must parse back without error.
@@ -139,6 +145,7 @@ fn server_lookup_by_name() {
             port: 22,
         }],
         default_server: None,
+        maps_dir: None,
     };
     let s = config.server("prod").unwrap();
     assert_eq!(s.host, "prod.example.com");
@@ -177,6 +184,7 @@ fn save_load_config_roundtrip() {
             port: 2222,
         }],
         default_server: Some("test".to_string()),
+        maps_dir: Some(PathBuf::from("/tmp/ec-maps")),
     };
 
     save_config_to(&config, &path).unwrap();
@@ -186,6 +194,7 @@ fn save_load_config_roundtrip() {
     assert_eq!(loaded.servers.len(), 1);
     assert_eq!(loaded.servers[0].port, 2222);
     assert_eq!(loaded.default_server.as_deref(), Some("test"));
+    assert_eq!(loaded.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
 
     let _ = std::fs::remove_file(&path);
 }

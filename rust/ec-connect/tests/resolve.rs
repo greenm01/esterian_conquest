@@ -167,6 +167,7 @@ fn config_with_default(host: &str, port: u16, relay: Option<&str>) -> ConnectCon
             port,
         }],
         default_server: Some("default".into()),
+        maps_dir: None,
     }
 }
 
@@ -203,6 +204,7 @@ fn resolve_invite_uses_config_relay_over_derived() {
         relay: Some("wss://relay.custom.com".into()),
         servers: vec![],
         default_server: None,
+        maps_dir: None,
     };
     let t = resolve_invite("red-fox@play.example.com", &config).unwrap();
     assert_eq!(t.relay_url, "wss://relay.custom.com");
@@ -220,6 +222,7 @@ fn resolve_invite_missing_default_bookmark_is_err() {
         relay: None,
         servers: vec![],
         default_server: Some("ghost".into()),
+        maps_dir: None,
     };
     assert!(resolve_invite("red-fox", &config).is_err());
 }
@@ -235,6 +238,7 @@ fn config_with_bookmark(name: &str, host: &str, port: u16) -> ConnectConfig {
             port,
         }],
         default_server: None,
+        maps_dir: None,
     }
 }
 
@@ -279,6 +283,7 @@ fn resolve_server_relay_from_config() {
         relay: Some("wss://relay.custom.com".into()),
         servers: vec![],
         default_server: None,
+        maps_dir: None,
     };
     let t = resolve_server("play.example.com", &config).unwrap();
     assert_eq!(t.relay_url, "wss://relay.custom.com");

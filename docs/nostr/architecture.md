@@ -239,7 +239,10 @@ cleared cache, etc.).
 On first join, the invite code uniquely identifies the game (codes are
 unique across all games on the server). No game ID is needed. After the
 join succeeds, `ec-connect` caches the game ID from the SessionReady
-payload for future connections.
+payload for future connections. It also performs a second, short Nostr
+request to fetch the game's static player-safe starmap bundle. That map
+download is best-effort and happens only on first invite-code join, not
+on every reconnect.
 
 ## Player-Side File Layout
 
@@ -251,6 +254,7 @@ platform-appropriate equivalents on Windows and macOS):
 | Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay |
 | Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
+| Maps | `~/.local/share/ec/maps/` | Downloaded static starmap bundles |
 
 Config is user-edited (server bookmarks, relay preference). Wallet and
 cache are managed by `ec-connect` and should not be hand-edited.
