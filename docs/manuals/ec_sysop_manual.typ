@@ -109,7 +109,9 @@ instance. It covers:
 
 - installing and initializing a game
 - configuration and theming
-- BBS door, SSH, and local deployment
+- recommended Nostr hosting with `ec-sysop nostr`
+- localhost and direct deployment
+- legacy BBS door compatibility
 - player management
 - turn processing and maintenance
 
@@ -127,7 +129,12 @@ manuals.
   single running game instance. Passed to all tools via `--dir`.
 
 / `ec-sysop`: The public Rust command-line sysop tool for campaign creation
-  and maintenance.
+  maintenance, and Nostr hosting.
+
+/ `ec-connect`: The player-side connection client for the recommended hosted
+  flow. It manages the player's Nostr identity, joins games by invite code,
+  downloads the static starmap bundle on first join, and opens the SSH-backed
+  `ec-game` session.
 
 / `ec-game`: The Rust TUI player client.
 
@@ -151,15 +158,18 @@ manuals.
 
 - Linux, macOS, or Windows
 - Rust toolchain (stable) to build from source, or a pre-built binary release
-- A terminal emulator for local/SSH play; a BBS server with socket support for
-  door deployment
+- For the recommended public-hosted flow: an SSH-accessible host plus a Nostr
+  relay reachable by players
+- A terminal emulator for localhost or direct SSH play
+- A BBS server with socket support only if you specifically want legacy door
+  deployment
 
 == Building from Source
 
 From the repository root:
 
 ```
-cargo build --release -p ec-sysop -p ec-game
+cargo build --release -p ec-sysop -p ec-game -p ec-connect
 ```
 
 The release binaries will be in `target/release/`.
@@ -209,7 +219,39 @@ The supported public creation flags are:
   [`--seed`], [integer], [Optional campaign seed for reproducible map generation.],
 )
 
-// ─── 4. Game Directory Structure ─────────────────────────────────────────────
+// ─── 4. Recommended Hosted Play ───────────────────────────────────────────────
+
+= Recommended Hosted Play
+
+For new public campaigns, the recommended deployment path is `ec-sysop nostr`
+plus `ec-connect`. In that model, the sysop runs the normal Rust engine on a
+host, publishes the Nostr-facing daemon, and players join from their own
+machines with invite codes. The daemon handles identity and seat routing; the
+live game still runs inside `ec-game` over SSH. This keeps the original
+asynchronous EC rhythm without requiring per-player Unix account management or
+BBS door middleware.
+
+A minimal hosted setup looks like:
+
+```
+ec-sysop new-game /path/to/mygame --players 4 --seed 1515
+ec-sysop nostr init
+ec-sysop nostr serve
+```
+
+After the daemon is running, give each player an invite code and the daemon's
+public key. The player-facing join command is:
+
+```
+ec-connect --join amber-river@play.example.com --gate npub1...
+```
+
+On first join, `ec-connect` creates or unlocks the player's encrypted
+identity, binds that key to the seat, downloads the static starmap bundle, and
+opens the SSH-backed `ec-game` session. Returning players reconnect through
+`ec-connect` rather than launching `ec-game` directly.
+
+// ─── 5. Game Directory Structure ─────────────────────────────────────────────
 
 = Game Directory Structure
 
@@ -234,7 +276,7 @@ The supported public creation flags are:
 / `queue/`: Default directory for turn order queue files. Can be overridden
   with `--queue-dir` or the `EC_CLIENT_QUEUE_DIR` environment variable.
 
-// ─── 5. Configuration ─────────────────────────────────────────────────────────
+// ─── 6. Configuration ─────────────────────────────────────────────────────────
 
 = Configuration <configuration>
 
@@ -527,12 +569,59 @@ any other local player theme preference. In BBS door mode, monochrome output
 still comes from the separate `A>nsi color ON/OFF` toggle rather than the
 theme picker.
 
-// ─── 7. BBS Door Setup ────────────────────────────────────────────────────────
+// ─── 7. SSH Access ────────────────────────────────────────────────────────────
 
-= BBS Door Setup
+= SSH Access
 
-`ec-game` can run as a BBS door. In door mode it reads from and writes to
-a socket instead of the local TTY, using CP437 encoding and 16-color ANSI.
+The recommended hosted path above already uses SSH under the hood: players
+enter through `ec-connect`, and the daemon opens a PTY running `ec-game`.
+You can also run `ec-game` over SSH directly when you want a private
+shared-host setup, manual debugging, or a simple trusted deployment without
+the Nostr invite flow.
+
+`ec-game` runs cleanly over SSH. No special flags are required for modern
+terminal sessions.
+
+Color mode is auto-detected from the environment:
+
+- `COLORTERM=truecolor` → 24-bit RGB
+- `TERM` containing `256color` → 256-color
+- Otherwise → 16-color ANSI fallback
+
+Force a specific mode with `--color-mode` if your SSH setup does not propagate
+`COLORTERM` reliably:
+
+```
+ec-game --dir /path/to/mygame --player 1 --color-mode 256
+```
+
+UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
+Use `--encoding cp437` only if you are proxying through a BBS or a CP437
+terminal emulator over SSH.
+
+// ─── 8. Local / Direct Play ───────────────────────────────────────────────────
+
+= Local and Direct Play
+
+Localhost play remains a fully supported secondary mode for solo campaigns,
+hotseat sessions, and sysop testing. Run `ec-game` directly in your terminal:
+
+```
+ec-game --dir /path/to/mygame --player 1
+```
+
+Color mode and encoding default to `auto` / `utf8`, which is correct for
+modern terminal emulators. The client detects `COLORTERM` and `TERM`
+automatically.
+
+// ─── 9. Legacy BBS Door Setup ─────────────────────────────────────────────────
+
+= Legacy BBS Door Setup
+
+`ec-game` can still run as a BBS door. This path is preserved for classic-host
+compatibility, not as the primary recommendation for new public campaigns. In
+door mode, the client reads from and writes to a socket instead of the local
+TTY, using CP437 encoding and 16-color ANSI.
 
 == Flags for Door Mode
 
@@ -625,44 +714,6 @@ In BBS door mode, the reliable control contract is:
 
 Do not rely on arrows or `PgUp` / `PgDn` for normal play through BBS hosts.
 
-// ─── 8. SSH Access ────────────────────────────────────────────────────────────
-
-= SSH Access
-
-`ec-game` runs cleanly over SSH. No special flags are required for SSH
-sessions on modern terminals.
-
-Color mode is auto-detected from the environment:
-
-- `COLORTERM=truecolor` → 24-bit RGB
-- `TERM` containing `256color` → 256-color
-- Otherwise → 16-color ANSI fallback
-
-Force a specific mode with `--color-mode` if your SSH setup does not propagate
-`COLORTERM` reliably:
-
-```
-ec-game --dir /path/to/mygame --player 1 --color-mode 256
-```
-
-UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
-Use `--encoding cp437` only if you are proxying through a BBS or a CP437
-terminal emulator over SSH.
-
-// ─── 9. Local / Direct Play ───────────────────────────────────────────────────
-
-= Local and Direct Play
-
-For localhost play, run `ec-game` directly in your terminal:
-
-```
-ec-game --dir /path/to/mygame --player 1
-```
-
-Color mode and encoding default to `auto` / `utf8`, which is correct for
-modern terminal emulators. The client detects `COLORTERM` and `TERM`
-automatically.
-
 // ─── 10. File-Based Turn Submission ──────────────────────────────────────────
 
 = File-Based Turn Submission
@@ -752,7 +803,8 @@ into the player record for later logins.
 
 = Classic Compatibility
 
-The Rust-native public deployment path is `ec-sysop` plus `ec-game`.
+The Rust-native public deployment path is `ec-sysop nostr`, `ec-connect`, and
+`ec-game`.
 
 Classic `.DAT` import/export, oracle runs against the original binaries, and
 other preservation workflows still exist, but they belong to the internal
@@ -772,6 +824,8 @@ ec-sysop <subcommand> [options]
   columns: (auto, 1fr),
   [*Subcommand*], [*Purpose*],
   [`new-game`], [Create a fresh campaign directory. Public flags: `--players` and `--seed`.],
+  [`nostr init`], [Initialize the Nostr-hosting identity and config for the recommended public multiplayer path.],
+  [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `ec-game` sessions.],
   [`maint`], [Run one or more maintenance turns against `ecgame.db`.],
 )
 

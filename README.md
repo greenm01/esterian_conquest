@@ -27,38 +27,36 @@ old-school tension — now running on a modern Rust engine.
 
 ## Play
 
-There are three ways to run an Esterian Conquest campaign:
+If you are starting Esterian Conquest today, the recommended way to play is
+through a hosted game over Nostr with `ec-connect`. A sysop runs
+`ec-sysop nostr serve`, gives you an invite code and the host's Nostr public
+key, and you join from your own machine with one command. `ec-connect` manages
+the encrypted player identity, opens the SSH-backed `ec-game` session, and on
+the first successful join downloads the campaign's static player-safe starmap
+bundle so you have the printable text map and CSV sheets locally.
 
-- Hosted on a BBS as a door game
-- Shared on a remote host over SSH
-- Solo or hotseat on localhost
+That hosted flow is now the primary multiplayer story for the Rust edition.
+It preserves the old EC rhythm — connect, read reports, issue orders, log
+out, wait for maintenance — without requiring BBS middleware or manual Unix
+account setup. The current `ec-connect` picker still has usability work ahead
+of it, so the simplest player-facing path today is the invite-code join
+command.
 
-The most natural way to play is hosted on a BBS, the way the game was
-originally designed. A sysop runs the engine, and players call in to submit
-orders and read reports through the door. That async rhythm — log in, review
-your empire, issue orders, log out, wait for the turn to resolve — is the
-heartbeat of EC.
+Local and hotseat play remain first-class. If you want to learn the
+interface, test a scenario, or run a private campaign on one machine, you can
+still launch `ec-game` directly against a local campaign directory and play
+entirely in your own terminal.
 
-The same async feel works without BBS infrastructure. Put the campaign
-directory on a shared VPS or any machine with SSH access. Players submit turns
-on their own schedule, and a sysop runs maintenance when the year closes. Same
-game, same rhythm, no door framework required.
+BBS door hosting also remains supported, but it is now a legacy-compatibility
+path rather than the recommended modern way to host EC. The Rust door client
+still works for sysops who want the classic environment, and the original
+dropfile world remains part of the game's history, but new public-hosted games
+should start with `ec-sysop nostr` and `ec-connect`.
 
-You can also play solo or hotseat on your own machine. Create a campaign,
-submit turns for one or more empires, and run maintenance locally. No network,
-no server — just you and your terminal.
-
-The Rust client is cross-platform, built on crossterm, and runs on Linux,
-macOS, and Windows. Linux and macOS playtest bundles are supported as
-standalone archives, and the [Quick Start](#quick-start) commands remain
-available for anyone running directly from a Rust workspace.
-
-For hosted multiplayer over Nostr, the public operator surface is
-`ec-sysop nostr ...`. `ec-cli` remains developer/oracle tooling and is not
-part of the shipped player/sysop bundle. On a successful first-time
-invite-code join, `ec-connect` also downloads the campaign's static
-player-safe starmap bundle so the player has the printable text map and
-CSV exports locally without needing separate sysop file delivery.
+The Rust client stack is cross-platform. `ec-connect` and `ec-game` run on
+Linux, macOS, and Windows, and Linux and macOS playtest bundles are supported
+as standalone archives. `ec-cli` remains developer/oracle tooling and is not
+part of the shipped player/sysop bundle.
 
 In local terminal sessions, players can switch between the campaign's
 available ANSI themes from the client itself. `ec-game` ships with `classic`,
@@ -81,8 +79,9 @@ combat, fleet missions, and strategy:
 
 - **[EC Player Manual (PDF)](docs/manuals/ec_player_manual.pdf)**
 
-Sysops setting up and administering a campaign — whether on a BBS, a shared
-SSH host, or localhost — should also read:
+Sysops setting up and administering a campaign — whether through the
+recommended `ec-sysop nostr` hosted flow, on localhost, or through a legacy
+BBS door — should also read:
 
 - **[EC Sysop Manual (PDF)](docs/manuals/ec_sysop_manual.pdf)**
 
@@ -122,6 +121,29 @@ cd rust
 cargo run -q -p ec-sysop -- new-game /tmp/ec-game --players 4 --seed 1515
 ```
 
+If you are hosting the recommended public multiplayer flow, initialize and run
+the Nostr-facing daemon:
+
+```bash
+cd rust
+cargo run -q -p ec-sysop -- nostr init
+cargo run -q -p ec-sysop -- nostr serve
+```
+
+Share an invite code and the daemon's public key with each player. The
+simplest player join path today is:
+
+```bash
+cd rust
+cargo run -q -p ec-connect -- --join amber-river@play.example.com --gate npub1...
+```
+
+Add `--relay wss://relay.example.com` when you want to override relay
+discovery, and `--maps-dir /path/to/maps` when you want starmap bundles stored
+somewhere other than the platform default data directory. On the first
+successful join, `ec-connect` downloads the game's static player-safe starmap
+bundle before opening the terminal session.
+
 Run maintenance to close a year:
 
 ```bash
@@ -140,15 +162,8 @@ cd rust
 cargo run -q -p ec-sysop -- --log-file /tmp/ec-sysop.log --log-level info maint /tmp/ec-game 3
 ```
 
-Initialize and run the Nostr hosting daemon:
-
-```bash
-cd rust
-cargo run -q -p ec-sysop -- nostr init
-cargo run -q -p ec-sysop -- nostr serve
-```
-
-Launch the player client:
+If you are playing locally or running a hotseat/private test campaign, launch
+the player client directly:
 
 ```bash
 cd rust
@@ -163,8 +178,9 @@ cd rust
 cargo run -q -p ec-game -- --dir /tmp/ec-game --player 1 --log-file /tmp/ec-game-p1.log --log-level debug
 ```
 
-On a BBS, pass the drop file directly. If the caller alias is reserved in
-`config.kdl`, `ec-game` can infer the player seat automatically:
+For legacy BBS door deployments, pass the drop file directly. If the caller
+alias is reserved in `config.kdl`, `ec-game` can infer the player seat
+automatically:
 
 ```bash
 ec-game --dir /path/to/campaign --dropfile /path/to/DOOR32.SYS

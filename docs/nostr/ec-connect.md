@@ -8,10 +8,14 @@ reconnection via bookmarks.
 
 ## Player Experience
 
+In the recommended public flow, the sysop gives the player an invite code and
+the host's Nostr public key. The player joins once with `--join` and `--gate`,
+and `ec-connect` handles the identity, handshake, and terminal bridge.
+
 ### First Launch
 
 ```
-$ ec-connect --join velvet-mountain@play.example.com
+$ ec-connect --join velvet-mountain@play.example.com --gate npub1...
 No identity found. Creating one.
 Choose a password: ********
 Confirm password: ********
@@ -84,7 +88,7 @@ $ ec-connect id import
 Enter your nsec: nsec1...
 Identity imported.
 
-$ ec-connect --join copper-sunrise@play.example.com
+$ ec-connect --join copper-sunrise@play.example.com --gate npub1...
 Password: ********
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
 

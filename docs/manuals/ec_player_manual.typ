@@ -141,6 +141,27 @@ In profound respect and admiration to Bentley C. Griffith and his fellow pioneer
 
 = Quick Start
 
+=== How Most Players Join a Game Today
+
+Most new multiplayer campaigns now run through `ec-sysop nostr` and
+`ec-connect`. In practice, that means a sysop gives you an invite code and the
+host's Nostr public key, you run one join command, choose a wallet password
+the first time, and land in the game:
+
+```
+ec-connect --join amber-river@play.example.com --gate npub1...
+```
+
+On that first successful join, `ec-connect` also downloads your static
+starmap bundle so you have the printable text map and CSV sheets locally.
+After that, most players simply reconnect through `ec-connect` and play
+through the interactive client.
+
+If you are learning the interface, playing solo, or sharing one machine with
+friends, localhost and hotseat play remain fully supported. BBS door play
+still works too, but in the Rust edition it is best understood as legacy
+compatibility rather than the normal on-ramp for new players.
+
 Your objective is simple: become Emperor by dominating rivals or eliminating every serious threat.
 
 You begin with one planet at 100 production and four fleets --- two carrying an ETAC and cruiser for colonization, and two single-destroyer scouts. Set a tax rate around 50--65% on your homeworld, and use the revenue to build ships, armies, batteries, and starbases. Keep taxes low on new colonies so they develop quickly.
@@ -468,7 +489,7 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 #admonition("WARNING")[Stardock contents are a prime target for enemy bombardment. Commission your ships promptly or risk losing them before they ever see combat.]
 
-#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. Your sysop may be able to provide these on request, and local Rust-client play can export them directly from the in-game starmap view.]
+#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. In the recommended hosted flow, `ec-connect` downloads that static bundle automatically the first time you join. Local Rust-client play can also export it directly from the in-game starmap view.]
 
 #pagebreak()
 
@@ -476,7 +497,11 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 = File-Based Turn Submission
 
-The interactive TUI remains the normal way to play EC, but `ec-game` also supports a file-based turn submission path through `submit-turn`. This is useful when you are playing on localhost, on a shared host over a remote terminal, or through another client that wants to write a turn file and hand it to the engine.
+Most hosted players will simply use `ec-connect` and the interactive TUI, but
+`ec-game` also supports a file-based turn submission path through
+`submit-turn`. This is useful when you are playing on localhost, on a shared
+host over a remote terminal, or through another client that wants to write a
+turn file and hand it to the engine.
 
 This interface applies orders directly to the Rust runtime campaign state. It is not a mail queue, upload inbox, or delayed scheduler hook.
 
@@ -559,7 +584,11 @@ Most multiplayer games of the era demanded constant attention. Esterian Conquest
 *The Rust Port (2026)* \
 This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played EC on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
 
-The project has now reached a real beta stage. The Rust player and sysop tools cover the core campaign workflow, and the main work from here is broad playtesting, collecting feedback, and fixing the rough edges and bugs that only show up in live games while preserving the classic experience for BBS sysops, SSH hosts, and local players.
+The project has now reached a real beta stage. The Rust player and sysop tools
+cover the core campaign workflow, and the main work from here is broad
+playtesting, collecting feedback, and fixing the rough edges and bugs that
+only show up in live games while preserving the classic experience for Nostr
+hosts, local players, and legacy BBS sysops.
 
 *Visual Themes* \
 The `ec-game` client is themable. Each campaign has a sysop-chosen default

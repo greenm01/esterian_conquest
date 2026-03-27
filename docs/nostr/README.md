@@ -7,10 +7,12 @@ Unix accounts, BBS middleware, or manual SSH key management.
 
 ## Motivation
 
-Esterian Conquest already supports two hosting models: localhost
-single-player and BBS door integration via dropfiles. This spec adds a
-third model designed for small-group multiplayer on a VPS, where an admin
-organizes a game among friends and players connect with a single command.
+Esterian Conquest now has a recommended modern hosted path: a sysop runs
+`ec-sysop nostr serve`, players join with `ec-connect`, and the live game
+session runs inside `ec-game` over SSH. Localhost play remains a first-class
+secondary mode, and BBS door hosting remains supported for legacy
+compatibility, but Nostr-authenticated hosting is the default public story for
+new campaigns.
 
 Nostr solves the identity problem cleanly. Players authenticate with a
 secp256k1 keypair, the same cryptographic identity used across the Nostr
@@ -52,20 +54,21 @@ client with a richer interface.
 
 ## Auth Model Overview
 
-Three hosting paths, one game binary:
+Three hosting paths, one game binary, but one recommended public default:
 
 | Path | Identity | Transport | Use case |
 |------|----------|-----------|----------|
-| Localhost | None needed | Direct PTY | Single-player, development |
-| BBS door | Dropfile (caller alias) | Telnet/SSH via BBS | Traditional BBS hosting |
-| Nostr | secp256k1 keypair | SSH (via ec-connect) | VPS multiplayer |
+| Nostr | secp256k1 keypair | SSH (via `ec-connect`) | Recommended public multiplayer |
+| Localhost | None needed | Direct PTY | Solo play, hotseat, development |
+| BBS door | Dropfile (caller alias) | Telnet/SSH via BBS | Legacy compatibility hosting |
 
-The Nostr path is the focus of this spec. Players join a game by redeeming
-an invite code, which binds their Nostr public key to a player seat. On
-subsequent connections, the server recognizes their key and routes them to
-the correct game and seat automatically. Players can be in multiple games
-on the same server; `ec-connect` caches joined games locally and includes
-a game ID in reconnection requests for disambiguation.
+The Nostr path is the focus of this spec and the recommended way to host a
+shared game today. Players join by redeeming an invite code, which binds
+their Nostr public key to a player seat. On subsequent connections, the
+server recognizes their key and routes them to the correct game and seat
+automatically. Players can be in multiple games on the same server;
+`ec-connect` caches joined games locally and includes a game ID in
+reconnection requests for disambiguation.
 
 ## Player-Side Files
 
