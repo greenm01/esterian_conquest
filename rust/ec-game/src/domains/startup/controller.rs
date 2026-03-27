@@ -752,13 +752,33 @@ impl App {
             }
             ScreenId::FirstTimeJoinEmpireConfirm => {
                 if self.startup_state.first_time_rename_preloaded_empire {
-                    if self.complete_preloaded_empire_rename().is_ok() {
-                        self.startup_state.first_time_rename_preloaded_empire = false;
-                        self.current_screen = ScreenId::FirstTimeJoinSummary;
+                    match self.complete_preloaded_empire_rename() {
+                        Ok(()) => {
+                            self.startup_state.first_time_rename_preloaded_empire = false;
+                            self.current_screen = ScreenId::FirstTimeJoinSummary;
+                        }
+                        Err(_) => {
+                            self.restore_first_time_input_after_failure(
+                                ScreenId::FirstTimeJoinEmpireName,
+                                self.startup_state.first_time_empire_name.clone(),
+                                "Unable to save your empire name right now. Please try again.",
+                            );
+                        }
                     }
-                } else if self.complete_first_time_join().is_ok() {
-                    self.startup_state.first_time_reserved_player = false;
-                    self.current_screen = ScreenId::FirstTimeJoinSummary;
+                } else {
+                    match self.complete_first_time_join() {
+                        Ok(()) => {
+                            self.startup_state.first_time_reserved_player = false;
+                            self.current_screen = ScreenId::FirstTimeJoinSummary;
+                        }
+                        Err(_) => {
+                            self.restore_first_time_input_after_failure(
+                                ScreenId::FirstTimeJoinEmpireName,
+                                self.startup_state.first_time_empire_name.clone(),
+                                "Unable to join this empire right now. Please try again.",
+                            );
+                        }
+                    }
                 }
             }
             ScreenId::FirstTimeJoinSummary => {
@@ -770,15 +790,33 @@ impl App {
                 self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
             }
             ScreenId::FirstTimeHomeworldConfirm => {
-                if self.complete_first_time_homeworld_name().is_ok() {
-                    self.current_screen =
-                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                match self.complete_first_time_homeworld_name() {
+                    Ok(()) => {
+                        self.current_screen =
+                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                    }
+                    Err(_) => {
+                        self.restore_first_time_input_after_failure(
+                            ScreenId::FirstTimeHomeworldName,
+                            self.startup_state.first_time_homeworld_name.clone(),
+                            "Unable to save the homeworld name right now. Please try again.",
+                        );
+                    }
                 }
             }
             ScreenId::ColonyWorldConfirm => {
-                if self.complete_colony_world_name().is_ok() {
-                    self.current_screen =
-                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                match self.complete_colony_world_name() {
+                    Ok(()) => {
+                        self.current_screen =
+                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                    }
+                    Err(_) => {
+                        self.restore_first_time_input_after_failure(
+                            ScreenId::ColonyWorldName,
+                            self.startup_state.colony_world_name.clone(),
+                            "Unable to save the world name right now. Please try again.",
+                        );
+                    }
                 }
             }
             _ => {}
@@ -1162,6 +1200,17 @@ impl App {
         self.save_game_data()?;
         self.refresh_player_context()?;
         Ok(())
+    }
+
+    fn restore_first_time_input_after_failure(
+        &mut self,
+        screen: ScreenId,
+        input: String,
+        status: &str,
+    ) {
+        self.startup_state.first_time_input = input;
+        self.startup_state.first_time_status = Some(status.to_string());
+        self.current_screen = screen;
     }
 
     fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {

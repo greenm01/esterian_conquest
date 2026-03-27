@@ -462,6 +462,15 @@ fn advance_to_first_time_menu(app: &mut App) {
     panic!("startup did not reach first-time menu");
 }
 
+fn make_runtime_db_read_only(root: &Path) {
+    let db_path = root.join("ecgame.db");
+    let mut permissions = fs::metadata(&db_path)
+        .expect("runtime db metadata should load")
+        .permissions();
+    permissions.set_readonly(true);
+    fs::set_permissions(&db_path, permissions).expect("runtime db should become read-only");
+}
+
 fn strongest_owned_fleet_number(root: &Path) -> u16 {
     latest_runtime_state(root)
         .game_data
@@ -1558,6 +1567,67 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
 }
 
 #[test]
+fn preloaded_empire_rename_failure_returns_to_name_entry_with_status() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let attempted_name = app.startup_state.first_time_input.clone();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+
+    make_runtime_db_read_only(&fixture_dir);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+    assert!(app.startup_state.first_time_rename_preloaded_empire);
+    assert_eq!(app.startup_state.first_time_input, attempted_name);
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("Unable to save your empire name right now. Please try again.")
+    );
+}
+
+#[test]
 fn returning_player_with_owned_unnamed_colony_is_routed_to_colony_naming() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
@@ -1663,6 +1733,80 @@ fn colony_world_naming_updates_planet_and_enters_main_menu() {
     assert_eq!(
         runtime.game_data.planets.records[colony_index - 1].planet_name(),
         "New Horizon"
+    );
+}
+
+#[test]
+fn colony_world_name_failure_returns_to_name_entry_with_status() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() != 1)
+        .map(|(_, planet)| {
+            planet.set_owner_empire_slot_raw(1);
+            planet.set_planet_name("Not Named Yet");
+        })
+        .expect("need a non-homeworld planet for colony naming test");
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::ColonyWorldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+
+    for ch in "New Horizon".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
+
+    app.startup_state.colony_world_planet_record_index_1_based = Some(999);
+    make_runtime_db_read_only(&fixture_dir);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+    assert_eq!(app.startup_state.first_time_input, "New Horizon");
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("Unable to save the world name right now. Please try again.")
     );
 }
 
@@ -2168,6 +2312,160 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
             homeworld.present_production_points().unwrap_or(0),
             player.tax_rate(),
         )
+    );
+}
+
+#[test]
+fn first_time_join_failure_returns_to_name_entry_with_status() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+
+    make_runtime_db_read_only(&fixture_dir);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+    assert_eq!(app.startup_state.first_time_input, "Codex Dominion");
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("Unable to join this empire right now. Please try again.")
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("failed join screen should render");
+    assert!(
+        line_containing(
+            &terminal,
+            "Unable to join this empire right now. Please try again."
+        )
+        .contains("Unable to join this empire right now. Please try again.")
+    );
+}
+
+#[test]
+fn homeworld_name_failure_returns_to_name_entry_with_status() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::RejectFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+
+    for ch in "Codex Prime".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
+
+    make_runtime_db_read_only(&fixture_dir);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+    assert_eq!(app.startup_state.first_time_input, "Codex Prime");
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("Unable to save the homeworld name right now. Please try again.")
     );
 }
 
