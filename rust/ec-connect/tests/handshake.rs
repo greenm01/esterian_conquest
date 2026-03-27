@@ -7,11 +7,12 @@ use ec_connect::connect::handshake::{
 
 #[test]
 fn parse_ready_full_payload() {
-    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"host_fingerprint":"SHA256:abc","game_name":"Friday Night EC","seat":2,"player_name":"Empire of Sol"}"#;
+    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"ssh_user":"ecgame","host_fingerprint":"SHA256:abc","game_name":"Friday Night EC","seat":2,"player_name":"Empire of Sol"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.game_id, "friday-night");
     assert_eq!(p.ssh_host, "play.example.com");
     assert_eq!(p.ssh_port, 22);
+    assert_eq!(p.ssh_user, "ecgame");
     assert_eq!(p.host_fingerprint, "SHA256:abc");
     assert_eq!(p.game_name, "Friday Night EC");
     assert_eq!(p.seat, 2);
@@ -22,6 +23,7 @@ fn parse_ready_full_payload() {
 fn parse_ready_missing_fingerprint_defaults_to_empty() {
     let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"N","seat":1,"player_name":"P"}"#;
     let p = parse_session_ready(json).unwrap();
+    assert_eq!(p.ssh_user, "");
     assert_eq!(p.host_fingerprint, "");
 }
 
@@ -124,10 +126,11 @@ fn parse_error_escaped_message() {
 #[test]
 fn parse_ready_gate_compact_format() {
     // This matches ec-gate's SessionReadyPayload::to_json() output.
-    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"game_name":"Friday Night EC","seat":2}"#;
+    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"ssh_user":"ecgame","game_name":"Friday Night EC","seat":2}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.game_id, "friday-night");
     assert_eq!(p.seat, 2);
+    assert_eq!(p.ssh_user, "ecgame");
     assert_eq!(p.host_fingerprint, "");
     assert_eq!(p.player_name, "");
 }
@@ -156,6 +159,7 @@ fn session_ready_payload_equality() {
         game_id: "g".into(),
         ssh_host: "h".into(),
         ssh_port: 22,
+        ssh_user: "ecgame".into(),
         host_fingerprint: "fp".into(),
         game_name: "N".into(),
         seat: 1,

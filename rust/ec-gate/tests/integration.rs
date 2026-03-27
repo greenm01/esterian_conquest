@@ -20,7 +20,7 @@ use nostr_sdk::nips::nip44;
 use nostr_sdk::nips::nip44::Version;
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
 
-use ec_gate::config::{AuthKeysMethod, GateConfig};
+use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
 use ec_gate::roster::io::{load_roster, save_roster};
 use ec_gate::roster::{Roster, Seat, SeatStatus};
 use ec_gate::serve::game_def::{build_game_def_tags, sha256_hex};
@@ -74,6 +74,7 @@ fn gate_config_command(keys_dir: PathBuf) -> GateConfig {
         ssh_host: "play.example.com".to_string(),
         ssh_port: 22,
         ssh_user: "ecgame".to_string(),
+        ec_game_path: PathBuf::from(DEFAULT_EC_GAME_PATH),
         auth_keys_method: AuthKeysMethod::Command,
         auth_keys_path: keys_dir,
         key_ttl: 60,
@@ -174,6 +175,7 @@ fn full_pipeline_first_time_join_with_invite_code() {
         game_id: &seat.game_id,
         ssh_host: &config.ssh_host,
         ssh_port: config.ssh_port,
+        ssh_user: &config.ssh_user,
         game_name: &seat.game_name,
         seat: seat.player,
     };
@@ -197,6 +199,7 @@ fn full_pipeline_first_time_join_with_invite_code() {
     assert_eq!(decrypted, plaintext);
     assert!(decrypted.contains("friday-night"));
     assert!(decrypted.contains("play.example.com"));
+    assert!(decrypted.contains(r#""ssh_user":"ecgame""#));
     assert!(decrypted.contains(r#""seat":1"#));
 
     // Step E: Clean up — remove key.

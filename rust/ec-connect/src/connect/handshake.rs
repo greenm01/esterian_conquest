@@ -37,6 +37,8 @@ pub struct SessionReadyPayload {
     pub game_id: String,
     pub ssh_host: String,
     pub ssh_port: u16,
+    /// SSH username to authenticate as. Empty string if not present (old gate version).
+    pub ssh_user: String,
     /// SSH server host-key fingerprint for verification, e.g. `"SHA256:…"`.
     /// Empty string if not present (old gate version).
     pub host_fingerprint: String,
@@ -189,7 +191,8 @@ async fn publish_session_request(
 /// Expected shape (all fields required except `host_fingerprint`,
 /// `player_name`):
 /// ```json
-/// {"game_id":"...","ssh_host":"...","ssh_port":22,"host_fingerprint":"...",
+/// {"game_id":"...","ssh_host":"...","ssh_port":22,"ssh_user":"...",
+///  "host_fingerprint":"...",
 ///  "game_name":"...","seat":2,"player_name":"..."}
 /// ```
 pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
@@ -198,6 +201,7 @@ pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
     let ssh_port = extract_u32(json, "ssh_port")
         .map(|v| v as u16)
         .ok_or("missing or invalid ssh_port")?;
+    let ssh_user = extract_str(json, "ssh_user").unwrap_or_default();
     let host_fingerprint = extract_str(json, "host_fingerprint").unwrap_or_default();
     let game_name = extract_str(json, "game_name")?;
     let seat = extract_u32(json, "seat").ok_or("missing or invalid seat")?;
@@ -207,6 +211,7 @@ pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
         game_id,
         ssh_host,
         ssh_port,
+        ssh_user,
         host_fingerprint,
         game_name,
         seat,

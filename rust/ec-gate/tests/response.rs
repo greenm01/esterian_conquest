@@ -16,6 +16,7 @@ fn session_ready_payload_json_basic() {
         game_id: "friday-night",
         ssh_host: "play.example.com",
         ssh_port: 22,
+        ssh_user: "ecgame",
         game_name: "Friday Night EC",
         seat: 2,
     };
@@ -23,6 +24,7 @@ fn session_ready_payload_json_basic() {
     assert!(json.contains(r#""game_id":"friday-night""#));
     assert!(json.contains(r#""ssh_host":"play.example.com""#));
     assert!(json.contains(r#""ssh_port":22"#));
+    assert!(json.contains(r#""ssh_user":"ecgame""#));
     assert!(json.contains(r#""game_name":"Friday Night EC""#));
     assert!(json.contains(r#""seat":2"#));
 }
@@ -33,6 +35,7 @@ fn session_ready_payload_is_valid_json_structure() {
         game_id: "test",
         ssh_host: "host",
         ssh_port: 2222,
+        ssh_user: "mag",
         game_name: "Test",
         seat: 1,
     };
@@ -146,6 +149,7 @@ fn nip44_round_trip_session_ready_payload() {
         game_id: "friday-night",
         ssh_host: "play.example.com",
         ssh_port: 22,
+        ssh_user: "ecgame",
         game_name: "Friday Night EC",
         seat: 3,
     };

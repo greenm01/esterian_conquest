@@ -21,9 +21,13 @@
 //! empty (old gate version), any key is accepted.
 
 use std::env;
+use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crossterm::cursor::Show;
+use crossterm::execute;
+use crossterm::style::{Attribute, ResetColor, SetAttribute};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size as terminal_size};
 use russh::keys::ssh_key::{
     HashAlg,
@@ -32,6 +36,7 @@ use russh::keys::ssh_key::{
 use russh::keys::{PrivateKey, PrivateKeyWithHashAlg};
 use russh::{ChannelMsg, Disconnect, client};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::time::timeout;
 
 use crate::connect::handshake::SessionReadyPayload;
 use crate::connect::ssh_key::EphemeralKeypair;
@@ -40,6 +45,7 @@ use crate::connect::ssh_key::EphemeralKeypair;
 
 /// Error type for bridge operations.
 pub type BridgeError = Box<dyn std::error::Error + Send + Sync>;
+const POST_EXIT_DRAIN_GRACE: Duration = Duration::from_millis(150);
 
 /// Connect to the SSH server described by `payload`, authenticate with
 /// `keypair`, run the forced command (empty exec string), and bridge
@@ -53,6 +59,11 @@ pub async fn run_bridge(
     username: &str,
 ) -> Result<u32, BridgeError> {
     let addr = (payload.ssh_host.as_str(), payload.ssh_port);
+    let ssh_username = if payload.ssh_user.is_empty() {
+        username
+    } else {
+        payload.ssh_user.as_str()
+    };
 
     let config = Arc::new(client::Config {
         inactivity_timeout: Some(Duration::from_secs(300)),
@@ -70,7 +81,7 @@ pub async fn run_bridge(
     let hash_alg = session.best_supported_rsa_hash().await?.flatten();
     let auth_result = session
         .authenticate_publickey(
-            username,
+            ssh_username,
             PrivateKeyWithHashAlg::new(Arc::new(privkey), hash_alg),
         )
         .await?;
@@ -94,6 +105,7 @@ pub async fn run_bridge(
     enable_raw_mode()?;
     let exit_code = io_loop(&mut channel).await;
     let _ = disable_raw_mode();
+    let _ = restore_local_terminal_after_bridge();
 
     session
         .disconnect(Disconnect::ByApplication, "", "English")
@@ -170,15 +182,46 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
         }
     }
 
-    // Drain any remaining output from the channel.
-    while let Some(msg) = channel.wait().await {
-        if let ChannelMsg::Data { ref data } = msg {
-            let _ = stdout.write_all(data).await;
-            let _ = stdout.flush().await;
-        }
-    }
+    drain_post_exit_output(channel, &mut stdout).await;
 
     Ok(exit_code.unwrap_or(1))
+}
+
+async fn drain_post_exit_output(
+    channel: &mut russh::Channel<client::Msg>,
+    stdout: &mut tokio::io::Stdout,
+) {
+    loop {
+        let Ok(message) = timeout(POST_EXIT_DRAIN_GRACE, channel.wait()).await else {
+            break;
+        };
+        let Some(msg) = message else {
+            break;
+        };
+        match msg {
+            ChannelMsg::Data { ref data } => {
+                let _ = stdout.write_all(data).await;
+                let _ = stdout.flush().await;
+            }
+            ChannelMsg::Eof | ChannelMsg::Close => break,
+            _ => {}
+        }
+    }
+}
+
+fn restore_local_terminal_after_bridge() -> Result<(), BridgeError> {
+    let mut stdout = std::io::stdout();
+    write_bridge_cleanup_sequence(&mut stdout)?;
+    stdout.flush()?;
+    Ok(())
+}
+
+fn write_bridge_cleanup_sequence(
+    out: &mut impl Write,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    execute!(out, Show, SetAttribute(Attribute::Reset), ResetColor)?;
+    out.write_all(b"\r\n")?;
+    Ok(())
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -202,6 +245,25 @@ impl client::Handler for FingerprintHandler {
         }
         let actual = server_public_key.fingerprint(HashAlg::Sha256).to_string();
         Ok(actual == self.expected_fingerprint)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_bridge_cleanup_sequence;
+
+    #[test]
+    fn bridge_cleanup_restores_cursor_and_ends_on_new_line() {
+        let mut actual = Vec::new();
+        write_bridge_cleanup_sequence(&mut actual).expect("cleanup sequence should serialize");
+        assert!(
+            actual.ends_with(b"\r\n"),
+            "cleanup should leave the shell prompt on a fresh line: {actual:?}"
+        );
+        assert!(
+            actual.starts_with(b"\x1b["),
+            "cleanup should emit terminal reset/show escapes before the newline: {actual:?}"
+        );
     }
 }
 

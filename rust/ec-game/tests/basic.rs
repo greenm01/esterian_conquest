@@ -1,13 +1,16 @@
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
 use ec_compat::import_directory_snapshot;
 use ec_data::{CampaignStore, CoreGameData};
+use ec_game::terminal::ColorMode;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -73,6 +76,35 @@ fn copy_dir_all(src: &Path, dst: &Path) {
             copy_dir_all(&path, &target);
         } else {
             fs::copy(&path, &target).expect("copy file");
+        }
+    }
+}
+
+struct EnvGuard {
+    key: &'static str,
+    prior: Option<String>,
+}
+
+impl EnvGuard {
+    fn set(key: &'static str, value: Option<&str>) -> Self {
+        let prior = std::env::var(key).ok();
+        unsafe {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+        Self { key, prior }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        unsafe {
+            match &self.prior {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
         }
     }
 }
@@ -189,6 +221,33 @@ fn unreserved_dropfile_alias_without_player_still_requires_player() {
         "stderr={:?}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn detect_color_mode_treats_modern_ssh_terms_as_rich_color() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
+    let _colorterm = EnvGuard::set("COLORTERM", None);
+    let _term = EnvGuard::set("TERM", Some("xterm-kitty"));
+
+    assert_eq!(ec_game::cli::detect_color_mode(), ColorMode::TrueColor);
+}
+
+#[test]
+fn detect_color_mode_uses_color256_for_non_dumb_term_without_legacy_hint() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
+    let _colorterm = EnvGuard::set("COLORTERM", None);
+    let _term = EnvGuard::set("TERM", Some("xterm"));
+
+    assert_eq!(ec_game::cli::detect_color_mode(), ColorMode::Color256);
+}
+
+#[test]
+fn detect_color_mode_keeps_ansi16_for_dumb_term() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
+    let _colorterm = EnvGuard::set("COLORTERM", None);
+    let _term = EnvGuard::set("TERM", Some("dumb"));
+
+    assert_eq!(ec_game::cli::detect_color_mode(), ColorMode::Ansi16);
 }
 
 #[test]

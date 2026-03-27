@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ec_gate::config::{AuthKeysMethod, GateConfig};
+use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
 use ec_gate::serve::provision::{provision_key, reap_expired_keys, remove_key};
 use ec_gate::serve::routing::ResolvedSeat;
 
@@ -32,6 +32,7 @@ fn config_command(auth_keys_path: PathBuf) -> GateConfig {
         ssh_host: "play.example.com".to_string(),
         ssh_port: 22,
         ssh_user: "ecgame".to_string(),
+        ec_game_path: PathBuf::from(DEFAULT_EC_GAME_PATH),
         auth_keys_method: AuthKeysMethod::Command,
         auth_keys_path,
         key_ttl: 60,
@@ -45,6 +46,7 @@ fn config_file(auth_keys_path: PathBuf) -> GateConfig {
         ssh_host: "play.example.com".to_string(),
         ssh_port: 22,
         ssh_user: "ecgame".to_string(),
+        ec_game_path: PathBuf::from(DEFAULT_EC_GAME_PATH),
         auth_keys_method: AuthKeysMethod::File,
         auth_keys_path,
         key_ttl: 60,
@@ -146,6 +148,10 @@ fn command_key_entry_has_command_restriction() {
     assert!(
         provisioned.entry.contains(GAME_DIR),
         "entry should contain the game dir"
+    );
+    assert!(
+        provisioned.entry.contains(DEFAULT_EC_GAME_PATH),
+        "entry should contain the ec-game binary path"
     );
     assert!(
         provisioned.entry.contains("no-port-forwarding"),

@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 pub use io::{config_path, load_config, parse_config_str};
 
+pub const DEFAULT_EC_GAME_PATH: &str = "/usr/local/bin/ec-game";
+
 /// How `ec-gate` manages ephemeral SSH authorized keys.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuthKeysMethod {
@@ -30,6 +32,8 @@ pub struct GateConfig {
     pub ssh_port: u16,
     /// Service user for SSH sessions (e.g. `ecgame`).
     pub ssh_user: String,
+    /// Path to the `ec-game` binary used in forced-command SSH entries.
+    pub ec_game_path: PathBuf,
     /// How ephemeral authorized keys are stored.
     pub auth_keys_method: AuthKeysMethod,
     /// Path to the authorized keys file or directory.

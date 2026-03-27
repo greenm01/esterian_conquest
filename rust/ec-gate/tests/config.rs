@@ -4,8 +4,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
-use ec_gate::config::AuthKeysMethod;
 use ec_gate::config::io::{config_path, load_config, parse_config_str};
+use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH};
 
 // --- Canonical round-trip ---
 
@@ -14,6 +14,7 @@ relay "wss://relay.example.com"
 ssh-host "play.example.com"
 ssh-port 22
 ssh-user "ecgame"
+ec-game-path "/opt/ec/bin/ec-game"
 auth-keys-method "command"
 auth-keys-path "/var/lib/ec-gate/keys"
 key-ttl 60
@@ -33,6 +34,7 @@ fn parse_canonical_config() {
     assert_eq!(cfg.ssh_host, "play.example.com");
     assert_eq!(cfg.ssh_port, 22);
     assert_eq!(cfg.ssh_user, "ecgame");
+    assert_eq!(cfg.ec_game_path, PathBuf::from("/opt/ec/bin/ec-game"));
     assert_eq!(cfg.auth_keys_method, AuthKeysMethod::Command);
     assert_eq!(cfg.auth_keys_path, PathBuf::from("/var/lib/ec-gate/keys"));
     assert_eq!(cfg.key_ttl, 60);
@@ -60,6 +62,7 @@ game "/srv/ec/game1"
     let cfg = parse_config_str(kdl).expect("parse failed");
     assert_eq!(cfg.auth_keys_method, AuthKeysMethod::File);
     assert_eq!(cfg.ssh_port, 2222);
+    assert_eq!(cfg.ec_game_path, PathBuf::from(DEFAULT_EC_GAME_PATH));
     assert_eq!(cfg.key_ttl, 120);
     assert_eq!(cfg.games, vec![PathBuf::from("/srv/ec/game1")]);
 }

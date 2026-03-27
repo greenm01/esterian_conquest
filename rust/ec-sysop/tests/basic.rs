@@ -217,6 +217,29 @@ fn ec_sysop_nostr_serve_help_prints_usage() {
 }
 
 #[test]
+fn ec_sysop_nostr_serve_accepts_config_and_identity_flags_together() {
+    let root = unique_temp_dir("ec-sysop-nostr-serve-flags");
+    let config_path = root.join("config.kdl");
+    let identity_path = root.join("identity.kdl");
+
+    let stderr = run_ec_sysop_failure(&[
+        "nostr",
+        "serve",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+        "--identity",
+        identity_path.to_str().expect("utf-8 path"),
+    ]);
+
+    assert!(
+        !stderr.contains("unexpected argument: --identity"),
+        "serve should accept --config and --identity together"
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn ec_sysop_nostr_init_creates_identity_at_requested_path() {
     let root = unique_temp_dir("ec-sysop-nostr-init");
     let identity_path = root.join("identity.kdl");

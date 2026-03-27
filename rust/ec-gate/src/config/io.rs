@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{AuthKeysMethod, GateConfig};
+use super::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
 
 /// Resolve the config file path.
 ///
@@ -42,6 +42,10 @@ pub fn parse_config_str(text: &str) -> Result<GateConfig, String> {
     let ssh_host = top_string(&document, "ssh-host")?;
     let ssh_port = top_u16(&document, "ssh-port")?;
     let ssh_user = top_string(&document, "ssh-user")?;
+    let ec_game_path = PathBuf::from(
+        opt_top_string(&document, "ec-game-path")?
+            .unwrap_or_else(|| DEFAULT_EC_GAME_PATH.to_string()),
+    );
 
     let auth_keys_method_str = top_string(&document, "auth-keys-method")?;
     let auth_keys_method = match auth_keys_method_str.as_str() {
@@ -75,11 +79,25 @@ pub fn parse_config_str(text: &str) -> Result<GateConfig, String> {
         ssh_host,
         ssh_port,
         ssh_user,
+        ec_game_path,
         auth_keys_method,
         auth_keys_path,
         key_ttl,
         games,
     })
+}
+
+fn opt_top_string(doc: &kdl::KdlDocument, name: &str) -> Result<Option<String>, String> {
+    Ok(doc
+        .get(name)
+        .map(|node| {
+            node.entries()
+                .first()
+                .and_then(|e| e.value().as_string())
+                .map(str::to_string)
+                .ok_or_else(|| format!("`{name}` must have a string argument"))
+        })
+        .transpose()?)
 }
 
 // --- KDL helpers ---

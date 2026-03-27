@@ -317,11 +317,14 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
 ///
 /// Detection order:
 /// 1. `COLORTERM=truecolor` or `COLORTERM=24bit` → [`ColorMode::TrueColor`]
-/// 2. `TERM` containing `256color`               → [`ColorMode::Color256`]
-/// 3. Fallback                                   → [`ColorMode::Ansi16`]
+/// 2. known modern truecolor `TERM` values       → [`ColorMode::TrueColor`]
+/// 3. `TERM` containing `256color`               → [`ColorMode::Color256`]
+/// 4. any non-empty, non-`dumb` `TERM`           → [`ColorMode::Color256`]
+/// 5. fallback                                   → [`ColorMode::Ansi16`]
 ///
-/// This is intentionally conservative: we only claim a richer mode when there
-/// is explicit evidence, so the fallback is always the safest (16-color) choice.
+/// The 16-color default is reserved for BBS/door mode or genuinely minimal
+/// terminals. For normal local/SSH play, an interactive terminal should get at
+/// least 256-color output unless it explicitly identifies as `dumb`.
 pub fn detect_color_mode() -> ColorMode {
     if let Ok(colorterm) = std::env::var("COLORTERM") {
         let ct = colorterm.to_ascii_lowercase();
@@ -330,7 +333,25 @@ pub fn detect_color_mode() -> ColorMode {
         }
     }
     if let Ok(term) = std::env::var("TERM") {
+        let term = term.to_ascii_lowercase();
+        if [
+            "kitty",
+            "wezterm",
+            "ghostty",
+            "alacritty",
+            "foot",
+            "contour",
+            "rio",
+        ]
+        .iter()
+        .any(|needle| term.contains(needle))
+        {
+            return ColorMode::TrueColor;
+        }
         if term.contains("256color") {
+            return ColorMode::Color256;
+        }
+        if !term.trim().is_empty() && term != "dumb" {
             return ColorMode::Color256;
         }
     }

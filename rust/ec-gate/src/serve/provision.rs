@@ -86,7 +86,8 @@ pub fn provision_key(
     let expires_at = now + config.key_ttl;
 
     let command = format!(
-        "/usr/local/bin/ec-game --game-dir {} --player-record-index-1-based {}",
+        "{} --dir {} --player {}",
+        config.ec_game_path.display(),
         game_dir.display(),
         seat.player
     );

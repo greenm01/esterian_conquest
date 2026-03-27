@@ -128,8 +128,9 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                 return Ok(());
             }
             init_logging(parsed, true)?;
-            let config_path = parse_single_path_flag(&rest, "--config")?;
-            let identity_path = parse_single_path_flag(&rest, "--identity")?;
+            let parsed_flags = parse_path_flags(&rest, &["--config", "--identity"])?;
+            let config_path = parsed_flags.get("--config").cloned().flatten();
+            let identity_path = parsed_flags.get("--identity").cloned().flatten();
             tracing::info!(
                 config_path = ?config_path.as_ref().map(|path| path.display().to_string()),
                 identity_path = ?identity_path.as_ref().map(|path| path.display().to_string()),
@@ -166,6 +167,43 @@ fn parse_single_path_flag(
         i += 1;
     }
     Ok(value)
+}
+
+fn parse_path_flags(
+    args: &[String],
+    allowed_flags: &[&str],
+) -> Result<std::collections::BTreeMap<String, Option<PathBuf>>, Box<dyn std::error::Error>> {
+    let allowed = allowed_flags
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut values = allowed_flags
+        .iter()
+        .map(|flag| ((*flag).to_string(), None))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if let Some((flag, value)) = allowed.iter().find_map(|flag| {
+            arg.strip_prefix(&format!("{flag}="))
+                .map(|value| (*flag, value))
+        }) {
+            values.insert(flag.to_string(), Some(PathBuf::from(value)));
+            i += 1;
+            continue;
+        }
+        if allowed.contains(arg.as_str()) {
+            i += 1;
+            let Some(next) = args.get(i) else {
+                return Err(format!("missing value for {arg}").into());
+            };
+            values.insert(arg.clone(), Some(PathBuf::from(next)));
+            i += 1;
+            continue;
+        }
+        return Err(format!("unexpected argument: {arg}").into());
+    }
+    Ok(values)
 }
 
 fn parse_args(

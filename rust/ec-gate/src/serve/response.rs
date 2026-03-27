@@ -22,6 +22,7 @@ pub struct SessionReadyPayload<'a> {
     pub game_id: &'a str,
     pub ssh_host: &'a str,
     pub ssh_port: u16,
+    pub ssh_user: &'a str,
     pub game_name: &'a str,
     pub seat: usize,
 }
@@ -30,10 +31,11 @@ impl SessionReadyPayload<'_> {
     /// Serialize to a compact JSON string.
     pub fn to_json(&self) -> String {
         format!(
-            r#"{{"game_id":"{game_id}","ssh_host":"{ssh_host}","ssh_port":{ssh_port},"game_name":"{game_name}","seat":{seat}}}"#,
+            r#"{{"game_id":"{game_id}","ssh_host":"{ssh_host}","ssh_port":{ssh_port},"ssh_user":"{ssh_user}","game_name":"{game_name}","seat":{seat}}}"#,
             game_id = self.game_id,
             ssh_host = self.ssh_host,
             ssh_port = self.ssh_port,
+            ssh_user = self.ssh_user,
             game_name = self.game_name,
             seat = self.seat,
         )
@@ -57,6 +59,7 @@ pub async fn publish_session_ready(
         game_id: &seat.game_id,
         ssh_host: &config.ssh_host,
         ssh_port: config.ssh_port,
+        ssh_user: &config.ssh_user,
         game_name: &seat.game_name,
         seat: seat.player,
     };
