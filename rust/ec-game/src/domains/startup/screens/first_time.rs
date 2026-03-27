@@ -16,20 +16,23 @@ pub struct FirstTimeHelpScreen;
 pub struct FirstTimeEmpiresScreen;
 pub struct FirstTimeIntroScreen;
 
-const FIRST_TIME_ROW_1: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(2, "H", "elp with commands"),
-    MenuEntry::new(28, "L", "ist current empires"),
-    MenuEntry::new(55, "A", "nsi Theme"),
-];
-
 const FIRST_TIME_ROW_2: [MenuEntry<'static>; 3] = [
     MenuEntry::new(2, "Q", "uit back to BBS"),
     MenuEntry::new(28, "J", "oin this game"),
     MenuEntry::new(55, "V", "iew Game Introduction"),
 ];
 
-const HELP_LINES: [&str; 6] = [
-    "<A> - open the ANSI theme picker",
+const LOCAL_HELP_LINES: [&str; 6] = [
+    "<C> - open the color theme picker",
+    "<H> - describe First Time Menu commands",
+    "<J> - join the game and control an unowned empire",
+    "<L> - list all empires in the order you specify",
+    "<Q> - quit Esterian Conquest and return to the BBS",
+    "<V> - view the introduction to this game",
+];
+
+const DOOR_HELP_LINES: [&str; 6] = [
+    "<A> - turn ANSI color on or off",
     "<H> - describe First Time Menu commands",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
@@ -45,10 +48,11 @@ impl FirstTimeMenuScreen {
     pub fn render(
         &mut self,
         status: Option<&str>,
+        door_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "FIRST TIME MENU:");
-        crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+        crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
         crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
         let command_row = menu_prompt_row(2);
         if let Some(status) = status {
@@ -58,21 +62,12 @@ impl FirstTimeMenuScreen {
             &mut buffer,
             command_row,
             "FIRST TIME COMMAND",
-            "H Q L J A V",
+            first_time_command_keys(door_mode),
         );
         Ok(buffer)
     }
-}
 
-impl Screen for FirstTimeMenuScreen {
-    fn render(
-        &mut self,
-        _frame: &ScreenFrame<'_>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render(None)
-    }
-
-    fn handle_key(&self, key: KeyEvent) -> Action {
+    pub fn handle_key_for_mode(&self, key: KeyEvent, door_mode: bool) -> Action {
         match key.code {
             KeyCode::Char('h') | KeyCode::Char('H') => {
                 Action::Startup(StartupAction::OpenFirstTimeHelp)
@@ -83,7 +78,8 @@ impl Screen for FirstTimeMenuScreen {
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::Startup(StartupAction::OpenFirstTimeIntro)
             }
-            KeyCode::Char('a') | KeyCode::Char('A') => {
+            KeyCode::Char('a') | KeyCode::Char('A') if door_mode => Action::ToggleAnsiMode,
+            KeyCode::Char('c') | KeyCode::Char('C') if !door_mode => {
                 Action::Startup(StartupAction::OpenThemePicker)
             }
             KeyCode::Char('j') | KeyCode::Char('J') => {
@@ -95,9 +91,41 @@ impl Screen for FirstTimeMenuScreen {
     }
 }
 
+impl Screen for FirstTimeMenuScreen {
+    fn render(
+        &mut self,
+        _frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render(None, false)
+    }
+
+    fn handle_key(&self, key: KeyEvent) -> Action {
+        self.handle_key_for_mode(key, false)
+    }
+}
+
 impl FirstTimeHelpScreen {
     pub fn new() -> Self {
         Self
+    }
+
+    pub fn render_for_mode(
+        &mut self,
+        door_mode: bool,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_help_panel(
+            &mut buffer,
+            "FIRST TIME HELP:",
+            "Help - First Time Menu command descriptions:",
+            if door_mode {
+                &DOOR_HELP_LINES
+            } else {
+                &LOCAL_HELP_LINES
+            },
+            "FIRST TIME COMMAND",
+        );
+        Ok(buffer)
     }
 }
 
@@ -106,15 +134,7 @@ impl Screen for FirstTimeHelpScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_help_panel(
-            &mut buffer,
-            "FIRST TIME HELP:",
-            "Help - First Time Menu command descriptions:",
-            &HELP_LINES,
-            "FIRST TIME COMMAND",
-        );
-        Ok(buffer)
+        self.render_for_mode(false)
     }
 
     fn handle_key(&self, _key: KeyEvent) -> Action {
@@ -122,25 +142,62 @@ impl Screen for FirstTimeHelpScreen {
     }
 }
 
+pub fn render_first_time_reserved_prompt(
+    reserved_alias: Option<&str>,
+) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    let mut buffer = new_playfield();
+    draw_title_bar(&mut buffer, 0, "RESERVED PLAYER:");
+    buffer.write_text(
+        2,
+        0,
+        "This player seat is reserved for you.",
+        classic::body_style(),
+    );
+    if let Some(alias) = reserved_alias {
+        buffer.write_text(
+            4,
+            0,
+            &format!("Reserved caller alias: \"{alias}\"."),
+            classic::body_style(),
+        );
+    }
+    buffer.write_text(
+        6,
+        0,
+        "You may name your empire now and finish first-time setup.",
+        classic::body_style(),
+    );
+    draw_command_line_prompt_text_at(
+        &mut buffer,
+        menu_prompt_row(6),
+        "FIRST LOGIN",
+        "Continue with reserved setup? Y/[N] ->",
+    );
+    Ok(buffer)
+}
+
 pub fn render_first_time_join_name(
     rename_mode: bool,
+    reserved_mode: bool,
+    reserved_alias: Option<&str>,
     current_empire_name: &str,
     input: &str,
     status: Option<&str>,
+    door_mode: bool,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     if rename_mode {
-        draw_title_bar(&mut buffer, 0, "PRE-LOADED PLAYER:");
+        draw_title_bar(&mut buffer, 0, "FIRST LOGIN:");
         buffer.write_text(
             2,
             0,
-            "You are a pre-loaded player and this is your first time on.",
+            "This empire is already joined, and this is your first login.",
             classic::body_style(),
         );
         buffer.write_text(
             3,
             0,
-            &format!("Your empire has been pre-named as \"{current_empire_name}\"."),
+            &format!("Your empire is currently named \"{current_empire_name}\"."),
             classic::body_style(),
         );
         buffer.write_text(
@@ -152,12 +209,40 @@ pub fn render_first_time_join_name(
         buffer.write_text(
             6,
             0,
-            "Press Esc to keep the current pre-loaded empire name.",
+            "Press Esc to keep the current empire name.",
+            classic::body_style(),
+        );
+    } else if reserved_mode {
+        draw_title_bar(&mut buffer, 0, "RESERVED PLAYER:");
+        buffer.write_text(
+            2,
+            0,
+            "This player seat is reserved for you.",
+            classic::body_style(),
+        );
+        if let Some(alias) = reserved_alias {
+            buffer.write_text(
+                3,
+                0,
+                &format!("Reserved caller alias: \"{alias}\"."),
+                classic::body_style(),
+            );
+        }
+        buffer.write_text(
+            5,
+            0,
+            "Enter the name of your empire (up to 20 characters).",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            6,
+            0,
+            "Press Esc to return to the reserved player notice.",
             classic::body_style(),
         );
     } else {
         draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
-        crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+        crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
         crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
         buffer.write_text(
             4,
@@ -172,7 +257,7 @@ pub fn render_first_time_join_name(
             classic::body_style(),
         );
     }
-    let last_content_row = if rename_mode { 6 } else { 5 };
+    let last_content_row = if rename_mode || reserved_mode { 6 } else { 5 };
     let command_row = menu_prompt_row(last_content_row);
     draw_command_line_default_input_at(
         &mut buffer,
@@ -194,11 +279,13 @@ pub fn render_first_time_join_name(
 
 pub fn render_first_time_join_name_confirm(
     rename_mode: bool,
+    reserved_mode: bool,
     empire_name: &str,
+    door_mode: bool,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     if rename_mode {
-        draw_title_bar(&mut buffer, 0, "PRE-LOADED PLAYER:");
+        draw_title_bar(&mut buffer, 0, "FIRST LOGIN:");
         buffer.write_text(
             2,
             0,
@@ -208,12 +295,26 @@ pub fn render_first_time_join_name_confirm(
         buffer.write_text(
             4,
             0,
-            "Press N or Esc to keep the current pre-loaded empire name.",
+            "Press N or Esc to keep the current empire name.",
+            classic::body_style(),
+        );
+    } else if reserved_mode {
+        draw_title_bar(&mut buffer, 0, "RESERVED PLAYER:");
+        buffer.write_text(
+            2,
+            0,
+            "This reserved seat will join as the empire shown below.",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            4,
+            0,
+            "Press N or Esc to go back and edit it before joining.",
             classic::body_style(),
         );
     } else {
         draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
-        crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+        crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
         crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
         buffer.write_text(
             4,
@@ -240,21 +341,41 @@ pub fn render_first_time_join_name_confirm(
     Ok(buffer)
 }
 
+fn first_time_command_keys(door_mode: bool) -> &'static str {
+    if door_mode {
+        "H Q L J A V"
+    } else {
+        "H Q L J C V"
+    }
+}
+
+fn first_time_row_1(door_mode: bool) -> [MenuEntry<'static>; 3] {
+    [
+        MenuEntry::new(2, "H", "elp with commands"),
+        MenuEntry::new(28, "L", "ist current empires"),
+        if door_mode {
+            MenuEntry::new(55, "A", "nsi color ON/OFF")
+        } else {
+            MenuEntry::new(55, "C", "olor Theme")
+        },
+    ]
+}
+
 pub fn render_preloaded_first_login_rename_prompt(
     empire_name: &str,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
-    draw_title_bar(&mut buffer, 0, "PRE-LOADED PLAYER:");
+    draw_title_bar(&mut buffer, 0, "FIRST LOGIN:");
     buffer.write_text(
         2,
         0,
-        "You are a pre-loaded player and this is your first time on.",
+        "This empire is already joined, and this is your first login.",
         classic::body_style(),
     );
     buffer.write_text(
         4,
         0,
-        &format!("Your empire has been pre-named as \"{empire_name}\"."),
+        &format!("Your empire is currently named \"{empire_name}\"."),
         classic::body_style(),
     );
     draw_command_line_prompt_text_at(
@@ -338,7 +459,7 @@ pub fn render_first_time_homeworld_name(
         buffer.write_text(
             5,
             0,
-            "This pre-loaded empire still needs its first homeworld name.",
+            "This joined empire still needs its first homeworld name.",
             classic::body_style(),
         );
     }
@@ -389,7 +510,7 @@ pub fn render_first_time_homeworld_confirm(
         buffer.write_text(
             5,
             0,
-            "This pre-loaded empire still needs its first homeworld name.",
+            "This joined empire still needs its first homeworld name.",
             classic::body_style(),
         );
     }
@@ -493,8 +614,8 @@ impl FirstTimeEmpiresScreen {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "CURRENT EMPIRES:");
         let start_row = 2usize;
-        let visible_rows = crate::screen::layout::command_line_row_for(geometry)
-            .saturating_sub(start_row + 2);
+        let visible_rows =
+            crate::screen::layout::command_line_row_for(geometry).saturating_sub(start_row + 2);
         let mut last_content_row = 0usize;
         for (idx, row) in rows.iter().take(visible_rows).enumerate() {
             let render_row = start_row + idx;

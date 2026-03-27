@@ -56,9 +56,24 @@ impl App {
                 Action::Startup(StartupAction::Advance)
             }
             ScreenId::Startup(phase) => self.handle_startup_key(phase, key),
-            ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),
+            ScreenId::FirstTimeMenu => self
+                .first_time_menu
+                .handle_key_for_mode(key, self.door_mode),
             ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
+            ScreenId::FirstTimeReservedPrompt => match key.code {
+                crossterm::event::KeyCode::Enter
+                | crossterm::event::KeyCode::Char('y')
+                | crossterm::event::KeyCode::Char('Y') => {
+                    Action::Startup(StartupAction::AcceptFirstTimePrompt)
+                }
+                crossterm::event::KeyCode::Char('n')
+                | crossterm::event::KeyCode::Char('N')
+                | crossterm::event::KeyCode::Esc => {
+                    Action::Startup(StartupAction::RejectFirstTimePrompt)
+                }
+                _ => Action::Noop,
+            },
             ScreenId::FirstTimePreloadedRenamePrompt => match key.code {
                 crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
                     Action::Startup(StartupAction::AcceptFirstTimePrompt)
@@ -91,6 +106,8 @@ impl App {
                     }
                     crossterm::event::KeyCode::Esc => {
                         if self.startup_state.first_time_rename_preloaded_empire {
+                            Action::Startup(StartupAction::RejectFirstTimePrompt)
+                        } else if self.startup_state.first_time_reserved_player {
                             Action::Startup(StartupAction::RejectFirstTimePrompt)
                         } else {
                             Action::Startup(StartupAction::OpenFirstTimeMenu)
@@ -173,7 +190,7 @@ impl App {
                 }
                 _ => Action::Noop,
             },
-            ScreenId::MainMenu => self.main_menu.handle_key(key),
+            ScreenId::MainMenu => self.main_menu.handle_key_for_mode(key, self.door_mode),
             ScreenId::MainHelp => self.main_help.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
@@ -241,10 +258,9 @@ impl App {
             ScreenId::Starmap => self.starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
             ScreenId::PlanetDatabaseList => self.planet_database.handle_list_key(key),
-            ScreenId::PlanetDatabaseFilterPrompt => {
-                self.planet_database
-                    .handle_filter_prompt_key_for_mode(key, self.planet.database_prompt_mode)
-            }
+            ScreenId::PlanetDatabaseFilterPrompt => self
+                .planet_database
+                .handle_filter_prompt_key_for_mode(key, self.planet.database_prompt_mode),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
             ScreenId::ComposeMessageRecipient => self.message_compose.handle_recipient_key(key),

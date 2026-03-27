@@ -133,6 +133,7 @@ impl App {
             | ScreenId::FirstTimeHelp
             | ScreenId::FirstTimeEmpires
             | ScreenId::FirstTimeIntro
+            | ScreenId::FirstTimeReservedPrompt
             | ScreenId::FirstTimePreloadedRenamePrompt
             | ScreenId::FirstTimeJoinEmpireName
             | ScreenId::FirstTimeJoinEmpireConfirm

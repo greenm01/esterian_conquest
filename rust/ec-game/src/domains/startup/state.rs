@@ -26,9 +26,11 @@ pub struct StartupState {
     pub theme_picker_return_screen: Option<ScreenId>,
     pub prejoin_theme_key: Option<String>,
     pub caller_alias: Option<String>,
+    pub reserved_seat_alias: Option<String>,
     pub first_time_input: String,
     pub first_time_empire_name: String,
     pub first_time_homeworld_name: String,
+    pub first_time_reserved_player: bool,
     pub colony_world_name: String,
     pub colony_world_planet_record_index_1_based: Option<usize>,
 }
@@ -59,9 +61,11 @@ impl Default for StartupState {
             theme_picker_return_screen: None,
             prejoin_theme_key: None,
             caller_alias: None,
+            reserved_seat_alias: None,
             first_time_input: String::new(),
             first_time_empire_name: String::new(),
             first_time_homeworld_name: String::new(),
+            first_time_reserved_player: false,
             colony_world_name: String::new(),
             colony_world_planet_record_index_1_based: None,
         }

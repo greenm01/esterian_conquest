@@ -1,7 +1,7 @@
 use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
-use crate::model::{MainMenuSummary, PlayerContext};
+use crate::model::{ClassicLoginState, MainMenuSummary, PlayerContext};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
@@ -10,6 +10,14 @@ use crate::screen::{
 use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
+    fn has_reserved_seat(&self) -> bool {
+        self.startup_state.reserved_seat_alias.is_some()
+    }
+
+    fn is_reserved_first_time_login(&self) -> bool {
+        self.player.classic_login_state == ClassicLoginState::FirstTimeMenu && self.has_reserved_seat()
+    }
+
     fn theme_picker_visible_rows(&self) -> usize {
         crate::domains::startup::screens::theme_picker::theme_picker_visible_rows(
             self.screen_geometry,
@@ -432,6 +440,7 @@ impl App {
     pub fn open_first_time_menu(&mut self) {
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
+        self.startup_state.first_time_reserved_player = false;
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
@@ -452,6 +461,21 @@ impl App {
     }
 
     pub fn open_theme_picker(&mut self) {
+        if self.door_mode {
+            match self.current_screen {
+                ScreenId::FirstTimeMenu => {
+                    self.startup_state.first_time_status =
+                        Some("Theme picker unavailable in door mode.".to_string());
+                }
+                _ => {
+                    self.show_command_menu_notice(
+                        CommandMenu::Main,
+                        "Theme picker unavailable in door mode.".to_string(),
+                    );
+                }
+            }
+            return;
+        }
         let return_screen = match self.current_screen {
             ScreenId::FirstTimeMenu => ScreenId::FirstTimeMenu,
             _ => ScreenId::MainMenu,
@@ -634,6 +658,7 @@ impl App {
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
         self.startup_state.first_time_rename_preloaded_empire = false;
+        self.startup_state.first_time_reserved_player = self.is_reserved_first_time_login();
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
@@ -713,6 +738,12 @@ impl App {
 
     pub fn accept_first_time_prompt(&mut self) {
         match self.current_screen {
+            ScreenId::FirstTimeReservedPrompt => {
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input.clear();
+                self.startup_state.first_time_reserved_player = true;
+                self.current_screen = ScreenId::FirstTimeJoinEmpireName;
+            }
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input = self.player.empire_name.clone();
@@ -726,6 +757,7 @@ impl App {
                         self.current_screen = ScreenId::FirstTimeJoinSummary;
                     }
                 } else if self.complete_first_time_join().is_ok() {
+                    self.startup_state.first_time_reserved_player = false;
                     self.current_screen = ScreenId::FirstTimeJoinSummary;
                 }
             }
@@ -755,11 +787,22 @@ impl App {
 
     pub fn reject_first_time_prompt(&mut self) {
         match self.current_screen {
+            ScreenId::FirstTimeReservedPrompt => {
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input.clear();
+                self.startup_state.first_time_reserved_player = false;
+                self.current_screen = ScreenId::FirstTimeMenu;
+            }
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
                 self.startup_state.first_time_rename_preloaded_empire = false;
                 self.current_screen = ScreenId::FirstTimeJoinSummary;
+            }
+            ScreenId::FirstTimeJoinEmpireName if self.startup_state.first_time_reserved_player => {
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input.clear();
+                self.current_screen = ScreenId::FirstTimeReservedPrompt;
             }
             ScreenId::FirstTimeJoinEmpireName
                 if self.startup_state.first_time_rename_preloaded_empire =>
@@ -823,11 +866,15 @@ impl App {
                             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                                 Action::Startup(StartupAction::ScrollReview(-1))
                             }
-                            KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(-review_page)),
+                            KeyCode::PageUp => {
+                                Action::Startup(StartupAction::ScrollReview(-review_page))
+                            }
                             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                                 Action::Startup(StartupAction::ScrollReview(1))
                             }
-                            KeyCode::PageDown => Action::Startup(StartupAction::ScrollReview(review_page)),
+                            KeyCode::PageDown => {
+                                Action::Startup(StartupAction::ScrollReview(review_page))
+                            }
                             _ => Action::Startup(StartupAction::Advance),
                         };
                     }
@@ -895,11 +942,15 @@ impl App {
                             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                                 Action::Startup(StartupAction::ScrollReview(-1))
                             }
-                            KeyCode::PageUp => Action::Startup(StartupAction::ScrollReview(-review_page)),
+                            KeyCode::PageUp => {
+                                Action::Startup(StartupAction::ScrollReview(-review_page))
+                            }
                             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                                 Action::Startup(StartupAction::ScrollReview(1))
                             }
-                            KeyCode::PageDown => Action::Startup(StartupAction::ScrollReview(review_page)),
+                            KeyCode::PageDown => {
+                                Action::Startup(StartupAction::ScrollReview(review_page))
+                            }
                             _ => Action::Startup(StartupAction::Advance),
                         };
                     }
@@ -1184,7 +1235,13 @@ impl App {
     fn startup_target_screen(&self, phase: StartupPhase) -> ScreenId {
         match phase {
             StartupPhase::Complete => match self.player.classic_login_state {
-                crate::model::ClassicLoginState::FirstTimeMenu => ScreenId::FirstTimeMenu,
+                crate::model::ClassicLoginState::FirstTimeMenu => {
+                    if self.is_reserved_first_time_login() {
+                        ScreenId::FirstTimeReservedPrompt
+                    } else {
+                        ScreenId::FirstTimeMenu
+                    }
+                }
                 crate::model::ClassicLoginState::MatchedPreloadedFirstLogin => {
                     ScreenId::FirstTimePreloadedRenamePrompt
                 }

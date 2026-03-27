@@ -24,8 +24,7 @@ use crate::screen::{
     MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen, PlanetCommissionScreen,
     PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen,
     PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenGeometry,
-    ScreenId,
-    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
+    ScreenId, StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
     StarmapScreen, StartupScreen, ThemePickerScreen,
 };
 use crate::startup::{StartupSequence, StartupSummary};
@@ -106,6 +105,7 @@ pub struct App {
     pub export_root: PathBuf,
     pub queue_dir: Option<PathBuf>,
     pub screen_geometry: ScreenGeometry,
+    pub door_mode: bool,
     pub autopilot: bool,
     pub expert_mode: bool,
     pub snapshot_id: i64,
@@ -175,6 +175,11 @@ impl App {
             &reports,
         );
         let startup_sequence = StartupSequence::new(&startup_summary, player.classic_login_state);
+        let mut startup_state = StartupState::default();
+        startup_state.reserved_seat_alias = config
+            .game_config
+            .reservation_for_player(config.player_record_index_1_based)
+            .map(|reservation| reservation.alias.clone());
         Ok(Self {
             game_dir,
             game_name,
@@ -234,13 +239,14 @@ impl App {
                 partial_center: [8, 2],
                 ..Default::default()
             },
-            startup_state: StartupState::default(),
+            startup_state,
 
             command_return_menu: CommandMenu::General,
             return_screen: None,
             export_root,
             queue_dir: config.queue_dir,
             screen_geometry: ScreenGeometry::local_default(),
+            door_mode: false,
             autopilot: false,
             expert_mode: false,
             snapshot_id,

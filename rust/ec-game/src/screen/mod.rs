@@ -138,6 +138,7 @@ pub use crate::domains::starmap::screens::starmap::StarmapScreen;
 pub(crate) use crate::domains::startup::screens::first_time::FIRST_TIME_INTRO_PAGE_COUNT;
 pub use crate::domains::startup::screens::first_time::{
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
+    render_first_time_reserved_prompt,
     render_colony_world_confirm, render_colony_world_name, render_first_time_homeworld_confirm,
     render_first_time_homeworld_name, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
@@ -172,6 +173,7 @@ pub enum ScreenId {
     FirstTimeHelp,
     FirstTimeEmpires,
     FirstTimeIntro,
+    FirstTimeReservedPrompt,
     FirstTimePreloadedRenamePrompt,
     FirstTimeJoinEmpireName,
     FirstTimeJoinEmpireConfirm,

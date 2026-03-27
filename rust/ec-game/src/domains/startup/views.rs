@@ -33,16 +33,22 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.startup_state.messages_deleted_any,
             app.game_data.conquest.game_year(),
         ),
-        ScreenId::FirstTimeMenu => app
-            .first_time_menu
-            .render(app.startup_state.first_time_status.as_deref()),
-        ScreenId::FirstTimeHelp => app.first_time_help.render(&frame),
+        ScreenId::FirstTimeMenu => app.first_time_menu.render(
+            app.startup_state.first_time_status.as_deref(),
+            app.door_mode,
+        ),
+        ScreenId::FirstTimeHelp => app.first_time_help.render_for_mode(app.door_mode),
         ScreenId::FirstTimeEmpires => app
             .first_time_empires
             .render_rows(frame.geometry, &app.first_time_empire_rows()),
         ScreenId::FirstTimeIntro => app
             .first_time_intro
             .render_page(frame.geometry, app.startup_state.first_time_intro_page),
+        ScreenId::FirstTimeReservedPrompt => {
+            crate::screen::render_first_time_reserved_prompt(
+                app.startup_state.reserved_seat_alias.as_deref(),
+            )
+        }
         ScreenId::ThemePicker => app.theme_picker.render(
             frame.geometry,
             &app.startup_state.theme_picker_rows,
@@ -57,13 +63,18 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
             app.startup_state.first_time_rename_preloaded_empire,
+            app.startup_state.first_time_reserved_player,
+            app.startup_state.reserved_seat_alias.as_deref(),
             &app.player.empire_name,
             &app.startup_state.first_time_input,
             app.startup_state.first_time_status.as_deref(),
+            app.door_mode,
         ),
         ScreenId::FirstTimeJoinEmpireConfirm => render_first_time_join_name_confirm(
             app.startup_state.first_time_rename_preloaded_empire,
+            app.startup_state.first_time_reserved_player,
             &app.startup_state.first_time_empire_name,
+            app.door_mode,
         ),
         ScreenId::FirstTimeJoinSummary => render_first_time_join_summary(
             &app.startup_state.first_time_empire_name,
@@ -110,6 +121,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::MainMenu => app.main_menu.render_with_notice(
             app.command_menu_notice.as_deref(),
+            app.door_mode,
             app.expert_mode,
             app.planet.info_prompt_active
                 && app.command_return_menu == crate::screen::CommandMenu::Main,
@@ -117,7 +129,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
         ),
-        ScreenId::MainHelp => app.main_help.render(&frame),
+        ScreenId::MainHelp => app.main_help.render_for_mode(app.door_mode),
         ScreenId::GeneralMenu => app.general_menu.render_with_notice(
             &frame,
             app.command_menu_notice.as_deref(),
