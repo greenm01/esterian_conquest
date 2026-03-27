@@ -364,16 +364,16 @@ impl MessageComposeScreen {
             {
                 Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)
             }
-            KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+            KeyCode::Left => {
                 Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
             }
-            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+            KeyCode::Right => {
                 Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
             }
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+            KeyCode::Up => {
                 Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
             }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+            KeyCode::Down => {
                 Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
             }
             KeyCode::Home => Action::Messaging(MessagingAction::MoveComposeBodyCursorHome),

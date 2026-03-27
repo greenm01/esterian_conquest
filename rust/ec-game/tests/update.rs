@@ -320,23 +320,39 @@ fn navigation_hotkeys_map_ctrl_d_to_page_down_actions() {
 }
 
 #[test]
-fn compose_body_accepts_hjkl_cursor_movement() {
+fn compose_body_treats_hjkl_as_text_and_keeps_arrow_navigation() {
     let screen = MessageComposeScreen::new();
 
     assert_eq!(
         screen.handle_body_key(key(KeyCode::Char('h'))),
-        Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
+        Action::Messaging(MessagingAction::AppendComposeBodyChar('h'))
     );
     assert_eq!(
         screen.handle_body_key(key(KeyCode::Char('j'))),
-        Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+        Action::Messaging(MessagingAction::AppendComposeBodyChar('j'))
     );
     assert_eq!(
         screen.handle_body_key(key(KeyCode::Char('k'))),
-        Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
+        Action::Messaging(MessagingAction::AppendComposeBodyChar('k'))
     );
     assert_eq!(
         screen.handle_body_key(key(KeyCode::Char('l'))),
+        Action::Messaging(MessagingAction::AppendComposeBodyChar('l'))
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Left)),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Down)),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Up)),
+        Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
+    );
+    assert_eq!(
+        screen.handle_body_key(key(KeyCode::Right)),
         Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
     );
 }
@@ -15421,6 +15437,38 @@ fn compose_body_navigation_tracks_visual_wrapped_lines() {
     );
     assert_eq!(app.messaging.compose_body_cursor_row, 1);
     assert_eq!(app.messaging.compose_body_cursor_col, 9);
+}
+
+#[test]
+fn compose_body_allows_typing_hjkl_without_moving_cursor() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body.clear();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 0;
+
+    for ch in ['h', 'j', 'k', 'l'] {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(
+            apply_action(&mut app, action),
+            AppOutcome::Continue,
+            "keypress {ch} should apply as text entry"
+        );
+    }
+
+    assert_eq!(app.messaging.compose_body, "hjkl");
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 4);
 }
 
 #[test]
