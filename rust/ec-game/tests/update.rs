@@ -10653,20 +10653,31 @@ fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
     app.render(&mut terminal)
         .expect("partial starmap view should render");
 
-    assert!(terminal.line(0).contains("Map Center at Sector"));
+    let title = format!(
+        "Map Center at Sector {}",
+        ec_game::screen::format_sector_coords(app.starmap_state.partial_center)
+    );
+    let title_row = 2;
+    let title_leading_spaces = terminal
+        .line(title_row)
+        .chars()
+        .take_while(|ch| *ch == ' ')
+        .count();
+    assert_eq!(title_leading_spaces, 9);
+    assert!(terminal.line(title_row).contains(&title));
+    assert_eq!(terminal.line(0), "");
     assert_eq!(terminal.line(1), "");
-    assert_eq!(terminal.line(2), "");
     // Grid is centered: map_cell_start_col = (80 - 52) / 2 = 14, map_left_col = 9
     let leading_spaces = terminal.line(3).chars().take_while(|ch| *ch == ' ').count();
     assert_eq!(leading_spaces, 9);
     assert!(terminal.line(3).contains("18 |"));
     assert!(terminal.line(20).contains("01 |"));
-    // x-axis at row 21 (just below the grid), command prompt at row 24
+    // x-axis at row 21 (just below the grid), command prompt directly below at row 22
     assert!(terminal.line(21).contains("01"));
     assert!(terminal.line(21).contains("18"));
-    assert_eq!(terminal.line(22), "");
+    assert!(terminal.line(22).contains("MAP COMMAND"));
     assert_eq!(terminal.line(23), "");
-    assert!(terminal.line(24).contains("MAP COMMAND"));
+    assert_eq!(terminal.line(24), "");
     assert!(!line_containing(&terminal, "STARMAP MENU").contains("STARMAP MENU"));
     assert!(!line_containing(&terminal, "Unowned Planet").contains("Unowned Planet"));
     assert!(!line_containing(&terminal, "Col: 8, Row: 2 in red").contains("Col: 8, Row: 2 in red"));
@@ -10717,11 +10728,17 @@ fn partial_starmap_view_24_row_door_keeps_command_prompt_visible_and_title_cente
         "Map Center at Sector {}",
         ec_game::screen::format_sector_coords(app.starmap_state.partial_center)
     );
-    let expected_title_col = (80 - title.chars().count()) / 2;
-    let leading_spaces = terminal.line(0).chars().take_while(|ch| *ch == ' ').count();
+    let expected_title_col = 9;
+    let title_row = 2;
+    let leading_spaces = terminal
+        .line(title_row)
+        .chars()
+        .take_while(|ch| *ch == ' ')
+        .count();
     assert_eq!(leading_spaces, expected_title_col);
-    assert!(terminal.line(0).contains(&title));
-    assert!(terminal.line(23).contains("MAP COMMAND"));
+    assert!(terminal.line(title_row).contains(&title));
+    assert!(terminal.line(22).contains("MAP COMMAND"));
+    assert_eq!(terminal.line(23), "");
 }
 
 #[test]
@@ -10756,7 +10773,7 @@ fn opening_reports_from_general_menu_with_empty_inbox_stays_on_menu_with_notice(
 }
 
 #[test]
-fn partial_starmap_small_map_stays_centered_while_crosshair_tracks_selected_sector() {
+fn partial_starmap_small_map_keeps_title_and_prompt_left_aligned_to_grid() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -10785,6 +10802,8 @@ fn partial_starmap_small_map_stays_centered_while_crosshair_tracks_selected_sect
     // Grid is centered: map_left_col = 9, map_top_row = 3
     let top_margin = terminal.line(3).chars().take_while(|ch| *ch == ' ').count();
     assert_eq!(top_margin, 9);
+    assert_eq!(terminal.line(2).chars().take_while(|ch| *ch == ' ').count(), 9);
+    assert!(terminal.line(22).contains("MAP COMMAND"));
     // center [6,9]: center_row = 20 - (9 - 1) = 12, center_col = 14 + (6 - 1) * 3 = 29
     let crosshair_row = terminal.line(12);
     assert_eq!(crosshair_row.chars().nth(29), Some('+'));
@@ -10824,10 +10843,12 @@ fn partial_starmap_large_map_anchors_axes_and_clamps_crosshair_near_edges() {
 
     let top_visible_row = line_containing(&terminal, "22 |");
     assert!(top_visible_row.starts_with("22 |"));
+    assert!(terminal.line(0).starts_with("Map Center at Sector "));
     let axis_line = line_containing(&terminal, "25");
     assert!(axis_line.contains("01"));
     assert!(axis_line.contains("25"));
     assert_eq!(terminal.line(20).chars().nth(11), Some('+'));
+    assert!(terminal.line(24).starts_with("MAP COMMAND"));
 }
 
 #[test]

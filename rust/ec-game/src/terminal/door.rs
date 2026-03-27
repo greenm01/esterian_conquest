@@ -14,7 +14,7 @@ use crate::theme::classic;
 use super::stdout::resolve_color;
 
 const ESC_INITIAL_TIMEOUT_MS: i32 = 500;
-const ESC_FOLLOWUP_TIMEOUT_MS: i32 = 150;
+const ESC_SEQUENCE_TIMEOUT_MS: i32 = 1200;
 const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
 
 pub struct DoorTerminal {
@@ -282,7 +282,7 @@ fn key_decode(event: KeyEvent, consumed: usize) -> PendingDecode {
 
 fn decode_dos_pending(pending: &VecDeque<u8>) -> PendingDecode {
     let Some(byte) = pending.get(1).copied() else {
-        return PendingDecode::NeedMore(ESC_FOLLOWUP_TIMEOUT_MS);
+        return PendingDecode::NeedMore(ESC_SEQUENCE_TIMEOUT_MS);
     };
     key_decode(map_dos_extended(byte), 2)
 }
@@ -300,7 +300,7 @@ fn decode_escape_pending(pending: &VecDeque<u8>) -> PendingDecode {
         b'D' => key_decode(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), 2),
         b'H' => key_decode(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE), 2),
         b'F' => key_decode(KeyEvent::new(KeyCode::End, KeyModifiers::NONE), 2),
-        _ => key_decode(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 2),
+        _ => key_decode(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
     }
 }
 
@@ -329,15 +329,15 @@ fn decode_csi_pending(pending: &VecDeque<u8>) -> PendingDecode {
         }
     }
     if pending.len() >= MAX_ESCAPE_SEQUENCE_BYTES {
-        key_decode(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), pending.len())
+        key_decode(KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), pending.len())
     } else {
-        PendingDecode::NeedMore(ESC_FOLLOWUP_TIMEOUT_MS)
+        PendingDecode::NeedMore(ESC_SEQUENCE_TIMEOUT_MS)
     }
 }
 
 fn decode_ss3_pending(pending: &VecDeque<u8>) -> PendingDecode {
     let Some(byte) = pending.get(2).copied() else {
-        return PendingDecode::NeedMore(ESC_FOLLOWUP_TIMEOUT_MS);
+        return PendingDecode::NeedMore(ESC_SEQUENCE_TIMEOUT_MS);
     };
     let event = match byte {
         b'A' => KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
@@ -353,10 +353,24 @@ fn decode_ss3_pending(pending: &VecDeque<u8>) -> PendingDecode {
 
 fn finalize_pending_after_timeout(pending: &VecDeque<u8>) -> (KeyEvent, usize) {
     match pending.front().copied() {
-        Some(0x1b) => (KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), pending.len().max(1)),
-        Some(0x00 | 0xe0) => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), pending.len().min(2)),
+        Some(0x1b) => finalize_escape_after_timeout(pending),
+        Some(0x00 | 0xe0) => (
+            KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+            pending.len().min(2),
+        ),
         Some(_) => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 1),
         None => (KeyEvent::new(KeyCode::Null, KeyModifiers::NONE), 0),
+    }
+}
+
+fn finalize_escape_after_timeout(pending: &VecDeque<u8>) -> (KeyEvent, usize) {
+    match pending.get(1).copied() {
+        None => (KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
+        Some(b'[' | b'O') => (
+            KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+            pending.len(),
+        ),
+        Some(_) => (KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), 1),
     }
 }
 

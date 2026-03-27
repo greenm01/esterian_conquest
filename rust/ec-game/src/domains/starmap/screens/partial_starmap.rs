@@ -4,8 +4,8 @@ use ec_data::build_player_starmap_projection_from_snapshots;
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    PLAYFIELD_WIDTH, centered_row, command_line_row_for, draw_command_prompt_at, draw_status_line,
-    new_playfield_for,
+    PLAYFIELD_WIDTH, centered_row, command_line_row_for, draw_command_prompt_at_col,
+    draw_status_line, new_playfield_for, table_prompt_row_for,
 };
 use crate::screen::{PlayfieldBuffer, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -46,10 +46,6 @@ impl PartialStarmapScreen {
             frame.player.record_index_1_based as u8,
         );
         let mut buffer = new_playfield_for(frame.geometry);
-        let title = format!("Map Center at Sector {}", format_sector_coords(center));
-        buffer.fill_row(0, classic::menu_style());
-        let title_col = PLAYFIELD_WIDTH.saturating_sub(title.chars().count()) / 2;
-        buffer.write_text(0, title_col, &title, classic::title_style());
         let map_top_frame_row = if let Some(status) = status {
             draw_status_line(&mut buffer, 1, "Status: ", status);
             MAP_TOP_ROW + 1
@@ -91,6 +87,10 @@ impl PartialStarmapScreen {
         let map_left_col = map_cell_start_col - MAP_CELL_START_COL;
         let separator_col = map_left_col + SEPARATOR_COL;
         let axis_label_col = map_left_col + AXIS_LABEL_COL;
+        let title = format!("Map Center at Sector {}", format_sector_coords(center));
+        let title_row = map_top_row.saturating_sub(1);
+        buffer.fill_row(title_row, classic::menu_style());
+        buffer.write_text(title_row, map_left_col, &title, classic::title_style());
         let start_x = if horizontal_overflow {
             oversized_viewport_start(center[0], visible_columns, map_width)
         } else {
@@ -183,9 +183,10 @@ impl PartialStarmapScreen {
         }
         buffer.write_text(center_row, center_col, "+", classic::map_crosshair_style());
 
-        draw_command_prompt_at(
+        draw_command_prompt_at_col(
             &mut buffer,
-            command_line_row_for(frame.geometry),
+            table_prompt_row_for(frame.geometry, x_axis_row),
+            map_left_col,
             "MAP COMMAND",
             "ARROWS H J K L 1 2 3 4 6 7 8 9 ENTER Q",
         );

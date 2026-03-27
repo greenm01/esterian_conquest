@@ -13,7 +13,8 @@ use ec_game::screen::PlayfieldBuffer;
 use ec_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
     dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
+    draw_help_panel,
     draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt, draw_plain_prompt,
     draw_prompt_error_after, draw_prompt_feedback_after, draw_table_command_prompt,
     table_dismiss_prompt_row,
@@ -279,6 +280,22 @@ fn draw_command_prompt_places_cursor_after_arrow_space() {
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
     assert!(line.contains("GENERAL COMMAND <-H,Q,X-> "));
+}
+
+#[test]
+fn draw_command_prompt_at_col_offsets_label_keys_and_cursor_together() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_prompt_at_col(&mut buffer, COMMAND_LINE_ROW, 9, "MAP COMMAND", "ARROWS ENTER Q");
+
+    let line = row_text(&buffer, COMMAND_LINE_ROW);
+    let label_col = find_in_row(&buffer, COMMAND_LINE_ROW, "MAP COMMAND");
+    let keys_col = find_in_row(&buffer, COMMAND_LINE_ROW, "ARROWS ENTER Q");
+    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
+
+    assert_eq!(label_col, 9);
+    assert!(keys_col > label_col);
+    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
+    assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
 }
 
 #[test]

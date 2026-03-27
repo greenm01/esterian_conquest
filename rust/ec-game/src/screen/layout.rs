@@ -762,15 +762,26 @@ pub fn draw_centered_text(
 }
 
 pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
+    draw_command_prompt_at_col(buffer, row, 0, label, keys);
+}
+
+pub fn draw_command_prompt_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    keys: &str,
+) {
     buffer.fill_row(row, classic::prompt_style());
-    let prefix = buffer.write_spans(
+    let prefix_width = buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <-", classic::prompt_style()),
         ],
     );
+    let prefix_col = col + prefix_width;
     let suffix = "-> ";
     if keys == "SLAP A KEY" {
         let slap_width = "(slap a key)".chars().count();
@@ -783,13 +794,13 @@ pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &
     } else {
         let written = buffer.write_spans(
             row,
-            prefix,
+            prefix_col,
             &[
                 StyledSpan::new(keys, classic::prompt_hotkey_style()),
                 StyledSpan::new(suffix, classic::prompt_style()),
             ],
         );
-        let cursor_col = prefix + written;
+        let cursor_col = prefix_col + written;
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
 }

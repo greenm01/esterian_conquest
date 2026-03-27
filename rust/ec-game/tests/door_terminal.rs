@@ -147,8 +147,17 @@ fn door_input_decoder_keeps_fragmented_arrow_sequences_as_arrows() {
     let got = decode_fragmented_input_for_test(b"\x1b", b"[A").expect("decode fragmented");
     assert_eq!(got, KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
 
+    let got = decode_fragmented_input_for_test(b"\x1b[", b"A").expect("decode fragmented");
+    assert_eq!(got, KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+
     let got = decode_fragmented_input_for_test(b"\x1b[1;", b"2D").expect("decode fragmented");
     assert_eq!(got, KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+}
+
+#[test]
+fn incomplete_known_escape_prefix_does_not_fall_back_to_escape() {
+    assert_decode(b"\x1b[", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+    assert_decode(b"\x1bO", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
 }
 
 #[test]
