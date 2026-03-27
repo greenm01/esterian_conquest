@@ -14,13 +14,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::Starmap if app.starmap_state.capture_complete => {
             app.starmap.render_complete(frame.geometry)
         }
-        ScreenId::Starmap if app.starmap_state.dump_active => app
-            .starmap
-            .render_dump_page(
-                frame.geometry,
-                &app.starmap_state.dump_lines,
-                app.starmap_state.dump_offset,
-            ),
+        ScreenId::Starmap if app.starmap_state.dump_active => app.starmap.render_dump_page(
+            frame.geometry,
+            &app.starmap_state.dump_lines,
+            app.starmap_state.dump_offset,
+        ),
         ScreenId::Starmap => app
             .starmap
             .render_prompt(frame.geometry, app.starmap_state.status.as_deref()),

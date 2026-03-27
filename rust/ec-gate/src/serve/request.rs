@@ -107,11 +107,7 @@ pub fn parse_session_request(event: &Event) -> Result<SessionRequest, ParseError
     // Extract invite code from content (empty string → None).
     let invite_code = {
         let c = event.content.trim().to_string();
-        if c.is_empty() {
-            None
-        } else {
-            Some(c)
-        }
+        if c.is_empty() { None } else { Some(c) }
     };
 
     // Extract optional `game-id` tag.

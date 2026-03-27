@@ -154,8 +154,10 @@ ANSI policy:
 
 - local `ec-game` should assume ANSI/CP437 output and render in color by default
 - do not keep a plain-text local mode as a first-class UI target
-- expose player color choice through the `A>nsi Theme` picker, including a
-  monochrome `Mono` entry, rather than reviving a separate ANSI ON/OFF toggle
+- local-terminal sessions should expose player color choice through a
+  `C>olor Theme` picker, including a monochrome `Mono` entry
+- BBS door sessions should keep the classic `A>nsi color ON/OFF` toggle and
+  should not expose the theme picker there
 
 The client should treat the original UI as a fixed DOS playfield, not as a
 modern fluid terminal layout:

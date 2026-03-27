@@ -25,9 +25,9 @@ use ec_gate::roster::io::{load_roster, save_roster};
 use ec_gate::roster::{Roster, Seat, SeatStatus};
 use ec_gate::serve::game_def::{build_game_def_tags, sha256_hex};
 use ec_gate::serve::provision::{provision_key, reap_expired_keys, remove_key};
-use ec_gate::serve::request::{parse_session_request, MAX_EVENT_AGE_SECS};
-use ec_gate::serve::response::{session_error_payload, SessionReadyPayload};
-use ec_gate::serve::routing::{route, RouteError, RoutingDecision};
+use ec_gate::serve::request::{MAX_EVENT_AGE_SECS, parse_session_request};
+use ec_gate::serve::response::{SessionReadyPayload, session_error_payload};
+use ec_gate::serve::routing::{RouteError, RoutingDecision, route};
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -156,9 +156,11 @@ fn full_pipeline_first_time_join_with_invite_code() {
     let config = gate_config_command(keys_dir);
     let provisioned =
         provision_key(&config, &seat, ssh_pubkey, &game_dir).expect("provision_key should succeed");
-    assert!(provisioned
-        .entry
-        .contains("--player-record-index-1-based 1"));
+    assert!(
+        provisioned
+            .entry
+            .contains("--player-record-index-1-based 1")
+    );
     assert!(provisioned.entry.contains(ssh_pubkey));
 
     // Verify key file exists.

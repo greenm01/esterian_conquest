@@ -1,8 +1,8 @@
 //! Regression tests for roster KDL parsing and rendering.
 
 use ec_gate::roster::{
-    io::{load_roster, parse_roster_str, render_roster, save_roster},
     Roster, Seat, SeatStatus,
+    io::{load_roster, parse_roster_str, render_roster, save_roster},
 };
 use std::fs;
 

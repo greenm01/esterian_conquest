@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_game::screen::{FirstTimeMenuScreen, PlayfieldBuffer, ScreenGeometry};
 use ec_game::terminal::door::{
-    decode_fragmented_input_for_test, decode_input_bytes_for_test,
-    decode_input_stream_for_test, decode_timed_input_stream_for_test, serialize_playfield_frame,
+    decode_fragmented_input_for_test, decode_input_bytes_for_test, decode_input_stream_for_test,
+    decode_timed_input_stream_for_test, serialize_playfield_frame,
 };
 use ec_game::terminal::{ColorMode, OutputEncoding};
 
@@ -17,7 +17,7 @@ fn apply_mag16_theme() {
 fn door_serializer_renders_first_time_menu_rows_and_prompt_cursor() {
     apply_mag16_theme();
     let mut screen = FirstTimeMenuScreen::new();
-    let buffer = screen.render(None).expect("first-time menu renders");
+    let buffer = screen.render(None, false).expect("first-time menu renders");
     let frame = serialize_playfield_frame(
         &buffer,
         ScreenGeometry::local_default(),
@@ -43,7 +43,7 @@ fn door_serializer_renders_first_time_menu_rows_and_prompt_cursor() {
 fn door_serializer_emits_classic_ansi16_colors_for_mag16_theme() {
     apply_mag16_theme();
     let mut screen = FirstTimeMenuScreen::new();
-    let buffer = screen.render(None).expect("first-time menu renders");
+    let buffer = screen.render(None, false).expect("first-time menu renders");
     let frame = serialize_playfield_frame(
         &buffer,
         ScreenGeometry::local_default(),
@@ -60,7 +60,7 @@ fn door_serializer_emits_classic_ansi16_colors_for_mag16_theme() {
 fn door_serializer_avoids_alt_screen_and_hides_no_cursor() {
     apply_mag16_theme();
     let mut screen = FirstTimeMenuScreen::new();
-    let buffer = screen.render(None).expect("first-time menu renders");
+    let buffer = screen.render(None, false).expect("first-time menu renders");
     let frame = serialize_playfield_frame(
         &buffer,
         ScreenGeometry::local_default(),
@@ -105,13 +105,34 @@ fn door_input_decoder_maps_ascii_and_control_keys() {
     assert_decode(b"j", KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
     assert_decode(b"\r", KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert_decode(b"\t", KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
-    assert_decode(&[0x08], KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
-    assert_decode(&[0x7f], KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
-    assert_decode(&[0x03], KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
-    assert_decode(&[0x04], KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL));
-    assert_decode(&[0x05], KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL));
-    assert_decode(&[0x15], KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL));
-    assert_decode(&[0x18], KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL));
+    assert_decode(
+        &[0x08],
+        KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0x7f],
+        KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0x03],
+        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+    );
+    assert_decode(
+        &[0x04],
+        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+    );
+    assert_decode(
+        &[0x05],
+        KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL),
+    );
+    assert_decode(
+        &[0x15],
+        KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+    );
+    assert_decode(
+        &[0x18],
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL),
+    );
     assert_decode(&[0x1b], KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
 }
 
@@ -133,10 +154,22 @@ fn door_input_decoder_ignores_arrow_and_page_sequences_in_door_mode() {
     );
     assert_decode(b"\x1b[5~", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
     assert_decode(b"\x1b[6~", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'H'], KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'P'], KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'M'], KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'K'], KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+    assert_decode(
+        &[0xe0, b'H'],
+        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0xe0, b'P'],
+        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0xe0, b'M'],
+        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0xe0, b'K'],
+        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+    );
 }
 
 #[test]
@@ -146,10 +179,22 @@ fn door_input_decoder_keeps_home_end_delete_sequences() {
     assert_decode(b"\x1b[F", KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
     assert_decode(b"\x1bOH", KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
     assert_decode(b"\x1bOF", KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
-    assert_decode(b"\x1b[3~", KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'G'], KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'O'], KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
-    assert_decode(&[0xe0, b'S'], KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+    assert_decode(
+        b"\x1b[3~",
+        KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0xe0, b'G'],
+        KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0xe0, b'O'],
+        KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
+    );
+    assert_decode(
+        &[0xe0, b'S'],
+        KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
+    );
 }
 
 #[test]
@@ -204,8 +249,13 @@ fn timed_out_escape_drops_late_sync_term_suffix_instead_of_leaking_menu_keys() {
 
 #[test]
 fn timed_sync_term_page_keys_decode_without_falling_back_to_escape() {
-    let got = decode_timed_input_stream_for_test(&[(0, b"\x1b"), (350, b"[U"), (1000, b"\x1b"), (1350, b"[V")])
-        .expect("decode timed stream");
+    let got = decode_timed_input_stream_for_test(&[
+        (0, b"\x1b"),
+        (350, b"[U"),
+        (1000, b"\x1b"),
+        (1350, b"[V"),
+    ])
+    .expect("decode timed stream");
     assert!(got.is_empty());
 }
 

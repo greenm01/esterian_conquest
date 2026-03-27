@@ -1,7 +1,7 @@
 use rusqlite::{Connection, params, params_from_iter, types::Value};
 
-use super::hex::{decode_hex, encode_hex};
 use super::CampaignStoreError;
+use super::hex::{decode_hex, encode_hex};
 use crate::{
     BaseDat, BaseRecord, CONQUEST_DAT_SIZE, ConquestDat, CoreGameData, FleetDat, FleetRecord,
     IpbmDat, IpbmRecord, PLANET_RECORD_SIZE, PlanetDat, PlanetRecord, PlayerDat, PlayerRecord,
@@ -39,13 +39,13 @@ pub(super) fn load_snapshot_game_data(
 }
 
 const CONQUEST_CONTROL_WORD_OFFSETS: [usize; 25] = [
-    0x0A, 0x0C, 0x0E, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1A, 0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26,
-    0x28, 0x2A, 0x2C, 0x2E, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3A,
+    0x0A, 0x0C, 0x0E, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1A, 0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26, 0x28,
+    0x2A, 0x2C, 0x2E, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3A,
 ];
 
 const CONQUEST_CONTROL_BYTE_OFFSETS: [usize; 25] = [
-    0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A,
-    0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54,
+    0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B,
+    0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54,
 ];
 
 fn write_player_rows(
@@ -292,7 +292,9 @@ fn write_conquest_row(
     data: &ConquestDat,
 ) -> Result<(), CampaignStoreError> {
     let sql = conquest_insert_sql();
-    let mut values = Vec::with_capacity(4 + CONQUEST_CONTROL_WORD_OFFSETS.len() + CONQUEST_CONTROL_BYTE_OFFSETS.len());
+    let mut values = Vec::with_capacity(
+        4 + CONQUEST_CONTROL_WORD_OFFSETS.len() + CONQUEST_CONTROL_BYTE_OFFSETS.len(),
+    );
     values.push(Value::from(snapshot_id));
     values.push(Value::from(i64::from(data.game_year())));
     values.push(Value::from(i64::from(data.player_count())));
@@ -460,14 +462,14 @@ fn load_planet_rows(
         record.raw[0x10..0x1D].copy_from_slice(&decode_hex_exact::<13>(&name_buffer_raw_hex)?);
         record.raw[0x1D..0x24].copy_from_slice(&decode_hex_exact::<7>(&name_suffix_raw_hex)?);
         record.raw[0x24..0x38].copy_from_slice(&decode_hex_exact::<20>(&build_queue_raw_hex)?);
-        record.raw[0x38..0x52]
-            .copy_from_slice(&decode_hex_exact::<26>(&infrastructure_raw_hex)?);
+        record.raw[0x38..0x52].copy_from_slice(&decode_hex_exact::<26>(&infrastructure_raw_hex)?);
         record.set_population_raw(decode_hex_exact::<6>(&population_raw_hex)?);
         record.set_army_count_raw(armies_raw as u8);
         record.set_ground_batteries_raw(ground_batteries_raw as u8);
         record.set_ownership_status_raw(ownership_status_raw as u8);
         record.set_owner_empire_slot_raw(owner_empire_slot_raw as u8);
-        record.raw[0x5E..PLANET_RECORD_SIZE].copy_from_slice(&decode_hex_exact::<3>(&tail_raw_hex)?);
+        record.raw[0x5E..PLANET_RECORD_SIZE]
+            .copy_from_slice(&decode_hex_exact::<3>(&tail_raw_hex)?);
         records.push(record);
     }
     Ok(PlanetDat { records })
@@ -578,10 +580,7 @@ fn load_fleet_rows(
     Ok(FleetDat { records })
 }
 
-fn load_base_rows(
-    conn: &mut Connection,
-    snapshot_id: i64,
-) -> Result<BaseDat, CampaignStoreError> {
+fn load_base_rows(conn: &mut Connection, snapshot_id: i64) -> Result<BaseDat, CampaignStoreError> {
     let mut stmt = conn.prepare(
         "SELECT header_raw_hex, coords_x, coords_y, tuple_a_raw_hex, tuple_b_raw_hex,
                 tuple_c_raw_hex, trailing_x, trailing_y, owner_empire_raw
@@ -630,10 +629,7 @@ fn load_base_rows(
     Ok(BaseDat { records })
 }
 
-fn load_ipbm_rows(
-    conn: &mut Connection,
-    snapshot_id: i64,
-) -> Result<IpbmDat, CampaignStoreError> {
+fn load_ipbm_rows(conn: &mut Connection, snapshot_id: i64) -> Result<IpbmDat, CampaignStoreError> {
     let mut stmt = conn.prepare(
         "SELECT prefix_raw_hex, tuple_a_raw_hex, tuple_b_raw_hex, tuple_c_raw_hex,
                 trailing_control_raw_hex
@@ -672,10 +668,7 @@ fn load_ipbm_rows(
     Ok(IpbmDat { records })
 }
 
-fn load_setup_row(
-    conn: &mut Connection,
-    snapshot_id: i64,
-) -> Result<SetupDat, CampaignStoreError> {
+fn load_setup_row(conn: &mut Connection, snapshot_id: i64) -> Result<SetupDat, CampaignStoreError> {
     let (
         version_tag_raw_hex,
         option_prefix_raw_hex,

@@ -169,12 +169,7 @@ fn cursor_to(row_zero_based: u16, col_zero_based: u16) -> String {
     format!("\x1b[{};{}H", row_zero_based + 1, col_zero_based + 1)
 }
 
-fn style_sgr(
-    fg: GameColor,
-    bg: GameColor,
-    bold: bool,
-    color_mode: ColorMode,
-) -> Vec<u8> {
+fn style_sgr(fg: GameColor, bg: GameColor, bold: bool, color_mode: ColorMode) -> Vec<u8> {
     let fg_code = ansi_fg_code(resolve_color(fg, color_mode));
     let bg_code = ansi_bg_code(resolve_color(bg, color_mode));
     let mut seq = format!("\x1b[0;{fg_code};{bg_code}");
@@ -276,11 +271,8 @@ impl DoorInputDecoder {
                         ParseResult::Event(event, consumed) => {
                             drain_pending(&mut self.pending, consumed);
                             self.sequence_deadline = None;
-                            self.orphaned_escape_suffix_deadline = orphaned_suffix_deadline(
-                                event,
-                                &self.pending,
-                                consumed,
-                            );
+                            self.orphaned_escape_suffix_deadline =
+                                orphaned_suffix_deadline(event, &self.pending, consumed);
                             return Ok(event);
                         }
                         ParseResult::Drop(consumed) => {
@@ -340,12 +332,11 @@ fn try_decode_complete(pending: &VecDeque<u8>) -> ParseResult {
         0x18 => ParseResult::Event(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL), 1),
         b'\r' | b'\n' => ParseResult::Event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), 1),
         b'\t' => ParseResult::Event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE), 1),
-        0x08 | 0x7f => {
-            ParseResult::Event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE), 1)
-        }
-        0x20..=0x7e => {
-            ParseResult::Event(KeyEvent::new(KeyCode::Char(first as char), KeyModifiers::NONE), 1)
-        }
+        0x08 | 0x7f => ParseResult::Event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE), 1),
+        0x20..=0x7e => ParseResult::Event(
+            KeyEvent::new(KeyCode::Char(first as char), KeyModifiers::NONE),
+            1,
+        ),
         0x00 | 0xe0 => try_decode_dos_complete(pending),
         0x1b => try_decode_escape_complete(pending),
         _ => ParseResult::Drop(1),
@@ -588,10 +579,11 @@ fn append_input_trace(trace_dir: &Path, bytes: &[u8]) -> Result<(), Box<dyn std:
     raw.write_all(bytes)?;
 
     let log_path = trace_dir.join("input.log");
-    let mut log = OpenOptions::new().create(true).append(true).open(log_path)?;
-    let ts = trace_clock_start()
-        .elapsed()
-        .as_millis();
+    let mut log = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)?;
+    let ts = trace_clock_start().elapsed().as_millis();
     write!(log, "{ts}")?;
     for byte in bytes {
         write!(log, " {:02x}", byte)?;
@@ -743,7 +735,12 @@ pub fn decode_timed_input_stream_for_test(
                 drain_pending(&mut pending, consumed);
             }
             ParseResult::NeedMore => {
-                finalize_timed_pending(&mut pending, &mut events, &mut orphan_deadline_ms, u64::MAX);
+                finalize_timed_pending(
+                    &mut pending,
+                    &mut events,
+                    &mut orphan_deadline_ms,
+                    u64::MAX,
+                );
             }
         }
     }

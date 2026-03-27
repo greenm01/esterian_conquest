@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag, TagKind, Timestamp};
 
-use ec_gate::serve::request::{parse_session_request, ParseError, MAX_EVENT_AGE_SECS};
+use ec_gate::serve::request::{MAX_EVENT_AGE_SECS, ParseError, parse_session_request};
 
 // --- helpers ---
 

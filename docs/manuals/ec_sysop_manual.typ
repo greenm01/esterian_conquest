@@ -344,9 +344,11 @@ reservations {
 = Theming <theming>
 
 `ec-game` uses a file-driven theme system. `config.kdl` defines the campaign's
-default theme, while players can choose among the available themes from the
-client's `A>nsi Theme` picker. Each player's last choice is saved in
-`ecgame.db` as a per-player preference rather than by rewriting theme files.
+default theme, while local-terminal players can choose among the available
+themes from the client's `C>olor Theme` picker. Each player's last local theme
+choice is saved in `ecgame.db` as a per-player preference rather than by
+rewriting theme files. In BBS door mode, the client keeps the classic
+`A>nsi color ON/OFF` toggle and starts from the campaign default theme.
 
 == Theme File Location
 
@@ -367,10 +369,10 @@ prevents players from connecting.
 
 == Player Theme Picker
 
-From the Main Menu and First Time Menu, players can open `A>nsi Theme` to
-preview and apply the themes currently available in `<game_dir>/themes/`.
-The picker stays open after `Enter` so players can try several looks before
-returning to the menu with `Q`.
+From the Main Menu and First Time Menu in local-terminal sessions, players can
+open `C>olor Theme` to preview and apply the themes currently available in
+`<game_dir>/themes/`. The picker stays open after `Enter` so players can try
+several looks before returning to the menu with `Q`.
 
 The picker exposes all file-backed themes currently present in `themes/`,
 including the bundled `tokyo_night` theme and the additional shipped alternates.
@@ -378,7 +380,7 @@ It also exposes a synthetic `Mono` option, which applies a monochrome
 projection over the current theme for players who prefer a plain white-on-black
 display.
 
-Joined players save their selected theme immediately as a per-player
+Joined players save their selected local theme immediately as a per-player
 preference in `ecgame.db`. A player choosing a theme from First Time Menu
 before fully joining uses it for that session, and the preference is saved when
 the join finishes successfully.
@@ -505,10 +507,11 @@ All required style tokens:
 
 == Mono Theme
 
-The old ANSI ON/OFF toggle has been replaced by the `A>nsi Theme` picker.
-`Mono` is now one of the picker entries rather than a separate toggle. It
-applies a monochrome projection over the active theme and can be selected and
-saved like any other player theme preference.
+`Mono` is one of the local `C>olor Theme` picker entries. It applies a
+monochrome projection over the active theme and can be selected and saved like
+any other local player theme preference. In BBS door mode, monochrome output
+still comes from the separate `A>nsi color ON/OFF` toggle rather than the
+theme picker.
 
 // ─── 7. BBS Door Setup ────────────────────────────────────────────────────────
 

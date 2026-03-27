@@ -32,11 +32,12 @@ impl App {
 
     pub fn open_reports(&mut self) {
         if self.current_screen == ScreenId::GeneralMenu
-            && self.inbox_items_for_filters(
-                crate::domains::messaging::state::InboxTypeFilter::All,
-                None,
-            )
-            .is_empty()
+            && self
+                .inbox_items_for_filters(
+                    crate::domains::messaging::state::InboxTypeFilter::All,
+                    None,
+                )
+                .is_empty()
         {
             self.show_command_menu_notice(self.origin_command_menu(), "Inbox is empty.");
             return;

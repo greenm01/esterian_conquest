@@ -75,7 +75,6 @@ pub(super) fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
     for player_idx in 0..n_players {
         let owner_slot = player_idx + 1;
         game_data.player.records[player_idx].set_planet_count_raw(planet_counts[owner_slot]);
-        game_data.player.records[player_idx]
-            .set_production_score_raw(pot_prod_sums[owner_slot]);
+        game_data.player.records[player_idx].set_production_score_raw(pot_prod_sums[owner_slot]);
     }
 }

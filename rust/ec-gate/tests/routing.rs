@@ -4,7 +4,7 @@ use std::path::Path;
 
 use ec_gate::roster::{Roster, Seat, SeatStatus};
 use ec_gate::serve::request::SessionRequest;
-use ec_gate::serve::routing::{route, GameEntry, ResolvedSeat, RouteError, RoutingDecision};
+use ec_gate::serve::routing::{GameEntry, ResolvedSeat, RouteError, RoutingDecision, route};
 
 // --- test fixtures ---
 
@@ -260,12 +260,16 @@ fn route_by_npub_multiple_games_returns_disambiguation() {
     match route(&req, &mut rosters, &[Path::new("/tmp"), Path::new("/tmp")]) {
         RoutingDecision::Error(RouteError::MultipleGames(games)) => {
             assert_eq!(games.len(), 2);
-            assert!(games
-                .iter()
-                .any(|g| g.game_id == "friday-night" && g.player == 1));
-            assert!(games
-                .iter()
-                .any(|g| g.game_id == "saturday-showdown" && g.player == 3));
+            assert!(
+                games
+                    .iter()
+                    .any(|g| g.game_id == "friday-night" && g.player == 1)
+            );
+            assert!(
+                games
+                    .iter()
+                    .any(|g| g.game_id == "saturday-showdown" && g.player == 3)
+            );
         }
         other => panic!("expected MultipleGames, got {other:?}"),
     }

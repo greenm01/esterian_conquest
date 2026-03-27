@@ -1,6 +1,6 @@
 use crate::screen::{
-    CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseSortMode, PlanetListMode,
-    PlanetListSort, PlanetTransportMode,
+    CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseSortMode, PlanetListMode, PlanetListSort,
+    PlanetTransportMode,
 };
 use crossterm::event::KeyCode;
 

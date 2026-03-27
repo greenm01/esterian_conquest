@@ -101,13 +101,12 @@ impl App {
         ) {
             return;
         }
-        self.starbase
-            .move_select(
-                delta,
-                &self.game_data,
-                self.player.record_index_1_based,
-                self.starbase_visible_rows(),
-            );
+        self.starbase.move_select(
+            delta,
+            &self.game_data,
+            self.player.record_index_1_based,
+            self.starbase_visible_rows(),
+        );
     }
 
     pub fn append_starbase_char(&mut self, ch: char) {
@@ -117,25 +116,23 @@ impl App {
         if self.starbase.review_input.len() >= 3 {
             return;
         }
-        self.starbase
-            .append_char(
-                ch,
-                &self.game_data,
-                self.player.record_index_1_based,
-                self.starbase_visible_rows(),
-            );
+        self.starbase.append_char(
+            ch,
+            &self.game_data,
+            self.player.record_index_1_based,
+            self.starbase_visible_rows(),
+        );
     }
 
     pub fn backspace_starbase_input(&mut self) {
         if self.current_screen != ScreenId::StarbaseReviewSelect {
             return;
         }
-        self.starbase
-            .backspace_input(
-                &self.game_data,
-                self.player.record_index_1_based,
-                self.starbase_visible_rows(),
-            );
+        self.starbase.backspace_input(
+            &self.game_data,
+            self.player.record_index_1_based,
+            self.starbase_visible_rows(),
+        );
     }
 
     pub fn submit_starbase_review_select(&mut self) {

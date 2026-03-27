@@ -105,13 +105,15 @@ game directory on first run, creating `themes/` as needed. The bundled file is
 the fallback if the theme file is missing or invalid, but invalid user files
 should not be rewritten automatically.
 
-The player TUI should expose theme switching through the `A>nsi Theme` picker,
-not a separate ANSI ON/OFF toggle. The picker should enumerate the available
-theme files under `themes/` plus a synthetic `Mono` entry. Persist only the
-selected theme key per player; do not store expanded color payloads in SQLite
-or rewrite theme files on disk. `Mono` should apply a monochrome projection
-over the loaded theme while preserving black backgrounds and reverse-video
-selection.
+The player TUI should expose theme switching differently by session type.
+Local-terminal sessions should use a `C>olor Theme` picker. BBS door sessions
+should keep a separate `A>nsi color ON/OFF` toggle and should start from the
+campaign default theme rather than a saved per-player theme. The local picker
+should enumerate the available theme files under `themes/` plus a synthetic
+`Mono` entry. Persist only the selected theme key per player; do not store
+expanded color payloads in SQLite or rewrite theme files on disk. `Mono`
+should apply a monochrome projection over the loaded theme while preserving
+black backgrounds and reverse-video selection.
 
 The theme file supports three color formats:
 

@@ -224,7 +224,8 @@ pub(super) fn process_single_fleet_movement(
     if is_at_rest {
         game_data.fleets.records[fleet_idx]
             .set_extended_tuple_a_payload_raw([0x7f, 0xc0, 0x00, 0xff, 0xff, 0x7f]);
-        game_data.fleets.records[fleet_idx].set_extended_tuple_c_payload_raw([0x00, 0x00, 0x00, 0x00, 0x00, 0x7f]);
+        game_data.fleets.records[fleet_idx]
+            .set_extended_tuple_c_payload_raw([0x00, 0x00, 0x00, 0x00, 0x00, 0x7f]);
     }
 
     store_exact_position(&mut game_data.fleets.records[fleet_idx], exact_end);

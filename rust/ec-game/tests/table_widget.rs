@@ -441,7 +441,11 @@ fn selected_column_can_target_second_column_without_highlighting_first() {
         TableColumn::left("Theme", 12),
         TableColumn::left("Type", 8),
     ];
-    let rows = vec![vec!["*".to_string(), "Mono".to_string(), "Mono".to_string()]];
+    let rows = vec![vec![
+        "*".to_string(),
+        "Mono".to_string(),
+        "Mono".to_string(),
+    ]];
     let mut buffer = PlayfieldBuffer::new(40, 8, classic::body_style());
 
     write_table_window_with_cursor(
@@ -457,8 +461,16 @@ fn selected_column_can_target_second_column_without_highlighting_first() {
         1,
     );
 
-    let marker_col = buffer.row(4).iter().position(|cell| cell.ch == '*').expect("marker col");
-    let name_col = buffer.row(4).iter().position(|cell| cell.ch == 'M').expect("name col");
+    let marker_col = buffer
+        .row(4)
+        .iter()
+        .position(|cell| cell.ch == '*')
+        .expect("marker col");
+    let name_col = buffer
+        .row(4)
+        .iter()
+        .position(|cell| cell.ch == 'M')
+        .expect("name col");
     assert_eq!(buffer.row(4)[marker_col].style, classic::table_body_style());
     assert_eq!(buffer.row(4)[name_col].style, classic::selected_row_style());
 }

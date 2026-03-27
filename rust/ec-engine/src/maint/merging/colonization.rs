@@ -64,8 +64,7 @@ pub(super) fn process_colonizations(
                     game_data.player.records[player_idx]
                         .set_planet_count_raw(current_count.saturating_add(1));
 
-                    let current_score =
-                        game_data.player.records[player_idx].production_score_raw();
+                    let current_score = game_data.player.records[player_idx].production_score_raw();
                     game_data.player.records[player_idx]
                         .set_production_score_raw(current_score.saturating_add(1));
                 }

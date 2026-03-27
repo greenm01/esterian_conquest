@@ -148,11 +148,7 @@ impl Terminal for StdoutTerminal {
     }
 }
 
-fn render_origin(
-    term_width: u16,
-    term_height: u16,
-    encoding: OutputEncoding,
-) -> (u16, u16) {
+fn render_origin(term_width: u16, term_height: u16, encoding: OutputEncoding) -> (u16, u16) {
     match encoding {
         // BBS doors often report large terminal dimensions (for example SyncTERM
         // full-window sessions), but the EC client is still a fixed 80x25

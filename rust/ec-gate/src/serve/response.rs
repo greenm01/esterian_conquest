@@ -5,8 +5,8 @@
 //! after routing and provisioning are complete.
 
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag};
 use nostr_sdk::nips::nip44::Version;
+use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag};
 
 use crate::config::GateConfig;
 use crate::serve::provision::ProvisionedKey;

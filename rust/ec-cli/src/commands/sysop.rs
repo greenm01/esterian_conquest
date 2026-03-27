@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::commands::setup::{init_new_game, init_new_game_from_config, init_new_game_with_seed};
+use crate::commands::setup::{
+    init_new_game, init_new_game_from_config, init_new_game_with_seed, init_new_game_with_year,
+};
 use crate::support::paths::resolve_repo_path;
 use crate::usage::print_sysop_usage;
 use ec_compat::{
@@ -112,13 +114,20 @@ fn parse_seed_value(value: &str) -> Result<u64, String> {
         .map_err(|_| format!("seed must be a valid unsigned integer, got {value}"))
 }
 
+fn parse_year_value(value: &str) -> Result<u16, String> {
+    value
+        .parse()
+        .map_err(|_| format!("year must be a valid unsigned 16-bit integer, got {value}"))
+}
+
 fn parse_new_game_options(
     args: &[String],
     allow_config: bool,
-) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>), String> {
+) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>, Option<u16>), String> {
     let mut player_count = None;
     let mut config_path = None;
     let mut seed = None;
+    let mut year = None;
     let mut idx = 0;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -149,18 +158,26 @@ fn parse_new_game_options(
                 seed = Some(parse_seed_value(value)?);
                 idx += 2;
             }
+            "--year" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --year".to_string());
+                };
+                year = Some(parse_year_value(value)?);
+                idx += 2;
+            }
             _ => {
                 return Err(if allow_config {
-                    "usage: sysop new-game <target_dir> [--players N] [--seed N] [--config path]"
+                    "usage: sysop new-game <target_dir> [--players N] [--year N] [--seed N] [--config path]"
                         .to_string()
                 } else {
-                    "usage: sysop new-game <target_dir> [--players N] [--seed N]".to_string()
+                    "usage: sysop new-game <target_dir> [--players N] [--year N] [--seed N]"
+                        .to_string()
                 });
             }
         }
     }
 
-    Ok((Some(player_count.unwrap_or(4)), config_path, seed))
+    Ok((Some(player_count.unwrap_or(4)), config_path, seed, year))
 }
 
 pub fn run_sysop_args(
@@ -181,7 +198,7 @@ pub fn run_sysop_args(
                 return Ok(());
             };
             let remaining = args.collect::<Vec<_>>();
-            let (player_count, config_path, seed) =
+            let (player_count, config_path, seed, year) =
                 match parse_new_game_options(&remaining, allow_config) {
                     Ok(options) => options,
                     Err(message) => {
@@ -191,9 +208,9 @@ pub fn run_sysop_args(
                     }
                 };
             if let Some(config_path) = config_path {
-                init_new_game_from_config(&target_dir, &config_path, player_count, seed)?;
+                init_new_game_from_config(&target_dir, &config_path, player_count, year, seed)?;
                 println!(
-                    "Initialized new game at: {} (config={}{}{}{}{})",
+                    "Initialized new game at: {} (config={}{}{}{}{}{}{})",
                     target_dir.display(),
                     config_path.display(),
                     if player_count.is_some() {
@@ -204,20 +221,28 @@ pub fn run_sysop_args(
                     player_count
                         .map(|count| count.to_string())
                         .unwrap_or_default(),
+                    if year.is_some() { ", year=" } else { "" },
+                    year.map(|value| value.to_string()).unwrap_or_default(),
                     if seed.is_some() { ", seed=" } else { "" },
                     seed.map(|value| value.to_string()).unwrap_or_default()
                 );
             } else {
                 let player_count = player_count.expect("player count should be present");
                 if let Some(seed) = seed {
-                    init_new_game_with_seed(&target_dir, player_count, seed)?;
+                    init_new_game_with_seed(&target_dir, player_count, year.unwrap_or(3000), seed)?;
                 } else {
-                    init_new_game(&target_dir, player_count)?;
+                    if let Some(year) = year {
+                        init_new_game_with_year(&target_dir, player_count, year)?;
+                    } else {
+                        init_new_game(&target_dir, player_count)?;
+                    }
                 }
                 println!(
-                    "Initialized new game at: {} (players={}{}{})",
+                    "Initialized new game at: {} (players={}{}{}{}{})",
                     target_dir.display(),
                     player_count,
+                    if year.is_some() { ", year=" } else { "" },
+                    year.map(|value| value.to_string()).unwrap_or_default(),
                     if seed.is_some() { ", seed=" } else { "" },
                     seed.map(|value| value.to_string()).unwrap_or_default()
                 );

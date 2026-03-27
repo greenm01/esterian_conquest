@@ -26,9 +26,10 @@ fn sha256_hex_is_64_chars() {
 #[test]
 fn sha256_hex_is_lowercase_hex() {
     let hash = sha256_hex("copper-sunrise");
-    assert!(hash
-        .chars()
-        .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()));
+    assert!(
+        hash.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase())
+    );
 }
 
 #[test]

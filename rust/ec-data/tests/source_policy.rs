@@ -36,7 +36,10 @@ fn non_comment_raw_lines(path: &Path) -> Vec<String> {
 #[test]
 fn shared_runtime_code_avoids_direct_raw_offsets_outside_record_boundaries() {
     let mut files = Vec::new();
-    source_files(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+    source_files(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut files,
+    );
 
     let offenders = files
         .into_iter()

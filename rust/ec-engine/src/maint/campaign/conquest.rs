@@ -5,12 +5,17 @@ pub(super) fn process_conquest_header(
     should_accumulate: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if should_accumulate {
-        let prod_total = game_data.conquest.inactive_production_slot_raw(0).unwrap_or_default();
+        let prod_total = game_data
+            .conquest
+            .inactive_production_slot_raw(0)
+            .unwrap_or_default();
         let new_prod_total = prod_total.saturating_add(100);
-        game_data.conquest.set_inactive_production_slot_raw(0, new_prod_total);
-        game_data.conquest.set_control_byte_3d_raw(
-            game_data.conquest.control_byte_3d_raw().saturating_add(1),
-        );
+        game_data
+            .conquest
+            .set_inactive_production_slot_raw(0, new_prod_total);
+        game_data
+            .conquest
+            .set_control_byte_3d_raw(game_data.conquest.control_byte_3d_raw().saturating_add(1));
     }
 
     let offsets_to_clear = [
@@ -31,7 +36,9 @@ pub(super) fn process_conquest_header(
             .collect();
 
         for (slot, prod) in non_active_prods.iter().take(3).enumerate() {
-            game_data.conquest.set_inactive_production_slot_raw(slot, *prod);
+            game_data
+                .conquest
+                .set_inactive_production_slot_raw(slot, *prod);
         }
     }
 

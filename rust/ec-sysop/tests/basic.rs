@@ -111,6 +111,27 @@ fn ec_sysop_maint_runs_rust_maintenance() {
 }
 
 #[test]
+fn ec_sysop_new_game_accepts_year_flag() {
+    let target = unique_temp_dir("ec-sysop-new-game-year");
+
+    let stdout = run_ec_sysop(&[
+        "new-game",
+        target.to_str().expect("utf-8 path"),
+        "--year",
+        "3012",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("year=3012"));
+
+    let game_data = CoreGameData::load(&target).expect("generated game should load");
+    assert_eq!(game_data.conquest.game_year(), 3012);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn ec_sysop_help_lists_public_subcommands() {
     let output = run_ec_sysop_output(&["--help"], None);
     assert!(output.status.success(), "help should succeed");
@@ -127,7 +148,10 @@ fn ec_sysop_new_game_help_does_not_treat_help_as_target_dir() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("ec-sysop new-game <target_dir>"));
     assert!(!stdout.contains("Initialized new game"));
-    assert!(!cwd.join("--help").exists(), "help must not create a campaign");
+    assert!(
+        !cwd.join("--help").exists(),
+        "help must not create a campaign"
+    );
     let _ = fs::remove_dir_all(&cwd);
 }
 

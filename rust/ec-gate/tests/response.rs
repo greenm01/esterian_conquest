@@ -3,7 +3,7 @@
 //! These tests exercise the pure logic: payload serialization, JSON escaping,
 //! and the error payload format.  Publishing to a live relay is not tested here.
 
-use ec_gate::serve::response::{session_error_payload, SessionReadyPayload};
+use ec_gate::serve::response::{SessionReadyPayload, session_error_payload};
 use ec_gate::serve::routing::{GameEntry, RouteError};
 
 // ---------------------------------------------------------------------------
@@ -135,9 +135,9 @@ fn regex_free_check_no_unescaped_quotes_in_values(json: &str) -> bool {
 
 #[test]
 fn nip44_round_trip_session_ready_payload() {
+    use nostr_sdk::Keys;
     use nostr_sdk::nips::nip44;
     use nostr_sdk::nips::nip44::Version;
-    use nostr_sdk::Keys;
 
     let gate_keys = Keys::generate();
     let player_keys = Keys::generate();
@@ -171,9 +171,9 @@ fn nip44_round_trip_session_ready_payload() {
 
 #[test]
 fn nip44_round_trip_session_error_payload() {
+    use nostr_sdk::Keys;
     use nostr_sdk::nips::nip44;
     use nostr_sdk::nips::nip44::Version;
-    use nostr_sdk::Keys;
 
     let gate_keys = Keys::generate();
     let player_keys = Keys::generate();

@@ -1251,9 +1251,7 @@ impl App {
                 }
                 _ => crate::app::Action::Noop,
             },
-            FleetEtaMode::ShowingResult => {
-                crate::app::Action::Fleet(FleetAction::SubmitEta)
-            }
+            FleetEtaMode::ShowingResult => crate::app::Action::Fleet(FleetAction::SubmitEta),
         }
     }
 

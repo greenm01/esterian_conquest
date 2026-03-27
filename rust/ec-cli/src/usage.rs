@@ -42,7 +42,7 @@ pub fn print_usage() {
     );
     println!("  ec-cli sysop <subcommand> ...");
     println!(
-        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>] [--config <setup.kdl>]"
+        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--year <u16>] [--seed <u64>] [--config <setup.kdl>]"
     );
     println!(
         "  ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]"
@@ -192,13 +192,15 @@ pub fn print_sysop_usage(program: &str) {
     println!("Usage:");
     if program.starts_with("ec-cli") {
         println!(
-            "  {program} new-game <target_dir> [--players <1-25>] [--seed <u64>] [--config <setup.kdl>]"
+            "  {program} new-game <target_dir> [--players <1-25>] [--year <u16>] [--seed <u64>] [--config <setup.kdl>]"
         );
         println!(
             "  {program} generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]"
         );
     } else {
-        println!("  {program} new-game <target_dir> [--players <1-25>] [--seed <u64>]");
+        println!(
+            "  {program} new-game <target_dir> [--players <1-25>] [--year <u16>] [--seed <u64>]"
+        );
     }
 }
 

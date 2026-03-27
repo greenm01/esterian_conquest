@@ -436,10 +436,13 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 The game is organized around four primary menus. From the *Main Menu*, you access General Command (*G*) for autopilot, diplomacy, and reports; Planet Command (*P*) for economy and production; Fleet Command (*F*) for ship movement and missions; Information Database (*I*) to review known planet data; and View Starmap (*V*) for a graphic map of the galaxy.
 
-The Main Menu and First Time Menu also include *A>nsi Theme*, which opens a
-theme picker. From there you can preview and apply the campaign's available
-themes, including a monochrome `Mono` option, without leaving the client.
-Your last choice is remembered for your empire in that campaign.
+On local terminals, the Main Menu and First Time Menu also include
+*C>olor Theme*, which opens a theme picker. From there you can preview and
+apply the campaign's available themes, including a monochrome `Mono` option,
+without leaving the client. Your last choice is remembered for your empire in
+that campaign. In BBS door mode, the client instead keeps the classic
+*A>nsi color ON/OFF* toggle and starts from the campaign default theme for the
+session.
 
 === General Command
 
@@ -560,13 +563,15 @@ The project has now reached a real beta stage. The Rust player and sysop tools c
 
 *Visual Themes* \
 The `ec-game` client is themable. Each campaign has a sysop-chosen default
-theme, but players can also open *A>nsi Theme* from the Main Menu or First
-Time Menu and choose their own session theme from the campaign's available
-theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several
-other built-in palettes, plus a monochrome `Mono` option in the picker. Your
-last theme choice is remembered for your empire in that campaign. If a saved
-custom theme later disappears or becomes invalid, `ec-game` falls back to
-`tokyo_night`, with `Mono` kept as a safe last resort.
+theme, and local-terminal players can open *C>olor Theme* from the Main Menu
+or First Time Menu to choose their own session theme from the campaign's
+available theme files. The shipped bundle includes `tokyo_night`, `mag16`,
+and several other built-in palettes, plus a monochrome `Mono` option in the
+picker. Your last local theme choice is remembered for your empire in that
+campaign. In BBS door mode, `ec-game` instead keeps the classic
+*A>nsi color ON/OFF* toggle and begins from the campaign default theme each
+session. If a saved custom theme later disappears or becomes invalid,
+`ec-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
 
 *Nostrian Conquest* \
 Looking further ahead, the project aims to free the game from centralized hosts entirely. Under the working title *Nostrian Conquest*, the next evolution will use the Nostr protocol as a transport layer --- players submit encrypted turn orders using cryptographic keys, and results are broadcast back through relays. No central server to shut down. No single point of failure. A serverless galaxy where the fog of war is enforced by cryptography. Freed from the shackles of the 80x25 Telnet screen, Nostrian Conquest will feature a full-screen modern ANSI/UTF-8 terminal interface worthy of the game's strategic depth.

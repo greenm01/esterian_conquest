@@ -142,7 +142,8 @@ pub fn run_maintenance_turn_with_context_and_seed(
         .records
         .iter()
         .any(|p| p.is_active_or_rogue_player());
-    let should_accumulate_conquest = game_data.conquest.inactive_production_slot_raw(0) == Some(0x0064)
+    let should_accumulate_conquest = game_data.conquest.inactive_production_slot_raw(0)
+        == Some(0x0064)
         && (any_fleet_in_transit || any_active_player);
 
     // Bombardment execution: a BombardWorld fleet that had raw[0x19]==0x80 at start of turn
@@ -462,20 +463,23 @@ fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {
         let new_first = remap_id(u16::from(first_id)) as u8;
         let new_last = remap_id(u16::from(last_id)) as u8;
         game_data.player.records[player_idx].set_fleet_chain_head_raw(u16::from(new_first));
-        game_data.player.records[player_idx].set_fleet_chain_tail_raw(if new_last == 0 && new_first != 0 {
-            let mut max_new_id: u8 = new_first;
-            for orig_idx in 0..fleet_count {
-                if pre_removal_owner[orig_idx] == owner_raw && !to_remove[orig_idx] {
-                    let mapped = remap_id(pre_removal_fleet_id[orig_idx]) as u8;
-                    if mapped > max_new_id {
-                        max_new_id = mapped;
+        game_data.player.records[player_idx].set_fleet_chain_tail_raw(
+            if new_last == 0 && new_first != 0 {
+                let mut max_new_id: u8 = new_first;
+                for orig_idx in 0..fleet_count {
+                    if pre_removal_owner[orig_idx] == owner_raw && !to_remove[orig_idx] {
+                        let mapped = remap_id(pre_removal_fleet_id[orig_idx]) as u8;
+                        if mapped > max_new_id {
+                            max_new_id = mapped;
+                        }
                     }
                 }
+                max_new_id
+            } else {
+                new_last
             }
-            max_new_id
-        } else {
-            new_last
-        }.into());
+            .into(),
+        );
     }
 }
 

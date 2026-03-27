@@ -135,7 +135,9 @@ impl StartupScreen {
         game_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
-            StartupPhase::Splash => render_splash(frame.geometry, splash_page, Some(frame.campaign_seed)),
+            StartupPhase::Splash => {
+                render_splash(frame.geometry, splash_page, Some(frame.campaign_seed))
+            }
             StartupPhase::Intro => {
                 render_game_intro_page(frame.geometry, intro_page, "(slap a key)")
             }
@@ -264,8 +266,10 @@ impl StartupScreen {
                 }
 
                 let rows = block_review_rows(block_lines(blocks, block), empty_notice);
-                let revealed_end =
-                    usize::min(scroll_offset + startup_review_visible_lines(frame.geometry), rows.len());
+                let revealed_end = usize::min(
+                    scroll_offset + startup_review_visible_lines(frame.geometry),
+                    rows.len(),
+                );
                 transcript_rows.extend(rows[..revealed_end].iter().cloned());
 
                 render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
@@ -344,7 +348,11 @@ impl StartupScreen {
         let mut buffer = new_playfield_for(frame.geometry);
         let rows = startup_login_summary_rows(frame, self.summary.game_year);
         render_review_transcript(frame.geometry, &mut buffer, &rows);
-        draw_plain_prompt(&mut buffer, command_line_row_for(frame.geometry), "(slap a key)");
+        draw_plain_prompt(
+            &mut buffer,
+            command_line_row_for(frame.geometry),
+            "(slap a key)",
+        );
         Ok(buffer)
     }
 }

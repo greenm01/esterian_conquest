@@ -3,8 +3,8 @@ use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
 use crate::screen::{
     CommandMenu, PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode,
-    PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListMode,
-    PlanetListSort, ScreenId,
+    PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListMode, PlanetListSort,
+    ScreenId,
 };
 use ec_data::build_player_starmap_projection_from_snapshots;
 
@@ -345,8 +345,11 @@ impl App {
         if accepts_input
             && self.planet.database_input.len() < 16
             && (ch.is_ascii_digit()
-                || matches!(self.planet.database_prompt_mode, PlanetDatabasePromptMode::FilterRangeCoords | PlanetDatabasePromptMode::SortRangeInput)
-                    && (ch == ',' || ch == ' '))
+                || matches!(
+                    self.planet.database_prompt_mode,
+                    PlanetDatabasePromptMode::FilterRangeCoords
+                        | PlanetDatabasePromptMode::SortRangeInput
+                ) && (ch == ',' || ch == ' '))
         {
             self.planet.database_input.push(ch);
             if self.current_screen == ScreenId::PlanetDatabaseList {
@@ -424,8 +427,11 @@ impl App {
                 PlanetDatabaseFilterMode::Range => {
                     self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterRangeCoords;
                     self.planet.database_input.clear();
-                    self.planet.database_prompt_default_value =
-                        format!("{:02},{:02}", self.default_planet_database_coords()[0], self.default_planet_database_coords()[1]);
+                    self.planet.database_prompt_default_value = format!(
+                        "{:02},{:02}",
+                        self.default_planet_database_coords()[0],
+                        self.default_planet_database_coords()[1]
+                    );
                     self.planet.database_pending_range_anchor = None;
                     self.planet.database_status = None;
                 }
@@ -474,8 +480,9 @@ impl App {
                     .trim()
                     .parse::<u8>()
                     .unwrap_or(5);
-                let radius = resolve_default_u8_input(self.planet.database_input.trim(), default_radius)
-                    .unwrap_or(default_radius);
+                let radius =
+                    resolve_default_u8_input(self.planet.database_input.trim(), default_radius)
+                        .unwrap_or(default_radius);
                 let anchor = self
                     .planet
                     .database_pending_range_anchor
@@ -836,19 +843,19 @@ impl App {
         rows.retain(|row| match self.planet.database_filter {
             PlanetDatabaseFilter::All => true,
             PlanetDatabaseFilter::Range { anchor, radius } => {
-                planet_database_distance_sq(anchor, row.coords) <= u32::from(radius) * u32::from(radius)
+                planet_database_distance_sq(anchor, row.coords)
+                    <= u32::from(radius) * u32::from(radius)
             }
             PlanetDatabaseFilter::Empire(empire_id) => row.known_owner_empire_id == Some(empire_id),
-            PlanetDatabaseFilter::MaxProduction(min_prod) => {
-                row.known_max_production.is_some_and(|value| value >= min_prod)
-            }
+            PlanetDatabaseFilter::MaxProduction(min_prod) => row
+                .known_max_production
+                .is_some_and(|value| value >= min_prod),
         });
 
         match self.planet.database_sort {
             PlanetDatabaseSort::Location => rows.sort_by_key(|row| row.coords),
-            PlanetDatabaseSort::Range(anchor) => rows.sort_by_key(|row| {
-                (planet_database_distance_sq(anchor, row.coords), row.coords)
-            }),
+            PlanetDatabaseSort::Range(anchor) => rows
+                .sort_by_key(|row| (planet_database_distance_sq(anchor, row.coords), row.coords)),
             PlanetDatabaseSort::Empire => rows.sort_by_key(|row| {
                 (
                     row.known_owner_empire_id.is_none(),

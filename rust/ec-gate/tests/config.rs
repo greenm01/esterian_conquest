@@ -3,8 +3,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ec_gate::config::io::{config_path, load_config, parse_config_str};
 use ec_gate::config::AuthKeysMethod;
+use ec_gate::config::io::{config_path, load_config, parse_config_str};
 
 // --- Canonical round-trip ---
 

@@ -1,6 +1,6 @@
 //! Tests for roster lookup functions.
 
-use ec_gate::roster::{find_seat_by_code, find_seats_by_npub, Roster, Seat, SeatStatus};
+use ec_gate::roster::{Roster, Seat, SeatStatus, find_seat_by_code, find_seats_by_npub};
 
 fn make_roster(id: &str, seats: Vec<Seat>) -> Roster {
     Roster {

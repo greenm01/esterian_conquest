@@ -17,11 +17,11 @@ use std::sync::{Arc, Mutex};
 
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
 use tokio::time::{Duration, interval};
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::config::GateConfig;
-use crate::roster::io::load_roster;
 use crate::roster::Roster;
+use crate::roster::io::load_roster;
 
 /// Run the `ec-gate serve` event loop.
 ///
@@ -29,10 +29,7 @@ use crate::roster::Roster;
 /// subscribes to 30501 events tagged to this daemon's npub, routes each event,
 /// provisions SSH keys on success, and publishes 30502/30503 back to the player.
 /// A background tokio task reaps expired keys on each `key_ttl` interval.
-pub async fn run_serve(
-    config: &GateConfig,
-    keys: &Keys,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn std::error::Error>> {
     let npub = keys
         .public_key()
         .to_bech32()
@@ -204,12 +201,7 @@ async fn handle_request(
                 }
             };
 
-            match provision::provision_key(
-                &shared_config,
-                &seat,
-                &req.ssh_pubkey,
-                &game_dir,
-            ) {
+            match provision::provision_key(&shared_config, &seat, &req.ssh_pubkey, &game_dir) {
                 Ok(provisioned) => {
                     info!(
                         game_id = %seat.game_id,

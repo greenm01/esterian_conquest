@@ -53,10 +53,12 @@ macOS, and Windows. Linux and macOS playtest bundles are supported as
 standalone archives, and the [Quick Start](#quick-start) commands remain
 available for anyone running directly from a Rust workspace.
 
-Players can also switch between the campaign's available ANSI themes from the
-client itself. `ec-game` ships with `classic`, a larger bundle of alternate
-palettes, and a `Mono` option, and each empire's last theme choice is
-remembered in the campaign database.
+In local terminal sessions, players can switch between the campaign's
+available ANSI themes from the client itself. `ec-game` ships with `classic`,
+a larger bundle of alternate palettes, and a `Mono` option, and each empire's
+last local theme choice is remembered in the campaign database. In BBS door
+mode, the client instead uses the classic ANSI color on/off toggle and starts
+from the campaign default theme for that session.
 
 EC does not show you everything on one screen. The game exports your starmap
 as a printable text file and a companion CSV. Many players print the map or

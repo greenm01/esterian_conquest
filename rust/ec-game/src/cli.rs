@@ -58,6 +58,10 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 
     let mut app = App::load(config)?;
     app.screen_geometry = parsed.screen_geometry;
+    app.door_mode = parsed.use_door_terminal;
+    if app.door_mode {
+        crate::theme::apply_default_theme();
+    }
     app.startup_state.caller_alias = parsed.dropfile_alias.clone();
     let mut terminal: Box<dyn Terminal> = if parsed.use_door_terminal {
         Box::new(DoorTerminal::with_encoding_and_color_mode(

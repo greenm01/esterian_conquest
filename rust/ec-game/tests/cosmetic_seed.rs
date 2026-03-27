@@ -54,7 +54,7 @@ fn main_menu_renders_a_quote() {
     let mut screen = MainMenuScreen::new();
 
     let buffer = screen
-        .render_with_notice(None, false, false, [0, 0], "", None)
+        .render_with_notice(None, false, false, false, [0, 0], "", None)
         .expect("render menu");
 
     let quote_rows: Vec<_> = (8..=23)

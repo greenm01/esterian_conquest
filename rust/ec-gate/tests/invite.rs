@@ -2,8 +2,8 @@
 
 use std::collections::HashSet;
 
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use ec_gate::invite::wordlist::WORDLIST;
 use ec_gate::invite::{generate::generate_invite_code_with_rng, is_valid_invite_code};

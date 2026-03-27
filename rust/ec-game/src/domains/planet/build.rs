@@ -2,9 +2,9 @@ use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::screen::{
     CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow,
-    PlanetCommissionView, PlanetListSort, ScreenId, build_unit_spec, build_unit_spec_by_kind,
-    format_fleet_number, format_sector_coords, format_sector_coords_table, max_quantity,
+    PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow, PlanetCommissionView,
+    PlanetListSort, ScreenId, build_unit_spec, build_unit_spec_by_kind, format_fleet_number,
+    format_sector_coords, format_sector_coords_table, max_quantity,
 };
 use crossterm::event::KeyCode;
 use ec_data::{
@@ -361,8 +361,7 @@ impl App {
             self.planet.commission_scroll_offset = self.planet.commission_cursor;
         } else {
             let visible_rows = self.planet_commission_visible_rows();
-            if self.planet.commission_cursor
-                >= self.planet.commission_scroll_offset + visible_rows
+            if self.planet.commission_cursor >= self.planet.commission_scroll_offset + visible_rows
             {
                 self.planet.commission_scroll_offset =
                     self.planet.commission_cursor + 1 - visible_rows;
@@ -707,8 +706,9 @@ impl App {
             );
             return Ok(());
         }
-        self.planet.auto_commission_report_revealed_rows =
-            rows.len().min(self.planet_auto_commission_report_page_rows());
+        self.planet.auto_commission_report_revealed_rows = rows
+            .len()
+            .min(self.planet_auto_commission_report_page_rows());
         self.planet.auto_commission_report_rows = rows;
         self.current_screen = ScreenId::PlanetAutoCommissionReport;
         Ok(())
@@ -820,10 +820,9 @@ impl App {
             self.planet.build_list_scroll_offset = self.planet.build_list_cursor;
         } else {
             let visible_rows = self.planet_build_list_visible_rows();
-            if self.planet.build_list_cursor
-                >= self.planet.build_list_scroll_offset + visible_rows
+            if self.planet.build_list_cursor >= self.planet.build_list_scroll_offset + visible_rows
             {
-            self.planet.build_list_scroll_offset =
+                self.planet.build_list_scroll_offset =
                     self.planet.build_list_cursor + 1 - visible_rows;
             }
         }
