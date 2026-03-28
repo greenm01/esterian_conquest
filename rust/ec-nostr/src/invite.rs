@@ -1,17 +1,21 @@
 //! Bech32-encoded invite code for Esterian Conquest.
 //!
-//! An `ecinv1...` string is a self-contained invite that embeds the Nostr relay
-//! URL and the two-word invite slug so players can join with a single paste.
+//! An `ecinv1...` string is self-contained: it embeds everything a player
+//! needs to connect — relay URL, SSH host/port, invite words, and gate npub.
+//! The player pastes one string; no flags or extra configuration required.
 //!
-//! # Wire format (bech32m, HRP = `ecinv`)
+//! # Wire format (bech32m, HRP = `ecinv`, version 0x02)
 //!
 //! ```text
-//! byte  0:        version — must be 0x01
+//! byte  0:        version — must be 0x02
 //! bytes 1..3:     relay URL length as u16 big-endian
 //! bytes 3..N:     relay URL (UTF-8)
 //! byte  N:        invite words length as u8
 //! bytes N+1..M:   invite words (UTF-8, e.g. "velvet-mountain")
-//! byte  M:        flags
+//! byte  M:        SSH host length as u8
+//! bytes M+1..P:   SSH host (UTF-8)
+//! bytes P..P+2:   SSH port as u16 big-endian
+//! byte  P+2:      flags
 //!                   bit 0 = game_id present
 //!                   bit 1 = gate_npub present
 //! [if bit 0] u8 length + UTF-8 game_id
@@ -21,18 +25,22 @@
 use bech32::{Bech32m, Hrp, decode, encode};
 
 const HRP: Hrp = Hrp::parse_unchecked("ecinv");
-const VERSION: u8 = 0x01;
+const VERSION: u8 = 0x02;
 
 /// Decoded invite payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvitePayload {
-    /// Nostr relay WebSocket URL, e.g. `"wss://play.example.com:7777"`.
+    /// Nostr relay WebSocket URL, e.g. `"wss://relay.example.com:7777"`.
     pub relay_url: String,
     /// Two-word invite slug, e.g. `"velvet-mountain"`.
     pub words: String,
+    /// SSH server hostname, e.g. `"play.example.com"`.
+    pub ssh_host: String,
+    /// SSH port.
+    pub ssh_port: u16,
     /// Optional game ID hint — skips the discovery query if present.
     pub game_id: Option<String>,
-    /// Optional gate public key (raw 32 bytes) — skips the 30500 discovery entirely.
+    /// Optional gate public key (raw 32 bytes) — skips 30500 discovery entirely.
     pub gate_npub: Option<[u8; 32]>,
 }
 
@@ -40,12 +48,16 @@ pub struct InvitePayload {
 pub fn encode_invite(payload: &InvitePayload) -> Result<String, String> {
     let relay_bytes = payload.relay_url.as_bytes();
     let words_bytes = payload.words.as_bytes();
+    let host_bytes = payload.ssh_host.as_bytes();
 
     if relay_bytes.len() > u16::MAX as usize {
         return Err("relay URL too long".into());
     }
     if words_bytes.len() > u8::MAX as usize {
         return Err("invite words too long".into());
+    }
+    if host_bytes.len() > u8::MAX as usize {
+        return Err("SSH host too long".into());
     }
 
     let mut flags: u8 = 0;
@@ -56,15 +68,19 @@ pub fn encode_invite(payload: &InvitePayload) -> Result<String, String> {
         flags |= 0x02;
     }
 
-    let relay_len = relay_bytes.len() as u16;
-    let words_len = words_bytes.len() as u8;
-
     let mut data: Vec<u8> = Vec::new();
     data.push(VERSION);
-    data.extend_from_slice(&relay_len.to_be_bytes());
+
+    data.extend_from_slice(&(relay_bytes.len() as u16).to_be_bytes());
     data.extend_from_slice(relay_bytes);
-    data.push(words_len);
+
+    data.push(words_bytes.len() as u8);
     data.extend_from_slice(words_bytes);
+
+    data.push(host_bytes.len() as u8);
+    data.extend_from_slice(host_bytes);
+    data.extend_from_slice(&payload.ssh_port.to_be_bytes());
+
     data.push(flags);
 
     if let Some(game_id) = &payload.game_id {
@@ -94,7 +110,10 @@ pub fn decode_invite(encoded: &str) -> Result<InvitePayload, String> {
 
     let version = *data.get(pos).ok_or("truncated: missing version")?;
     if version != VERSION {
-        return Err(format!("unsupported version {version}"));
+        return Err(format!(
+            "unsupported invite version {version} (expected {VERSION}); \
+             ask your sysop for a fresh invite code"
+        ));
     }
     pos += 1;
 
@@ -121,8 +140,25 @@ pub fn decode_invite(encoded: &str) -> Result<InvitePayload, String> {
         std::str::from_utf8(&data[pos..pos + words_len]).map_err(|_| "words are not UTF-8")?;
     pos += words_len;
 
+    // SSH host.
+    let host_len = *data.get(pos).ok_or("truncated: SSH host length")? as usize;
+    pos += 1;
+    if pos + host_len > data.len() {
+        return Err("truncated: SSH host body".into());
+    }
+    let ssh_host =
+        std::str::from_utf8(&data[pos..pos + host_len]).map_err(|_| "SSH host is not UTF-8")?;
+    pos += host_len;
+
+    // SSH port.
+    if pos + 2 > data.len() {
+        return Err("truncated: SSH port".into());
+    }
+    let ssh_port = u16::from_be_bytes([data[pos], data[pos + 1]]);
+    pos += 2;
+
     // Flags.
-    let flags = *data.get(pos).ok_or("truncated: flags")? ;
+    let flags = *data.get(pos).ok_or("truncated: flags")?;
     pos += 1;
 
     // Optional game_id.
@@ -155,6 +191,8 @@ pub fn decode_invite(encoded: &str) -> Result<InvitePayload, String> {
     Ok(InvitePayload {
         relay_url: relay_url.to_string(),
         words: words.to_string(),
+        ssh_host: ssh_host.to_string(),
+        ssh_port,
         game_id,
         gate_npub,
     })

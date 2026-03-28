@@ -1,7 +1,11 @@
 pub mod bridge;
+pub mod game_discovery;
 pub mod handshake;
+pub mod live_response;
 pub mod map_fetch;
+pub mod public_join;
 pub mod resolve;
+pub mod seat_claim;
 pub mod session;
 pub mod session_state;
 pub mod ssh_key;

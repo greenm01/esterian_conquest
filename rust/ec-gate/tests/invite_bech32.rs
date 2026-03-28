@@ -76,6 +76,8 @@ fn invite_bech32_tag_round_trips() {
     let decoded = decode_invite(encoded).expect("bech32 invite should decode");
     assert_eq!(decoded.relay_url, relay);
     assert_eq!(decoded.words, "velvet-mountain");
+    assert_eq!(decoded.ssh_host, "play.example.com");
+    assert_eq!(decoded.ssh_port, 2222);
     assert_eq!(decoded.game_id, Some("friday-night".to_string()));
     assert!(decoded.gate_npub.is_some());
 }

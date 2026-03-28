@@ -1,5 +1,5 @@
 use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
-use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_table_command_bar_at};
+use ec_ui::prompt::draw_table_command_bar_at;
 use ec_ui::theme::classic;
 
 use super::help::{GAME_SELECT_RAIL, MAIN_MENU_RAIL, WALLET_MENU_RAIL};
@@ -89,7 +89,7 @@ pub fn render_buffer(
     let identity_label = session.map(PickerSession::header_identity_label);
 
     let command_row = match &state.screen {
-        Screen::GameList | Screen::JoinPrompt | Screen::IdentityOverlay => {
+        Screen::GameList | Screen::IdentityOverlay => {
             render_main_menu(&mut buffer, state, session)
         }
         Screen::WalletList | Screen::WalletAddPrompt => {
@@ -170,15 +170,6 @@ fn render_main_menu(
     }
 
     match state.screen {
-        Screen::JoinPrompt => {
-            let prompt = format!("Invite code <Q> <?> -> {}", state.join_input);
-            draw_command_line_prompt_text_at(
-                buffer,
-                metrics.command_row,
-                "CONNECT COMMAND",
-                &prompt,
-            );
-        }
         Screen::GameList => {
             draw_table_command_bar_at(buffer, metrics.command_row, MAIN_MENU_RAIL, None, "");
         }

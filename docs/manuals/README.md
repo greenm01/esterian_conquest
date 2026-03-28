@@ -1,0 +1,51 @@
+# Manuals
+
+This directory holds the authoritative manuals for the Rust edition of
+Esterian Conquest.
+
+The primary sources are:
+
+- [ec_player_manual.typ](ec_player_manual.typ)
+- [ec_sysop_manual.typ](ec_sysop_manual.typ)
+
+The published outputs linked from the main README are:
+
+- [ec_player_manual.pdf](ec_player_manual.pdf)
+- [ec_sysop_manual.pdf](ec_sysop_manual.pdf)
+
+Edit the Typst sources first. When a manual changes, regenerate the matching
+PDF so the published output stays in sync.
+
+## Writing Style
+
+Future manual edits should follow
+[project-style-guide.md](project-style-guide.md).
+
+In short:
+
+- use standard prose
+- keep the manuals human-facing
+- prefer short clear paragraphs
+- do not be more verbose than the material requires
+
+## Maintenance
+
+Use the revision-date helper from the repo root:
+
+```bash
+python3 scripts/refresh_manual_revision_date.py
+python3 scripts/refresh_manual_revision_date.py --doc player
+python3 scripts/refresh_manual_revision_date.py --doc sysop
+python3 scripts/refresh_manual_revision_date.py --doc both --date 2026-03-28
+python3 scripts/refresh_manual_revision_date.py --doc player --no-build
+```
+
+By default the script updates the selected Typst source and rebuilds the
+matching PDF. Pass `--no-build` when you only want to refresh the Typst source.
+
+## Archive
+
+The [archive/](archive/) subdirectory holds historical transcriptions and
+reference material derived from the original EC documents. Treat that archive
+as provenance and ambiguity fallback, not as the primary source for current
+manual edits.

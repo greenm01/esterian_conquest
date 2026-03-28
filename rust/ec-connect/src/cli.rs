@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use nostr_sdk::Keys;
 
 use crate::config::{ConnectConfig, load_config};
+use crate::connect::game_discovery::discover_game_for_invite;
+use crate::connect::public_join::run_public_join;
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
 #[cfg(debug_assertions)]
@@ -203,10 +205,6 @@ fn parse_connect_opts(
 // ── --join ────────────────────────────────────────────────────────────────────
 
 fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
-    let gate_npub = opts
-        .gate_npub
-        .ok_or("--join requires --gate <npub> (the server's Nostr public key)")?;
-
     // Load config (optional).
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
@@ -226,15 +224,30 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
     }
 
     eprintln!("Joining game...");
-
-    let outcome = run_tokio(run_session(
-        &keys,
-        target,
-        &npub,
-        &gate_npub,
-        DisambigMode::Prompt,
-        &maps_root,
-    ))?;
+    let outcome = if let Some(gate_npub) = opts.gate_npub {
+        let discovered = run_tokio(discover_game_for_invite(&keys, &target, code))
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+        if let Ok(discovered) = discovered {
+            target.game_id = Some(discovered.game_id);
+        }
+        run_tokio(run_session(
+            &keys,
+            target,
+            &npub,
+            &gate_npub,
+            DisambigMode::Prompt,
+            &maps_root,
+        ))?
+    } else {
+        run_tokio(run_public_join(
+            &keys,
+            target,
+            &npub,
+            DisambigMode::Prompt,
+            &maps_root,
+        ))?
+        .map_err(|err| -> Box<dyn std::error::Error> { err })?
+    };
 
     report_outcome(outcome)
 }
@@ -561,7 +574,7 @@ ec-connect — Esterian Conquest multiplayer client
 Usage:
   ec-connect                                       Picker mode (game list)
   ec-connect <SERVER> --gate <NPUB>                Direct mode (connect to server)
-  ec-connect --join <INVITE-CODE> --gate <NPUB>    Join a new game
+  ec-connect --join <INVITE-CODE>                  Join a new game
 
 Identity:
   ec-connect id                        Show active identity (npub)
@@ -572,7 +585,7 @@ Identity:
   ec-connect id switch <N>             Switch active identity
 
 Options:
-  --gate <NPUB>    Gate server Nostr public key (required for connect/join)
+  --gate <NPUB>    Gate server Nostr public key (optional override / fallback)
   --relay <URL>    Override Nostr relay URL
   --maps-dir <PATH> Override where downloaded starmap bundles are stored
   --version        Print version

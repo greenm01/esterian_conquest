@@ -215,9 +215,8 @@ fn initial_screen_is_game_list() {
 #[test]
 fn screen_enum_eq() {
     assert_eq!(Screen::GameList, Screen::GameList);
-    assert_eq!(Screen::JoinPrompt, Screen::JoinPrompt);
     assert_eq!(Screen::IdentityOverlay, Screen::IdentityOverlay);
-    assert_ne!(Screen::GameList, Screen::JoinPrompt);
+    assert_ne!(Screen::GameList, Screen::IdentityOverlay);
 }
 
 #[test]
@@ -332,17 +331,28 @@ fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
 }
 
 #[test]
-fn join_prompt_cursor_sits_after_arrow_gap() {
+fn join_code_popup_shows_code_input() {
+    use ec_connect::picker::overlay::PickerOverlay;
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.screen = Screen::JoinPrompt;
-    state.join_input = "amber-river@play.example.com".to_string();
+    state.join_input = "ecinv1qgqpx".to_string();
+    state.overlay = Some(PickerOverlay::JoinCodePopup { error: None });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains(&format!("Invite code <Q> <?> -> {}", state.join_input))
-    }));
+    // Popup title is visible.
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("JOIN GAME")),
+        "expected JOIN GAME popup title"
+    );
+    // Input label is visible.
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Code:")),
+        "expected Code: label"
+    );
+    // Keyboard hint is visible.
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Enter=join")),
+        "expected Enter=join hint"
+    );
 }
 
 #[test]

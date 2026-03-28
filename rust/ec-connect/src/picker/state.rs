@@ -17,7 +17,6 @@ const MANUAL_REFRESH_COOLDOWN: Duration = Duration::from_millis(500);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Screen {
     GameList,
-    JoinPrompt,
     IdentityOverlay,
     WalletList,
     WalletAddPrompt,
@@ -89,6 +88,17 @@ impl ConnectDisplay {
                 format!("Server: {}:{}", target.server_host, target.server_port),
                 format!("Relay: {}", target.relay_url),
                 "Attempting to connect...".to_string(),
+            ],
+        }
+    }
+
+    pub fn from_invite_claim(invite_code: &str, target: &ResolvedTarget) -> Self {
+        Self {
+            lines: vec![
+                format!("Invite: {}", invite_code),
+                format!("Server: {}:{}", target.server_host, target.server_port),
+                format!("Relay: {}", target.relay_url),
+                "Claiming invite...".to_string(),
             ],
         }
     }

@@ -86,7 +86,7 @@ pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
             .map(|bytes| bytes.iter().map(|b| format!("{b:02x}")).collect());
         return Ok(ParsedInviteCode {
             words: payload.words,
-            server: None,
+            server: Some((payload.ssh_host, payload.ssh_port)),
             relay_url: Some(payload.relay_url),
             game_id: payload.game_id,
             gate_npub,
@@ -161,13 +161,13 @@ fn validate_and_normalize_words(s: &str) -> Result<String, String> {
 pub fn resolve_invite(code: &str, config: &ConnectConfig) -> Result<ResolvedTarget, String> {
     let parsed = parse_invite_code(code)?;
 
-    // For bech32 invites the relay URL is already in the payload.
-    // For plain invites, derive from the server host or use config override.
+    // For bech32 invites all coordinates are embedded — no config needed.
+    // For plain invites, derive relay from the server host or config.
     let (server_host, server_port, relay_url) = if let Some(ref relay) = parsed.relay_url {
-        // Bech32: relay embedded, server coordinates from config fallback only
-        // (bech32 invites don't carry a specific SSH host — the sysop hands out
-        // the invite and the player connects to the relay to discover the game).
-        let (host, port) = resolve_server_coords(None, config)?;
+        let (host, port) = resolve_server_coords(
+            parsed.server.as_ref().map(|(h, p)| (h.as_str(), *p)),
+            config,
+        )?;
         (host, port, relay.clone())
     } else {
         let (host, port) = resolve_server_coords(

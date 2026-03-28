@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 27),
+  date: datetime(year: 2026, month: 3, day: 28),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(0.5em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: March 27, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: March 28, 2026]
 ]
 
 #pagebreak()
@@ -207,19 +207,59 @@ ec-sysop nostr init
 ec-sysop nostr serve
 ```
 
-After the daemon is running, give each player an invite code, the daemon's
-public key, and the relay URL they should use. The client will automatically use the default relay or prompt them if it's their first time connecting to an unknown host. The player-facing join command is:
+After the daemon is running, view the hosted seat state and get the
+ready-to-distribute invite commands:
 
 ```
-ec-connect --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
+ec-sysop nostr seats --dir /path/to/mygame
 ```
+
+The output lists every seat. Pending seats show two invite formats:
+
+```
+Seat 1  [pending]
+  ec-connect --join ecinv1...
+  amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+
+Seat 2  [claimed]
+  npub1...
+```
+
+Send each player his `ec-connect --join ecinv1...` line. The player:
+
+1. Runs `ec-connect`.
+2. Presses `N`.
+3. Pastes the invite code and presses Enter.
+
+That is the full player-side flow. The code is self-contained — it carries the
+relay URL, server host, and gate key. No extra configuration required.
 
 On first join, `ec-connect` creates or unlocks the player's encrypted
-identity, binds that key to the seat, downloads the static starmap bundle, and
-opens the SSH-backed `ec-game` session. Returning players reconnect through
-`ec-connect` rather than launching `ec-game` directly. After a successful join,
-`ec-connect` caches the exact relay per game, so most later reconnects do not
-need the relay entered again.
+identity, claims the hosted seat through the relay, downloads the static
+starmap bundle, and opens the SSH-backed `ec-game` session. Returning players
+reconnect through `ec-connect` without re-entering any flags.
+
+*Power users and scripted workflows* may also join directly from the command
+line:
+
+```
+ec-connect --join ecinv1...
+```
+
+Or with a plain two-word code (includes relay and gate flags for reliability):
+
+```
+ec-connect --join amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+```
+
+If an invite code is lost or compromised, reissue it:
+
+```
+ec-sysop nostr reissue --dir /path/to/mygame --player 2
+```
+
+This generates a fresh code for that seat, clears the old claim, and lets the
+player join again with the new code.
 
 Hosted seat claims are stored in `ecgame.db`. That SQLite state is the
 authority for invite codes, claim status, and bound player `npub`s. Legacy

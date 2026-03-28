@@ -108,6 +108,8 @@ pub fn build_game_def_tags(
             let payload = InvitePayload {
                 relay_url: relay_url.to_string(),
                 words: seat.invite_code.to_ascii_lowercase(),
+                ssh_host: ssh_host.to_string(),
+                ssh_port,
                 game_id: Some(game.game_id.clone()),
                 gate_npub: gate_npub_bytes,
             };

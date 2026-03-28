@@ -29,18 +29,17 @@ old-school tension — now running on a modern Rust engine.
 
 If you are starting Esterian Conquest today, the recommended way to play is
 through a hosted game over Nostr with `ec-connect`. A sysop runs
-`ec-sysop nostr serve`, gives you an invite code, the host's Nostr public
-key, and the relay URL, and you join from your own machine with one command. `ec-connect` manages
-the encrypted player identity, opens the SSH-backed `ec-game` session, and on
-the first successful join downloads the campaign's static player-safe starmap
-bundle so you have the printable text map and CSV sheets locally.
+`ec-sysop nostr serve` and gives you a single invite code. You join from your
+own machine with one command, and `ec-connect` handles your encrypted player
+identity, reads the connection details from the invite, claims your seat, and
+opens a secure SSH-backed `ec-game` session. On your first successful join, it
+also downloads the campaign's static player-safe starmap bundle so you have
+the printable text map and CSV sheets locally.
 
-That hosted flow is now the primary multiplayer story for the Rust edition.
-It preserves the old EC rhythm — connect, read reports, issue orders, log
-out, wait for maintenance — without requiring BBS middleware or manual Unix
-account setup. `ec-connect` now uses a fixed `80x25` local shell with a game
-table, wallet manager, and lock screen, while still supporting direct
-invite-code joins from the command line.
+That hosted flow is now the primary multiplayer story for the Rust edition. It
+preserves the old EC rhythm — connect, read reports, issue orders, log out,
+wait for maintenance — without requiring BBS middleware or manual Unix
+account setup.
 
 Local and hotseat play remain first-class. If you want to learn the
 interface, test a scenario, or run a private campaign on one machine, you can
@@ -59,18 +58,15 @@ as standalone archives. `ec-cli` remains developer/oracle tooling and is not
 part of the shipped player/sysop bundle.
 
 In local terminal sessions, players can switch between the campaign's
-available ANSI themes from the client itself. `ec-game` ships with `classic`,
-a larger bundle of alternate palettes, and a `Mono` option, and each empire's
-last local theme choice is remembered in the campaign database. In BBS door
-mode, the client instead uses the classic ANSI color on/off toggle and starts
-from the campaign default theme for that session.
+available themes from the client itself, and each empire's last local choice
+is remembered in the campaign database.
 
-EC does not show you everything on one screen. The game exports your starmap
-as a printable text file and a companion CSV. Many players print the map or
-pull the CSV into a spreadsheet to track fleet positions, mark explored
-systems, and plan routes by hand. The Rust client has an interactive map
-viewer in the TUI, but pencil on a printed starmap is the old-school way and
-still a good one.
+EC still expects some off-screen planning. The game exports your starmap as a
+printable text file and a companion CSV. Many players print the map or pull
+the CSV into a spreadsheet to track fleet positions, mark explored systems,
+and plan routes by hand. The Rust client has an interactive map viewer in the
+TUI, but pencil on a printed starmap is the old-school way and still a good
+one.
 
 ## Learn How To Play
 
@@ -99,10 +95,12 @@ it back.
 The Rust engine is not a wrapper around the original binary. It is a full
 reimplementation: the rules, the turn cycle, the maintenance pass, the
 reports, the player client. The original game's feel and structure are the
-design target; the original binaries and manuals are the reference. Where the
-original was opaque or stochastic, the Rust version is explicit — a seeded
-campaign RNG means results are reproducible, and the engine will tell you why
-a combat resolved the way it did.
+design target; the original binaries and manuals are the reference. If you're
+curious how that recovery work was done, [How EC was
+recovered](docs/dev/approach.md#how-ec-was-recovered) gives the short version.
+Where the original was opaque or stochastic, the Rust version is explicit — a
+seeded campaign RNG means results are reproducible, and the engine will tell
+you why a combat resolved the way it did.
 
 The game is playable today and has reached a real beta stage. Fresh campaigns
 run across all four documented player tiers (4, 9, 16, and 25 empires),
@@ -131,19 +129,32 @@ cargo run -q -p ec-sysop -- nostr init
 cargo run -q -p ec-sysop -- nostr serve
 ```
 
-Share an invite code, the daemon's public key, and the relay URL with each player. The
-simplest player join path today is:
+View seat states and get the ready-to-share invite commands:
 
 ```bash
-cd rust
-cargo run -q -p ec-connect -- --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
+cargo run -q -p ec-sysop -- nostr seats --dir /path/to/mygame
 ```
 
-Add `--relay wss://relay.example.com` when you want to override relay
-discovery, and `--maps-dir /path/to/maps` when you want starmap bundles stored
-somewhere other than the platform default data directory. On the first
-successful join, `ec-connect` downloads the game's static player-safe starmap
-bundle before opening the terminal session.
+Each pending seat shows the invite code to send the player. The player joins
+in three steps:
+
+1. Run `ec-connect`.
+2. Press `N`.
+3. Paste the invite code and press Enter.
+
+That is all. No relay flag, no gate flag, no configuration.
+
+**Power users** can also join from the command line directly:
+
+```bash
+ec-connect --join ecinv1...
+```
+
+The `nostr seats` output also shows the full plain-code command (with `--relay`
+and `--gate`) for scripting or manual use.
+
+Add `--maps-dir /path/to/maps` when you want starmap bundles stored
+somewhere other than the platform default data directory.
 
 Run maintenance to close a year:
 

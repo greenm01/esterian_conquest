@@ -77,7 +77,6 @@ pub fn execute_pending_connect(
                     }
                     Err(err) => {
                         state.overlay = None;
-                        state.screen = Screen::JoinPrompt;
                         state.show_error(err);
                         return Ok(());
                     }
@@ -129,14 +128,10 @@ pub fn execute_pending_connect(
                 };
             }
             SessionOutcome::Error(msg) => {
-                state.overlay = None;
-                state.screen = Screen::JoinPrompt;
                 state.show_error(msg);
             }
             SessionOutcome::Timeout => {
-                state.overlay = None;
-                state.screen = Screen::JoinPrompt;
-                state.show_error("handshake timed out.");
+                state.show_error("Connection timed out.");
             }
         },
         ConnectOrigin::GameSelect => match outcome {

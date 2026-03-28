@@ -75,11 +75,22 @@ pub fn join_with_code(
     use crate::config::ConnectConfig;
     use crate::config::load_config;
 
+    // TUI join only accepts bech32 invite codes (ecinv1...).
+    // Plain two-word codes are supported via the CLI --join flag.
+    if !code.starts_with("ecinv1") {
+        state.overlay = Some(super::overlay::PickerOverlay::JoinCodePopup {
+            error: Some("Not a valid invite code. Use the ecinv1... code from your sysop.".into()),
+        });
+        return Ok(());
+    }
+
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let target = match resolve_invite(code, &config) {
         Ok(target) => target,
         Err(err) => {
-            state.show_error(format!("invalid invite code: {err}"));
+            state.overlay = Some(super::overlay::PickerOverlay::JoinCodePopup {
+                error: Some(format!("Invalid invite code: {err}")),
+            });
             return Ok(());
         }
     };
@@ -88,7 +99,11 @@ pub fn join_with_code(
         state,
         PendingConnectRequest {
             origin: ConnectOrigin::JoinPrompt,
-            display: ConnectDisplay::from_invite(code, &target),
+            display: if gate_npub.trim().is_empty() {
+                ConnectDisplay::from_invite_claim(code, &target)
+            } else {
+                ConnectDisplay::from_invite(code, &target)
+            },
             target,
             gate_npub: gate_npub.to_string(),
         },

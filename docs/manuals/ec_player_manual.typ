@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 27),
+  date: datetime(year: 2026, month: 3, day: 28),
 )
 
 #set page(
@@ -89,7 +89,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 27, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: March 28, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -141,13 +141,14 @@ In profound respect and admiration to Bentley C. Griffith and his fellow pioneer
 
 = Connecting to a Game
 
-Most campaigns are hosted via Nostr. To join, your sysop will provide an invite code, a host key, and a relay URL. You can join the campaign directly from your terminal:
+Your sysop will give you an invite code. Here is how you join:
 
-```
-ec-connect --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
-```
+1. Run `ec-connect`.
+2. Press `N` to join a new game.
+3. Paste your invite code and press Enter.
 
-This command handles your initial setup, including creating your wallet password and downloading the campaign's starmap bundle automatically. Once you have joined a game, you can simply run `ec-connect` on its own to manage your identities and reconnect to your campaigns through the interactive menu.
+That is all. `ec-connect` handles your identity, claims your seat, downloads
+the campaign starmap, and opens your `ec-game` session.
 
 == ec-connect Setup
 
@@ -155,14 +156,26 @@ On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you
 lose it, the client cannot recover your wallet for you.
 
-Your sysop must give you three things for a hosted game:
+Your sysop gives you one invite code. It begins with `ecinv1` and contains
+everything the client needs. Paste it when prompted.
 
-- an invite code
-- the gate public key
-- the relay URL
+== Power Users
+
+You can also join from the command line directly:
+
+```
+ec-connect --join ecinv1...
+```
+
+If your sysop gives you a plain two-word code, he will include the relay
+address and gate key as well. Supply all three:
+
+```
+ec-connect --join amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+```
 
 If you join from the picker later and a cached game is missing its relay,
-`ec-connect` will ask for it once and then save it on that game entry.
+`ec-connect` will ask for it once and save it.
 
 == Wallet Management
 
@@ -178,9 +191,11 @@ The wallet is local client state. It is not the server's player list.
 
 == Relay Configuration
 
-Press `R` in the main `ec-connect` menu to edit your default relay. This is
-the relay the client uses when a join command or an older cached game does not
-already supply an exact relay URL.
+Press `R` in the main `ec-connect` menu to edit your default relay. This
+applies when reconnecting to older cached games that do not carry an embedded
+relay, or when joining with a plain two-word code that does not include one.
+Modern bech32 invite codes (`ecinv1...`) carry the relay address inside them,
+so the default relay setting is not needed for those.
 
 After a successful join, `ec-connect` caches the exact relay for that game, so
 most reconnects do not need relay entry again.

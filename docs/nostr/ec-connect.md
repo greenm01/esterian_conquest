@@ -10,15 +10,16 @@ software and playtested accordingly.
 
 ## Player Experience
 
-In the recommended public flow, the sysop gives the player an invite code, the
-host's Nostr public key, and the relay URL for the hosted game. The player
-joins once with `--join` and `--gate`, and `ec-connect` handles the identity,
-handshake, and terminal bridge.
+In the recommended public flow, the sysop gives the player an invite code and
+the relay URL for the hosted game. The player joins once with `--join`.
+`ec-connect` discovers the gate key from the relay's public 30500 game
+definition, claims the seat, and then launches the normal session handshake
+and terminal bridge.
 
 ### First Launch
 
 ```
-$ ec-connect --join velvet-mountain@play.example.com --gate npub1... --relay wss://relay.example.com
+$ ec-connect --join velvet-mountain@play.example.com --relay wss://relay.example.com
 [centered password window]
 This password encrypts your wallet.
 If you lose it, you will be locked out.
@@ -86,11 +87,13 @@ CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@play.example.com
 ```
 
 After a successful join, the new game appears in the list and the player
-is connected immediately. On that first successful join, `ec-connect`
-also requests the game's static starmap bundle before opening SSH. The
-download is best-effort: if it fails, the player still enters the game
-and can retry later from the picker. Invalid invite codes stay in the
-prompt and show an error notice instead of dropping out of the shell.
+is connected immediately. Public first joins now claim the seat from the
+relay's published game state before opening SSH. On that first successful
+join, `ec-connect` also requests the game's static starmap bundle before
+opening SSH. The download is best-effort: if it fails, the player still
+enters the game and can retry later from the picker. Invalid invite codes
+stay in the prompt and show an error notice instead of dropping out of the
+shell.
 
 ### Nostr User
 
@@ -102,7 +105,7 @@ $ ec-connect id import
 Enter your nsec: nsec1...
 Identity imported.
 
-$ ec-connect --join copper-sunrise@play.example.com --gate npub1... --relay wss://relay.example.com
+$ ec-connect --join copper-sunrise@play.example.com --relay wss://relay.example.com
 [centered password window]
 Password: ********
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
@@ -329,12 +332,16 @@ ec-connect id switch N               Switch active identity to index N
 ### Options
 
 ```
---gate <NPUB>           Gate daemon Nostr public key (required for direct mode and first-time joins)
+--gate <NPUB>           Gate daemon Nostr public key (optional override / fallback)
 --relay <URL>          Override Nostr relay URL
 --maps-dir <PATH>      Override where downloaded starmap bundles are stored
 --version              Print version
 --help                 Print help
 ```
+
+For normal public joins, `--join` only needs the invite code and relay. Supply
+`--gate` when the sysop does not publish public 30500 definitions or when more
+than one hosted game matches on the relay.
 
 ## Main Menu
 
@@ -481,34 +488,36 @@ Connecting...
 2. Resolve server hostname and relay URL. If the server argument is a
    bookmark, look it up in config. Otherwise use the hostname directly
    and resolve the relay via the priority chain.
-3. Generate an ephemeral ed25519 SSH keypair for this session. This
+3. For a first public invite join, discover the game's 30500 definition,
+   publish a 30510 seat-claim request, and wait for the updated 30500 to
+   show the seat claimed by this player.
+4. Generate an ephemeral ed25519 SSH keypair for this session. This
    keypair is never stored; it lives only in memory for the duration of
    the connection.
-4. Connect to the Nostr relay via WebSocket.
-5. Publish a signed 30501 SessionRequest event containing the player's
-   npub, the ephemeral SSH public key, and optionally an invite code
-   and/or game ID.
-6. Subscribe to 30502 (SessionReady) and 30503 (SessionError) events
+5. Connect to the Nostr relay via WebSocket.
+6. Publish a signed 30501 SessionRequest containing the player's npub,
+   the ephemeral SSH public key, and the resolved game ID.
+7. Subscribe to 30502 (SessionReady) and 30503 (SessionError) events
    addressed to the player's npub.
-7. Wait for a response from `ec-gate` (timeout: 15 seconds).
+8. Wait for a response from `ec-gate` (timeout: 15 seconds).
 
 ### Session Established
 
-8. On receiving 30502 SessionReady: decrypt the NIP-44 payload to get
+9. On receiving 30502 SessionReady: decrypt the NIP-44 payload to get
    the SSH host, port, server host key fingerprint, game ID, game name,
    and seat number.
-9. Update the local game cache with the connection details.
-10. If this was a first-time invite-code join, issue a 30504 MapRequest
+10. Update the local game cache with the connection details.
+11. If this was a first-time invite-code join, issue a 30504 MapRequest
     for the joined game. On 30505, save the decrypted `starmap.txt`,
     `starmap.csv`, and `starmap-DETAILS.csv` bundle under the resolved
     maps directory. If the request fails, record a warning and continue.
-11. Disconnect from the Nostr relay. The relay is no longer needed.
-12. Tear down the picker screen (if in picker mode) and put the local
+12. Disconnect from the Nostr relay. The relay is no longer needed.
+13. Tear down the picker screen (if in picker mode) and put the local
     terminal into raw mode.
-13. Open an SSH connection to the server using the ephemeral keypair.
+14. Open an SSH connection to the server using the ephemeral keypair.
     Verify the host key fingerprint matches the one in the SessionReady
     payload (or a cached known host).
-14. Attach stdin/stdout to the SSH channel. Forward terminal resize
+15. Attach stdin/stdout to the SSH channel. Forward terminal resize
     events (SIGWINCH on Unix, console events on Windows) as SSH
     window-change requests.
 15. The player is now in `ec-game`.

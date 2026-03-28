@@ -3,8 +3,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ec_data::{CampaignStore, CoreGameData, GameConfig, HostedSeat, HostedSeatStatus};
+use ec_gate::config::io::{config_path, load_config};
+use ec_gate::identity::io::{identity_path, load_identity};
 use ec_gate::invite::generate_invite_code;
 use ec_gate::roster::io::load_roster;
+use ec_nostr::invite::{InvitePayload, encode_invite};
+use nostr_sdk::ToBech32;
 
 pub fn initialize_hosted_seats_for_new_game(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let game_data = CoreGameData::load(dir)?;
@@ -61,20 +65,78 @@ pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> 
 }
 
 pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
-    let config_path = dir.join("config.kdl");
-    let game_config = GameConfig::load_kdl(&config_path)?;
+    let game_config_path = dir.join("config.kdl");
+    let game_config = GameConfig::load_kdl(&game_config_path)?;
     let store = CampaignStore::open_default_in_dir(dir)?;
     let seats = store.hosted_seats()?;
+
+    // Attempt to load gate config + identity for bech32 invite generation.
+    // If either is missing (e.g. gate not configured yet) we fall back to
+    // plain invite codes without failing.
+    // (relay_url, ssh_host, ssh_port, gate_npub_bytes)
+    let bech32_ctx: Option<(String, String, u16, [u8; 32])> =
+        (|| -> Option<(String, String, u16, [u8; 32])> {
+            let cfg = load_config(&config_path()).ok()?;
+            let identity = load_identity(&identity_path()).ok()?;
+            let hex = identity.keys.public_key().to_hex();
+            if hex.len() != 64 {
+                return None;
+            }
+            let mut bytes = [0u8; 32];
+            for (i, chunk) in hex.as_bytes().chunks(2).enumerate().take(32) {
+                bytes[i] =
+                    u8::from_str_radix(std::str::from_utf8(chunk).ok()?, 16).ok()?;
+            }
+            Some((cfg.relay, cfg.ssh_host, cfg.ssh_port, bytes))
+        })();
+
     let mut out = String::new();
     out.push_str(&format!("Game: {}\n", game_config.game_name));
-    out.push_str(&format!("Dir: {}\n", dir.display()));
-    for seat in seats {
-        let status = seat.status.as_str();
-        let npub = seat.player_npub.unwrap_or_default();
-        out.push_str(&format!(
-            "Seat {:>2}: {:<7} {:<24} {}\n",
-            seat.player_record_index_1_based, status, seat.invite_code, npub
-        ));
+    out.push_str(&format!("Dir:  {}\n", dir.display()));
+    out.push('\n');
+
+    for seat in &seats {
+        let npub = seat.player_npub.as_deref().unwrap_or("");
+        match seat.status {
+            HostedSeatStatus::Pending => {
+                out.push_str(&format!("Seat {}  [pending]\n", seat.player_record_index_1_based));
+                match bech32_ctx.as_ref() {
+                    Some((relay, ssh_host, ssh_port, gate_npub_bytes)) => {
+                        let payload = InvitePayload {
+                            relay_url: relay.clone(),
+                            words: seat.invite_code.to_ascii_lowercase(),
+                            ssh_host: ssh_host.clone(),
+                            ssh_port: *ssh_port,
+                            game_id: None,
+                            gate_npub: Some(*gate_npub_bytes),
+                        };
+                        if let Ok(encoded) = encode_invite(&payload) {
+                            out.push_str(&format!("  ec-connect --join {encoded}\n"));
+                        }
+                        let gate_npub_str = nostr_sdk::PublicKey::from_slice(gate_npub_bytes)
+                            .ok()
+                            .and_then(|pk| pk.to_bech32().ok())
+                            .unwrap_or_default();
+                        out.push_str(&format!(
+                            "  {}@{} --relay {} --gate {}\n",
+                            seat.invite_code, ssh_host, relay, gate_npub_str
+                        ));
+                    }
+                    None => {
+                        out.push_str(&format!("  ec-connect --join {}\n", seat.invite_code));
+                    }
+                }
+            }
+            HostedSeatStatus::Claimed => {
+                out.push_str(&format!("Seat {}  [claimed]\n", seat.player_record_index_1_based));
+                let display_npub = nostr_sdk::PublicKey::from_hex(npub)
+                    .ok()
+                    .and_then(|pk| pk.to_bech32().ok())
+                    .unwrap_or_else(|| npub.to_string());
+                out.push_str(&format!("  {display_npub}\n"));
+            }
+        }
+        out.push('\n');
     }
     Ok(out)
 }

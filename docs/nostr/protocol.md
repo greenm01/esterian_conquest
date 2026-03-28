@@ -1,8 +1,8 @@
 # Nostr Protocol
 
 This document specifies the Nostr event kinds and message flows used by
-`ec-connect` and `ec-gate` for session authentication, post-session seat
-metadata refresh, and static player starmap delivery.
+`ec-connect` and `ec-gate` for public seat claiming, session authentication,
+post-session seat metadata refresh, and static player starmap delivery.
 
 ## Design Principles
 
@@ -20,7 +20,7 @@ kind collisions.
 | Kind | Name | Publisher | Encryption | Purpose |
 |------|------|-----------|------------|---------|
 | 30500 | GameDefinition | ec-gate | None | Public game metadata and seat status |
-| 30501 | SessionRequest | ec-connect | None | Player requests a session |
+| 30501 | SessionRequest | ec-connect | None | Player requests a session launch |
 | 30502 | SessionReady | ec-gate | NIP-44 | Session provisioned, SSH details enclosed |
 | 30503 | SessionError | ec-gate | NIP-44 | Session request failed |
 | 30504 | MapRequest | ec-connect | None | Player requests the static map bundle for a joined game |
@@ -29,6 +29,8 @@ kind collisions.
 | 30507 | SessionStateRequest | ec-connect | None | Player requests refreshed seat metadata after a hosted session |
 | 30508 | SessionStateReady | ec-gate | NIP-44 | Current game name, seat, and empire name |
 | 30509 | SessionStateError | ec-gate | NIP-44 | Session-state refresh failed |
+| 30510 | SeatClaimRequest | ec-connect | None | Player claims a public invite |
+| 30511 | SeatClaimError | ec-gate | NIP-44 | Invite claim failed |
 
 All request/response kinds are parameterized replaceable events (NIP-33). The `d` tag
 serves as the deduplication key.
@@ -37,8 +39,8 @@ serves as the deduplication key.
 
 | Kind | Required Tags | Optional Tags |
 |------|---------------|---------------|
-| 30500 | `d` (game-id), `name`, `status` | |
-| 30501 | `d` (session-nonce), `p` (gate npub), `ssh-pubkey` | `game-id` |
+| 30500 | `d` (game-id), `name`, `status`, `ssh-host`, `ssh-port` | |
+| 30501 | `d` (session-nonce), `p` (gate npub), `ssh-pubkey`, `game-id` | |
 | 30502 | `d` (session-nonce), `p` (player npub) | |
 | 30503 | `d` (session-nonce), `p` (player npub) | |
 | 30504 | `d` (map-request-nonce), `p` (gate npub), `game-id` | |
@@ -47,6 +49,8 @@ serves as the deduplication key.
 | 30507 | `d` (state-request-nonce), `p` (gate npub), `game-id` | |
 | 30508 | `d` (state-request-nonce), `p` (player npub) | |
 | 30509 | `d` (state-request-nonce), `p` (player npub) | |
+| 30510 | `d` (claim-nonce), `p` (gate npub) | `game-id` |
+| 30511 | `d` (claim-nonce), `p` (player npub) | |
 
 ## Event Specifications
 
@@ -64,6 +68,8 @@ unencrypted event that lets players and clients discover games on a relay.
     ["d", "<game-id>"],
     ["name", "Friday Night EC"],
     ["status", "active"],
+    ["ssh-host", "play.example.com"],
+    ["ssh-port", "2222"],
     ["players", "4"],
     ["slot", "1", "<invite-code-hash>", "<player-npub>", "claimed"],
     ["slot", "2", "<invite-code-hash>", "", "pending"],
@@ -82,13 +88,16 @@ unencrypted event that lets players and clients discover games on a relay.
 - `name`: Human-readable game name
 - `status`: `setup` (waiting for players), `active` (game in progress),
   or `finished`
+- `ssh-host`: SSH hostname players use for the hosted session
+- `ssh-port`: SSH port players use for the hosted session
 - `players`: Total number of seats
-- `slot`: `[index, invite-code-hash, npub-or-empty, status]`
+- `slot`: `[index, invite-code-hash, player-pubkey-or-empty, status]`
 
 Invite codes are normalized (lowercase, trimmed) before hashing with
 SHA-256. The hash is published in the event so that `ec-connect` can
 verify it holds a valid code for a pending slot without revealing the
-code to relay observers.
+code to relay observers. `ec-connect` also uses `ssh-host` and `ssh-port`
+to match the right public game definition before first join.
 
 **Publishing:** `ec-gate` publishes an updated 30500 whenever a seat
 status changes (player joins, admin reissues). The parameterized
@@ -97,11 +106,47 @@ version.
 
 **Optional:** Game definition publishing can be disabled if the admin
 wants fully private games. Without it, players must know the server
-hostname and relay URL out of band.
+hostname, relay URL, and gate npub out of band.
+
+### 30510: SeatClaimRequest
+
+Published by `ec-connect` for a normal public first join after it has
+discovered a matching public 30500 GameDefinition.
+
+```json
+{
+  "kind": 30510,
+  "pubkey": "<player-npub>",
+  "created_at": 1711468898,
+  "tags": [
+    ["d", "<claim-nonce>"],
+    ["p", "<gate-npub>"],
+    ["game-id", "<game-id-slug>"]
+  ],
+  "content": "<invite-code>",
+  "sig": "..."
+}
+```
+
+The claim request is signed by the player's identity. On success,
+`ec-gate` updates the hosted seat in `ecgame.db` and republishes 30500.
+That updated 30500 is the success signal. `ec-connect` waits for the seat
+to flip to `claimed` for its own public key, then proceeds to 30501.
+
+### 30511: SeatClaimError
+
+Published by `ec-gate` when a 30510 invite claim cannot be fulfilled.
+
+The encrypted payload shape matches other simple error responses:
+
+```json
+{"error":"invalid_code","message":"The invite code is not valid."}
+```
 
 ### 30501: SessionRequest
 
-Published by `ec-connect` when a player wants to start a session.
+Published by `ec-connect` when a player wants to start a session after the
+seat is already claimed.
 
 ```json
 {
@@ -114,7 +159,7 @@ Published by `ec-connect` when a player wants to start a session.
     ["ssh-pubkey", "<ephemeral-ed25519-pubkey>"],
     ["game-id", "<game-id-slug>"]
   ],
-  "content": "<invite-code-or-empty>",
+  "content": "",
   "sig": "..."
 }
 ```
@@ -127,29 +172,22 @@ Published by `ec-connect` when a player wants to start a session.
   to the gate's subscription.
 - `ssh-pubkey`: The ephemeral ed25519 SSH public key generated by
   `ec-connect` for this session. Encoded in OpenSSH `ssh-ed25519` format.
-- `game-id` (optional): The game identifier slug from the local cache.
-  Present when `ec-connect` knows which game the player wants to join.
-  Used by `ec-gate` to disambiguate when a player's npub is in multiple
-  games on the same server. Absent on first join (the invite code
-  identifies the game) and on reconnect when the player is in only one
-  game on the server.
+- `game-id`: The game identifier slug from discovery or local cache.
+  Public first joins resolve this from 30500 after the invite claim.
+  Reconnects use the cached game ID when available. If it is absent and
+  the player is in multiple games on the same server, `ec-gate` returns
+  `multiple_games`.
 
-**Content field:**
-
-- For first-time players: the invite code (e.g., `velvet-mountain`),
-  without the `@relay` suffix.
-- For returning players: empty string.
+**Content field:** empty string in the normal public flow. Legacy private
+or explicit-`--gate` invite flows may still send an invite code directly
+for compatibility.
 
 **Signing:** The event is signed with the player's Nostr private key.
 This is the authentication step: the signature proves the player controls
 the npub.
 
-**Content is not encrypted** because invite codes are bearer tokens and
-the code alone (without the signature binding it to an npub) is not
-useful after it has been claimed. The code is only valid for the first
-claim. However, if relay-level privacy of unclaimed codes is desired,
-the content field could be NIP-44 encrypted to the gate's npub. This is
-left as an implementation option.
+The session request content is empty in the normal public flow because the
+invite claim has already happened through 30510 / 30500.
 
 ### 30502: SessionReady
 
@@ -464,15 +502,23 @@ ec-connect                       Relay                     ec-gate
 ```
 ec-connect                       Relay                     ec-gate
     │                              │                          │
-    │  30501 SessionRequest        │                          │
+    │  30510 SeatClaimRequest      │                          │
     │  (invite code in content)    │                          │
     ├─────────────────────────────►│─────────────────────────►│
     │                              │                          │
     │                              │      Validate invite     │
     │                              │      Bind npub to seat   │
-    │                              │      Update roster       │
-    │                              │      Provision SSH key   │
     │                              │      Update 30500        │
+    │                              │                          │
+    │  30500 GameDefinition        │                          │
+    │  (seat now claimed)          │                          │
+    │◄─────────────────────────────│◄─────────────────────────┤
+    │                              │                          │
+    │  30501 SessionRequest        │                          │
+    │  (game-id + ssh-pubkey)      │                          │
+    ├─────────────────────────────►│─────────────────────────►│
+    │                              │                          │
+    │                              │      Provision SSH key   │
     │                              │                          │
     │  30502 SessionReady          │                          │
     │  (encrypted: game_id +       │                          │
@@ -546,13 +592,13 @@ ec-connect                       Relay                     ec-gate
 ```
 ec-connect                       Relay                     ec-gate
     │                              │                          │
-    │  30501 SessionRequest        │                          │
+    │  30510 SeatClaimRequest      │                          │
     │  (bad invite code)           │                          │
     ├─────────────────────────────►│─────────────────────────►│
     │                              │                          │
     │                              │      Validate fails      │
     │                              │                          │
-    │  30503 SessionError          │                          │
+    │  30511 SeatClaimError        │                          │
     │  (encrypted error message)   │                          │
     │◄─────────────────────────────│◄─────────────────────────┤
     │                              │                          │
@@ -564,10 +610,10 @@ ec-connect                       Relay                     ec-gate
 ### Authentication
 
 Authentication is implicit in the Nostr event signature. When `ec-gate`
-receives a 30501 SessionRequest, it verifies the event signature against
-the sender's pubkey. A valid signature proves the sender controls the
-corresponding private key. No passwords, tokens, or challenge-response
-exchanges are needed beyond what Nostr already provides.
+receives a 30510 seat claim or 30501 session request, it verifies the
+event signature against the sender's pubkey. A valid signature proves the
+sender controls the corresponding private key. No passwords, tokens, or
+challenge-response exchanges are needed beyond what Nostr already provides.
 
 ### Replay Prevention
 
@@ -591,10 +637,10 @@ shared privately. Mitigations:
   observers cannot read unclaimed codes.
 - Each code can only be claimed once. After claim, it is permanently
   bound to the claiming npub.
-- `ec-gate` should rate-limit 30501 events per source npub to prevent
-  brute-force code guessing. With approximately 2.6 million possible
-  two-word codes, a rate limit of 10 attempts per minute makes brute
-  force impractical.
+- `ec-gate` should rate-limit 30510 claim events per source npub to
+  prevent brute-force code guessing. With approximately 2.6 million
+  possible two-word codes, a rate limit of 10 attempts per minute makes
+  brute force impractical.
 
 ### Ephemeral SSH Key Scope
 
@@ -613,16 +659,17 @@ key (which only exists in `ec-connect`'s memory).
 
 ### NIP-44 Encryption
 
-SessionReady (30502), SessionError (30503), MapBundle (30505), and
-MapError (30506) payloads are NIP-44 encrypted to the player's npub.
-This prevents relay operators and observers from reading SSH connection
-details, map contents, or error messages. The encryption uses secp256k1
-ECDH shared secret with XChaCha20-Poly1305.
+SessionReady (30502), SessionError (30503), MapBundle (30505),
+MapError (30506), and SeatClaimError (30511) payloads are NIP-44
+encrypted to the player's npub. This prevents relay operators and
+observers from reading SSH connection details, map contents, or error
+messages. The encryption uses secp256k1 ECDH shared secret with
+XChaCha20-Poly1305.
 
-SessionRequest (30501) content (the invite code) is not encrypted by
-default. The code is a one-time bearer token that becomes useless after
-claim. If pre-claim code confidentiality is important, the content field
-can optionally be NIP-44 encrypted to the gate's npub.
+SeatClaimRequest (30510) content carries the invite code and is not
+encrypted by default. The code is a one-time bearer token that becomes
+useless after claim. If pre-claim code confidentiality is important, the
+content field can optionally be NIP-44 encrypted to the gate's npub.
 
 ### Metadata Visibility
 

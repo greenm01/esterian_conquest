@@ -11,6 +11,10 @@ The authoritative manuals for the Rust edition now live in:
 - [`docs/manuals/ec_player_manual.typ`](../ec_player_manual.typ)
 - [`docs/manuals/ec_sysop_manual.typ`](../ec_sysop_manual.typ)
 
+For the current manual workflow and prose guidance, start with
+[`docs/manuals/README.md`](../README.md) and
+[`project-style-guide.md`](../project-style-guide.md).
+
 The original `.DOC` files remain preserved in
 [`original/v1.5`](../../original/v1.5) as the
 source artifacts. These Markdown copies exist for easier reading, linking,

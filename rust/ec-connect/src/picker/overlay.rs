@@ -31,6 +31,9 @@ pub enum PickerOverlay {
         level: NoticeLevel,
         message: String,
     },
+    ClaimingInvite {
+        lines: Vec<String>,
+    },
     Connecting {
         lines: Vec<String>,
     },
@@ -58,6 +61,9 @@ pub enum PickerOverlay {
         index: usize,
         step: u8,
     },
+    JoinCodePopup {
+        error: Option<String>,
+    },
 }
 
 pub fn handle_overlay_key(
@@ -81,7 +87,9 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
-        PickerOverlay::Connecting { .. } | PickerOverlay::RefreshingGame { .. } => {}
+        PickerOverlay::ClaimingInvite { .. }
+        | PickerOverlay::Connecting { .. }
+        | PickerOverlay::RefreshingGame { .. } => {}
         PickerOverlay::Help(_) => {
             if is_help_key(key)
                 || is_back_key(key)
@@ -218,6 +226,9 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
+        PickerOverlay::JoinCodePopup { .. } => {
+            super::input::handle_join_code_popup_key(key, state, gate_npub)?;
+        }
     }
     Ok(())
 }
@@ -232,6 +243,9 @@ pub fn render_overlay(
         Some(PickerOverlay::Notice { level, message }) => {
             render_notice_popup(buffer, *level, message);
             buffer.clear_cursor();
+        }
+        Some(PickerOverlay::ClaimingInvite { lines }) => {
+            super::connecting::render_status_popup(buffer, "CLAIMING INVITE", lines);
         }
         Some(PickerOverlay::Connecting { lines }) => {
             render_connecting_popup(buffer, lines);
@@ -285,6 +299,9 @@ pub fn render_overlay(
                 delete_prompt(*step),
             );
             buffer.clear_cursor();
+        }
+        Some(PickerOverlay::JoinCodePopup { error }) => {
+            render_join_code_popup(buffer, &state.join_input, error.as_deref());
         }
         None => {}
     }
@@ -626,4 +643,86 @@ fn popup_command_row(popup: Rect, fallback: usize) -> usize {
     }
     let row = popup.y as usize + popup.height as usize;
     row.min(PLAYFIELD_HEIGHT.saturating_sub(1))
+}
+
+fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Option<&str>) {
+    let has_error = error.is_some();
+    let height: u16 = if has_error { 8 } else { 7 };
+    let popup = centered_rect(
+        ((72 * 100) / PLAYFIELD_WIDTH).max(40) as u16,
+        height,
+        Rect::new(0, 0, PLAYFIELD_WIDTH as u16, PLAYFIELD_HEIGHT as u16),
+    );
+    let pad = Rect::new(
+        popup.x.saturating_sub(1),
+        popup.y.saturating_sub(1),
+        (popup.width + 2).min(PLAYFIELD_WIDTH as u16 - popup.x.saturating_sub(1)),
+        (popup.height + 2).min(PLAYFIELD_HEIGHT as u16 - popup.y.saturating_sub(1)),
+    );
+    buffer.fill_rect(
+        pad.y as usize,
+        pad.x as usize,
+        pad.width as usize,
+        pad.height as usize,
+        classic::help_panel_style(),
+    );
+    draw_box(
+        buffer,
+        popup,
+        "JOIN GAME",
+        classic::table_chrome_style(),
+        classic::table_header_style(),
+    );
+    buffer.fill_rect(
+        popup.y as usize + 1,
+        popup.x as usize + 1,
+        popup.width.saturating_sub(2) as usize,
+        popup.height.saturating_sub(2) as usize,
+        classic::table_body_style(),
+    );
+
+    let left = popup.x as usize + 2;
+    let inner_right = popup.x as usize + popup.width as usize - 2;
+    let inner_width = popup.width.saturating_sub(4) as usize;
+
+    // Instruction line.
+    buffer.write_text_clipped(
+        popup.y as usize + 1,
+        left,
+        &truncate("Paste your invite code and press Enter.", inner_width),
+        classic::table_body_style(),
+    );
+
+    // Code input field.
+    let label = "Code:";
+    let input_col = left + label.chars().count() + 1;
+    draw_labeled_input_row(
+        buffer,
+        popup.y as usize + 3,
+        left,
+        label,
+        input,
+        input_width(inner_right, input_col),
+        classic::status_label_style(),
+        classic::prompt_hotkey_style(),
+    );
+
+    // Error line (if present).
+    if let Some(err) = error {
+        buffer.write_text_clipped(
+            popup.y as usize + 5,
+            left,
+            &truncate(err, inner_width),
+            classic::error_style(),
+        );
+    }
+
+    // Keyboard hint — last body line inside the box.
+    let hint_row = if has_error { popup.y as usize + 6 } else { popup.y as usize + 5 };
+    buffer.write_text_clipped(
+        hint_row,
+        left,
+        &truncate("Enter=join   Esc=cancel   Backspace=clear", inner_width),
+        classic::table_chrome_style(),
+    );
 }

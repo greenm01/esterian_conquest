@@ -176,7 +176,7 @@ impl HelpTopic {
     pub fn for_screen(screen: &Screen) -> Option<Self> {
         match screen {
             Screen::GameList => Some(Self::MainCommand),
-            Screen::JoinPrompt | Screen::WalletAddPrompt => Some(Self::ConnectCommand),
+            Screen::WalletAddPrompt => Some(Self::ConnectCommand),
             Screen::IdentityOverlay => Some(Self::Identity),
             Screen::WalletList => Some(Self::WalletCommand),
             Screen::GameSelect { .. } => Some(Self::SelectGame),

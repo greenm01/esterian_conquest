@@ -389,6 +389,8 @@ fn parse_bech32_invite_simple() {
     let payload = InvitePayload {
         relay_url: "wss://play.example.com:7777".to_string(),
         words: "velvet-mountain".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 22,
         game_id: None,
         gate_npub: None,
     };
@@ -398,7 +400,8 @@ fn parse_bech32_invite_simple() {
     assert_eq!(p.relay_url, Some("wss://play.example.com:7777".to_string()));
     assert_eq!(p.game_id, None);
     assert_eq!(p.gate_npub, None);
-    assert_eq!(p.server, None);
+    // ssh_host/ssh_port from bech32 are surfaced via the server field.
+    assert_eq!(p.server, Some(("play.example.com".into(), 22)));
 }
 
 #[test]
@@ -406,6 +409,8 @@ fn parse_bech32_invite_with_game_id() {
     let payload = InvitePayload {
         relay_url: "wss://play.example.com:7777".to_string(),
         words: "copper-sunrise".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 22,
         game_id: Some("friday-night".to_string()),
         gate_npub: None,
     };
@@ -421,6 +426,8 @@ fn parse_bech32_invite_with_gate_npub() {
     let payload = InvitePayload {
         relay_url: "wss://play.example.com:7777".to_string(),
         words: "jade-horizon".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 22,
         game_id: None,
         gate_npub: Some(npub_bytes),
     };
@@ -437,6 +444,8 @@ fn parse_bech32_corrupted_checksum_is_err() {
     let payload = InvitePayload {
         relay_url: "wss://play.example.com:7777".to_string(),
         words: "velvet-mountain".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 22,
         game_id: None,
         gate_npub: None,
     };
@@ -452,6 +461,8 @@ fn parse_plain_and_bech32_both_work() {
     let payload = InvitePayload {
         relay_url: "wss://play.example.com:7777".to_string(),
         words: "velvet-mountain".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 22,
         game_id: None,
         gate_npub: None,
     };
@@ -466,13 +477,17 @@ fn resolve_bech32_invite_uses_embedded_relay() {
     let payload = InvitePayload {
         relay_url: "wss://relay.nostr.example.com".to_string(),
         words: "velvet-mountain".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 2222,
         game_id: None,
         gate_npub: None,
     };
     let encoded = encode_invite(&payload).unwrap();
-    let config = config_with_default("play.example.com", 22, None);
+    let config = config_with_default("other.example.com", 22, None);
     let t = resolve_invite(&encoded, &config).unwrap();
     assert_eq!(t.relay_url, "wss://relay.nostr.example.com");
+    assert_eq!(t.server_host, "play.example.com");
+    assert_eq!(t.server_port, 2222);
     assert_eq!(t.invite_code, Some("velvet-mountain".to_string()));
 }
 
@@ -481,6 +496,8 @@ fn resolve_bech32_invite_propagates_game_id() {
     let payload = InvitePayload {
         relay_url: "wss://play.example.com:7777".to_string(),
         words: "copper-sunrise".to_string(),
+        ssh_host: "play.example.com".to_string(),
+        ssh_port: 22,
         game_id: Some("friday-night".to_string()),
         gate_npub: None,
     };

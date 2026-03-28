@@ -13,7 +13,7 @@ use crate::launcher::run_password_gate_in_session;
 use super::connecting::execute_pending_connect;
 use super::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key,
-    handle_join_prompt_key, handle_wallet_key,
+    handle_wallet_key,
 };
 use super::overlay::handle_overlay_key;
 use super::refresh::execute_pending_refresh;
@@ -129,12 +129,13 @@ fn run_loop(
             continue;
         }
 
-        let text_entry = matches!(state.screen, Screen::JoinPrompt | Screen::WalletAddPrompt)
+        let text_entry = matches!(state.screen, Screen::WalletAddPrompt)
             || matches!(
                 state.overlay,
                 Some(super::overlay::PickerOverlay::WalletDetail { .. })
                     | Some(super::overlay::PickerOverlay::DefaultRelayEditor { .. })
                     | Some(super::overlay::PickerOverlay::GameRelayPrompt { .. })
+                    | Some(super::overlay::PickerOverlay::JoinCodePopup { .. })
             );
         if is_manual_lock_key(key, text_entry) {
             lock_picker(state, picker_session);
@@ -164,9 +165,6 @@ fn run_loop(
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
                 handle_game_list_key(key, state, session_state, gate_npub, maps_root, rt)?;
-            }
-            Screen::JoinPrompt => {
-                handle_join_prompt_key(key, state, gate_npub)?;
             }
             Screen::IdentityOverlay => handle_identity_overlay_key(key, state),
             Screen::WalletList | Screen::WalletAddPrompt => {

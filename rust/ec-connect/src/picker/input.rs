@@ -4,10 +4,9 @@ use super::connecting::{PendingConnectRequest, queue_connect_request};
 use crate::wallet::io::now_iso8601;
 use crate::wallet::push_identity_from_input;
 
-use super::event::{is_back_key, is_help_key, is_manual_refresh_key};
+use super::event::{is_back_key, is_escape_key, is_help_key, is_manual_refresh_key};
 use super::flows::{
-    connect_selected, join_with_code, move_selection, queue_selected_game_refresh,
-    redownload_selected_maps,
+    connect_selected, move_selection, queue_selected_game_refresh, redownload_selected_maps,
 };
 use super::overlay::PickerOverlay;
 use super::relay::open_default_relay_editor;
@@ -48,8 +47,8 @@ pub fn handle_game_list_key(
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
-            state.screen = Screen::JoinPrompt;
             state.join_input.clear();
+            state.overlay = Some(super::overlay::PickerOverlay::JoinCodePopup { error: None });
         }
         KeyEvent {
             code: KeyCode::Char('m' | 'M'),
@@ -129,18 +128,17 @@ pub fn handle_game_list_key(
     Ok(())
 }
 
-pub fn handle_join_prompt_key(
+
+/// Key handler for the [`super::overlay::PickerOverlay::JoinCodePopup`] overlay.
+pub fn handle_join_code_popup_key(
     key: KeyEvent,
     state: &mut PickerState,
     gate_npub: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if is_help_key(key) {
-        state.open_help();
-        return Ok(());
-    }
     match key {
-        key if is_back_key(key) => {
-            state.screen = Screen::GameList;
+        // Only Esc cancels — not 'q', since bech32 codes contain 'q' characters.
+        key if is_escape_key(key) => {
+            state.overlay = None;
             state.join_input.clear();
         }
         KeyEvent {
@@ -148,6 +146,8 @@ pub fn handle_join_prompt_key(
             ..
         } => {
             state.join_input.pop();
+            // Clear any stale error so it doesn't persist after editing.
+            state.overlay = Some(super::overlay::PickerOverlay::JoinCodePopup { error: None });
         }
         KeyEvent {
             code: KeyCode::Enter,
@@ -155,14 +155,18 @@ pub fn handle_join_prompt_key(
         } => {
             let code = state.join_input.trim().to_string();
             if !code.is_empty() {
-                join_with_code(state, &code, gate_npub)?;
+                super::flows::join_with_code(state, &code, gate_npub)?;
             }
         }
         KeyEvent {
             code: KeyCode::Char(ch),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
-        } => state.join_input.push(ch),
+        } => {
+            state.join_input.push(ch);
+            // Clear any stale error on new input.
+            state.overlay = Some(super::overlay::PickerOverlay::JoinCodePopup { error: None });
+        }
         _ => {}
     }
     Ok(())

@@ -13,6 +13,8 @@ ec-cli = { path = "../ec-cli" }
 ec-data = { path = "../ec-data" }
 ec-gate = { path = "../ec-gate" }
 ec-log = { path = "../ec-log" }
+ec-nostr = { path = "../ec-nostr" }
+nostr-sdk = { version = "0.44", features = ["nip44"] }
 tracing = "0.1"
 
 [dev-dependencies]
