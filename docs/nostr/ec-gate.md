@@ -236,6 +236,9 @@ key to connect and run `ec-game` for the correct seat.
 5. `ec-connect` uses the ephemeral private key to SSH in.
 6. sshd matches the key, enforces the `command=` restriction, and spawns
    `ec-game` in a PTY.
+7. After the hosted session ends, `ec-connect` may issue a lightweight
+   30507 state refresh so its local cache can pick up the player's final
+   empire name and seat metadata.
 
 ### Key Expiration
 

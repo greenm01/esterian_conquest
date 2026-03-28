@@ -59,6 +59,10 @@ const MAIN_ROWS: &[HelpRow] = &[
         description: "edit default relay",
     },
     HelpRow {
+        command: "Space",
+        description: "refresh selected game metadata",
+    },
+    HelpRow {
         command: "L",
         description: "lock the screen",
     },

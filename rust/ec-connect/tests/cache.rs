@@ -293,6 +293,40 @@ fn touch_noop_on_missing_game() {
 }
 
 #[test]
+fn update_metadata_merges_without_resetting_cache_row() {
+    let mut cache = GameCache::empty();
+    let mut game = make_game(
+        "alpha",
+        "2026-01-01T00:00:00Z",
+        Some("2026-03-01T00:00:00Z"),
+    );
+    game.name = "Old Name".to_string();
+    game.player_name = Some("In Civil Disorder".to_string());
+    game.server = "play.example.com".to_string();
+    game.relay_url = Some("wss://relay.example.com".to_string());
+    game.gate_npub = "npub1gate".to_string();
+    cache.upsert(game);
+
+    assert!(cache.update_metadata("alpha", "Empire Game", Some("Empire of Sol"), 2));
+
+    let updated = &cache.games[0];
+    assert_eq!(updated.name, "Empire Game");
+    assert_eq!(updated.player_name.as_deref(), Some("Empire of Sol"));
+    assert_eq!(updated.seat, 2);
+    assert_eq!(updated.server, "play.example.com");
+    assert_eq!(
+        updated.relay_url.as_deref(),
+        Some("wss://relay.example.com")
+    );
+    assert_eq!(updated.gate_npub, "npub1gate");
+    assert_eq!(updated.joined, "2026-01-01T00:00:00Z");
+    assert_eq!(
+        updated.last_connected.as_deref(),
+        Some("2026-03-01T00:00:00Z")
+    );
+}
+
+#[test]
 fn remove_deletes_matching_game() {
     let mut cache = GameCache::empty();
     cache.upsert(make_game("alpha", "2026-01-01T00:00:00Z", None));

@@ -76,6 +76,28 @@ impl GameCache {
         }
     }
 
+    /// Merge refreshed game metadata into an existing cache row.
+    ///
+    /// Returns `true` when a matching row was found and updated.
+    pub fn update_metadata(
+        &mut self,
+        id: &str,
+        name: &str,
+        player_name: Option<&str>,
+        seat: u32,
+    ) -> bool {
+        let Some(game) = self.games.iter_mut().find(|g| g.id == id) else {
+            return false;
+        };
+        game.name = name.to_string();
+        game.player_name = player_name
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        game.seat = seat;
+        true
+    }
+
     /// Remove the cached game with the given `id`.
     ///
     /// Returns `true` when an entry was removed.

@@ -20,6 +20,7 @@ use crate::connect::bridge::run_bridge;
 use crate::connect::handshake::{GameEntry, HandshakeResult, SessionReadyPayload, run_handshake};
 use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::ResolvedTarget;
+use crate::connect::session_state::fetch_game_metadata;
 use crate::connect::ssh_key::EphemeralKeypair;
 use crate::map_store::save_map_bundle;
 use crate::wallet::io::now_iso8601;
@@ -164,6 +165,7 @@ async fn run_session_with_keypair(
             // Run the SSH bridge.
             match run_bridge(&payload, &keypair, username).await {
                 Ok(exit_code) => {
+                    refresh_cache_metadata(player_keys, &target, gate_npub, &payload.game_id).await;
                     // Update last-connected timestamp.
                     touch_cache_entry(&payload.game_id);
                     SessionOutcome::Done {
@@ -262,6 +264,27 @@ fn upsert_cache_entry(
 fn touch_cache_entry(game_id: &str) {
     let Ok(mut cache) = load_cache() else { return };
     cache.touch(game_id, &now_iso8601());
+    let _ = save_cache(&cache);
+}
+
+async fn refresh_cache_metadata(
+    player_keys: &Keys,
+    target: &ResolvedTarget,
+    gate_npub: &str,
+    game_id: &str,
+) {
+    let Ok(state) = fetch_game_metadata(player_keys, target, gate_npub, game_id).await else {
+        return;
+    };
+    let Ok(mut cache) = load_cache() else { return };
+    if !cache.update_metadata(
+        &state.game_id,
+        &state.game_name,
+        Some(state.player_name.as_str()),
+        state.seat,
+    ) {
+        return;
+    }
     let _ = save_cache(&cache);
 }
 

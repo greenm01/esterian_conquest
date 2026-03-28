@@ -1,10 +1,8 @@
 # Nostr Protocol
 
 This document specifies the Nostr event kinds and message flows used by
-`ec-connect` and `ec-gate` for session authentication and static player
-starmap delivery. The protocol is intentionally small: seven event kinds
-handle game discovery, session requests, session establishment, starmap
-requests, starmap delivery, and errors.
+`ec-connect` and `ec-gate` for session authentication, post-session seat
+metadata refresh, and static player starmap delivery.
 
 ## Design Principles
 
@@ -28,8 +26,11 @@ kind collisions.
 | 30504 | MapRequest | ec-connect | None | Player requests the static map bundle for a joined game |
 | 30505 | MapBundle | ec-gate | NIP-44 | Compressed static map bundle |
 | 30506 | MapError | ec-gate | NIP-44 | Map request failed |
+| 30507 | SessionStateRequest | ec-connect | None | Player requests refreshed seat metadata after a hosted session |
+| 30508 | SessionStateReady | ec-gate | NIP-44 | Current game name, seat, and empire name |
+| 30509 | SessionStateError | ec-gate | NIP-44 | Session-state refresh failed |
 
-All four kinds are parameterized replaceable events (NIP-33). The `d` tag
+All request/response kinds are parameterized replaceable events (NIP-33). The `d` tag
 serves as the deduplication key.
 
 ## Required and Optional Tags by Kind
@@ -43,6 +44,9 @@ serves as the deduplication key.
 | 30504 | `d` (map-request-nonce), `p` (gate npub), `game-id` | |
 | 30505 | `d` (map-request-nonce), `p` (player npub) | |
 | 30506 | `d` (map-request-nonce), `p` (player npub) | |
+| 30507 | `d` (state-request-nonce), `p` (gate npub), `game-id` | |
+| 30508 | `d` (state-request-nonce), `p` (player npub) | |
+| 30509 | `d` (state-request-nonce), `p` (player npub) | |
 
 ## Event Specifications
 
@@ -357,6 +361,51 @@ Map error codes:
 | `unknown_player` | The requesting npub is not bound to a seat in that game |
 | `map_unavailable` | The game exists, but the map bundle could not be built |
 | `payload_too_large` | The encoded map bundle exceeded the protocol size limit |
+
+### 30507: SessionStateRequest
+
+Published by `ec-connect` after a hosted SSH session ends successfully, so it
+can refresh the local cache with the current empire name and seat metadata.
+
+The event is signed by the player's identity and carries the same `game-id`
+authorization shape as `MapRequest`.
+
+### 30508: SessionStateReady
+
+Published by `ec-gate` when the requesting player is enrolled in the requested
+game and the current seat metadata can be loaded.
+
+**Encrypted payload** (NIP-44 encrypted to the player's npub):
+
+```json
+{
+  "game_id": "friday-night",
+  "game_name": "Friday Night EC",
+  "seat": 2,
+  "player_name": "Empire of Sol"
+}
+```
+
+### 30509: SessionStateError
+
+Published by `ec-gate` when a session-state refresh cannot be fulfilled.
+
+**Encrypted payload** (NIP-44 encrypted to the player's npub):
+
+```json
+{
+  "error": "unknown_player",
+  "message": "Your identity is not enrolled in that game."
+}
+```
+
+Session-state error codes:
+
+| Code | Description |
+|------|-------------|
+| `game_not_found` | The requested `game-id` is not served by this gate |
+| `unknown_player` | The requesting npub is not bound to a seat in that game |
+| `internal_error` | The server could not load current game metadata |
 
 ### multiple_games Error Payload
 

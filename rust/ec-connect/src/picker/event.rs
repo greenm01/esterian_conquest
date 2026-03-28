@@ -36,6 +36,12 @@ pub fn is_help_key(key: KeyEvent) -> bool {
     )
 }
 
+pub fn is_manual_refresh_key(key: KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Char(' '))
+        && !key.modifiers.contains(KeyModifiers::CONTROL)
+        && !key.modifiers.contains(KeyModifiers::ALT)
+}
+
 pub fn is_yes_key(key: KeyEvent) -> bool {
     matches!(
         key,

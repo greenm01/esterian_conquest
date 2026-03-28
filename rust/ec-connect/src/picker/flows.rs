@@ -9,6 +9,7 @@ use crate::connect::session::SessionOutcome;
 use crate::map_store::save_map_bundle;
 
 use super::connecting::{PendingConnectRequest, queue_connect_request};
+use super::refresh::{PendingRefreshRequest, queue_refresh_request};
 use super::relay::{RelayPromptAction, open_game_relay_prompt};
 use super::state::{ConnectDisplay, ConnectOrigin, PickerState, Screen};
 
@@ -163,6 +164,62 @@ pub fn redownload_selected_maps(
         }
         Err(err) => state.show_error(format!("unable to download maps: {err}")),
     }
+
+    Ok(())
+}
+
+pub fn queue_selected_game_refresh(
+    state: &mut PickerState,
+    gate_npub: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::config::ConnectConfig;
+    use crate::config::load_config;
+
+    let sorted = state.cache.sorted();
+    let Some(game) = sorted.get(state.selected).copied().cloned() else {
+        state.refresh_cache();
+        return Ok(());
+    };
+
+    let effective_gate = if !game.gate_npub.is_empty() {
+        game.gate_npub.clone()
+    } else if !gate_npub.is_empty() {
+        gate_npub.to_string()
+    } else {
+        state.show_error("Gate key not known for this game. Reconnect once, then try again.");
+        return Ok(());
+    };
+
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    if game
+        .relay_url
+        .as_ref()
+        .filter(|value| !value.is_empty())
+        .is_none()
+        && config.relay.is_none()
+    {
+        state.show_error(
+            "Relay not known for this game. Set a default relay with R, then try again.",
+        );
+        return Ok(());
+    }
+
+    let server_str = format!("{}:{}", game.server, game.port);
+    let mut target = match resolve_server(&server_str, &config) {
+        Ok(target) => target,
+        Err(err) => {
+            state.show_error(format!("unable to resolve server: {err}"));
+            return Ok(());
+        }
+    };
+    if let Some(relay_url) = game.relay_url.as_ref().filter(|value| !value.is_empty()) {
+        target.relay_url = relay_url.clone();
+    }
+    target.game_id = Some(game.id.clone());
+    queue_refresh_request(
+        state,
+        PendingRefreshRequest::from_game(&game.name, target, effective_gate, game.id),
+    );
 
     Ok(())
 }

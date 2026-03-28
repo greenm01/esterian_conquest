@@ -4,9 +4,9 @@
 //! events addressed to this daemon's npub, and dispatches each event through
 //! the routing layer.  On a successful route it provisions an SSH key and
 //! publishes 30502 SessionReady.  On a routing error it publishes 30503
-//! SessionError.  It also serves 30504 starmap requests with 30505 MapBundle
-//! or 30506 MapError.  A background reaper task periodically removes expired
-//! keys.
+//! SessionError.  It also serves 30504 starmap requests with 30505 MapBundle,
+//! 30506 MapError, and 30507 state refresh requests with 30508/30509
+//! responses. A background reaper task periodically removes expired keys.
 
 pub mod catalog;
 pub mod game_def;
@@ -15,11 +15,12 @@ pub mod provision;
 pub mod request;
 pub mod response;
 pub mod routing;
+pub mod state;
 
 use std::path::Path;
 use std::sync::Arc;
 
-use ec_data::{CoreGameData, build_player_map_export_data};
+use ec_data::{CampaignStore, build_player_map_export_data};
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
 use tokio::time::{Duration, interval};
 use tracing::{Instrument, debug, error, info, info_span, warn};
@@ -30,8 +31,9 @@ use crate::config::GateConfig;
 /// Connects to `config.relay`, loads all configured game rosters into memory,
 /// subscribes to 30501 events tagged to this daemon's npub, routes each event,
 /// provisions SSH keys on success, and publishes 30502/30503 back to the player.
-/// It also serves 30504 map requests with 30505/30506 responses. A background
-/// tokio task reaps expired keys on each `key_ttl` interval.
+/// It also serves 30504 map requests with 30505/30506 responses and 30507
+/// state refresh requests with 30508/30509 responses. A background tokio task
+/// reaps expired keys on each `key_ttl` interval.
 pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn std::error::Error>> {
     let npub = keys
         .public_key()
@@ -62,9 +64,14 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
         .map_err(|e| format!("add_relay: {e}"))?;
     client.connect().await;
 
-    // Subscribe: kind 30501 and 30504 events addressed to our pubkey via `p` tag.
+    // Subscribe: kinds 30501, 30504, and 30507 addressed to our pubkey via `p`
+    // tag.
     let filter = Filter::new()
-        .kinds([Kind::Custom(30501), Kind::Custom(30504)])
+        .kinds([
+            Kind::Custom(30501),
+            Kind::Custom(30504),
+            Kind::Custom(30507),
+        ])
         .pubkey(keys.public_key());
 
     client
@@ -154,6 +161,27 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             }
                             Err(e) => {
                                 debug!(error = %e, "rejected map event");
+                            }
+                        },
+                        30507 => match state::parse_session_state_request(&event) {
+                            Ok(req) => {
+                                let span = info_span!(
+                                    "state_request",
+                                    player_npub = %req.player_pubkey,
+                                    nonce = %req.nonce,
+                                    game_id = %req.game_id,
+                                );
+                                handle_session_state_request(
+                                    req,
+                                    shared_dirs,
+                                    shared_keys,
+                                    client_clone,
+                                )
+                                .instrument(span)
+                                .await;
+                            }
+                            Err(e) => {
+                                debug!(error = %e, "rejected state event");
                             }
                         },
                         _ => {}
@@ -329,6 +357,138 @@ async fn handle_map_request(
     }
 }
 
+async fn handle_session_state_request(
+    req: state::SessionStateRequest,
+    shared_dirs: Arc<Vec<std::path::PathBuf>>,
+    shared_keys: Arc<Keys>,
+    client: Client,
+) {
+    let player_pubkey = match PublicKey::from_hex(&req.player_pubkey) {
+        Ok(pk) => pk,
+        Err(err) => {
+            warn!(error = %err, "cannot parse player pubkey for state request");
+            return;
+        }
+    };
+
+    let loaded_games = match catalog::load_hosted_games(shared_dirs.as_slice()) {
+        Ok(games) => games,
+        Err(err) => {
+            warn!(error = %err, "cannot load hosted games for state request");
+            if let Err(pub_err) = state::publish_session_state_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "internal_error",
+                "Unable to refresh game metadata right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30509 SessionStateError");
+            }
+            return;
+        }
+    };
+
+    let seat =
+        match routing::resolve_player_in_game(&req.player_pubkey, &req.game_id, &loaded_games) {
+            Ok(seat) => seat,
+            Err(routing::RouteError::GameNotFound) => {
+                if let Err(err) = state::publish_session_state_error(
+                    &client,
+                    &shared_keys,
+                    &player_pubkey,
+                    &req.nonce,
+                    "game_not_found",
+                    "The requested game was not found on this server.",
+                )
+                .await
+                {
+                    error!(error = %err, "failed to publish 30509 SessionStateError");
+                }
+                return;
+            }
+            Err(_) => {
+                if let Err(err) = state::publish_session_state_error(
+                    &client,
+                    &shared_keys,
+                    &player_pubkey,
+                    &req.nonce,
+                    "unknown_player",
+                    "Your identity is not enrolled in that game.",
+                )
+                .await
+                {
+                    error!(error = %err, "failed to publish 30509 SessionStateError");
+                }
+                return;
+            }
+        };
+
+    let Some(game_entry) = loaded_games
+        .iter()
+        .find(|entry| entry.game.game_id == seat.game_id)
+    else {
+        if let Err(err) = state::publish_session_state_error(
+            &client,
+            &shared_keys,
+            &player_pubkey,
+            &req.nonce,
+            "internal_error",
+            "Unable to refresh game metadata right now.",
+        )
+        .await
+        {
+            error!(error = %err, "failed to publish 30509 SessionStateError");
+        }
+        return;
+    };
+
+    let player_name = match player_name_for_seat(&game_entry.dir, seat.player) {
+        Ok(player_name) => player_name,
+        Err(err) => {
+            error!(game_id = %seat.game_id, error = %err, "cannot load runtime player state");
+            if let Err(pub_err) = state::publish_session_state_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "internal_error",
+                "Unable to refresh game metadata right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30509 SessionStateError");
+            }
+            return;
+        }
+    };
+
+    let payload = state::SessionStatePayload {
+        game_id: seat.game_id.clone(),
+        game_name: seat.game_name.clone(),
+        seat: seat.player as u32,
+        player_name,
+    };
+
+    match state::publish_session_state(&client, &shared_keys, &player_pubkey, &req.nonce, &payload)
+        .await
+    {
+        Ok(event_id) => {
+            info!(
+                game_id = %payload.game_id,
+                seat = payload.seat,
+                event_id = %event_id,
+                "published 30508 SessionStateReady"
+            );
+        }
+        Err(err) => {
+            error!(error = %err, "failed to publish 30508 SessionStateReady");
+        }
+    }
+}
+
 /// Process one validated session request inside its tracing span.
 async fn handle_request(
     req: request::SessionRequest,
@@ -443,7 +603,25 @@ async fn handle_request(
 
             match provision::provision_key(&shared_config, &seat, &req.ssh_pubkey, &game_dir) {
                 Ok(provisioned) => {
-                    let player_name = player_name_for_seat(&game_dir, seat.player);
+                    let player_name = match player_name_for_seat(&game_dir, seat.player) {
+                        Ok(player_name) => player_name,
+                        Err(err) => {
+                            error!(game_id = %seat.game_id, error = %err, "cannot load runtime player state");
+                            if let Err(pub_err) = response::publish_session_error_message(
+                                &client,
+                                &shared_keys,
+                                &player_pubkey,
+                                &req.nonce,
+                                "internal_error",
+                                "Unable to read campaign runtime state right now.",
+                            )
+                            .await
+                            {
+                                error!(error = %pub_err, "failed to publish 30503 SessionError");
+                            }
+                            return;
+                        }
+                    };
                     info!(
                         game_id = %seat.game_id,
                         player = seat.player,
@@ -490,14 +668,16 @@ async fn handle_request(
     }
 }
 
-fn player_name_for_seat(game_dir: &Path, player_index_1_based: usize) -> String {
-    let Ok(game_data) = CoreGameData::load(game_dir) else {
-        return String::new();
-    };
-    game_data
+fn player_name_for_seat(
+    game_dir: &Path,
+    player_index_1_based: usize,
+) -> Result<String, ec_data::CampaignStoreError> {
+    let store = CampaignStore::open_default_in_dir(game_dir)?;
+    let game_data = store.load_latest_runtime_game_data()?;
+    Ok(game_data
         .player
         .records
         .get(player_index_1_based.saturating_sub(1))
         .map(|record| record.controlled_empire_name_summary())
-        .unwrap_or_default()
+        .unwrap_or_default())
 }

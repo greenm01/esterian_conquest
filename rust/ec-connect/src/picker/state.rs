@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
 use crate::connect::resolve::ResolvedTarget;
@@ -7,8 +9,10 @@ use nostr_sdk::Keys;
 use super::connecting::PendingConnectRequest;
 use super::help::HelpTopic;
 use super::overlay::{NoticeLevel, PickerOverlay};
+use super::refresh::PendingRefreshRequest;
 
 pub const BODY_PAGE: isize = 10;
+const MANUAL_REFRESH_COOLDOWN: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Screen {
@@ -97,12 +101,14 @@ pub struct PickerState {
     pub screen: Screen,
     pub overlay: Option<PickerOverlay>,
     pub pending_connect: Option<PendingConnectRequest>,
+    pub pending_refresh: Option<PendingRefreshRequest>,
     pub join_input: String,
     pub alias_input: String,
     pub wallet_input: String,
     pub relay_input: String,
     pub quit: bool,
     pub matrix: MatrixState,
+    manual_refresh_ready_at: Option<Instant>,
 }
 
 impl PickerState {
@@ -114,12 +120,14 @@ impl PickerState {
             screen: Screen::GameList,
             overlay: None,
             pending_connect: None,
+            pending_refresh: None,
             join_input: String::new(),
             alias_input: String::new(),
             wallet_input: String::new(),
             relay_input: String::new(),
             quit: false,
             matrix: MatrixState::new(),
+            manual_refresh_ready_at: None,
         }
     }
 
@@ -155,5 +163,15 @@ impl PickerState {
         if self.selected >= len && len > 0 {
             self.selected = len - 1;
         }
+    }
+
+    pub fn can_manual_refresh(&self) -> bool {
+        self.manual_refresh_ready_at
+            .map(|ready_at| Instant::now() >= ready_at)
+            .unwrap_or(true)
+    }
+
+    pub fn mark_manual_refresh(&mut self) {
+        self.manual_refresh_ready_at = Some(Instant::now() + MANUAL_REFRESH_COOLDOWN);
     }
 }

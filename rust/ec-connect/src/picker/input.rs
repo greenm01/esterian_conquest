@@ -4,8 +4,11 @@ use super::connecting::{PendingConnectRequest, queue_connect_request};
 use crate::wallet::io::now_iso8601;
 use crate::wallet::push_identity_from_input;
 
-use super::event::{is_back_key, is_help_key};
-use super::flows::{connect_selected, join_with_code, move_selection, redownload_selected_maps};
+use super::event::{is_back_key, is_help_key, is_manual_refresh_key};
+use super::flows::{
+    connect_selected, join_with_code, move_selection, queue_selected_game_refresh,
+    redownload_selected_maps,
+};
 use super::overlay::PickerOverlay;
 use super::relay::open_default_relay_editor;
 use super::state::{BODY_PAGE, ConnectDisplay, ConnectOrigin, PickerSession, PickerState, Screen};
@@ -21,6 +24,11 @@ pub fn handle_game_list_key(
     let game_count = state.cache.sorted().len();
     if is_help_key(key) {
         state.open_help();
+        return Ok(());
+    }
+    if is_manual_refresh_key(key) && state.can_manual_refresh() {
+        state.mark_manual_refresh();
+        queue_selected_game_refresh(state, gate_npub)?;
         return Ok(());
     }
     match key {

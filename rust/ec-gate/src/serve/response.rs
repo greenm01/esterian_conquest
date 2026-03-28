@@ -112,12 +112,14 @@ pub fn session_error_payload(error: &RouteError) -> String {
                 r#"{{"error":"multiple_games","message":"Your identity is in multiple games on this server.","games":[{entries}]}}"#
             )
         }
-        _ => {
-            let code = error.error_code();
-            let message = escape_json_string(&error.to_string());
-            format!(r#"{{"error":"{code}","message":"{message}"}}"#)
-        }
+        _ => session_error_payload_code_message(error.error_code(), &error.to_string()),
     }
+}
+
+pub fn session_error_payload_code_message(code: &str, message: &str) -> String {
+    let code = escape_json_string(code);
+    let message = escape_json_string(message);
+    format!(r#"{{"error":"{code}","message":"{message}"}}"#)
 }
 
 fn game_entry_json(g: &GameEntry) -> String {
@@ -138,7 +140,28 @@ pub async fn publish_session_error(
     error: &RouteError,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let plaintext = session_error_payload(error);
+    publish_session_error_payload(client, gate_keys, player_pubkey, session_nonce, &plaintext).await
+}
 
+pub async fn publish_session_error_message(
+    client: &Client,
+    gate_keys: &Keys,
+    player_pubkey: &PublicKey,
+    session_nonce: &str,
+    code: &str,
+    message: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let plaintext = session_error_payload_code_message(code, message);
+    publish_session_error_payload(client, gate_keys, player_pubkey, session_nonce, &plaintext).await
+}
+
+async fn publish_session_error_payload(
+    client: &Client,
+    gate_keys: &Keys,
+    player_pubkey: &PublicKey,
+    session_nonce: &str,
+    plaintext: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let encrypted = nip44::encrypt(
         gate_keys.secret_key(),
         player_pubkey,

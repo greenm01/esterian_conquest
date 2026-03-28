@@ -10,6 +10,15 @@ use crate::{
 };
 
 impl CampaignStore {
+    pub fn load_latest_runtime_game_data(&self) -> Result<CoreGameData, CampaignStoreError> {
+        let Some(state) = self.load_latest_runtime_state()? else {
+            return Err(CampaignStoreError::InvalidState(
+                "campaign store has no runtime snapshots".to_string(),
+            ));
+        };
+        Ok(state.game_data)
+    }
+
     pub fn load_snapshot_game_data(
         &self,
         snapshot_id: i64,

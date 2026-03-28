@@ -16,6 +16,7 @@ use super::input::{
     handle_join_prompt_key, handle_wallet_key,
 };
 use super::overlay::handle_overlay_key;
+use super::refresh::execute_pending_refresh;
 use super::session::load_picker_session;
 use super::state::{PickerSession, PickerState, Screen};
 use crate::shell::terminal_fits_outer;
@@ -67,6 +68,13 @@ fn run_loop(
 
         if !too_small {
             if let Some(session_state) = picker_session.as_mut() {
+                if state.pending_refresh.is_some() {
+                    execute_pending_refresh(state, session_state, rt)?;
+                    if state.quit {
+                        break;
+                    }
+                    continue;
+                }
                 if state.pending_connect.is_some() {
                     execute_pending_connect(state, session_state, maps_root, rt, session)?;
                     replayed_key = capture_post_bridge_key()?;
@@ -206,6 +214,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.wallet_input.clear();
     state.relay_input.clear();
     state.pending_connect = None;
+    state.pending_refresh = None;
     state.matrix.reset();
 }
 

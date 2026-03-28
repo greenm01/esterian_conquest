@@ -281,13 +281,16 @@ Fields:
 | `last-connected` | Timestamp of most recent connection (updated each session) |
 
 The cache is populated from the 30502 SessionReady payload, which
-includes `game_id`, `game_name`, `seat`, and `player_name`. The `npub`
-comes from the active wallet identity. `relay-url` is copied from the
-resolved target used for the successful handshake so picker reconnects
-can reuse the same relay even when it is not the derived default. If an older
-cached row still has no saved `relay-url` and the player's config also has no
-default relay, the picker prompts for one before the handshake starts and
-saves it back onto that row after a successful reconnect.
+includes `game_id`, `game_name`, `seat`, and `player_name`. After a
+successful hosted session ends, `ec-connect` performs one lightweight
+30507 state refresh so the cached `player-name` can pick up changes made
+inside `ec-game`, such as first-time empire naming. The `npub` comes from
+the active wallet identity. `relay-url` is copied from the resolved
+target used for the successful handshake so picker reconnects can reuse
+the same relay even when it is not the derived default. If an older
+cached row still has no saved `relay-url` and the player's config also
+has no default relay, the picker prompts for one before the handshake
+starts and saves it back onto that row after a successful reconnect.
 `last-connected` is updated on each successful SSH connection.
 
 This cache is local convenience state only. The server-side hosted seat

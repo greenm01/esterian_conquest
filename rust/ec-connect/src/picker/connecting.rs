@@ -138,22 +138,21 @@ pub fn execute_pending_connect(
 }
 
 pub fn render_connecting_popup(buffer: &mut PlayfieldBuffer, lines: &[String]) {
+    render_status_popup(buffer, "CONNECTING TO GAME", lines);
+}
+
+pub fn render_status_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[String]) {
     let content_width = lines
         .iter()
         .map(|line| line.chars().count())
         .max()
         .unwrap_or(0);
     let width = (content_width + 4)
-        .max("CONNECTING TO GAME".chars().count() + 4)
+        .max(title.chars().count() + 4)
         .min(PLAYFIELD_WIDTH.saturating_sub(8));
     let height = (lines.len() + 2) as u16;
-    let popup = super::overlay::draw_modal_frame(
-        buffer,
-        "CONNECTING TO GAME",
-        width,
-        height,
-        classic::table_body_style(),
-    );
+    let popup =
+        super::overlay::draw_modal_frame(buffer, title, width, height, classic::table_body_style());
     let mut row = popup.y as usize + 1;
     let col = popup.x as usize + 2;
     for line in lines {

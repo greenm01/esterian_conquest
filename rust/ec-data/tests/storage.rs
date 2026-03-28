@@ -112,6 +112,44 @@ fn sqlite_store_preserves_orbit_seed_rows_as_orbit_intel() {
 }
 
 #[test]
+fn sqlite_store_latest_runtime_game_data_ignores_stale_classic_files() {
+    let source = repo_root().join("fixtures/ecutil-init/v1.5");
+    let imported = temp_dir("ec-data-storage-runtime-authority");
+    copy_dir_all(&source, &imported);
+
+    let store = CampaignStore::open(imported.join(DEFAULT_CAMPAIGN_DB_NAME)).expect("open store");
+    import_directory_snapshot(&store, &imported).expect("import directory");
+
+    let mut state = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime snapshot");
+    state.game_data.player.records[0].set_controlled_empire_name_raw("Runtime Empire");
+    store
+        .save_runtime_state_structured(
+            &state.game_data,
+            &state.planet_scorch_orders,
+            &state.report_block_rows,
+            &state.queued_mail,
+        )
+        .expect("save runtime snapshot");
+
+    let runtime_game = store
+        .load_latest_runtime_game_data()
+        .expect("load latest runtime game data");
+    assert_eq!(
+        runtime_game.player.records[0].controlled_empire_name_summary(),
+        "Runtime Empire"
+    );
+
+    let classic_game = ec_data::CoreGameData::load(&imported).expect("load classic directory");
+    assert_ne!(
+        classic_game.player.records[0].controlled_empire_name_summary(),
+        "Runtime Empire"
+    );
+}
+
+#[test]
 fn sqlite_store_persists_explicit_campaign_seed() {
     let source = repo_root().join("fixtures/ecutil-init/v1.5");
     let imported = temp_dir("ec-data-storage-seed-explicit");

@@ -7,6 +7,7 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::connect::session::SessionOutcome;
+use ec_connect::picker::event::is_manual_refresh_key;
 use ec_connect::picker::flows::apply_session_outcome;
 use ec_connect::picker::help::HelpTopic;
 use ec_connect::picker::layout::MAX_BODY_ROWS;
@@ -93,6 +94,32 @@ fn picker_state_initial_values() {
     assert!(state.relay_input.is_empty());
     assert!(!state.quit);
     assert_eq!(state.wallet_selected, 0);
+    assert!(state.can_manual_refresh());
+}
+
+#[test]
+fn manual_refresh_enters_short_cooldown() {
+    let mut state = make_state(vec![]);
+
+    state.mark_manual_refresh();
+
+    assert!(!state.can_manual_refresh());
+}
+
+#[test]
+fn manual_refresh_key_accepts_plain_space() {
+    assert!(is_manual_refresh_key(KeyEvent::new(
+        KeyCode::Char(' '),
+        KeyModifiers::NONE,
+    )));
+}
+
+#[test]
+fn manual_refresh_key_rejects_control_space() {
+    assert!(!is_manual_refresh_key(KeyEvent::new(
+        KeyCode::Char(' '),
+        KeyModifiers::CONTROL,
+    )));
 }
 
 // ── Selection clamping ────────────────────────────────────────────────────────
@@ -232,6 +259,11 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
         (0..buffer.height())
             .any(|row| buffer.plain_line(row).contains("R      edit default relay"))
     );
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Space  refresh selected game metadata")
+    }));
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
@@ -418,6 +450,26 @@ fn connecting_popup_renders_context_lines() {
     assert!(
         (0..buffer.height())
             .any(|row| { buffer.plain_line(row).contains("Attempting to connect...") })
+    );
+}
+
+#[test]
+fn refreshing_popup_renders_context_lines() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::RefreshingGame {
+        lines: vec![
+            "Game: Friday Night EC".to_string(),
+            "Server: play.example.com:22".to_string(),
+            "Relay: wss://relay.example.com".to_string(),
+            "Refreshing metadata...".to_string(),
+        ],
+    });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("REFRESHING GAME")));
+    assert!(
+        (0..buffer.height())
+            .any(|row| { buffer.plain_line(row).contains("Refreshing metadata...") })
     );
 }
 

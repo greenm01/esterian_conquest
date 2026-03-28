@@ -9,6 +9,7 @@ use super::help::HelpTopic;
 use super::layout::{
     PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box, format_help_row, truncate,
 };
+use super::refresh::render_refreshing_popup;
 use super::relay::{
     RelayPromptAction, handle_default_relay_key, handle_game_relay_key, render_default_relay_popup,
     render_game_relay_popup,
@@ -31,6 +32,9 @@ pub enum PickerOverlay {
         message: String,
     },
     Connecting {
+        lines: Vec<String>,
+    },
+    RefreshingGame {
         lines: Vec<String>,
     },
     Help(HelpTopic),
@@ -77,7 +81,7 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
-        PickerOverlay::Connecting { .. } => {}
+        PickerOverlay::Connecting { .. } | PickerOverlay::RefreshingGame { .. } => {}
         PickerOverlay::Help(_) => {
             if is_help_key(key)
                 || is_back_key(key)
@@ -231,6 +235,9 @@ pub fn render_overlay(
         }
         Some(PickerOverlay::Connecting { lines }) => {
             render_connecting_popup(buffer, lines);
+        }
+        Some(PickerOverlay::RefreshingGame { lines }) => {
+            render_refreshing_popup(buffer, lines);
         }
         Some(PickerOverlay::Help(topic)) => {
             render_help_overlay(buffer, *topic);

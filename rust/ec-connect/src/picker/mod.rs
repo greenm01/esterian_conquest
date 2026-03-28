@@ -5,6 +5,7 @@ pub mod help;
 pub mod input;
 pub mod layout;
 pub mod overlay;
+pub mod refresh;
 pub mod relay;
 pub mod render;
 pub mod runner;
