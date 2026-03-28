@@ -520,6 +520,7 @@ All required style tokens:
   [`body`], [Default body text.],
   [`title`], [Screen and section titles.],
   [`shell_title`], [Outer shell border title text such as the `EC CONNECT` frame title. This should normally use the same background as `body` with a more prominent foreground accent.],
+  [`shell_label`], [Outer shell border identity label text such as the active alias or shortened `npub` shown on the right side of the `EC CONNECT` frame. This should normally use the same background as `body` with its own accent color distinct from `shell_title`.],
   [`menu`], [Menu item text.],
   [`menu_hotkey`], [Menu hotkey letters.],
   [`prompt`], [Input prompt text.],

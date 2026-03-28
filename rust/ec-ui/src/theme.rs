@@ -57,6 +57,7 @@ struct Theme {
     body: CellStyle,
     title: CellStyle,
     shell_title: CellStyle,
+    shell_label: CellStyle,
     menu: CellStyle,
     menu_hotkey: CellStyle,
     prompt: CellStyle,
@@ -108,6 +109,7 @@ impl Theme {
             body: require_style("body")?,
             title: require_style("title")?,
             shell_title: require_style("shell_title")?,
+            shell_label: require_style("shell_label")?,
             menu: require_style("menu")?,
             menu_hotkey: require_style("menu_hotkey")?,
             prompt: require_style("prompt")?,
@@ -156,6 +158,7 @@ impl Theme {
         theme.body = mono_dim(theme.body);
         theme.title = mono_bright(theme.title);
         theme.shell_title = mono_selected(theme.shell_title);
+        theme.shell_label = mono_bright(theme.shell_label);
         theme.menu = mono_dim(theme.menu);
         theme.menu_hotkey = mono_bright(theme.menu_hotkey);
         theme.prompt = mono_dim(theme.prompt);
@@ -494,6 +497,10 @@ pub mod classic {
 
     pub fn shell_title_style() -> CellStyle {
         active_theme().shell_title
+    }
+
+    pub fn shell_label_style() -> CellStyle {
+        active_theme().shell_label
     }
 
     pub fn menu_style() -> CellStyle {

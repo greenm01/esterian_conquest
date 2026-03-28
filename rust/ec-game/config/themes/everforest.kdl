@@ -18,6 +18,11 @@ style "shell_title" {
     bg "#2d353b"
     bold #true
 }
+style "shell_label" {
+    fg "#d699b6"
+    bg "#2d353b"
+    bold #true
+}
 style "menu" {
     fg "#d3c6aa"
     bg "#2d353b"

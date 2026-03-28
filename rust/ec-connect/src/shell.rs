@@ -69,7 +69,7 @@ fn draw_outer_frame(buffer: &mut PlayfieldBuffer, right_label: Option<&str>) {
             let segment = format!(" {} ", visible);
             let col = right.saturating_sub(segment.chars().count());
             if col > left_end {
-                buffer.write_text_clipped(0, col, &segment, classic::table_header_style());
+                buffer.write_text_clipped(0, col, &segment, classic::shell_label_style());
             }
         }
     }

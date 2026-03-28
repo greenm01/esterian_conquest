@@ -17,6 +17,11 @@ style "shell_title" {
     bg "black"
     bold #true
 }
+style "shell_label" {
+    fg "bright_magenta"
+    bg "black"
+    bold #true
+}
 style "menu" {
     fg "white"
     bg "black"

@@ -18,7 +18,12 @@ style "title" {
     bold #true
 }
 style "shell_title" {
-    fg "#7aa2f7"
+    fg "#7dcfff"
+    bg "#1a1b26"
+    bold #true
+}
+style "shell_label" {
+    fg "#bb9af7"
     bg "#1a1b26"
     bold #true
 }
