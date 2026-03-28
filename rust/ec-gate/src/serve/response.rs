@@ -4,6 +4,7 @@
 //! (the serve loop) calls `publish_session_ready` or `publish_session_error`
 //! after routing and provisioning are complete.
 
+use ec_nostr::json::escape_json_string;
 use nostr_sdk::nips::nip44;
 use nostr_sdk::nips::nip44::Version;
 use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag};
@@ -183,15 +184,3 @@ async fn publish_session_error_payload(
     Ok(event.id.to_hex())
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Minimal JSON string escaping for values embedded in format strings.
-fn escape_json_string(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-        .replace('\t', "\\t")
-}

@@ -3,6 +3,8 @@ use std::path::Path;
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
 
+use crate::connect::game_discovery::discover_game_for_invite;
+use crate::connect::public_join::run_public_join;
 use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
 
 use super::flows::apply_session_outcome;
@@ -19,9 +21,20 @@ pub struct PendingConnectRequest {
 }
 
 pub fn queue_connect_request(state: &mut PickerState, request: PendingConnectRequest) {
-    state.overlay = Some(PickerOverlay::Connecting {
-        lines: request.display.lines.clone(),
-    });
+    state.overlay = Some(
+        if matches!(request.origin, ConnectOrigin::JoinPrompt)
+            && request.gate_npub.trim().is_empty()
+            && request.target.invite_code.is_some()
+        {
+            PickerOverlay::ClaimingInvite {
+                lines: request.display.lines.clone(),
+            }
+        } else {
+            PickerOverlay::Connecting {
+                lines: request.display.lines.clone(),
+            }
+        },
+    );
     state.pending_connect = Some(request);
 }
 
@@ -32,20 +45,57 @@ pub fn execute_pending_connect(
     rt: &tokio::runtime::Runtime,
     session: &mut ec_ui::session::TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(request) = state.pending_connect.take() else {
+    let Some(mut request) = state.pending_connect.take() else {
         return Ok(());
     };
 
-    let outcome = run_suspended(session, || {
-        rt.block_on(run_session(
-            &picker_session.keys,
-            request.target.clone(),
-            &picker_session.npub,
-            &request.gate_npub,
-            request.disambig_mode(),
-            maps_root,
-        ))
-    })?;
+    let outcome = if matches!(request.origin, ConnectOrigin::JoinPrompt)
+        && request.gate_npub.trim().is_empty()
+        && request.target.invite_code.is_some()
+    {
+        run_suspended(session, || {
+            rt.block_on(run_public_join(
+                &picker_session.keys,
+                request.target.clone(),
+                &picker_session.npub,
+                request.disambig_mode(),
+                maps_root,
+            ))
+        })?
+        .map_err(|err| -> Box<dyn std::error::Error> { err })?
+    } else {
+        if request.gate_npub.trim().is_empty() {
+            if let Some(invite_code) = request.target.invite_code.clone() {
+                match rt.block_on(discover_game_for_invite(
+                    &picker_session.keys,
+                    &request.target,
+                    &invite_code,
+                )) {
+                    Ok(discovered) => {
+                        request.gate_npub = discovered.gate_npub;
+                        request.target.game_id.get_or_insert(discovered.game_id);
+                    }
+                    Err(err) => {
+                        state.overlay = None;
+                        state.screen = Screen::JoinPrompt;
+                        state.show_error(err);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        run_suspended(session, || {
+            rt.block_on(run_session(
+                &picker_session.keys,
+                request.target.clone(),
+                &picker_session.npub,
+                &request.gate_npub,
+                request.disambig_mode(),
+                maps_root,
+            ))
+        })?
+    };
 
     match request.origin {
         ConnectOrigin::GameList => {

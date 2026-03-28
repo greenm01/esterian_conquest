@@ -1,11 +1,9 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use ec_nostr::tags::tag_content;
+use ec_nostr::timing::is_event_stale;
 use nostr_sdk::nips::nip44;
 use nostr_sdk::nips::nip44::Version;
 use nostr_sdk::{Client, Event, EventBuilder, Keys, Kind, PublicKey, Tag};
 use serde::{Deserialize, Serialize};
-
-use crate::serve::request::MAX_EVENT_AGE_SECS;
 
 #[derive(Debug, Clone)]
 pub struct SessionStateRequest {
@@ -58,12 +56,7 @@ pub fn parse_session_state_request(event: &Event) -> Result<SessionStateRequest,
         return Err(ParseError::InvalidSignature);
     }
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let age = now.saturating_sub(event.created_at.as_secs());
-    if age > MAX_EVENT_AGE_SECS {
+    if is_event_stale(event) {
         return Err(ParseError::Stale);
     }
 
@@ -138,12 +131,3 @@ pub async fn publish_session_state_error(
     Ok(event.id.to_hex())
 }
 
-fn tag_content<'a>(tags: &'a nostr_sdk::event::Tags, name: &str) -> Option<&'a str> {
-    tags.iter().find_map(|tag| {
-        if tag.kind().as_str() == name {
-            tag.content()
-        } else {
-            None
-        }
-    })
-}

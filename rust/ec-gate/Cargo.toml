@@ -6,6 +6,7 @@ license-file = "../../LICENSE"
 
 [dependencies]
 ec-data = { path = "../ec-data" }
+ec-nostr = { path = "../ec-nostr" }
 
 # Config/roster parsing
 kdl = "6"

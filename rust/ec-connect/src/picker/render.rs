@@ -8,13 +8,13 @@ use super::layout::{
     displayed_body_rows, draw_scroll_gutter, draw_table_frame, middle_ellipsis, pad_right,
     scroll_start, table_cell_start, table_message_col,
 };
-pub use super::layout::{Rect, centered_rect, relative_time, short_npub, truncate};
+pub use super::layout::{Rect, centered_rect, relative_time, short_date, short_npub, truncate};
 use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_popup};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
 use crate::shell::{terminal_fits_outer, wrap_inner_buffer};
 
-const MAIN_COLUMNS: [Column<'_>; 5] = [
+const MAIN_COLUMNS: [Column<'_>; 6] = [
     Column {
         title: "Empire",
         width: 13,
@@ -25,15 +25,19 @@ const MAIN_COLUMNS: [Column<'_>; 5] = [
     },
     Column {
         title: "Server",
-        width: 18,
+        width: 16,
     },
     Column {
         title: "Gate",
-        width: 19,
+        width: 12,
     },
     Column {
         title: "Seat",
-        width: 6,
+        width: 4,
+    },
+    Column {
+        title: "Joined",
+        width: 10,
     },
 ];
 
@@ -314,10 +318,14 @@ fn draw_main_row(
             MAIN_COLUMNS[2].width,
         ),
         pad_right(
-            &middle_ellipsis(game.gate_npub.as_str(), MAIN_COLUMNS[3].width, 8, 6),
+            &middle_ellipsis(game.gate_npub.as_str(), MAIN_COLUMNS[3].width, 5, 4),
             MAIN_COLUMNS[3].width,
         ),
         format!("{:>width$}", game.seat, width = MAIN_COLUMNS[4].width),
+        pad_right(
+            &short_date(&game.joined),
+            MAIN_COLUMNS[5].width,
+        ),
     ];
     draw_row_cells(buffer, row, &MAIN_COLUMNS, &columns, selected, false);
 }

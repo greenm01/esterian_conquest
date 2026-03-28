@@ -3,6 +3,7 @@ use ec_connect::connect::resolve::{
     DEFAULT_SSH_PORT, ParsedInviteCode, derive_relay_url, parse_invite_code, resolve_invite,
     resolve_server,
 };
+use ec_nostr::invite::{InvitePayload, encode_invite};
 
 // ── parse_invite_code ────────────────────────────────────────────────────────
 
@@ -14,6 +15,9 @@ fn parse_bare_words() {
         ParsedInviteCode {
             words: "velvet-mountain".into(),
             server: None,
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         }
     );
 }
@@ -26,6 +30,9 @@ fn parse_with_host() {
         ParsedInviteCode {
             words: "velvet-mountain".into(),
             server: Some(("play.example.com".into(), DEFAULT_SSH_PORT)),
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         }
     );
 }
@@ -38,6 +45,9 @@ fn parse_with_host_and_port() {
         ParsedInviteCode {
             words: "velvet-mountain".into(),
             server: Some(("play.example.com".into(), 2222)),
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         }
     );
 }
@@ -50,6 +60,9 @@ fn parse_with_localhost_port() {
         ParsedInviteCode {
             words: "red-fox".into(),
             server: Some(("localhost".into(), 2222)),
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         }
     );
 }
@@ -86,6 +99,9 @@ fn parse_ipv6_with_port() {
         ParsedInviteCode {
             words: "blue-sky".into(),
             server: Some(("[::1]".into(), 2222)),
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         }
     );
 }
@@ -98,6 +114,9 @@ fn parse_ipv6_without_port() {
         ParsedInviteCode {
             words: "blue-sky".into(),
             server: Some(("[::1]".into(), DEFAULT_SSH_PORT)),
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         }
     );
 }
@@ -361,4 +380,112 @@ fn parse_uppercase_with_host_normalized() {
         p.server,
         Some(("play.example.com".to_string(), DEFAULT_SSH_PORT))
     );
+}
+
+// ── bech32 invite parsing ─────────────────────────────────────────────────────
+
+#[test]
+fn parse_bech32_invite_simple() {
+    let payload = InvitePayload {
+        relay_url: "wss://play.example.com:7777".to_string(),
+        words: "velvet-mountain".to_string(),
+        game_id: None,
+        gate_npub: None,
+    };
+    let encoded = encode_invite(&payload).unwrap();
+    let p = parse_invite_code(&encoded).unwrap();
+    assert_eq!(p.words, "velvet-mountain");
+    assert_eq!(p.relay_url, Some("wss://play.example.com:7777".to_string()));
+    assert_eq!(p.game_id, None);
+    assert_eq!(p.gate_npub, None);
+    assert_eq!(p.server, None);
+}
+
+#[test]
+fn parse_bech32_invite_with_game_id() {
+    let payload = InvitePayload {
+        relay_url: "wss://play.example.com:7777".to_string(),
+        words: "copper-sunrise".to_string(),
+        game_id: Some("friday-night".to_string()),
+        gate_npub: None,
+    };
+    let encoded = encode_invite(&payload).unwrap();
+    let p = parse_invite_code(&encoded).unwrap();
+    assert_eq!(p.words, "copper-sunrise");
+    assert_eq!(p.game_id, Some("friday-night".to_string()));
+}
+
+#[test]
+fn parse_bech32_invite_with_gate_npub() {
+    let npub_bytes = [0xabu8; 32];
+    let payload = InvitePayload {
+        relay_url: "wss://play.example.com:7777".to_string(),
+        words: "jade-horizon".to_string(),
+        game_id: None,
+        gate_npub: Some(npub_bytes),
+    };
+    let encoded = encode_invite(&payload).unwrap();
+    let p = parse_invite_code(&encoded).unwrap();
+    assert!(p.gate_npub.is_some());
+    // Gate npub is hex-encoded in ParsedInviteCode.
+    let expected_hex: String = npub_bytes.iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(p.gate_npub.unwrap(), expected_hex);
+}
+
+#[test]
+fn parse_bech32_corrupted_checksum_is_err() {
+    let payload = InvitePayload {
+        relay_url: "wss://play.example.com:7777".to_string(),
+        words: "velvet-mountain".to_string(),
+        game_id: None,
+        gate_npub: None,
+    };
+    let mut encoded = encode_invite(&payload).unwrap();
+    let last = encoded.pop().unwrap();
+    encoded.push(if last == 'a' { 'z' } else { 'a' });
+    assert!(parse_invite_code(&encoded).is_err());
+}
+
+#[test]
+fn parse_plain_and_bech32_both_work() {
+    assert!(parse_invite_code("velvet-mountain").is_ok());
+    let payload = InvitePayload {
+        relay_url: "wss://play.example.com:7777".to_string(),
+        words: "velvet-mountain".to_string(),
+        game_id: None,
+        gate_npub: None,
+    };
+    let encoded = encode_invite(&payload).unwrap();
+    assert!(parse_invite_code(&encoded).is_ok());
+}
+
+// ── bech32 invite resolution ──────────────────────────────────────────────────
+
+#[test]
+fn resolve_bech32_invite_uses_embedded_relay() {
+    let payload = InvitePayload {
+        relay_url: "wss://relay.nostr.example.com".to_string(),
+        words: "velvet-mountain".to_string(),
+        game_id: None,
+        gate_npub: None,
+    };
+    let encoded = encode_invite(&payload).unwrap();
+    let config = config_with_default("play.example.com", 22, None);
+    let t = resolve_invite(&encoded, &config).unwrap();
+    assert_eq!(t.relay_url, "wss://relay.nostr.example.com");
+    assert_eq!(t.invite_code, Some("velvet-mountain".to_string()));
+}
+
+#[test]
+fn resolve_bech32_invite_propagates_game_id() {
+    let payload = InvitePayload {
+        relay_url: "wss://play.example.com:7777".to_string(),
+        words: "copper-sunrise".to_string(),
+        game_id: Some("friday-night".to_string()),
+        gate_npub: None,
+    };
+    let encoded = encode_invite(&payload).unwrap();
+    let config = config_with_default("play.example.com", 22, None);
+    let t = resolve_invite(&encoded, &config).unwrap();
+    assert_eq!(t.game_id, Some("friday-night".to_string()));
 }

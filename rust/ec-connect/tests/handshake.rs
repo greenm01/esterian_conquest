@@ -1,7 +1,7 @@
 use ec_connect::connect::handshake::{
     GameEntry, SessionErrorPayload, SessionReadyPayload, parse_session_error, parse_session_ready,
-    random_nonce_hex,
 };
+use ec_nostr::nonce::random_nonce_hex;
 
 // ── parse_session_ready ───────────────────────────────────────────────────────
 

@@ -7,9 +7,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ec_data::{CampaignStore, GameConfig, HostedSeat, HostedSeatStatus};
 use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
 use ec_gate::serve::catalog::{HostedGame, HostedGameEntry};
-use ec_gate::serve::game_def::{build_game_def_tags, sha256_hex};
+use ec_gate::serve::game_def::build_game_def_tags;
 use ec_gate::serve::provision::{provision_key, reap_expired_keys, remove_key};
-use ec_gate::serve::request::{MAX_EVENT_AGE_SECS, parse_session_request};
+use ec_gate::serve::request::parse_session_request;
+use ec_nostr::hash::sha256_hex;
+use ec_nostr::timing::MAX_EVENT_AGE_SECS;
 use ec_gate::serve::response::{SessionReadyPayload, session_error_payload};
 use ec_gate::serve::routing::{RouteError, RoutingDecision, route};
 use nostr_sdk::nips::nip44;
@@ -318,7 +320,8 @@ fn full_pipeline_game_definition_tags_four_seat_game() {
         ],
     };
 
-    let tags = build_game_def_tags(&game).unwrap();
+    let gate_keys = Keys::generate();
+    let tags = build_game_def_tags(&game, "play.example.com", 22, "wss://relay.example.com:7777", &gate_keys.public_key()).unwrap();
     let tag_vecs: Vec<Vec<String>> = tags.iter().map(|tag| tag.clone().to_vec()).collect();
     let d = tag_vecs.iter().find(|tag| tag[0] == "d").unwrap();
     assert_eq!(d[1], "friday-night");
@@ -327,7 +330,7 @@ fn full_pipeline_game_definition_tags_four_seat_game() {
     let slots: Vec<_> = tag_vecs.iter().filter(|tag| tag[0] == "slot").collect();
     assert_eq!(slots.len(), 4);
     let slot1 = slots.iter().find(|slot| slot[1] == "1").unwrap();
-    assert_eq!(slot1[2], sha256_hex("velvet-mountain"));
+    assert_eq!(slot1[2], sha256_hex(b"velvet-mountain"));
     assert_eq!(slot1[3], "npub1aaa");
     assert_eq!(slot1[4], "claimed");
 }

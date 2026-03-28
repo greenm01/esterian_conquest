@@ -9,6 +9,9 @@ name = "ec-connect"
 path = "src/main.rs"
 
 [dependencies]
+# Shared Nostr protocol helpers
+ec-nostr = { path = "../ec-nostr" }
+
 # Nostr identity + relay handshake
 nostr-sdk = { version = "0.44", features = ["nip44"] }
 

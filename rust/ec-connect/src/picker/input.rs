@@ -437,6 +437,7 @@ pub fn handle_game_select_key(
                 relay_url: relay_url.clone(),
                 invite_code: None,
                 game_id: Some(games[*selected].game_id.clone()),
+                gate_npub: None,
             };
             let game = games[*selected].clone();
             queue_connect_request(

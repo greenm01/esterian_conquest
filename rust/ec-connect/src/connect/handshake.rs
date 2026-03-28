@@ -16,11 +16,14 @@
 
 use std::time::Duration;
 
+use ec_nostr::json::{extract_str, extract_u32};
+use ec_nostr::nonce::random_nonce_hex;
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{Client, EventBuilder, Filter, Keys, Kind, PublicKey, Tag};
-use rand::RngCore;
-use rand::rngs::OsRng;
+use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag, Timestamp};
 
+use crate::connect::live_response::{
+    build_response_filter, is_matching_response_event, wait_for_matching_response,
+};
 use crate::connect::resolve::ResolvedTarget;
 use crate::connect::ssh_key::EphemeralKeypair;
 
@@ -102,15 +105,18 @@ pub async fn run_handshake(
     client.add_relay(&target.relay_url).await?;
     client.connect().await;
 
-    // Subscribe to 30502 and 30503 events addressed to us.
-    let response_filter = Filter::new()
-        .kinds([Kind::Custom(30502), Kind::Custom(30503)])
-        .author(gate_pubkey)
-        .pubkeys(vec![player_keys.public_key()]);
-    client.subscribe(response_filter, None).await?;
+    let response_kinds = [Kind::Custom(30502), Kind::Custom(30503)];
+    let response_filter = build_response_filter(
+        &gate_pubkey,
+        &player_keys.public_key(),
+        response_kinds,
+        Timestamp::now() - Duration::from_secs(60),
+    );
+    let mut notifications = client.notifications();
+    let subscription_id = client.subscribe(response_filter, None).await?.val;
 
     // Publish the 30501 SessionRequest.
-    publish_session_request(
+    let publish_result = publish_session_request(
         &client,
         player_keys,
         &gate_pubkey,
@@ -119,29 +125,31 @@ pub async fn run_handshake(
         target.invite_code.as_deref(),
         game_id,
     )
-    .await?;
+    .await;
+    if let Err(err) = publish_result {
+        client.unsubscribe(&subscription_id).await;
+        client.disconnect().await;
+        return Err(err);
+    }
 
     // Wait for the matching response.
     let timeout = Duration::from_secs(HANDSHAKE_TIMEOUT_SECS);
-    let events = client
-        .fetch_events(
-            Filter::new()
-                .kinds([Kind::Custom(30502), Kind::Custom(30503)])
-                .author(gate_pubkey)
-                .pubkeys(vec![player_keys.public_key()]),
-            timeout,
-        )
-        .await?;
+    let event =
+        wait_for_matching_response(&mut notifications, &subscription_id, timeout, |event| {
+            is_matching_response_event(
+                event,
+                &response_kinds,
+                &gate_pubkey,
+                &player_keys.public_key(),
+                &nonce,
+            )
+        })
+        .await;
 
+    client.unsubscribe(&subscription_id).await;
     client.disconnect().await;
 
-    // Find the event whose `d` tag matches our nonce.
-    for event in events.iter() {
-        let d = tag_value(event.tags.iter(), "d");
-        if d.as_deref() != Some(nonce.as_str()) {
-            continue;
-        }
-
+    if let Some(event) = event {
         let kind = event.kind.as_u16();
         let plaintext = nip44::decrypt(player_keys.secret_key(), &event.pubkey, &event.content)?;
 
@@ -246,63 +254,6 @@ pub fn parse_session_error(json: &str) -> Result<SessionErrorPayload, String> {
     })
 }
 
-// ── Minimal JSON field extraction ─────────────────────────────────────────────
-
-/// Extract a quoted string field value by key.
-///
-/// Handles basic JSON escapes `\\` and `\"` within the value.
-fn extract_str(json: &str, key: &str) -> Result<String, String> {
-    let needle = format!("\"{}\"", key);
-    let key_pos = json
-        .find(&needle)
-        .ok_or_else(|| format!("missing field '{key}'"))?;
-    let after_key = &json[key_pos + needle.len()..];
-    // Skip whitespace and colon.
-    let colon_pos = after_key
-        .find(':')
-        .ok_or_else(|| format!("malformed field '{key}'"))?;
-    let after_colon = after_key[colon_pos + 1..].trim_start();
-    if !after_colon.starts_with('"') {
-        return Err(format!("field '{key}' is not a string"));
-    }
-    let inner = &after_colon[1..];
-    let mut value = String::new();
-    let mut chars = inner.chars();
-    loop {
-        match chars.next() {
-            None => return Err(format!("unterminated string for field '{key}'")),
-            Some('"') => break,
-            Some('\\') => match chars.next() {
-                Some('"') => value.push('"'),
-                Some('\\') => value.push('\\'),
-                Some('n') => value.push('\n'),
-                Some('r') => value.push('\r'),
-                Some('t') => value.push('\t'),
-                Some(c) => {
-                    value.push('\\');
-                    value.push(c);
-                }
-                None => return Err(format!("truncated escape in field '{key}'")),
-            },
-            Some(c) => value.push(c),
-        }
-    }
-    Ok(value)
-}
-
-/// Extract a numeric (unsigned integer) field value by key.
-fn extract_u32(json: &str, key: &str) -> Option<u32> {
-    let needle = format!("\"{}\"", key);
-    let key_pos = json.find(&needle)?;
-    let after_key = &json[key_pos + needle.len()..];
-    let colon_pos = after_key.find(':')?;
-    let after_colon = after_key[colon_pos + 1..].trim_start();
-    let end = after_colon
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(after_colon.len());
-    after_colon[..end].parse().ok()
-}
-
 /// Parse the `games` array in a `multiple_games` error payload.
 ///
 /// Each element has the shape:
@@ -344,22 +295,3 @@ fn parse_game_entries(json: &str) -> Vec<GameEntry> {
     entries
 }
 
-// ── Nonce + tag helpers ───────────────────────────────────────────────────────
-
-/// Generate a 32-byte random session nonce as a lowercase hex string.
-pub fn random_nonce_hex() -> String {
-    let mut bytes = [0u8; 32];
-    OsRng.fill_bytes(&mut bytes);
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// Extract the content (index-1 value) of the first tag with the given name.
-fn tag_value<'a>(mut tags: impl Iterator<Item = &'a nostr_sdk::Tag>, name: &str) -> Option<String> {
-    tags.find_map(|t| {
-        if t.kind().as_str() == name {
-            t.content().map(str::to_string)
-        } else {
-            None
-        }
-    })
-}

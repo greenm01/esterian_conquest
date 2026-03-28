@@ -1,11 +1,12 @@
 //! Invite code parsing and server resolution.
 //!
-//! Invite codes are two-word slugs optionally followed by a server suffix:
+//! Invite codes are accepted in three forms:
 //!
 //! ```text
-//! velvet-mountain
-//! velvet-mountain@play.example.com
-//! velvet-mountain@play.example.com:2222
+//! ecinv1...                                  bech32 (relay URL embedded)
+//! velvet-mountain                            plain slug (uses config relay)
+//! velvet-mountain@play.example.com           plain slug + inline host
+//! velvet-mountain@play.example.com:2222      plain slug + inline host:port
 //! ```
 //!
 //! The `SERVER` argument for direct mode can be a hostname, `hostname:port`,
@@ -13,8 +14,8 @@
 //!
 //! Resolution produces a [`ResolvedTarget`] that contains the server
 //! coordinates and relay URL needed to start a Nostr session handshake.
-//! Gate npub discovery is deferred to the handshake step (queried via
-//! kind-30500 events on the relay).
+
+use ec_nostr::invite::{decode_invite, is_bech32_invite};
 
 use crate::config::ConnectConfig;
 
@@ -36,6 +37,13 @@ pub struct ParsedInviteCode {
     pub words: String,
     /// Optional server host and port extracted from the `@host[:port]` suffix.
     pub server: Option<(String, u16)>,
+    /// Relay URL embedded in a bech32 invite (overrides derived relay).
+    pub relay_url: Option<String>,
+    /// Game ID hint embedded in a bech32 invite (skips 30500 lookup).
+    pub game_id: Option<String>,
+    /// Gate public key hint embedded in a bech32 invite (skips 30500 discovery).
+    /// Stored as hex string.
+    pub gate_npub: Option<String>,
 }
 
 /// Fully resolved connection target, ready for the handshake step.
@@ -49,25 +57,43 @@ pub struct ResolvedTarget {
     pub relay_url: String,
     /// Raw invite code words, if this was an invite-code resolution.
     pub invite_code: Option<String>,
-    /// Game ID hint from the invite code, if available (currently None until
-    /// the handshake step queries the relay for a matching 30500 event).
+    /// Game ID hint (from bech32 invite or cache).
     pub game_id: Option<String>,
+    /// Gate public key hint (from bech32 invite) — skips 30500 discovery.
+    /// Stored as hex string.
+    pub gate_npub: Option<String>,
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /// Parse an invite code string.
 ///
-/// Returns `Err` if the code is empty or structurally invalid.  The words
-/// portion must match `^[a-z]+-[a-z]+$` (exactly two lowercase-alpha runs
-/// separated by a single hyphen).  Input is normalized to lowercase before
-/// validation.
+/// Accepts bech32 (`ecinv1...`), plain slugs (`velvet-mountain`), and
+/// slug-with-host (`velvet-mountain@play.example.com[:port]`).
+///
+/// Returns `Err` if the code is empty or structurally invalid.
 pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
     let code = code.trim();
     if code.is_empty() {
         return Err("invite code must not be empty".into());
     }
 
+    // Bech32 invite: self-contained with embedded relay URL.
+    if is_bech32_invite(code) {
+        let payload = decode_invite(code).map_err(|e| format!("invalid bech32 invite: {e}"))?;
+        let gate_npub = payload
+            .gate_npub
+            .map(|bytes| bytes.iter().map(|b| format!("{b:02x}")).collect());
+        return Ok(ParsedInviteCode {
+            words: payload.words,
+            server: None,
+            relay_url: Some(payload.relay_url),
+            game_id: payload.game_id,
+            gate_npub,
+        });
+    }
+
+    // Plain slug with optional @host[:port] suffix.
     if let Some(at) = code.find('@') {
         let raw_words = &code[..at];
         if raw_words.is_empty() {
@@ -79,12 +105,18 @@ pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
         Ok(ParsedInviteCode {
             words,
             server: Some((host, port)),
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         })
     } else {
         let words = validate_and_normalize_words(code)?;
         Ok(ParsedInviteCode {
             words,
             server: None,
+            relay_url: None,
+            game_id: None,
+            gate_npub: None,
         })
     }
 }
@@ -129,19 +161,30 @@ fn validate_and_normalize_words(s: &str) -> Result<String, String> {
 pub fn resolve_invite(code: &str, config: &ConnectConfig) -> Result<ResolvedTarget, String> {
     let parsed = parse_invite_code(code)?;
 
-    let (server_host, server_port) = resolve_server_coords(
-        parsed.server.as_ref().map(|(h, p)| (h.as_str(), *p)),
-        config,
-    )?;
-
-    let relay_url = pick_relay_url(&server_host, config);
+    // For bech32 invites the relay URL is already in the payload.
+    // For plain invites, derive from the server host or use config override.
+    let (server_host, server_port, relay_url) = if let Some(ref relay) = parsed.relay_url {
+        // Bech32: relay embedded, server coordinates from config fallback only
+        // (bech32 invites don't carry a specific SSH host — the sysop hands out
+        // the invite and the player connects to the relay to discover the game).
+        let (host, port) = resolve_server_coords(None, config)?;
+        (host, port, relay.clone())
+    } else {
+        let (host, port) = resolve_server_coords(
+            parsed.server.as_ref().map(|(h, p)| (h.as_str(), *p)),
+            config,
+        )?;
+        let relay = pick_relay_url(&host, config);
+        (host, port, relay)
+    };
 
     Ok(ResolvedTarget {
         server_host,
         server_port,
         relay_url,
         invite_code: Some(parsed.words),
-        game_id: None,
+        game_id: parsed.game_id,
+        gate_npub: parsed.gate_npub,
     })
 }
 
@@ -167,6 +210,7 @@ pub fn resolve_server(server: &str, config: &ConnectConfig) -> Result<ResolvedTa
             relay_url,
             invite_code: None,
             game_id: None,
+            gate_npub: None,
         });
     }
 
@@ -179,6 +223,7 @@ pub fn resolve_server(server: &str, config: &ConnectConfig) -> Result<ResolvedTa
         relay_url,
         invite_code: None,
         game_id: None,
+        gate_npub: None,
     })
 }
 

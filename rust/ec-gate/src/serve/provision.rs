@@ -85,8 +85,12 @@ pub fn provision_key(
     let now = unix_now();
     let expires_at = now + config.key_ttl;
 
+    // No `exec` prefix — running the binary directly avoids shell built-in
+    // conflicts (e.g. fish's `exec` parses flags differently from sh/bash/zsh).
+    // The shell runs ec-game as a subprocess; the extra shell process is
+    // negligible and this works correctly on all POSIX shells and fish.
     let command = format!(
-        "exec {} --dir {} --player {}",
+        "{} --dir {} --player {}",
         config.ec_game_path.display(),
         game_dir.display(),
         seat.player

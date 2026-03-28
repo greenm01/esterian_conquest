@@ -1,5 +1,5 @@
 [workspace]
-members = ["ec-classic", "ec-data", "ec-engine", "ec-compat", "ec-cli", "ec-game", "ec-harness", "ec-sysop", "ec-connect", "ec-gate", "ec-log", "ec-ui"]
+members = ["ec-classic", "ec-data", "ec-engine", "ec-compat", "ec-cli", "ec-game", "ec-harness", "ec-sysop", "ec-connect", "ec-gate", "ec-log", "ec-ui", "ec-nostr"]
 resolver = "2"
 
 [profile.release]

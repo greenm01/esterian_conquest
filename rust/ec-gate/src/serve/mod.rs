@@ -9,6 +9,7 @@
 //! responses. A background reaper task periodically removes expired keys.
 
 pub mod catalog;
+pub mod claim;
 pub mod game_def;
 pub mod map;
 pub mod provision;
@@ -21,7 +22,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use ec_data::{CampaignStore, build_player_map_export_data};
-use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
+use nostr_sdk::{
+    Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, Timestamp, ToBech32,
+};
 use tokio::time::{Duration, interval};
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
@@ -64,15 +67,10 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
         .map_err(|e| format!("add_relay: {e}"))?;
     client.connect().await;
 
-    // Subscribe: kinds 30501, 30504, and 30507 addressed to our pubkey via `p`
-    // tag.
-    let filter = Filter::new()
-        .kinds([
-            Kind::Custom(30501),
-            Kind::Custom(30504),
-            Kind::Custom(30507),
-        ])
-        .pubkey(keys.public_key());
+    // Subscribe broadly to the request kinds, then enforce the `p` tag
+    // locally. Some relays are inconsistent about live `#p` delivery.
+    // Use a 1-minute buffer to avoid missing events due to clock drift.
+    let filter = request_subscription_filter(Timestamp::now() - Duration::from_secs(60));
 
     client
         .subscribe(filter, None)
@@ -84,7 +82,16 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
     // Publish 30500 GameDefinition for each loaded game on startup.
     {
         for entry in &startup_games {
-            match game_def::publish_game_definition(&client, keys, &entry.game).await {
+            match game_def::publish_game_definition(
+                &client,
+                keys,
+                &entry.game,
+                &config.ssh_host,
+                config.ssh_port,
+                &config.relay,
+            )
+            .await
+            {
                 Ok(event_id) => info!(
                     game_id = %entry.game.game_id,
                     event_id = %event_id,
@@ -125,7 +132,31 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
             let client_clone = client.clone();
             async move {
                 if let RelayPoolNotification::Event { event, .. } = notification {
+                    if !is_targeted_to_gate(&event, &shared_keys.public_key()) {
+                        return Ok(false);
+                    }
                     match event.kind.as_u16() {
+                        30510 => match claim::parse_seat_claim_request(&event) {
+                            Ok(req) => {
+                                let span = info_span!(
+                                    "claim_request",
+                                    player_npub = %req.player_pubkey,
+                                    nonce = %req.nonce,
+                                );
+                                handle_claim_request(
+                                    req,
+                                    shared_dirs,
+                                    shared_keys,
+                                    shared_config,
+                                    client_clone,
+                                )
+                                .instrument(span)
+                                .await;
+                            }
+                            Err(e) => {
+                                debug!(error = %e, "rejected seat-claim event");
+                            }
+                        },
                         30501 => match request::parse_session_request(&event) {
                             Ok(req) => {
                                 let span = info_span!(
@@ -195,6 +226,31 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
         .map_err(|e| format!("notification loop: {e}"))?;
 
     Ok(())
+}
+
+pub fn request_subscription_filter(since: Timestamp) -> Filter {
+    Filter::new()
+        .kinds([
+            Kind::Custom(30501),
+            Kind::Custom(30504),
+            Kind::Custom(30507),
+            Kind::Custom(30510),
+        ])
+        .since(since)
+}
+
+fn is_targeted_to_gate(event: &nostr_sdk::Event, gate_pubkey: &PublicKey) -> bool {
+    event.tags.iter().any(|tag| {
+        if tag.kind().as_str() != "p" {
+            return false;
+        }
+        // Standard NIP-01 'p' tag: ["p", <pubkey>, <relay-url>, <alias>]
+        // nostr-sdk 0.44 Tag::content() returns the first value (the pubkey).
+        tag.content()
+            .and_then(|value| PublicKey::parse(value).ok())
+            .map(|pubkey| pubkey == *gate_pubkey)
+            .unwrap_or(false)
+    })
 }
 
 async fn handle_map_request(
@@ -489,6 +545,173 @@ async fn handle_session_state_request(
     }
 }
 
+async fn handle_claim_request(
+    req: claim::SeatClaimRequest,
+    shared_dirs: Arc<Vec<std::path::PathBuf>>,
+    shared_keys: Arc<Keys>,
+    shared_config: Arc<GateConfig>,
+    client: Client,
+) {
+    let player_pubkey = match PublicKey::from_hex(&req.player_pubkey) {
+        Ok(pk) => pk,
+        Err(err) => {
+            warn!(error = %err, "cannot parse player pubkey for seat claim");
+            return;
+        }
+    };
+
+    let loaded_games = match catalog::load_hosted_games(shared_dirs.as_slice()) {
+        Ok(games) => games,
+        Err(err) => {
+            error!(error = %err, "cannot load hosted games for seat claim");
+            if let Err(pub_err) = claim::publish_seat_claim_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "internal_error",
+                "Unable to process this invite right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30511 SeatClaimError");
+            }
+            return;
+        }
+    };
+
+    let Some(game_entry) =
+        resolve_claim_target(&loaded_games, req.game_id.as_deref(), &req.invite_code)
+    else {
+        let (code, message) = if req.game_id.is_some() {
+            (
+                "invalid_code",
+                "The invite code does not match this hosted game.",
+            )
+        } else {
+            (
+                "game_not_found",
+                "The invite code is not valid for any hosted game on this server.",
+            )
+        };
+        if let Err(err) = claim::publish_seat_claim_error(
+            &client,
+            &shared_keys,
+            &player_pubkey,
+            &req.nonce,
+            code,
+            message,
+        )
+        .await
+        {
+            error!(error = %err, "failed to publish 30511 SeatClaimError");
+        }
+        return;
+    };
+
+    let store = match ec_data::CampaignStore::open_default_in_dir(&game_entry.dir) {
+        Ok(store) => store,
+        Err(err) => {
+            error!(game_id = %game_entry.game.game_id, error = %err, "cannot open campaign store for claim");
+            if let Err(pub_err) = claim::publish_seat_claim_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "internal_error",
+                "Unable to process this invite right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30511 SeatClaimError");
+            }
+            return;
+        }
+    };
+
+    match store.claim_hosted_seat(&req.invite_code, &req.player_pubkey) {
+        Ok(_) => {
+            info!(
+                invite_code = %req.invite_code,
+                player_npub = %req.player_pubkey,
+                game_id = %game_entry.game.game_id,
+                "seat claimed"
+            );
+            match catalog::load_hosted_game(&game_entry.dir) {
+            Ok(entry) => match game_def::publish_game_definition(
+                &client,
+                &shared_keys,
+                &entry.game,
+                &shared_config.ssh_host,
+                shared_config.ssh_port,
+                &shared_config.relay,
+            )
+            .await
+            {
+                Ok(event_id) => info!(
+                    game_id = %entry.game.game_id,
+                    event_id = %event_id,
+                    "published updated 30500 GameDefinition after claim"
+                ),
+                Err(err) => warn!(
+                    game_id = %entry.game.game_id,
+                    error = %err,
+                    "failed to publish updated 30500 GameDefinition after claim"
+                ),
+            },
+            Err(err) => warn!(
+                game_id = %game_entry.game.game_id,
+                error = %err,
+                "cannot reload hosted game after claim"
+            ),
+            }
+        }
+        Err(ec_data::ClaimHostedSeatError::InvalidCode) => {
+            if let Err(err) = claim::publish_seat_claim_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "invalid_code",
+                "The invite code is not valid.",
+            )
+            .await
+            {
+                error!(error = %err, "failed to publish 30511 SeatClaimError");
+            }
+        }
+        Err(ec_data::ClaimHostedSeatError::CodeClaimed) => {
+            if let Err(err) = claim::publish_seat_claim_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "code_claimed",
+                "The invite code has already been claimed.",
+            )
+            .await
+            {
+                error!(error = %err, "failed to publish 30511 SeatClaimError");
+            }
+        }
+        Err(ec_data::ClaimHostedSeatError::Store(err)) => {
+            error!(game_id = %game_entry.game.game_id, error = %err, "claim failed");
+            if let Err(pub_err) = claim::publish_seat_claim_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "internal_error",
+                "Unable to process this invite right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30511 SeatClaimError");
+            }
+        }
+    }
+}
+
 /// Process one validated session request inside its tracing span.
 async fn handle_request(
     req: request::SessionRequest,
@@ -547,6 +770,9 @@ async fn handle_request(
                                 &client,
                                 &shared_keys,
                                 &entry.game,
+                                &shared_config.ssh_host,
+                                shared_config.ssh_port,
+                                &shared_config.relay,
                             )
                             .await
                             {
@@ -680,4 +906,29 @@ fn player_name_for_seat(
         .get(player_index_1_based.saturating_sub(1))
         .map(|record| record.controlled_empire_name_summary())
         .unwrap_or_default())
+}
+
+fn resolve_claim_target<'a>(
+    games: &'a [catalog::HostedGameEntry],
+    game_id: Option<&str>,
+    invite_code: &str,
+) -> Option<&'a catalog::HostedGameEntry> {
+    let normalized = invite_code.trim().to_ascii_lowercase();
+    if let Some(game_id) = game_id {
+        return games.iter().find(|entry| {
+            entry.game.game_id == game_id
+                && entry
+                    .game
+                    .seats
+                    .iter()
+                    .any(|seat| seat.invite_code == normalized)
+        });
+    }
+    games.iter().find(|entry| {
+        entry
+            .game
+            .seats
+            .iter()
+            .any(|seat| seat.invite_code == normalized)
+    })
 }

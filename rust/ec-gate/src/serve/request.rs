@@ -3,14 +3,9 @@
 //! This module only handles parsing. Routing and provisioning live in later
 //! steps (steps 6–8).
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use ec_nostr::tags::tag_content;
+use ec_nostr::timing::is_event_stale;
 use nostr_sdk::Event;
-
-/// Maximum age of a 30501 SessionRequest event before it is rejected.
-///
-/// This prevents replay attacks using captured events.
-pub const MAX_EVENT_AGE_SECS: u64 = 60;
 
 /// A parsed 30501 SessionRequest from a player.
 #[derive(Debug, Clone)]
@@ -78,14 +73,7 @@ pub fn parse_session_request(event: &Event) -> Result<SessionRequest, ParseError
         return Err(ParseError::InvalidSignature);
     }
 
-    // Staleness check.
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let event_ts = event.created_at.as_secs();
-    let age = now.saturating_sub(event_ts);
-    if age > MAX_EVENT_AGE_SECS {
+    if is_event_stale(event) {
         return Err(ParseError::Stale);
     }
 
@@ -124,15 +112,3 @@ pub fn parse_session_request(event: &Event) -> Result<SessionRequest, ParseError
     })
 }
 
-// --- helpers ---
-
-/// Find the first tag with the given name and return its content (index 1).
-fn tag_content<'a>(tags: &'a nostr_sdk::event::Tags, name: &str) -> Option<&'a str> {
-    tags.iter().find_map(|t| {
-        if t.kind().as_str() == name {
-            t.content()
-        } else {
-            None
-        }
-    })
-}

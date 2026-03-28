@@ -303,3 +303,11 @@ pub fn centered_rect(width: u16, height: u16, parent: Rect) -> Rect {
 pub fn relative_time(_timestamp: Option<&str>) -> String {
     String::new()
 }
+
+/// Return the date portion of an ISO-8601 timestamp as `YYYY-MM-DD`.
+///
+/// Any input shorter than 10 characters is returned as-is so the column
+/// never displays garbage.
+pub fn short_date(ts: &str) -> String {
+    ts.get(..10).unwrap_or(ts).to_string()
+}

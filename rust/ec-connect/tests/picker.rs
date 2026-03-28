@@ -118,6 +118,7 @@ fn pending_refresh_request_has_visible_dwell_time() {
             relay_url: "ws://localhost:8080".to_string(),
             invite_code: None,
             game_id: Some("test-game".to_string()),
+            gate_npub: None,
         },
         "npub1gate".to_string(),
         "test-game".to_string(),

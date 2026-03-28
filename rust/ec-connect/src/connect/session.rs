@@ -110,7 +110,12 @@ async fn run_session_with_keypair(
     .await
     {
         Ok(r) => r,
-        Err(e) => return SessionOutcome::Error(format!("handshake failed: {e}")),
+        Err(e) => return SessionOutcome::Error(format!(
+            "Could not reach the game server.\n\
+             Contact your sysop if this persists.\n\
+             \n\
+             Technical: handshake failed: {e}"
+        )),
     };
 
     match result {
@@ -173,7 +178,12 @@ async fn run_session_with_keypair(
                         notice: map_notice,
                     }
                 }
-                Err(e) => SessionOutcome::Error(format!("bridge error: {e}")),
+                Err(e) => SessionOutcome::Error(format!(
+                    "Connection to game server was lost.\n\
+                     Contact your sysop if this persists.\n\
+                     \n\
+                     Technical: bridge error: {e}"
+                )),
             }
         }
     }
@@ -242,8 +252,7 @@ fn upsert_cache_entry(
     gate_npub: &str,
     target: &ResolvedTarget,
 ) {
-    let Ok(mut cache) = load_cache() else { return };
-    let entry = CachedGame {
+    cache_joined_game(CachedGame {
         id: payload.game_id.clone(),
         name: payload.game_name.clone(),
         player_name: (!payload.player_name.is_empty()).then(|| payload.player_name.clone()),
@@ -255,9 +264,40 @@ fn upsert_cache_entry(
         gate_npub: gate_npub.to_string(),
         joined: now_iso8601(),
         last_connected: None,
-    };
+    });
+}
+
+pub fn cache_joined_game(entry: CachedGame) {
+    let Ok(mut cache) = load_cache() else { return };
     cache.upsert(entry);
     let _ = save_cache(&cache);
+}
+
+pub fn build_cached_game(
+    game_id: &str,
+    game_name: &str,
+    player_name: Option<&str>,
+    target: &ResolvedTarget,
+    npub: &str,
+    gate_npub: &str,
+    seat: u32,
+) -> CachedGame {
+    CachedGame {
+        id: game_id.to_string(),
+        name: game_name.to_string(),
+        player_name: player_name
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
+        server: target.server_host.clone(),
+        port: target.server_port,
+        relay_url: Some(target.relay_url.clone()),
+        seat,
+        npub: npub.to_string(),
+        gate_npub: gate_npub.to_string(),
+        joined: now_iso8601(),
+        last_connected: None,
+    }
 }
 
 /// Update `last-connected` for a game after the bridge session ends.

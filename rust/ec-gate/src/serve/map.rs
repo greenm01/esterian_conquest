@@ -1,15 +1,14 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use ec_data::PlayerMapExportData;
+use ec_nostr::hash::sha256_hex;
+use ec_nostr::tags::tag_content;
+use ec_nostr::timing::is_event_stale;
 use nostr_sdk::nips::nip44;
 use nostr_sdk::nips::nip44::Version;
 use nostr_sdk::{Client, Event, EventBuilder, Keys, Kind, PublicKey, Tag};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
-use crate::serve::request::MAX_EVENT_AGE_SECS;
 use crate::serve::routing::ResolvedSeat;
 
 pub const MAX_MAP_PAYLOAD_BYTES: usize = 64 * 1024;
@@ -88,12 +87,7 @@ pub fn parse_map_request(event: &Event) -> Result<MapRequest, ParseError> {
         return Err(ParseError::InvalidSignature);
     }
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let age = now.saturating_sub(event.created_at.as_secs());
-    if age > MAX_EVENT_AGE_SECS {
+    if is_event_stale(event) {
         return Err(ParseError::Stale);
     }
 
@@ -212,19 +206,3 @@ pub fn build_map_bundle_payload(
     })
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    let digest = hasher.finalize();
-    digest.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-fn tag_content<'a>(tags: &'a nostr_sdk::event::Tags, name: &str) -> Option<&'a str> {
-    tags.iter().find_map(|tag| {
-        if tag.kind().as_str() == name {
-            tag.content()
-        } else {
-            None
-        }
-    })
-}

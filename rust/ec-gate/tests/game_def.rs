@@ -2,11 +2,13 @@
 
 use ec_data::{HostedSeat, HostedSeatStatus};
 use ec_gate::serve::catalog::HostedGame;
-use ec_gate::serve::game_def::{build_game_def_tags, sha256_hex};
+use ec_gate::serve::game_def::build_game_def_tags;
+use ec_nostr::hash::sha256_hex;
+use nostr_sdk::Keys;
 
 #[test]
 fn sha256_hex_known_value() {
-    let hash = sha256_hex("");
+    let hash = sha256_hex(b"");
     assert_eq!(
         hash,
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -15,12 +17,12 @@ fn sha256_hex_known_value() {
 
 #[test]
 fn sha256_hex_is_64_chars() {
-    assert_eq!(sha256_hex("velvet-mountain").len(), 64);
+    assert_eq!(sha256_hex(b"velvet-mountain").len(), 64);
 }
 
 #[test]
 fn sha256_hex_is_lowercase_hex() {
-    let hash = sha256_hex("copper-sunrise");
+    let hash = sha256_hex(b"copper-sunrise");
     assert!(
         hash.chars()
             .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase())
@@ -29,12 +31,12 @@ fn sha256_hex_is_lowercase_hex() {
 
 #[test]
 fn sha256_hex_same_input_same_output() {
-    assert_eq!(sha256_hex("amber-cascade"), sha256_hex("amber-cascade"));
+    assert_eq!(sha256_hex(b"amber-cascade"), sha256_hex(b"amber-cascade"));
 }
 
 #[test]
 fn sha256_hex_different_input_different_output() {
-    assert_ne!(sha256_hex("velvet-mountain"), sha256_hex("copper-sunrise"));
+    assert_ne!(sha256_hex(b"velvet-mountain"), sha256_hex(b"copper-sunrise"));
 }
 
 fn make_game() -> HostedGame {
@@ -59,7 +61,8 @@ fn make_game() -> HostedGame {
 }
 
 fn tags_as_strings(game: &HostedGame) -> Vec<Vec<String>> {
-    build_game_def_tags(game)
+    let keys = Keys::generate();
+    build_game_def_tags(game, "play.example.com", 2222, "wss://relay.example.com:7777", &keys.public_key())
         .unwrap()
         .iter()
         .map(|tag| tag.clone().to_vec())
@@ -85,6 +88,15 @@ fn game_def_tags_has_status_active() {
     let tags = tags_as_strings(&make_game());
     let status_tag = tags.iter().find(|tag| tag[0] == "status").unwrap();
     assert_eq!(status_tag[1], "active");
+}
+
+#[test]
+fn game_def_tags_publish_ssh_target() {
+    let tags = tags_as_strings(&make_game());
+    let ssh_host = tags.iter().find(|tag| tag[0] == "ssh-host").unwrap();
+    let ssh_port = tags.iter().find(|tag| tag[0] == "ssh-port").unwrap();
+    assert_eq!(ssh_host[1], "play.example.com");
+    assert_eq!(ssh_port[1], "2222");
 }
 
 #[test]
@@ -129,7 +141,7 @@ fn game_def_tags_slot_code_is_sha256_hash() {
         .iter()
         .find(|tag| tag[0] == "slot" && tag[1] == "1")
         .unwrap();
-    assert_eq!(slot[2], sha256_hex("velvet-mountain"));
+    assert_eq!(slot[2], sha256_hex(b"velvet-mountain"));
 }
 
 #[test]
@@ -141,7 +153,7 @@ fn game_def_tags_invite_code_normalized_before_hash() {
         .iter()
         .find(|tag| tag[0] == "slot" && tag[1] == "1")
         .unwrap();
-    assert_eq!(slot[2], sha256_hex("velvet-mountain"));
+    assert_eq!(slot[2], sha256_hex(b"velvet-mountain"));
 }
 
 #[test]

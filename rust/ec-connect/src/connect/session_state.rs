@@ -1,11 +1,14 @@
 use std::time::Duration;
 
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{Client, EventBuilder, Filter, Keys, Kind, PublicKey, Tag};
+use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag, Timestamp};
 use serde::{Deserialize, Serialize};
 
-use crate::connect::handshake::random_nonce_hex;
 use crate::connect::handshake::{HandshakeResult, run_handshake};
+use ec_nostr::nonce::random_nonce_hex;
+use crate::connect::live_response::{
+    build_response_filter, is_matching_response_event, wait_for_matching_response,
+};
 use crate::connect::resolve::ResolvedTarget;
 use crate::connect::ssh_key::EphemeralKeypair;
 
@@ -41,39 +44,44 @@ pub async fn fetch_session_state(
         .map_err(|e| format!("add relay: {e}"))?;
     client.connect().await;
 
-    let response_filter = Filter::new()
-        .kinds([Kind::Custom(30508), Kind::Custom(30509)])
-        .author(gate_pubkey)
-        .pubkeys(vec![player_keys.public_key()]);
-    client
+    let response_kinds = [Kind::Custom(30508), Kind::Custom(30509)];
+    let response_filter = build_response_filter(
+        &gate_pubkey,
+        &player_keys.public_key(),
+        response_kinds,
+        Timestamp::now() - Duration::from_secs(60),
+    );
+    let mut notifications = client.notifications();
+    let subscription_id = client
         .subscribe(response_filter, None)
         .await
-        .map_err(|e| format!("subscribe: {e}"))?;
+        .map_err(|e| format!("subscribe: {e}"))?
+        .val;
 
-    publish_session_state_request(&client, player_keys, &gate_pubkey, &nonce, game_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    let publish_result =
+        publish_session_state_request(&client, player_keys, &gate_pubkey, &nonce, game_id).await;
+    if let Err(err) = publish_result {
+        client.unsubscribe(&subscription_id).await;
+        client.disconnect().await;
+        return Err(err.to_string());
+    }
 
     let timeout = Duration::from_secs(SESSION_STATE_TIMEOUT_SECS);
-    let events = client
-        .fetch_events(
-            Filter::new()
-                .kinds([Kind::Custom(30508), Kind::Custom(30509)])
-                .author(gate_pubkey)
-                .pubkeys(vec![player_keys.public_key()]),
-            timeout,
-        )
-        .await
-        .map_err(|e| format!("fetch events: {e}"))?;
-
+    let event =
+        wait_for_matching_response(&mut notifications, &subscription_id, timeout, |event| {
+            is_matching_response_event(
+                event,
+                &response_kinds,
+                &gate_pubkey,
+                &player_keys.public_key(),
+                &nonce,
+            )
+        })
+        .await;
+    client.unsubscribe(&subscription_id).await;
     client.disconnect().await;
 
-    for event in events.iter() {
-        let d = tag_value(event.tags.iter(), "d");
-        if d.as_deref() != Some(nonce.as_str()) {
-            continue;
-        }
-
+    if let Some(event) = event {
         let plaintext = nip44::decrypt(player_keys.secret_key(), &event.pubkey, &event.content)
             .map_err(|e| format!("decrypt session state payload: {e}"))?;
 
@@ -152,14 +160,4 @@ async fn fetch_game_metadata_via_handshake(
         Ok(HandshakeResult::Timeout) => Err("metadata refresh timed out.".to_string()),
         Err(err) => Err(format!("metadata refresh failed: {err}")),
     }
-}
-
-fn tag_value<'a>(mut tags: impl Iterator<Item = &'a nostr_sdk::Tag>, name: &str) -> Option<String> {
-    tags.find_map(|tag| {
-        if tag.kind().as_str() == name {
-            tag.content().map(str::to_string)
-        } else {
-            None
-        }
-    })
 }
