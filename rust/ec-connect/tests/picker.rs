@@ -357,7 +357,6 @@ fn error_notice_dismisses_on_any_key() {
         "",
         std::path::Path::new("/tmp"),
         None,
-        None,
     )
     .unwrap();
 
@@ -398,6 +397,26 @@ fn game_relay_prompt_renders_popup() {
     }));
     assert!(
         (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("handshake timed out.") })
+    );
+}
+
+#[test]
+fn connecting_popup_renders_context_lines() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::Connecting {
+        lines: vec![
+            "Game: Friday Night EC".to_string(),
+            "Server: play.example.com:22".to_string(),
+            "Relay: wss://relay.example.com".to_string(),
+            "Attempting to connect...".to_string(),
+        ],
+    });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("CONNECTING TO GAME")));
+    assert!(
+        (0..buffer.height())
+            .any(|row| { buffer.plain_line(row).contains("Attempting to connect...") })
     );
 }
 

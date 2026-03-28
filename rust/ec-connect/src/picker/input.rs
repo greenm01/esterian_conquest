@@ -1,16 +1,14 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use super::connecting::{PendingConnectRequest, queue_connect_request};
 use crate::wallet::io::now_iso8601;
 use crate::wallet::push_identity_from_input;
 
 use super::event::{is_back_key, is_help_key};
-use super::flows::{
-    apply_session_outcome, connect_selected, join_with_code, move_selection,
-    redownload_selected_maps,
-};
+use super::flows::{connect_selected, join_with_code, move_selection, redownload_selected_maps};
 use super::overlay::PickerOverlay;
 use super::relay::open_default_relay_editor;
-use super::state::{BODY_PAGE, PickerSession, PickerState, Screen};
+use super::state::{BODY_PAGE, ConnectDisplay, ConnectOrigin, PickerSession, PickerState, Screen};
 
 pub fn handle_game_list_key(
     key: KeyEvent,
@@ -19,7 +17,6 @@ pub fn handle_game_list_key(
     gate_npub: &str,
     maps_root: &std::path::Path,
     rt: &tokio::runtime::Runtime,
-    session: &mut ec_ui::session::TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let game_count = state.cache.sorted().len();
     if is_help_key(key) {
@@ -116,7 +113,7 @@ pub fn handle_game_list_key(
             if game_count == 0 {
                 state.show_error("No joined games yet.");
             } else {
-                connect_selected(state, picker_session, gate_npub, maps_root, rt, session)?;
+                connect_selected(state, gate_npub)?;
             }
         }
         _ => {}
@@ -127,11 +124,7 @@ pub fn handle_game_list_key(
 pub fn handle_join_prompt_key(
     key: KeyEvent,
     state: &mut PickerState,
-    picker_session: &mut PickerSession,
     gate_npub: &str,
-    maps_root: &std::path::Path,
-    rt: &tokio::runtime::Runtime,
-    session: &mut ec_ui::session::TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if is_help_key(key) {
         state.open_help();
@@ -154,15 +147,7 @@ pub fn handle_join_prompt_key(
         } => {
             let code = state.join_input.trim().to_string();
             if !code.is_empty() {
-                join_with_code(
-                    state,
-                    &code,
-                    picker_session,
-                    gate_npub,
-                    maps_root,
-                    rt,
-                    session,
-                )?;
+                join_with_code(state, &code, gate_npub)?;
             }
         }
         KeyEvent {
@@ -372,10 +357,6 @@ fn handle_wallet_add_key(
 pub fn handle_game_select_key(
     key: KeyEvent,
     state: &mut PickerState,
-    picker_session: &mut PickerSession,
-    maps_root: &std::path::Path,
-    rt: &tokio::runtime::Runtime,
-    session: &mut ec_ui::session::TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::connect::resolve::ResolvedTarget;
 
@@ -449,23 +430,19 @@ pub fn handle_game_select_key(
                 invite_code: None,
                 game_id: Some(games[*selected].game_id.clone()),
             };
-            let gate = gate_npub.clone();
-            state.screen = Screen::GameList;
-            let outcome = {
-                session.suspend_for_bridge()?;
-                let outcome = rt.block_on(crate::connect::session::run_session(
-                    &picker_session.keys,
+            let game = games[*selected].clone();
+            queue_connect_request(
+                state,
+                PendingConnectRequest {
+                    origin: ConnectOrigin::GameSelect,
+                    display: ConnectDisplay::from_game(
+                        &format!("{} (Seat {})", game.name, game.seat),
+                        &target,
+                    ),
                     target,
-                    &picker_session.npub,
-                    &gate,
-                    crate::connect::session::DisambigMode::Prompt,
-                    maps_root,
-                ));
-                session.resume_after_bridge()?;
-                outcome
-            };
-            state.refresh_cache();
-            apply_session_outcome(state, outcome, None);
+                    gate_npub: gate_npub.clone(),
+                },
+            );
         }
         _ => {}
     }

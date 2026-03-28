@@ -10,6 +10,7 @@ use crate::cache::{GameCache, load_cache};
 use crate::hard_quit::is_hard_quit_key;
 use crate::launcher::run_password_gate_in_session;
 
+use super::connecting::execute_pending_connect;
 use super::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key,
     handle_join_prompt_key, handle_wallet_key,
@@ -60,6 +61,18 @@ fn run_loop(
         let buffer =
             super::render::render_buffer(state, picker_session.as_ref(), term_width, term_height);
         render_to_stdout(&buffer)?;
+
+        if !too_small {
+            if let Some(session_state) = picker_session.as_mut() {
+                if state.pending_connect.is_some() {
+                    execute_pending_connect(state, session_state, maps_root, rt, session)?;
+                    if state.quit {
+                        break;
+                    }
+                    continue;
+                }
+            }
+        }
 
         let wait = next_wait_duration(state, lock_timeout_minutes, last_activity);
         if !poll(wait)? {
@@ -131,7 +144,6 @@ fn run_loop(
                 gate_npub,
                 maps_root,
                 Some(rt),
-                Some(session),
             )?;
             if state.quit {
                 break;
@@ -144,21 +156,10 @@ fn run_loop(
                 let session_state = picker_session
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
-                handle_game_list_key(key, state, session_state, gate_npub, maps_root, rt, session)?;
+                handle_game_list_key(key, state, session_state, gate_npub, maps_root, rt)?;
             }
             Screen::JoinPrompt => {
-                let session_state = picker_session
-                    .as_mut()
-                    .ok_or("picker session missing while unlocked")?;
-                handle_join_prompt_key(
-                    key,
-                    state,
-                    session_state,
-                    gate_npub,
-                    maps_root,
-                    rt,
-                    session,
-                )?;
+                handle_join_prompt_key(key, state, gate_npub)?;
             }
             Screen::IdentityOverlay => handle_identity_overlay_key(key, state),
             Screen::WalletList | Screen::WalletAddPrompt => {
@@ -168,10 +169,7 @@ fn run_loop(
                 handle_wallet_key(key, state, session_state)?;
             }
             Screen::GameSelect { .. } => {
-                let session_state = picker_session
-                    .as_mut()
-                    .ok_or("picker session missing while unlocked")?;
-                handle_game_select_key(key, state, session_state, maps_root, rt, session)?;
+                handle_game_select_key(key, state)?;
             }
             Screen::Locked => {}
         }
@@ -237,6 +235,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.alias_input.clear();
     state.wallet_input.clear();
     state.relay_input.clear();
+    state.pending_connect = None;
     state.matrix.reset();
 }
 

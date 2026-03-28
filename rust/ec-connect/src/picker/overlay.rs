@@ -3,6 +3,7 @@ use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
 use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_command_line_prompt_text_at_col};
 use ec_ui::theme::classic;
 
+use super::connecting::render_connecting_popup;
 use super::event::{is_back_key, is_cancel_confirm_key, is_help_key, is_yes_key};
 use super::help::HelpTopic;
 use super::layout::{
@@ -28,6 +29,9 @@ pub enum PickerOverlay {
     Notice {
         level: NoticeLevel,
         message: String,
+    },
+    Connecting {
+        lines: Vec<String>,
     },
     Help(HelpTopic),
     QuitConfirm,
@@ -59,7 +63,6 @@ pub fn handle_overlay_key(
     gate_npub: &str,
     maps_root: &std::path::Path,
     rt: Option<&tokio::runtime::Runtime>,
-    session: Option<&mut ec_ui::session::TerminalSession>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let Some(current) = state.overlay.clone() else {
         return Ok(());
@@ -74,6 +77,7 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
+        PickerOverlay::Connecting { .. } => {}
         PickerOverlay::Help(_) => {
             if is_help_key(key)
                 || is_back_key(key)
@@ -100,19 +104,15 @@ pub fn handle_overlay_key(
             let Some(rt) = rt else {
                 return Ok(());
             };
-            let Some(session) = session else {
-                return Ok(());
-            };
             handle_game_relay_key(
                 key,
                 index,
                 action,
                 state,
-                picker_session,
+                &picker_session.keys,
                 gate_npub,
                 maps_root,
                 rt,
-                session,
             )?;
         }
         PickerOverlay::WalletDetail { index } => {
@@ -228,6 +228,9 @@ pub fn render_overlay(
         Some(PickerOverlay::Notice { level, message }) => {
             render_notice_popup(buffer, *level, message);
             buffer.clear_cursor();
+        }
+        Some(PickerOverlay::Connecting { lines }) => {
+            render_connecting_popup(buffer, lines);
         }
         Some(PickerOverlay::Help(topic)) => {
             render_help_overlay(buffer, *topic);
@@ -536,7 +539,7 @@ fn wrapped_lines(text: &str, max_width: usize) -> Vec<String> {
     lines
 }
 
-fn draw_modal_frame(
+pub(crate) fn draw_modal_frame(
     buffer: &mut PlayfieldBuffer,
     title: &str,
     preferred_width: usize,

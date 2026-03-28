@@ -1,3 +1,4 @@
+pub mod connecting;
 pub mod event;
 pub mod flows;
 pub mod help;

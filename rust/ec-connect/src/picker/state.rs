@@ -1,8 +1,10 @@
 use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
+use crate::connect::resolve::ResolvedTarget;
 use crate::wallet::Wallet;
 use nostr_sdk::Keys;
 
+use super::connecting::PendingConnectRequest;
 use super::help::HelpTopic;
 use super::overlay::{NoticeLevel, PickerOverlay};
 
@@ -51,12 +53,50 @@ pub struct PickerSession {
     pub npub: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConnectOrigin {
+    GameList,
+    JoinPrompt,
+    GameSelect,
+    GameRelayPrompt { index: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConnectDisplay {
+    pub lines: Vec<String>,
+}
+
+impl ConnectDisplay {
+    pub fn from_game(name: &str, target: &ResolvedTarget) -> Self {
+        Self {
+            lines: vec![
+                format!("Game: {}", name),
+                format!("Server: {}:{}", target.server_host, target.server_port),
+                format!("Relay: {}", target.relay_url),
+                "Attempting to connect...".to_string(),
+            ],
+        }
+    }
+
+    pub fn from_invite(invite_code: &str, target: &ResolvedTarget) -> Self {
+        Self {
+            lines: vec![
+                format!("Invite: {}", invite_code),
+                format!("Server: {}:{}", target.server_host, target.server_port),
+                format!("Relay: {}", target.relay_url),
+                "Attempting to connect...".to_string(),
+            ],
+        }
+    }
+}
+
 pub struct PickerState {
     pub cache: GameCache,
     pub selected: usize,
     pub wallet_selected: usize,
     pub screen: Screen,
     pub overlay: Option<PickerOverlay>,
+    pub pending_connect: Option<PendingConnectRequest>,
     pub join_input: String,
     pub alias_input: String,
     pub wallet_input: String,
@@ -73,6 +113,7 @@ impl PickerState {
             wallet_selected: 0,
             screen: Screen::GameList,
             overlay: None,
+            pending_connect: None,
             join_input: String::new(),
             alias_input: String::new(),
             wallet_input: String::new(),

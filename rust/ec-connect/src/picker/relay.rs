@@ -4,14 +4,14 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
 
+use super::connecting::{PendingConnectRequest, queue_connect_request};
 use super::event::is_back_key;
-use super::flows::{apply_session_outcome, persist_cached_game_relay};
+use super::flows::persist_cached_game_relay;
 use super::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box, truncate};
-use super::state::{PickerSession, PickerState};
+use super::state::{ConnectDisplay, ConnectOrigin, PickerState};
 use crate::config::{ConnectConfig, load_config, save_config, validate_relay_url};
 use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::{derive_relay_url, resolve_server};
-use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::map_store::save_map_bundle;
 
@@ -93,11 +93,10 @@ pub fn handle_game_relay_key(
     index: usize,
     action: RelayPromptAction,
     state: &mut PickerState,
-    picker_session: &mut PickerSession,
+    player_keys: &nostr_sdk::Keys,
     gate_npub: &str,
     maps_root: &Path,
     rt: &tokio::runtime::Runtime,
-    session: &mut ec_ui::session::TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match key.code {
         KeyCode::Enter => {
@@ -121,19 +120,12 @@ pub fn handle_game_relay_key(
                 }
             };
             match action {
-                RelayPromptAction::Connect => submit_connect_with_prompted_relay(
-                    state,
-                    picker_session,
-                    gate_npub,
-                    maps_root,
-                    rt,
-                    session,
-                    index,
-                    relay_url,
-                )?,
+                RelayPromptAction::Connect => {
+                    queue_prompted_relay_connect(state, gate_npub, index, relay_url)?
+                }
                 RelayPromptAction::DownloadMaps => submit_map_download_with_prompted_relay(
                     state,
-                    &picker_session.keys,
+                    player_keys,
                     gate_npub,
                     maps_root,
                     rt,
@@ -187,13 +179,9 @@ pub fn render_game_relay_popup(
     render_relay_popup_body(buffer, popup, instruction, input, error);
 }
 
-fn submit_connect_with_prompted_relay(
+fn queue_prompted_relay_connect(
     state: &mut PickerState,
-    picker_session: &mut PickerSession,
     gate_npub: &str,
-    maps_root: &Path,
-    rt: &tokio::runtime::Runtime,
-    session: &mut ec_ui::session::TerminalSession,
     index: usize,
     relay_url: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -228,40 +216,15 @@ fn submit_connect_with_prompted_relay(
     };
     drop(sorted);
 
-    let outcome = run_suspended(session, || {
-        rt.block_on(run_session(
-            &picker_session.keys,
-            target.clone(),
-            &picker_session.npub,
-            &effective_gate,
-            DisambigMode::Picker,
-            maps_root,
-        ))
-    })?;
-
-    match &outcome {
-        SessionOutcome::Done { .. } | SessionOutcome::NeedsDisambiguation { .. } => {
-            persist_cached_game_relay(state, index, &relay_url)?;
-            state.relay_input.clear();
-            state.overlay = None;
-            state.refresh_cache();
-            apply_session_outcome(state, outcome, Some((target, effective_gate)));
-        }
-        SessionOutcome::Error(msg) => {
-            state.overlay = Some(super::overlay::PickerOverlay::GameRelayPrompt {
-                index,
-                action: RelayPromptAction::Connect,
-                error: Some(msg.clone()),
-            });
-        }
-        SessionOutcome::Timeout => {
-            state.overlay = Some(super::overlay::PickerOverlay::GameRelayPrompt {
-                index,
-                action: RelayPromptAction::Connect,
-                error: Some("handshake timed out.".to_string()),
-            });
-        }
-    }
+    queue_connect_request(
+        state,
+        PendingConnectRequest {
+            origin: ConnectOrigin::GameRelayPrompt { index },
+            display: ConnectDisplay::from_game(&game.name, &target),
+            target,
+            gate_npub: effective_gate,
+        },
+    );
     Ok(())
 }
 
@@ -342,16 +305,6 @@ fn submit_map_download_with_prompted_relay(
         }
     }
     Ok(())
-}
-
-fn run_suspended<T>(
-    session: &mut ec_ui::session::TerminalSession,
-    action: impl FnOnce() -> T,
-) -> Result<T, Box<dyn std::error::Error>> {
-    session.suspend_for_bridge()?;
-    let result = action();
-    session.resume_after_bridge()?;
-    Ok(result)
 }
 
 fn draw_relay_popup_frame(buffer: &mut PlayfieldBuffer, title: &str, has_error: bool) -> Rect {
