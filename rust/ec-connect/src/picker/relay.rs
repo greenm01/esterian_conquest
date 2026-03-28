@@ -21,12 +21,22 @@ pub enum RelayPromptAction {
     DownloadMaps,
 }
 
+const INVALID_STORED_RELAY_ERROR: &str =
+    "Stored default relay is invalid. Enter a new relay URL.";
+
 pub fn open_default_relay_editor(
     state: &mut PickerState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
-    state.relay_input = config.relay.unwrap_or_default();
-    state.overlay = Some(super::overlay::PickerOverlay::DefaultRelayEditor { error: None });
+    let (relay_input, error) = match config.relay.as_deref() {
+        Some(saved) => match validate_relay_url(saved) {
+            Ok(Some(valid)) => (valid, None),
+            Ok(None) | Err(_) => (String::new(), Some(INVALID_STORED_RELAY_ERROR.to_string())),
+        },
+        None => (String::new(), None),
+    };
+    state.relay_input = relay_input;
+    state.overlay = Some(super::overlay::PickerOverlay::DefaultRelayEditor { error });
     Ok(())
 }
 

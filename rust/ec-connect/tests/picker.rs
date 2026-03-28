@@ -12,6 +12,7 @@ use ec_connect::picker::event::is_manual_refresh_key;
 use ec_connect::picker::flows::apply_session_outcome;
 use ec_connect::picker::help::HelpTopic;
 use ec_connect::picker::layout::MAX_BODY_ROWS;
+use ec_connect::picker::input::handle_game_list_key;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::refresh::PendingRefreshRequest;
 use ec_connect::picker::relay::RelayPromptAction;
@@ -345,13 +346,26 @@ fn join_code_popup_shows_code_input() {
     );
     // Input label is visible.
     assert!(
-        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Code:")),
-        "expected Code: label"
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Invite:")),
+        "expected invite label"
     );
     // Keyboard hint is visible.
     assert!(
         (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Enter=join")),
         "expected Enter=join hint"
+    );
+}
+
+#[test]
+fn join_code_popup_compacts_long_invites_without_losing_prefix() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.join_input = format!("ecinv1{}", "q".repeat(120));
+    state.overlay = Some(PickerOverlay::JoinCodePopup { error: None });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Invite: ecinv1...")),
+        "expected compact bech32 display with ecinv1 prefix"
     );
 }
 
@@ -442,6 +456,64 @@ fn default_relay_editor_renders_popup() {
             .plain_line(row)
             .contains("Relay: ws://localhost:8080")
     }));
+}
+
+#[test]
+fn default_relay_editor_can_render_blank_field_with_invalid_saved_relay_error() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.relay_input.clear();
+    state.overlay = Some(PickerOverlay::DefaultRelayEditor {
+        error: Some("Stored default relay is invalid. Enter a new relay URL.".to_string()),
+    });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("DEFAULT RELAY")));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Stored default relay is invalid.")
+    }));
+}
+
+#[test]
+fn main_game_list_r_opens_default_relay_editor() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let mut session = make_session(Some("Desk Alias"));
+    let rt = tokio::runtime::Runtime::new().expect("runtime");
+
+    handle_game_list_key(
+        KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+        &mut state,
+        &mut session,
+        "",
+        std::path::Path::new("/tmp"),
+        &rt,
+    )
+    .expect("handle R");
+
+    assert!(matches!(
+        state.overlay,
+        Some(PickerOverlay::DefaultRelayEditor { .. })
+    ));
+}
+
+#[test]
+fn main_game_list_n_opens_join_popup() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let mut session = make_session(Some("Desk Alias"));
+    let rt = tokio::runtime::Runtime::new().expect("runtime");
+
+    handle_game_list_key(
+        KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE),
+        &mut state,
+        &mut session,
+        "",
+        std::path::Path::new("/tmp"),
+        &rt,
+    )
+    .expect("handle N");
+
+    assert!(matches!(state.overlay, Some(PickerOverlay::JoinCodePopup { .. })));
 }
 
 #[test]

@@ -647,82 +647,73 @@ fn popup_command_row(popup: Rect, fallback: usize) -> usize {
 
 fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Option<&str>) {
     let has_error = error.is_some();
-    let height: u16 = if has_error { 8 } else { 7 };
-    let popup = centered_rect(
-        ((72 * 100) / PLAYFIELD_WIDTH).max(40) as u16,
-        height,
-        Rect::new(0, 0, PLAYFIELD_WIDTH as u16, PLAYFIELD_HEIGHT as u16),
-    );
-    let pad = Rect::new(
-        popup.x.saturating_sub(1),
-        popup.y.saturating_sub(1),
-        (popup.width + 2).min(PLAYFIELD_WIDTH as u16 - popup.x.saturating_sub(1)),
-        (popup.height + 2).min(PLAYFIELD_HEIGHT as u16 - popup.y.saturating_sub(1)),
-    );
-    buffer.fill_rect(
-        pad.y as usize,
-        pad.x as usize,
-        pad.width as usize,
-        pad.height as usize,
-        classic::help_panel_style(),
-    );
-    draw_box(
-        buffer,
-        popup,
-        "JOIN GAME",
-        classic::table_chrome_style(),
-        classic::table_header_style(),
-    );
-    buffer.fill_rect(
-        popup.y as usize + 1,
-        popup.x as usize + 1,
-        popup.width.saturating_sub(2) as usize,
-        popup.height.saturating_sub(2) as usize,
-        classic::table_body_style(),
-    );
+    let height: u16 = if has_error { 9 } else { 8 };
+    let popup = draw_modal_frame(buffer, "JOIN GAME", 76, height, classic::table_body_style());
 
     let left = popup.x as usize + 2;
     let inner_right = popup.x as usize + popup.width as usize - 2;
     let inner_width = popup.width.saturating_sub(4) as usize;
 
-    // Instruction line.
-    buffer.write_text_clipped(
-        popup.y as usize + 1,
-        left,
-        &truncate("Paste your invite code and press Enter.", inner_width),
-        classic::table_body_style(),
-    );
+    let instruction = "Paste the ecinv1... invite code from your sysop, then press Enter.";
+    for (idx, line) in wrapped_lines(instruction, inner_width).into_iter().take(2).enumerate() {
+        buffer.write_text_clipped(
+            popup.y as usize + 1 + idx,
+            left,
+            &line,
+            classic::table_body_style(),
+        );
+    }
 
-    // Code input field.
-    let label = "Code:";
+    let label = "Invite:";
+    let input_row = popup.y as usize + 4;
     let input_col = left + label.chars().count() + 1;
-    draw_labeled_input_row(
-        buffer,
-        popup.y as usize + 3,
-        left,
-        label,
-        input,
-        input_width(inner_right, input_col),
-        classic::status_label_style(),
-        classic::prompt_hotkey_style(),
-    );
+    let width = input_width(inner_right, input_col);
+    let visible = compact_invite_input(input, width);
+    buffer.write_text_clipped(input_row, left, label, classic::status_label_style());
+    for offset in 0..width {
+        buffer.set_cell(input_row, input_col + offset, ' ', classic::prompt_hotkey_style());
+    }
+    let cursor_col = input_col
+        + buffer.write_text_clipped(input_row, input_col, &visible, classic::prompt_hotkey_style());
+    if cursor_col < buffer.width() {
+        buffer.set_cursor(cursor_col as u16, input_row as u16);
+    }
 
-    // Error line (if present).
     if let Some(err) = error {
         buffer.write_text_clipped(
-            popup.y as usize + 5,
+            popup.y as usize + 6,
             left,
             &truncate(err, inner_width),
             classic::error_style(),
         );
     }
 
-    // Keyboard hint — last body line inside the box.
-    let hint_row = if has_error { popup.y as usize + 6 } else { popup.y as usize + 5 };
+    let hint_row = if has_error {
+        popup.y as usize + 7
+    } else {
+        popup.y as usize + 6
+    };
     buffer.write_text_clipped(
         hint_row,
         left,
-        &truncate("Enter=join   Esc=cancel   Backspace=clear", inner_width),
+        &truncate("Enter=join   Esc=cancel   Backspace=erase", inner_width),
         classic::table_chrome_style(),
     );
+}
+
+fn compact_invite_input(input: &str, width: usize) -> String {
+    let width = width.max(1);
+    let chars: Vec<char> = input.chars().collect();
+    if chars.len() <= width {
+        return input.to_string();
+    }
+    if width <= 10 {
+        return chars[chars.len() - width..].iter().collect();
+    }
+
+    let head_len = 6.min(width.saturating_sub(4));
+    let tail_len = width.saturating_sub(head_len + 3);
+    let head: String = chars[..head_len].iter().collect();
+    let tail: String = chars[chars.len() - tail_len..].iter().collect();
+    format!("{head}...{tail}")
 }

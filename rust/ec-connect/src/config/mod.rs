@@ -15,10 +15,14 @@
 //! ```
 
 use std::path::PathBuf;
+use url::Url;
 
 pub mod io;
 
-pub use io::{config_path, load_config, load_config_from, save_config, save_config_to};
+pub use io::{
+    config_path, load_config, load_config_from, save_config, save_config_to,
+    seed_default_relay, seed_default_relay_at,
+};
 
 /// A named server bookmark.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,8 +77,14 @@ pub fn validate_relay_url(input: &str) -> Result<Option<String>, String> {
     if trimmed.is_empty() {
         return Ok(None);
     }
-    if trimmed.starts_with("ws://") || trimmed.starts_with("wss://") {
-        return Ok(Some(trimmed.to_string()));
+    let parsed = Url::parse(trimmed)
+        .map_err(|_| "relay URL must be a valid ws:// or wss:// URL".to_string())?;
+    match parsed.scheme() {
+        "ws" | "wss" => {}
+        _ => return Err("relay URL must start with ws:// or wss://".to_string()),
     }
-    Err("relay URL must start with ws:// or wss://".to_string())
+    if parsed.host_str().is_none() {
+        return Err("relay URL must include a host".to_string());
+    }
+    Ok(Some(trimmed.to_string()))
 }

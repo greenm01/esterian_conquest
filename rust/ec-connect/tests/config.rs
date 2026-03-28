@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use ec_connect::config::io::{load_config_from, parse_config_str, render_config, save_config_to};
+use ec_connect::config::io::{
+    load_config_from, parse_config_str, render_config, save_config_to, seed_default_relay_at,
+};
 use ec_connect::config::{ConnectConfig, ServerBookmark, validate_relay_url};
 
 // ---------------------------------------------------------------------------
@@ -182,6 +184,15 @@ fn validate_relay_url_rejects_non_websocket_scheme() {
     assert!(err.contains("ws:// or wss://"));
 }
 
+#[test]
+fn validate_relay_url_rejects_malformed_string_with_invite_tail() {
+    let err = validate_relay_url(
+        "ws://localhost:80800wd6r5wps8qcquem0v3nxzargv4ez6emp0fjsjmr0vdskc6r0wd6q",
+    )
+    .unwrap_err();
+    assert!(err.contains("valid ws:// or wss:// URL"));
+}
+
 // ---------------------------------------------------------------------------
 // save_config_to / load_config_from
 // ---------------------------------------------------------------------------
@@ -227,6 +238,62 @@ fn save_load_config_roundtrip() {
     assert_eq!(loaded.default_server.as_deref(), Some("test"));
     assert_eq!(loaded.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
     assert_eq!(loaded.lock_timeout_minutes, Some(9));
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn seed_default_relay_sets_value_when_unset() {
+    let path = tmp_config_path("seed_when_unset");
+    let _ = std::fs::remove_file(&path);
+
+    let changed = seed_default_relay_at("wss://relay.example.com", &path).unwrap();
+    let loaded = load_config_from(&path).unwrap();
+
+    assert!(changed);
+    assert_eq!(loaded.relay.as_deref(), Some("wss://relay.example.com"));
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn seed_default_relay_keeps_existing_valid_default() {
+    let path = tmp_config_path("seed_keep_existing");
+    let _ = std::fs::remove_file(&path);
+
+    save_config_to(
+        &ConnectConfig {
+            relay: Some("wss://existing.example.com".to_string()),
+            servers: vec![],
+            default_server: None,
+            maps_dir: None,
+            lock_timeout_minutes: None,
+        },
+        &path,
+    )
+    .unwrap();
+
+    let changed = seed_default_relay_at("wss://relay.example.com", &path).unwrap();
+    let loaded = load_config_from(&path).unwrap();
+
+    assert!(!changed);
+    assert_eq!(loaded.relay.as_deref(), Some("wss://existing.example.com"));
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn seed_default_relay_replaces_invalid_existing_default() {
+    let path = tmp_config_path("seed_replace_invalid");
+    let _ = std::fs::remove_file(&path);
+
+    std::fs::write(&path, "relay \"ws://localhost:80800wd6r5wps8qc\"\n").unwrap();
+
+    let changed = seed_default_relay_at("wss://relay.example.com", &path).unwrap();
+    let loaded = load_config_from(&path).unwrap();
+
+    assert!(changed);
+    assert_eq!(loaded.relay.as_deref(), Some("wss://relay.example.com"));
 
     let _ = std::fs::remove_file(&path);
 }

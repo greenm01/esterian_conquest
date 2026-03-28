@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use kdl::KdlDocument;
 
-use super::{ConnectConfig, ServerBookmark};
+use super::{ConnectConfig, ServerBookmark, validate_relay_url};
 
 /// Default SSH port used when a server bookmark omits `port`.
 const DEFAULT_PORT: u16 = 22;
@@ -72,6 +72,36 @@ pub fn save_config_to(
     }
     fs::rename(&tmp, path)?;
     Ok(())
+}
+
+/// Seed the default relay from a successful join when the config does not
+/// already have a valid relay.
+pub fn seed_default_relay(relay_url: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    seed_default_relay_at(relay_url, &config_path())
+}
+
+/// Testable path override for [`seed_default_relay`].
+pub fn seed_default_relay_at(
+    relay_url: &str,
+    path: &std::path::Path,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let relay = validate_relay_url(relay_url)
+        .map_err(|err| format!("default relay seed rejected: {err}"))?
+        .ok_or("default relay seed rejected: relay URL must not be empty")?;
+
+    let mut config = load_config_from(path)?;
+    let has_valid_default = config
+        .relay
+        .as_deref()
+        .map(|current| validate_relay_url(current).ok().flatten().is_some())
+        .unwrap_or(false);
+    if has_valid_default {
+        return Ok(false);
+    }
+
+    config.relay = Some(relay);
+    save_config_to(&config, path)?;
+    Ok(true)
 }
 
 // ---------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+use crate::config::seed_default_relay;
 use std::path::Path;
 
 use nostr_sdk::Keys;
@@ -26,6 +27,7 @@ pub async fn run_public_join(
             let mut session_target = target;
             session_target.game_id = Some(claimed.game_id.clone());
             session_target.invite_code = None;
+            let _ = seed_default_relay(&session_target.relay_url);
             cache_joined_game(build_cached_game(
                 &claimed.game_id,
                 &claimed.game_name,

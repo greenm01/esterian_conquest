@@ -47,6 +47,7 @@ base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zstd = "0.13"
+url = "2"
 
 # Terminal raw mode + resize events
 crossterm = "0.29"

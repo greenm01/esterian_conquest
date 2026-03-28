@@ -169,7 +169,7 @@ All tools take `--dir /path/to/mygame` to locate the game.
 Create a new game with `ec-sysop new-game`:
 
 ```
-ec-sysop new-game /path/to/mygame --players 4 --seed 1515
+ec-sysop new-game /path/to/mygame --players 4
 ```
 
 This creates a fresh campaign directory with `ecgame.db`, classic auxiliary
@@ -186,8 +186,10 @@ The supported public creation flags are:
   columns: (auto, auto, 1fr),
   [*Flag*], [*Type*], [*Description*],
   [`--players`], [integer], [Number of empires. Supported range: 1–25. Defaults to `4`.],
-  [`--seed`], [integer], [Optional campaign seed for reproducible map generation.],
+  [`--seed`], [integer], [Optional integer seed for the campaign RNG. Controls map layout, starting positions, and all random events. If omitted, the engine picks a random seed and saves it to `ecgame.db`. The seed cannot be changed after creation.],
 )
+
+#admonition("NOTE")[Use a different seed for every game. Reusing the same seed produces the same map, starting positions, and event sequence every time.]
 
 == Recommended Hosted Play
 
@@ -202,7 +204,7 @@ BBS door middleware.
 A minimal hosted setup looks like:
 
 ```
-ec-sysop new-game /path/to/mygame --players 4 --seed 1515
+ec-sysop new-game /path/to/mygame --players 4
 ec-sysop nostr init
 ec-sysop nostr serve
 ```

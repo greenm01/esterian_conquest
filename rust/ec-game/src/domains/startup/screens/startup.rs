@@ -382,7 +382,7 @@ pub fn version_title() -> String {
     format!("EC v{}", env!("CARGO_PKG_VERSION"))
 }
 
-const ATTRIBUTION: &str = "Original game (c) 1992 Bentley C. Griffith";
+const ATTRIBUTION: &str = "Esterian Conquest (c) 1992 Bentley C. Griffith";
 
 const INTRO_ACCENT_PHRASES: &[&str] = &[
     "Esterian dominion",
