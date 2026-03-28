@@ -22,8 +22,11 @@
 
 use std::env;
 use std::io::{Read, Write};
-use std::sync::Arc;
-use std::thread;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size as terminal_size};
@@ -47,6 +50,7 @@ use ec_ui::session::write_terminal_cleanup_sequence;
 pub type BridgeError = Box<dyn std::error::Error + Send + Sync>;
 const POST_EXIT_DRAIN_GRACE: Duration = Duration::from_millis(150);
 const SESSION_DISCONNECT_GRACE: Duration = Duration::from_secs(1);
+const STDIN_POLL_GRACE: Duration = Duration::from_millis(20);
 
 fn terminal_channel_event(msg: &ChannelMsg) -> bool {
     matches!(msg, ChannelMsg::Eof | ChannelMsg::Close)
@@ -58,30 +62,103 @@ enum StdinEvent {
     Error(String),
 }
 
-fn spawn_stdin_pump() -> mpsc::UnboundedReceiver<StdinEvent> {
-    let (tx, rx) = mpsc::unbounded_channel();
-    thread::spawn(move || {
-        let mut stdin = std::io::stdin();
-        let mut buf = [0u8; 4096];
-        loop {
-            match stdin.read(&mut buf) {
-                Ok(0) => {
-                    let _ = tx.send(StdinEvent::Eof);
-                    break;
-                }
-                Ok(n) => {
-                    if tx.send(StdinEvent::Data(buf[..n].to_vec())).is_err() {
-                        break;
-                    }
-                }
+struct StdinPump {
+    rx: mpsc::UnboundedReceiver<StdinEvent>,
+    stop: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl StdinPump {
+    fn spawn() -> Self {
+        let (tx, rx) = mpsc::unbounded_channel();
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = Arc::clone(&stop);
+        let handle = thread::spawn(move || pump_stdin(tx, thread_stop));
+        Self {
+            rx,
+            stop,
+            handle: Some(handle),
+        }
+    }
+
+    fn stop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        #[cfg(unix)]
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        #[cfg(not(unix))]
+        let _ = self.handle.take();
+    }
+}
+
+impl Drop for StdinPump {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+fn pump_stdin(tx: mpsc::UnboundedSender<StdinEvent>, stop: Arc<AtomicBool>) {
+    let mut stdin = std::io::stdin();
+    let mut buf = [0u8; 4096];
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            break;
+        }
+        #[cfg(unix)]
+        {
+            match wait_for_stdin_or_stop(&stop) {
+                Ok(true) => {}
+                Ok(false) => continue,
                 Err(err) => {
-                    let _ = tx.send(StdinEvent::Error(err.to_string()));
+                    let _ = tx.send(StdinEvent::Error(err));
                     break;
                 }
             }
         }
-    });
-    rx
+        match stdin.read(&mut buf) {
+            Ok(0) => {
+                let _ = tx.send(StdinEvent::Eof);
+                break;
+            }
+            Ok(n) => {
+                if tx.send(StdinEvent::Data(buf[..n].to_vec())).is_err() {
+                    break;
+                }
+            }
+            Err(err) => {
+                let _ = tx.send(StdinEvent::Error(err.to_string()));
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+fn wait_for_stdin_or_stop(stop: &AtomicBool) -> Result<bool, String> {
+    use libc::{POLLIN, poll, pollfd};
+    while !stop.load(Ordering::Relaxed) {
+        let mut fds = [pollfd {
+            fd: 0,
+            events: POLLIN,
+            revents: 0,
+        }];
+        let rc = unsafe {
+            poll(
+                fds.as_mut_ptr(),
+                fds.len() as _,
+                STDIN_POLL_GRACE.as_millis() as i32,
+            )
+        };
+        if rc < 0 {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        if rc == 0 {
+            continue;
+        }
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 /// Connect to the SSH server described by `payload`, authenticate with
@@ -160,7 +237,7 @@ pub async fn run_bridge(
 
 /// Drive stdin → channel and channel → stdout until the remote side closes.
 async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, BridgeError> {
-    let mut stdin_events = spawn_stdin_pump();
+    let mut stdin_pump = StdinPump::spawn();
     let mut stdout = tokio::io::stdout();
     let mut stdin_closed = false;
     #[allow(unused_assignments)] // set inside select! arm; false positive
@@ -181,7 +258,7 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
 
         tokio::select! {
             // Forward stdin bytes to the SSH channel.
-            maybe_event = stdin_events.recv(), if !stdin_closed => {
+            maybe_event = stdin_pump.rx.recv(), if !stdin_closed => {
                 match maybe_event {
                     Some(StdinEvent::Eof) | None => {
                         stdin_closed = true;
@@ -231,6 +308,7 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
     }
 
     drain_post_exit_output(channel, &mut stdout).await;
+    stdin_pump.stop();
 
     Ok(exit_code.unwrap_or(1))
 }

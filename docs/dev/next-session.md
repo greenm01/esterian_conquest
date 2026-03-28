@@ -45,6 +45,9 @@ Keep this file short. Historical detail belongs in
 - There is no known major player-TUI feature gap left.
 - The main remaining risk is unknown bugs or confusing workflows that only show
   up under real player/sysop use.
+- `ec-connect`'s post-`ec-game` first-key fix is currently Unix-only; Windows
+  still needs a bridge-side stdin shutdown path so the first returned keypress
+  cannot be stolen after the SSH session exits.
 - New gameplay features should not deepen the offset-shaped storage path.
 
 ## Immediate Next Steps
@@ -56,5 +59,8 @@ Keep this file short. Historical detail belongs in
    code does not drift back toward raw-offset dependence.
 4. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
    so screen-local key discoverability can move out of crowded command rails.
-5. Only do deeper semantic cleanup when it materially helps a real gameplay,
+5. Add the Windows half of the `ec-connect` bridge stdin shutdown fix so
+   post-game return behavior matches Linux/macOS and the first keypress works
+   immediately after leaving `ec-game`.
+6. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.

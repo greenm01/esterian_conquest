@@ -3,7 +3,7 @@
 //! These tests exercise `PickerState` logic and the pure render helpers in
 //! `picker::render`.  No live terminal or Nostr connection is needed.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::connect::session::SessionOutcome;
@@ -13,6 +13,7 @@ use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::relay::RelayPromptAction;
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
+use ec_connect::picker::runner::post_bridge_recovery_event;
 use ec_connect::picker::{PickerSession, PickerState, Screen};
 use ec_connect::wallet::{Identity, IdentityType, Wallet};
 use ec_ui::theme::classic;
@@ -456,6 +457,50 @@ fn picker_session_keeps_nondefault_notice_in_tui() {
             message: "Warning: unable to save starmaps.".to_string(),
         })
     );
+}
+
+#[test]
+fn picker_session_default_return_allows_immediate_quit_confirm() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::Connecting {
+        lines: vec!["Attempting to connect...".to_string()],
+    });
+
+    apply_session_outcome(
+        &mut state,
+        SessionOutcome::Done {
+            exit_code: 0,
+            notice: Some("For Griffith and glory.".to_string()),
+        },
+        None,
+    );
+
+    state.request_quit();
+
+    assert_eq!(state.overlay, Some(PickerOverlay::QuitConfirm));
+}
+
+#[test]
+fn post_bridge_recovery_keeps_key_press_events() {
+    let key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE);
+
+    assert_eq!(post_bridge_recovery_event(Event::Key(key)), Some(key));
+}
+
+#[test]
+fn post_bridge_recovery_discards_key_release_events() {
+    let release = KeyEvent::new_with_kind(
+        KeyCode::Char('q'),
+        KeyModifiers::NONE,
+        KeyEventKind::Release,
+    );
+
+    assert_eq!(post_bridge_recovery_event(Event::Key(release)), None);
+}
+
+#[test]
+fn post_bridge_recovery_discards_non_key_events() {
+    assert_eq!(post_bridge_recovery_event(Event::Resize(82, 27)), None);
 }
 
 #[test]

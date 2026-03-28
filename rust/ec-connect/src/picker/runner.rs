@@ -20,6 +20,8 @@ use super::session::load_picker_session;
 use super::state::{PickerSession, PickerState, Screen};
 use crate::shell::terminal_fits_outer;
 
+const POST_BRIDGE_RECOVERY_WINDOW: Duration = Duration::from_millis(120);
+
 pub fn run_picker_in_session(
     picker_session: PickerSession,
     gate_npub: String,
@@ -54,6 +56,7 @@ fn run_loop(
     session: &mut TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut last_activity = Instant::now();
+    let mut replayed_key = None;
 
     loop {
         let (term_width, term_height) = crossterm::terminal::size().unwrap_or((80, 25));
@@ -66,6 +69,7 @@ fn run_loop(
             if let Some(session_state) = picker_session.as_mut() {
                 if state.pending_connect.is_some() {
                     execute_pending_connect(state, session_state, maps_root, rt, session)?;
+                    replayed_key = capture_post_bridge_key()?;
                     if state.quit {
                         break;
                     }
@@ -75,7 +79,7 @@ fn run_loop(
         }
 
         let wait = next_wait_duration(state, lock_timeout_minutes, last_activity);
-        if !poll(wait)? {
+        let Some(key) = read_picker_key(&mut replayed_key, wait)? else {
             if matches!(state.screen, Screen::Locked) {
                 state.matrix.advance();
                 continue;
@@ -84,14 +88,7 @@ fn run_loop(
                 lock_picker(state, picker_session);
             }
             continue;
-        }
-
-        let Event::Key(key) = read()? else {
-            continue;
         };
-        if key.kind != KeyEventKind::Press {
-            continue;
-        }
         if is_hard_quit_key(key) {
             state.quit = true;
             break;
@@ -182,6 +179,58 @@ fn run_loop(
     Ok(())
 }
 
+fn read_picker_key(
+    replayed_key: &mut Option<KeyEvent>,
+    wait: Duration,
+) -> Result<Option<KeyEvent>, Box<dyn std::error::Error>> {
+    if let Some(key) = replayed_key.take() {
+        return Ok(Some(key));
+    }
+
+    if !poll(wait)? {
+        return Ok(None);
+    }
+
+    let Some(key) = post_bridge_recovery_event(read()?) else {
+        return Ok(None);
+    };
+    Ok(Some(key))
+}
+
+fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSession>) {
+    *picker_session = None;
+    state.overlay = None;
+    state.screen = Screen::Locked;
+    state.join_input.clear();
+    state.alias_input.clear();
+    state.wallet_input.clear();
+    state.relay_input.clear();
+    state.pending_connect = None;
+    state.matrix.reset();
+}
+
+fn capture_post_bridge_key() -> Result<Option<KeyEvent>, Box<dyn std::error::Error>> {
+    let deadline = Instant::now() + POST_BRIDGE_RECOVERY_WINDOW;
+    while Instant::now() < deadline {
+        let wait = (deadline - Instant::now()).min(Duration::from_millis(10));
+        if !poll(wait)? {
+            continue;
+        }
+        if let Some(key) = post_bridge_recovery_event(read()?) {
+            return Ok(Some(key));
+        }
+    }
+    Ok(None)
+}
+
+#[doc(hidden)]
+pub fn post_bridge_recovery_event(event: Event) -> Option<KeyEvent> {
+    match event {
+        Event::Key(key) if key.kind == KeyEventKind::Press => Some(key),
+        _ => None,
+    }
+}
+
 fn next_wait_duration(
     state: &PickerState,
     lock_timeout_minutes: u16,
@@ -225,18 +274,6 @@ fn is_manual_lock_key(key: KeyEvent, text_entry: bool) -> bool {
         }
     );
     alt_l || (plain_l && !text_entry)
-}
-
-fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSession>) {
-    *picker_session = None;
-    state.overlay = None;
-    state.screen = Screen::Locked;
-    state.join_input.clear();
-    state.alias_input.clear();
-    state.wallet_input.clear();
-    state.relay_input.clear();
-    state.pending_connect = None;
-    state.matrix.reset();
 }
 
 fn unlock_picker_session(

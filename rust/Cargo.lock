@@ -746,6 +746,7 @@ dependencies = [
  "ec-ui",
  "ed25519-dalek",
  "kdl",
+ "libc",
  "nostr-sdk",
  "pbkdf2",
  "rand 0.8.5",

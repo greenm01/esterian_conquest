@@ -1,4 +1,4 @@
-use ec_connect::cli::successful_session_handoff_lines;
+use ec_connect::cli::{picker_exit_lines, successful_session_handoff_lines};
 use ec_connect::connect::session::SessionOutcome;
 
 #[test]
@@ -38,4 +38,12 @@ fn successful_session_handoff_lines_skip_nonzero_exit() {
     };
 
     assert_eq!(successful_session_handoff_lines(&outcome), None);
+}
+
+#[test]
+fn picker_exit_lines_emit_griffith_line() {
+    assert_eq!(
+        picker_exit_lines(),
+        vec!["For Griffith and glory.".to_string()]
+    );
 }

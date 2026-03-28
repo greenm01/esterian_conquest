@@ -301,13 +301,17 @@ fn cmd_picker(opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
-    run_picker_in_session(
+    let result = run_picker_in_session(
         picker_session,
         gate_npub,
         maps_root,
         config.effective_lock_timeout_minutes(),
         session,
-    )
+    );
+    if result.is_ok() {
+        emit_picker_exit_lines();
+    }
+    result
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -417,6 +421,17 @@ pub fn successful_session_handoff_lines(outcome: &SessionOutcome) -> Option<Vec<
     }
 }
 
+#[doc(hidden)]
+pub fn picker_exit_lines() -> Vec<String> {
+    vec!["For Griffith and glory.".to_string()]
+}
+
+fn emit_picker_exit_lines() {
+    for line in picker_exit_lines() {
+        eprintln!("{line}");
+    }
+}
+
 /// Print the `SessionOutcome` and convert to a Result.
 fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(lines) = successful_session_handoff_lines(&outcome) {
@@ -458,13 +473,17 @@ fn cmd_dev_seed_ui(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std
         let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
         let maps_root = resolve_maps_root(config.maps_dir.as_deref(), None);
         let session = TerminalSession::enter_picker()?;
-        return run_picker_in_session(
+        let result = run_picker_in_session(
             picker_session,
             String::new(),
             maps_root,
             config.effective_lock_timeout_minutes(),
             session,
         );
+        if result.is_ok() {
+            emit_picker_exit_lines();
+        }
+        return result;
     }
     println!("Seeded ec-connect UI test data.");
     println!("wallet: {}", summary.wallet_path.display());

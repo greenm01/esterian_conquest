@@ -48,6 +48,7 @@ zstd = "0.13"
 # Terminal raw mode + resize events
 crossterm = "0.29"
 ec-ui = { path = "../ec-ui" }
+libc = "0.2"
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }
