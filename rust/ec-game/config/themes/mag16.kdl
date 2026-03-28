@@ -13,8 +13,8 @@ style "title" {
     bold #true
 }
 style "shell_title" {
-    fg "black"
-    bg "bright_blue"
+    fg "bright_blue"
+    bg "black"
     bold #true
 }
 style "menu" {

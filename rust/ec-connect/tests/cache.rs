@@ -250,6 +250,37 @@ fn touch_noop_on_missing_game() {
 }
 
 #[test]
+fn remove_deletes_matching_game() {
+    let mut cache = GameCache::empty();
+    cache.upsert(make_game("alpha", "2026-01-01T00:00:00Z", None));
+    cache.upsert(make_game("beta", "2026-01-02T00:00:00Z", None));
+
+    assert!(cache.remove("alpha"));
+    assert_eq!(cache.games.len(), 1);
+    assert_eq!(cache.games[0].id, "beta");
+    assert!(!cache.remove("missing"));
+}
+
+#[test]
+fn remove_by_npub_prunes_all_matching_games() {
+    let mut cache = GameCache::empty();
+    let mut alpha = make_game("alpha", "2026-01-01T00:00:00Z", None);
+    alpha.npub = "npub1alpha".to_string();
+    let mut beta = make_game("beta", "2026-01-02T00:00:00Z", None);
+    beta.npub = "npub1alpha".to_string();
+    let mut gamma = make_game("gamma", "2026-01-03T00:00:00Z", None);
+    gamma.npub = "npub1gamma".to_string();
+
+    cache.upsert(alpha);
+    cache.upsert(beta);
+    cache.upsert(gamma);
+
+    assert_eq!(cache.remove_by_npub("npub1alpha"), 2);
+    assert_eq!(cache.games.len(), 1);
+    assert_eq!(cache.games[0].id, "gamma");
+}
+
+#[test]
 fn sorted_puts_last_connected_first_in_descending_order() {
     let mut cache = GameCache::empty();
     cache.upsert(make_game(

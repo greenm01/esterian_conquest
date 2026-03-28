@@ -9,7 +9,7 @@ use super::layout::{
     scroll_start, table_cell_start, table_message_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_npub, truncate};
-use super::overlay::{render_identity_popup, render_overlay};
+use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_popup};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
 use crate::shell::{terminal_fits_outer, wrap_inner_buffer};
@@ -223,22 +223,13 @@ fn render_wallet_menu(
     }
 
     match state.screen {
-        Screen::WalletAddPrompt => {
-            let prompt = format!(
-                "Paste nsec or leave blank for new <Q> -> {}",
-                state.wallet_input
-            );
-            draw_command_line_prompt_text_at(
-                buffer,
-                metrics.command_row,
-                "WALLET COMMAND",
-                &prompt,
-            );
-        }
-        Screen::WalletList => {
+        Screen::WalletList | Screen::WalletAddPrompt => {
             draw_table_command_bar_at(buffer, metrics.command_row, WALLET_MENU_RAIL, None, "");
         }
         _ => {}
+    }
+    if matches!(state.screen, Screen::WalletAddPrompt) {
+        render_wallet_add_popup(buffer, &state.wallet_input);
     }
     metrics.command_row
 }

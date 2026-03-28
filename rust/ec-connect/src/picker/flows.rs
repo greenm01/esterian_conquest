@@ -104,7 +104,7 @@ pub fn redownload_selected_maps(
 
     let sorted = state.cache.sorted();
     let Some(game) = sorted.get(state.selected).copied() else {
-        state.show_notice("No joined games yet.");
+        state.show_error("No joined games yet.");
         return Ok(());
     };
     let game_id = game.id.clone();
@@ -179,7 +179,12 @@ pub fn apply_session_outcome(
 ) {
     match outcome {
         SessionOutcome::Done { notice, .. } => {
-            state.show_notice(notice.unwrap_or_else(|| "For Griffith and glory.".into()));
+            if let Some(notice) = notice
+                .filter(|message| !message.trim().is_empty())
+                .filter(|message| message != "For Griffith and glory.")
+            {
+                state.show_notice(notice);
+            }
         }
         SessionOutcome::Error(msg) => {
             state.show_error(msg);
@@ -215,7 +220,12 @@ fn apply_join_outcome(
             state.join_input.clear();
             state.screen = Screen::GameList;
             state.selected = 0;
-            state.show_notice(notice.unwrap_or_else(|| "For Griffith and glory.".into()));
+            if let Some(notice) = notice
+                .filter(|message| !message.trim().is_empty())
+                .filter(|message| message != "For Griffith and glory.")
+            {
+                state.show_notice(notice);
+            }
         }
         SessionOutcome::Error(msg) => {
             state.screen = Screen::JoinPrompt;

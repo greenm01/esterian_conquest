@@ -51,6 +51,20 @@ pub fn handle_game_list_key(
             ..
         } => redownload_selected_maps(state, &picker_session.keys, gate_npub, maps_root, rt)?,
         KeyEvent {
+            code: KeyCode::Char('d' | 'D'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
+            if game_count == 0 {
+                state.show_error("No joined games yet.");
+            } else {
+                state.overlay = Some(PickerOverlay::GameDeleteConfirm {
+                    index: state.selected,
+                    step: 1,
+                });
+            }
+        }
+        KeyEvent {
             code: KeyCode::Char('j'),
             modifiers: KeyModifiers::NONE,
             ..
@@ -90,7 +104,7 @@ pub fn handle_game_list_key(
             ..
         } => {
             if game_count == 0 {
-                state.show_notice("No joined games yet.");
+                state.show_error("No joined games yet.");
             } else {
                 connect_selected(state, picker_session, gate_npub, maps_root, rt, session)?;
             }
@@ -223,7 +237,7 @@ fn handle_wallet_list_key(
             ..
         } => {
             if wallet_len == 0 {
-                state.show_notice("Wallet has no identities.");
+                state.show_error("Wallet has no identities.");
             } else {
                 state.alias_input = picker_session
                     .wallet
@@ -250,14 +264,16 @@ fn handle_wallet_list_key(
             ..
         } => {
             if wallet_len == 0 {
-                state.show_notice("Wallet has no identities.");
+                state.show_error("Wallet has no identities.");
             } else {
-                let npub = picker_session.switch_active(state.wallet_selected)?;
-                picker_session.save()?;
-                state.show_notice(format!(
-                    "Active identity: {}",
-                    super::render::short_npub(&npub)
-                ));
+                let result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                    picker_session.switch_active(state.wallet_selected)?;
+                    picker_session.save()?;
+                    Ok(())
+                })();
+                if let Err(err) = result {
+                    state.show_error(err.to_string());
+                }
             }
         }
         KeyEvent {
@@ -309,7 +325,12 @@ fn handle_wallet_add_key(
                 now_iso8601(),
             ) {
                 Ok(_) => {
-                    picker_session.save()?;
+                    if let Err(err) = picker_session.save() {
+                        state.wallet_input.clear();
+                        state.screen = Screen::WalletList;
+                        state.show_error(err.to_string());
+                        return Ok(());
+                    }
                     state.wallet_selected =
                         picker_session.wallet.identities.len().saturating_sub(1);
                     state.wallet_input.clear();
@@ -319,7 +340,11 @@ fn handle_wallet_add_key(
                         index: state.wallet_selected,
                     });
                 }
-                Err(err) => state.show_error(err.to_string()),
+                Err(err) => {
+                    state.wallet_input.clear();
+                    state.screen = Screen::WalletList;
+                    state.show_error(err.to_string());
+                }
             }
         }
         KeyEvent {

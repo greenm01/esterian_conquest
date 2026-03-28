@@ -18,8 +18,8 @@ style "title" {
     bold #true
 }
 style "shell_title" {
-    fg "#1a1b26"
-    bg "#7aa2f7"
+    fg "#7aa2f7"
+    bg "#1a1b26"
     bold #true
 }
 style "menu" {

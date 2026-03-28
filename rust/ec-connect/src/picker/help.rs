@@ -1,6 +1,6 @@
 use super::state::Screen;
 
-pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M L <Q>";
+pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D L <Q>";
 pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N A D L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
 
@@ -49,6 +49,10 @@ const MAIN_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "M",
         description: "download maps for selected game",
+    },
+    HelpRow {
+        command: "D",
+        description: "delete selected game",
     },
     HelpRow {
         command: "L",

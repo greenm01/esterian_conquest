@@ -111,6 +111,7 @@ fn render_buffer_uses_versioned_outer_title_in_shell_title_style() {
     let col = line[..byte_idx].chars().count();
     assert_eq!(col, 3);
     assert_eq!(buffer.row(row)[col].style, classic::shell_title_style());
+    assert_eq!(classic::shell_title_style().bg, classic::body_style().bg);
 }
 
 #[test]

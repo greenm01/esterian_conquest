@@ -519,6 +519,7 @@ All required style tokens:
   [*Token*], [*Purpose*],
   [`body`], [Default body text.],
   [`title`], [Screen and section titles.],
+  [`shell_title`], [Outer shell border title text such as the `EC CONNECT` frame title. This should normally use the same background as `body` with a more prominent foreground accent.],
   [`menu`], [Menu item text.],
   [`menu_hotkey`], [Menu hotkey letters.],
   [`prompt`], [Input prompt text.],
@@ -718,16 +719,45 @@ Do not rely on arrows or `PgUp` / `PgDn` for normal play through BBS hosts.
 
 = File-Based Turn Submission
 
-Players on localhost or a shared host can use either the interactive TUI or `ec-game submit-turn`.
+For localhost, shared-host, or custom-client workflows, players can submit
+orders by writing a KDL turn file and passing it to `ec-game submit-turn`.
+Use `--check` to validate without writing, then run without it to apply:
 
 ```
 ec-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
 ec-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
 ```
 
-This is a supported file-based interface for manual workflows and custom client integration. It writes directly to `ecgame.db` after the submission validates cleanly. If any command in the file is invalid, the entire submission is rejected and nothing is written.
+The `--player` value must match the `turn player=...` header in the file. If
+any order in the file is invalid, the entire submission is rejected and nothing
+is written. This is a direct apply command, not a queue or upload inbox.
 
-Do not treat this as a queue processor or upload inbox. `submit-turn` is a direct command that reads one KDL file and applies it immediately to the live campaign state.
+A minimal turn file:
+
+```kdl
+turn player=1 year=3000
+tax rate=37
+```
+
+A fuller example:
+
+```kdl
+turn player=1 year=3000
+
+tax rate=37
+
+planet record=16 {
+  build points=4 kind="scout"
+}
+
+fleet record=1 {
+  order speed=3 kind="scout_system" x=16 y=13
+}
+
+message to=2 subject="Border" body="Watching the north lane."
+```
+
+For the full node reference and schema, see `docs/sysop/turn-kdl.md`.
 
 // ─── 11. Turn Processing and Maintenance ─────────────────────────────────────
 

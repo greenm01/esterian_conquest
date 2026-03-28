@@ -14,8 +14,8 @@ style "title" {
     bold #true
 }
 style "shell_title" {
-    fg "#191724"
-    bg "#31748f"
+    fg "#31748f"
+    bg "#191724"
     bold #true
 }
 style "menu" {

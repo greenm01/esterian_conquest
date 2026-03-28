@@ -62,9 +62,16 @@ fn draw_outer_frame(buffer: &mut PlayfieldBuffer, right_label: Option<&str>) {
     let title = format!(" {} ", outer_title());
     buffer.write_text_clipped(0, 2, &title, title_style);
     if let Some(label) = right_label.filter(|label| !label.is_empty()) {
-        let truncated = truncate(label, 18);
-        let col = width.saturating_sub(truncated.chars().count() + 2);
-        buffer.write_text_clipped(0, col, &truncated, classic::table_header_style());
+        let left_end = 2 + title.chars().count();
+        let max_segment = right.saturating_sub(left_end + 2);
+        if max_segment >= 3 {
+            let visible = truncate(label, max_segment.saturating_sub(2));
+            let segment = format!(" {} ", visible);
+            let col = right.saturating_sub(segment.chars().count());
+            if col > left_end {
+                buffer.write_text_clipped(0, col, &segment, classic::table_header_style());
+            }
+        }
     }
 }
 

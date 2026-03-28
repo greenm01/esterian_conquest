@@ -74,6 +74,27 @@ impl GameCache {
         }
     }
 
+    /// Remove the cached game with the given `id`.
+    ///
+    /// Returns `true` when an entry was removed.
+    pub fn remove(&mut self, id: &str) -> bool {
+        if let Some(pos) = self.games.iter().position(|g| g.id == id) {
+            self.games.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Remove every cached game joined with the given wallet identity `npub`.
+    ///
+    /// Returns the number of removed entries.
+    pub fn remove_by_npub(&mut self, npub: &str) -> usize {
+        let before = self.games.len();
+        self.games.retain(|game| game.npub != npub);
+        before.saturating_sub(self.games.len())
+    }
+
     /// Return the gate npub for the given server hostname, if one has been
     /// cached from a previous successful session.
     ///

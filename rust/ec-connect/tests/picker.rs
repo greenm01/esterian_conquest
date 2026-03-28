@@ -7,9 +7,10 @@ use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::picker::help::HelpTopic;
 use ec_connect::picker::layout::MAX_BODY_ROWS;
-use ec_connect::picker::overlay::PickerOverlay;
+use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
 use ec_connect::picker::{PickerState, Screen};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::theme::classic;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -177,6 +178,11 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
+            .contains("D      delete selected game")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
             .contains("Esc    same as <Q> on this screen")
     }));
 }
@@ -188,7 +194,42 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
 
     assert_eq!(buffer.row(5)[1].ch, '└');
     assert!(buffer.plain_line(6).contains("COMMANDS <-"));
+    assert!(buffer.plain_line(6).contains(" M D L "));
     assert!(!buffer.plain_line(25).contains("COMMANDS <-"));
+}
+
+#[test]
+fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::WalletAddPrompt;
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("ADD OR IMPORT IDENTITY"))
+    );
+    assert!(!(0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Paste nsec or leave blank for new <Q>")
+    }));
+}
+
+#[test]
+fn error_notice_dismisses_on_any_key() {
+    let mut state = make_state(vec![]);
+    state.overlay = Some(PickerOverlay::Notice {
+        level: NoticeLevel::Error,
+        message: "boom".to_string(),
+    });
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+        &mut state,
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
 }
 
 #[test]
