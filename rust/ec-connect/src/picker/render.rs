@@ -1,19 +1,18 @@
 use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
-use ec_ui::prompt::{
-    draw_command_line_prompt_text_at, draw_plain_prompt, draw_table_command_bar_at,
-};
+use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_table_command_bar_at};
 use ec_ui::theme::classic;
 
 use super::help::{GAME_SELECT_RAIL, MAIN_MENU_RAIL, WALLET_MENU_RAIL};
 use super::layout::{
-    BODY_ROWS, BODY_START_ROW, COMMAND_ROW, Column, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, TABLE_RIGHT,
-    draw_box, draw_scroll_gutter, draw_table_frame, draw_title, middle_ellipsis, pad_right,
-    scroll_start,
+    BODY_START_ROW, Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH,
+    displayed_body_rows, draw_scroll_gutter, draw_table_frame, draw_title, middle_ellipsis,
+    pad_right, scroll_start, table_cell_start, table_message_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_npub, truncate};
-use super::overlay::render_overlay;
+use super::overlay::{render_identity_popup, render_overlay};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
+use crate::shell::{terminal_fits_outer, wrap_inner_buffer};
 
 const MAIN_COLUMNS: [Column<'_>; 5] = [
     Column {
@@ -78,7 +77,7 @@ pub fn render_buffer(
     term_width: u16,
     term_height: u16,
 ) -> PlayfieldBuffer {
-    if usize::from(term_width) < PLAYFIELD_WIDTH || usize::from(term_height) < PLAYFIELD_HEIGHT {
+    if !terminal_fits_outer(usize::from(term_width), usize::from(term_height)) {
         return render_resize_blocker(term_width, term_height);
     }
 
@@ -90,23 +89,24 @@ pub fn render_buffer(
         identity_label.as_deref(),
     );
 
-    match &state.screen {
+    let command_row = match &state.screen {
         Screen::GameList | Screen::JoinPrompt | Screen::IdentityOverlay => {
-            render_main_menu(&mut buffer, state, session);
+            render_main_menu(&mut buffer, state, session)
         }
         Screen::WalletList | Screen::WalletAliasPrompt | Screen::WalletImportPrompt => {
-            render_wallet_menu(&mut buffer, state, session);
+            render_wallet_menu(&mut buffer, state, session)
         }
         Screen::GameSelect {
             games, selected, ..
-        } => {
-            render_game_select(&mut buffer, games, *selected);
+        } => render_game_select(&mut buffer, games, *selected),
+        Screen::Locked => {
+            render_locked_screen(&mut buffer, &state.matrix);
+            INNER_COMMAND_ROW
         }
-        Screen::Locked => render_locked_screen(&mut buffer, &state.matrix),
-    }
+    };
 
-    render_overlay(&mut buffer, state);
-    buffer
+    render_overlay(&mut buffer, state, command_row);
+    wrap_inner_buffer(&buffer)
 }
 
 fn render_resize_blocker(term_width: u16, term_height: u16) -> PlayfieldBuffer {
@@ -114,7 +114,7 @@ fn render_resize_blocker(term_width: u16, term_height: u16) -> PlayfieldBuffer {
     let height = usize::from(term_height.max(1));
     let mut buffer = PlayfieldBuffer::new(width, height, classic::body_style());
     let lines = [
-        "ec-connect requires an 80x25 terminal.",
+        "ec-connect requires an 82x27 terminal.",
         "Resize this window, then continue.",
         "Press Q to quit.",
     ];
@@ -136,69 +136,85 @@ fn render_main_menu(
     buffer: &mut PlayfieldBuffer,
     state: &PickerState,
     session: Option<&PickerSession>,
-) {
-    draw_table_frame(buffer, &MAIN_COLUMNS);
+) -> usize {
+    let sorted = state.cache.sorted();
+    let start = scroll_start(state.selected, MAX_BODY_ROWS, sorted.len());
+    let metrics = draw_table_frame(
+        buffer,
+        &MAIN_COLUMNS,
+        displayed_body_rows(sorted.len(), start),
+    );
     let sorted = state.cache.sorted();
     if sorted.is_empty() {
         let message = "No joined games yet. Press N to join one.";
-        let row = BODY_START_ROW + BODY_ROWS / 2;
-        let col = TABLE_RIGHT.saturating_sub(message.chars().count()) / 2;
+        let row = BODY_START_ROW + metrics.displayed_rows / 2;
+        let col = table_message_col(&MAIN_COLUMNS, message);
         buffer.write_text_clipped(row, col, message, classic::notice_style());
     } else {
-        let start = scroll_start(state.selected, BODY_ROWS, sorted.len());
-        for (idx, game) in sorted.iter().skip(start).take(BODY_ROWS).enumerate() {
+        for (idx, game) in sorted
+            .iter()
+            .skip(start)
+            .take(metrics.displayed_rows)
+            .enumerate()
+        {
             let row = BODY_START_ROW + idx;
             let is_selected = start + idx == state.selected;
             draw_main_row(buffer, row, game, is_selected);
         }
-        draw_scroll_gutter(buffer, start, BODY_ROWS, sorted.len());
+        draw_scroll_gutter(buffer, metrics, start, sorted.len());
     }
 
     if matches!(state.screen, Screen::IdentityOverlay) {
         if let Some(session) = session {
-            draw_identity_overlay(buffer, session);
+            render_identity_popup(buffer, session);
         }
     }
 
     match state.screen {
         Screen::JoinPrompt => {
             let prompt = format!("Invite code <Q> <?> -> {}", state.join_input);
-            draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "CONNECT COMMAND", &prompt);
-        }
-        Screen::IdentityOverlay => {
-            draw_table_command_bar_at(buffer, COMMAND_ROW, "<Q> <?>", None, "");
+            draw_command_line_prompt_text_at(
+                buffer,
+                metrics.command_row,
+                "CONNECT COMMAND",
+                &prompt,
+            );
         }
         Screen::GameList => {
-            draw_table_command_bar_at(buffer, COMMAND_ROW, MAIN_MENU_RAIL, None, "");
+            draw_table_command_bar_at(buffer, metrics.command_row, MAIN_MENU_RAIL, None, "");
         }
         _ => {}
     }
+    metrics.command_row
 }
 
 fn render_wallet_menu(
     buffer: &mut PlayfieldBuffer,
     state: &PickerState,
     session: Option<&PickerSession>,
-) {
-    draw_table_frame(buffer, &WALLET_COLUMNS);
+) -> usize {
+    let wallet_len = session
+        .map(|session| session.wallet.identities.len())
+        .unwrap_or(0);
+    let start = scroll_start(state.wallet_selected, MAX_BODY_ROWS, wallet_len);
+    let metrics = draw_table_frame(
+        buffer,
+        &WALLET_COLUMNS,
+        displayed_body_rows(wallet_len, start),
+    );
     if let Some(session) = session {
         if session.wallet.identities.is_empty() {
             let message = "Wallet has no identities.";
-            let row = BODY_START_ROW + BODY_ROWS / 2;
-            let col = TABLE_RIGHT.saturating_sub(message.chars().count()) / 2;
+            let row = BODY_START_ROW + metrics.displayed_rows / 2;
+            let col = table_message_col(&WALLET_COLUMNS, message);
             buffer.write_text_clipped(row, col, message, classic::notice_style());
         } else {
-            let start = scroll_start(
-                state.wallet_selected,
-                BODY_ROWS,
-                session.wallet.identities.len(),
-            );
             for (idx, identity) in session
                 .wallet
                 .identities
                 .iter()
                 .skip(start)
-                .take(BODY_ROWS)
+                .take(metrics.displayed_rows)
                 .enumerate()
             {
                 let row = BODY_START_ROW + idx;
@@ -207,7 +223,7 @@ fn render_wallet_menu(
                 let is_active = absolute == session.wallet.active;
                 draw_wallet_row(buffer, row, identity, absolute, is_selected, is_active);
             }
-            draw_scroll_gutter(buffer, start, BODY_ROWS, session.wallet.identities.len());
+            draw_scroll_gutter(buffer, metrics, start, session.wallet.identities.len());
         }
     }
 
@@ -217,32 +233,48 @@ fn render_wallet_menu(
                 .and_then(|session| session.wallet.identities.get(state.wallet_selected))
                 .and_then(|identity| identity.alias.as_deref())
                 .unwrap_or("");
-            draw_alias_prompt(buffer, default, &state.alias_input);
+            draw_alias_prompt(buffer, metrics.command_row, default, &state.alias_input);
         }
         Screen::WalletImportPrompt => {
             let prompt = format!(
                 "Import nsec <Q> <?> -> {}",
                 "*".repeat(state.import_input.chars().count())
             );
-            draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "WALLET COMMAND", &prompt);
+            draw_command_line_prompt_text_at(
+                buffer,
+                metrics.command_row,
+                "WALLET COMMAND",
+                &prompt,
+            );
         }
         Screen::WalletList => {
-            draw_table_command_bar_at(buffer, COMMAND_ROW, WALLET_MENU_RAIL, None, "");
+            draw_table_command_bar_at(buffer, metrics.command_row, WALLET_MENU_RAIL, None, "");
         }
         _ => {}
     }
+    metrics.command_row
 }
 
-fn render_game_select(buffer: &mut PlayfieldBuffer, games: &[GameEntry], selected: usize) {
-    draw_table_frame(buffer, &GAME_SELECT_COLUMNS);
-    let start = scroll_start(selected, BODY_ROWS, games.len());
-    for (idx, game) in games.iter().skip(start).take(BODY_ROWS).enumerate() {
+fn render_game_select(buffer: &mut PlayfieldBuffer, games: &[GameEntry], selected: usize) -> usize {
+    let start = scroll_start(selected, MAX_BODY_ROWS, games.len());
+    let metrics = draw_table_frame(
+        buffer,
+        &GAME_SELECT_COLUMNS,
+        displayed_body_rows(games.len(), start),
+    );
+    for (idx, game) in games
+        .iter()
+        .skip(start)
+        .take(metrics.displayed_rows)
+        .enumerate()
+    {
         let row = BODY_START_ROW + idx;
         let is_selected = start + idx == selected;
         draw_select_row(buffer, row, game, is_selected);
     }
-    draw_scroll_gutter(buffer, start, BODY_ROWS, games.len());
-    draw_table_command_bar_at(buffer, COMMAND_ROW, GAME_SELECT_RAIL, None, "");
+    draw_scroll_gutter(buffer, metrics, start, games.len());
+    draw_table_command_bar_at(buffer, metrics.command_row, GAME_SELECT_RAIL, None, "");
+    metrics.command_row
 }
 
 fn render_locked_screen(buffer: &mut PlayfieldBuffer, matrix: &MatrixState) {
@@ -362,8 +394,10 @@ fn draw_row_cells(
     let row_style = classic::table_body_style();
     let selected_style = classic::selected_row_style();
     let active_style = CellStyle::new(GameColor::BrightYellow, GameColor::Black, true);
-    let mut col = 1usize;
     for (idx, (column, value)) in columns.iter().zip(values.iter()).enumerate() {
+        let Some(col) = table_cell_start(columns, idx) else {
+            continue;
+        };
         let style = if idx == 0 && selected {
             selected_style
         } else if idx == 0 && active {
@@ -377,61 +411,20 @@ fn draw_row_cells(
             row_style
         };
         buffer.write_text_clipped(row, col, value, style);
-        col += column.width;
-        if col <= TABLE_RIGHT {
-            buffer.set_cell(row, col, '│', classic::table_chrome_style());
-            col += 1;
-        }
+        buffer.set_cell(row, col + column.width, '│', classic::table_chrome_style());
         if filler != row_style {
-            for x in 1..=column.width {
-                if x > value.chars().count() {
-                    buffer.set_cell(row, col - column.width - 1 + x, ' ', style);
-                }
+            for x in value.chars().count()..column.width {
+                buffer.set_cell(row, col + x, ' ', style);
             }
         }
     }
 }
 
-fn draw_identity_overlay(buffer: &mut PlayfieldBuffer, session: &PickerSession) {
-    let popup = centered_rect(
-        60,
-        10,
-        Rect::new(0, 0, PLAYFIELD_WIDTH as u16, PLAYFIELD_HEIGHT as u16),
-    );
-    draw_box(
-        buffer,
-        popup,
-        "Identity",
-        classic::table_chrome_style(),
-        classic::table_header_style(),
-    );
-    let left = popup.x as usize + 2;
-    let top = popup.y as usize + 2;
-    let lines = [
-        format!("Alias: {}", session.active_alias().unwrap_or("(none)")),
-        format!("Npub: {}", short_npub(&session.npub)),
-        format!("Type: {}", session.active_identity_type()),
-        format!("Wallet identities: {}", session.wallet.identities.len()),
-        format!(
-            "Wallet: {}",
-            truncate(&crate::wallet::io::wallet_path().display().to_string(), 46)
-        ),
-    ];
-    for (idx, line) in lines.iter().enumerate() {
-        buffer.write_text_clipped(top + idx, left, line, classic::table_body_style());
-    }
-    draw_plain_prompt(
-        buffer,
-        popup.y as usize + popup.height as usize - 2,
-        "<Q> <?> ->",
-    );
-}
-
-fn draw_alias_prompt(buffer: &mut PlayfieldBuffer, default: &str, input: &str) {
+fn draw_alias_prompt(buffer: &mut PlayfieldBuffer, row: usize, default: &str, input: &str) {
     let prompt = if default.is_empty() {
         format!("Alias <Q> <?> -> {input}")
     } else {
         format!("Alias [{}] <Q> <?> -> {input}", truncate(default, 16))
     };
-    draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "WALLET COMMAND", &prompt);
+    draw_command_line_prompt_text_at(buffer, row, "WALLET COMMAND", &prompt);
 }

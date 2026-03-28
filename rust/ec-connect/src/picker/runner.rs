@@ -13,10 +13,10 @@ use super::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key,
     handle_join_prompt_key, handle_wallet_key,
 };
-use super::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use super::overlay::handle_overlay_key;
 use super::session::load_picker_session;
 use super::state::{PickerSession, PickerState, Screen};
+use crate::shell::terminal_fits_outer;
 
 pub fn run_picker_in_session(
     picker_session: PickerSession,
@@ -55,8 +55,7 @@ fn run_loop(
 
     loop {
         let (term_width, term_height) = crossterm::terminal::size().unwrap_or((80, 25));
-        let too_small = usize::from(term_width) < PLAYFIELD_WIDTH
-            || usize::from(term_height) < PLAYFIELD_HEIGHT;
+        let too_small = !terminal_fits_outer(usize::from(term_width), usize::from(term_height));
         let buffer =
             super::render::render_buffer(state, picker_session.as_ref(), term_width, term_height);
         render_to_stdout(&buffer)?;

@@ -7,4 +7,5 @@ pub mod launcher;
 pub mod map_store;
 pub mod password;
 pub mod picker;
+mod shell;
 pub mod wallet;

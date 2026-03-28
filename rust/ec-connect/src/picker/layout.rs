@@ -1,19 +1,18 @@
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
 use ec_ui::theme::classic;
 
-pub const PLAYFIELD_WIDTH: usize = 80;
-pub const PLAYFIELD_HEIGHT: usize = 25;
-pub const TABLE_RIGHT: usize = 78;
-pub const TABLE_SCROLL_COL: usize = 79;
+pub const PLAYFIELD_WIDTH: usize = crate::shell::INNER_WIDTH;
+pub const PLAYFIELD_HEIGHT: usize = crate::shell::INNER_HEIGHT;
 pub const TITLE_ROW: usize = 0;
 pub const TABLE_TOP_ROW: usize = 1;
 pub const HEADER_ROW: usize = 2;
 pub const DIVIDER_ROW: usize = 3;
 pub const BODY_START_ROW: usize = 4;
 pub const BODY_END_ROW: usize = 22;
-pub const BOTTOM_ROW: usize = 23;
-pub const COMMAND_ROW: usize = 24;
-pub const BODY_ROWS: usize = BODY_END_ROW - BODY_START_ROW + 1;
+pub const INNER_COMMAND_ROW: usize = 24;
+pub const MAX_BODY_ROWS: usize = BODY_END_ROW - BODY_START_ROW + 1;
+const MIN_BODY_ROWS: usize = 1;
+const HELP_COMMAND_WIDTH: usize = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rect {
@@ -38,6 +37,16 @@ impl Rect {
 pub struct Column<'a> {
     pub title: &'a str,
     pub width: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TableMetrics {
+    pub table_width: usize,
+    pub right_border_col: usize,
+    pub scroll_col: usize,
+    pub displayed_rows: usize,
+    pub bottom_row: usize,
+    pub command_row: usize,
 }
 
 pub fn draw_title(buffer: &mut PlayfieldBuffer, title: &str, right_label: Option<&str>) {
@@ -78,15 +87,22 @@ pub fn draw_box(
     buffer.set_cell(bottom, left, '└', chrome_style);
     buffer.set_cell(bottom, right, '┘', chrome_style);
     if !title.is_empty() && rect.width > 4 {
-        buffer.write_text_clipped(top, left + 2, title, title_style);
+        let bordered = format!(" {title} ");
+        buffer.write_text_clipped(top, left + 2, &bordered, title_style);
     }
 }
 
-pub fn draw_table_frame(buffer: &mut PlayfieldBuffer, columns: &[Column<'_>]) {
+pub fn draw_table_frame(
+    buffer: &mut PlayfieldBuffer,
+    columns: &[Column<'_>],
+    displayed_rows: usize,
+) -> TableMetrics {
+    let displayed_rows = displayed_rows.clamp(MIN_BODY_ROWS, MAX_BODY_ROWS);
     draw_horizontal_line(buffer, TABLE_TOP_ROW, '┌', '┬', '┐', columns);
     draw_header_row(buffer, columns);
     draw_horizontal_line(buffer, DIVIDER_ROW, '├', '┼', '┤', columns);
-    for row in BODY_START_ROW..=BODY_END_ROW {
+    let bottom_row = DIVIDER_ROW + displayed_rows + 1;
+    for row in BODY_START_ROW..bottom_row {
         buffer.set_cell(row, 0, '│', classic::table_chrome_style());
         let mut col = 1;
         for column in columns {
@@ -95,7 +111,18 @@ pub fn draw_table_frame(buffer: &mut PlayfieldBuffer, columns: &[Column<'_>]) {
             col += 1;
         }
     }
-    draw_horizontal_line(buffer, BOTTOM_ROW, '└', '┴', '┘', columns);
+    draw_horizontal_line(buffer, bottom_row, '└', '┴', '┘', columns);
+    let table_width = table_render_width(columns);
+    let right_border_col = table_width.saturating_sub(1);
+    let scroll_col = table_width.min(buffer.width().saturating_sub(1));
+    TableMetrics {
+        table_width,
+        right_border_col,
+        scroll_col,
+        displayed_rows,
+        bottom_row,
+        command_row: table_command_row(bottom_row),
+    }
 }
 
 fn draw_horizontal_line(
@@ -142,24 +169,68 @@ fn draw_header_row(buffer: &mut PlayfieldBuffer, columns: &[Column<'_>]) {
 
 pub fn draw_scroll_gutter(
     buffer: &mut PlayfieldBuffer,
+    metrics: TableMetrics,
     start: usize,
-    visible_rows: usize,
     total: usize,
 ) {
-    if total <= visible_rows {
+    if total <= metrics.displayed_rows || metrics.displayed_rows < 3 {
         return;
     }
-    if start > 0 {
-        buffer.write_text_clipped(
-            BODY_START_ROW,
-            TABLE_SCROLL_COL,
-            "↑",
-            classic::notice_style(),
-        );
+
+    let chrome = classic::table_chrome_style();
+    let track = classic::body_style();
+    let thumb = classic::scrollbar_thumb_style();
+    let top_row = BODY_START_ROW;
+    let last_row = BODY_START_ROW + metrics.displayed_rows - 1;
+    buffer.write_text_clipped(top_row, metrics.scroll_col, "^", chrome);
+    buffer.write_text_clipped(last_row, metrics.scroll_col, "v", chrome);
+    for row in top_row + 1..last_row {
+        buffer.write_text_clipped(row, metrics.scroll_col, "|", track);
     }
-    if start + visible_rows < total {
-        buffer.write_text_clipped(BODY_END_ROW, TABLE_SCROLL_COL, "↓", classic::notice_style());
+
+    let max_offset = total.saturating_sub(metrics.displayed_rows);
+    let thumb_top = top_row + 1;
+    let thumb_bottom = last_row.saturating_sub(1);
+    let thumb_span = thumb_bottom.saturating_sub(thumb_top);
+    let thumb_row = if max_offset == 0 || thumb_span == 0 {
+        thumb_top
+    } else {
+        thumb_top + (start * thumb_span) / max_offset
+    };
+    buffer.write_text_clipped(thumb_row, metrics.scroll_col, "#", thumb);
+}
+
+pub fn displayed_body_rows(total_rows: usize, scroll_offset: usize) -> usize {
+    total_rows
+        .saturating_sub(scroll_offset)
+        .clamp(MIN_BODY_ROWS, MAX_BODY_ROWS)
+}
+
+pub fn table_render_width(columns: &[Column<'_>]) -> usize {
+    columns.iter().map(|column| column.width).sum::<usize>() + columns.len() + 1
+}
+
+pub fn table_command_row(bottom_row: usize) -> usize {
+    (bottom_row + 1).min(INNER_COMMAND_ROW)
+}
+
+pub fn table_message_col(columns: &[Column<'_>], message: &str) -> usize {
+    table_render_width(columns).saturating_sub(message.chars().count()) / 2
+}
+
+pub fn format_help_row(command: &str, description: &str) -> String {
+    format!("{command:<HELP_COMMAND_WIDTH$} {description}")
+}
+
+pub fn table_cell_start(columns: &[Column<'_>], index: usize) -> Option<usize> {
+    if index >= columns.len() {
+        return None;
     }
+    let mut col = 1usize;
+    for column in &columns[..index] {
+        col += column.width + 1;
+    }
+    Some(col)
 }
 
 pub fn scroll_start(selected: usize, visible_rows: usize, total_rows: usize) -> usize {

@@ -54,7 +54,7 @@ fn unlock_mode_accepts_non_empty_password() {
 #[test]
 fn render_buffer_shows_left_aligned_warning_lines() {
     let state = PasswordGateState::new(false, None);
-    let buffer = render_buffer(&state, 80, 25);
+    let buffer = render_buffer(&state, 82, 27);
 
     let warning_rows: Vec<(usize, String)> = (0..buffer.height())
         .map(|row| (row, buffer.plain_line(row)))
@@ -83,7 +83,7 @@ fn render_buffer_masks_input_without_showing_plaintext() {
     let mut state = PasswordGateState::new(true, None);
     state.input = "secret".to_string();
 
-    let buffer = render_buffer(&state, 80, 25);
+    let buffer = render_buffer(&state, 82, 27);
     let line = (0..buffer.height())
         .map(|row| buffer.plain_line(row))
         .find(|line| line.contains("Password:"))
@@ -97,7 +97,7 @@ fn render_buffer_masks_input_without_showing_plaintext() {
 #[test]
 fn render_buffer_uses_versioned_outer_title_in_logo_style() {
     let state = PasswordGateState::new(true, None);
-    let buffer = render_buffer(&state, 80, 25);
+    let buffer = render_buffer(&state, 82, 27);
     let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
     let row = (0..buffer.height())
         .find(|&idx| buffer.plain_line(idx).contains(&title))
@@ -109,6 +109,14 @@ fn render_buffer_uses_versioned_outer_title_in_logo_style() {
         .collect::<String>();
     let byte_idx = line.find(&title).expect("title column");
     let col = line[..byte_idx].chars().count();
-    assert_eq!(col, 2);
+    assert_eq!(col, 3);
     assert_eq!(buffer.row(row)[col].style, classic::logo_style());
+}
+
+#[test]
+fn render_buffer_omits_password_footer_command_line() {
+    let state = PasswordGateState::new(true, None);
+    let buffer = render_buffer(&state, 82, 27);
+
+    assert!(!(0..buffer.height()).any(|row| { buffer.plain_line(row).contains("COMMANDS <-") }));
 }

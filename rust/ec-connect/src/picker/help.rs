@@ -27,20 +27,12 @@ pub struct HelpSpec {
 
 const MAIN_ROWS: &[HelpRow] = &[
     HelpRow {
-        command: "J",
-        description: "move selection down",
+        command: "J/K",
+        description: "move selection",
     },
     HelpRow {
-        command: "K",
-        description: "move selection up",
-    },
-    HelpRow {
-        command: "^U",
-        description: "page up",
-    },
-    HelpRow {
-        command: "^D",
-        description: "page down",
+        command: "^U/^D",
+        description: "page up/down",
     },
     HelpRow {
         command: "N",
@@ -68,7 +60,7 @@ const MAIN_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "?",
-        description: "open this help",
+        description: "show/hide helper",
     },
     HelpRow {
         command: "Esc",
@@ -78,20 +70,12 @@ const MAIN_ROWS: &[HelpRow] = &[
 
 const WALLET_ROWS: &[HelpRow] = &[
     HelpRow {
-        command: "J",
-        description: "move selection down",
+        command: "J/K",
+        description: "move selection",
     },
     HelpRow {
-        command: "K",
-        description: "move selection up",
-    },
-    HelpRow {
-        command: "^U",
-        description: "page up",
-    },
-    HelpRow {
-        command: "^D",
-        description: "page down",
+        command: "^U/^D",
+        description: "page up/down",
     },
     HelpRow {
         command: "N",
@@ -115,7 +99,7 @@ const WALLET_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "?",
-        description: "open this help",
+        description: "show/hide helper",
     },
     HelpRow {
         command: "Esc",
@@ -130,7 +114,7 @@ const CONNECT_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "?",
-        description: "open this help",
+        description: "show/hide helper",
     },
     HelpRow {
         command: "Esc",
@@ -140,20 +124,12 @@ const CONNECT_ROWS: &[HelpRow] = &[
 
 const GAME_SELECT_ROWS: &[HelpRow] = &[
     HelpRow {
-        command: "J",
-        description: "move selection down",
+        command: "J/K",
+        description: "move selection",
     },
     HelpRow {
-        command: "K",
-        description: "move selection up",
-    },
-    HelpRow {
-        command: "^U",
-        description: "page up",
-    },
-    HelpRow {
-        command: "^D",
-        description: "page down",
+        command: "^U/^D",
+        description: "page up/down",
     },
     HelpRow {
         command: "Q",
@@ -161,7 +137,7 @@ const GAME_SELECT_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "?",
-        description: "open this help",
+        description: "show/hide helper",
     },
     HelpRow {
         command: "Esc",
@@ -176,7 +152,7 @@ const IDENTITY_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "?",
-        description: "open this help",
+        description: "show/hide helper",
     },
     HelpRow {
         command: "Esc",

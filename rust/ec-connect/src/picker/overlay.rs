@@ -6,9 +6,9 @@ use ec_ui::theme::classic;
 use super::event::{is_back_key, is_cancel_confirm_key, is_help_key, is_yes_key};
 use super::help::HelpTopic;
 use super::layout::{
-    COMMAND_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box,
+    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box, format_help_row,
 };
-use super::state::PickerState;
+use super::state::{PickerSession, PickerState};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NoticeLevel {
@@ -53,7 +53,7 @@ pub fn handle_overlay_key(key: KeyEvent, state: &mut PickerState) {
     }
 }
 
-pub fn render_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState) {
+pub fn render_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState, command_row: usize) {
     match state.overlay.as_ref() {
         Some(PickerOverlay::Notice { level, message }) => {
             let label = match level {
@@ -61,7 +61,7 @@ pub fn render_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState) {
                 NoticeLevel::Error => "ERROR",
             };
             let prompt = format!("{message} <Q> ->");
-            draw_command_line_prompt_text_at(buffer, COMMAND_ROW, label, &prompt);
+            draw_command_line_prompt_text_at(buffer, command_row, label, &prompt);
             buffer.clear_cursor();
         }
         Some(PickerOverlay::Help(topic)) => {
@@ -70,7 +70,7 @@ pub fn render_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState) {
         Some(PickerOverlay::QuitConfirm) => {
             draw_command_line_prompt_text_at(
                 buffer,
-                COMMAND_ROW,
+                command_row,
                 "COMMAND",
                 "Are you sure Y/[N] ->",
             );
@@ -80,22 +80,49 @@ pub fn render_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState) {
     }
 }
 
+pub fn render_identity_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession) {
+    let lines = [
+        format!("Alias: {}", session.active_alias().unwrap_or("(none)")),
+        format!("Npub: {}", super::render::short_npub(&session.npub)),
+        format!("Type: {}", session.active_identity_type()),
+        format!("Wallet identities: {}", session.wallet.identities.len()),
+        format!(
+            "Wallet: {}",
+            super::render::truncate(&crate::wallet::io::wallet_path().display().to_string(), 46,)
+        ),
+    ];
+    render_modal_box(buffer, "IDENTITY INFO", &lines, classic::table_body_style());
+}
+
 fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
     let spec = topic.spec();
-    let mut content_width = spec
+    let mut lines = spec
         .rows
         .iter()
-        .map(|row| row.command.len() + 3 + row.description.len())
+        .map(|row| format_help_row(row.command, row.description))
+        .collect::<Vec<_>>();
+    if let Some(note) = spec.note {
+        lines.push(note.to_string());
+    }
+    render_modal_box(buffer, spec.title, &lines, classic::help_panel_style());
+    buffer.clear_cursor();
+}
+
+fn render_modal_box(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    lines: &[String],
+    body_style: ec_ui::buffer::CellStyle,
+) {
+    let content_width = lines
+        .iter()
+        .map(|line| line.chars().count())
         .max()
         .unwrap_or(0);
-    if let Some(note) = spec.note {
-        content_width = content_width.max(note.len());
-    }
     let width = (content_width + 4)
-        .max(spec.title.len() + 4)
+        .max(title.chars().count() + 2)
         .min(PLAYFIELD_WIDTH.saturating_sub(8));
-    let row_count = spec.rows.len() + usize::from(spec.note.is_some());
-    let popup_height = (row_count + 2) as u16;
+    let popup_height = (lines.len() + 2) as u16;
     let popup = centered_rect(
         ((width * 100) / PLAYFIELD_WIDTH).max(40) as u16,
         popup_height,
@@ -118,7 +145,7 @@ fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
     draw_box(
         buffer,
         popup,
-        spec.title,
+        title,
         classic::table_chrome_style(),
         classic::table_header_style(),
     );
@@ -127,21 +154,12 @@ fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
         popup.x as usize + 1,
         popup.width.saturating_sub(2) as usize,
         popup.height.saturating_sub(2) as usize,
-        classic::help_panel_style(),
+        body_style,
     );
     let mut row = popup.y as usize + 1;
     let col = popup.x as usize + 2;
-    for line in spec.rows.iter().map(format_help_row) {
-        buffer.write_text_clipped(row, col, &line, classic::help_panel_style());
+    for line in lines {
+        buffer.write_text_clipped(row, col, line, body_style);
         row += 1;
     }
-    if let Some(note) = spec.note {
-        buffer.write_text_clipped(row, col, note, classic::help_panel_style());
-    }
-    draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "COMMANDS", "<Q> <?> ->");
-    buffer.clear_cursor();
-}
-
-fn format_help_row(row: &super::help::HelpRow) -> String {
-    format!("{:<4} {}", row.command, row.description)
 }

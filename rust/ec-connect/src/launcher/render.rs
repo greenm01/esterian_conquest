@@ -1,8 +1,9 @@
-use ec_ui::buffer::{PlayfieldBuffer, StyledSpan};
+use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
 
 use crate::password::WALLET_WARNING_LINES;
-use crate::picker::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box};
+use crate::picker::layout::{Rect, centered_rect, draw_box};
+use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
 
 use super::PasswordGateState;
 
@@ -10,23 +11,14 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
     let width = usize::from(width.max(1));
     let height = usize::from(height.max(1));
 
-    if width < PLAYFIELD_WIDTH || height < PLAYFIELD_HEIGHT {
+    if !terminal_fits_outer(width, height) {
         let mut buffer = PlayfieldBuffer::new(width, height, classic::body_style());
         render_tiny(&mut buffer, state);
         return buffer;
     }
 
-    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    let outer = Rect::new(0, 2, PLAYFIELD_WIDTH as u16, 22);
-    draw_box(
-        &mut buffer,
-        outer,
-        "",
-        classic::logo_style(),
-        classic::logo_style(),
-    );
-    let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
-    draw_centered_border_title(&mut buffer, outer, &title, classic::logo_style());
+    let mut buffer = PlayfieldBuffer::new(INNER_WIDTH, INNER_HEIGHT, classic::body_style());
+    let outer = Rect::new(0, 2, INNER_WIDTH as u16, 21);
     let content_rows = usize::from(state.error_msg.is_some())
         + 2
         + WALLET_WARNING_LINES.len() * usize::from(state.show_warning());
@@ -85,13 +77,12 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
 
-    draw_footer(&mut buffer, popup, "<Q>");
-    buffer
+    wrap_inner_buffer(&buffer)
 }
 
 fn render_tiny(buffer: &mut PlayfieldBuffer, state: &PasswordGateState) {
     let lines = [
-        "ec-connect requires an 80x25 terminal.",
+        "ec-connect requires an 82x27 terminal.",
         state.title(),
         state.lead_line(),
         "Press Q to quit or resize the window.",
@@ -107,34 +98,4 @@ fn render_tiny(buffer: &mut PlayfieldBuffer, state: &PasswordGateState) {
         };
         buffer.write_text_clipped(row, col, line, style);
     }
-}
-
-fn draw_footer(buffer: &mut PlayfieldBuffer, rect: Rect, hotkey: &str) {
-    let row = rect.y as usize + rect.height as usize;
-    let col = rect.x as usize + 2;
-    buffer.write_spans(
-        row,
-        col,
-        &[
-            StyledSpan::new("COMMANDS", classic::title_style()),
-            StyledSpan::new(" <- ", classic::prompt_style()),
-            StyledSpan::new("<", classic::prompt_angle_delimiter_style()),
-            StyledSpan::new(
-                hotkey.trim_matches(['<', '>']),
-                classic::prompt_hotkey_style(),
-            ),
-            StyledSpan::new(">", classic::prompt_angle_delimiter_style()),
-            StyledSpan::new(" ->", classic::prompt_style()),
-        ],
-    );
-}
-
-fn draw_centered_border_title(
-    buffer: &mut PlayfieldBuffer,
-    rect: Rect,
-    title: &str,
-    style: ec_ui::buffer::CellStyle,
-) {
-    let col = rect.x as usize + 2;
-    buffer.write_text_clipped(rect.y as usize, col, title, style);
 }

@@ -6,6 +6,7 @@
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::picker::help::HelpTopic;
+use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::PickerOverlay;
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
 use ec_connect::picker::{PickerState, Screen};
@@ -151,7 +152,7 @@ fn screen_game_select_eq_and_ne() {
 fn help_overlay_renders_left_aligned_title_and_commands() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::Help(HelpTopic::MainCommand));
-    let buffer = ec_connect::picker::render::render_buffer(&state, None, 80, 25);
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
     let title_row = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("MAIN COMMAND HELP"))
@@ -164,15 +165,44 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
     );
 
     assert!(
-        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("J    move selection down"))
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("J/K    move selection"))
     );
-    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("^U   page up")));
-    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("?    open this help")));
+    assert!(
+        (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("^U/^D  page up/down") })
+    );
+    assert!(
+        (0..buffer.height())
+            .any(|row| { buffer.plain_line(row).contains("?      show/hide helper") })
+    );
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains("Esc  same as <Q> on this screen")
+            .contains("Esc    same as <Q> on this screen")
     }));
+}
+
+#[test]
+fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
+    let state = make_state(vec![]);
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert_eq!(buffer.row(6)[1].ch, '└');
+    assert!(buffer.plain_line(7).contains("COMMANDS <-"));
+    assert!(!buffer.plain_line(25).contains("COMMANDS <-"));
+}
+
+#[test]
+fn overflowing_picker_renders_themed_scrollbar_gutter() {
+    let games = (0..(MAX_BODY_ROWS + 3))
+        .map(|idx| make_game(&format!("{idx:02}"), Some("2026-03-26T00:00:00Z")))
+        .collect();
+    let state = make_state(games);
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert_eq!(buffer.row(5)[80].ch, '^');
+    assert_eq!(buffer.row(23)[80].ch, 'v');
+    assert!((6..23).any(|row| buffer.row(row)[80].ch == '#'));
+    assert_eq!(buffer.row(5)[80].style, classic::table_chrome_style());
 }
 
 // ── truncate ──────────────────────────────────────────────────────────────────
