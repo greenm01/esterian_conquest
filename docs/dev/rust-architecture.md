@@ -37,7 +37,7 @@ The Rust workspace should follow pragmatic data-oriented design:
   monolithic modules
 - keep unknown classic fields raw until the semantics are supported by docs,
   oracle diffs, or repeated observation
-- treat preserved fixtures, original manuals, and the original binaries as the
+- treat preserved fixtures, 1992 manuals, and the 1992 binaries as the
   acceptance oracle
 
 ## Workspace Ownership

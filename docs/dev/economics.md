@@ -1,454 +1,178 @@
 # Esterian Conquest Canonical Economics Spec
 
-This document defines the current canonical Rust economy model for Esterian
-Conquest.
+This document defines the canonical Rust economy model for Esterian Conquest.
+It is the project’s auditable economy rule. While the 1992 `ECMAINT.EXE` formulas
+remain opaque, this spec translates the documented manuals into an explicit
+Rust rule set.
 
-It is not a claim that the original `ECMAINT.EXE` used these exact internal
-formulas. It is the project’s explicit, auditable economy rule where the
-manuals are clear and the original replay/oracle path is still awkward to
-probe directly.
-
-For recovered phase placement and mission interaction, read this together with:
-
+Read this together with:
 - [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
 - [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
 - [ec-combat-spec.md](ec-combat-spec.md)
 
 ## Status
 
-This is the current source of truth for:
+This is the source of truth for:
+- Production terminology
+- Opening homeworld setup
+- Empire-wide tax behavior
+- Yearly revenue and growth
+- Starbase effects on build capacity and growth
 
-- player-facing production terminology
-- opening homeworld economy setup
-- empire-wide tax behavior
-- yearly revenue
-- yearly current-production growth toward potential
-- starbase effects on build capacity and growth
+The starbase **5x** rule is settled:
+- The manuals tie **5x** to build capacity.
+- Ghidra analysis of the 1992 binaries found no evidence for a starbase growth
+  multiplier.
+- Black-box sweeps in [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
+  confirm the commissioned starbase grants a **5x** build-capacity bonus.
+- Starbases improve the yearly **grow** allowance under tax pressure.
+- This document defines the canonical Rust policy where classic recovery is
+  incomplete.
 
-The starbase `5x` question is now closed at the semantic level:
-
-- the manuals explicitly tie `5x` to build capacity
-- a focused Ghidra follow-up against the recovered unwrapped
-  `ECMAINTU.EXE` project did **not** surface evidence for a starbase `5x`
-  growth multiplier
-- the follow-up black-box sweep in
-  [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
-  now does two things:
-  - reconfirms the commissioned-starbase / `5x` build-capacity side
-  - shows on accepted ordinary-colony probes that starbases consistently
-    improve the imported yearly `grow` allowance under tax pressure
-- the exact classic growth bonus remains unrecovered, so the Rust
-  tapered starbase growth bonus below remains the documented canonical Rust
-  policy,
-  not a claim of byte-exact classic recovery
-- the same fixture-backed colony sweep does **not** currently support a
-  distinct classic immediate-production / immediate-revenue threshold shift
-  from `65%` to `70%`
-
-It does not replace the original manuals as historical sources. It translates
-them into an explicit Rust rule set suitable for reproducible maintenance.
-
-It does **not** define the whole maintenance turn order by itself. This
-document defines the Rust economy/build policy that runs inside the recovered
-post-loop world/player update region.
+This spec does not replace the 1992 manuals as historical sources. It does
+not define the full maintenance turn order. It defines the economy and build
+policy that runs inside the recovered post-loop world update region.
 
 ## Turn-Order Placement
 
-The recovered yearly turn order now constrains where economy/build behavior
-lives:
+The recovered yearly turn order constrains economy and build behavior:
+- Build completion and economy run in the **post-loop world update region**.
+- This occurs **after** the weekly 52-pass fleet combat loop.
+- This occurs **before** the hostile world-resolution region (Bombard, Invade,
+  Blitz).
 
-- build completion and economy run in the **post-loop world/player update
-  region**
-- that region happens **after** the weekly `52`-pass fleet-combat loop
-- it happens **before** the later ready hostile world-resolution region
-  (`BombardWorld` / `InvadeWorld` / `BlitzWorld`)
-
-Practical consequences:
-
-- ship and starbase builds can enter stardock before a ready hostile
-  world-resolution path hits the same planet
-- ready bombardment/invasion therefore sees post-build planet state
-- armies and ground batteries that complete in this region go straight onto the
-  planet rather than into stardock
-- later same-turn hostile world-resolution reads those units as planet state,
-  not as stardock inventory
+### Impact:
+- Ships and starbases enter stardock before a hostile assault hits the planet.
+- Bombardment and invasion see post-build planet state.
+- Armies and batteries completed in this region go straight to the planet surface.
+- Later hostile actions read these units as planet state, not stardock inventory.
 
 ## Source Basis
 
-Primary manual references:
-
+Primary 1992 manual references:
 - [original/v1.5/ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC)
 - [original/v1.5/ECQSTART.DOC](../../original/v1.5/ECQSTART.DOC)
 
-Important manual-facing claims:
-
-- players begin with one homeworld at current production `100`
-- the empire tax rate is empire-wide, not per planet
-- taxes generate yearly production points for spending
-- newly colonized planets begin below maximum production
-- lower taxes improve planetary development
-- taxes above roughly `65%` can directly harm current production
-- starbases:
-  - help planets endure tax burden better
-  - let planets spend up to `5x` current production on builds
-  - help underdeveloped planets grow current production faster
-
-Current Ghidra-backed reading:
-
-- the recovered unwrapped `ECMAINTU.EXE` project exposes real planet-side
-  functions, but this pass did not recover a clean starbase `* 5` growth path
-- taken together with the manuals, current evidence supports:
-  - `5x` build capacity
-  - some separate starbase growth acceleration
-  - no verified claim that growth itself is multiplied by `5`
-
-Current black-box follow-up:
-
-- the controlled starbase/tax sweep in
-  [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
-  preserves the commissioned starbase and the larger build-capacity effect
-- the newer accepted-fixture colony sweep in that same note also shows a
-  consistent starbase growth benefit on underdeveloped colonies
-- but that sweep still does **not** recover an exact internal formula, and it
-  does **not** show a separate immediate `65 -> 70` threshold shift in
-  current production or revenue
-- so the manuals still carry more semantic weight than the current oracle
-  evidence on the exact numeric tax-burden rule
+Manual-facing requirements:
+- Each player begins with one homeworld at current production **100**.
+- The tax rate is empire-wide.
+- Taxes generate yearly production points.
+- Newly colonized planets start below potential.
+- Lower taxes improve planetary development.
+- Taxes above **65%** can harm current production.
+- Starbases:
+  - Help planets endure tax burden.
+  - Grant a **5x** build-capacity multiplier.
+  - Help underdeveloped planets grow faster.
 
 ## Canonical Terms
 
-Rust should use these player-facing terms:
+Use these player-facing terms:
+- **Present Production**: Current productive capacity.
+- **Potential Production**: Maximum productive capacity.
+- **Total Available Points**: Spendable tax revenue budget for the current turn.
+- **Stored Production Points**: Accumulated points stored on a planet.
 
-- `Present Production`
-  - the current productive capacity of a planet or empire
-- `Potential Production`
-  - the maximum productive capacity of a planet or empire
-- `Total Available Points`
-  - the current turn’s spendable tax revenue budget
-- `Stored Production Points`
-  - accumulated stored points on a planet
-
-Rust should avoid exposing low-level storage nicknames like `factories` in
-player/client surfaces.
+Avoid low-level storage nicknames like `factories` in player surfaces.
 
 ## Opening Economy
 
-Generated Rust starts now encode the intended opening economy directly:
-
-- homeworld `Potential Production = 100`
-- homeworld `Present Production = 100`
-- default empire tax rate `= 50%`
-- first-turn `Total Available Points = 50`
-- homeworld defenses:
-  - armies `= 10`
-  - ground batteries `= 4`
-
-This applies to:
-
-- joinable `ECGAME` new-game baselines
-- canonical initialized builder baselines
+Rust starts encode the intended opening economy:
+- Homeworld Potential Production: **100**.
+- Homeworld Present Production: **100**.
+- Default Tax Rate: **50%**.
+- First-Turn Total Available Points: **50**.
+- Homeworld Defenses: **10** armies, **4** ground batteries.
 
 ## Empire-Wide Tax
 
-The tax rate is stored on the player/empire, not chosen separately per planet.
+The tax rate is stored on the player record. He chooses one rate for all his
+planets.
 
-Canonical yearly revenue uses the empire tax rate across all owned planets:
+Yearly revenue per planet:
+`revenue = floor(present_production * tax_rate / 100)`
 
-`yearly_tax_revenue_for_planet = floor(present_production * empire_tax_rate / 100)`
+Empire Total Available Points:
+`total = sum(revenue)` across all owned planets.
 
-Empire `Total Available Points` for the player-facing summary is:
+## Present Production Growth and Tax Pressure
 
-`sum(floor(present_production * empire_tax_rate / 100))` across owned planets
+Every owned planet grows toward its potential production each maintenance turn.
 
-This is the current turn’s spendable build budget, not a raw stored-goods sum.
+### The Canonical Rust Rule:
 
-## Present Production Growth And Tax Pressure
+1. **Growth Gap**: `gap = potential_production - present_production`
+2. **Tax Headroom**: `headroom = 100 - min(tax_rate, 95)`
+3. **Base Growth**: `base = ceil(gap * headroom / 400)`
+4. **Starbase Bonus**:
+   - Apply a bonus if a friendly starbase is in orbit.
+   - Tax <= 50%: **+50%** bonus.
+   - Tax 51%–64%: Linearly taper bonus to 0%.
+   - Tax >= 65%: No bonus.
+   `growth = base + ceil(base * bonus_percent / 100)`
+5. **Clamp**: Minimum growth is **1**; maximum is the remaining gap.
+6. **New Production**: `production = present_production + growth`
+7. **High-Tax Penalty**:
+   - If tax > 65%, calculate penalty: `penalty = ceil(production * (tax - 65) / 500)`
+   - Minimum penalty is **1**.
+   - Penalty cannot exceed current production.
 
-Each maintenance turn, every owned active planet grows toward its potential
-production.
+Final result:
+`present_production = (present_production + growth) - penalty`
 
-The canonical Rust rule is:
-
-1. Compute remaining growth gap:
-
-`gap = potential_production - present_production`
-
-2. Compute tax headroom:
-
-`tax_headroom = 100 - min(empire_tax_rate, 95)`
-
-3. Base yearly growth:
-
-`base_growth = ceil(gap * tax_headroom / 400)`
-
-4. If the planet has a friendly starbase, apply a growth bonus:
-
-- full bonus at tax `<= 50%`
-
-`bonus_percent = 50`
-
-- linearly taper the bonus down between tax `51%` and `64%`
-
-`bonus_percent = floor((65 - empire_tax_rate) * 50 / 15)`
-
-- no starbase growth bonus at tax `>= 65%`
-
-`bonus_percent = 0`
-
-Then:
-
-`growth = base_growth + ceil(base_growth * bonus_percent / 100)`
-
-5. Clamp growth:
-
-- minimum growth is `1` while the planet is still below potential
-- growth may not exceed the remaining gap
-
-6. New present production:
-
-`present_production = min(present_production + growth, potential_production)`
-
-7. Apply a high-tax penalty when empire tax exceeds `65%`:
-
-`overtax = empire_tax_rate - 65`
-
-`penalty = ceil(present_production * overtax / 500)`
-
-Clamp the penalty:
-
-- minimum penalty is `1` when tax exceeds the threshold and production is nonzero
-- penalty may not exceed current present production
-
-Final yearly result:
-
-`present_production = min(present_production + growth, potential_production) - penalty`
-
-### Effects of This Rule
-
-- lower tax produces faster long-term development
-- higher tax produces more immediate revenue but slower growth
-- taxes above `65%` can directly reduce present production
-- starbases accelerate development best at low and moderate tax
-- the starbase growth bonus tapers away as tax approaches `65%`
-- starbases do **not** get a separate hard high-tax penalty exemption
-- growth slows naturally as a planet approaches potential
-- starbase worlds recover/develop faster than non-starbase worlds
-
-This brings the canonical Rust rule into closer compliance with the manuals’
-explicit warning that production may suffer above `65%`, while still keeping
-the curve simple and auditable.
-
-Important note:
-
-- the current classic colony sweep supports a real starbase growth benefit
-- the current classic colony sweep does **not** support a separate hard
-  `65 -> 70` penalty-threshold shift
-- this Rust policy therefore treats "withstand tax burden better" as better
-  retained growth, not as a separate immediate-production exemption
+### Impact:
+- Lower taxes produce faster growth.
+- Higher taxes yield immediate revenue but slow development.
+- Taxes above **65%** directly reduce production.
+- Starbases accelerate development at low and moderate tax.
+- Starbases do not grant an exemption from high-tax penalties.
 
 ## Starbase Effects
 
-Starbases affect economy in two separate ways.
+### 1. Growth Bonus
+An active, commissioned starbase in orbit provides a tax-sensitive growth
+bonus. It applies **+50%** of base growth at tax <= 50%, tapering to 0% at tax
+65%. This is the canonical Rust policy.
 
-### 1. Growth bonus
-
-If a planet has a friendly active starbase in orbit at its coordinates, yearly
-current-production growth gets a tax-sensitive bonus:
-
-- `+50%` of base growth at tax `<= 50%`
-- linearly tapering down to `0%` by tax `65%`
-- no additional growth bonus at tax `>= 65%`
-
-This refers to an active commissioned starbase, not an uncommissioned starbase
-item still sitting in stardock.
-
-This remains the canonical Rust policy for now. The current manual plus Ghidra
-evidence does **not** support rewriting this into a starbase `5x` growth
-multiplier.
-
-The current fixture-backed oracle sweep now also supports the *direction* of
-this rule:
-
-- starbase colonies consistently retain a higher imported yearly `grow` value
-  than matching plain colonies
-- that effect remains visible through the manual warning band (`65%..80%`)
-- but the sweep still does **not** recover the exact classic numeric growth
-  formula
-
-### 2. Build capacity multiplier
-
-The manuals say a starbase lets a planet spend up to `5x` its current
-production on building units.
-
-Canonical Rust implementation:
-
-- without starbase:
-  - per-turn build capacity = `present_production`
-- with friendly starbase:
-  - per-turn build capacity = `present_production * 5`
-
-This affects build-queue completion, not tax revenue directly.
-
-### 3. Tax-burden interpretation
-
-Current best reading of the manuals' "withstand tax burden better" wording:
-
-- starbases clearly help a colony keep more growth under tax pressure
-- the current classic colony sweep does **not** show a separate immediate
-  production/revenue threshold shift in the `65%..80%` band
-- so Rust should treat the benefit as a growth-side effect, not a separate hard
-  safe-tax exemption, unless deeper classic recovery proves otherwise
+### 2. Build Capacity Multiplier
+A starbase lets a planet spend up to **5x** its current production on units
+in a single turn. Without a starbase, capacity is **1x**. This affects build
+completion, not tax revenue.
 
 ## Stored Production Points
 
-Yearly tax revenue is added to each planet’s stored production pool:
-
-`stored_production_points += yearly_tax_revenue_for_planet`
-
-This is separate from the empire summary’s `Total Available Points` line, which
-is the turn-budget view used by the original player-facing screens.
+Yearly tax revenue is added to each planet’s stored production pool. This is
+separate from the empire’s Total Available Points view.
 
 ## Special Cases
 
-### Homeworld seeds
+### Homeworlds
+Homeworlds start at full production from turn one.
 
-True homeworld seeds start at full production from the opening turn.
+### Civil Disorder and Autopilot
+The classic autopilot pass handles disorder. Empires in disorder (**0x00**) are
+economically frozen. Normal-planet economy policy does not apply to them.
 
-### Civil disorder and rogue paths
+## Unit Build Completion
 
-The normal Rust economy formulas in this document do not replace the recovered
-classic rogue/autopilot gate.
+When a build queue finishes, units are dispatched:
 
-Current practical split:
+### Ships and Starbases (Stardock)
+Destroyers, cruisers, battleships, scouts, transports, ETACs, and starbases
+enter the planet's stardock.
+- The player must commission them before use.
+- Uncommissioned units can be destroyed by bombardment.
+- If stardock is full, the build remains in queue. Rust avoids the classic
+  stardock corruption bug.
 
-- the recovered classic autopilot/rogue pass is gated by `player[0] == 0xFF`
-- civil-disorder `0x00` empires are economically frozen in the recovered
-  classic path
-- the broader Rust normal-planet economy policy is documented here as the
-  explicit Rust rule set for maintainable implementation
+### Armies and Batteries (Planet Surface)
+Armies and ground batteries go directly to the planet surface. They do not
+require commission.
+- A full stardock does not block them.
+- Planet armies and batteries are capped at **255**.
+- If a build would exceed the cap, it stays in the queue.
 
-Their specialized maintenance behavior is handled separately.
+## Validation
 
-## Known Raw-Field Caveat
-
-`PLANETS.DAT raw[0x0E]` is currently not treated as a settled semantic “planet
-tax” field.
-
-Mixed-tax Rust probes show that this byte is overwritten during the existing
-autopilot/rogue-AI maintenance path. For that reason:
-
-- Rust code should treat it as an overloaded economy marker byte
-- player-facing tax comes from the empire/player record
-- this raw byte should not be used as a stable player-facing tax source until
-  the original semantics are fully decoded
-
-## Unit Build Completion and Stardock Policy
-
-When a build queue slot reaches zero points remaining during maintenance, the
-completed units are dispatched based on their kind:
-
-### Ships and starbases → stardock
-
-Destroyers, cruisers, battleships, scouts, troop transports, ETACs, and
-starbases (kinds 1–6, 9) are staged in the planet's stardock slots awaiting
-commission.
-
-- They must be commissioned by the player before they can be used.
-- Uncommissioned ships in stardock can be destroyed by a bombardment mission.
-- Because build completion happens before ready hostile world resolution,
-  newly completed stardock contents are already exposed to same-turn ready
-  bombardment / invasion losses.
-- This matches the manual: "Bombard a world: destroy its production and anything
-  orbiting the world, including recently built ships stored in stardock."
-
-### When stardock is full
-
-If a ship or starbase build reaches completion and the planet's stardock has no
-open slot, EC does **not** consume or refund the order.
-
-Instead:
-
-- the build queue slot stays in place unchanged
-- the points remaining stay unchanged
-- the player may still abort that queued order manually from the build menu
-- once stardock space is freed, later maintenance can complete the build
-
-This is an intentional Rust safety policy.
-
-Original `ECMAINT` does **not** handle this edge case safely. A focused probe
-with a full stardock and a completing ship build showed that classic
-maintenance:
-
-- cleared the build slot
-- emitted no `ERRORS.TXT`
-- corrupted the target planet's stardock bytes
-
-So EC treats "completion into a full stardock" as an invalid classic state
-and holds the build in queue rather than reproducing that corruption bug.
-
-### Armies and ground batteries → direct to planet
-
-Armies (kind 8) and ground batteries (kind 7) are surface and ground defensive
-units. On build completion they are added directly to the planet's army count
-and ground battery count respectively. They do **not** enter stardock.
-
-Rationale:
-- The manual never mentions armies or batteries being stored in stardock or
-  requiring commission. Stardock is explicitly a ship staging area.
-- Commission is a fleet-building concept; you commission ships into fleets.
-  Armies are loaded onto troop transports separately. Batteries are fixed.
-- Armies and batteries deployed to the planet surface are **not** handled as
-  stardock losses. They are already on the ground and belong to the planet's
-  defensive state.
-- They may still be lost later through normal planet bombardment / assault
-  damage, but that is hostile world-resolution damage, not stardock handling.
-- Treating them as stardocked units would mean a player could lose an entire
-  army build to a bombardment before ever using them, which contradicts the
-  manual's framing of armies as planet defenders.
-- A full stardock does not block them. They complete normally because they do
-  not use stardock at all.
-
-### Planet army / battery byte caps
-
-Original `ECMAINT` treats both of these planet-side fields as hard byte-sized
-caps.
-
-Focused oracle probes showed:
-
-- if a planet already has `255` armies, a completing army build is still
-  consumed, but the planet remains at `255`
-- if a planet already has `255` ground batteries, a completing battery build is
-  still consumed, but the planet remains at `255`
-
-So for EC:
-
-- planet armies should currently be treated as capped at `255`
-- planet batteries should currently be treated as capped at `255`
-- client and engine guards should prevent silent overflow where practical
-- if a queued army or battery build would complete past that cap, Rust keeps the
-  build queued unchanged instead of silently consuming it
-- if a player tries to unload troop-transport armies onto a full planet, Rust
-  blocks the unload and reports the cap clearly
-
-This is distinct from loaded fleet armies, which are stored more widely in
-`FLEETS.DAT`.
-
-## Validation Status
-
-The current canonical model is backed by:
-
-- Rust regression tests for:
-  - opening homeworld production
-  - first-turn available points
-  - tax-sensitive growth
-  - starbase growth bonus
-  - build-capacity behavior
-- mixed-tax probe runs using:
-  - [tools/economy_tax_probe.py](../../tools/economy_tax_probe.py)
-
-Current limitation:
-
-- the mutated-directory original `ECMAINT` replay path still does not provide a
-  reliable byte-diff oracle for these tax-growth experiments
-- when stronger original-binary evidence becomes available, this canonical rule
-  should be refined rather than treated as frozen forever
+The canonical model is backed by regression tests and the economy tax probe
+tool. Refine this rule only when stronger 1992 evidence becomes available.

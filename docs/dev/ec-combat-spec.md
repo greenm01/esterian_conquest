@@ -1,1086 +1,171 @@
 # Esterian Conquest Canonical Combat Spec
 
-This document defines the **canonical Rust combat model** for Esterian
-Conquest. It is not a claim that the original `ECMAINT.EXE` used these exact
-internal formulas. It is the project’s auditable, seeded, reproducible combat
-design for the mechanics that the original game resolved stochastically.
+This document defines the canonical Rust combat model for Esterian Conquest.
+While the 1992 `ECMAINT.EXE` internal formulas remain unrecovered, this spec
+translates the documented manuals into an auditable, seeded, and reproducible
+rule set.
 
-The intent is to preserve the **spirit** of the original player manuals while
-adopting a cleaner simultaneous-resolution structure inspired by
-*Empire of the Sun*.
+The intent is to preserve the spirit of the original player manuals while
+adopting a clean simultaneous-resolution structure inspired by *Empire of the
+Sun*. Forces meet, strike at the same instant, and survivors move forward.
 
-That debt is deliberate. Where the original game often hid combat in opaque
-RNG and processing order, this spec assumes a more legible universe: forces
-meet, both strike from the same instant, and history is written from the
-survivors.
-
-Read it together with:
-
+Read this together with:
 - [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
-  for where fleet combat, post-loop build/economy work, and later hostile
-  world-resolution phases sit in the yearly turn
 - [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
-  for the oracle-backed classic phase ordering that the Rust target follows
 - [ec-timing-spec.md](ec-timing-spec.md)
-  for weekly report timing and `Stardate` header formatting
 
 ## Status
 
-This is a design spec for implementation. It is the source of truth for:
+This is the source of truth for:
+- Fleet-vs-fleet combat
+- Bombardment, Invasion, and Blitz
+- Retreat and ROE interaction
 
-- fleet-vs-fleet combat
-- bombardment
-- invasion
-- blitz
-- retreat / ROE interaction
-
-It does **not** replace the original manuals as historical sources. It
-translates them into a seeded Rust rule set suitable for reproducible
-maintenance runs.
-
-It also does **not** decide yearly phase placement. This document defines what
-happens when fleet combat, bombardment, invasion, blitz, retreat, and related
-hostile world-resolution mechanics resolve. The turn-cycle specs decide where
-those mechanics sit in the yearly maintenance loop.
+It does not replace the 1992 manuals as historical sources. It defines the Rust
+rule set used for maintenance runs. The turn-cycle specs decide where these
+mechanics sit in the yearly loop.
 
 ## Source Basis
 
-Primary Esterian Conquest guidance:
-
+Primary 1992 manual references:
 - [original/v1.5/ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC)
 - [original/v1.5/ECQSTART.DOC](../../original/v1.5/ECQSTART.DOC)
-- [original/v1.5/WHATSNEW.DOC](../../original/v1.5/WHATSNEW.DOC)
 - [docs/ecmaint-combat-reference.md](ecmaint-combat-reference.md)
 
-High-value original-behavior cues from those sources:
-
-- combat fleets are governed by ROE, with the exact 0-10 engagement thresholds
-- bombardment is meant to damage production, orbiting assets, and defenses
-- invasion is explicitly a three-stage attack:
-  1. destroy ground batteries
-  2. soften resistance with bombardment
-  3. land armies to fight surviving armies
-- blitz is a riskier, faster landing that favors overwhelming transport force
-- starbases have slightly more firepower than a battleship and can take more hits
-- v1.50 specifically improved combat so large fleets no longer erase small fleets
-  without taking some damage of their own
-
-External structural inspiration:
-
-- *Empire of the Sun* simultaneous combat flow:
-  - both sides generate hits from attack strength
-  - hits are applied simultaneously in the normal case
-  - defender/reaction side wins ties
-  - ground combat is a separate simultaneous step
+Manual-facing requirements:
+- Combat fleets are governed by ROE thresholds (**0–10**).
+- Bombardment damages production, stardock assets, and defenses.
+- Invasion follows a three-stage attack:
+  1. Destroy ground batteries.
+  2. Soften resistance with orbital fire.
+  3. Land armies to eliminate survivors.
+- Blitz is a risky landing favoring overwhelming force.
+- Starbases have more firepower than a battleship and absorb more hits.
 
 ## Design Goals
 
-The canonical EC combat model shall:
-
-- feel like classic EC, not like a generic 4X skirmish engine
-- preserve manual-facing concepts: ROE, bombard, invade, blitz, starbase defense
-- be seeded and reproducible from campaign state
-- produce plausible mutual attrition rather than one-sided wipeouts
-- keep combat math explicit and inspectable
-- avoid requiring hidden RNG state or per-ship tactical simulation
-- handle multi-empire battles in one system without requiring pairwise ad hoc
-  ordering
-- define simultaneous-arrival resolution at planets so identical orders from
-  multiple empires resolve deterministically
+The canonical EC combat model:
+- Preserves manual concepts: ROE, Bombard, Invade, Blitz, and Starbase defense.
+- Uses a seeded campaign RNG for reproducibility.
+- Produces plausible mutual attrition, not just one-sided wipeouts.
+- Handles multi-empire battles without arbitrary pairwise ordering.
+- Resolves simultaneous arrivals deterministically.
 
 ## Core Principles
 
-### 1. Simultaneous resolution is the default
+### 1. Simultaneous Resolution
+Fleet combat, orbital fire, and ground battles resolve at the same instant.
 
-Fleet combat, orbital fire, bombardment return fire, and ground combat all
-resolve simultaneously unless a future mechanic explicitly says otherwise.
+### 2. ROE Thresholds
+Rules of Engagement gate his willingness to engage, his decision to break off,
+and his guard posture. ROE does not inject randomness.
 
-### 2. ROE determines commitment, not die rolls
+### 3. Aggregate Combat
+EC uses ship counts, not per-hull damage state. The Rust engine uses a
+**Nominal -> Crippled -> Destroyed** step-loss model during a battle. Only
+destroyed hulls are written back to the save file.
 
-ROE is preserved from the original manuals as the fleet’s willingness to stay
-in the fight. It does not inject randomness. It gates:
+### 4. Defender Wins Ties
+If a tie occurs and no side has a clear edge, the defender wins.
 
-- whether a fleet chooses to engage
-- whether it breaks off after a round
-- whether guarding fleets hold or peel off to pursue
-
-### 3. EC uses aggregate combat, not persistent ship damage states
-
-The original save files store ship **counts**, not per-hull damage state.
-Therefore this spec uses **combat-local nominal / crippled / destroyed state**
-inside a battle only:
-
-- each surviving hull starts the battle nominal
-- normal combat reduces nominal ships to crippled before destroying crippled
-  ships
-- hits are allocated using `DS` costs, not flat one-hit step loss
-- only destroyed hull counts are written back to the save
-
-This preserves the EOTS-style “reduce before eliminate” feel without inventing
-a new on-disk crippled-state system.
-
-Surviving crippled ships revert to nominal after battle. `DS` is therefore not
-cosmetic. It defines how many hits are required to inflict each in-battle step
-of loss before a real on-disk destruction occurs.
-
-### 4. Defenders win ties
-
-Where a winner must be chosen and no side has a clear post-resolution edge, the
-defender/reaction side wins the tie.
-
-### 5. Mixed fleets should matter
-
-The manuals repeatedly imply that mixed fleets use tactics unavailable to
-single-type fleets. The canonical model rewards combined DD/CA/BB fleets with a
-small effectiveness edge over mono-type swarms.
+### 5. Combined Arms
+The model rewards mixed fleets (**DD/CA/BB**) with a small effectiveness bonus
+over mono-type swarms.
 
 ## Combat Actors
 
-### Fleet and orbital units
+### Fleet and Orbital Units
 
-The canonical combat tables use two explicit values:
+| Unit | AS (Attack) | DS (Defense) | Notes |
+| ---- | -- | -- | ----- |
+| Destroyer | 1 | 1 | Fast screen |
+| Cruiser | 3 | 3 | Balanced fighter |
+| Battleship | 9 | 10 | Battle line anchor |
+| Scout | 0 | 1 | Non-combatant |
+| Troop Transport | 0 | 1 | Vulnerable landing craft |
+| ETAC | 0 | 2 | Colony ship |
+| Starbase | 10 | 12 | Orbital fortress |
 
-- `AS`: attack strength
-- `DS`: defensive strength
-
-These are abstract combat values, not build costs.
+### Ground and Planetary Defenses
 
 | Unit | AS | DS | Notes |
 | ---- | -- | -- | ----- |
-| Destroyer | 1 | 1 | Fast escort / screen |
-| Cruiser | 3 | 3 | Roughly 3x destroyer power from manual text |
-| Battleship | 9 | 10 | Roughly 3x cruiser power; primary battle line |
-| Scout | 0 | 1 | Non-combat, but can be lost if screen collapses |
-| Troop Transport | 0 | 1 | Non-combat, vulnerable during landings |
-| ETAC | 0 | 2 | Large and expensive, but not a combat ship |
-| Starbase | 10 | 12 | Slightly more firepower and durability than battleship |
+| Ground Battery | 9 | 2 | Anti-orbital cannon |
+| Army | 1 | 1 | Surface combatant |
 
-### Ground and planetary defenses
+## Contact and Hostility
 
-| Unit | AS | DS | Notes |
-| ---- | -- | -- | ----- |
-| Ground Battery | 9 | 2 | Land cannon with roughly battleship-scale firepower |
-| Army | 1 | 1 | Surface defense and invasion combatant |
+The model treats contact as a single contested event from a shared board state.
 
-### Planetary economic targets
+### Enemy vs. Hostile
+- **Enemy**: A stored diplomatic stance set in the client.
+- **Hostile**: A tactical state triggered by ROE, intrusions, or attacks.
 
-These are not combatants in the fleet sense, but bombardment may damage them.
+Fleets attack declared enemies. They also attack when a player enters one of
+his solar systems or tries to enter/leave a world he is blockading. Initiating
+an attack escalates diplomacy to **Enemy** automatically.
 
-- stored goods
-- factories / development
-- stardock contents
-
-Their exact byte-level damage formulas remain implementation details, but the
-priority order is defined below.
-
-## Simultaneous Contact Doctrine
-
-Esterian Conquest is a simultaneous-orders game. The canonical combat model
-therefore treats contact in one location as a **single contested event** from a
-shared board state, not as an arbitrary sequence of pairwise skirmishes based
-on file order.
-
-This doctrine applies to:
-
-- deep-space fleet combat
-- orbital combat at a planet
-- simultaneous arrivals at a defended or blockaded world
-- multi-empire encounters in open space or orbit
-
-### Enemy vs hostile
-
-The original manuals distinguish between a player you have declared an
-`enemy` and a fleet that is currently `hostile` for combat purposes.
-
-From the manuals:
-
-- players may be declared `neutral` or `enemy` in `ECGAME`
-- fleets automatically attack fleets belonging to declared enemies when they
-  are encountered
-- fleets always fight back if attacked
-- fleets also attack when another player's fleets enter one of their solar
-  systems, or when another player's fleets try to enter or leave a world they
-  are blockading
-
-Canonical interpretation:
-
-- `enemy` is a stored diplomatic stance
-- `hostile` is the broader tactical category used by ROE and contact resolution
-- declared enemies are hostile on encounter
-- some contacts become hostile even without prior enemy declaration:
-  - entering an empire's solar system
-  - entering or leaving a world under blockade
-  - attacking first
-- attacking another player's fleet or planet should also escalate diplomacy:
-  once one empire initiates offensive action against another, both empires are
-  treated as enemies for later encounters unless some future diplomacy system
-  explicitly allows de-escalation
-
-This spec therefore uses `hostile` for combat eligibility and `enemy` only
-for the narrower diplomatic declaration concept.
-
-Current implementation note:
-
-- Rust now has a typed stored-diplomacy seam for this distinction
-- the classic `PLAYER.DAT` enemy/neutral bytes are now mapped as a contiguous
-  table:
-  - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
-  - `0x00 = neutral`
-  - `0x01 = enemy`
-- the contiguous `0x54..=0x6C` span provides 25 diplomacy slots, which matches
-  the documented maximum player count
-- the live Rust path may therefore use a `diplomacy.kdl` sidecar only as a
-  migration/fallback source; persistable relations are absorbed into
-  `PLAYER.DAT` during maintenance
-- foreign co-location alone should produce contact reports, not automatic
-  combat
-
-### Contact / Hostility Escalation Matrix
-
-| Scenario | Initial Diplomacy | Location Context | Defender / Observer | Immediate Result | Escalation Ladder | Diplomacy After |
-| --- | --- | --- | --- | --- | --- | --- |
-| Neutral fleet in deep space meets `PatrolSector` | Neutral | Sector / deep space | `PatrolSector` fleet | Report contact only | `report contact -> ignore in deep space` | Unchanged neutral |
-| Enemy fleet in deep space meets `PatrolSector` | Enemy | Sector / deep space | `PatrolSector` fleet | Patrol interception may begin; ROE still governs refusal or retreat | `report contact -> enemy deep-space interception` | Already enemy |
-| Neutral fleet in deep space meets non-patrol transit fleet | Neutral | Sector / deep space | `Move` / `Join` / `Rendezvous` / other transit fleet | Report contact only | `report contact -> ignore in deep space` | Unchanged neutral |
-| Neutral assault fleet reaches a defended world in `Bombard` / `Invade` / `Blitz` posture | Neutral | Defended solar system / guarded world | Local guard / blockade / starbase / incumbent world defense | Treat as hostile local intrusion; contest orbit before any delayed assault step | `report contact -> treat as hostile local intrusion -> contest orbit before assault -> escalate diplomacy to enemy` | Enemy after first interception / assault attempt |
-| Enemy assault fleet reaches a defended world in `Bombard` / `Invade` / `Blitz` posture | Enemy | Defended solar system / guarded world | Local guard / blockade / starbase / incumbent world defense | Contest orbit immediately | `enemy deep-space interception -> contest orbit before assault` | Already enemy |
-| Neutral fleet tries to enter or leave a blockaded world | Neutral | Blockade boundary at a world | `Guard/Blockade` fleet | Treat as hostile local intrusion | `report contact -> treat as hostile local intrusion -> contest orbit -> escalate diplomacy to enemy` | Enemy after first interception / assault attempt |
-| Enemy fleet tries to enter or leave a blockaded world | Enemy | Blockade boundary at a world | `Guard/Blockade` fleet | Contest orbit immediately | `enemy deep-space interception -> contest orbit before assault` | Already enemy |
-| Fleet attacks first or initiates planetary assault | Neutral or Enemy | Any fleet battle / planet assault location | Target fleet / planet defense | Defender returns fire | `hostile act -> return fire -> escalate diplomacy to enemy` | Enemy after hostile act |
-| Fleet is attacked first and returns fire | Neutral or Enemy | Any fleet battle / planet assault location | Defending fleet / planet defense | Return fire immediately | `return fire -> escalate diplomacy to enemy` | Enemy after hostile act if not already enemy |
-
-This matrix is the working synthesis of the player manual and the oracle notes.
-[`ECPLAYER.DOC`](../../original/v1.5/ECPLAYER.DOC) treats `Patrol a Sector`
-as enemy-focused deep-space interception, says fleets also attack when another
-player's fleets enter one of their solar systems, and describes
-`Guard/Blockade` as preventing alien contact with the guarded planet.
-[`RE_NOTES.md`](archive/RE_NOTES.md) already records both sides of that split:
-patrol/deep-space contact reports that can end in `Ignoring alien fleet...`,
-and classic local interception of bombardment fleets at the defended world.
-The intended rule is therefore narrow in deep space and broader at the local
-defense boundary: neutral transit may be observed and ignored, but neutral
-assault posture at a defended world is not harmless loitering.
-
-### Shared contact rules
-
-When two or more hostile empires are present in the same location in the same
-maintenance step:
-
-- all hostile empires are evaluated from the same start-of-step board state
-- each empire forms one combined **task force** from its participating fleets
-  and local fixed defenses
-- diplomatic hostility still matters: non-hostile empires are present but do
-  not exchange fire
-- combat rounds are resolved simultaneously between task forces, not in hidden
-  initiative order
-- file order, fleet ID, and mission code never determine who fires first
-
-Any fleet encounter, whether hostile or not, should still generate a contact
-or intelligence report for the empires that observed it. Contact reporting is
-broader than combat reporting.
-
-Deep-space contact and local intrusion are not the same trigger:
-
-- neutral deep-space contact should report without automatic combat
-- declared enemies in deep space may be intercepted by patrol or by any
-  co-located hostile fleet that elects to engage under ROE
-- local defended-world or blockade-boundary intrusion is broader than stored
-  `enemy` status and may force an immediate orbital contest
-
-### Shared tie-break rules
-
-If a battle needs a reaction-side concept for tie handling:
-
-1. incumbent local defenders win ties
-2. if there is no incumbent defender, guarding or blockading forces win ties
-3. if there is still no defender posture, the surviving task force with the
-   highest combat AS wins
-4. if still tied, the lowest empire number wins
-
-### Shared post-contact rules
-
-After hostile combat resolves:
-
-1. remove destroyed fleets and structures
-2. apply retreats and disengagement outcomes
-3. only then apply friendly merges, rendezvous resolution, or mission
-   completion side effects
-
-This ensures that fleets do not benefit from a friendly merge or landing that
-should not occur before enemy contact is resolved.
-
-## ROE
-
-The canonical ROE thresholds remain exactly aligned with the player manual:
-
-| ROE | Engage if friendly combat AS is at least... |
-| --- | ------------------------------------------- |
-| 0 | never voluntarily engage |
-| 1 | enemy is defenseless |
-| 2 | 4:1 |
-| 3 | 3:1 |
-| 4 | 2:1 |
-| 5 | 3:2 |
-| 6 | 1:1 |
-| 7 | 2:3 |
-| 8 | 1:2 |
-| 9 | 1:3 |
-| 10 | always engage |
-
-Interpretation rules:
-
-- non-combat fleets have effective ROE `0`
-- `combat AS` for ROE checks is the sum of `DD`, `CA`, `BB`, and defending
-  `Starbase` strength only
-- fleets that are directly attacked always return fire in that round
-- guarding / blockading fleets count as defenders and do not pre-emptively flee
-  before the first exchange
-- after each round, surviving fleets may disengage if their post-loss ratio no
-  longer meets their ROE threshold
+### Interception Matrix
+- **Deep Space**: Neutral fleets report contact but do not fight. Enemies are
+  intercepted if ROE allows.
+- **Defended Systems**: Neutral assault fleets (**Bombard/Invade/Blitz**) are
+  treated as hostile intrusions. Orbit is contested immediately.
+- **Blockades**: Any fleet attempting to pass a blockade boundary triggers an
+  orbital contest.
 
 ## Seeded CRT Resolution
 
-Rust combat is stochastic but reproducible. Every exchange derives its die roll
-from the persisted `campaign_seed` plus battle context such as:
+Combat derives its results from the `campaign_seed` plus battle context. Each
+exchange rolls a `d10` against the Combat Results Table (CRT).
 
-- game year
-- battle coordinates
-- combat kind
-- round number
-- acting empire
-- target empire
+### The CRT
+The model selects a column based on the force ratio and applies modifiers:
+- **Disadvantaged**: Ratio < 0.5
+- **Pressed**: Ratio 0.5 – 1.0
+- **Even**: Ratio 1.0 – 1.5
+- **Advantaged**: Ratio 1.5 – 3.0
+- **Overwhelming**: Ratio >= 3.0
 
-The Rust engine does **not** attempt to replay the original Pascal RNG stream.
-It owns a canonical seeded stream instead.
-
-### Space / orbital CRT
-
-Each exchange rolls one `d10` and reads a multiplier from this EC CRT:
-
-| d10 | Disadvantaged | Pressed | Even | Advantaged | Overwhelming |
-| ---- | ---- | ---- | ---- | ---- | ---- |
-| 0 | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
-| 1 | 0.25 | 0.50 | 0.75 | 1.00 | 1.25 |
-| 2 | 0.25 | 0.50 | 1.00 | 1.25 | 1.50 |
-| 3 | 0.50 | 0.75 | 1.00 | 1.25 | 1.50 |
-| 4 | 0.50 | 0.75 | 1.00 | 1.50 | 1.75 |
-| 5 | 0.50 | 1.00 | 1.25 | 1.50 | 1.75 |
-| 6 | 0.75 | 1.00 | 1.25 | 1.50 | 2.00 |
-| 7 | 0.75 | 1.00 | 1.50 | 1.75 | 2.00 |
-| 8 | 1.00 | 1.25 | 1.50 | 1.75 | 2.00 |
-| 9 | 1.00 | 1.50 | 1.75 | 2.00 | 2.50 |
-
-Base column by force ratio:
-
-- `< 0.5` => `Disadvantaged`
-- `0.5 .. < 1.0` => `Pressed`
-- `1.0 .. < 1.5` => `Even`
-- `1.5 .. < 3.0` => `Advantaged`
-- `>= 3.0` => `Overwhelming`
-
-Column shifts:
-
-- `+1` for a mixed `DD/CA/BB` fleet
-- `+1` for a surviving defending starbase in orbital combat
-- withdrawal exchanges use the fixed `Pressed` column with no modifiers
-- final columns are clamped to the CRT bounds
-
-### Ground and planetary exchanges
-
-Ground and assault-side exchanges use the same seeded `d10` CRT but with
-EC-specific attack pools and assault modifiers. The important invariant is the
-same: both sides resolve from the same pre-hit state, then losses are applied
-simultaneously.
-
-## Hit Generation
-
-In every simultaneous exchange:
-
-`hits = ceil(total_AS * CRT_multiplier)`
-
-Where `total_AS` is the sum of the participating attack strength for that
-exchange.
-
-Each side computes hits independently from the same pre-hit board state for
-that exchange. Losses are then applied simultaneously.
-
-### Critical hits
-
-An **unmodified** `9` on the `d10` is a critical hit.
-
-- the side still gets the normal CRT multiplier result for that `9`
-- the critical then allows one extra bypass loss allocation
-- if the normal result cannot cause any real destruction, the critical still
-  forces one real loss on the weakest eligible target
+Modifiers shift the column (e.g., **+1** for mixed fleets or starbases). An
+unmodified **9** is a critical hit, forcing at least one real loss.
 
 ## Hit Allocation
 
-### Combat-local nominal / crippled rule
-
-Fleet and orbital combat use combat-local `nominal -> crippled -> destroyed`
-state.
-
-- all surviving ships enter battle nominal
-- normal hits reduce nominal ships before destroying crippled ships
-- surviving crippled ships revert to nominal when the battle ends
-- only destroyed hulls persist into campaign state
-
-### Screened fleet allocation
-
-To reduce or eliminate one ship, the attacker must allocate hits equal to that
-ship class's `DS`.
-
-Normal rule:
-
-1. all nominal ships must be reduced before any crippled ships may be
-   destroyed
-2. ordinary fleet fire first targets the surviving combat line:
-   `DD`, `CA`, `BB`, `SB`
-3. `SC`, `TT`, and `ET` are screened from normal fire while any combat-line
-   hull remains
-4. within the currently eligible group, target selection is driven by lowest
-   `DS` first
-5. ties inside the same `DS` bucket break in this order:
-   `DD`, `SC`, `TT`, `ET`, `CA`, `BB`, `SB`
-
-This keeps escorts and battle-line ships absorbing ordinary punishment before
-specialized auxiliaries are exposed, while still letting `DS` drive the
-deterministic allocation inside the currently eligible screen.
-
-Critical-hit bypass rule:
-
-- a critical may destroy one weakest eligible target directly even while full
-  strength screen ships remain
-- if crippled ships exist, the weakest crippled target is destroyed first
-- otherwise the weakest nominal target is destroyed to ensure the critical
-  leaves a real campaign-level loss
-
-Non-combat ships are still valid targets so long as they have `DS > 0`.
-
-### Multi-empire targeting rule
-
-When one side has multiple hostile opponents in the same round, it allocates
-its generated hits against exactly one hostile task force using this priority:
-
-1. hostile force currently blockading or guarding the contested world
-2. hostile force threatening the side's own planet or starbase
-3. hostile force with the highest combat AS
-4. hostile force with the lowest empire number
-
-This keeps allocation deterministic and avoids fractional hit-splitting across
-multiple targets in one round.
-
-### Target priority: bombardment
-
-Bombardment hits are allocated in this order:
-
-1. planet-owned stardock contents (docked ships / starbases)
-2. ground batteries
-3. armies
-4. stored goods
-5. factories / development
-
-Rationale:
-
-- the manuals describe bombardment as damaging local orbital/planetary assets
-  and production
-- observed fixtures show bombardment also kills batteries and armies
-- preserved reports show stardock losses are reported as planet-side asset
-  losses, not as separate fleet participants
-- bombardment is meant to cripple a world even when not capturing it
-
-The exact bombardment weights and planetary return-fire formulas below are
-canonical Rust combat rules. They are intended to match the manuals' relative
-roles and observed fixture ranges, but they are not claimed as recovered
-original `ECMAINT` formulas.
-
-### Target priority: invasion
-
-Invasion resolves in three stages:
-
-1. orbital suppression
-2. softening fire
-3. landing battle
-
-Orbital suppression targets batteries first.
-
-Softening fire targets:
-
-1. armies
-2. stored goods
-3. factories / development
-
-Landing battle targets armies only.
-
-### Target priority: blitz
-
-Blitz skips the full deliberate orbital-suppression program of an invasion, but
-it still includes a brief cover-fire / distraction step before the transports
-commit to the descent.
-
-The canonical blitz sequence is:
-
-1. a brief light cover-fire step from escorting combat ships against batteries
-2. landing under fire from any batteries that survive that cover fire
-3. immediate ground combat between landed attackers and defending armies
-
-Defender fire under blitz targets:
-
-1. troop transports
-2. escort combat ships
-3. landed armies
-
-Attacker fire under blitz targets:
-
-1. armies
-2. batteries
-
-This makes blitz faster, riskier, and more dependent on army superiority, which
-matches the manuals: combat ships help the drop, but they do not reduce the
-planet the way a full invade does.
-
-## Fleet-Vs-Fleet Combat
-
-Fleet-vs-fleet combat resolves in repeated rounds until one side wins or the
-survivors withdraw under ROE.
-
-### Step 1: Identify participants
-
-Participants include:
-
-- fleets that voluntarily engage under ROE
-- fleets that are directly attacked or intercepted
-- guard/blockade fleets at the battle location
-- starbases only if the battle is in orbital defense of their world
-
-If multiple empires are present, each empire contributes one task force made
-from all participating fleets at that location.
-
-### Step 2: Pre-round ROE check
-
-Fleets that do not meet ROE for voluntary engagement do **not** get a clean
-escape. They first suffer one simultaneous withdrawal exchange, then surviving
-withdrawing fleets retreat and abort their current mission.
-
-### Step 3: Simultaneous fire
-
-Both sides generate hits and apply them simultaneously.
-
-For three-way or four-way fights:
-
-- each task force computes hits once from its own current state
-- each task force selects one hostile target by the multi-empire targeting rule
-- all chosen attacks are then applied simultaneously
-- a task force may be targeted by multiple hostile empires in the same round
-
-### Step 4: Post-round morale / ROE check
-
-After losses, each fleet checks ROE again against the surviving enemy combat AS.
-
-- fleets still meeting ROE may remain engaged
-- fleets failing ROE attempt to disengage
-- defending guard/blockade fleets get one free hold attempt before breaking
-
-### Step 5: End state
-
-Combat ends when:
-
-- one side has no combat-capable force remaining
-- all remaining fleets on one side disengage
-- only one hostile task force remains willing and able to fight
-
-There is no intended gameplay round cap. The engine keeps only a high emergency
-guardrail to catch bugs or no-progress loops.
-
-Winner determination:
-
-- the side with remaining combat AS in the contested location wins
-- if all surviving opponents have withdrawn, the side still holding the field
-  wins
-- standard defender/reaction tie rules still apply where a tie must be broken
-- if there is no incumbent defender or blockader, the surviving task force with
-  the highest combat AS holds the system
-- if still tied, lowest empire number wins
-
-## Simultaneous Fleet Arrival In Open Space
-
-This section covers non-planet fleet contact when multiple empires enter the
-same sector or system in the same maintenance tick without a planetary assault
-being the immediate focus.
-
-Examples:
-
-- two empires `Move` into the same location
-- one empire `Patrol`s while two hostile empires pass through
-- several fleets `Rendezvous` at the same sector but belong to hostile empires
-- a `Seek Home` fleet and a `Move` fleet reach the same system together
-
-### Open-space contest rule
-
-When hostile fleets from multiple empires occupy the same non-planet location at
-the same step, resolve one shared fleet battle event from the simultaneous
-start-of-step state.
-
-There is no hidden initiative order based on:
-
-- fleet ID
-- empire number
-- file order
-- mission code
-
-Those values may break ties only after combat, never before it.
-
-### Attacker / defender posture in open space
-
-Open-space battles still need a reaction-side concept for tie handling. Use:
-
-1. fleets already present in the location at tick start are defenders
-2. if no one was already present, fleets on `Patrol` count as defenders
-   against deep-space movers
-3. if all hostile fleets arrived simultaneously and no one has a guarding
-   posture, there is no natural defender; ties go to the side with the highest
-   surviving combat AS, then lowest empire number
-
-`Guard Starbase` and `Guard/Blockade` are not generic deep-space patrol
-missions. Their defender priority belongs to local system/orbit defense, not
-to arbitrary same-sector transit contact.
-
-### Same-mission simultaneous arrivals
-
-If multiple hostile empires arrive with the same mission in open space, they do
-not cooperate and do not pass through one another.
-
-Examples:
-
-- two `Move` fleets reach the same system: resolve open-space combat normally
-- two `Rendezvous` groups from hostile empires reach the same sector: resolve
-  combat before any same-empire merge occurs
-- two `Seek Home` fleets from hostile empires reach the same refuge world’s
-  orbit: resolve combat unless diplomacy says they are not hostile
-
-### Merge and rendezvous timing
-
-Friendly merge-style effects happen only after hostile combat is resolved.
-
-Order of operations for same-location fleet processing:
-
-1. collect all fleets present after movement
-2. resolve hostile fleet combat
-3. remove destroyed / retreated fleets
-4. only then apply same-empire join / rendezvous / friendly merge logic
-
-This prevents a fleet from gaining extra protection or firepower from a merge
-that should not have happened before enemy contact.
-
-### Transit and interception
-
-If a moving fleet passes through or arrives in a location containing a hostile
-patrol force in deep space, the patrol force is treated as the local defender
-for tie purposes.
-
-If a moving fleet reaches a defended world or blockade boundary in assault
-posture, the local defender is the incumbent world defense, guard/blockade
-fleet, or starbase-side defense at that world. That is a local-intrusion case,
-not a generic sector patrol case.
-
-If multiple hostile moving fleets and a local patrol all coincide:
-
-- all hostile task forces participate in the same open-space contest
-- the patrol side retains defender priority on ties
-
-### Outcome
-
-After the open-space battle:
-
-- surviving fleets that disengaged continue with their mission only if the
-  mission is still valid and the fleet remains combat-capable enough to do so
-- if hostile action strips the ship class that makes a mission possible
-  (`Scout*`, `ColonizeWorld`, `BombardWorld`, `InvadeWorld`, `BlitzWorld`),
-  that mission aborts immediately instead of executing from a stale pre-battle
-  snapshot
-- Rust-native routing rule for those post-hostility aborts:
-  - if the fleet's empire still holds the local field after combat, the fleet
-    stops and `HoldPosition`s at the current sector/system
-  - otherwise the fleet withdraws with a retreat / `SeekHome` style
-    destination
-- do not silently auto-convert a failed `InvadeWorld` / `BlitzWorld` attempt
-  into `BombardWorld`; if the player still holds orbit, the fleet waits for new
-  orders so bombardment can be chosen explicitly on a later turn
-- if no battle occurs because all ROE checks refuse engagement in deep space,
-  fleets coexist only if diplomacy allows it
-- defended-world and blockade-boundary intrusion are stricter: a fleet in
-  active assault posture does not get a free passive orbiting turn merely
-  because it arrived while still nominally neutral
-
-### Crossing paths during movement
-
-The original manuals describe fleets as being encountered when they meet, but
-they do not spell out a precise sub-turn interception geometry for fleets whose
-movement paths merely cross between starting and ending sectors.
-
-Canonical Rust rule for now:
-
-- movement resolves first
-- hostile contact is then evaluated from the final post-movement board state
-- fleets engage if they occupy the same final location after movement
-- fleets do not currently engage solely because their movement paths crossed
-  between two different final locations in the same tick
-- if fleets occupy the same final location and are enemies, they should resolve
-  hostile contact automatically
-- if fleets occupy the same final location and are not enemies, they should
-  still generate encounter intel but should not perform hostile operations
-  unless one side attacks or a defensive local-intrusion rule applies
-
-So:
-
-- same final sector or same final orbit this tick: contact may occur
-- one fleet passes through while the other departs and they end in different
-  places: no combat from path crossing alone
-
-This is intentionally narrower than a full interception geometry model. If
-later RE or oracle work proves true mid-path interception rules, this section
-should be revised explicitly rather than inferred from ROE alone.
-
-## Simultaneous Arrival At A Planet
-
-This section defines what happens when more than one empire reaches the same
-planet in the same maintenance step, whether by movement, bombardment, invade,
-blitz, or blockade-style missions.
-
-### Arrival classes
-
-Arriving fleets are grouped into these mission classes:
-
-1. `Guard/Blockade`
-2. `Bombard`
-3. `Invade`
-4. `Blitz`
-5. other fleet-presence missions
-
-### Planet contest sequence
-
-When multiple empires are present at the same planet in the same step, resolve:
-
-1. incumbent defenders already at the world
-2. newly arrived orbital contestants
-3. bombard / invasion / blitz against the planet only after orbital supremacy
-   is established
-
-This preserves the manual spirit that you do not freely land troops or pound a
-world while hostile fleets still contest orbit. It also means a neutral fleet
-arriving in `Bombard`, `Invade`, or `Blitz` posture is not treated as harmless
-orbiting traffic at a defended world.
-
-### Orbital supremacy gate
-
-No empire may execute bombardment, invasion, or blitz against the planet unless
-it is the sole remaining hostile force in orbit after the orbital-combat step.
-
-Arrival in assault posture is itself enough to trigger the orbital contest at a
-defended world. The one-turn delay before planetary fire or landing resolves
-does not grant a neutral fleet a free turn of uncontested parking in attack
-posture.
-
-If multiple hostile empires survive in orbit after the round limit:
-
-- the incumbent defender or blockader is treated as retaining orbital control
-- otherwise, no one achieves orbital supremacy this tick
-- all assault missions remain pending if they still have valid surviving fleets
-
-At most one empire may proceed to bombardment, invasion, or blitz in any one
-maintenance tick.
-
-### Same-mission simultaneous arrivals
-
-If two or more empires arrive with the same assault mission against the same
-planet in the same tick:
-
-- they do **not** cooperate
-- they first resolve orbital combat as hostile independent task forces
-- only the empire that achieves orbital supremacy may continue to bombard,
-  invade, or blitz that turn
-
-Examples:
-
-- two empires arrive to `Bombard`: they fight for orbit first; only the winner
-  bombards
-- two empires arrive to `Invade`: they fight for orbit first; only the winner
-  may begin battery suppression and landing
-- two empires arrive to `Blitz`: they fight for orbit first; only the winner
-  attempts the fast landing
-
-### Mixed-mission simultaneous arrivals
-
-If different hostile empires arrive with different assault missions, orbit is
-still resolved first. Mission type matters only after one empire controls orbit.
-
-Priority after orbital supremacy:
-
-1. `Blitz`
-2. `Invade`
-3. `Bombard`
-4. `Guard/Blockade`
-
-Interpretation:
-
-- `Blitz` and `Invade` are active capture attempts and outrank pure
-  bombardment if the same empire somehow has multiple eligible assault fleets
-- `Bombard` outranks passive guard posture once orbit is secured
-- if one empire has multiple surviving fleets with different assault missions,
-  it may execute only the highest-priority assault class in that tick
-
-### Planet ownership and contested assaults
-
-A planet can change ownership at most once per maintenance tick.
-
-If one empire captures a planet during the tick:
-
-- surviving assault fleets from other empires do not immediately re-resolve a
-  second capture in the same tick
-- they remain in orbit and will contest the newly captured world on the next
-  maintenance tick if still hostile and eligible
-
-This avoids ping-pong ownership changes inside one simultaneous turn.
-
-## Bombardment
-
-Bombardment is a one-turn orbital attack by combat ships already at the world.
-It is resolved in one simultaneous bombardment step per maintenance tick.
-
-### Bombardment attacker AS
-
-Only `DD`, `CA`, and `BB` contribute bombardment AS.
-
-Apply these mission weights:
-
-- destroyer bombardment AS uses `0.5x`
-- cruiser bombardment AS uses `1.0x`
-- battleship bombardment AS uses `1.5x`
-
-Scouts, ETACs, and transports do not contribute bombardment fire.
-
-### Bombardment defender AS
-
-Planetary return fire AS is:
-
-`battery_AS`
-
-Ground batteries are the only anti-orbital defenders in bombardment. Armies are
-still bombardment targets and ground-combat defenders, but they do not add
-orbital return fire against ships in orbit.
-
-### Bombardment outcome rules
-
-- bombardment only resolves if the fleet is already in orbit at tick start;
-  fleets that arrive this tick bombard on the next maintenance tick
-- bombardment always consumes the bombard order once the fleet is already in orbit
-- the fleet remains at the target world
-- build completion happens earlier in the same turn, so newly completed
-  planet-owned stardock contents are already eligible to be destroyed by a
-  ready bombardment
-- bombardment can destroy planet-owned stardock contents
-- bombardment can reduce batteries, armies, goods, and factories
-- planets may survive bombardment intact enough to remain enemy-held
-
-## Invasion
-
-Invasion is explicitly a three-stage attack, matching the player manual.
-
-It only resolves if the fleet is already at the target world at tick start;
-fleets that arrive this tick invade on the next maintenance tick.
-
-Like bombardment, ready invasion reads post-build planet state, so completed
-planet-owned stardock contents are already part of the target world seen by the
-assault path.
-
-### Stage 1: Orbital suppression
-
-Attacker combat ships exchange simultaneous fire with ground batteries.
-
-- if batteries survive, transports do not land this turn
-- the mission still inflicts planetary damage through suppression fire
-
-### Stage 2: Softening fire
-
-If all batteries are destroyed, surviving combat ships inflict bombardment-style
-softening damage on armies and industry.
-
-This represents the manual’s “pound the population centers a little to soften
-resistance”.
-
-### Stage 3: Landing battle
-
-Loaded troop transports deliver armies only after batteries are gone.
-
-Ground combat then resolves simultaneously:
-
-- attacker AS = landed armies
-- defender AS = surviving planetary armies
-- ties favor the defender
-
-This landing battle uses the same seeded `d10` CRT framework, including any
-applicable ground modifiers.
-
-Ownership changes only if:
-
-- attacker has surviving armies on the surface
-- defender has no surviving armies
-
-Post-capture:
-
-- surviving attacking armies become the new garrison
-- any remaining defender armies are removed
-- batteries remain destroyed
-
-Failed invasion:
-
-- if the attacker does not capture the planet, no attacking armies remain on the
-  surface in the final gamestate
-- any surviving attacking landing force is treated as lost in failed withdrawal,
-  surrender, or dispersal after the unsuccessful assault
-- planet ownership remains unchanged
-- defending batteries and surviving defender armies remain with the defender
-
-## Blitz
-
-Blitz is the short, violent alternative to invasion.
-
-It deliberately sacrifices safety for speed.
-
-### Blitz rules
-
-- transports attempt immediate landing without waiting for all batteries to die
-- a blitz begins with one brief low-intensity cover-fire round against batteries
-- defender batteries that survive that cover fire fire during the landing
-- troops killed in destroyed transports during descent are tracked separately
-  from later surface-combat losses and should be reported as such
-- landed armies then fight defender armies in simultaneous ground combat
-- defender gets the blitz defense bonus in the seeded CRT column logic
-- attacker is expected to bring overwhelming army numbers
-
-The landing battle uses the seeded ground CRT, including the blitz defense
-modifier, after both the cover-fire step and the battery-fire-on-landing step
-have resolved.
-
-Ownership changes only if the attacker clears all defending armies.
-
-Post-capture:
-
-- surviving attacking armies become the new garrison
-- any remaining defender armies are removed
-- surviving ground batteries transfer intact with the captured planet
-
-Failed blitz:
-
-- if the attacker does not capture the planet, no attacking armies remain on the
-  surface in the final gamestate
-- any surviving attacking landing force is treated as lost in failed withdrawal,
-  surrender, or dispersal after the unsuccessful assault
-- planet ownership remains unchanged
-- defending batteries and surviving defender armies remain with the defender
-
-Blitz should generally cause less industrial damage than invade, but greater
-transport losses and higher risk of outright failure.
-
-## Starbases
-
-Starbases are orbital defenders, not raiding attackers.
-
-Canonical starbase rules:
-
-- a starbase adds AS/DS only in orbital defense of its own world
-- a guarding fleet and a starbase fight as one defensive force
-- the starbase contributes to orbital tie-breaking as part of the defender
-- a starbase may survive even if all guarding ships are destroyed
-
-This follows the manuals: the base helps in a fight, has slightly more
-firepower than a battleship, and can withstand more hits.
-
-In a multi-empire system fight, the starbase always belongs to exactly one task
-force: the current planetary owner’s defense.
-
-If a planet changes ownership during a tick, the starbase does not switch sides
-mid-resolution. It remains part of the pre-capture defender for that tick and
-joins the new owner only on the next maintenance tick if still present.
-
-## Results and Reports
-
-The combat model shall support later generation of reproducible combat reports.
-At minimum, combat events should be capable of expressing:
-
-- participating fleets and defending world
-- pre-battle and post-battle ship counts
-- planet-side stardock-content losses when hostile world resolution destroys
-  docked ships or starbases
-- batteries destroyed
-- armies lost on both sides
-- industrial damage from bombardment / invasion
-- whether a fleet broke off due to ROE
-- whether a world changed ownership
-
-For where those combat events are produced in the yearly loop, use
-[rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
-and
-[ec-turn-cycle-spec.md](ec-turn-cycle-spec.md).
-For player-visible `Stardate` placement and formatting, use
-[ec-timing-spec.md](ec-timing-spec.md).
-
-## Explicit Non-Goals
-
-This spec intentionally does not attempt to reproduce:
-
-- the original Pascal RNG
-- per-ship tactical movement
-- hidden ambush / detection minigames
-- persistent crippled hull state in save files
-
-Those would produce a brittle clone rather than a clear, maintainable canonical
-combat model.
-
-## Worked Example
-
-### Fleet battle: 4 BB vs 12 DD
-
-Assume:
-
-- attacker: `4 BB` -> combat `AS = 36`
-- defender: `12 DD` -> combat `AS = 12`
-- both sides have `ROE 6`
-- no starbase
-- no mixed-fleet bonus
-
-Round 1 ratio and column:
-
-- attacker ratio = `36:12 = 3:1` -> `Overwhelming`
-- defender ratio = `12:36 = 1:3` -> `Disadvantaged`
-- assume attacker rolls `6` and defender rolls `3`
-
-Hits:
-
-- attacker hits = `ceil(36 * 2.00) = 72`
-- defender hits = `ceil(12 * 0.50) = 6`
-
-Allocation sketch:
-
-- attacker reduces and destroys the defender's combat line before auxiliaries
-  are exposed to ordinary hits
-- defender spends hits against battleship `DS 10`, so it cannot erase the
-  battle line cheaply
-
-The important intended outcome is structural:
-
-- the smaller destroyer force is badly mauled
-- the battleship force still absorbs meaningful return punishment
-- the larger fleet does not erase the smaller force without taking some damage
-
-## Implementation Notes
-
-When implementing this spec in Rust:
-
-- keep class weights and CRT tables explicit constants
-- keep hit allocation pure and testable
-- store intermediate combat-local crippled state only inside battle resolution
-- update `docs/dev/archive/RE_NOTES.md` only when fixture/oracle evidence forces a spec revision
-- treat this document as the normative combat rulebook for Rust maintenance
-- do not use this document to infer yearly phase placement when the turn-cycle
-  specs say otherwise
+### Screened Fleet Allocation
+1. Nominal ships are reduced to crippled before any crippled ships are
+   destroyed.
+2. Fire targets the combat line (**DD, CA, BB, SB**) first.
+3. Auxiliaries (**SC, TT, ET**) are screened until the combat line collapses.
+4. Target selection favors the lowest **DS** first.
+
+### Bombardment Priority
+1. Stardock contents (docked ships).
+2. Ground batteries.
+3. Armies.
+4. Stored goods and factories.
+
+### Invasion Priority
+1. Orbital suppression (Batteries).
+2. Softening fire (Armies, goods, factories).
+3. Landing battle (Armies).
+
+## Fleet Combat Sequence
+
+1. **Identify Participants**: Combine all participating fleets into task forces.
+2. **Pre-Round ROE**: Fleets failing ROE attempt to withdraw.
+3. **Simultaneous Fire**: Both sides generate and apply hits.
+4. **Post-Round ROE**: Survivors check if they can still meet their thresholds.
+5. **End State**: Combat ends when one side is destroyed or retreats.
+
+## Simultaneous Arrival at a Planet
+
+No empire executes an assault (**Bombard, Invade, Blitz**) until it achieves
+orbital supremacy. If multiple hostile empires arrive at once, they must
+contest the orbit before attacking the world. A planet can change ownership at
+most once per turn.
+
+## Summary
+
+This model provides a clear, auditable alternative to the 1992 engine's opaque
+RNG. It preserves the classic mechanics while ensuring outcomes are
+reproducible and fair.
