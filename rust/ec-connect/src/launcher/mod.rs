@@ -3,15 +3,15 @@ pub mod render;
 
 use std::time::Duration;
 
-use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, poll, read};
+use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind, KeyModifiers};
 
 use ec_ui::paint::render_to_stdout;
 use ec_ui::session::TerminalSession;
 
 use crate::hard_quit::is_hard_quit_key;
 use crate::password::wallet_exists;
-use crate::wallet::io::wallet_path;
-use onboarding::run_first_identity_setup_in_session;
+use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
+use crate::wallet::{push_new_identity, Wallet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PasswordGateMode {
@@ -124,7 +124,7 @@ pub enum GateSubmit {
 }
 
 pub fn run_password_gate_in_session(
-    session: &mut TerminalSession,
+    _session: &mut TerminalSession,
     error_msg: Option<String>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let existing_wallet = wallet_exists(&wallet_path());
@@ -164,9 +164,10 @@ pub fn run_password_gate_in_session(
             }
             KeyCode::Enter => {
                 if let GateSubmit::Accepted(password) = state.submit() {
-                    if !existing_wallet && !run_first_identity_setup_in_session(session, &password)?
-                    {
-                        return Ok(None);
+                    if !existing_wallet {
+                        let mut wallet = Wallet::empty();
+                        push_new_identity(&mut wallet, now_iso8601())?;
+                        save_wallet_to(&wallet, &password, &wallet_path())?;
                     }
                     return Ok(Some(password));
                 }

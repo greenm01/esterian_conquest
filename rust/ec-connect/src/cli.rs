@@ -3,22 +3,22 @@ use std::path::PathBuf;
 
 use nostr_sdk::Keys;
 
-use crate::config::{ConnectConfig, load_config};
+use crate::config::{load_config, ConnectConfig};
 use crate::connect::game_discovery::discover_game_for_invite;
 use crate::connect::public_join::run_public_join;
 use crate::connect::resolve::{resolve_invite, resolve_server};
-use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
+use crate::connect::session::{resolve_gate_npub, run_session, DisambigMode, SessionOutcome};
 #[cfg(debug_assertions)]
-use crate::dev_seed::{SeedUiOptions, seed_ui};
+use crate::dev_seed::{seed_ui, SeedUiOptions};
 use crate::identity::{
-    cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
+    cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_reset, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
 use crate::launcher::{run_password_gate, run_password_gate_in_session};
 use crate::map_store::resolve_maps_root;
-use crate::password::prompt_optional_alias;
+
 use crate::picker::{load_picker_session, run_picker_in_session};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_new_identity, set_identity_alias};
+use crate::wallet::{push_new_identity, Wallet};
 use ec_ui::session::TerminalSession;
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -85,6 +85,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let n = id_args.next().ok_or("usage: ec-connect id switch <N>")?;
                 cmd_id_switch(&n)
             }
+            Some("reset") => cmd_id_reset(),
             Some(other) => Err(format!("unknown id subcommand: {other}").into()),
         };
     }
@@ -376,10 +377,8 @@ fn load_or_create_identity(
 
     if wallet.identities.is_empty() {
         let npub = push_new_identity(&mut wallet, now_iso8601())?;
-        let index = wallet.identities.len().saturating_sub(1);
-        set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
         save_wallet_to(&wallet, password, &path)?;
-        eprintln!("Identity created: {npub}");
+        eprintln!("Nostr keypair created: {npub}");
     }
 
     let id = wallet
@@ -580,9 +579,10 @@ Identity:
   ec-connect id                        Show active identity (npub)
   ec-connect id --secret               Show npub + nsec (for backup)
   ec-connect id list                   List all wallet identities
-  ec-connect id new                    Generate a new keypair
-  ec-connect id import                 Import an existing nsec
+  ec-connect id new                    Generate a new Nostr keypair
+  ec-connect id import                 Import an existing Nostr nsec
   ec-connect id switch <N>             Switch active identity
+  ec-connect id reset                  Wipe wallet and cache (triple confirmation)
 
 Options:
   --gate <NPUB>    Gate server Nostr public key (optional override / fallback)

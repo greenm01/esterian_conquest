@@ -3,8 +3,8 @@ use ec_ui::theme::classic;
 
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::password::WALLET_WARNING_LINES;
-use crate::picker::layout::{Rect, centered_rect, draw_box};
-use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
+use crate::picker::layout::{centered_rect, draw_box, Rect};
+use crate::shell::{terminal_fits_outer, wrap_inner_buffer, INNER_HEIGHT, INNER_WIDTH};
 
 use super::PasswordGateState;
 

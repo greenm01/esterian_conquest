@@ -52,3 +52,9 @@ pub fn prompt_new_password_with_warning() -> Result<String, Box<dyn std::error::
 
     Ok(password)
 }
+
+/// Prompt for a y/N confirmation. Returns `true` only if the user types `y` or `Y`.
+pub fn prompt_confirm_yn(prompt: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let answer = prompt_line(prompt)?;
+    Ok(matches!(answer.trim(), "y" | "Y"))
+}

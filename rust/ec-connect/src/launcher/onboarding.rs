@@ -1,6 +1,16 @@
+//! Deprecated: TUI identity setup onboarding screen.
+//!
+//! This module is retained for potential future use but is no longer called
+//! from the main launcher flow. New wallet creation now silently generates a
+//! Nostr keypair without prompting the user. Power-user identity management
+//! (import, alias, additional keys) is handled via the `ec-connect id` CLI
+//! subcommands.
+
+#![allow(dead_code, unused_imports)]
+
 use std::time::Duration;
 
-use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, poll, read};
+use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::paint::render_to_stdout;
 use ec_ui::session::TerminalSession;
@@ -8,10 +18,10 @@ use ec_ui::theme::classic;
 
 use crate::hard_quit::is_hard_quit_key;
 use crate::input_field::{draw_labeled_input_row, input_width};
-use crate::picker::layout::{Rect, centered_rect, draw_box};
-use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
+use crate::picker::layout::{centered_rect, draw_box, Rect};
+use crate::shell::{terminal_fits_outer, wrap_inner_buffer, INNER_HEIGHT, INNER_WIDTH};
 use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_identity_from_input, set_identity_alias};
+use crate::wallet::{push_identity_from_input, set_identity_alias, Wallet};
 
 enum SetupMode {
     AddOrImport,
@@ -195,42 +205,4 @@ fn render_setup_buffer(state: &SetupState, width: u16, height: u16) -> Playfield
     );
 
     wrap_inner_buffer(&buffer, None)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{SetupMode, SetupState, render_setup_buffer};
-
-    #[test]
-    fn add_or_import_cursor_sits_one_space_after_label() {
-        let state = SetupState {
-            mode: SetupMode::AddOrImport,
-            input: "nsec1test".to_string(),
-            error_msg: None,
-        };
-        let buffer = render_setup_buffer(&state, 82, 27);
-        assert!((0..buffer.height()).any(|row| {
-            buffer
-                .plain_line(row)
-                .contains(&format!("Nsec: {}", state.input))
-        }));
-    }
-
-    #[test]
-    fn alias_cursor_sits_one_space_after_label() {
-        let state = SetupState {
-            mode: SetupMode::Alias {
-                index: 0,
-                npub: "npub1stress".to_string(),
-            },
-            input: "Desk Alias".to_string(),
-            error_msg: None,
-        };
-        let buffer = render_setup_buffer(&state, 82, 27);
-        assert!((0..buffer.height()).any(|row| {
-            buffer
-                .plain_line(row)
-                .contains(&format!("Alias (optional): {}", state.input))
-        }));
-    }
 }

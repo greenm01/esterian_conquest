@@ -7,14 +7,15 @@
 
 use nostr_sdk::{Keys, ToBech32};
 
+use crate::cache::io::cache_path;
 use crate::password::{
-    prompt_line, prompt_new_password_with_warning, prompt_optional_alias, prompt_password,
-    wallet_exists,
+    prompt_confirm_yn, prompt_line, prompt_new_password_with_warning, prompt_optional_alias,
+    prompt_password, wallet_exists,
 };
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
 use crate::wallet::{
-    Identity, Wallet, active_identity_npub, push_imported_identity, push_new_identity,
-    set_identity_alias, switch_active_identity,
+    active_identity_npub, push_imported_identity, push_new_identity, set_identity_alias,
+    switch_active_identity, Identity, Wallet,
 };
 
 // ---------------------------------------------------------------------------
@@ -71,12 +72,24 @@ pub fn cmd_id_new() -> Result<(), Box<dyn std::error::Error>> {
     let path = wallet_path();
     let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
+    if !wallet.identities.is_empty() {
+        let n = wallet.identities.len();
+        println!(
+            "Wallet already contains {} {}.",
+            n,
+            if n == 1 { "identity" } else { "identities" }
+        );
+        if !prompt_confirm_yn("Add another Nostr keypair? [y/N]: ")? {
+            println!("Cancelled.");
+            return Ok(());
+        }
+    }
     let npub = push_new_identity(&mut wallet, now_iso8601())?;
     let index = wallet.identities.len().saturating_sub(1);
     set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
     save_wallet_to(&wallet, &password, &path)?;
 
-    println!("New identity created: {npub}");
+    println!("New Nostr keypair created: {npub}");
     Ok(())
 }
 
@@ -88,12 +101,24 @@ pub fn cmd_id_import() -> Result<(), Box<dyn std::error::Error>> {
     let path = wallet_path();
     let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
+    if !wallet.identities.is_empty() {
+        let n = wallet.identities.len();
+        println!(
+            "Wallet already contains {} {}.",
+            n,
+            if n == 1 { "identity" } else { "identities" }
+        );
+        if !prompt_confirm_yn("Import Nostr keypair into this wallet? [y/N]: ")? {
+            println!("Cancelled.");
+            return Ok(());
+        }
+    }
     let npub = push_imported_identity(&mut wallet, &nsec_input, now_iso8601())?;
     let index = wallet.identities.len().saturating_sub(1);
     set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
     save_wallet_to(&wallet, &password, &path)?;
 
-    println!("Identity imported: {npub}");
+    println!("Nostr keypair imported: {npub}");
     Ok(())
 }
 
@@ -113,6 +138,51 @@ pub fn cmd_id_switch(n_str: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// `ec-connect id reset` — verify password, triple-confirm, then wipe wallet + cache.
+pub fn cmd_id_reset() -> Result<(), Box<dyn std::error::Error>> {
+    let path = wallet_path();
+    if !wallet_exists(&path) {
+        println!("No wallet found. Nothing to reset.");
+        return Ok(());
+    }
+
+    // Verify the current password actually decrypts the wallet.
+    let password = prompt_password("Current password: ")?;
+    let _ = require_wallet_at(&password, &path)?;
+
+    // Triple confirmation — plain stdin readline, no echo suppression needed.
+    println!();
+    println!("WARNING: This will permanently delete your wallet and all identities.");
+    println!("         There is no recovery unless you have a backup of your nsec.");
+    println!();
+    for (i, prompt) in [
+        "Type YES to confirm reset (1/3): ",
+        "Type YES to confirm reset (2/3): ",
+        "Type YES to confirm reset (3/3): ",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let answer = prompt_line(prompt)?;
+        if answer.trim() != "YES" {
+            println!("Reset cancelled ({}/3).", i + 1);
+            return Ok(());
+        }
+    }
+
+    // Delete wallet.
+    std::fs::remove_file(&path)?;
+
+    // Delete cache if it exists (best-effort; not a fatal error if absent).
+    let cp = cache_path();
+    if cp.exists() {
+        let _ = std::fs::remove_file(&cp);
+    }
+
+    println!("Wallet reset. Run ec-connect to create a new identity.");
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
@@ -123,6 +193,7 @@ fn prompt_wallet_password_for_write(
     if wallet_exists(path) {
         prompt_password("Password: ")
     } else {
+        println!("No existing wallet found. Creating a new one.");
         prompt_new_password_with_warning()
     }
 }
