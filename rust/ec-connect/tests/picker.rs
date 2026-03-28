@@ -6,12 +6,14 @@
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
+use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::SessionOutcome;
 use ec_connect::picker::event::is_manual_refresh_key;
 use ec_connect::picker::flows::apply_session_outcome;
 use ec_connect::picker::help::HelpTopic;
 use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
+use ec_connect::picker::refresh::PendingRefreshRequest;
 use ec_connect::picker::relay::RelayPromptAction;
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
 use ec_connect::picker::runner::post_bridge_recovery_event;
@@ -104,6 +106,26 @@ fn manual_refresh_enters_short_cooldown() {
     state.mark_manual_refresh();
 
     assert!(!state.can_manual_refresh());
+}
+
+#[test]
+fn pending_refresh_request_has_visible_dwell_time() {
+    let request = PendingRefreshRequest::from_game(
+        "Test Game",
+        ResolvedTarget {
+            server_host: "localhost".to_string(),
+            server_port: 2222,
+            relay_url: "ws://localhost:8080".to_string(),
+            invite_code: None,
+            game_id: Some("test-game".to_string()),
+        },
+        "npub1gate".to_string(),
+        "test-game".to_string(),
+    );
+
+    assert!(!request.is_ready());
+    assert!(request.remaining_until_execute().as_millis() > 0);
+    assert!(request.remaining_until_execute() <= std::time::Duration::from_secs(1));
 }
 
 #[test]

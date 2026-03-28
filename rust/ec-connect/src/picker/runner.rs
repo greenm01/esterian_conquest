@@ -68,12 +68,14 @@ fn run_loop(
 
         if !too_small {
             if let Some(session_state) = picker_session.as_mut() {
-                if state.pending_refresh.is_some() {
-                    execute_pending_refresh(state, session_state, rt)?;
-                    if state.quit {
-                        break;
+                if let Some(request) = state.pending_refresh.as_ref() {
+                    if request.is_ready() {
+                        execute_pending_refresh(state, session_state, rt)?;
+                        if state.quit {
+                            break;
+                        }
+                        continue;
                     }
-                    continue;
                 }
                 if state.pending_connect.is_some() {
                     execute_pending_connect(state, session_state, maps_root, rt, session)?;
@@ -245,6 +247,9 @@ fn next_wait_duration(
     lock_timeout_minutes: u16,
     last_activity: Instant,
 ) -> Duration {
+    if let Some(request) = state.pending_refresh.as_ref() {
+        return request.remaining_until_execute();
+    }
     if matches!(state.screen, Screen::Locked) {
         return Duration::from_millis(80);
     }

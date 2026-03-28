@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use ec_ui::buffer::PlayfieldBuffer;
 
 use crate::cache::save_cache;
@@ -8,12 +10,15 @@ use super::connecting::render_status_popup;
 use super::overlay::PickerOverlay;
 use super::state::{PickerSession, PickerState};
 
+const REFRESH_POPUP_MIN_DWELL: Duration = Duration::from_millis(1000);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingRefreshRequest {
     pub game_id: String,
     pub target: ResolvedTarget,
     pub gate_npub: String,
     pub lines: Vec<String>,
+    pub execute_after: Instant,
 }
 
 impl PendingRefreshRequest {
@@ -33,7 +38,16 @@ impl PendingRefreshRequest {
             ],
             target,
             gate_npub,
+            execute_after: Instant::now() + REFRESH_POPUP_MIN_DWELL,
         }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        Instant::now() >= self.execute_after
+    }
+
+    pub fn remaining_until_execute(&self) -> Duration {
+        self.execute_after.saturating_duration_since(Instant::now())
     }
 }
 
