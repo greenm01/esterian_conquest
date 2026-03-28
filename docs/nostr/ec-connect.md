@@ -5,6 +5,8 @@ authenticates with game servers, and bridges the player's terminal to an
 SSH session running `ec-game`. In no-argument mode it now presents a fixed
 centered `80x25` local shell with a game table, wallet manager, and lock
 screen. Direct mode is still available for fast reconnection via bookmarks.
+Like `ec-game` and `ec-sysop`, it should currently be treated as beta-quality
+software and playtested accordingly.
 
 ## Player Experience
 

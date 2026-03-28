@@ -131,10 +131,10 @@ manuals.
 / `ec-sysop`: The public Rust command-line sysop tool for campaign creation
   maintenance, and Nostr hosting.
 
-/ `ec-connect`: The player-side connection client for the recommended hosted
-  flow. It manages the player's Nostr identity, joins games by invite code,
-  downloads the static starmap bundle on first join, and opens the SSH-backed
-  `ec-game` session.
+/ `ec-connect`: The beta-quality player-side connection client for the
+  recommended hosted flow. It manages the player's Nostr identity, joins
+  games by invite code, downloads the static starmap bundle on first join,
+  and opens the SSH-backed `ec-game` session.
 
 / `ec-game`: The Rust TUI player client.
 

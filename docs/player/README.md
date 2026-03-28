@@ -10,13 +10,10 @@ Current recommended reading order:
   - the main player manual and mechanics reference
 - [ec_readme.md](../manuals/ec_readme.md)
   - setup notes, release notes, and bundled guidance
-- [turn-kdl.md](turn-kdl.md)
-  - Rust-native file-based turn submission reference for advanced local, shared-host, and custom-client workflows
-
-The current Rust player client is now in a real beta phase and covers the core
-campaign workflow. The preserved classic manuals still matter as historical
-reference, but the Rust manuals and client behavior should now be treated as
-the primary guide for normal play.
+The current Rust player and connection clients are now in a real beta phase
+and cover the core campaign workflow. The preserved classic manuals still
+matter as historical reference, but the Rust manuals and client behavior
+should now be treated as the primary guide for normal play.
 
 If you want the original source documents directly, they remain preserved under
 [`original/v1.5/`](../../original/v1.5/).

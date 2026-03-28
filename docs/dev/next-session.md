@@ -5,7 +5,8 @@ Keep this file short. Historical detail belongs in
 
 ## Current State
 
-- Public gameplay work is centered on `ec-game` and `ec-sysop`.
+- Public gameplay work is centered on `ec-connect`, `ec-game`, and
+  `ec-sysop`.
 - `ec-game` is broadly feature-complete and the player TUI is in good shape.
 - `ec-sysop` is also in good enough shape for normal campaign operation.
 - The total planet database now supports both `F` filters and `S` sorting.
@@ -19,7 +20,7 @@ Keep this file short. Historical detail belongs in
 - Runtime-only state such as reports, mail, intel, scorch orders, and theme
   preferences is already stored relationally.
 - The project is now effectively in a **beta / playtest** phase:
-  - core player/sysop workflows exist
+  - core player/connect/sysop workflows exist
   - the main remaining unknowns are real-world usability issues and bugs found
     during campaign play
 - The Rust BBS door client is now verified on both Mystic and ENiGMA½.

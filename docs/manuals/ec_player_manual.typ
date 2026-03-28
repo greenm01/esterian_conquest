@@ -493,67 +493,7 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 #pagebreak()
 
-// ─── 8. File-Based Turn Submission ──────────────────────────────────────
-
-= File-Based Turn Submission
-
-Most hosted players will simply use `ec-connect` and the interactive TUI, but
-`ec-game` also supports a file-based turn submission path through
-`submit-turn`. This is useful when you are playing on localhost, on a shared
-host over a remote terminal, or through another client that wants to write a
-turn file and hand it to the engine.
-
-This interface applies orders directly to the Rust runtime campaign state. It is not a mail queue, upload inbox, or delayed scheduler hook.
-
-=== Basic Workflow
-
-Create a turn file, validate it, then apply it:
-
-```
-ec-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
-ec-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
-```
-
-The important rules are:
-
-- `--check` validates the file without mutating the campaign.
-- apply mode writes the orders into `ecgame.db`.
-- the CLI `--player` value must match the `turn player=...` header in the file.
-- if any command in the file is invalid, the entire submission is rejected and nothing is written.
-- this is a direct file-based submission path, not a queue-based upload workflow.
-
-=== Minimal Turn File
-
-At minimum, a turn file names the player and year, then lists the orders to apply:
-
-```kdl
-turn player=1 year=3000
-tax rate=37
-```
-
-=== Short Worked Example
-
-```kdl
-turn player=1 year=3000
-
-tax rate=37
-
-planet record=16 {
-  build points=4 kind="scout"
-}
-
-fleet record=1 {
-  order speed=3 kind="scout_system" x=16 y=13
-}
-
-message to=2 subject="Border" body="Watching the north lane."
-```
-
-For the full KDL node reference and schema details, see the repository's `docs/player/turn-kdl.md` reference page.
-
-#pagebreak()
-
-// ─── 9. Strategy ────────────────────────────────────────────────────────
+// ─── 8. Strategy ────────────────────────────────────────────────────────
 
 = Strategy
 
@@ -571,7 +511,7 @@ In the endgame, fleet composition and denial matter more than raw numbers. Mix d
 
 #pagebreak()
 
-// ─── 10. Historical Context ────────────────────────────────────────────
+// ─── 9. Historical Context ────────────────────────────────────────────
 
 = Historical Context
 
@@ -584,11 +524,11 @@ Most multiplayer games of the era demanded constant attention. Esterian Conquest
 *The Rust Port (2026)* \
 This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played EC on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
 
-The project has now reached a real beta stage. The Rust player and sysop tools
-cover the core campaign workflow, and the main work from here is broad
-playtesting, collecting feedback, and fixing the rough edges and bugs that
-only show up in live games while preserving the classic experience for Nostr
-hosts, local players, and legacy BBS sysops.
+The project has now reached a real beta stage. The Rust player, connection,
+and sysop tools cover the core campaign workflow, and the main work from here
+is broad playtesting, collecting feedback, and fixing the rough edges and bugs
+that only show up in live games while preserving the classic experience for
+Nostr hosts, local players, and legacy BBS sysops.
 
 *Visual Themes* \
 The `ec-game` client is themable. Each campaign has a sysop-chosen default

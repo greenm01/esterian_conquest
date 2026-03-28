@@ -106,9 +106,10 @@ a combat resolved the way it did.
 
 The game is playable today and has reached a real beta stage. Fresh campaigns
 run across all four documented player tiers (4, 9, 16, and 25 empires),
-yearly maintenance processes real turns, and the Rust player and sysop tools
-cover the core campaign workflow. The main work now is playtesting, collecting
-feedback, and fixing the rough edges and bugs that only show up in real games.
+yearly maintenance processes real turns, and the Rust player, connection, and
+sysop tools cover the core campaign workflow. The main work now is
+playtesting, collecting feedback, and fixing the rough edges and bugs that
+only show up in real games.
 
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
@@ -209,7 +210,7 @@ cargo run -q -p ec-game -- submit-turn --check --dir /tmp/ec-game --player 1 --f
 cargo run -q -p ec-game -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
 ```
 
-The turn file format is documented in [docs/player/turn-kdl.md](docs/player/turn-kdl.md).
+The turn file format is documented in [docs/sysop/turn-kdl.md](docs/sysop/turn-kdl.md).
 
 ## Useful Commands
 

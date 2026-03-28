@@ -5,6 +5,8 @@ player-facing assets, and administering live campaigns.
 
 Use these docs in roughly this order:
 
+- [turn-kdl.md](turn-kdl.md)
+  - KDL turn file format reference for file-based turn submission
 - [mystic-rust-setup.md](mystic-rust-setup.md)
   - validated local-door BBS setup for the Rust-native `ec-game`
 - [enigma-rust-setup.md](enigma-rust-setup.md)
@@ -17,7 +19,8 @@ Use these docs in roughly this order:
 
 Practical posture:
 
-- prefer the Rust-native `ec-game` / `ec-sysop` stack for new deployments
+- prefer the Rust-native `ec-connect` / `ec-game` / `ec-sysop` stack for new
+  deployments
 - Mystic and ENiGMA are both now verified Rust-door hosts
 - for BBS play, treat `HJKL` as the primary door navigation contract and
   `^U` / `^D` as the primary paging keys
