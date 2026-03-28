@@ -39,6 +39,18 @@ Keep this file short. Historical detail belongs in
 - Keep classic import/export and oracle tooling as compatibility backstops, not
   the primary day-to-day development model.
 
+## Recent Fixes
+
+- **Theme picker cursor snapping to Tokyo Night on reopen** (fixed):
+  `ensure_bundled_themes_in_game_dir` only wrote bundled theme files if they
+  were absent. When a new style (e.g. `shell_title`) was added to the schema,
+  existing on-disk theme files became stale and failed validation, causing
+  `apply_theme_entry` to silently fall back to the default and reset the
+  active theme. Fix: always overwrite bundled files so `themes/` stays current
+  with the compiled-in versions. `themes/` is a managed cache, not a
+  user-customisation surface; custom themes should live outside it and be
+  referenced via `config.kdl`.
+
 ## Biggest Blockers
 
 - There is no major runtime-storage blocker left.
