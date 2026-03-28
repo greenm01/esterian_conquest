@@ -38,9 +38,9 @@ bundle so you have the printable text map and CSV sheets locally.
 That hosted flow is now the primary multiplayer story for the Rust edition.
 It preserves the old EC rhythm — connect, read reports, issue orders, log
 out, wait for maintenance — without requiring BBS middleware or manual Unix
-account setup. The current `ec-connect` picker still has usability work ahead
-of it, so the simplest player-facing path today is the invite-code join
-command.
+account setup. `ec-connect` now uses a fixed `80x25` local shell with a game
+table, wallet manager, and lock screen, while still supporting direct
+invite-code joins from the command line.
 
 Local and hotseat play remain first-class. If you want to learn the
 interface, test a scenario, or run a private campaign on one machine, you can

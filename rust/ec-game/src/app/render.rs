@@ -9,7 +9,7 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::domains;
 
-        let playfield = match self.current_screen {
+        let mut playfield = match self.current_screen {
             ScreenId::Startup(_)
             | ScreenId::FirstTimeMenu
             | ScreenId::FirstTimeHelp
@@ -89,6 +89,9 @@ impl App {
                 domains::starmap::views::render(self)?
             }
         };
+        if self.quit_confirm_open {
+            self.render_quit_confirm(&mut playfield);
+        }
         let geometry = self.screen_geometry;
         assert_eq!(
             playfield.width(),

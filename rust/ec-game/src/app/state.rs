@@ -113,6 +113,7 @@ pub struct App {
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub command_menu_notice: Option<String>,
+    pub quit_confirm_open: bool,
     pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
     pub planet_scorch_orders: BTreeSet<usize>,
 }
@@ -254,6 +255,7 @@ impl App {
             report_block_rows,
             queued_mail,
             command_menu_notice: None,
+            quit_confirm_open: false,
             planet_intel_snapshots,
             planet_scorch_orders,
         })

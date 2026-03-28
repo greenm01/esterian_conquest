@@ -4,7 +4,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     execute, queue,
     style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
-    terminal::{Clear, ClearType},
+    terminal::{self, Clear, ClearType},
 };
 
 use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
@@ -14,6 +14,14 @@ pub fn render_to_stdout(buffer: &PlayfieldBuffer) -> Result<(), Box<dyn std::err
     let mut stdout = io::stdout();
     let bg = resolve_color(classic::app_background());
     let fg = resolve_color(classic::terminal_foreground());
+    let (offset_x, offset_y) = terminal::size()
+        .map(|(width, height)| {
+            (
+                width.saturating_sub(buffer.width() as u16) / 2,
+                height.saturating_sub(buffer.height() as u16) / 2,
+            )
+        })
+        .unwrap_or((0, 0));
     execute!(
         stdout,
         SetBackgroundColor(bg),
@@ -22,12 +30,12 @@ pub fn render_to_stdout(buffer: &PlayfieldBuffer) -> Result<(), Box<dyn std::err
         MoveTo(0, 0)
     )?;
     for row in 0..buffer.height() {
-        execute!(stdout, MoveTo(0, row as u16))?;
+        execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
         write_styled_row(&mut stdout, buffer.row(row))?;
     }
     match buffer.cursor() {
         Some((column, row)) => {
-            execute!(stdout, Show, MoveTo(column, row))?;
+            execute!(stdout, Show, MoveTo(offset_x + column, offset_y + row))?;
         }
         None => {
             execute!(stdout, Hide)?;

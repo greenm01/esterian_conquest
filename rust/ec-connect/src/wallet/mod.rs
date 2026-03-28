@@ -3,7 +3,11 @@
 pub mod crypto;
 pub mod io;
 
+use nostr_sdk::{Keys, ToBech32};
+
 pub use io::{load_wallet, save_wallet, wallet_path};
+
+pub const MAX_IDENTITIES: usize = 10;
 
 /// Type of a wallet identity entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +44,8 @@ pub struct Identity {
     pub identity_type: IdentityType,
     /// ISO-8601 creation timestamp (UTC, second precision).
     pub created: String,
+    /// Optional local-only display label for this identity.
+    pub alias: Option<String>,
 }
 
 /// The in-memory wallet: a list of identities with one active.
@@ -65,4 +71,86 @@ impl Wallet {
     pub fn active_identity(&self) -> Option<&Identity> {
         self.identities.get(self.active)
     }
+}
+
+pub fn identity_npub(identity: &Identity) -> Result<String, Box<dyn std::error::Error>> {
+    let keys = Keys::parse(&identity.nsec)?;
+    Ok(keys.public_key().to_bech32()?)
+}
+
+pub fn active_identity_npub(wallet: &Wallet) -> Result<String, Box<dyn std::error::Error>> {
+    let identity = wallet
+        .active_identity()
+        .ok_or("wallet has no active identity")?;
+    identity_npub(identity)
+}
+
+pub fn push_new_identity(
+    wallet: &mut Wallet,
+    created: String,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if wallet.identities.len() >= MAX_IDENTITIES {
+        return Err(format!("wallet already has {MAX_IDENTITIES} identities (maximum)").into());
+    }
+
+    let keys = Keys::generate();
+    let npub = keys.public_key().to_bech32()?;
+    wallet.identities.push(Identity {
+        nsec: keys.secret_key().to_bech32()?,
+        identity_type: IdentityType::Local,
+        created,
+        alias: None,
+    });
+    Ok(npub)
+}
+
+pub fn push_imported_identity(
+    wallet: &mut Wallet,
+    nsec_input: &str,
+    created: String,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if wallet.identities.len() >= MAX_IDENTITIES {
+        return Err(format!("wallet already has {MAX_IDENTITIES} identities (maximum)").into());
+    }
+
+    let keys = Keys::parse(nsec_input).map_err(|e| format!("invalid nsec: {e}"))?;
+    let nsec = keys.secret_key().to_bech32()?;
+    let npub = keys.public_key().to_bech32()?;
+
+    if wallet
+        .identities
+        .iter()
+        .any(|identity| identity.nsec == nsec)
+    {
+        return Err("this identity is already in the wallet".into());
+    }
+
+    wallet.identities.push(Identity {
+        nsec,
+        identity_type: IdentityType::Imported,
+        created,
+        alias: None,
+    });
+    Ok(npub)
+}
+
+pub fn switch_active_identity(
+    wallet: &mut Wallet,
+    index: usize,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if index >= wallet.identities.len() {
+        return Err(format!(
+            "index {index} out of range (wallet has {} identit{})",
+            wallet.identities.len(),
+            if wallet.identities.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            },
+        )
+        .into());
+    }
+
+    wallet.active = index;
+    active_identity_npub(wallet)
 }

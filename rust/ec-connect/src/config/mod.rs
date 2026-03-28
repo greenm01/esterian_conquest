@@ -11,6 +11,7 @@
 //! server "local"  host="localhost"        port=2222
 //! default "friday"
 //! maps-dir "/path/to/maps"
+//! lock-timeout-minutes 5
 //! ```
 
 use std::path::PathBuf;
@@ -41,6 +42,8 @@ pub struct ConnectConfig {
     pub default_server: Option<String>,
     /// Optional override for where downloaded starmap bundles are stored.
     pub maps_dir: Option<PathBuf>,
+    /// Optional idle-lock timeout override in minutes.
+    pub lock_timeout_minutes: Option<u16>,
 }
 
 impl ConnectConfig {
@@ -51,11 +54,16 @@ impl ConnectConfig {
             servers: Vec::new(),
             default_server: None,
             maps_dir: None,
+            lock_timeout_minutes: None,
         }
     }
 
     /// Look up a bookmark by name.
     pub fn server(&self, name: &str) -> Option<&ServerBookmark> {
         self.servers.iter().find(|s| s.name == name)
+    }
+
+    pub fn effective_lock_timeout_minutes(&self) -> u16 {
+        self.lock_timeout_minutes.unwrap_or(5)
     }
 }

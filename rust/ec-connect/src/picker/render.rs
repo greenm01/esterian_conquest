@@ -1,202 +1,402 @@
-use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
+use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 use ec_ui::prompt::{
     draw_command_line_prompt_text_at, draw_plain_prompt, draw_table_command_bar_at,
 };
 use ec_ui::theme::classic;
 
-use super::{PickerState, Screen};
+use super::help::{GAME_SELECT_RAIL, MAIN_MENU_RAIL, WALLET_MENU_RAIL};
+use super::layout::{
+    BODY_ROWS, BODY_START_ROW, COMMAND_ROW, Column, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, TABLE_RIGHT,
+    draw_box, draw_scroll_gutter, draw_table_frame, draw_title, middle_ellipsis, pad_right,
+    scroll_start,
+};
+pub use super::layout::{Rect, centered_rect, relative_time, short_npub, truncate};
+use super::overlay::render_overlay;
+use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Rect {
-    pub x: u16,
-    pub y: u16,
-    pub width: u16,
-    pub height: u16,
-}
+const MAIN_COLUMNS: [Column<'_>; 5] = [
+    Column {
+        title: "Empire",
+        width: 13,
+    },
+    Column {
+        title: "Game",
+        width: 17,
+    },
+    Column {
+        title: "Server",
+        width: 18,
+    },
+    Column {
+        title: "Gate",
+        width: 19,
+    },
+    Column {
+        title: "Seat",
+        width: 6,
+    },
+];
 
-impl Rect {
-    pub const fn new(x: u16, y: u16, width: u16, height: u16) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
+const WALLET_COLUMNS: [Column<'_>; 5] = [
+    Column {
+        title: "#",
+        width: 2,
+    },
+    Column {
+        title: "Alias",
+        width: 14,
+    },
+    Column {
+        title: "Npub",
+        width: 29,
+    },
+    Column {
+        title: "Type",
+        width: 8,
+    },
+    Column {
+        title: "Created",
+        width: 20,
+    },
+];
+
+const GAME_SELECT_COLUMNS: [Column<'_>; 2] = [
+    Column {
+        title: "Game",
+        width: 66,
+    },
+    Column {
+        title: "Seat",
+        width: 6,
+    },
+];
+
+pub fn render_buffer(
+    state: &PickerState,
+    session: Option<&PickerSession>,
+    term_width: u16,
+    term_height: u16,
+) -> PlayfieldBuffer {
+    if usize::from(term_width) < PLAYFIELD_WIDTH || usize::from(term_height) < PLAYFIELD_HEIGHT {
+        return render_resize_blocker(term_width, term_height);
     }
-}
 
-pub fn render_buffer(state: &PickerState, width: u16, height: u16) -> PlayfieldBuffer {
-    let width = width.max(1) as usize;
-    let height = height.max(1) as usize;
-    let mut buffer = PlayfieldBuffer::new(width, height, classic::body_style());
-    if width < 48 || height < 10 {
-        render_tiny(&mut buffer, state);
-        return buffer;
-    }
-
-    draw_title(&mut buffer, "ESTERIAN CONQUEST CONNECT");
-    let command_row = height - 1;
-    let status_row = height - 2;
-
-    let list_rect = Rect::new(
-        1,
-        2,
-        width.saturating_sub(2) as u16,
-        height.saturating_sub(6) as u16,
-    );
-    draw_box(
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    let identity_label = session.map(PickerSession::header_identity_label);
+    draw_title(
         &mut buffer,
-        list_rect,
-        "Your Games",
-        classic::table_chrome_style(),
-        classic::table_header_style(),
+        "ESTERIAN CONQUEST CONNECT",
+        identity_label.as_deref(),
     );
-    draw_game_list(&mut buffer, list_rect, state);
 
-    draw_status_row(&mut buffer, status_row, state.status_msg.as_deref());
     match &state.screen {
-        Screen::JoinPrompt => {
-            let prompt = format!("Invite code <Q> -> {}", state.join_input);
-            draw_command_line_prompt_text_at(&mut buffer, command_row, "CONNECT COMMAND", &prompt);
+        Screen::GameList | Screen::JoinPrompt | Screen::IdentityOverlay => {
+            render_main_menu(&mut buffer, state, session);
+        }
+        Screen::WalletList | Screen::WalletAliasPrompt | Screen::WalletImportPrompt => {
+            render_wallet_menu(&mut buffer, state, session);
         }
         Screen::GameSelect {
             games, selected, ..
         } => {
-            draw_table_command_bar_at(&mut buffer, command_row, "J K <Q>", None, "");
-            draw_game_select_overlay(&mut buffer, games, *selected);
+            render_game_select(&mut buffer, games, *selected);
         }
-        Screen::IdentityOverlay => {
-            draw_table_command_bar_at(
-                &mut buffer,
-                command_row,
-                "J K ^U ^D <N> <I> <M> <Q>",
-                None,
-                "",
-            );
-            draw_identity_overlay(&mut buffer, state);
-        }
-        Screen::GameList => {
-            draw_table_command_bar_at(
-                &mut buffer,
-                command_row,
-                "J K ^U ^D <N> <I> <M> <Q>",
-                None,
-                "",
-            );
-        }
+        Screen::Locked => render_locked_screen(&mut buffer, &state.matrix),
     }
 
+    render_overlay(&mut buffer, state);
     buffer
 }
 
-fn render_tiny(buffer: &mut PlayfieldBuffer, state: &PickerState) {
-    let title = "ec-connect";
-    let line = match &state.status_msg {
-        Some(msg) => msg.as_str(),
-        None => "Terminal too small. Resize or press Q.",
-    };
-    buffer.write_text_clipped(0, 0, title, classic::title_style());
-    if buffer.height() > 1 {
-        buffer.write_text_clipped(1, 0, line, classic::notice_style());
+fn render_resize_blocker(term_width: u16, term_height: u16) -> PlayfieldBuffer {
+    let width = usize::from(term_width.max(1));
+    let height = usize::from(term_height.max(1));
+    let mut buffer = PlayfieldBuffer::new(width, height, classic::body_style());
+    let lines = [
+        "ec-connect requires an 80x25 terminal.",
+        "Resize this window, then continue.",
+        "Press Q to quit.",
+    ];
+    let start_row = height.saturating_sub(lines.len()) / 2;
+    for (idx, line) in lines.iter().enumerate() {
+        let row = start_row + idx;
+        let col = width.saturating_sub(line.chars().count()) / 2;
+        let style = if idx == 0 {
+            classic::table_header_style()
+        } else {
+            classic::table_body_style()
+        };
+        buffer.write_text_clipped(row, col, line, style);
     }
+    buffer
 }
 
-pub(crate) fn draw_title(buffer: &mut PlayfieldBuffer, title: &str) {
-    let row = 0;
-    buffer.fill_row(row, classic::title_style());
-    let col = buffer.width().saturating_sub(title.chars().count()) / 2;
-    buffer.write_text_clipped(row, col, title, classic::title_style());
-    if buffer.height() > 1 {
-        buffer.fill_row(1, classic::body_style());
-    }
-}
-
-fn draw_game_list(buffer: &mut PlayfieldBuffer, rect: Rect, state: &PickerState) {
-    let inner_x = rect.x as usize + 1;
-    let inner_y = rect.y as usize + 1;
-    let inner_width = rect.width.saturating_sub(2) as usize;
-    let inner_height = rect.height.saturating_sub(2) as usize;
-    if inner_width == 0 || inner_height == 0 {
-        return;
-    }
-
+fn render_main_menu(
+    buffer: &mut PlayfieldBuffer,
+    state: &PickerState,
+    session: Option<&PickerSession>,
+) {
+    draw_table_frame(buffer, &MAIN_COLUMNS);
     let sorted = state.cache.sorted();
     if sorted.is_empty() {
-        let msg = "No games yet. Press N to join a game.";
-        let row = inner_y + inner_height / 2;
-        let col = inner_x + inner_width.saturating_sub(msg.chars().count()) / 2;
-        buffer.write_text_clipped(row, col, msg, classic::notice_style());
-        return;
+        let message = "No joined games yet. Press N to join one.";
+        let row = BODY_START_ROW + BODY_ROWS / 2;
+        let col = TABLE_RIGHT.saturating_sub(message.chars().count()) / 2;
+        buffer.write_text_clipped(row, col, message, classic::notice_style());
+    } else {
+        let start = scroll_start(state.selected, BODY_ROWS, sorted.len());
+        for (idx, game) in sorted.iter().skip(start).take(BODY_ROWS).enumerate() {
+            let row = BODY_START_ROW + idx;
+            let is_selected = start + idx == state.selected;
+            draw_main_row(buffer, row, game, is_selected);
+        }
+        draw_scroll_gutter(buffer, start, BODY_ROWS, sorted.len());
     }
 
-    let visible_rows = inner_height;
-    let start = scroll_start(state.selected, visible_rows, sorted.len());
-    for (screen_row, game) in sorted.iter().skip(start).take(visible_rows).enumerate() {
-        let row = inner_y + screen_row;
-        let is_selected = start + screen_row == state.selected;
-        draw_game_row(buffer, row, inner_x, inner_width, game, is_selected);
+    if matches!(state.screen, Screen::IdentityOverlay) {
+        if let Some(session) = session {
+            draw_identity_overlay(buffer, session);
+        }
+    }
+
+    match state.screen {
+        Screen::JoinPrompt => {
+            let prompt = format!("Invite code <Q> <?> -> {}", state.join_input);
+            draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "CONNECT COMMAND", &prompt);
+        }
+        Screen::IdentityOverlay => {
+            draw_table_command_bar_at(buffer, COMMAND_ROW, "<Q> <?>", None, "");
+        }
+        Screen::GameList => {
+            draw_table_command_bar_at(buffer, COMMAND_ROW, MAIN_MENU_RAIL, None, "");
+        }
+        _ => {}
     }
 }
 
-fn draw_game_row(
+fn render_wallet_menu(
+    buffer: &mut PlayfieldBuffer,
+    state: &PickerState,
+    session: Option<&PickerSession>,
+) {
+    draw_table_frame(buffer, &WALLET_COLUMNS);
+    if let Some(session) = session {
+        if session.wallet.identities.is_empty() {
+            let message = "Wallet has no identities.";
+            let row = BODY_START_ROW + BODY_ROWS / 2;
+            let col = TABLE_RIGHT.saturating_sub(message.chars().count()) / 2;
+            buffer.write_text_clipped(row, col, message, classic::notice_style());
+        } else {
+            let start = scroll_start(
+                state.wallet_selected,
+                BODY_ROWS,
+                session.wallet.identities.len(),
+            );
+            for (idx, identity) in session
+                .wallet
+                .identities
+                .iter()
+                .skip(start)
+                .take(BODY_ROWS)
+                .enumerate()
+            {
+                let row = BODY_START_ROW + idx;
+                let absolute = start + idx;
+                let is_selected = absolute == state.wallet_selected;
+                let is_active = absolute == session.wallet.active;
+                draw_wallet_row(buffer, row, identity, absolute, is_selected, is_active);
+            }
+            draw_scroll_gutter(buffer, start, BODY_ROWS, session.wallet.identities.len());
+        }
+    }
+
+    match state.screen {
+        Screen::WalletAliasPrompt => {
+            let default = session
+                .and_then(|session| session.wallet.identities.get(state.wallet_selected))
+                .and_then(|identity| identity.alias.as_deref())
+                .unwrap_or("");
+            draw_alias_prompt(buffer, default, &state.alias_input);
+        }
+        Screen::WalletImportPrompt => {
+            let prompt = format!(
+                "Import nsec <Q> <?> -> {}",
+                "*".repeat(state.import_input.chars().count())
+            );
+            draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "WALLET COMMAND", &prompt);
+        }
+        Screen::WalletList => {
+            draw_table_command_bar_at(buffer, COMMAND_ROW, WALLET_MENU_RAIL, None, "");
+        }
+        _ => {}
+    }
+}
+
+fn render_game_select(buffer: &mut PlayfieldBuffer, games: &[GameEntry], selected: usize) {
+    draw_table_frame(buffer, &GAME_SELECT_COLUMNS);
+    let start = scroll_start(selected, BODY_ROWS, games.len());
+    for (idx, game) in games.iter().skip(start).take(BODY_ROWS).enumerate() {
+        let row = BODY_START_ROW + idx;
+        let is_selected = start + idx == selected;
+        draw_select_row(buffer, row, game, is_selected);
+    }
+    draw_scroll_gutter(buffer, start, BODY_ROWS, games.len());
+    draw_table_command_bar_at(buffer, COMMAND_ROW, GAME_SELECT_RAIL, None, "");
+}
+
+fn render_locked_screen(buffer: &mut PlayfieldBuffer, matrix: &MatrixState) {
+    let trail_style = CellStyle::new(GameColor::Green, GameColor::Black, false);
+    let head_style = CellStyle::new(GameColor::BrightGreen, GameColor::Black, true);
+
+    for x in 0..PLAYFIELD_WIDTH {
+        let speed = 1 + (x * 7 % 3);
+        let length = 4 + (x * 11 % 10);
+        let cycle = PLAYFIELD_HEIGHT + length + 8;
+        let head = ((matrix.frame as usize / speed) + (x * 5)) % cycle;
+        let head = head as isize - length as isize;
+        for y in 0..PLAYFIELD_HEIGHT {
+            let y_isize = y as isize;
+            if y_isize > head || y_isize <= head - length as isize {
+                continue;
+            }
+            let dist = (head - y_isize) as usize;
+            let glyph = matrix_glyph(x, y, matrix.frame);
+            let style = if dist == 0 { head_style } else { trail_style };
+            buffer.set_cell(y, x, glyph, style);
+        }
+    }
+}
+
+fn matrix_glyph(x: usize, y: usize, frame: u64) -> char {
+    const GLYPHS: &[u8] = b"01{}[]<>*+#$%&";
+    let index = ((frame as usize) + (x * 13) + (y * 7)) % GLYPHS.len();
+    GLYPHS[index] as char
+}
+
+fn draw_main_row(
     buffer: &mut PlayfieldBuffer,
     row: usize,
-    col: usize,
-    width: usize,
     game: &crate::cache::CachedGame,
     selected: bool,
 ) {
-    let style = if selected {
-        classic::selected_row_style()
-    } else {
-        classic::table_body_style()
-    };
-    let muted = if selected {
-        classic::selected_row_style()
-    } else {
-        classic::status_label_style()
-    };
-    let marker = if selected { ">" } else { " " };
-    let time_str = relative_time(game.last_connected.as_deref());
-    let right = format!("Seat {:>2}  {}", game.seat, time_str);
-    let right_width = right.chars().count().min(width.saturating_sub(4));
-    let name_width = width.saturating_sub(4 + right_width + 1).max(8);
-    let server_width = width
-        .saturating_sub(4 + right_width + 1 + name_width + 3)
-        .max(8);
-    buffer.fill_row(row, style);
-    let mut cursor = col;
-    cursor += buffer.write_text_clipped(row, cursor, marker, style);
-    cursor += buffer.write_text_clipped(row, cursor, " ", style);
-    cursor += buffer.write_text_clipped(row, cursor, &truncate(&game.name, name_width), style);
-    cursor += buffer.write_text_clipped(row, cursor, "  ", style);
-    let _ = buffer.write_text_clipped(row, cursor, &truncate(&game.server, server_width), muted);
-    if right_width < width {
-        let right_col = col + width.saturating_sub(right_width);
-        buffer.write_text_clipped(row, right_col, &right, muted);
-    }
+    let columns = [
+        pad_right(
+            game.player_name.as_deref().unwrap_or(""),
+            MAIN_COLUMNS[0].width,
+        ),
+        pad_right(
+            &truncate(&game.name, MAIN_COLUMNS[1].width),
+            MAIN_COLUMNS[1].width,
+        ),
+        pad_right(
+            &truncate(
+                &format!("{}:{}", game.server, game.port),
+                MAIN_COLUMNS[2].width,
+            ),
+            MAIN_COLUMNS[2].width,
+        ),
+        pad_right(
+            &middle_ellipsis(game.gate_npub.as_str(), MAIN_COLUMNS[3].width, 8, 6),
+            MAIN_COLUMNS[3].width,
+        ),
+        format!("{:>width$}", game.seat, width = MAIN_COLUMNS[4].width),
+    ];
+    draw_row_cells(buffer, row, &MAIN_COLUMNS, &columns, selected, false);
 }
 
-fn draw_status_row(buffer: &mut PlayfieldBuffer, row: usize, msg: Option<&str>) {
-    buffer.fill_row(row, classic::body_style());
-    if let Some(msg) = msg {
-        let style = if msg.starts_with("Error:") {
-            classic::error_style()
-        } else if msg.starts_with("Warning:") {
-            classic::alert_style()
+fn draw_wallet_row(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    identity: &crate::wallet::Identity,
+    index: usize,
+    selected: bool,
+    active: bool,
+) {
+    let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
+    let columns = [
+        format!("{:>width$}", index + 1, width = WALLET_COLUMNS[0].width),
+        pad_right(
+            &truncate(
+                identity.alias.as_deref().unwrap_or(""),
+                WALLET_COLUMNS[1].width,
+            ),
+            WALLET_COLUMNS[1].width,
+        ),
+        pad_right(
+            &truncate(&npub, WALLET_COLUMNS[2].width),
+            WALLET_COLUMNS[2].width,
+        ),
+        pad_right(identity.identity_type.as_str(), WALLET_COLUMNS[3].width),
+        pad_right(
+            &truncate(&identity.created, WALLET_COLUMNS[4].width),
+            WALLET_COLUMNS[4].width,
+        ),
+    ];
+    draw_row_cells(buffer, row, &WALLET_COLUMNS, &columns, selected, active);
+}
+
+fn draw_select_row(buffer: &mut PlayfieldBuffer, row: usize, game: &GameEntry, selected: bool) {
+    let columns = [
+        pad_right(
+            &truncate(&game.name, GAME_SELECT_COLUMNS[0].width),
+            GAME_SELECT_COLUMNS[0].width,
+        ),
+        format!(
+            "{:>width$}",
+            game.seat,
+            width = GAME_SELECT_COLUMNS[1].width
+        ),
+    ];
+    draw_row_cells(buffer, row, &GAME_SELECT_COLUMNS, &columns, selected, false);
+}
+
+fn draw_row_cells(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    columns: &[Column<'_>],
+    values: &[String],
+    selected: bool,
+    active: bool,
+) {
+    let row_style = classic::table_body_style();
+    let selected_style = classic::selected_row_style();
+    let active_style = CellStyle::new(GameColor::BrightYellow, GameColor::Black, true);
+    let mut col = 1usize;
+    for (idx, (column, value)) in columns.iter().zip(values.iter()).enumerate() {
+        let style = if idx == 0 && selected {
+            selected_style
+        } else if idx == 0 && active {
+            active_style
         } else {
-            classic::notice_style()
+            row_style
         };
-        buffer.write_text_clipped(row, 1, msg, style);
+        let filler = if idx == 0 && (selected || active) {
+            style
+        } else {
+            row_style
+        };
+        buffer.write_text_clipped(row, col, value, style);
+        col += column.width;
+        if col <= TABLE_RIGHT {
+            buffer.set_cell(row, col, '│', classic::table_chrome_style());
+            col += 1;
+        }
+        if filler != row_style {
+            for x in 1..=column.width {
+                if x > value.chars().count() {
+                    buffer.set_cell(row, col - column.width - 1 + x, ' ', style);
+                }
+            }
+        }
     }
 }
 
-fn draw_identity_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState) {
+fn draw_identity_overlay(buffer: &mut PlayfieldBuffer, session: &PickerSession) {
     let popup = centered_rect(
-        70,
-        7,
-        Rect::new(0, 0, buffer.width() as u16, buffer.height() as u16),
+        60,
+        10,
+        Rect::new(0, 0, PLAYFIELD_WIDTH as u16, PLAYFIELD_HEIGHT as u16),
     );
     draw_box(
         buffer,
@@ -205,225 +405,33 @@ fn draw_identity_overlay(buffer: &mut PlayfieldBuffer, state: &PickerState) {
         classic::table_chrome_style(),
         classic::table_header_style(),
     );
-    let npub_short = short_npub(&state.npub);
-    buffer.write_text_clipped(
-        popup.y as usize + 2,
-        popup.x as usize + 2,
-        &format!("Identity: {}", npub_short),
-        classic::table_body_style(),
-    );
-    buffer.write_text_clipped(
-        popup.y as usize + 3,
-        popup.x as usize + 2,
-        &format!("Type: {}", state.identity_type),
-        classic::table_body_style(),
-    );
-    buffer.write_text_clipped(
-        popup.y as usize + 4,
-        popup.x as usize + 2,
-        &format!("Wallet identities: {}", state.identity_count),
-        classic::table_body_style(),
-    );
+    let left = popup.x as usize + 2;
+    let top = popup.y as usize + 2;
+    let lines = [
+        format!("Alias: {}", session.active_alias().unwrap_or("(none)")),
+        format!("Npub: {}", short_npub(&session.npub)),
+        format!("Type: {}", session.active_identity_type()),
+        format!("Wallet identities: {}", session.wallet.identities.len()),
+        format!(
+            "Wallet: {}",
+            truncate(&crate::wallet::io::wallet_path().display().to_string(), 46)
+        ),
+    ];
+    for (idx, line) in lines.iter().enumerate() {
+        buffer.write_text_clipped(top + idx, left, line, classic::table_body_style());
+    }
     draw_plain_prompt(
         buffer,
         popup.y as usize + popup.height as usize - 2,
-        "(slap a key)",
+        "<Q> <?> ->",
     );
 }
 
-fn draw_game_select_overlay(buffer: &mut PlayfieldBuffer, games: &[GameEntry], selected: usize) {
-    let height = (games.len() as u16 + 6).clamp(7, 20);
-    let popup = centered_rect(
-        72,
-        height,
-        Rect::new(0, 0, buffer.width() as u16, buffer.height() as u16),
-    );
-    draw_box(
-        buffer,
-        popup,
-        "Choose Game",
-        classic::table_chrome_style(),
-        classic::table_header_style(),
-    );
-    let inner_x = popup.x as usize + 2;
-    let inner_y = popup.y as usize + 2;
-    let inner_width = popup.width.saturating_sub(4) as usize;
-    let visible_rows = popup.height.saturating_sub(4) as usize;
-    let start = scroll_start(selected, visible_rows, games.len());
-    for (idx, game) in games.iter().skip(start).take(visible_rows).enumerate() {
-        let row = inner_y + idx;
-        let is_selected = start + idx == selected;
-        let style = if is_selected {
-            classic::selected_row_style()
-        } else {
-            classic::table_body_style()
-        };
-        let marker = if is_selected { ">" } else { " " };
-        buffer.fill_row(row, style);
-        buffer.write_text_clipped(
-            row,
-            inner_x,
-            &format!(
-                "{} {} (Seat {})",
-                marker,
-                truncate(&game.name, inner_width.saturating_sub(10)),
-                game.seat
-            ),
-            style,
-        );
-    }
-}
-
-pub(crate) fn draw_box(
-    buffer: &mut PlayfieldBuffer,
-    rect: Rect,
-    title: &str,
-    chrome_style: CellStyle,
-    title_style: CellStyle,
-) {
-    if rect.width < 2 || rect.height < 2 {
-        return;
-    }
-    let left = rect.x as usize;
-    let top = rect.y as usize;
-    let right = left + rect.width as usize - 1;
-    let bottom = top + rect.height as usize - 1;
-    for x in left + 1..right {
-        buffer.set_cell(top, x, '─', chrome_style);
-        buffer.set_cell(bottom, x, '─', chrome_style);
-    }
-    for y in top + 1..bottom {
-        buffer.set_cell(y, left, '│', chrome_style);
-        buffer.set_cell(y, right, '│', chrome_style);
-    }
-    buffer.set_cell(top, left, '┌', chrome_style);
-    buffer.set_cell(top, right, '┐', chrome_style);
-    buffer.set_cell(bottom, left, '└', chrome_style);
-    buffer.set_cell(bottom, right, '┘', chrome_style);
-    if !title.is_empty() && rect.width > 4 {
-        let title_col = left + 2;
-        buffer.write_text_clipped(top, title_col, title, title_style);
-    }
-}
-
-fn scroll_start(selected: usize, visible_rows: usize, total_rows: usize) -> usize {
-    if visible_rows == 0 || total_rows <= visible_rows {
-        return 0;
-    }
-    let half = visible_rows / 2;
-    selected
-        .saturating_sub(half)
-        .min(total_rows.saturating_sub(visible_rows))
-}
-
-pub fn truncate(s: &str, max: usize) -> String {
-    if s.chars().count() <= max {
-        s.to_string()
+fn draw_alias_prompt(buffer: &mut PlayfieldBuffer, default: &str, input: &str) {
+    let prompt = if default.is_empty() {
+        format!("Alias <Q> <?> -> {input}")
     } else {
-        let mut t: String = s.chars().take(max.saturating_sub(1)).collect();
-        t.push('…');
-        t
-    }
-}
-
-pub fn relative_time(ts: Option<&str>) -> String {
-    let Some(ts) = ts else {
-        return "—".to_string();
+        format!("Alias [{}] <Q> <?> -> {input}", truncate(default, 16))
     };
-    match parse_elapsed_secs(ts) {
-        None => "connected".to_string(),
-        Some(secs) if secs < 60 => "just now".to_string(),
-        Some(secs) if secs < 3600 => format!("{} min ago", secs / 60),
-        Some(secs) if secs < 86400 => format!("{} hr ago", secs / 3600),
-        Some(secs) => format!("{} days ago", secs / 86400),
-    }
-}
-
-fn parse_elapsed_secs(ts: &str) -> Option<u64> {
-    if ts.len() < 19 {
-        return None;
-    }
-    let year: u64 = ts[0..4].parse().ok()?;
-    let month: u64 = ts[5..7].parse().ok()?;
-    let day: u64 = ts[8..10].parse().ok()?;
-    let hour: u64 = ts[11..13].parse().ok()?;
-    let min: u64 = ts[14..16].parse().ok()?;
-    let sec: u64 = ts[17..19].parse().ok()?;
-
-    if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 59 {
-        return None;
-    }
-
-    let days_before_year = days_since_epoch_for_year(year);
-    let days_in_year = days_before_month(year, month) + (day - 1);
-    let total_days = days_before_year + days_in_year;
-    let ts_epoch: u64 = total_days * 86400 + hour * 3600 + min * 60 + sec;
-
-    let now_epoch = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()?
-        .as_secs();
-
-    now_epoch.checked_sub(ts_epoch)
-}
-
-fn days_since_epoch_for_year(year: u64) -> u64 {
-    if year < 1970 {
-        return 0;
-    }
-    let y = year - 1970;
-    let base = 1970u64;
-    let leaps = count_leaps(base, year);
-    y * 365 + leaps
-}
-
-fn count_leaps(from: u64, to: u64) -> u64 {
-    if to <= from {
-        return 0;
-    }
-    let count_leaps_before = |y: u64| -> u64 {
-        if y == 0 {
-            return 0;
-        }
-        let y1 = y - 1;
-        y1 / 4 - y1 / 100 + y1 / 400
-    };
-    count_leaps_before(to) - count_leaps_before(from)
-}
-
-fn days_before_month(year: u64, month: u64) -> u64 {
-    const DAYS: [u64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-    let m = (month as usize).saturating_sub(1).min(11);
-    let base = DAYS[m];
-    if month > 2 && is_leap(year) {
-        base + 1
-    } else {
-        base
-    }
-}
-
-fn is_leap(year: u64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
-}
-
-pub fn short_npub(npub: &str) -> String {
-    let chars: Vec<char> = npub.chars().collect();
-    if chars.len() <= 24 {
-        return npub.to_string();
-    }
-    let head: String = chars[..16].iter().collect();
-    let tail: String = chars[chars.len() - 8..].iter().collect();
-    format!("{head}…{tail}")
-}
-
-pub fn centered_rect(percent_x: u16, height: u16, parent: Rect) -> Rect {
-    let popup_width = parent.width * percent_x / 100;
-    let x = parent.x + (parent.width.saturating_sub(popup_width)) / 2;
-    let y = parent.y + (parent.height.saturating_sub(height)) / 2;
-    Rect::new(
-        x,
-        y,
-        popup_width.min(parent.width),
-        height.min(parent.height),
-    )
+    draw_command_line_prompt_text_at(buffer, COMMAND_ROW, "WALLET COMMAND", &prompt);
 }

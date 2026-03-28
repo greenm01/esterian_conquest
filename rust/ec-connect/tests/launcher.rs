@@ -1,5 +1,6 @@
 use ec_connect::launcher::render::render_buffer;
 use ec_connect::launcher::{GateSubmit, PasswordGateMode, PasswordGateState};
+use ec_ui::theme::classic;
 
 fn first_non_space_column(line: &str) -> Option<usize> {
     line.chars().position(|ch| ch != ' ')
@@ -91,4 +92,23 @@ fn render_buffer_masks_input_without_showing_plaintext() {
     assert!(line.contains("******"));
     assert!(!line.contains("secret"));
     assert!(buffer.cursor().is_some());
+}
+
+#[test]
+fn render_buffer_uses_versioned_outer_title_in_logo_style() {
+    let state = PasswordGateState::new(true, None);
+    let buffer = render_buffer(&state, 80, 25);
+    let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
+    let row = (0..buffer.height())
+        .find(|&idx| buffer.plain_line(idx).contains(&title))
+        .expect("outer title row");
+    let line = buffer
+        .row(row)
+        .iter()
+        .map(|cell| cell.ch)
+        .collect::<String>();
+    let byte_idx = line.find(&title).expect("title column");
+    let col = line[..byte_idx].chars().count();
+    assert_eq!(col, 2);
+    assert_eq!(buffer.row(row)[col].style, classic::logo_style());
 }

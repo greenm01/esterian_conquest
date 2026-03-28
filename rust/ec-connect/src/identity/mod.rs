@@ -9,7 +9,10 @@ use nostr_sdk::{Keys, ToBech32};
 
 use crate::password::{prompt_new_password_with_warning, prompt_password, wallet_exists};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Identity, IdentityType, Wallet};
+use crate::wallet::{
+    Identity, Wallet, active_identity_npub, push_imported_identity, push_new_identity,
+    switch_active_identity,
+};
 
 // ---------------------------------------------------------------------------
 // Public entry points (called from cli.rs)
@@ -19,10 +22,7 @@ use crate::wallet::{Identity, IdentityType, Wallet};
 pub fn cmd_id_show() -> Result<(), Box<dyn std::error::Error>> {
     let password = prompt_password("Password: ")?;
     let wallet = require_wallet(&password)?;
-    let id = require_active(&wallet)?;
-    let keys = Keys::parse(&id.nsec)?;
-    let npub = keys.public_key().to_bech32()?;
-    println!("{npub}");
+    println!("{}", active_identity_npub(&wallet)?);
     Ok(())
 }
 
@@ -51,7 +51,11 @@ pub fn cmd_id_list() -> Result<(), Box<dyn std::error::Error>> {
         let npub = keys.public_key().to_bech32()?;
         let marker = if i == wallet.active { "*" } else { " " };
         println!(
-            "{marker} [{i}] {npub}  ({})  created {}",
+            "{marker} [{i}] {}{npub}  ({})  created {}",
+            id.alias
+                .as_deref()
+                .map(|alias| format!("{alias}  "))
+                .unwrap_or_default(),
             id.identity_type.as_str(),
             id.created,
         );
@@ -64,21 +68,7 @@ pub fn cmd_id_new() -> Result<(), Box<dyn std::error::Error>> {
     let path = wallet_path();
     let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
-
-    if wallet.identities.len() >= 10 {
-        return Err("wallet already has 10 identities (maximum)".into());
-    }
-
-    let keys = Keys::generate();
-    let nsec = keys.secret_key().to_bech32()?;
-    let npub = keys.public_key().to_bech32()?;
-    let created = now_iso8601();
-
-    wallet.identities.push(Identity {
-        nsec,
-        identity_type: IdentityType::Local,
-        created,
-    });
+    let npub = push_new_identity(&mut wallet, now_iso8601())?;
     save_wallet_to(&wallet, &password, &path)?;
 
     println!("New identity created: {npub}");
@@ -90,31 +80,10 @@ pub fn cmd_id_import() -> Result<(), Box<dyn std::error::Error>> {
     let nsec_input = prompt_line("Enter your nsec: ")?;
     let nsec_input = nsec_input.trim().to_string();
 
-    // Validate by parsing — accepts bech32 nsec or 64-char hex.
-    let keys = Keys::parse(&nsec_input).map_err(|e| format!("invalid nsec: {e}"))?;
-    let nsec = keys.secret_key().to_bech32()?;
-    let npub = keys.public_key().to_bech32()?;
-
     let path = wallet_path();
     let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
-
-    if wallet.identities.len() >= 10 {
-        return Err("wallet already has 10 identities (maximum)".into());
-    }
-
-    // Reject duplicate.
-    for id in &wallet.identities {
-        if id.nsec == nsec {
-            return Err("this identity is already in the wallet".into());
-        }
-    }
-
-    wallet.identities.push(Identity {
-        nsec,
-        identity_type: IdentityType::Imported,
-        created: now_iso8601(),
-    });
+    let npub = push_imported_identity(&mut wallet, &nsec_input, now_iso8601())?;
     save_wallet_to(&wallet, &password, &path)?;
 
     println!("Identity imported: {npub}");
@@ -131,24 +100,8 @@ pub fn cmd_id_switch(n_str: &str) -> Result<(), Box<dyn std::error::Error>> {
     let path = wallet_path();
     let mut wallet = require_wallet_at(&password, &path)?;
 
-    if n >= wallet.identities.len() {
-        return Err(format!(
-            "index {n} out of range (wallet has {} identit{})",
-            wallet.identities.len(),
-            if wallet.identities.len() == 1 {
-                "y"
-            } else {
-                "ies"
-            },
-        )
-        .into());
-    }
-
-    wallet.active = n;
+    let npub = switch_active_identity(&mut wallet, n)?;
     save_wallet_to(&wallet, &password, &path)?;
-
-    let keys = Keys::parse(&wallet.identities[n].nsec)?;
-    let npub = keys.public_key().to_bech32()?;
     println!("Active identity: [{n}] {npub}");
     Ok(())
 }

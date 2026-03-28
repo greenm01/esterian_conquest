@@ -25,6 +25,8 @@ pub enum Action {
     ToggleExpertMode,
     ReturnToCommandMenu,
     ToggleAutopilot,
+    RequestQuit,
+    CancelQuitPrompt,
     Quit,
     Noop,
 }

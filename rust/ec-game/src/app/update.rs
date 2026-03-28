@@ -71,6 +71,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         Action::ToggleAutopilot => match app.toggle_autopilot() {
             Ok(()) | Err(_) => AppOutcome::Continue,
         },
+        Action::RequestQuit => {
+            app.request_quit();
+            AppOutcome::Continue
+        }
+        Action::CancelQuitPrompt => {
+            app.cancel_quit_prompt();
+            AppOutcome::Continue
+        }
         Action::Quit => AppOutcome::Quit,
         Action::Noop => AppOutcome::Continue,
     }

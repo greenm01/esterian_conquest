@@ -152,7 +152,7 @@ impl MainMenuScreen {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
             }
             KeyCode::Char('p') | KeyCode::Char('P') => Action::Planet(PlanetAction::OpenMenu),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::RequestQuit,
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenDatabase),
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))

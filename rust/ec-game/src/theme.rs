@@ -77,14 +77,15 @@ pub fn initialize_from_game_dir(
     let theme_key = theme_key_for_path(game_dir, &theme_file);
     match fs::read_to_string(&theme_file) {
         Ok(contents) => {
-            let _ = ec_ui::theme::apply_theme_from_kdl(&contents, AnsiMode::On, theme_key.as_deref())
-                .or_else(|_| {
-                    ec_ui::theme::apply_theme_from_kdl(
-                        ec_ui::theme::bundled_theme_kdl(),
-                        AnsiMode::On,
-                        Some(ec_ui::theme::default_theme_key()),
-                    )
-                });
+            let _ =
+                ec_ui::theme::apply_theme_from_kdl(&contents, AnsiMode::On, theme_key.as_deref())
+                    .or_else(|_| {
+                        ec_ui::theme::apply_theme_from_kdl(
+                            ec_ui::theme::bundled_theme_kdl(),
+                            AnsiMode::On,
+                            Some(ec_ui::theme::default_theme_key()),
+                        )
+                    });
         }
         Err(_) => ec_ui::theme::apply_default_theme(),
     }
@@ -113,8 +114,7 @@ fn resolve_game_dir_theme(
 
 pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let contents = fs::read_to_string(path)?;
-    ec_ui::theme::apply_theme_from_kdl(&contents, ansi_mode(), None)
-        .map_err(|err| err.into())
+    ec_ui::theme::apply_theme_from_kdl(&contents, ansi_mode(), None).map_err(|err| err.into())
 }
 
 pub fn apply_theme_entry(entry: &ThemeEntry) -> Result<(), Box<dyn std::error::Error>> {

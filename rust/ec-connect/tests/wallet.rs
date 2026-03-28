@@ -142,11 +142,13 @@ fn wallet_active_identity() {
         nsec: "nsec1aaa".to_string(),
         identity_type: IdentityType::Local,
         created: "2026-01-01T00:00:00Z".to_string(),
+        alias: None,
     });
     w.identities.push(Identity {
         nsec: "nsec1bbb".to_string(),
         identity_type: IdentityType::Imported,
         created: "2026-01-02T00:00:00Z".to_string(),
+        alias: None,
     });
     w.active = 1;
     let ai = w.active_identity().unwrap();
@@ -227,6 +229,7 @@ fn render_wallet_escapes_quotes() {
         nsec: "nsec1\"quoted\"".to_string(),
         identity_type: IdentityType::Local,
         created: "2026-01-01T00:00:00Z".to_string(),
+        alias: None,
     });
     let rendered = render_wallet(&w);
     // Must round-trip without a parse error.
@@ -255,6 +258,7 @@ fn save_load_roundtrip_single_identity() {
         nsec: "nsec1test".to_string(),
         identity_type: IdentityType::Local,
         created: "2026-03-26T00:00:00Z".to_string(),
+        alias: None,
     });
 
     save_wallet_to(&w, "mypassword", &path).unwrap();
@@ -300,11 +304,13 @@ fn save_load_preserves_active_and_multiple_identities() {
         nsec: "nsec1first".to_string(),
         identity_type: IdentityType::Local,
         created: "2026-01-01T00:00:00Z".to_string(),
+        alias: None,
     });
     w.identities.push(Identity {
         nsec: "nsec1second".to_string(),
         identity_type: IdentityType::Imported,
         created: "2026-01-02T12:30:00Z".to_string(),
+        alias: None,
     });
     w.active = 1;
 

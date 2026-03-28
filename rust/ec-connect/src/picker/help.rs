@@ -1,0 +1,230 @@
+use super::state::Screen;
+
+pub const MAIN_MENU_RAIL: &str = "J K ^U ^D <N> <W> <I> <M> <L> <Q> <?>";
+pub const WALLET_MENU_RAIL: &str = "J K ^U ^D <N> <I> <A> <L> <Q> <?>";
+pub const GAME_SELECT_RAIL: &str = "J K ^U ^D <Q> <?>";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelpTopic {
+    MainCommand,
+    WalletCommand,
+    ConnectCommand,
+    SelectGame,
+    Identity,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HelpRow {
+    pub command: &'static str,
+    pub description: &'static str,
+}
+
+pub struct HelpSpec {
+    pub title: &'static str,
+    pub rows: &'static [HelpRow],
+    pub note: Option<&'static str>,
+}
+
+const MAIN_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "J",
+        description: "move selection down",
+    },
+    HelpRow {
+        command: "K",
+        description: "move selection up",
+    },
+    HelpRow {
+        command: "^U",
+        description: "page up",
+    },
+    HelpRow {
+        command: "^D",
+        description: "page down",
+    },
+    HelpRow {
+        command: "N",
+        description: "join by invite code",
+    },
+    HelpRow {
+        command: "W",
+        description: "open wallet manager",
+    },
+    HelpRow {
+        command: "I",
+        description: "show identity info",
+    },
+    HelpRow {
+        command: "M",
+        description: "download maps for selected game",
+    },
+    HelpRow {
+        command: "L",
+        description: "lock the screen",
+    },
+    HelpRow {
+        command: "Q",
+        description: "quit ec-connect",
+    },
+    HelpRow {
+        command: "?",
+        description: "open this help",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
+const WALLET_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "J",
+        description: "move selection down",
+    },
+    HelpRow {
+        command: "K",
+        description: "move selection up",
+    },
+    HelpRow {
+        command: "^U",
+        description: "page up",
+    },
+    HelpRow {
+        command: "^D",
+        description: "page down",
+    },
+    HelpRow {
+        command: "N",
+        description: "create a new identity",
+    },
+    HelpRow {
+        command: "I",
+        description: "import an identity",
+    },
+    HelpRow {
+        command: "A",
+        description: "edit alias",
+    },
+    HelpRow {
+        command: "L",
+        description: "lock the screen",
+    },
+    HelpRow {
+        command: "Q",
+        description: "return to main menu",
+    },
+    HelpRow {
+        command: "?",
+        description: "open this help",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
+const CONNECT_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "Q",
+        description: "cancel this prompt",
+    },
+    HelpRow {
+        command: "?",
+        description: "open this help",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
+const GAME_SELECT_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "J",
+        description: "move selection down",
+    },
+    HelpRow {
+        command: "K",
+        description: "move selection up",
+    },
+    HelpRow {
+        command: "^U",
+        description: "page up",
+    },
+    HelpRow {
+        command: "^D",
+        description: "page down",
+    },
+    HelpRow {
+        command: "Q",
+        description: "cancel selection",
+    },
+    HelpRow {
+        command: "?",
+        description: "open this help",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
+const IDENTITY_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "Q",
+        description: "close identity info",
+    },
+    HelpRow {
+        command: "?",
+        description: "open this help",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
+impl HelpTopic {
+    pub fn for_screen(screen: &Screen) -> Option<Self> {
+        match screen {
+            Screen::GameList => Some(Self::MainCommand),
+            Screen::JoinPrompt | Screen::WalletAliasPrompt | Screen::WalletImportPrompt => {
+                Some(Self::ConnectCommand)
+            }
+            Screen::IdentityOverlay => Some(Self::Identity),
+            Screen::WalletList => Some(Self::WalletCommand),
+            Screen::GameSelect { .. } => Some(Self::SelectGame),
+            Screen::Locked => None,
+        }
+    }
+
+    pub fn spec(self) -> HelpSpec {
+        match self {
+            Self::MainCommand => HelpSpec {
+                title: "MAIN COMMAND HELP",
+                rows: MAIN_ROWS,
+                note: None,
+            },
+            Self::WalletCommand => HelpSpec {
+                title: "WALLET COMMAND HELP",
+                rows: WALLET_ROWS,
+                note: None,
+            },
+            Self::ConnectCommand => HelpSpec {
+                title: "CONNECT COMMAND HELP",
+                rows: CONNECT_ROWS,
+                note: Some("Type your text normally, then press Enter to submit."),
+            },
+            Self::SelectGame => HelpSpec {
+                title: "SELECT GAME HELP",
+                rows: GAME_SELECT_ROWS,
+                note: Some("Press Enter to connect to the selected game."),
+            },
+            Self::Identity => HelpSpec {
+                title: "IDENTITY HELP",
+                rows: IDENTITY_ROWS,
+                note: None,
+            },
+        }
+    }
+}

@@ -244,6 +244,7 @@ fn upsert_cache_entry(
     let entry = CachedGame {
         id: payload.game_id.clone(),
         name: payload.game_name.clone(),
+        player_name: (!payload.player_name.is_empty()).then(|| payload.player_name.clone()),
         server: target.server_host.clone(),
         port: target.server_port,
         seat: payload.seat,

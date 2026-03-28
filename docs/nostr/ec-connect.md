@@ -2,9 +2,9 @@
 
 `ec-connect` is the player-side client binary. It manages Nostr identity,
 authenticates with game servers, and bridges the player's terminal to an
-SSH session running `ec-game`. It operates in two modes: a crossterm game
-picker for browsing and selecting games, and a direct mode for fast
-reconnection via bookmarks.
+SSH session running `ec-game`. In no-argument mode it now presents a fixed
+centered `80x25` local shell with a game table, wallet manager, and lock
+screen. Direct mode is still available for fast reconnection via bookmarks.
 
 ## Player Experience
 
@@ -50,39 +50,44 @@ the game session ends, `ec-connect` exits.
 ### Picker Mode
 
 When run with no arguments, `ec-connect` first shows a centered masked
-password window and then opens the game picker:
+password window and then opens the fixed `80x25` main menu:
 
 ```
 $ ec-connect
 [centered password window]
 Password: ********
 
- ESTERIAN CONQUEST ── CONNECT
-
- Your Games
- > Friday Night EC     play.example.com    Seat 2
-   Saturday Showdown   war.example.com     Seat 5
-
- COMMANDS <- J K ^U ^D <N> <I> <M> <Q> ->
+ESTERIAN CONQUEST CONNECT                              alice-main
+┌─────────────┬─────────────────┬──────────────────┬───────────────────┬──────┐
+│Empire       │Game             │Server            │Gate               │  Seat│
+├─────────────┼─────────────────┼──────────────────┼───────────────────┼──────┤
+│House Vale   │Friday Night EC  │play.example.com:22│npub1gate…42k9m1 │     2│
+│Aurora Crown │Saturday Showdown│war.example.com:22 │npub1gate…8n2xsw │     5│
+└─────────────┴─────────────────┴──────────────────┴───────────────────┴──────┘
+COMMANDS <- J K ^U ^D <N> <W> <I> <M> <L> <Q> ->
 ```
 
-`J` and `K` move the selection, with arrow keys accepted as aliases. `Enter`
-connects. When the game session ends, the player returns to the picker and
-can connect to another game or quit.
+`J` and `K` move the selection, with arrows accepted as aliases. `Enter`
+connects. `W` opens the wallet manager. `L` locks immediately, and `Alt-L`
+also works from text-entry prompts. `Q` now asks for confirmation before
+exiting the local shell, `Esc` mirrors `Q` implicitly, and `?` opens a
+screen-specific help popup that explains the visible command-line buttons.
+When the game session ends, the player returns to this menu.
 
 ### Join Flow from Picker
 
 Pressing `N` in the picker opens an inline invite prompt:
 
 ```
- Enter invite code: velvet-mountain@play.example.com
+CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@play.example.com
 ```
 
 After a successful join, the new game appears in the list and the player
 is connected immediately. On that first successful join, `ec-connect`
 also requests the game's static starmap bundle before opening SSH. The
 download is best-effort: if it fails, the player still enters the game
-and can retry later from the picker.
+and can retry later from the picker. Invalid invite codes stay in the
+prompt and show an error notice instead of dropping out of the shell.
 
 ### Nostr User
 
@@ -104,8 +109,9 @@ Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
 ## Identity Management
 
-Identity operations use CLI subcommands rather than TUI screens, since
-they are infrequent and work better as one-shot commands.
+The `W` wallet screen is the normal in-client way to switch identities,
+create local keys, import `nsec` keys, and assign a local alias. The CLI
+subcommands remain available for one-shot and backup-oriented workflows.
 
 On first wallet creation from `ec-connect id new` or `ec-connect id import`,
 the CLI prints the same left-justified wallet-loss warning before asking for
@@ -128,7 +134,7 @@ Decrypted wallet format:
 ```kdl
 wallet active="0"
 identity nsec="nsec1..." type="local" created="2026-03-26T12:00:00Z"
-identity nsec="nsec1..." type="imported" created="2026-03-28T09:35:00Z"
+identity nsec="nsec1..." type="imported" created="2026-03-28T09:35:00Z" alias="Desk Key"
 ```
 
 Identity types:
@@ -199,6 +205,7 @@ server "local" host="localhost" port=2222
 
 // Default server (used by direct mode when no argument is given)
 default "friday"
+lock-timeout-minutes 5
 ```
 
 Fields:
@@ -209,6 +216,7 @@ Fields:
 | `maps-dir` | Optional root directory for downloaded starmap bundles. If omitted, `ec-connect` uses the platform default local data directory. |
 | `server` | Named bookmark for a game server. `host` is required; `port` defaults to 22. |
 | `default` | Name of the server bookmark to use when `ec-connect` is invoked in direct mode with no argument and there is only one game cached for that server. |
+| `lock-timeout-minutes` | Idle timeout for the local `ec-connect` shell. Default `5`. Set `0` to disable idle locking. |
 
 Individual server bookmarks do not carry their own relay URL. All servers
 on the same `ec-connect` installation use the top-level relay. If a
@@ -243,7 +251,7 @@ Cache file at:
 Format:
 
 ```kdl
-game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-27T10:00:00Z"
 ```
 
@@ -253,6 +261,7 @@ Fields:
 |-------|-------------|
 | `id` | Game identifier slug (matches the server's roster game ID) |
 | `name` | Human-readable game name |
+| `player-name` | Cached server-reported empire name for the active identity in that game |
 | `server` | Server hostname |
 | `port` | SSH port |
 | `seat` | Player seat number (1-based) |
@@ -306,11 +315,10 @@ ec-connect id switch N               Switch active identity to index N
 --help                 Print help
 ```
 
-## Picker Screen
+## Main Menu
 
-The picker is a minimal ratatui application that displays the player's
-joined games and provides navigation to connect, join new games, or
-manage identity.
+The no-argument shell is a fixed `80x25` crossterm screen aligned with the
+`ec-game` command-line style. It is not a ratatui app anymore.
 
 ### Layout
 
@@ -325,9 +333,9 @@ manage identity.
  [J] Join new game   [M] Download maps   [I] Identity info   [Q] Quit
 ```
 
-Columns: game name, server hostname, seat number, relative time since
-last connection. The currently selected row is highlighted. If the game
-list is empty (first launch with no `--join`), the screen shows a message
+Columns: empire name, game name, server address, shortened gate `npub`,
+and seat number. The selected first-column cell is highlighted. If the
+game list is empty (first launch with no `--join`), the screen shows a message
 prompting the player to join a game.
 
 ### Controls

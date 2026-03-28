@@ -86,6 +86,11 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
 
         let id = req_str(node, "id", "game")?;
         let name = req_str(node, "name", "game")?;
+        let player_name = node
+            .get("player-name")
+            .and_then(|v| v.as_string())
+            .map(str::to_string)
+            .filter(|value| !value.is_empty());
         let server = req_str(node, "server", "game")?;
 
         let port = node
@@ -117,6 +122,7 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
         cache.games.push(CachedGame {
             id,
             name,
+            player_name,
             server,
             port,
             seat,
@@ -135,9 +141,15 @@ pub fn render_cache(cache: &GameCache) -> String {
     let mut out = String::new();
     for g in &cache.games {
         out.push_str(&format!(
-            "game id=\"{}\" name=\"{}\" server=\"{}\" port={} seat={} npub=\"{}\" joined=\"{}\"",
+            "game id=\"{}\" name=\"{}\"",
             kdl_escape(&g.id),
             kdl_escape(&g.name),
+        ));
+        if let Some(player_name) = g.player_name.as_deref().filter(|value| !value.is_empty()) {
+            out.push_str(&format!(" player-name=\"{}\"", kdl_escape(player_name)));
+        }
+        out.push_str(&format!(
+            " server=\"{}\" port={} seat={} npub=\"{}\" joined=\"{}\"",
             kdl_escape(&g.server),
             g.port,
             g.seat,

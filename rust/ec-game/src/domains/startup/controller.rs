@@ -899,7 +899,7 @@ impl App {
                     let review_page = self.startup_review_visible_lines() as isize;
                     if !self.startup_review_is_at_end(true) {
                         return match key.code {
-                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                                 Action::Startup(StartupAction::ScrollReview(-1))
                             }
@@ -928,12 +928,12 @@ impl App {
                             KeyCode::Char('s') | KeyCode::Char('S') => {
                                 Action::Startup(StartupAction::EnableNonstop)
                             }
-                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                             _ => Action::Noop,
                         }
                     }
                     StartupReviewMode::ItemBody => match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                         KeyCode::Char('y') | KeyCode::Char('Y')
                             if self.startup_review_is_at_end(true)
                                 && !self.startup_review_nonstop(true) =>
@@ -961,11 +961,11 @@ impl App {
                         KeyCode::Char('n') | KeyCode::Char('N') => {
                             Action::Startup(StartupAction::RejectChoice)
                         }
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                         _ => Action::Noop,
                     },
                     StartupReviewMode::EndStatus => match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                         _ => Action::Startup(StartupAction::Advance),
                     },
                 }
@@ -975,7 +975,7 @@ impl App {
                     let review_page = self.startup_review_visible_lines() as isize;
                     if !self.startup_review_is_at_end(false) {
                         return match key.code {
-                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                                 Action::Startup(StartupAction::ScrollReview(-1))
                             }
@@ -1004,12 +1004,12 @@ impl App {
                             KeyCode::Char('s') | KeyCode::Char('S') => {
                                 Action::Startup(StartupAction::EnableNonstop)
                             }
-                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                             _ => Action::Noop,
                         }
                     }
                     StartupReviewMode::ItemBody => match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                         KeyCode::Char('y') | KeyCode::Char('Y')
                             if self.startup_review_is_at_end(false)
                                 && !self.startup_review_nonstop(false) =>
@@ -1037,11 +1037,11 @@ impl App {
                         KeyCode::Char('n') | KeyCode::Char('N') => {
                             Action::Startup(StartupAction::RejectChoice)
                         }
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                         _ => Action::Noop,
                     },
                     StartupReviewMode::EndStatus => match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
                         _ => Action::Startup(StartupAction::Advance),
                     },
                 }

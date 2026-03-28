@@ -15,7 +15,7 @@ fn parse_empty_string_returns_empty_cache() {
     assert!(cache.games.is_empty());
 }
 
-const SAMPLE_CACHE: &str = r#"game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa" gate-npub="npub1gate" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+const SAMPLE_CACHE: &str = r#"game id="friday-night" name="Friday Night EC" player-name="Empire One" server="play.example.com" port=22 seat=2 npub="npub1aaa" gate-npub="npub1gate" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1bbb" joined="2026-03-27T10:00:00Z"
 "#;
 
@@ -27,6 +27,7 @@ fn parse_sample_cache() {
     let g0 = &cache.games[0];
     assert_eq!(g0.id, "friday-night");
     assert_eq!(g0.name, "Friday Night EC");
+    assert_eq!(g0.player_name.as_deref(), Some("Empire One"));
     assert_eq!(g0.server, "play.example.com");
     assert_eq!(g0.port, 22);
     assert_eq!(g0.seat, 2);
@@ -107,6 +108,7 @@ fn render_includes_gate_npub_when_set() {
     cache.games.push(CachedGame {
         id: "g".to_string(),
         name: "G".to_string(),
+        player_name: None,
         server: "s.example.com".to_string(),
         port: 22,
         seat: 1,
@@ -125,6 +127,7 @@ fn render_omits_gate_npub_when_empty() {
     cache.games.push(CachedGame {
         id: "g".to_string(),
         name: "G".to_string(),
+        player_name: None,
         server: "s.example.com".to_string(),
         port: 22,
         seat: 1,
@@ -154,6 +157,7 @@ fn gate_npub_for_server_returns_known_npub() {
     cache.games.push(CachedGame {
         id: "g".to_string(),
         name: "G".to_string(),
+        player_name: None,
         server: "play.example.com".to_string(),
         port: 22,
         seat: 1,
@@ -175,6 +179,7 @@ fn gate_npub_for_server_ignores_empty_gate_npub() {
     cache.games.push(CachedGame {
         id: "g".to_string(),
         name: "G".to_string(),
+        player_name: None,
         server: "play.example.com".to_string(),
         port: 22,
         seat: 1,
@@ -195,6 +200,7 @@ fn make_game(id: &str, joined: &str, last: Option<&str>) -> CachedGame {
     CachedGame {
         id: id.to_string(),
         name: id.to_string(),
+        player_name: None,
         server: "localhost".to_string(),
         port: 22,
         seat: 1,

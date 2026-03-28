@@ -127,6 +127,16 @@ pub fn parse_config_str(kdl: &str) -> Result<ConnectConfig, Box<dyn std::error::
                     .ok_or("maps-dir node requires a string argument")?;
                 config.maps_dir = Some(PathBuf::from(path));
             }
+            "lock-timeout-minutes" => {
+                let minutes = node
+                    .get(0usize)
+                    .and_then(|v| v.as_integer())
+                    .ok_or("lock-timeout-minutes node requires an integer argument")?;
+                config.lock_timeout_minutes = Some(
+                    u16::try_from(minutes)
+                        .map_err(|_| format!("lock-timeout-minutes out of range: {minutes}"))?,
+                );
+            }
             // Unknown nodes are silently ignored for forward compatibility.
             _ => {}
         }
@@ -157,6 +167,9 @@ pub fn render_config(config: &ConnectConfig) -> String {
             "maps-dir \"{}\"\n",
             kdl_escape(&maps_dir.to_string_lossy())
         ));
+    }
+    if let Some(minutes) = config.lock_timeout_minutes {
+        out.push_str(&format!("lock-timeout-minutes {minutes}\n"));
     }
     out
 }

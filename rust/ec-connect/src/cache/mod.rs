@@ -6,7 +6,7 @@
 //!
 //! Format:
 //! ```kdl
-//! game id="friday-night" name="Friday Night EC" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+//! game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 //! game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." joined="2026-03-27T10:00:00Z"
 //! ```
 //!
@@ -25,6 +25,8 @@ pub struct CachedGame {
     pub id: String,
     /// Human-readable game name.
     pub name: String,
+    /// Server-reported empire name for this player in this game.
+    pub player_name: Option<String>,
     /// Server hostname.
     pub server: String,
     /// SSH port.

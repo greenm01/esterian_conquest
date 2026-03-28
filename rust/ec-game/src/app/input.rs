@@ -18,6 +18,9 @@ impl App {
         {
             return Action::Quit;
         }
+        if self.quit_confirm_open {
+            return self.handle_quit_confirm_key(key);
+        }
         if let Some(action) = self.handle_planet_commission_dismiss_latch(key) {
             return action;
         }

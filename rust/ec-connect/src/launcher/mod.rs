@@ -120,14 +120,14 @@ pub enum GateSubmit {
     Accepted(String),
 }
 
-pub fn run_password_gate(
+pub fn run_password_gate_in_session(
+    _session: &mut TerminalSession,
     error_msg: Option<String>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let existing_wallet = wallet_exists(&wallet_path());
     let mut state = PasswordGateState::new(existing_wallet, error_msg);
-    let mut session = TerminalSession::enter_picker()?;
 
-    let result = loop {
+    loop {
         let (width, height) = crossterm::terminal::size().unwrap_or((80, 25));
         let buffer = render::render_buffer(&state, width, height);
         render_to_stdout(&buffer)?;
@@ -144,12 +144,12 @@ pub fn run_password_gate(
         }
 
         match key.code {
-            KeyCode::Esc => break Ok(None),
+            KeyCode::Esc => return Ok(None),
             KeyCode::Char('q' | 'Q')
                 if key.modifiers == KeyModifiers::NONE || key.modifiers == KeyModifiers::SHIFT =>
             {
                 if state.input.is_empty() {
-                    break Ok(None);
+                    return Ok(None);
                 }
                 state.push_char(match key.code {
                     KeyCode::Char(ch) => ch,
@@ -158,7 +158,7 @@ pub fn run_password_gate(
             }
             KeyCode::Enter => {
                 if let GateSubmit::Accepted(password) = state.submit() {
-                    break Ok(Some(password));
+                    return Ok(Some(password));
                 }
             }
             KeyCode::Backspace => state.backspace(),
@@ -169,8 +169,14 @@ pub fn run_password_gate(
             }
             _ => {}
         }
-    };
+    }
+}
 
+pub fn run_password_gate(
+    error_msg: Option<String>,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let mut session = TerminalSession::enter_picker()?;
+    let result = run_password_gate_in_session(&mut session, error_msg);
     let _ = session.restore();
     result
 }

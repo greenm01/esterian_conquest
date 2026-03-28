@@ -5,7 +5,7 @@
 //!
 //! ```kdl
 //! wallet active="0"
-//! identity nsec="nsec1..." type="local" created="2026-03-26T12:00:00Z"
+//! identity nsec="nsec1..." type="local" created="2026-03-26T12:00:00Z" alias="Desk Key"
 //! identity nsec="nsec1..." type="imported" created="2026-03-28T09:35:00Z"
 //! ```
 //!
@@ -139,6 +139,11 @@ pub fn render_wallet(wallet: &Wallet) -> String {
             "identity nsec=\"{nsec_escaped}\" type=\"{}\" created=\"{created_escaped}\"\n",
             id.identity_type.as_str(),
         ));
+        if let Some(alias) = id.alias.as_deref().filter(|alias| !alias.is_empty()) {
+            let alias_escaped = alias.replace('\\', "\\\\").replace('"', "\\\"");
+            out.pop();
+            out.push_str(&format!(" alias=\"{alias_escaped}\"\n"));
+        }
     }
     out
 }
@@ -166,11 +171,17 @@ fn parse_identity_node(node: &KdlNode) -> Result<Identity, Box<dyn std::error::E
         .and_then(|v| v.as_string())
         .ok_or("missing `created` on identity node")?
         .to_string();
+    let alias = node
+        .get("alias")
+        .and_then(|v| v.as_string())
+        .map(str::to_string)
+        .filter(|alias| !alias.is_empty());
 
     Ok(Identity {
         nsec,
         identity_type,
         created,
+        alias,
     })
 }
 

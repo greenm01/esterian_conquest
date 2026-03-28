@@ -2,6 +2,7 @@ pub mod action;
 pub(crate) mod helpers;
 mod input;
 mod persistence;
+mod quit;
 mod render;
 mod shell;
 pub mod state;

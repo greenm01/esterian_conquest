@@ -85,7 +85,7 @@ impl FirstTimeMenuScreen {
             KeyCode::Char('j') | KeyCode::Char('J') => {
                 Action::Startup(StartupAction::OpenFirstTimeJoinName)
             }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::RequestQuit,
             _ => Action::Noop,
         }
     }

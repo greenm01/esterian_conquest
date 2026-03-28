@@ -5,8 +5,11 @@
 
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
-use ec_connect::picker::render::{Rect, centered_rect, relative_time, short_npub, truncate};
+use ec_connect::picker::help::HelpTopic;
+use ec_connect::picker::overlay::PickerOverlay;
+use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
 use ec_connect::picker::{PickerState, Screen};
+use ec_ui::theme::classic;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +17,7 @@ fn make_game(id: &str, last_connected: Option<&str>) -> CachedGame {
     CachedGame {
         id: id.to_string(),
         name: format!("Game {id}"),
+        player_name: Some(format!("Empire {id}")),
         server: "play.example.com".to_string(),
         port: 22,
         seat: 1,
@@ -29,12 +33,7 @@ fn make_state(games: Vec<CachedGame>) -> PickerState {
     for g in games {
         cache.upsert(g);
     }
-    PickerState::new(
-        cache,
-        "npub1testidentity".to_string(),
-        1,
-        "local".to_string(),
-    )
+    PickerState::new(cache)
 }
 
 // ── PickerState::new ──────────────────────────────────────────────────────────
@@ -44,12 +43,12 @@ fn picker_state_initial_values() {
     let state = make_state(vec![]);
     assert_eq!(state.selected, 0);
     assert_eq!(state.screen, Screen::GameList);
+    assert!(state.overlay.is_none());
     assert!(state.join_input.is_empty());
-    assert!(state.status_msg.is_none());
+    assert!(state.alias_input.is_empty());
+    assert!(state.import_input.is_empty());
     assert!(!state.quit);
-    assert_eq!(state.npub, "npub1testidentity");
-    assert_eq!(state.identity_count, 1);
-    assert_eq!(state.identity_type, "local");
+    assert_eq!(state.wallet_selected, 0);
 }
 
 // ── Selection clamping ────────────────────────────────────────────────────────
@@ -146,6 +145,34 @@ fn screen_game_select_eq_and_ne() {
     };
     assert_eq!(s1, s2);
     assert_ne!(s2, Screen::GameList);
+}
+
+#[test]
+fn help_overlay_renders_left_aligned_title_and_commands() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::Help(HelpTopic::MainCommand));
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 80, 25);
+
+    let title_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("MAIN COMMAND HELP"))
+        .expect("help title row");
+    let title_line = buffer.plain_line(title_row);
+    let title_col = title_line.find("MAIN COMMAND HELP").expect("title col");
+    assert_eq!(
+        buffer.row(title_row)[title_col].style,
+        classic::table_header_style()
+    );
+
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("J    move selection down"))
+    );
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("^U   page up")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("?    open this help")));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Esc  same as <Q> on this screen")
+    }));
 }
 
 // ── truncate ──────────────────────────────────────────────────────────────────
@@ -275,52 +302,4 @@ fn sorted_no_last_connected_appears_after_connected() {
 fn sorted_empty_cache_returns_empty() {
     let cache = GameCache::empty();
     assert!(cache.sorted().is_empty());
-}
-
-// ── relative_time ─────────────────────────────────────────────────────────────
-
-#[test]
-fn relative_time_none_returns_dash() {
-    assert_eq!(relative_time(None), "—");
-}
-
-#[test]
-fn relative_time_far_past_returns_days_ago() {
-    // 2020-01-01T00:00:00Z is well in the past (>1000 days before 2026).
-    let result = relative_time(Some("2020-01-01T00:00:00Z"));
-    assert!(
-        result.ends_with("days ago"),
-        "expected 'N days ago', got: {result}"
-    );
-}
-
-#[test]
-fn relative_time_very_old_is_many_days() {
-    // 2000-01-01T00:00:00Z — roughly 26 years before 2026.
-    let result = relative_time(Some("2000-01-01T00:00:00Z"));
-    assert!(
-        result.ends_with("days ago"),
-        "expected 'N days ago', got: {result}"
-    );
-    // The number of days should be >= 9000.
-    let days: u64 = result
-        .split_whitespace()
-        .next()
-        .and_then(|s| s.parse().ok())
-        .expect("numeric days prefix");
-    assert!(days >= 9000, "expected >= 9000 days, got {days}");
-}
-
-#[test]
-fn relative_time_invalid_returns_connected_fallback() {
-    // An unparseable string should fall back to "connected".
-    let result = relative_time(Some("not-a-timestamp"));
-    assert_eq!(result, "connected");
-}
-
-#[test]
-fn relative_time_future_timestamp_returns_connected_fallback() {
-    // A future date should produce checked_sub None → "connected".
-    let result = relative_time(Some("2099-12-31T23:59:59Z"));
-    assert_eq!(result, "connected");
 }

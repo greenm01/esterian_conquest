@@ -9,11 +9,12 @@ use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, r
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
-use crate::launcher::run_password_gate;
+use crate::launcher::{run_password_gate, run_password_gate_in_session};
 use crate::map_store::resolve_maps_root;
-use crate::picker::run_picker;
+use crate::picker::{load_picker_session, run_picker_in_session};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Identity, IdentityType, Wallet};
+use crate::wallet::{Wallet, push_new_identity};
+use ec_ui::session::TerminalSession;
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -268,26 +269,23 @@ fn cmd_picker(opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
     // missing gate will surface as an error inside the session handshake.
     let gate_npub = opts.gate_npub.unwrap_or_default();
 
+    let mut session = TerminalSession::enter_picker()?;
+
     // Load wallet — auto-create identity if wallet is missing.
-    let Some((wallet, keys, npub)) = prompt_and_load_identity()? else {
+    let Some(password) = prompt_for_picker_password(&mut session)? else {
+        let _ = session.restore();
         return Ok(());
     };
-
-    let identity_count = wallet.identities.len();
-    let identity_type = wallet
-        .active_identity()
-        .map(|id| id.identity_type.as_str().to_string())
-        .unwrap_or_else(|| "local".to_string());
+    let picker_session = load_picker_session(password)?;
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
-    run_picker(
-        keys,
-        npub,
+    run_picker_in_session(
+        picker_session,
         gate_npub,
-        identity_count,
-        identity_type,
         maps_root,
+        config.effective_lock_timeout_minutes(),
+        session,
     )
 }
 
@@ -309,6 +307,21 @@ fn prompt_and_load_identity() -> Result<Option<(Wallet, Keys, String)>, Box<dyn 
     }
 }
 
+fn prompt_for_picker_password(
+    session: &mut TerminalSession,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let mut error_msg = None;
+    loop {
+        let Some(password) = run_password_gate_in_session(session, error_msg.take())? else {
+            return Ok(None);
+        };
+        match load_wallet_from(&password, &wallet_path()) {
+            Ok(_) => return Ok(Some(password)),
+            Err(err) => error_msg = Some(format!("Error: {err}")),
+        }
+    }
+}
+
 /// Load wallet + active identity, or create a fresh one if no wallet exists.
 /// Returns `(wallet, keys, npub_string)`.
 fn load_or_create_identity(
@@ -321,14 +334,7 @@ fn load_or_create_identity(
     let mut wallet = load_wallet_from(password, &path)?.unwrap_or_else(Wallet::empty);
 
     if wallet.identities.is_empty() {
-        let new_keys = Keys::generate();
-        let nsec = new_keys.secret_key().to_bech32()?;
-        let npub = new_keys.public_key().to_bech32()?;
-        wallet.identities.push(Identity {
-            nsec,
-            identity_type: IdentityType::Local,
-            created: now_iso8601(),
-        });
+        let npub = push_new_identity(&mut wallet, now_iso8601())?;
         save_wallet_to(&wallet, password, &path)?;
         eprintln!("Identity created: {npub}");
     }
