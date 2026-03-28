@@ -84,16 +84,28 @@ pub fn draw_command_line_prompt_text_at(
     label: &str,
     prompt: &str,
 ) {
+    draw_command_line_prompt_text_at_col(buffer, row, 0, label, prompt);
+}
+
+pub fn draw_command_line_prompt_text_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+) {
     buffer.fill_row(row, classic::prompt_style());
-    let prefix = buffer.write_spans(
-        row,
-        0,
-        &[
-            StyledSpan::new(label, classic::title_style()),
-            StyledSpan::new(" <- ", classic::prompt_style()),
-        ],
-    );
-    let cursor_col = write_prompt_markup(buffer, row, prefix, prompt);
+    let prefix = col
+        + buffer.write_spans(
+            row,
+            col,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
     if cursor_col < buffer.width() {
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
@@ -458,7 +470,7 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
 
 #[cfg(test)]
 mod tests {
-    use super::{draw_plain_prompt, draw_table_command_bar_at};
+    use super::{draw_command_line_prompt_text_at, draw_plain_prompt, draw_table_command_bar_at};
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
 
@@ -491,5 +503,15 @@ mod tests {
         let mut buffer = buffer();
         draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <N> <Q>", None, "");
         assert!(buffer.plain_line(24).starts_with("COMMANDS <- "));
+    }
+
+    #[test]
+    fn command_line_prompt_keeps_one_space_after_arrow_for_cursor() {
+        let mut buffer = buffer();
+        draw_command_line_prompt_text_at(&mut buffer, 24, "COMMAND", "Are you sure? Y/[N] ->");
+        let (col, row) = buffer.cursor().expect("cursor");
+        let line = buffer.plain_line(row as usize);
+        let arrow = line.find("->").expect("arrow");
+        assert_eq!(col as usize, arrow + "->".chars().count() + 1);
     }
 }

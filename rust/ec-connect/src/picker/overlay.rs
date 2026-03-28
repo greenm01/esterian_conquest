@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
-use ec_ui::prompt::draw_command_line_prompt_text_at;
+use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_command_line_prompt_text_at_col};
 use ec_ui::theme::classic;
 
 use super::event::{is_back_key, is_cancel_confirm_key, is_help_key, is_yes_key};
@@ -10,6 +10,7 @@ use super::layout::{
 };
 use super::state::{PickerSession, PickerState};
 use crate::cache::save_cache;
+use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::wallet::{delete_identity, set_identity_alias};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,10 +196,11 @@ pub fn render_overlay(
         }
         Some(PickerOverlay::WalletDeleteConfirm { index, step }) => {
             if let Some(session) = session {
-                render_wallet_delete_popup(buffer, session, *index);
-                draw_command_line_prompt_text_at(
+                let popup = render_wallet_delete_popup(buffer, session, *index);
+                draw_command_line_prompt_text_at_col(
                     buffer,
-                    command_row,
+                    popup_command_row(popup, command_row),
+                    popup.x as usize,
                     "WALLET COMMAND",
                     delete_prompt(*step),
                 );
@@ -206,8 +208,14 @@ pub fn render_overlay(
             }
         }
         Some(PickerOverlay::GameDeleteConfirm { index, step }) => {
-            render_game_delete_popup(buffer, state, *index);
-            draw_command_line_prompt_text_at(buffer, command_row, "COMMAND", delete_prompt(*step));
+            let popup = render_game_delete_popup(buffer, state, *index);
+            draw_command_line_prompt_text_at_col(
+                buffer,
+                popup_command_row(popup, command_row),
+                popup.x as usize,
+                "COMMAND",
+                delete_prompt(*step),
+            );
             buffer.clear_cursor();
         }
         None => {}
@@ -258,14 +266,17 @@ pub fn render_wallet_add_popup(buffer: &mut PlayfieldBuffer, input: &str) {
         "Paste an nsec or leave blank to create a new keypair.",
         classic::table_body_style(),
     );
-    buffer.write_text_clipped(field_row, left, "Nsec:", classic::status_label_style());
-    draw_popup_input(
+    let label = "Nsec:";
+    let input_col = left + label.chars().count() + 1;
+    draw_labeled_input_row(
         buffer,
-        popup,
         field_row,
-        left + 6,
-        popup.width.saturating_sub(10) as usize,
+        left,
+        label,
         input,
+        input_width(popup.x as usize + popup.width as usize - 2, input_col),
+        classic::status_label_style(),
+        classic::prompt_hotkey_style(),
     );
 }
 
@@ -301,14 +312,17 @@ fn render_wallet_detail_popup(
     );
     let left = popup.x as usize + 2;
     let mut row = popup.y as usize + 1;
-    buffer.write_text_clipped(row, left, "Alias:", classic::status_label_style());
-    draw_popup_input(
+    let label = "Alias:";
+    let input_col = left + label.chars().count() + 1;
+    draw_labeled_input_row(
         buffer,
-        popup,
         row,
-        left + 7,
-        popup.width.saturating_sub(11) as usize,
+        left,
+        label,
         alias_input,
+        input_width(popup.x as usize + popup.width as usize - 2, input_col),
+        classic::status_label_style(),
+        classic::prompt_hotkey_style(),
     );
     row += 2;
     buffer.write_text_clipped(
@@ -340,9 +354,13 @@ fn render_wallet_detail_popup(
     buffer.write_text_clipped(row, left, &nsec_line, classic::table_body_style());
 }
 
-fn render_wallet_delete_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession, index: usize) {
+fn render_wallet_delete_popup(
+    buffer: &mut PlayfieldBuffer,
+    session: &PickerSession,
+    index: usize,
+) -> Rect {
     let Some(identity) = session.selected_identity(index) else {
-        return;
+        return Rect::new(0, 0, 0, 0);
     };
     let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
     let lines = [
@@ -357,13 +375,17 @@ fn render_wallet_delete_popup(buffer: &mut PlayfieldBuffer, session: &PickerSess
         "DELETE IDENTITY",
         &lines,
         classic::table_body_style(),
-    );
+    )
 }
 
-fn render_game_delete_popup(buffer: &mut PlayfieldBuffer, state: &PickerState, index: usize) {
+fn render_game_delete_popup(
+    buffer: &mut PlayfieldBuffer,
+    state: &PickerState,
+    index: usize,
+) -> Rect {
     let sorted = state.cache.sorted();
     let Some(game) = sorted.get(index) else {
-        return;
+        return Rect::new(0, 0, 0, 0);
     };
     let lines = [
         format!(
@@ -380,7 +402,7 @@ fn render_game_delete_popup(buffer: &mut PlayfieldBuffer, state: &PickerState, i
         "This removes the game from your local picker only.".to_string(),
         "It does not delete the wallet identity or the remote seat.".to_string(),
     ];
-    render_modal_box(buffer, "DELETE GAME", &lines, classic::table_body_style());
+    render_modal_box(buffer, "DELETE GAME", &lines, classic::table_body_style())
 }
 
 fn delete_prompt(step: u8) -> &'static str {
@@ -505,40 +527,12 @@ fn draw_modal_frame(
     popup
 }
 
-fn draw_popup_input(
-    buffer: &mut PlayfieldBuffer,
-    popup: Rect,
-    row: usize,
-    col: usize,
-    width: usize,
-    input: &str,
-) {
-    let width = width.min(popup.width.saturating_sub(3) as usize).max(1);
-    let visible = visible_tail(input, width);
-    for offset in 0..width {
-        buffer.set_cell(row, col + offset, ' ', classic::prompt_hotkey_style());
-    }
-    let cursor_col =
-        col + buffer.write_text_clipped(row, col, &visible, classic::prompt_hotkey_style());
-    if cursor_col < popup.x as usize + popup.width as usize - 1 {
-        buffer.set_cursor(cursor_col as u16, row as u16);
-    }
-}
-
-fn visible_tail(value: &str, width: usize) -> String {
-    let len = value.chars().count();
-    if len <= width {
-        return value.to_string();
-    }
-    value.chars().skip(len - width).collect()
-}
-
 fn render_modal_box(
     buffer: &mut PlayfieldBuffer,
     title: &str,
     lines: &[String],
     body_style: ec_ui::buffer::CellStyle,
-) {
+) -> Rect {
     let content_width = lines
         .iter()
         .map(|line| line.chars().count())
@@ -555,4 +549,13 @@ fn render_modal_box(
         buffer.write_text_clipped(row, col, line, body_style);
         row += 1;
     }
+    popup
+}
+
+fn popup_command_row(popup: Rect, fallback: usize) -> usize {
+    if popup.width == 0 || popup.height == 0 {
+        return fallback;
+    }
+    let row = popup.y as usize + popup.height as usize;
+    row.min(PLAYFIELD_HEIGHT.saturating_sub(1))
 }

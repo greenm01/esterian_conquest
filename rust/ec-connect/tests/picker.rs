@@ -3,15 +3,17 @@
 //! These tests exercise `PickerState` logic and the pure render helpers in
 //! `picker::render`.  No live terminal or Nostr connection is needed.
 
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::picker::help::HelpTopic;
 use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
-use ec_connect::picker::{PickerState, Screen};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ec_connect::picker::{PickerSession, PickerState, Screen};
+use ec_connect::wallet::{Identity, IdentityType, Wallet};
 use ec_ui::theme::classic;
+use nostr_sdk::{Keys, ToBech32};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,40 @@ fn make_state(games: Vec<CachedGame>) -> PickerState {
         cache.upsert(g);
     }
     PickerState::new(cache)
+}
+
+fn make_session(alias: Option<&str>) -> PickerSession {
+    make_session_with_identities(1, alias)
+}
+
+fn make_session_with_identities(count: usize, alias: Option<&str>) -> PickerSession {
+    let keys = Keys::generate();
+    let npub = keys.public_key().to_bech32().expect("npub");
+    let mut identities = Vec::with_capacity(count);
+    for index in 0..count {
+        let pair = Keys::generate();
+        identities.push(Identity {
+            nsec: pair.secret_key().to_bech32().expect("nsec"),
+            identity_type: IdentityType::Local,
+            created: format!("2026-03-{:02}T00:00:00Z", (index % 28) + 1),
+            alias: if index == 0 {
+                alias.map(str::to_string)
+            } else {
+                Some(format!("Alias {index}"))
+            },
+        });
+    }
+    let wallet = Wallet {
+        active: count.saturating_sub(1).min(2),
+        identities,
+    };
+
+    PickerSession {
+        password: "testing".to_string(),
+        wallet,
+        keys,
+        npub,
+    }
 }
 
 // ── PickerState::new ──────────────────────────────────────────────────────────
@@ -215,6 +251,73 @@ fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
 }
 
 #[test]
+fn join_prompt_cursor_sits_after_arrow_gap() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::JoinPrompt;
+    state.join_input = "amber-river@play.example.com".to_string();
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains(&format!("Invite code <Q> <?> -> {}", state.join_input))
+    }));
+}
+
+#[test]
+fn wallet_add_popup_cursor_sits_one_space_after_label() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::WalletAddPrompt;
+    state.wallet_input = "nsec1stress".to_string();
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains(&format!("Nsec: {}", state.wallet_input))
+    }));
+}
+
+#[test]
+fn wallet_detail_popup_cursor_sits_one_space_after_label() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
+    state.alias_input = "Desk Alias".to_string();
+    let session = make_session(Some("Desk Alias"));
+    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains(&format!("Alias: {}", state.alias_input))
+    }));
+}
+
+#[test]
+fn wallet_delete_confirm_prompt_renders_under_popup_box() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::WalletList;
+    state.overlay = Some(PickerOverlay::WalletDeleteConfirm { index: 0, step: 1 });
+    let session = make_session(Some("Desk Alias"));
+    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
+
+    let title_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("DELETE IDENTITY"))
+        .expect("delete popup");
+    let prompt_row = (title_row + 1..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("WALLET COMMAND <-"))
+        .expect("wallet confirm prompt");
+
+    assert!(prompt_row > title_row);
+    assert!(
+        buffer
+            .plain_line(prompt_row)
+            .contains("Are you sure? Y/[N] ->")
+    );
+    assert!(!buffer.plain_line(6).contains("WALLET COMMAND <-"));
+}
+
+#[test]
 fn error_notice_dismisses_on_any_key() {
     let mut state = make_state(vec![]);
     state.overlay = Some(PickerOverlay::Notice {
@@ -239,6 +342,19 @@ fn overflowing_picker_renders_themed_scrollbar_gutter() {
         .collect();
     let state = make_state(games);
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert_eq!(buffer.row(4)[80].ch, '^');
+    assert_eq!(buffer.row(23)[80].ch, 'v');
+    assert!((5..23).any(|row| buffer.row(row)[80].ch == '#'));
+    assert_eq!(buffer.row(4)[80].style, classic::table_chrome_style());
+}
+
+#[test]
+fn overflowing_wallet_renders_themed_scrollbar_gutter() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::WalletList;
+    let session = make_session_with_identities(MAX_BODY_ROWS + 6, Some("Desk Alias"));
+    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
 
     assert_eq!(buffer.row(4)[80].ch, '^');
     assert_eq!(buffer.row(23)[80].ch, 'v');

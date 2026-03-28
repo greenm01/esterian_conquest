@@ -121,3 +121,13 @@ fn render_buffer_omits_password_footer_command_line() {
 
     assert!(!(0..buffer.height()).any(|row| { buffer.plain_line(row).contains("COMMANDS <-") }));
 }
+
+#[test]
+fn password_cursor_sits_one_space_after_label() {
+    let mut state = PasswordGateState::new(true, None);
+    state.input = "secret".to_string();
+    let buffer = render_buffer(&state, 82, 27);
+    assert!(
+        (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("Password: ******") })
+    );
+}

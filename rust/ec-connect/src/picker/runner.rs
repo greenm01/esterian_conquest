@@ -7,6 +7,7 @@ use ec_ui::paint::render_to_stdout;
 use ec_ui::session::TerminalSession;
 
 use crate::cache::{GameCache, load_cache};
+use crate::hard_quit::is_hard_quit_key;
 use crate::launcher::run_password_gate_in_session;
 
 use super::input::{
@@ -77,6 +78,10 @@ fn run_loop(
         };
         if key.kind != KeyEventKind::Press {
             continue;
+        }
+        if is_hard_quit_key(key) {
+            state.quit = true;
+            break;
         }
 
         if too_small {

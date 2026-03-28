@@ -6,6 +6,8 @@ use nostr_sdk::Keys;
 use crate::config::{ConnectConfig, load_config};
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
+#[cfg(debug_assertions)]
+use crate::dev_seed::{SeedUiOptions, seed_ui};
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
@@ -83,6 +85,24 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
             Some(other) => Err(format!("unknown id subcommand: {other}").into()),
         };
+    }
+
+    #[cfg(debug_assertions)]
+    if all_args.first().map(|s| s.as_str()) == Some("dev") {
+        let mut dev_args = all_args.into_iter().skip(1);
+        let sub = dev_args.next();
+        return match sub.as_deref() {
+            Some("seed-ui") => cmd_dev_seed_ui(dev_args),
+            Some(other) => Err(format!("unknown dev subcommand: {other}").into()),
+            None => Err(
+                "usage: ec-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]"
+                    .into(),
+            ),
+        };
+    }
+    #[cfg(not(debug_assertions))]
+    if all_args.first().map(|s| s.as_str()) == Some("dev") {
+        return Err("ec-connect dev is only available in debug builds".into());
     }
 
     // Extract --gate and --relay from all_args, leaving the first non-flag
@@ -422,11 +442,101 @@ fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Err
     }
 }
 
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone)]
+struct DevSeedCommand {
+    options: SeedUiOptions,
+    launch: bool,
+}
+
+#[cfg(debug_assertions)]
+fn cmd_dev_seed_ui(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
+    let command = parse_seed_ui_opts(args)?;
+    let summary = seed_ui(&command.options)?;
+    if command.launch {
+        let picker_session = load_picker_session(summary.password.clone())?;
+        let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+        let maps_root = resolve_maps_root(config.maps_dir.as_deref(), None);
+        let session = TerminalSession::enter_picker()?;
+        return run_picker_in_session(
+            picker_session,
+            String::new(),
+            maps_root,
+            config.effective_lock_timeout_minutes(),
+            session,
+        );
+    }
+    println!("Seeded ec-connect UI test data.");
+    println!("wallet: {}", summary.wallet_path.display());
+    println!("cache: {}", summary.cache_path.display());
+    println!("identities: {}", summary.identities);
+    println!("games: {}", summary.games);
+    println!("password: {}", summary.password);
+    println!("Run ec-connect normally to open the seeded picker.");
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn parse_seed_ui_opts(
+    args: impl Iterator<Item = String>,
+) -> Result<DevSeedCommand, Box<dyn std::error::Error>> {
+    let mut options = SeedUiOptions::default();
+    let mut launch = false;
+    let values: Vec<String> = args.collect();
+    let mut i = 0;
+    while i < values.len() {
+        match values[i].as_str() {
+            "--games" => {
+                i += 1;
+                options.games = values
+                    .get(i)
+                    .ok_or("--games requires a value")?
+                    .parse::<usize>()
+                    .map_err(|_| "invalid --games value")?;
+            }
+            "--identities" => {
+                i += 1;
+                options.identities = values
+                    .get(i)
+                    .ok_or("--identities requires a value")?
+                    .parse::<usize>()
+                    .map_err(|_| "invalid --identities value")?;
+            }
+            "--password" => {
+                i += 1;
+                options.password = values
+                    .get(i)
+                    .cloned()
+                    .ok_or("--password requires a value")?;
+            }
+            "--force" => {
+                options.force = true;
+            }
+            "--launch" => {
+                launch = true;
+            }
+            "--help" | "-h" | "help" => {
+                return Err(
+                    "usage: ec-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]"
+                        .into(),
+                );
+            }
+            other => return Err(format!("unexpected argument: {other}").into()),
+        }
+        i += 1;
+    }
+    Ok(DevSeedCommand { options, launch })
+}
+
 // ── Usage ─────────────────────────────────────────────────────────────────────
 
 fn print_usage() {
+    #[cfg(debug_assertions)]
+    let developer = "\nDeveloper:\n  ec-connect dev seed-ui               Seed fake wallet/cache data for UI testing\n  ec-connect dev seed-ui --launch      Seed fake data and open the picker immediately\n";
+    #[cfg(not(debug_assertions))]
+    let developer = "";
     println!(
-        "\
+        "{}\
 ec-connect — Esterian Conquest multiplayer client
 
 Usage:
@@ -447,6 +557,7 @@ Options:
   --relay <URL>    Override Nostr relay URL
   --maps-dir <PATH> Override where downloaded starmap bundles are stored
   --version        Print version
-  --help           Print this help"
+  --help           Print this help",
+        developer
     );
 }

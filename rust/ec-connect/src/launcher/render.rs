@@ -1,6 +1,7 @@
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
 
+use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::password::WALLET_WARNING_LINES;
 use crate::picker::layout::{Rect, centered_rect, draw_box};
 use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
@@ -58,24 +59,19 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
         }
     }
 
-    buffer.write_text_clipped(
+    let label = state.field_label();
+    let input_col = left + label.chars().count() + 1;
+    let inner_right = popup.x as usize + popup.width as usize - 2;
+    draw_labeled_input_row(
+        &mut buffer,
         row,
         left,
-        state.field_label(),
+        label,
+        &state.masked_input(),
+        input_width(inner_right, input_col),
         classic::status_label_style(),
+        classic::prompt_hotkey_style(),
     );
-    let label_width = state.field_label().chars().count() + 1;
-    let cursor_col = left
-        + label_width
-        + buffer.write_text_clipped(
-            row,
-            left + label_width,
-            &state.masked_input(),
-            classic::prompt_hotkey_style(),
-        );
-    if cursor_col < buffer.width() {
-        buffer.set_cursor(cursor_col as u16, row as u16);
-    }
 
     wrap_inner_buffer(&buffer, None)
 }

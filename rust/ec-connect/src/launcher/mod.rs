@@ -8,6 +8,7 @@ use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, poll, read};
 use ec_ui::paint::render_to_stdout;
 use ec_ui::session::TerminalSession;
 
+use crate::hard_quit::is_hard_quit_key;
 use crate::password::wallet_exists;
 use crate::wallet::io::wallet_path;
 use onboarding::run_first_identity_setup_in_session;
@@ -143,6 +144,9 @@ pub fn run_password_gate_in_session(
         };
         if key.kind != KeyEventKind::Press {
             continue;
+        }
+        if is_hard_quit_key(key) {
+            return Ok(None);
         }
 
         match key.code {

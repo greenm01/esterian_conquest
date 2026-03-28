@@ -6,6 +6,8 @@ use ec_ui::paint::render_to_stdout;
 use ec_ui::session::TerminalSession;
 use ec_ui::theme::classic;
 
+use crate::hard_quit::is_hard_quit_key;
+use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::picker::layout::{Rect, centered_rect, draw_box};
 use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
 use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
@@ -54,6 +56,9 @@ pub fn run_first_identity_setup_in_session(
         };
         if key.kind != KeyEventKind::Press {
             continue;
+        }
+        if is_hard_quit_key(key) {
+            return Ok(false);
         }
 
         match (&state.mode, key.code) {
@@ -157,7 +162,7 @@ fn render_setup_buffer(state: &SetupState, width: u16, height: u16) -> Playfield
         row += 1;
     }
 
-    match &state.mode {
+    let label = match &state.mode {
         SetupMode::AddOrImport => {
             buffer.write_text_clipped(
                 row,
@@ -166,28 +171,66 @@ fn render_setup_buffer(state: &SetupState, width: u16, height: u16) -> Playfield
                 classic::table_body_style(),
             );
             row += 2;
-            buffer.write_text_clipped(row, left, "Nsec:", classic::status_label_style());
+            "Nsec:"
         }
         SetupMode::Alias { npub, .. } => {
             buffer.write_text_clipped(row, left, "Identity created:", classic::table_body_style());
             row += 1;
             buffer.write_text_clipped(row, left, npub, classic::table_header_style());
             row += 2;
-            buffer.write_text_clipped(
-                row,
-                left,
-                "Alias (optional):",
-                classic::status_label_style(),
-            );
+            "Alias (optional):"
         }
-    }
-
-    let value_col = left + 17;
-    let cursor_col = value_col
-        + buffer.write_text_clipped(row, value_col, &state.input, classic::prompt_hotkey_style());
-    if cursor_col < buffer.width() {
-        buffer.set_cursor(cursor_col as u16, row as u16);
-    }
+    };
+    let input_col = left + label.chars().count() + 1;
+    let inner_right = popup.x as usize + popup.width as usize - 2;
+    draw_labeled_input_row(
+        &mut buffer,
+        row,
+        left,
+        label,
+        &state.input,
+        input_width(inner_right, input_col),
+        classic::status_label_style(),
+        classic::prompt_hotkey_style(),
+    );
 
     wrap_inner_buffer(&buffer, None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SetupMode, SetupState, render_setup_buffer};
+
+    #[test]
+    fn add_or_import_cursor_sits_one_space_after_label() {
+        let state = SetupState {
+            mode: SetupMode::AddOrImport,
+            input: "nsec1test".to_string(),
+            error_msg: None,
+        };
+        let buffer = render_setup_buffer(&state, 82, 27);
+        assert!((0..buffer.height()).any(|row| {
+            buffer
+                .plain_line(row)
+                .contains(&format!("Nsec: {}", state.input))
+        }));
+    }
+
+    #[test]
+    fn alias_cursor_sits_one_space_after_label() {
+        let state = SetupState {
+            mode: SetupMode::Alias {
+                index: 0,
+                npub: "npub1stress".to_string(),
+            },
+            input: "Desk Alias".to_string(),
+            error_msg: None,
+        };
+        let buffer = render_setup_buffer(&state, 82, 27);
+        assert!((0..buffer.height()).any(|row| {
+            buffer
+                .plain_line(row)
+                .contains(&format!("Alias (optional): {}", state.input))
+        }));
+    }
 }
