@@ -13,7 +13,9 @@ use sha2::{Digest, Sha256};
 
 use nostr_sdk::{Client, EventBuilder, Keys, Kind, Tag};
 
-use crate::roster::Roster;
+use ec_data::HostedSeatStatus;
+
+use crate::serve::catalog::HostedGame;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -25,9 +27,9 @@ use crate::roster::Roster;
 pub async fn publish_game_definition(
     client: &Client,
     gate_keys: &Keys,
-    roster: &Roster,
+    game: &HostedGame,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let tags = build_game_def_tags(roster)?;
+    let tags = build_game_def_tags(game)?;
 
     let event = EventBuilder::new(Kind::Custom(30500), "")
         .tags(tags)
@@ -51,20 +53,23 @@ pub async fn publish_game_definition(
 ///   `players` = total number of seats
 ///   `slot` = [seat-index, invite-code-hash, npub-or-empty, status] per seat
 pub fn build_game_def_tags(
-    roster: &Roster,
+    game: &HostedGame,
 ) -> Result<Vec<Tag>, Box<dyn std::error::Error + Send + Sync>> {
     let mut tags = Vec::new();
 
-    tags.push(Tag::parse(["d", &roster.id])?);
-    tags.push(Tag::parse(["name", &roster.name])?);
+    tags.push(Tag::parse(["d", &game.game_id])?);
+    tags.push(Tag::parse(["name", &game.game_name])?);
     tags.push(Tag::parse(["status", "active"])?);
-    tags.push(Tag::parse(["players", &roster.seats.len().to_string()])?);
+    tags.push(Tag::parse(["players", &game.seats.len().to_string()])?);
 
-    for seat in &roster.seats {
-        let code_hash = sha256_hex(&seat.code.to_lowercase());
-        let npub = seat.npub.as_deref().unwrap_or("");
-        let status = seat.status.as_str();
-        let seat_idx = seat.player.to_string();
+    for seat in &game.seats {
+        let code_hash = sha256_hex(&seat.invite_code.to_ascii_lowercase());
+        let npub = seat.player_npub.as_deref().unwrap_or("");
+        let status = match seat.status {
+            HostedSeatStatus::Pending => "pending",
+            HostedSeatStatus::Claimed => "claimed",
+        };
+        let seat_idx = seat.player_record_index_1_based.to_string();
         tags.push(Tag::parse(["slot", &seat_idx, &code_hash, npub, status])?);
     }
 

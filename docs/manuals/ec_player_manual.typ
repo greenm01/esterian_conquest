@@ -137,60 +137,71 @@ In profound respect and admiration to Bentley C. Griffith and his fellow pioneer
 
 #pagebreak()
 
-// ─── 2. Quick Start ─────────────────────────────────────────────────────
+// ─── 2. Connecting to a Game ────────────────────────────────────────────
 
-= Quick Start
+= Connecting to a Game
 
-=== How Most Players Join a Game Today
-
-Most new multiplayer campaigns now run through `ec-sysop nostr` and
-`ec-connect`. In practice, that means a sysop gives you an invite code and the
-host's Nostr public key, you run one join command, choose a wallet password
-the first time, and land in the game:
+Most campaigns are hosted via Nostr. To join, your sysop will provide an invite code, a host key, and a relay URL. You can join the campaign directly from your terminal:
 
 ```
-ec-connect --join amber-river@play.example.com --gate npub1...
+ec-connect --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
 ```
 
-On that first successful join, `ec-connect` also downloads your static
-starmap bundle so you have the printable text map and CSV sheets locally.
-After that, most players simply reconnect through `ec-connect` and play
-through the interactive client.
+This command handles your initial setup, including creating your wallet password and downloading the campaign's starmap bundle automatically. Once you have joined a game, you can simply run `ec-connect` on its own to manage your identities and reconnect to your campaigns through the interactive menu.
 
-=== ec-connect Setup and Reconnects
+== ec-connect Setup
 
-When you start `ec-connect` for the first time, it asks you to create a
-wallet password. That password protects your local EC wallet. If you lose it,
-you are locked out; there is no recovery path. After the password step,
-`ec-connect` creates or imports your first Nostr identity and lets you set an
-optional local alias so you can recognize it later.
+On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
+password for the machine. That password protects your local identities. If you
+lose it, the client cannot recover your wallet for you.
 
-The no-argument `ec-connect` shell keeps a local picker of games you have
-joined. Press `W` there to manage identities in the wallet, switch the active
-identity, import an existing `nsec`, or set local aliases. Those aliases are
-local only; they are not sent to the server and do not replace your empire
-name inside a game.
+Your sysop must give you three things for a hosted game:
 
-Press `R` in the picker to edit the default relay URL that `ec-connect` should
-use for new joins and for older cached games that do not yet remember a relay.
-Your sysop should tell you which relay to use. That relay may be self-hosted
-or a trusted public relay, but it is part of the normal hosted setup.
+- an invite code
+- the gate public key
+- the relay URL
 
-If you reconnect to an older cached game and `ec-connect` does not already
-know its relay, it opens a `GAME RELAY` popup before starting the handshake.
-Enter the relay URL your sysop told you to use. Once the reconnect succeeds,
-that game row remembers the relay for later.
+If you join from the picker later and a cached game is missing its relay,
+`ec-connect` will ask for it once and then save it on that game entry.
 
-If you are learning the interface, playing solo, or sharing one machine with
-friends, localhost and hotseat play remain fully supported. BBS door play
-still works too, but in the Rust edition it is best understood as legacy
-compatibility rather than the normal on-ramp for new players.
+== Wallet Management
+
+Press `W` in `ec-connect` to manage identities. The wallet can hold multiple
+identities, but only one is active at a time.
+
+- `N` creates a new identity or imports an existing `nsec`
+- `A` makes the selected identity active
+- `Enter` shows the full `npub` and `nsec`, and lets you edit the local alias
+- `D` deletes an identity after confirmation
+
+The wallet is local client state. It is not the server's player list.
+
+== Relay Configuration
+
+Press `R` in the main `ec-connect` menu to edit your default relay. This is
+the relay the client uses when a join command or an older cached game does not
+already supply an exact relay URL.
+
+After a successful join, `ec-connect` caches the exact relay for that game, so
+most reconnects do not need relay entry again.
+
+#pagebreak()
+
+// ─── 3. Quick Start: Gameplay Basics ──────────────────────────────────────
+
+= Quick Start: Gameplay Basics
+
+=== Your Objective
 
 Your objective is simple: become Emperor by dominating rivals or eliminating every serious threat.
 
 You begin with one planet at 100 production and four fleets --- two carrying an ETAC and cruiser for colonization, and two single-destroyer scouts. Set a tax rate around 50--65% on your homeworld, and use the revenue to build ships, armies, batteries, and starbases. Keep taxes low on new colonies so they develop quickly.
 
 Each round represents one year. You submit orders during the year, and maintenance resolves all empires simultaneously on an internal 52-week timeline. Reports are dated as `Stardate WK/YYYY` (week/year).
+
+=== Turn Progression
+
+There is no "End Turn" button in Esterian Conquest. Because all players submit orders simultaneously, the game does not wait for a player to explicitly pass the turn. Instead, you simply set your economy, assign fleet missions, and log off. The sysop (or an automated server schedule) determines when the "maintenance cycle" runs. When it does, the game engine processes everyone's orders, resolves battles, advances time by one year, and generates a new set of reports for you to read the next time you connect.
 
 === Assets You Can Build
 
@@ -249,7 +260,7 @@ Fleet missions fall into three categories. _One-shot_ missions cause the fleet t
 
 #pagebreak()
 
-// ─── 3. Forces at Your Command ──────────────────────────────────────────
+// ─── 4. Forces at Your Command ──────────────────────────────────────────
 
 = Forces at Your Command
 
@@ -298,7 +309,7 @@ Unlike ships, starbases are not assigned to fleets. They are commissioned indivi
 
 #pagebreak()
 
-// ─── 4. Economy and Taxes ───────────────────────────────────────────────
+// ─── 5. Economy and Taxes ───────────────────────────────────────────────
 
 = Economy and Taxes <economy>
 
@@ -362,7 +373,7 @@ When you capture an enemy planet by invasion or blitz, the factories need approx
 
 #pagebreak()
 
-// ─── 5. Combat Mechanics ────────────────────────────────────────────────
+// ─── 6. Combat Mechanics ────────────────────────────────────────────────
 
 = Combat Mechanics
 
@@ -402,7 +413,7 @@ See @missions for the detailed mechanics of bombardment, invasion, and blitz mis
 
 #pagebreak()
 
-// ─── 6. Missions and Orders ─────────────────────────────────────────────
+// ─── 7. Missions and Orders ─────────────────────────────────────────────
 
 = Missions and Orders <missions>
 
@@ -475,19 +486,17 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 #pagebreak()
 
-// ─── 7. Interface and Commands ──────────────────────────────────────────
+// ─── 8. Interface and Commands ──────────────────────────────────────────
 
 = Interface and Commands
 
 The game is organized around four primary menus. From the *Main Menu*, you access General Command (*G*) for autopilot, diplomacy, and reports; Planet Command (*P*) for economy and production; Fleet Command (*F*) for ship movement and missions; Information Database (*I*) to review known planet data; and View Starmap (*V*) for a graphic map of the galaxy.
 
-On local terminals, the Main Menu and First Time Menu also include
-*C>olor Theme*, which opens a theme picker. From there you can preview and
-apply the campaign's available themes, including a monochrome `Mono` option,
-without leaving the client. Your last choice is remembered for your empire in
-that campaign. In BBS door mode, the client instead keeps the classic
-*A>nsi color ON/OFF* toggle and starts from the campaign default theme for the
-session.
+=== Visual Themes
+
+The `ec-game` client is themable. Each campaign has a sysop-chosen default theme, and local-terminal players can open *C>olor Theme* from the Main Menu or First Time Menu to choose their own session theme from the campaign's available theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several other built-in palettes, plus a monochrome `Mono` option in the picker. You can preview and apply these without leaving the client, and your last local theme choice is remembered for your empire in that campaign.
+
+In BBS door mode, `ec-game` instead keeps the classic *A>nsi color ON/OFF* toggle and begins from the campaign default theme each session. If a saved custom theme later disappears or becomes invalid, `ec-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
 
 === General Command
 
@@ -517,7 +526,7 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 #pagebreak()
 
-// ─── 8. Strategy ────────────────────────────────────────────────────────
+// ─── 9. Strategy ────────────────────────────────────────────────────────
 
 = Strategy
 
@@ -535,7 +544,7 @@ In the endgame, fleet composition and denial matter more than raw numbers. Mix d
 
 #pagebreak()
 
-// ─── 9. Historical Context ────────────────────────────────────────────
+// ─── 10. Historical Context ────────────────────────────────────────────
 
 = Historical Context
 
@@ -553,18 +562,6 @@ and sysop tools cover the core campaign workflow, and the main work from here
 is broad playtesting, collecting feedback, and fixing the rough edges and bugs
 that only show up in live games while preserving the classic experience for
 Nostr hosts, local players, and legacy BBS sysops.
-
-*Visual Themes* \
-The `ec-game` client is themable. Each campaign has a sysop-chosen default
-theme, and local-terminal players can open *C>olor Theme* from the Main Menu
-or First Time Menu to choose their own session theme from the campaign's
-available theme files. The shipped bundle includes `tokyo_night`, `mag16`,
-and several other built-in palettes, plus a monochrome `Mono` option in the
-picker. Your last local theme choice is remembered for your empire in that
-campaign. In BBS door mode, `ec-game` instead keeps the classic
-*A>nsi color ON/OFF* toggle and begins from the campaign default theme each
-session. If a saved custom theme later disappears or becomes invalid,
-`ec-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
 
 #pagebreak()
 

@@ -223,6 +223,63 @@ impl GameConfig {
         Self::parse_kdl_str(&text)
     }
 
+    pub fn to_kdl_string(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&format!("game_name \"{}\"\n", kdl_escape(&self.game_name)));
+        if let Some(theme) = &self.theme {
+            out.push_str(&format!(
+                "theme \"{}\"\n",
+                kdl_escape(&theme.display().to_string())
+            ));
+        }
+        out.push_str(&format!("snoop {}\n", kdl_bool(self.snoop)));
+        out.push_str("session {\n");
+        out.push_str(&format!(
+            "    max_idle_minutes {}\n",
+            self.session.max_idle_minutes
+        ));
+        out.push_str(&format!(
+            "    minimum_time_minutes {}\n",
+            self.session.minimum_time_minutes
+        ));
+        out.push_str(&format!(
+            "    local_timeout {}\n",
+            kdl_bool(self.session.local_timeout)
+        ));
+        out.push_str(&format!(
+            "    remote_timeout {}\n",
+            kdl_bool(self.session.remote_timeout)
+        ));
+        out.push_str("}\n");
+        out.push_str("inactivity {\n");
+        out.push_str(&format!(
+            "    purge_after_turns {}\n",
+            self.inactivity.purge_after_turns
+        ));
+        out.push_str(&format!(
+            "    autopilot_after_turns {}\n",
+            self.inactivity.autopilot_after_turns
+        ));
+        out.push_str("}\n");
+        if !self.reservations.is_empty() {
+            out.push_str("reservations {\n");
+            for reservation in &self.reservations {
+                out.push_str(&format!(
+                    "    seat player={} alias=\"{}\"\n",
+                    reservation.player_record_index_1_based,
+                    kdl_escape(&reservation.alias),
+                ));
+            }
+            out.push_str("}\n");
+        }
+        out
+    }
+
+    pub fn save_kdl(&self, path: &std::path::Path) -> Result<(), GameConfigError> {
+        fs::write(path, self.to_kdl_string())?;
+        Ok(())
+    }
+
     /// Validate field ranges.
     pub fn validate(self) -> Result<Self, GameConfigError> {
         if self.session.max_idle_minutes > 120 {
@@ -363,4 +420,12 @@ fn opt_child_bool(parent: &kdl::KdlNode, name: &str) -> Result<Option<bool>, Gam
         .and_then(|v| v.as_bool())
         .ok_or_else(|| GameConfigError::Parse(format!("{name} requires a bool argument")))?;
     Ok(Some(value))
+}
+
+fn kdl_escape(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn kdl_bool(value: bool) -> &'static str {
+    if value { "#true" } else { "#false" }
 }

@@ -57,6 +57,14 @@ fn run_ec_sysop_output(args: &[&str], cwd: Option<&PathBuf>) -> std::process::Ou
     cmd.output().expect("ec-sysop should run")
 }
 
+fn hosted_seat_count(dir: &PathBuf) -> usize {
+    CampaignStore::open_default_in_dir(dir)
+        .expect("open campaign store")
+        .hosted_seats()
+        .expect("load hosted seats")
+        .len()
+}
+
 #[test]
 fn ec_sysop_new_game_initializes_default_campaign() {
     let target = unique_temp_dir("ec-sysop-new-game");
@@ -69,6 +77,7 @@ fn ec_sysop_new_game_initializes_default_campaign() {
     let game_data = CoreGameData::load(&target).expect("generated game should load");
     assert_eq!(game_data.player.records[0].owner_mode_raw(), 0);
     assert_eq!(game_data.planets.records[0].planet_name(), "Not Named Yet");
+    assert_eq!(hosted_seat_count(&target), 4);
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -237,6 +246,101 @@ fn ec_sysop_nostr_serve_accepts_config_and_identity_flags_together() {
     );
 
     let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn ec_sysop_nostr_seats_lists_sqlite_backed_hosted_seats() {
+    let target = unique_temp_dir("ec-sysop-nostr-seats");
+    run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+
+    let stdout = run_ec_sysop(&[
+        "nostr",
+        "seats",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stdout.contains("Game:"));
+    assert!(stdout.contains("Seat  1: pending"));
+    assert!(stdout.contains("Seat  4: pending"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn ec_sysop_nostr_reissue_rotates_one_hosted_seat() {
+    let target = unique_temp_dir("ec-sysop-nostr-reissue");
+    run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    let before = store.hosted_seats().expect("load seats");
+    let original_code = before[0].invite_code.clone();
+
+    let stdout = run_ec_sysop(&[
+        "nostr",
+        "reissue",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "1",
+    ]);
+    assert!(stdout.contains("Reissued invite for seat 1:"));
+
+    let after = store.hosted_seats().expect("reload seats");
+    assert_ne!(after[0].invite_code, original_code);
+    assert_eq!(after[0].status, ec_data::HostedSeatStatus::Pending);
+    assert!(after[0].player_npub.is_none());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn ec_sysop_nostr_migrate_roster_imports_legacy_file_and_archives_it() {
+    let target = unique_temp_dir("ec-sysop-nostr-migrate-roster");
+    run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+
+    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    store.replace_hosted_seats(&[]).expect("clear hosted seats");
+
+    let roster = ec_gate::roster::Roster {
+        id: target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("utf-8 basename")
+            .to_string(),
+        name: "Migrated Friday Night".to_string(),
+        seats: vec![
+            ec_gate::roster::Seat {
+                player: 1,
+                code: "velvet-mountain".to_string(),
+                status: ec_gate::roster::SeatStatus::Pending,
+                npub: None,
+            },
+            ec_gate::roster::Seat {
+                player: 2,
+                code: "copper-sunrise".to_string(),
+                status: ec_gate::roster::SeatStatus::Claimed,
+                npub: Some("npub1migrated000".to_string()),
+            },
+        ],
+    };
+    ec_gate::roster::save_roster(&target.join("roster.kdl"), &roster).expect("save legacy roster");
+
+    let stdout = run_ec_sysop(&[
+        "nostr",
+        "migrate-roster",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stdout.contains("Migrated hosted roster into"));
+    assert!(target.join("roster.kdl.legacy").exists());
+
+    let seats = store.hosted_seats().expect("reload seats");
+    assert_eq!(seats.len(), 2);
+    assert_eq!(seats[1].player_npub.as_deref(), Some("npub1migrated000"));
+
+    let config = ec_data::GameConfig::load_kdl(&target.join("config.kdl")).expect("load config");
+    assert_eq!(config.game_name, "Migrated Friday Night");
+
+    let _ = fs::remove_dir_all(&target);
 }
 
 #[test]

@@ -38,7 +38,7 @@ SSH directly. It works cross-platform on Linux, macOS, and Windows.
 **ec-sysop nostr** is the public sysop command surface for the VPS daemon.
 Internally, the current implementation lives in the `ec-gate` crate. It
 listens on one or more Nostr relays for session requests, validates player
-identity and invite codes, manages the player roster, and provisions
+identity and invite codes, manages hosted seat claims, and provisions
 ephemeral SSH keys that can only run `ec-game` for the correct player
 seat. It also handles invite code generation and lifecycle management.
 
@@ -92,7 +92,7 @@ Player                          Relay                 ec-gate              sshd 
 
 The flow is identical except step 2 omits the invite code and may include
 a `game-id` tag from the local cache. `ec-gate` recognizes the player's
-npub from the roster and provisions a session for their existing seat. No
+npub from the hosted-seat data and provisions a session for their existing seat. No
 invite code is needed after the first join.
 
 ### Failed Session
@@ -206,14 +206,14 @@ their code on first connect.
 ## Multi-Game Support
 
 A single `ec-gate` instance can serve multiple games. Each game directory
-has its own `roster.kdl` with its own invite codes and a unique game ID
+has its own hosted-seat rows in `ecgame.db` with its own invite codes and a unique game ID
 slug derived from the directory name.
 
 ### One Identity, Multiple Games
 
 A player's npub can be in multiple games on the same server. This is the
 common case for a group of friends running several concurrent campaigns.
-Each game has its own roster with its own seat binding for the npub.
+Each game has its own hosted-seat binding for the npub.
 
 ### Game Selection
 
@@ -223,7 +223,7 @@ When a returning player connects:
   session), it includes a `game-id` tag in the SessionRequest. `ec-gate`
   uses this to route directly to the correct game.
 - If the player is in only one game on the server, no disambiguation is
-  needed. `ec-gate` finds the single roster match and provisions the
+  needed. `ec-gate` finds the single hosted-game match and provisions the
   session.
 - If the player is in multiple games and no `game-id` was provided,
   `ec-gate` returns a `multiple_games` error with a game list.
@@ -258,7 +258,8 @@ platform-appropriate equivalents on Windows and macOS):
 | Maps | `~/.local/share/ec/maps/` | Downloaded static starmap bundles |
 
 Config is user-edited (server bookmarks, relay preference). Wallet and
-cache are managed by `ec-connect` and should not be hand-edited.
+cache are managed by `ec-connect` and should not be hand-edited. They are
+local client state, not authoritative hosted game state.
 
 ## Coexistence with Other Auth Paths
 
@@ -284,7 +285,7 @@ relay-mediated turn submission and state sync. In that model:
 - Game state and turn results flow back as encrypted per-player events
 - `ec-gate` evolves into (or is replaced by) a headless game daemon that
   runs `ec-maint` on a schedule and publishes results to relays
-- The wallet, invite code system, player roster, and local game cache
+- The wallet, invite code system, hosted seat data, and local game cache
   carry forward directly from this spec
 
 This spec is designed so that the identity infrastructure does not need
@@ -308,4 +309,4 @@ rust/
 `ec-connect` and `ec-gate` share a common dependency on `nostr-sdk` for
 Nostr protocol handling. They do not depend on `ec-data`, `ec-engine`,
 or any other game crate. The public integration point is `ec-sysop`,
-which owns the `nostr` command surface and related roster management.
+which owns the `nostr` command surface and related hosted-seat management.

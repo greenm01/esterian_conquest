@@ -253,3 +253,30 @@ fn load_kdl_returns_io_error_for_missing_file() {
         "expected IO error, got: {err}"
     );
 }
+
+#[test]
+fn save_kdl_round_trips_game_name_and_reservations() {
+    let dir = std::env::temp_dir().join(format!(
+        "ec-game-config-save-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time ok")
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    let path = dir.join("config.kdl");
+    let config = GameConfig {
+        game_name: "Battle for Vega".to_string(),
+        reservations: vec![ec_data::SeatReservation {
+            player_record_index_1_based: 2,
+            alias: "NightShade".to_string(),
+        }],
+        ..GameConfig::default()
+    };
+
+    config.save_kdl(&path).expect("save config");
+    let loaded = GameConfig::load_kdl(&path).expect("reload config");
+    assert_eq!(loaded.game_name, "Battle for Vega");
+    assert_eq!(loaded.reservations, config.reservations);
+}

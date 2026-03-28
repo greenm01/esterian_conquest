@@ -2,7 +2,7 @@ use ec_compat::{
     ensure_classic_auxiliary_files, import_directory_snapshot_with_seed,
     write_default_database_dat_for_game_data,
 };
-use ec_data::{CampaignStore, generate_campaign_seed};
+use ec_data::{CampaignStore, DEFAULT_GAME_CONFIG_KDL, generate_campaign_seed};
 use ec_engine::build_seeded_new_game;
 use std::fs;
 use std::path::Path;
@@ -37,6 +37,7 @@ pub(crate) fn init_new_game_with_seed(
 
     fs::create_dir_all(target)?;
     data.save(target)?;
+    ensure_default_game_config(target)?;
     write_default_database_dat_for_game_data(target, &data)?;
     ensure_classic_auxiliary_files(target)?;
 
@@ -66,6 +67,7 @@ pub(crate) fn init_new_game_from_config(
 
     fs::create_dir_all(target)?;
     data.save(target)?;
+    ensure_default_game_config(target)?;
     write_default_database_dat_for_game_data(target, &data)?;
     ensure_classic_auxiliary_files(target)?;
 
@@ -78,4 +80,12 @@ pub(crate) fn init_new_game_from_config(
 
 fn runtime_seed() -> u64 {
     generate_campaign_seed()
+}
+
+fn ensure_default_game_config(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = target.join("config.kdl");
+    if !config_path.exists() {
+        fs::write(&config_path, DEFAULT_GAME_CONFIG_KDL)?;
+    }
+    Ok(())
 }

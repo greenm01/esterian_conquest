@@ -123,36 +123,10 @@ remains historical reference material and an ambiguity fallback for classic
 operator intent, not a higher-authority replacement for the current Rust
 manuals.
 
-== Terminology
 
-/ game directory: The directory containing `ecgame.db` and related files for a
-  single running game instance. Passed to all tools via `--dir`.
+// ─── 2. Getting Started: Hosting a Campaign ───────────────────────────────────
 
-/ `ec-sysop`: The public Rust command-line sysop tool for campaign creation
-  maintenance, and Nostr hosting.
-
-/ `ec-connect`: The beta-quality player-side connection client for the
-  recommended hosted flow. It manages the player's Nostr identity, joins
-  games by invite code, downloads the static starmap bundle on first join,
-  and opens the SSH-backed `ec-game` session.
-
-/ `ec-game`: The Rust TUI player client.
-
-/ `ecgame.db`: The SQLite database that is the runtime source of truth for the
-  Rust engine.
-
-/ `themes/`: Subdirectory containing theme KDL files. `themes/tokyo_night.kdl`
-  is the default and is bootstrapped on first run alongside the other bundled
-  themes. Sysops can add their own theme files here.
-
-/ `config.kdl`: The sysop-managed runtime configuration file in the game
-  directory. Bootstrapped from the bundled default on first run. Controls
-  snoop mode, session timeouts, inactivity thresholds, game name, and theme
-  path. Changes take effect on the next `ec-game` startup.
-
-// ─── 2. Installation ──────────────────────────────────────────────────────────
-
-= Installation and Requirements
+= Getting Started: Hosting a Campaign
 
 == System Requirements
 
@@ -190,10 +164,6 @@ looks like:
 
 All tools take `--dir /path/to/mygame` to locate the game.
 
-// ─── 3. Game Setup ────────────────────────────────────────────────────────────
-
-= Game Setup
-
 == Initializing a New Game
 
 Create a new game with `ec-sysop new-game`:
@@ -219,9 +189,7 @@ The supported public creation flags are:
   [`--seed`], [integer], [Optional campaign seed for reproducible map generation.],
 )
 
-// ─── 4. Recommended Hosted Play ───────────────────────────────────────────────
-
-= Recommended Hosted Play
+== Recommended Hosted Play
 
 For new public campaigns, the recommended deployment path is `ec-sysop nostr`
 plus `ec-connect`. In that model, the sysop runs the normal Rust engine on a
@@ -240,9 +208,7 @@ ec-sysop nostr serve
 ```
 
 After the daemon is running, give each player an invite code, the daemon's
-public key, and the relay URL they should use. That relay may be one you host
-yourself or a trusted public relay, but it should be treated as part of the
-normal hosted setup contract. The player-facing join command is:
+public key, and the relay URL they should use. The client will automatically use the default relay or prompt them if it's their first time connecting to an unknown host. The player-facing join command is:
 
 ```
 ec-connect --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
@@ -255,7 +221,11 @@ opens the SSH-backed `ec-game` session. Returning players reconnect through
 `ec-connect` caches the exact relay per game, so most later reconnects do not
 need the relay entered again.
 
-// ─── 5. Game Directory Structure ─────────────────────────────────────────────
+Hosted seat claims are stored in `ecgame.db`. That SQLite state is the
+authority for invite codes, claim status, and bound player `npub`s. Legacy
+`roster.kdl` files are migration input only.
+
+// ─── 3. Game Directory Structure ─────────────────────────────────────────────
 
 = Game Directory Structure
 
@@ -263,6 +233,7 @@ need the relay entered again.
 
 / `ecgame.db`: The SQLite runtime database. All game state lives here. Do not
   edit manually; use `ec-sysop` for normal operator actions.
+  Hosted Nostr seat claims also live here.
 
 / `themes/`: Theme KDL files for `ec-game`. Bootstrapped on first run with
   `themes/tokyo_night.kdl` (the default) plus the other bundled alternates.
@@ -280,7 +251,7 @@ need the relay entered again.
 / `queue/`: Default directory for turn order queue files. Can be overridden
   with `--queue-dir` or the `EC_CLIENT_QUEUE_DIR` environment variable.
 
-// ─── 6. Configuration ─────────────────────────────────────────────────────────
+// ─── 4. Configuration ─────────────────────────────────────────────────────────
 
 = Configuration <configuration>
 
@@ -391,7 +362,7 @@ reservations {
   [`TERM`], [Terminal type. A value containing `256color` enables 256-color mode.],
 )
 
-// ─── 6. Theming ───────────────────────────────────────────────────────────────
+// ─── 5. Theming ───────────────────────────────────────────────────────────────
 
 = Theming <theming>
 
@@ -575,7 +546,7 @@ any other local player theme preference. In BBS door mode, monochrome output
 still comes from the separate `A>nsi color ON/OFF` toggle rather than the
 theme picker.
 
-// ─── 7. SSH Access ────────────────────────────────────────────────────────────
+// ─── 6. SSH Access ────────────────────────────────────────────────────────────
 
 = SSH Access
 
@@ -605,7 +576,7 @@ UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
 Use `--encoding cp437` only if you are proxying through a BBS or a CP437
 terminal emulator over SSH.
 
-// ─── 8. Local / Direct Play ───────────────────────────────────────────────────
+// ─── 7. Local and Direct Play ─────────────────────────────────────────────────
 
 = Local and Direct Play
 
@@ -620,7 +591,7 @@ Color mode and encoding default to `auto` / `utf8`, which is correct for
 modern terminal emulators. The client detects `COLORTERM` and `TERM`
 automatically.
 
-// ─── 9. Legacy BBS Door Setup ─────────────────────────────────────────────────
+// ─── 8. Legacy BBS Door Setup ─────────────────────────────────────────────────
 
 = Legacy BBS Door Setup
 
@@ -720,7 +691,7 @@ In BBS door mode, the reliable control contract is:
 
 Do not rely on arrows or `PgUp` / `PgDn` for normal play through BBS hosts.
 
-// ─── 10. File-Based Turn Submission ──────────────────────────────────────────
+// ─── 9. File-Based Turn Submission ──────────────────────────────────────────
 
 = File-Based Turn Submission
 
@@ -764,7 +735,7 @@ message to=2 subject="Border" body="Watching the north lane."
 
 For the full node reference and schema, see `docs/sysop/turn-kdl.md`.
 
-// ─── 11. Turn Processing and Maintenance ─────────────────────────────────────
+// ─── 10. Turn Processing and Maintenance ─────────────────────────────────────
 
 = Turn Processing and Maintenance
 
@@ -787,7 +758,7 @@ Do not treat KDL config as a scheduler. `config.kdl` owns runtime policy such
 as theming, snoop, and inactivity thresholds. Maintenance timing belongs to
 the host.
 
-// ─── 12. Player Management ────────────────────────────────────────────────────
+// ─── 11. Player Management ────────────────────────────────────────────────────
 
 = Player Management
 
@@ -834,7 +805,7 @@ routes the caller to the intended slot. The usual first-time join flow still
 claims an open empire, and that first successful join records the caller alias
 into the player record for later logins.
 
-// ─── 13. Classic Compatibility ────────────────────────────────────────────────
+// ─── 12. Classic Compatibility ────────────────────────────────────────────────
 
 = Classic Compatibility
 
@@ -844,6 +815,35 @@ The Rust-native public deployment path is `ec-sysop nostr`, `ec-connect`, and
 Classic `.DAT` import/export, oracle runs against the original binaries, and
 other preservation workflows still exist, but they belong to the internal
 `ec-cli` developer/compatibility surface rather than the normal sysop manual.
+
+// ─── 13. Terminology ──────────────────────────────────────────────────────────
+
+= Terminology
+
+/ game directory: The directory containing `ecgame.db` and related files for a
+  single running game instance. Passed to all tools via `--dir`.
+
+/ `ec-sysop`: The public Rust command-line sysop tool for campaign creation
+  maintenance, and Nostr hosting.
+
+/ `ec-connect`: The beta-quality player-side connection client for the
+  recommended hosted flow. It manages the player's Nostr identity, joins
+  games by invite code, downloads the static starmap bundle on first join,
+  and opens the SSH-backed `ec-game` session.
+
+/ `ec-game`: The Rust TUI player client.
+
+/ `ecgame.db`: The SQLite database that is the runtime source of truth for the
+  Rust engine.
+
+/ `themes/`: Subdirectory containing theme KDL files. `themes/tokyo_night.kdl`
+  is the default and is bootstrapped on first run alongside the other bundled
+  themes. Sysops can add their own theme files here.
+
+/ `config.kdl`: The sysop-managed runtime configuration file in the game
+  directory. Bootstrapped from the bundled default on first run. Controls
+  snoop mode, session timeouts, inactivity thresholds, game name, and theme
+  path. Changes take effect on the next `ec-game` startup.
 
 // ─── 14. CLI Reference ────────────────────────────────────────────────────────
 
@@ -861,6 +861,9 @@ ec-sysop <subcommand> [options]
   [`new-game`], [Create a fresh campaign directory. Public flags: `--players` and `--seed`.],
   [`nostr init`], [Initialize the Nostr-hosting identity and config for the recommended public multiplayer path.],
   [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `ec-game` sessions.],
+  [`nostr seats`], [List the hosted seat state stored in `ecgame.db` for one game directory.],
+  [`nostr reissue`], [Generate a fresh invite code for one hosted seat and clear its old `npub` claim.],
+  [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ecgame.db`, copy its display name into `config.kdl`, and archive the old roster file.],
   [`maint`], [Run one or more maintenance turns against `ecgame.db`.],
 )
 

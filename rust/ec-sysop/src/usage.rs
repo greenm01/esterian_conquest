@@ -12,6 +12,15 @@ pub fn print_usage() {
     println!(
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
     );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr migrate-roster --dir <game_dir>"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N>"
+    );
 }
 
 pub fn print_new_game_usage() {
@@ -36,6 +45,15 @@ pub fn print_nostr_usage() {
     println!(
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
     );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr migrate-roster --dir <game_dir>"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N>"
+    );
 }
 
 pub fn print_nostr_init_usage() {
@@ -49,5 +67,26 @@ pub fn print_nostr_serve_usage() {
     println!("Usage:");
     println!(
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr serve [--config <path>] [--identity <path>]"
+    );
+}
+
+pub fn print_nostr_migrate_roster_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr migrate-roster --dir <game_dir>"
+    );
+}
+
+pub fn print_nostr_seats_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
+    );
+}
+
+pub fn print_nostr_reissue_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N>"
     );
 }

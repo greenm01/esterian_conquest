@@ -60,6 +60,7 @@ fn seat(game_id: &str, player: usize) -> ResolvedSeat {
         game_name: "Test Game".to_string(),
         player,
         player_npub: "npub1test000".to_string(),
+        first_claim: false,
     }
 }
 

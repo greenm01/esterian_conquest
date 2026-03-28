@@ -1,3 +1,4 @@
+mod nostr;
 mod usage;
 
 use std::env;
@@ -43,7 +44,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 return Err("missing target_dir for new-game".into());
             }
             tracing::info!(target_dir = %rest[0], "running ec-sysop new-game");
-            ec_cli::run_sysop_cli("ec-sysop", std::iter::once(cmd).chain(rest))
+            let target_dir = resolve_repo_path(&rest[0]);
+            ec_cli::run_sysop_cli("ec-sysop", std::iter::once(cmd).chain(rest))?;
+            nostr::initialize_hosted_seats_for_new_game(&target_dir)
         }
         "maint" => {
             init_logging(&parsed, false)?;
@@ -63,6 +66,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             usage::print_usage();
             Err(format!("unknown subcommand: {cmd}").into())
         }
+    }
+}
+
+fn resolve_repo_path(arg: &str) -> PathBuf {
+    let path = PathBuf::from(arg);
+    if path.is_absolute() {
+        path
+    } else if path.exists() {
+        path
+    } else {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(path)
     }
 }
 
@@ -137,6 +153,39 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                 "running ec-sysop nostr serve"
             );
             ec_gate::serve_from_paths(config_path, identity_path)
+        }
+        "migrate-roster" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_migrate_roster_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let dir = nostr::parse_required_dir_flag(&rest)?;
+            tracing::info!(dir = %dir.display(), "running ec-sysop nostr migrate-roster");
+            println!("{}", nostr::migrate_roster(&dir)?);
+            Ok(())
+        }
+        "seats" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_seats_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let dir = nostr::parse_required_dir_flag(&rest)?;
+            tracing::info!(dir = %dir.display(), "running ec-sysop nostr seats");
+            print!("{}", nostr::render_hosted_seats(&dir)?);
+            Ok(())
+        }
+        "reissue" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_reissue_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let (dir, player) = nostr::parse_dir_and_player_flags(&rest)?;
+            tracing::info!(dir = %dir.display(), player, "running ec-sysop nostr reissue");
+            println!("{}", nostr::reissue_hosted_seat(&dir, player)?);
+            Ok(())
         }
         _ => {
             usage::print_nostr_usage();

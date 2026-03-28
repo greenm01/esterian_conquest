@@ -90,8 +90,8 @@ pub use starmap::{
     PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
 };
 pub use storage::{
-    CampaignRuntimeState, CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME, IntelTier,
-    PlanetIntelSnapshot,
+    CampaignRuntimeState, CampaignStore, CampaignStoreError, ClaimHostedSeatError,
+    DEFAULT_CAMPAIGN_DB_NAME, HostedSeat, HostedSeatStatus, IntelTier, PlanetIntelSnapshot,
 };
 pub use support::{ParseError, decode_real48, encode_real48};
 pub use turns::{

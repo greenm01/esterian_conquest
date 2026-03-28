@@ -5,6 +5,7 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
 mod hex;
+mod hosted_seats;
 mod intel;
 mod mail;
 mod metadata;
@@ -13,8 +14,10 @@ mod report_blocks;
 mod runtime;
 mod snapshot_core;
 
+pub use hosted_seats::{ClaimHostedSeatError, HostedSeat, HostedSeatStatus};
+
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 4;
+const RUNTIME_SCHEMA_VERSION: i64 = 5;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -34,6 +37,7 @@ pub enum CampaignStoreError {
     Sql(rusqlite::Error),
     Parse(crate::ParseError),
     Directory(crate::GameDirectoryError),
+    InvalidState(String),
     SchemaVersionMismatch {
         expected: i64,
         found: Option<i64>,
@@ -139,6 +143,7 @@ impl std::fmt::Display for CampaignStoreError {
             Self::Sql(source) => write!(f, "{source}"),
             Self::Parse(source) => write!(f, "{source}"),
             Self::Directory(source) => write!(f, "{source}"),
+            Self::InvalidState(message) => write!(f, "{message}"),
             Self::SchemaVersionMismatch { expected, found } => match found {
                 Some(found) => write!(
                     f,
@@ -160,6 +165,7 @@ impl std::error::Error for CampaignStoreError {
             Self::Sql(source) => Some(source),
             Self::Parse(source) => Some(source),
             Self::Directory(source) => Some(source),
+            Self::InvalidState(_) => None,
             Self::SchemaVersionMismatch { .. } => None,
         }
     }
@@ -278,6 +284,16 @@ impl CampaignStore {
              CREATE TABLE IF NOT EXISTS player_client_preferences (
                  player_record_index INTEGER PRIMARY KEY,
                  theme_key TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS hosted_player_seats (
+                 player_record_index INTEGER PRIMARY KEY,
+                 invite_code TEXT NOT NULL UNIQUE,
+                 claim_status TEXT NOT NULL,
+                 player_npub TEXT,
+                 CHECK (
+                     (claim_status = 'pending' AND player_npub IS NULL)
+                     OR (claim_status = 'claimed' AND player_npub IS NOT NULL)
+                 )
              );
              CREATE TABLE IF NOT EXISTS planet_intel (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
@@ -504,6 +520,9 @@ impl CampaignStore {
         let schema_version = metadata::load_runtime_schema_version(&mut conn)?;
         match schema_version {
             Some(found) if found == RUNTIME_SCHEMA_VERSION => {}
+            Some(4) => {
+                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
+            }
             Some(found) => {
                 return Err(CampaignStoreError::SchemaVersionMismatch {
                     expected: RUNTIME_SCHEMA_VERSION,

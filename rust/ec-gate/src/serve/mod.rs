@@ -8,6 +8,7 @@
 //! or 30506 MapError.  A background reaper task periodically removes expired
 //! keys.
 
+pub mod catalog;
 pub mod game_def;
 pub mod map;
 pub mod provision;
@@ -16,7 +17,7 @@ pub mod response;
 pub mod routing;
 
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use ec_data::{CoreGameData, build_player_map_export_data};
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
@@ -24,9 +25,6 @@ use tokio::time::{Duration, interval};
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::config::GateConfig;
-use crate::roster::Roster;
-use crate::roster::io::load_roster;
-
 /// Run the `ec-gate serve` event loop.
 ///
 /// Connects to `config.relay`, loads all configured game rosters into memory,
@@ -43,24 +41,19 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
     info!(relay = %config.relay, "connecting to relay");
     info!(npub = %npub, "daemon pubkey");
 
-    // Load all rosters up front.
     let game_dirs: Vec<_> = config.games.clone();
-    let mut rosters: Vec<Roster> = Vec::new();
-    for dir in &game_dirs {
-        let roster_path = dir.join("roster.kdl");
-        match load_roster(&roster_path) {
-            Ok(r) => {
-                info!(game_id = %r.id, game_name = %r.name, "loaded roster");
-                rosters.push(r);
-            }
-            Err(e) => {
-                warn!(path = %roster_path.display(), error = %e, "cannot load roster");
-            }
-        }
-    }
-
-    let shared_rosters = Arc::new(Mutex::new(rosters));
     let shared_dirs: Arc<Vec<_>> = Arc::new(game_dirs);
+    let startup_games = match catalog::load_hosted_games(shared_dirs.as_slice()) {
+        Ok(games) => games,
+        Err(err) => return Err(err.into()),
+    };
+    for entry in &startup_games {
+        info!(
+            game_id = %entry.game.game_id,
+            game_name = %entry.game.game_name,
+            "loaded hosted game"
+        );
+    }
 
     let client = Client::new(keys.clone());
     client
@@ -83,16 +76,15 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
 
     // Publish 30500 GameDefinition for each loaded game on startup.
     {
-        let rosters = shared_rosters.lock().unwrap();
-        for roster in rosters.iter() {
-            match game_def::publish_game_definition(&client, keys, roster).await {
+        for entry in &startup_games {
+            match game_def::publish_game_definition(&client, keys, &entry.game).await {
                 Ok(event_id) => info!(
-                    game_id = %roster.id,
+                    game_id = %entry.game.game_id,
                     event_id = %event_id,
                     "published 30500 GameDefinition"
                 ),
                 Err(e) => warn!(
-                    game_id = %roster.id,
+                    game_id = %entry.game.game_id,
                     error = %e,
                     "failed to publish 30500 GameDefinition"
                 ),
@@ -120,7 +112,6 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
 
     client
         .handle_notifications(|notification| {
-            let shared_rosters = Arc::clone(&shared_rosters);
             let shared_dirs = Arc::clone(&shared_dirs);
             let shared_keys = Arc::clone(&shared_keys);
             let shared_config = Arc::clone(&shared_config);
@@ -137,7 +128,6 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                                 );
                                 handle_request(
                                     req,
-                                    shared_rosters,
                                     shared_dirs,
                                     shared_keys,
                                     shared_config,
@@ -158,15 +148,9 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                                     nonce = %req.nonce,
                                     game_id = %req.game_id,
                                 );
-                                handle_map_request(
-                                    req,
-                                    shared_rosters,
-                                    shared_dirs,
-                                    shared_keys,
-                                    client_clone,
-                                )
-                                .instrument(span)
-                                .await;
+                                handle_map_request(req, shared_dirs, shared_keys, client_clone)
+                                    .instrument(span)
+                                    .await;
                             }
                             Err(e) => {
                                 debug!(error = %e, "rejected map event");
@@ -187,7 +171,6 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
 
 async fn handle_map_request(
     req: map::MapRequest,
-    shared_rosters: Arc<Mutex<Vec<Roster>>>,
     shared_dirs: Arc<Vec<std::path::PathBuf>>,
     shared_keys: Arc<Keys>,
     client: Client,
@@ -200,20 +183,36 @@ async fn handle_map_request(
         }
     };
 
-    let (seat, game_dir) = {
-        let rosters = shared_rosters.lock().unwrap();
-        match routing::resolve_player_in_game(&req.player_pubkey, &req.game_id, &rosters) {
+    let loaded_games = match catalog::load_hosted_games(shared_dirs.as_slice()) {
+        Ok(games) => games,
+        Err(err) => {
+            warn!(error = %err, "cannot load hosted games for map request");
+            if let Err(pub_err) = map::publish_map_error(
+                &client,
+                &shared_keys,
+                &player_pubkey,
+                &req.nonce,
+                "map_unavailable",
+                "The starmap bundle is not available right now.",
+            )
+            .await
+            {
+                error!(error = %pub_err, "failed to publish 30506 MapError");
+            }
+            return;
+        }
+    };
+    let (seat, game_dir) =
+        match routing::resolve_player_in_game(&req.player_pubkey, &req.game_id, &loaded_games) {
             Ok(seat) => {
-                let game_dir = rosters
+                let game_dir = loaded_games
                     .iter()
-                    .position(|roster| roster.id == seat.game_id)
-                    .and_then(|idx| shared_dirs.get(idx))
-                    .cloned();
+                    .find(|entry| entry.game.game_id == seat.game_id)
+                    .map(|entry| entry.dir.clone());
                 (Ok(seat), game_dir)
             }
             Err(err) => (Err(err), None),
-        }
-    };
+        };
 
     let seat = match seat {
         Ok(seat) => seat,
@@ -333,7 +332,6 @@ async fn handle_map_request(
 /// Process one validated session request inside its tracing span.
 async fn handle_request(
     req: request::SessionRequest,
-    shared_rosters: Arc<Mutex<Vec<Roster>>>,
     shared_dirs: Arc<Vec<std::path::PathBuf>>,
     shared_keys: Arc<Keys>,
     shared_config: Arc<GateConfig>,
@@ -348,32 +346,100 @@ async fn handle_request(
         }
     };
 
-    let dirs_ref: Vec<&Path> = shared_dirs.iter().map(|p| p.as_path()).collect();
-    let (decision, game_dir) = {
-        let mut rosters = shared_rosters.lock().unwrap();
-        let d = routing::route(&req, &mut rosters, &dirs_ref);
-        // Capture the game dir that matched, for provisioning.
-        let gd = if let routing::RoutingDecision::Provisioned(ref seat) = d {
-            rosters
-                .iter()
-                .position(|r| r.id == seat.game_id)
-                .and_then(|i| shared_dirs.get(i))
-                .cloned()
-        } else {
-            None
-        };
-        (d, gd)
+    let loaded_games = match catalog::load_hosted_games(shared_dirs.as_slice()) {
+        Ok(games) => games,
+        Err(err) => {
+            error!(error = %err, "cannot load hosted games");
+            return;
+        }
     };
+    let decision = routing::route(&req, &loaded_games);
 
     match decision {
         routing::RoutingDecision::Provisioned(seat) => {
-            let game_dir = match game_dir {
+            let game_dir = match loaded_games
+                .iter()
+                .find(|entry| entry.game.game_id == seat.game_id)
+                .map(|entry| entry.dir.clone())
+            {
                 Some(d) => d,
                 None => {
                     error!(game_id = %seat.game_id, "no game dir for provisioned seat");
                     return;
                 }
             };
+            if seat.first_claim {
+                let Some(invite_code) = req.invite_code.as_deref() else {
+                    error!(game_id = %seat.game_id, "first claim missing invite code");
+                    return;
+                };
+                let store = match ec_data::CampaignStore::open_default_in_dir(&game_dir) {
+                    Ok(store) => store,
+                    Err(err) => {
+                        error!(game_id = %seat.game_id, error = %err, "cannot open campaign store for claim");
+                        return;
+                    }
+                };
+                match store.claim_hosted_seat(invite_code, &req.player_pubkey) {
+                    Ok(_) => match catalog::load_hosted_game(&game_dir) {
+                        Ok(entry) => {
+                            match game_def::publish_game_definition(
+                                &client,
+                                &shared_keys,
+                                &entry.game,
+                            )
+                            .await
+                            {
+                                Ok(event_id) => info!(
+                                    game_id = %entry.game.game_id,
+                                    event_id = %event_id,
+                                    "published updated 30500 GameDefinition"
+                                ),
+                                Err(err) => warn!(
+                                    game_id = %seat.game_id,
+                                    error = %err,
+                                    "failed to publish updated 30500 GameDefinition"
+                                ),
+                            }
+                        }
+                        Err(err) => {
+                            warn!(game_id = %seat.game_id, error = %err, "cannot reload hosted game after claim")
+                        }
+                    },
+                    Err(ec_data::ClaimHostedSeatError::InvalidCode) => {
+                        if let Err(err) = response::publish_session_error(
+                            &client,
+                            &shared_keys,
+                            &player_pubkey,
+                            &req.nonce,
+                            &routing::RouteError::InvalidCode,
+                        )
+                        .await
+                        {
+                            error!(error = %err, "failed to publish 30503 SessionError");
+                        }
+                        return;
+                    }
+                    Err(ec_data::ClaimHostedSeatError::CodeClaimed) => {
+                        if let Err(err) = response::publish_session_error(
+                            &client,
+                            &shared_keys,
+                            &player_pubkey,
+                            &req.nonce,
+                            &routing::RouteError::CodeClaimed,
+                        )
+                        .await
+                        {
+                            error!(error = %err, "failed to publish 30503 SessionError");
+                        }
+                        return;
+                    }
+                    Err(ec_data::ClaimHostedSeatError::Store(err)) => {
+                        error!(game_id = %seat.game_id, error = %err, "claim failed");
+                        return;
+                    }
+                }
+            }
 
             match provision::provision_key(&shared_config, &seat, &req.ssh_pubkey, &game_dir) {
                 Ok(provisioned) => {

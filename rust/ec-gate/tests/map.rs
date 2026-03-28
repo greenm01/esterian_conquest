@@ -28,6 +28,7 @@ fn build_map_bundle_payload_compresses_each_file() {
         game_name: "Friday Night EC".into(),
         player: 2,
         player_npub: "player".into(),
+        first_claim: false,
     };
     let export = PlayerMapExportData {
         ascii_export: "STAR MAP".into(),

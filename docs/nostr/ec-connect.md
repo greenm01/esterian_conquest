@@ -18,7 +18,7 @@ handshake, and terminal bridge.
 ### First Launch
 
 ```
-$ ec-connect --join velvet-mountain@play.example.com --gate npub1...
+$ ec-connect --join velvet-mountain@play.example.com --gate npub1... --relay wss://relay.example.com
 [centered password window]
 This password encrypts your wallet.
 If you lose it, you will be locked out.
@@ -102,7 +102,7 @@ $ ec-connect id import
 Enter your nsec: nsec1...
 Identity imported.
 
-$ ec-connect --join copper-sunrise@play.example.com --gate npub1...
+$ ec-connect --join copper-sunrise@play.example.com --gate npub1... --relay wss://relay.example.com
 [centered password window]
 Password: ********
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
@@ -131,6 +131,8 @@ Player identities are stored in an encrypted wallet at:
 The wallet can hold multiple identities (up to 10). One identity is
 active at a time. The wallet is encrypted with ChaCha20-Poly1305 using a
 key derived from the player's password via PBKDF2-HMAC-SHA256.
+
+This wallet is local player state, not authoritative hosted game state.
 
 Decrypted wallet format:
 
@@ -226,6 +228,10 @@ on the same `ec-connect` installation use the top-level relay. If a
 player needs different relays for different servers, that can be added
 later as a `relay` attribute on the server node.
 
+In the TUI, `R` edits this same default relay value. If an older cached
+game is missing its per-game relay, `ec-connect` can prompt once for the
+correct relay and then save it back onto that cached row.
+
 ### Relay Resolution Priority
 
 When connecting, `ec-connect` resolves the Nostr relay URL from these
@@ -262,7 +268,7 @@ Fields:
 
 | Field | Description |
 |-------|-------------|
-| `id` | Game identifier slug (matches the server's roster game ID) |
+| `id` | Game identifier slug (matches the server's hosted game ID) |
 | `name` | Human-readable game name |
 | `player-name` | Cached server-reported empire name for the active identity in that game |
 | `server` | Server hostname |
@@ -283,6 +289,9 @@ cached row still has no saved `relay-url` and the player's config also has no
 default relay, the picker prompts for one before the handshake starts and
 saves it back onto that row after a successful reconnect.
 `last-connected` is updated on each successful SSH connection.
+
+This cache is local convenience state only. The server-side hosted seat
+binding remains the source of truth.
 
 The picker sorts games by `last-connected` descending, so the most
 recently played game appears first.
@@ -431,7 +440,7 @@ new machine, or first time using the picker for a server they joined via
 direct mode), and their npub is in multiple games on that server:
 
 1. `ec-connect` sends a 30501 SessionRequest with no `game-id` tag.
-2. `ec-gate` finds multiple roster matches for the npub.
+2. `ec-gate` finds multiple hosted-game matches for the npub.
 3. `ec-gate` returns a 30503 SessionError with error code
    `multiple_games` and a game list in the encrypted payload.
 4. `ec-connect` displays the game list as a picker:
@@ -524,7 +533,7 @@ Common errors:
 - `invalid_code` — the invite code does not match any pending seat
 - `code_claimed` — the invite code has already been claimed by another
   player
-- `unknown_player` — the player's npub is not in any game roster and no
+- `unknown_player` — the player's npub is not enrolled in any hosted game and no
   invite code was provided
 - `game_not_active` — the game is not currently accepting connections
 - `rate_limited` — too many session requests from this npub

@@ -29,8 +29,8 @@ old-school tension — now running on a modern Rust engine.
 
 If you are starting Esterian Conquest today, the recommended way to play is
 through a hosted game over Nostr with `ec-connect`. A sysop runs
-`ec-sysop nostr serve`, gives you an invite code and the host's Nostr public
-key, and you join from your own machine with one command. `ec-connect` manages
+`ec-sysop nostr serve`, gives you an invite code, the host's Nostr public
+key, and the relay URL, and you join from your own machine with one command. `ec-connect` manages
 the encrypted player identity, opens the SSH-backed `ec-game` session, and on
 the first successful join downloads the campaign's static player-safe starmap
 bundle so you have the printable text map and CSV sheets locally.
@@ -131,12 +131,12 @@ cargo run -q -p ec-sysop -- nostr init
 cargo run -q -p ec-sysop -- nostr serve
 ```
 
-Share an invite code and the daemon's public key with each player. The
+Share an invite code, the daemon's public key, and the relay URL with each player. The
 simplest player join path today is:
 
 ```bash
 cd rust
-cargo run -q -p ec-connect -- --join amber-river@play.example.com --gate npub1...
+cargo run -q -p ec-connect -- --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
 ```
 
 Add `--relay wss://relay.example.com` when you want to override relay

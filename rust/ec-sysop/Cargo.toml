@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 ec-cli = { path = "../ec-cli" }
+ec-data = { path = "../ec-data" }
 ec-gate = { path = "../ec-gate" }
 ec-log = { path = "../ec-log" }
 tracing = "0.1"
