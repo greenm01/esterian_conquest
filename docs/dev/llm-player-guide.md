@@ -14,7 +14,7 @@ Before an LLM starts planning moves, give it these docs in this order:
 
 1. [../manuals/ec_qstart.md](../manuals/ec_qstart.md)
 2. [../manuals/ec_player.md](../manuals/ec_player.md)
-3. [../player/turn-kdl.md](../player/turn-kdl.md)
+3. [../sysop/turn-kdl.md](../sysop/turn-kdl.md)
 
 Recommended supporting references for operators:
 
@@ -136,7 +136,7 @@ For each decision turn, the operator should give the bot:
 - the bot's current bundle from `.tmp/llm-turns/<game_id>/player-<n>/bundle-turn-<nnnn>/`
 - any visible fleet, planet, and database summaries for that player
 - the target output path for the next `turn.kdl`
-- the legal order surface from [../player/turn-kdl.md](../player/turn-kdl.md)
+- the legal order surface from [../sysop/turn-kdl.md](../sysop/turn-kdl.md)
 
 Do not pre-digest the situation with hidden-state summaries. If you provide a
 human-written briefing, it must be composed only from player-visible facts.
