@@ -2,10 +2,10 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{ClassicLoginState, MainMenuSummary, PlayerContext};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{
-    CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
-    StartupReviewMode,
+    CommandMenu, ScreenId, StartupReviewMode, FIRST_TIME_INTRO_PAGE_COUNT,
+    STARTUP_SPLASH_PAGE_COUNT,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 
@@ -483,11 +483,32 @@ impl App {
         };
         match crate::theme::discover_theme_entries(&self.game_dir) {
             Ok(rows) => {
-                let default_key =
-                    crate::theme::current_theme_key().unwrap_or_else(|| "tokyo_night".to_string());
+                let raw_current = crate::theme::current_theme_key();
+                let default_key = raw_current
+                    .clone()
+                    .unwrap_or_else(|| "tokyo_night".to_string());
+                let discovered_keys: Vec<&str> = rows.iter().map(|r| r.key.as_str()).collect();
+                tracing::debug!(
+                    raw_current_theme_key = ?raw_current,
+                    resolved_default_key = %default_key,
+                    discovered_count = discovered_keys.len(),
+                    discovered_keys = ?discovered_keys,
+                    "open_theme_picker: resolving initial cursor"
+                );
                 self.startup_state.theme_picker_rows = rows;
-                self.startup_state.theme_picker_cursor =
-                    self.theme_picker_cursor_for_key(&default_key);
+                let cursor = self.theme_picker_cursor_for_key(&default_key);
+                let cursor_key = self
+                    .startup_state
+                    .theme_picker_rows
+                    .get(cursor)
+                    .map(|r| r.key.as_str())
+                    .unwrap_or("<none>");
+                tracing::debug!(
+                    cursor = cursor,
+                    cursor_key = %cursor_key,
+                    "open_theme_picker: cursor set"
+                );
+                self.startup_state.theme_picker_cursor = cursor;
                 self.startup_state.theme_picker_scroll_offset = 0;
                 self.startup_state.theme_picker_input.clear();
                 let visible_rows = self.theme_picker_visible_rows();
@@ -568,8 +589,19 @@ impl App {
             self.startup_state.theme_picker_status = Some("No themes are available.".to_string());
             return;
         };
+        tracing::debug!(
+            entry_key = %entry.key,
+            entry_display = %entry.display_name,
+            "apply_theme_picker_selection: applying entry"
+        );
         match crate::theme::apply_theme_entry(&entry) {
             Ok(()) => {
+                let post_key = crate::theme::current_theme_key();
+                tracing::debug!(
+                    entry_key = %entry.key,
+                    current_theme_key_after = ?post_key,
+                    "apply_theme_picker_selection: apply_theme_entry Ok"
+                );
                 if self.player.is_joined {
                     if let Err(err) = self
                         .planet
@@ -599,7 +631,12 @@ impl App {
                     visible_rows,
                 );
             }
-            Err(_) => {
+            Err(ref err) => {
+                tracing::debug!(
+                    entry_key = %entry.key,
+                    error = %err,
+                    "apply_theme_picker_selection: apply_theme_entry Err — falling back to default"
+                );
                 crate::theme::apply_default_theme();
                 let fallback_key = crate::theme::default_theme_key();
                 if self.player.is_joined {
@@ -631,6 +668,11 @@ impl App {
         if self.current_screen != ScreenId::ThemePicker {
             return;
         }
+        let current_key_at_exit = crate::theme::current_theme_key();
+        tracing::debug!(
+            current_theme_key_at_exit = ?current_key_at_exit,
+            "exit_theme_picker: leaving picker"
+        );
         self.startup_state.theme_picker_rows.clear();
         self.startup_state.theme_picker_cursor = 0;
         self.startup_state.theme_picker_scroll_offset = 0;
