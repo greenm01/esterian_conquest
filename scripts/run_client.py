@@ -69,23 +69,36 @@ def main() -> None:
             "from classic files."
         ),
     )
+    parser.add_argument(
+        "--log-file",
+        default=None,
+        metavar="PATH",
+        help="Write ec-game logs to this file.",
+    )
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        metavar="LEVEL",
+        help="Log level to pass to ec-game: error, warn, info, debug, or trace.",
+    )
     args = parser.parse_args()
 
     game_dir = Path(args.game_dir).resolve()
     if args.refresh_from_dat:
         refresh_campaign_snapshot(game_dir, args.release)
     client_binary = build_workspace_binary("ec-game", args.release)
-    subprocess.run(
-        [
-            str(client_binary),
-            "--dir",
-            str(game_dir),
-            "--player",
-            str(args.player),
-        ],
-        cwd=RUST_DIR,
-        check=True,
-    )
+    cmd = [
+        str(client_binary),
+        "--dir",
+        str(game_dir),
+        "--player",
+        str(args.player),
+    ]
+    if args.log_file:
+        cmd += ["--log-file", args.log_file]
+    if args.log_level:
+        cmd += ["--log-level", args.log_level]
+    subprocess.run(cmd, cwd=RUST_DIR, check=True)
 
 
 if __name__ == "__main__":

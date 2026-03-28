@@ -11,9 +11,7 @@ pub fn ensure_bundled_themes_in_game_dir(
     fs::create_dir_all(&themes_dir)?;
     for (name, contents) in ec_ui::theme::bundled_theme_files() {
         let path = themes_dir.join(name);
-        if !path.exists() {
-            fs::write(path, contents)?;
-        }
+        fs::write(path, contents)?;
     }
     Ok(())
 }
