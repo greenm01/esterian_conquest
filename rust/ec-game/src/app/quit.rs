@@ -1,8 +1,9 @@
 use crossterm::event::KeyEvent;
 
-use super::{Action, state::App};
-use crate::screen::PlayfieldBuffer;
+use super::{state::App, Action};
+use crate::domains::startup::screens::main_menu::MENU_PROMPT_ROW;
 use crate::screen::layout::{command_line_row_for, draw_command_line_prompt_text_at};
+use crate::screen::{PlayfieldBuffer, ScreenId};
 
 impl App {
     pub fn request_quit(&mut self) {
@@ -29,8 +30,12 @@ impl App {
     }
 
     pub fn render_quit_confirm(&self, buffer: &mut PlayfieldBuffer) {
-        let row = command_line_row_for(self.screen_geometry);
-        draw_command_line_prompt_text_at(buffer, row, "COMMAND", "Are you sure Y/[N] ->");
+        let row = if self.current_screen == ScreenId::MainMenu {
+            MENU_PROMPT_ROW
+        } else {
+            command_line_row_for(self.screen_geometry)
+        };
+        draw_command_line_prompt_text_at(buffer, row, "MAIN COMMAND", "Are you sure Y/[N] ->");
         buffer.clear_cursor();
     }
 }

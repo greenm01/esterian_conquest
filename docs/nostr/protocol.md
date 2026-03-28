@@ -636,4 +636,4 @@ Nostr is only the authentication layer. The game session runs over SSH.
 | Identity | Same model | Same model |
 
 The identity model, invite code system, and wallet format are shared so
-that the eventual Nostrian Conquest evolution can reuse them directly.
+that a future relay-transport client can reuse them directly.

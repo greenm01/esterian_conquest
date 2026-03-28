@@ -29,20 +29,20 @@ tooling ecosystem.
 
 ## Relationship to the Grand Vision
 
-[grand-vision.md](../grand-vision.md) describes Phase 2, Nostrian Conquest,
-as a full decoupling of client and server where turn orders and game state
-flow entirely through Nostr relays. This spec is an intermediate step.
-Nostr handles identity and session establishment only. The actual game
-session runs over SSH, because SSH is the proven, low-latency, feature-
-complete protocol for interactive terminal sessions. The game binary
-`ec-game` does not change at all.
+[grand-vision.md](../grand-vision.md) describes Phase 2 as a full decoupling
+of client and server where turn orders and game state flow entirely through
+Nostr relays. This spec is the shipped foundation for that path.
 
-This intermediate layer becomes the foundation that Nostrian Conquest
-builds on. The identity model, invite code system, wallet format, local
-game cache, and player roster carry forward directly. What changes later
-is the transport: SSH gives way to relay-mediated turn submission and
-state sync, and the TUI evolves from a remote PTY session to a local
-client with a richer interface.
+Nostr handles identity and session establishment. The actual game session runs
+over SSH, because SSH is the proven, low-latency, feature-complete protocol
+for interactive terminal sessions. The game binary `ec-game` does not change
+at all.
+
+The identity model, invite code system, wallet format, local game cache, and
+player roster are designed to carry forward directly when the transport
+eventually evolves: SSH gives way to relay-mediated turn submission and state
+sync, and `ec-connect` evolves from a PTY bridge into a local client that
+renders game state natively.
 
 ## Components
 

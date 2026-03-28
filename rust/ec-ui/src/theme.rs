@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::buffer::{CellStyle, GameColor};
 
 const DEFAULT_THEME_KDL: &str = include_str!("../../ec-game/config/themes/tokyo_night.kdl");
+const MATRIX_THEME_KDL: &str = include_str!("../../ec-game/config/themes/matrix.kdl");
 const CATPPUCCIN_MOCHA_THEME_KDL: &str =
     include_str!("../../ec-game/config/themes/catppuccin_mocha.kdl");
 const DRACULA_THEME_KDL: &str = include_str!("../../ec-game/config/themes/dracula.kdl");
@@ -25,6 +26,7 @@ const BUNDLED_THEME_FILES: &[(&str, &str)] = &[
     ("everforest.kdl", EVERFOREST_THEME_KDL),
     ("gruvbox.kdl", GRUVBOX_THEME_KDL),
     ("kanagawa.kdl", KANAGAWA_THEME_KDL),
+    ("matrix.kdl", MATRIX_THEME_KDL),
     ("nord.kdl", NORD_THEME_KDL),
     ("one_dark.kdl", ONE_DARK_THEME_KDL),
     ("rose_pine.kdl", ROSE_PINE_THEME_KDL),
@@ -410,6 +412,7 @@ pub fn bundled_theme_file_names() -> &'static [&'static str] {
         "everforest.kdl",
         "gruvbox.kdl",
         "kanagawa.kdl",
+        "matrix.kdl",
         "nord.kdl",
         "one_dark.kdl",
         "rose_pine.kdl",

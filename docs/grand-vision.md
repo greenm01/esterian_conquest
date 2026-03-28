@@ -10,13 +10,15 @@ Our immediate goal is to build the definitive, modern-host-friendly drop-in repl
 - **Classic Feel, Better UX:** The UI is driven by pure `crossterm` to enforce the rigid 80x25 CP437 display limits necessary for Telnet BBS integration. We preserve the original menus and ANSI artwork, but modernize the interaction loop by replacing annoying scrolling terminal inputs with clean, fixed-viewport data tables.
 - **The Deployment:** Sysops can drop this Rust binary into their Enigma BBS or Synchronet setup natively on Linux/macOS/Windows, without the overhead and instability of DOSBox.
 
-## Phase 2: Nostrian Conquest
+## Phase 2: Decentralized Nostr Multiplayer
 
-Once the core engine is fully reverse-engineered and the mechanics are crystallized in Rust, we will decouple the client and server to bring Esterian Conquest into the decentralized web under the working title **Nostrian Conquest**.
+The core engine is now complete. The shipped ec-connect + Nostr auth system delivers hosted multiplayer today: players authenticate with `secp256k1` keypairs, sysops run `ec-sysop nostr serve`, and live game sessions run inside `ec-game` over SSH. This is the current production path.
 
-- **Nostr as the Transport Layer:** The asynchronous, daily-turn nature of EC maps perfectly to the Nostr protocol. Instead of logging into a centralized BBS, players use their `secp256k1` keys to submit encrypted turn orders to relays.
-- **Headless Server & Encrypted State:** The `ec-maint` engine runs headlessly on a server, collecting daily orders. When maintenance runs, it generates the new game state for each player and broadcasts NIP-04/NIP-44 encrypted events back to the relay, preserving the "fog of war."
-- **Modern TUI Client:** Freed from the shackles of the 80x25 Telnet screen, the Nostrian Conquest client will use `Ratatui` to deliver a full-screen, modern ANSI/UTF-8 terminal interface -- highly responsive and beautiful, running natively on the player's local machine. 
+The natural next step is to push further along the same axis -- replacing the SSH transport with relay-mediated turn submission and game state sync:
+
+- **Nostr as the Full Transport Layer:** The asynchronous, daily-turn nature of EC maps perfectly to the Nostr protocol. Instead of bridging a remote PTY over SSH, players submit encrypted turn orders directly to relays, and `ec-maint` publishes per-player results back as encrypted events, preserving the "fog of war."
+- **Headless Server:** The `ec-maint` engine runs on a schedule, collects daily orders from the relay, processes maintenance, and broadcasts new game state to each player's key.
+- **Local TUI Client:** `ec-connect` evolves from a PTY bridge into a local `Ratatui` client that renders game state natively -- full-screen, modern ANSI/UTF-8, running on the player's machine. The wallet, invite code system, and player roster carry forward directly from the current implementation.
 
 ## Beyond Classic: EC4X
 

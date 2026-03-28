@@ -142,7 +142,7 @@ A player who already has a Nostr keypair can import their nsec (bech32 or
 hex) into the wallet. They can also use a NIP-46 remote signer if they
 prefer not to paste their private key. This lets them use the same
 identity across EC servers, other Nostr applications, and any future
-Nostrian Conquest client.
+relay-transport client.
 
 ### Wallet Storage
 
@@ -272,10 +272,10 @@ one auth path at a time to avoid concurrent access conflicts. The admin
 is responsible for not pointing both the Nostr daemon and a BBS door at
 the same game directory simultaneously with overlapping player sessions.
 
-## Future: Nostrian Conquest
+## Future: Relay-Mediated Transport
 
-The full Nostrian Conquest vision described in `grand-vision.md` replaces
-SSH with relay-mediated turn submission and state sync. In that model:
+The next evolution described in `grand-vision.md` replaces SSH with
+relay-mediated turn submission and state sync. In that model:
 
 - `ec-connect` evolves into a local TUI client that renders game state
   natively rather than bridging a remote PTY
@@ -286,8 +286,8 @@ SSH with relay-mediated turn submission and state sync. In that model:
 - The wallet, invite code system, player roster, and local game cache
   carry forward directly from this spec
 
-This intermediate spec is designed so that the identity infrastructure
-does not need to be rebuilt when the transport changes.
+This spec is designed so that the identity infrastructure does not need
+to be rebuilt when the transport changes.
 
 ## Crate Placement
 

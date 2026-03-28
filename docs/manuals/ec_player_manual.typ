@@ -542,9 +542,6 @@ campaign. In BBS door mode, `ec-game` instead keeps the classic
 session. If a saved custom theme later disappears or becomes invalid,
 `ec-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
 
-*Nostrian Conquest* \
-Looking further ahead, the project aims to free the game from centralized hosts entirely. Under the working title *Nostrian Conquest*, the next evolution will use the Nostr protocol as a transport layer --- players submit encrypted turn orders using cryptographic keys, and results are broadcast back through relays. No central server to shut down. No single point of failure. A serverless galaxy where the fog of war is enforced by cryptography. Freed from the shackles of the 80x25 Telnet screen, Nostrian Conquest will feature a full-screen modern ANSI/UTF-8 terminal interface worthy of the game's strategic depth.
-
 #pagebreak()
 
 // ─── Appendix A. Economy Formula Reference ─────────────────────────────
