@@ -1,3 +1,4 @@
+mod onboarding;
 pub mod render;
 
 use std::time::Duration;
@@ -9,6 +10,7 @@ use ec_ui::session::TerminalSession;
 
 use crate::password::wallet_exists;
 use crate::wallet::io::wallet_path;
+use onboarding::run_first_identity_setup_in_session;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PasswordGateMode {
@@ -121,7 +123,7 @@ pub enum GateSubmit {
 }
 
 pub fn run_password_gate_in_session(
-    _session: &mut TerminalSession,
+    session: &mut TerminalSession,
     error_msg: Option<String>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let existing_wallet = wallet_exists(&wallet_path());
@@ -158,6 +160,10 @@ pub fn run_password_gate_in_session(
             }
             KeyCode::Enter => {
                 if let GateSubmit::Accepted(password) = state.submit() {
+                    if !existing_wallet && !run_first_identity_setup_in_session(session, &password)?
+                    {
+                        return Ok(None);
+                    }
                     return Ok(Some(password));
                 }
             }

@@ -95,7 +95,7 @@ fn render_buffer_masks_input_without_showing_plaintext() {
 }
 
 #[test]
-fn render_buffer_uses_versioned_outer_title_in_logo_style() {
+fn render_buffer_uses_versioned_outer_title_in_shell_title_style() {
     let state = PasswordGateState::new(true, None);
     let buffer = render_buffer(&state, 82, 27);
     let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
@@ -110,7 +110,7 @@ fn render_buffer_uses_versioned_outer_title_in_logo_style() {
     let byte_idx = line.find(&title).expect("title column");
     let col = line[..byte_idx].chars().count();
     assert_eq!(col, 3);
-    assert_eq!(buffer.row(row)[col].style, classic::logo_style());
+    assert_eq!(buffer.row(row)[col].style, classic::shell_title_style());
 }
 
 #[test]

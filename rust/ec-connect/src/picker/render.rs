@@ -5,8 +5,8 @@ use ec_ui::theme::classic;
 use super::help::{GAME_SELECT_RAIL, MAIN_MENU_RAIL, WALLET_MENU_RAIL};
 use super::layout::{
     BODY_START_ROW, Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH,
-    displayed_body_rows, draw_scroll_gutter, draw_table_frame, draw_title, middle_ellipsis,
-    pad_right, scroll_start, table_cell_start, table_message_col,
+    displayed_body_rows, draw_scroll_gutter, draw_table_frame, middle_ellipsis, pad_right,
+    scroll_start, table_cell_start, table_message_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_npub, truncate};
 use super::overlay::{render_identity_popup, render_overlay};
@@ -83,17 +83,12 @@ pub fn render_buffer(
 
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     let identity_label = session.map(PickerSession::header_identity_label);
-    draw_title(
-        &mut buffer,
-        "ESTERIAN CONQUEST CONNECT",
-        identity_label.as_deref(),
-    );
 
     let command_row = match &state.screen {
         Screen::GameList | Screen::JoinPrompt | Screen::IdentityOverlay => {
             render_main_menu(&mut buffer, state, session)
         }
-        Screen::WalletList | Screen::WalletAliasPrompt | Screen::WalletImportPrompt => {
+        Screen::WalletList | Screen::WalletAddPrompt => {
             render_wallet_menu(&mut buffer, state, session)
         }
         Screen::GameSelect {
@@ -105,8 +100,8 @@ pub fn render_buffer(
         }
     };
 
-    render_overlay(&mut buffer, state, command_row);
-    wrap_inner_buffer(&buffer)
+    render_overlay(&mut buffer, state, session, command_row);
+    wrap_inner_buffer(&buffer, identity_label.as_deref())
 }
 
 fn render_resize_blocker(term_width: u16, term_height: u16) -> PlayfieldBuffer {
@@ -228,17 +223,10 @@ fn render_wallet_menu(
     }
 
     match state.screen {
-        Screen::WalletAliasPrompt => {
-            let default = session
-                .and_then(|session| session.wallet.identities.get(state.wallet_selected))
-                .and_then(|identity| identity.alias.as_deref())
-                .unwrap_or("");
-            draw_alias_prompt(buffer, metrics.command_row, default, &state.alias_input);
-        }
-        Screen::WalletImportPrompt => {
+        Screen::WalletAddPrompt => {
             let prompt = format!(
-                "Import nsec <Q> <?> -> {}",
-                "*".repeat(state.import_input.chars().count())
+                "Paste nsec or leave blank for new <Q> -> {}",
+                state.wallet_input
             );
             draw_command_line_prompt_text_at(
                 buffer,
@@ -418,13 +406,4 @@ fn draw_row_cells(
             }
         }
     }
-}
-
-fn draw_alias_prompt(buffer: &mut PlayfieldBuffer, row: usize, default: &str, input: &str) {
-    let prompt = if default.is_empty() {
-        format!("Alias <Q> <?> -> {input}")
-    } else {
-        format!("Alias [{}] <Q> <?> -> {input}", truncate(default, 16))
-    };
-    draw_command_line_prompt_text_at(buffer, row, "WALLET COMMAND", &prompt);
 }

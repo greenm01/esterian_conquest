@@ -14,8 +14,7 @@ pub enum Screen {
     JoinPrompt,
     IdentityOverlay,
     WalletList,
-    WalletAliasPrompt,
-    WalletImportPrompt,
+    WalletAddPrompt,
     GameSelect {
         games: Vec<GameEntry>,
         selected: usize,
@@ -60,7 +59,7 @@ pub struct PickerState {
     pub overlay: Option<PickerOverlay>,
     pub join_input: String,
     pub alias_input: String,
-    pub import_input: String,
+    pub wallet_input: String,
     pub quit: bool,
     pub matrix: MatrixState,
 }
@@ -75,7 +74,7 @@ impl PickerState {
             overlay: None,
             join_input: String::new(),
             alias_input: String::new(),
-            import_input: String::new(),
+            wallet_input: String::new(),
             quit: false,
             matrix: MatrixState::new(),
         }

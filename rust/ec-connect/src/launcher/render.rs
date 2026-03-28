@@ -77,7 +77,7 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
 
-    wrap_inner_buffer(&buffer)
+    wrap_inner_buffer(&buffer, None)
 }
 
 fn render_tiny(buffer: &mut PlayfieldBuffer, state: &PasswordGateState) {

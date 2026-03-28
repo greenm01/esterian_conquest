@@ -1,8 +1,8 @@
 use nostr_sdk::{Keys, ToBech32};
 
 use crate::wallet::Wallet;
-use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to};
-use crate::wallet::{push_new_identity, switch_active_identity};
+use crate::wallet::io::{load_wallet_from, save_wallet_to};
+use crate::wallet::{Identity, switch_active_identity};
 
 use super::state::PickerSession;
 
@@ -43,6 +43,10 @@ impl PickerSession {
         Ok(npub)
     }
 
+    pub fn selected_identity(&self, index: usize) -> Option<&Identity> {
+        self.wallet.identities.get(index)
+    }
+
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         save_wallet_to(
             &self.wallet,
@@ -54,12 +58,7 @@ impl PickerSession {
 
 pub fn load_picker_session(password: String) -> Result<PickerSession, Box<dyn std::error::Error>> {
     let path = crate::wallet::io::wallet_path();
-    let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
-    if wallet.identities.is_empty() {
-        let npub = push_new_identity(&mut wallet, now_iso8601())?;
-        save_wallet_to(&wallet, &password, &path)?;
-        eprintln!("Identity created: {npub}");
-    }
+    let wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
 
     let identity = wallet
         .active_identity()

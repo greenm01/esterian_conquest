@@ -11,9 +11,10 @@ use crate::identity::{
 };
 use crate::launcher::{run_password_gate, run_password_gate_in_session};
 use crate::map_store::resolve_maps_root;
+use crate::password::prompt_optional_alias;
 use crate::picker::{load_picker_session, run_picker_in_session};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_new_identity};
+use crate::wallet::{Wallet, push_new_identity, set_identity_alias};
 use ec_ui::session::TerminalSession;
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -316,6 +317,9 @@ fn prompt_for_picker_password(
             return Ok(None);
         };
         match load_wallet_from(&password, &wallet_path()) {
+            Ok(Some(wallet)) if wallet.identities.is_empty() => {
+                error_msg = Some("Error: wallet has no active identity".to_string())
+            }
             Ok(_) => return Ok(Some(password)),
             Err(err) => error_msg = Some(format!("Error: {err}")),
         }
@@ -335,6 +339,8 @@ fn load_or_create_identity(
 
     if wallet.identities.is_empty() {
         let npub = push_new_identity(&mut wallet, now_iso8601())?;
+        let index = wallet.identities.len().saturating_sub(1);
+        set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
         save_wallet_to(&wallet, password, &path)?;
         eprintln!("Identity created: {npub}");
     }

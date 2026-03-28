@@ -104,10 +104,11 @@ fn run_loop(
             continue;
         }
 
-        let text_entry = matches!(
-            state.screen,
-            Screen::JoinPrompt | Screen::WalletAliasPrompt | Screen::WalletImportPrompt
-        );
+        let text_entry = matches!(state.screen, Screen::JoinPrompt | Screen::WalletAddPrompt)
+            || matches!(
+                state.overlay,
+                Some(super::overlay::PickerOverlay::WalletDetail { .. })
+            );
         if is_manual_lock_key(key, text_entry) {
             lock_picker(state, picker_session);
             continue;
@@ -116,7 +117,7 @@ fn run_loop(
         last_activity = Instant::now();
 
         if state.overlay.is_some() {
-            handle_overlay_key(key, state);
+            handle_overlay_key(key, state, picker_session.as_mut())?;
             if state.quit {
                 break;
             }
@@ -145,7 +146,7 @@ fn run_loop(
                 )?;
             }
             Screen::IdentityOverlay => handle_identity_overlay_key(key, state),
-            Screen::WalletList | Screen::WalletAliasPrompt | Screen::WalletImportPrompt => {
+            Screen::WalletList | Screen::WalletAddPrompt => {
                 let session_state = picker_session
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
@@ -219,7 +220,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.screen = Screen::Locked;
     state.join_input.clear();
     state.alias_input.clear();
-    state.import_input.clear();
+    state.wallet_input.clear();
     state.matrix.reset();
 }
 

@@ -47,7 +47,7 @@ fn picker_state_initial_values() {
     assert!(state.overlay.is_none());
     assert!(state.join_input.is_empty());
     assert!(state.alias_input.is_empty());
-    assert!(state.import_input.is_empty());
+    assert!(state.wallet_input.is_empty());
     assert!(!state.quit);
     assert_eq!(state.wallet_selected, 0);
 }
@@ -186,8 +186,8 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
     let state = make_state(vec![]);
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert_eq!(buffer.row(6)[1].ch, '└');
-    assert!(buffer.plain_line(7).contains("COMMANDS <-"));
+    assert_eq!(buffer.row(5)[1].ch, '└');
+    assert!(buffer.plain_line(6).contains("COMMANDS <-"));
     assert!(!buffer.plain_line(25).contains("COMMANDS <-"));
 }
 
@@ -199,10 +199,10 @@ fn overflowing_picker_renders_themed_scrollbar_gutter() {
     let state = make_state(games);
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert_eq!(buffer.row(5)[80].ch, '^');
+    assert_eq!(buffer.row(4)[80].ch, '^');
     assert_eq!(buffer.row(23)[80].ch, 'v');
-    assert!((6..23).any(|row| buffer.row(row)[80].ch == '#'));
-    assert_eq!(buffer.row(5)[80].style, classic::table_chrome_style());
+    assert!((5..23).any(|row| buffer.row(row)[80].ch == '#'));
+    assert_eq!(buffer.row(4)[80].style, classic::table_chrome_style());
 }
 
 // ── truncate ──────────────────────────────────────────────────────────────────

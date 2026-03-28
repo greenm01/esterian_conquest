@@ -1,8 +1,8 @@
 use super::state::Screen;
 
-pub const MAIN_MENU_RAIL: &str = "J K ^U ^D <N> <W> <I> <M> <L> <Q> <?>";
-pub const WALLET_MENU_RAIL: &str = "J K ^U ^D <N> <I> <A> <L> <Q> <?>";
-pub const GAME_SELECT_RAIL: &str = "J K ^U ^D <Q> <?>";
+pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M L <Q>";
+pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N A D L <Q>";
+pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpTopic {
@@ -55,12 +55,12 @@ const MAIN_ROWS: &[HelpRow] = &[
         description: "lock the screen",
     },
     HelpRow {
-        command: "Q",
-        description: "quit ec-connect",
-    },
-    HelpRow {
         command: "?",
         description: "show/hide helper",
+    },
+    HelpRow {
+        command: "Q",
+        description: "quit ec-connect",
     },
     HelpRow {
         command: "Esc",
@@ -79,27 +79,27 @@ const WALLET_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "N",
-        description: "create a new identity",
-    },
-    HelpRow {
-        command: "I",
-        description: "import an identity",
+        description: "new or import identity",
     },
     HelpRow {
         command: "A",
-        description: "edit alias",
+        description: "activate selected identity",
+    },
+    HelpRow {
+        command: "D",
+        description: "delete selected identity",
     },
     HelpRow {
         command: "L",
         description: "lock the screen",
     },
     HelpRow {
-        command: "Q",
-        description: "return to main menu",
-    },
-    HelpRow {
         command: "?",
         description: "show/hide helper",
+    },
+    HelpRow {
+        command: "Q",
+        description: "return to main menu",
     },
     HelpRow {
         command: "Esc",
@@ -164,9 +164,7 @@ impl HelpTopic {
     pub fn for_screen(screen: &Screen) -> Option<Self> {
         match screen {
             Screen::GameList => Some(Self::MainCommand),
-            Screen::JoinPrompt | Screen::WalletAliasPrompt | Screen::WalletImportPrompt => {
-                Some(Self::ConnectCommand)
-            }
+            Screen::JoinPrompt | Screen::WalletAddPrompt => Some(Self::ConnectCommand),
             Screen::IdentityOverlay => Some(Self::Identity),
             Screen::WalletList => Some(Self::WalletCommand),
             Screen::GameSelect { .. } => Some(Self::SelectGame),

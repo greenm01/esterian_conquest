@@ -12,6 +12,11 @@ style "title" {
     bg "black"
     bold #true
 }
+style "shell_title" {
+    fg "black"
+    bg "bright_blue"
+    bold #true
+}
 style "menu" {
     fg "white"
     bg "black"

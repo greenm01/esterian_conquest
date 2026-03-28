@@ -104,6 +104,19 @@ pub fn push_new_identity(
     Ok(npub)
 }
 
+pub fn push_identity_from_input(
+    wallet: &mut Wallet,
+    input: &str,
+    created: String,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        push_new_identity(wallet, created)
+    } else {
+        push_imported_identity(wallet, trimmed, created)
+    }
+}
+
 pub fn push_imported_identity(
     wallet: &mut Wallet,
     nsec_input: &str,
@@ -153,4 +166,51 @@ pub fn switch_active_identity(
 
     wallet.active = index;
     active_identity_npub(wallet)
+}
+
+pub fn set_identity_alias(
+    wallet: &mut Wallet,
+    index: usize,
+    alias: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let identity = wallet
+        .identities
+        .get_mut(index)
+        .ok_or_else(|| format!("index {index} out of range"))?;
+    identity.alias = alias
+        .map(|alias| alias.trim().to_string())
+        .filter(|alias| !alias.is_empty());
+    Ok(())
+}
+
+pub fn delete_identity(
+    wallet: &mut Wallet,
+    index: usize,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if wallet.identities.len() <= 1 {
+        return Err("wallet must keep at least one identity".into());
+    }
+    if index >= wallet.identities.len() {
+        return Err(format!(
+            "index {index} out of range (wallet has {} identit{})",
+            wallet.identities.len(),
+            if wallet.identities.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            },
+        )
+        .into());
+    }
+
+    let npub = identity_npub(&wallet.identities[index])?;
+    wallet.identities.remove(index);
+
+    if wallet.active == index {
+        wallet.active = index.min(wallet.identities.len().saturating_sub(1));
+    } else if index < wallet.active {
+        wallet.active = wallet.active.saturating_sub(1);
+    }
+
+    Ok(npub)
 }

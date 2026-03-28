@@ -4,13 +4,13 @@ use ec_ui::theme::classic;
 pub const PLAYFIELD_WIDTH: usize = crate::shell::INNER_WIDTH;
 pub const PLAYFIELD_HEIGHT: usize = crate::shell::INNER_HEIGHT;
 pub const TITLE_ROW: usize = 0;
-pub const TABLE_TOP_ROW: usize = 1;
-pub const HEADER_ROW: usize = 2;
-pub const DIVIDER_ROW: usize = 3;
-pub const BODY_START_ROW: usize = 4;
+pub const TABLE_TOP_ROW: usize = 0;
+pub const HEADER_ROW: usize = 1;
+pub const DIVIDER_ROW: usize = 2;
+pub const BODY_START_ROW: usize = 3;
 pub const BODY_END_ROW: usize = 22;
 pub const INNER_COMMAND_ROW: usize = 24;
-pub const MAX_BODY_ROWS: usize = BODY_END_ROW - BODY_START_ROW + 1;
+pub const MAX_BODY_ROWS: usize = 20;
 const MIN_BODY_ROWS: usize = 1;
 const HELP_COMMAND_WIDTH: usize = 6;
 

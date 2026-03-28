@@ -16,9 +16,9 @@ pub fn terminal_fits_outer(width: usize, height: usize) -> bool {
     width >= OUTER_WIDTH && height >= OUTER_HEIGHT
 }
 
-pub fn wrap_inner_buffer(inner: &PlayfieldBuffer) -> PlayfieldBuffer {
+pub fn wrap_inner_buffer(inner: &PlayfieldBuffer, right_label: Option<&str>) -> PlayfieldBuffer {
     let mut outer = PlayfieldBuffer::new(OUTER_WIDTH, OUTER_HEIGHT, classic::body_style());
-    draw_outer_frame(&mut outer);
+    draw_outer_frame(&mut outer, right_label);
 
     for row in 0..inner.height() {
         for (col, cell) in inner.row(row).iter().enumerate() {
@@ -38,8 +38,9 @@ pub fn wrap_inner_buffer(inner: &PlayfieldBuffer) -> PlayfieldBuffer {
     outer
 }
 
-fn draw_outer_frame(buffer: &mut PlayfieldBuffer) {
+fn draw_outer_frame(buffer: &mut PlayfieldBuffer, right_label: Option<&str>) {
     let chrome = classic::logo_style();
+    let title_style = classic::shell_title_style();
     let width = buffer.width();
     let height = buffer.height();
     let right = width.saturating_sub(1);
@@ -59,5 +60,25 @@ fn draw_outer_frame(buffer: &mut PlayfieldBuffer) {
     buffer.set_cell(bottom, right, '┘', chrome);
 
     let title = format!(" {} ", outer_title());
-    buffer.write_text_clipped(0, 2, &title, chrome);
+    buffer.write_text_clipped(0, 2, &title, title_style);
+    if let Some(label) = right_label.filter(|label| !label.is_empty()) {
+        let truncated = truncate(label, 18);
+        let col = width.saturating_sub(truncated.chars().count() + 2);
+        buffer.write_text_clipped(0, col, &truncated, classic::table_header_style());
+    }
+}
+
+fn truncate(value: &str, max: usize) -> String {
+    if value.chars().count() <= max {
+        return value.to_string();
+    }
+    if max <= 1 {
+        return "…".to_string();
+    }
+    let mut out = value
+        .chars()
+        .take(max.saturating_sub(1))
+        .collect::<String>();
+    out.push('…');
+    out
 }

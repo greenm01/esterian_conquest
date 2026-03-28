@@ -1,13 +1,14 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::wallet::io::now_iso8601;
-use crate::wallet::{push_imported_identity, push_new_identity};
+use crate::wallet::push_identity_from_input;
 
 use super::event::{is_back_key, is_help_key};
 use super::flows::{
     apply_session_outcome, connect_selected, join_with_code, move_selection,
     redownload_selected_maps,
 };
+use super::overlay::PickerOverlay;
 use super::state::{BODY_PAGE, PickerSession, PickerState, Screen};
 
 pub fn handle_game_list_key(
@@ -165,8 +166,7 @@ pub fn handle_wallet_key(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match state.screen {
         Screen::WalletList => handle_wallet_list_key(key, state, picker_session),
-        Screen::WalletAliasPrompt => handle_wallet_alias_key(key, state, picker_session),
-        Screen::WalletImportPrompt => handle_wallet_import_key(key, state, picker_session),
+        Screen::WalletAddPrompt => handle_wallet_add_key(key, state, picker_session),
         _ => Ok(()),
     }
 }
@@ -222,152 +222,113 @@ fn handle_wallet_list_key(
             code: KeyCode::Enter,
             ..
         } => {
-            let npub = picker_session.switch_active(state.wallet_selected)?;
-            picker_session.save()?;
-            state.show_notice(format!(
-                "Active identity: {}",
-                super::render::short_npub(&npub)
-            ));
+            if wallet_len == 0 {
+                state.show_notice("Wallet has no identities.");
+            } else {
+                state.alias_input = picker_session
+                    .wallet
+                    .identities
+                    .get(state.wallet_selected)
+                    .and_then(|identity| identity.alias.clone())
+                    .unwrap_or_default();
+                state.overlay = Some(PickerOverlay::WalletDetail {
+                    index: state.wallet_selected,
+                });
+            }
         }
         KeyEvent {
             code: KeyCode::Char('n' | 'N'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
-            let npub = push_new_identity(&mut picker_session.wallet, now_iso8601())?;
-            picker_session.save()?;
-            state.wallet_selected = picker_session.wallet.identities.len().saturating_sub(1);
-            state.show_notice(format!(
-                "Created identity: {}",
-                super::render::short_npub(&npub)
-            ));
-        }
-        KeyEvent {
-            code: KeyCode::Char('i' | 'I'),
-            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
-            ..
-        } => {
-            state.import_input.clear();
-            state.screen = Screen::WalletImportPrompt;
+            state.wallet_input.clear();
+            state.screen = Screen::WalletAddPrompt;
         }
         KeyEvent {
             code: KeyCode::Char('a' | 'A'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
-            state.alias_input = picker_session
-                .wallet
-                .identities
-                .get(state.wallet_selected)
-                .and_then(|identity| identity.alias.clone())
-                .unwrap_or_default();
-            state.screen = Screen::WalletAliasPrompt;
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn handle_wallet_alias_key(
-    key: KeyEvent,
-    state: &mut PickerState,
-    picker_session: &mut PickerSession,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if is_help_key(key) {
-        state.open_help();
-        return Ok(());
-    }
-    match key {
-        key if is_back_key(key) => {
-            state.alias_input.clear();
-            state.screen = Screen::WalletList;
-        }
-        KeyEvent {
-            code: KeyCode::Backspace,
-            ..
-        } => {
-            state.alias_input.pop();
-        }
-        KeyEvent {
-            code: KeyCode::Enter,
-            ..
-        } => {
-            let alias = state.alias_input.trim().to_string();
-            if let Some(identity) = picker_session
-                .wallet
-                .identities
-                .get_mut(state.wallet_selected)
-            {
-                identity.alias = if alias.is_empty() { None } else { Some(alias) };
-            }
-            picker_session.save()?;
-            state.alias_input.clear();
-            state.screen = Screen::WalletList;
-            state.show_notice("Alias updated.");
-        }
-        KeyEvent {
-            code: KeyCode::Char(ch),
-            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
-            ..
-        } => {
-            if state.alias_input.chars().count() < 20 {
-                state.alias_input.push(ch);
-            }
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn handle_wallet_import_key(
-    key: KeyEvent,
-    state: &mut PickerState,
-    picker_session: &mut PickerSession,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if is_help_key(key) {
-        state.open_help();
-        return Ok(());
-    }
-    match key {
-        key if is_back_key(key) => {
-            state.import_input.clear();
-            state.screen = Screen::WalletList;
-        }
-        KeyEvent {
-            code: KeyCode::Backspace,
-            ..
-        } => {
-            state.import_input.pop();
-        }
-        KeyEvent {
-            code: KeyCode::Enter,
-            ..
-        } => {
-            let input = state.import_input.trim().to_string();
-            if input.is_empty() {
-                state.show_error("nsec cannot be empty.");
+            if wallet_len == 0 {
+                state.show_notice("Wallet has no identities.");
             } else {
-                match push_imported_identity(&mut picker_session.wallet, &input, now_iso8601()) {
-                    Ok(npub) => {
-                        picker_session.save()?;
-                        state.wallet_selected =
-                            picker_session.wallet.identities.len().saturating_sub(1);
-                        state.import_input.clear();
-                        state.screen = Screen::WalletList;
-                        state.show_notice(format!(
-                            "Imported identity: {}",
-                            super::render::short_npub(&npub)
-                        ));
-                    }
-                    Err(err) => state.show_error(err.to_string()),
+                let npub = picker_session.switch_active(state.wallet_selected)?;
+                picker_session.save()?;
+                state.show_notice(format!(
+                    "Active identity: {}",
+                    super::render::short_npub(&npub)
+                ));
+            }
+        }
+        KeyEvent {
+            code: KeyCode::Char('d' | 'D'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
+            if wallet_len <= 1 {
+                state.show_error("wallet must keep at least one identity");
+            } else {
+                state.overlay = Some(PickerOverlay::WalletDeleteConfirm {
+                    index: state.wallet_selected,
+                    step: 1,
+                });
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn handle_wallet_add_key(
+    key: KeyEvent,
+    state: &mut PickerState,
+    picker_session: &mut PickerSession,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if is_help_key(key) {
+        state.open_help();
+        return Ok(());
+    }
+    match key {
+        key if is_back_key(key) => {
+            state.wallet_input.clear();
+            state.screen = Screen::WalletList;
+        }
+        KeyEvent {
+            code: KeyCode::Backspace,
+            ..
+        } => {
+            state.wallet_input.pop();
+        }
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
+            match push_identity_from_input(
+                &mut picker_session.wallet,
+                &state.wallet_input,
+                now_iso8601(),
+            ) {
+                Ok(_) => {
+                    picker_session.save()?;
+                    state.wallet_selected =
+                        picker_session.wallet.identities.len().saturating_sub(1);
+                    state.wallet_input.clear();
+                    state.alias_input.clear();
+                    state.screen = Screen::WalletList;
+                    state.overlay = Some(PickerOverlay::WalletDetail {
+                        index: state.wallet_selected,
+                    });
                 }
+                Err(err) => state.show_error(err.to_string()),
             }
         }
         KeyEvent {
             code: KeyCode::Char(ch),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
-        } => state.import_input.push(ch),
+        } => {
+            state.wallet_input.push(ch);
+        }
         _ => {}
     }
     Ok(())

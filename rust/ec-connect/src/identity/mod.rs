@@ -7,11 +7,14 @@
 
 use nostr_sdk::{Keys, ToBech32};
 
-use crate::password::{prompt_new_password_with_warning, prompt_password, wallet_exists};
+use crate::password::{
+    prompt_line, prompt_new_password_with_warning, prompt_optional_alias, prompt_password,
+    wallet_exists,
+};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
 use crate::wallet::{
     Identity, Wallet, active_identity_npub, push_imported_identity, push_new_identity,
-    switch_active_identity,
+    set_identity_alias, switch_active_identity,
 };
 
 // ---------------------------------------------------------------------------
@@ -69,6 +72,8 @@ pub fn cmd_id_new() -> Result<(), Box<dyn std::error::Error>> {
     let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
     let npub = push_new_identity(&mut wallet, now_iso8601())?;
+    let index = wallet.identities.len().saturating_sub(1);
+    set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
     save_wallet_to(&wallet, &password, &path)?;
 
     println!("New identity created: {npub}");
@@ -84,6 +89,8 @@ pub fn cmd_id_import() -> Result<(), Box<dyn std::error::Error>> {
     let password = prompt_wallet_password_for_write(&path)?;
     let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
     let npub = push_imported_identity(&mut wallet, &nsec_input, now_iso8601())?;
+    let index = wallet.identities.len().saturating_sub(1);
+    set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
     save_wallet_to(&wallet, &password, &path)?;
 
     println!("Identity imported: {npub}");
@@ -109,16 +116,6 @@ pub fn cmd_id_switch(n_str: &str) -> Result<(), Box<dyn std::error::Error>> {
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
-
-/// Prompt for a plain (echoed) line of input.
-fn prompt_line(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-    use std::io::{self, Write};
-    print!("{prompt}");
-    io::stdout().flush()?;
-    let mut buf = String::new();
-    io::stdin().read_line(&mut buf)?;
-    Ok(buf)
-}
 
 fn prompt_wallet_password_for_write(
     path: &std::path::Path,

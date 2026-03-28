@@ -56,6 +56,7 @@ pub struct ThemeEntry {
 struct Theme {
     body: CellStyle,
     title: CellStyle,
+    shell_title: CellStyle,
     menu: CellStyle,
     menu_hotkey: CellStyle,
     prompt: CellStyle,
@@ -106,6 +107,7 @@ impl Theme {
         Ok(Self {
             body: require_style("body")?,
             title: require_style("title")?,
+            shell_title: require_style("shell_title")?,
             menu: require_style("menu")?,
             menu_hotkey: require_style("menu_hotkey")?,
             prompt: require_style("prompt")?,
@@ -153,6 +155,7 @@ impl Theme {
 
         theme.body = mono_dim(theme.body);
         theme.title = mono_bright(theme.title);
+        theme.shell_title = mono_selected(theme.shell_title);
         theme.menu = mono_dim(theme.menu);
         theme.menu_hotkey = mono_bright(theme.menu_hotkey);
         theme.prompt = mono_dim(theme.prompt);
@@ -489,6 +492,10 @@ pub mod classic {
         active_theme().title
     }
 
+    pub fn shell_title_style() -> CellStyle {
+        active_theme().shell_title
+    }
+
     pub fn menu_style() -> CellStyle {
         active_theme().menu
     }
@@ -649,7 +656,9 @@ pub mod classic {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnsiMode, apply_default_theme, apply_mono_theme, apply_theme_from_kdl, current_theme_key};
+    use super::{
+        AnsiMode, apply_default_theme, apply_mono_theme, apply_theme_from_kdl, current_theme_key,
+    };
 
     #[test]
     fn bundled_theme_is_valid_kdl() {

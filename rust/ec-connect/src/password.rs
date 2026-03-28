@@ -15,6 +15,19 @@ pub fn prompt_password(prompt: &str) -> Result<String, Box<dyn std::error::Error
     rpassword::prompt_password(prompt).map_err(|e| e.into())
 }
 
+pub fn prompt_line(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    print!("{prompt}");
+    io::stdout().flush()?;
+    let mut buf = String::new();
+    io::stdin().read_line(&mut buf)?;
+    Ok(buf)
+}
+
+pub fn prompt_optional_alias() -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let alias = prompt_line("Alias (optional): ")?;
+    Ok(Some(alias.trim().to_string()).filter(|alias| !alias.is_empty()))
+}
+
 pub fn write_wallet_warning<W: Write>(writer: &mut W) -> io::Result<()> {
     for line in WALLET_WARNING_LINES {
         writeln!(writer, "{line}")?;

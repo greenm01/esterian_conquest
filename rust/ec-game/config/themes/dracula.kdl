@@ -13,6 +13,11 @@ style "title" {
     bg "#282A36"
     bold #true
 }
+style "shell_title" {
+    fg "#282A36"
+    bg "#BD93F9"
+    bold #true
+}
 style "menu" {
     fg "#F8F8F2"
     bg "#282A36"
