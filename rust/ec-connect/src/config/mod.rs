@@ -67,3 +67,14 @@ impl ConnectConfig {
         self.lock_timeout_minutes.unwrap_or(5)
     }
 }
+
+pub fn validate_relay_url(input: &str) -> Result<Option<String>, String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if trimmed.starts_with("ws://") || trimmed.starts_with("wss://") {
+        return Ok(Some(trimmed.to_string()));
+    }
+    Err("relay URL must start with ws:// or wss://".to_string())
+}

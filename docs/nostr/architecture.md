@@ -238,8 +238,9 @@ cleared cache, etc.).
 
 On first join, the invite code uniquely identifies the game (codes are
 unique across all games on the server). No game ID is needed. After the
-join succeeds, `ec-connect` caches the game ID from the SessionReady
-payload for future connections. It also performs a second, short Nostr
+join succeeds, `ec-connect` caches the game ID, empire name, gate key,
+and relay URL from the successful session so future picker reconnects do
+not need to rediscover them. It also performs a second, short Nostr
 request to fetch the game's static player-safe starmap bundle. That map
 download is best-effort and happens only on first invite-code join, not
 on every reconnect.

@@ -9,6 +9,7 @@ use super::flows::{
     redownload_selected_maps,
 };
 use super::overlay::PickerOverlay;
+use super::relay::open_default_relay_editor;
 use super::state::{BODY_PAGE, PickerSession, PickerState, Screen};
 
 pub fn handle_game_list_key(
@@ -50,6 +51,15 @@ pub fn handle_game_list_key(
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => redownload_selected_maps(state, &picker_session.keys, gate_npub, maps_root, rt)?,
+        KeyEvent {
+            code: KeyCode::Char('r' | 'R'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
+            if let Err(err) = open_default_relay_editor(state) {
+                state.show_error(err.to_string());
+            }
+        }
         KeyEvent {
             code: KeyCode::Char('d' | 'D'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,

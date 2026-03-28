@@ -291,9 +291,15 @@ fn draw_main_row(
     game: &crate::cache::CachedGame,
     selected: bool,
 ) {
+    let empire_label = game
+        .player_name
+        .as_deref()
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("Seat {}", game.seat));
     let columns = [
         pad_right(
-            game.player_name.as_deref().unwrap_or(""),
+            &truncate(&empire_label, MAIN_COLUMNS[0].width),
             MAIN_COLUMNS[0].width,
         ),
         pad_right(

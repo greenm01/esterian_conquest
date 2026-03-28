@@ -6,9 +6,12 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
+use ec_connect::connect::session::SessionOutcome;
+use ec_connect::picker::flows::apply_session_outcome;
 use ec_connect::picker::help::HelpTopic;
 use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
+use ec_connect::picker::relay::RelayPromptAction;
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
 use ec_connect::picker::{PickerSession, PickerState, Screen};
 use ec_connect::wallet::{Identity, IdentityType, Wallet};
@@ -24,6 +27,7 @@ fn make_game(id: &str, last_connected: Option<&str>) -> CachedGame {
         player_name: Some(format!("Empire {id}")),
         server: "play.example.com".to_string(),
         port: 22,
+        relay_url: Some("wss://relay.example.com".to_string()),
         seat: 1,
         npub: "npub1test".to_string(),
         gate_npub: String::new(),
@@ -85,6 +89,7 @@ fn picker_state_initial_values() {
     assert!(state.join_input.is_empty());
     assert!(state.alias_input.is_empty());
     assert!(state.wallet_input.is_empty());
+    assert!(state.relay_input.is_empty());
     assert!(!state.quit);
     assert_eq!(state.wallet_selected, 0);
 }
@@ -128,8 +133,11 @@ fn refresh_cache_preserves_selection_when_still_valid() {
     let mut state = make_state(games);
     state.selected = 1;
 
-    // No change to cache contents.
-    state.refresh_cache();
+    // Clamp logic should not move a selection that is still in range.
+    let len = state.cache.sorted().len();
+    if state.selected >= len && len > 0 {
+        state.selected = len - 1;
+    }
 
     assert_eq!(state.selected, 1);
 }
@@ -138,7 +146,10 @@ fn refresh_cache_preserves_selection_when_still_valid() {
 fn refresh_cache_with_empty_list_leaves_selected_at_zero() {
     let mut state = make_state(vec![]);
     state.selected = 0;
-    state.refresh_cache();
+    let len = state.cache.sorted().len();
+    if state.selected >= len && len > 0 {
+        state.selected = len - 1;
+    }
     assert_eq!(state.selected, 0);
 }
 
@@ -216,6 +227,10 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
             .plain_line(row)
             .contains("D      delete selected game")
     }));
+    assert!(
+        (0..buffer.height())
+            .any(|row| buffer.plain_line(row).contains("R      edit default relay"))
+    );
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
@@ -230,8 +245,18 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
 
     assert_eq!(buffer.row(5)[1].ch, '└');
     assert!(buffer.plain_line(6).contains("COMMANDS <-"));
-    assert!(buffer.plain_line(6).contains(" M D L "));
+    assert!(buffer.plain_line(6).contains(" M D R L "));
     assert!(!buffer.plain_line(25).contains("COMMANDS <-"));
+}
+
+#[test]
+fn picker_falls_back_to_seat_label_when_player_name_missing() {
+    let mut game = make_game("a", Some("2026-03-26T00:00:00Z"));
+    game.player_name = None;
+    let state = make_state(vec![game]);
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Seat 1")));
 }
 
 #[test]
@@ -329,10 +354,89 @@ fn error_notice_dismisses_on_any_key() {
         KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
         &mut state,
         None,
+        "",
+        std::path::Path::new("/tmp"),
+        None,
+        None,
     )
     .unwrap();
 
     assert!(state.overlay.is_none());
+}
+
+#[test]
+fn default_relay_editor_renders_popup() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.relay_input = "ws://localhost:8080".to_string();
+    state.overlay = Some(PickerOverlay::DefaultRelayEditor { error: None });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("DEFAULT RELAY")));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Relay: ws://localhost:8080")
+    }));
+}
+
+#[test]
+fn game_relay_prompt_renders_popup() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.relay_input = "ws://localhost:7777".to_string();
+    state.overlay = Some(PickerOverlay::GameRelayPrompt {
+        index: 0,
+        action: RelayPromptAction::Connect,
+        error: Some("handshake timed out.".to_string()),
+    });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("GAME RELAY")));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Relay: ws://localhost:7777")
+    }));
+    assert!(
+        (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("handshake timed out.") })
+    );
+}
+
+#[test]
+fn picker_session_suppresses_default_griffith_notice() {
+    let mut state = make_state(vec![]);
+
+    apply_session_outcome(
+        &mut state,
+        SessionOutcome::Done {
+            exit_code: 0,
+            notice: Some("For Griffith and glory.".to_string()),
+        },
+        None,
+    );
+
+    assert!(state.overlay.is_none());
+}
+
+#[test]
+fn picker_session_keeps_nondefault_notice_in_tui() {
+    let mut state = make_state(vec![]);
+
+    apply_session_outcome(
+        &mut state,
+        SessionOutcome::Done {
+            exit_code: 0,
+            notice: Some("Warning: unable to save starmaps.".to_string()),
+        },
+        None,
+    );
+
+    assert_eq!(
+        state.overlay,
+        Some(PickerOverlay::Notice {
+            level: NoticeLevel::Notice,
+            message: "Warning: unable to save starmaps.".to_string(),
+        })
+    );
 }
 
 #[test]

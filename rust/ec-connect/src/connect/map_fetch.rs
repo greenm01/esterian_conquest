@@ -49,7 +49,8 @@ pub async fn fetch_map_bundle(
 
     let response_filter = Filter::new()
         .kinds([Kind::Custom(30505), Kind::Custom(30506)])
-        .pubkey(player_keys.public_key());
+        .author(gate_pubkey)
+        .pubkeys(vec![player_keys.public_key()]);
     client
         .subscribe(response_filter, None)
         .await
@@ -64,7 +65,8 @@ pub async fn fetch_map_bundle(
         .fetch_events(
             Filter::new()
                 .kinds([Kind::Custom(30505), Kind::Custom(30506)])
-                .pubkey(player_keys.public_key()),
+                .author(gate_pubkey)
+                .pubkeys(vec![player_keys.public_key()]),
             timeout,
         )
         .await

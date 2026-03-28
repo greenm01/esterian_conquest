@@ -19,6 +19,7 @@ fn session_ready_payload_json_basic() {
         ssh_user: "ecgame",
         game_name: "Friday Night EC",
         seat: 2,
+        player_name: "Empire of Sol",
     };
     let json = payload.to_json();
     assert!(json.contains(r#""game_id":"friday-night""#));
@@ -27,6 +28,7 @@ fn session_ready_payload_json_basic() {
     assert!(json.contains(r#""ssh_user":"ecgame""#));
     assert!(json.contains(r#""game_name":"Friday Night EC""#));
     assert!(json.contains(r#""seat":2"#));
+    assert!(json.contains(r#""player_name":"Empire of Sol""#));
 }
 
 #[test]
@@ -38,6 +40,7 @@ fn session_ready_payload_is_valid_json_structure() {
         ssh_user: "mag",
         game_name: "Test",
         seat: 1,
+        player_name: "Empire",
     };
     let json = payload.to_json();
     // Must start and end with braces.
@@ -152,8 +155,10 @@ fn nip44_round_trip_session_ready_payload() {
         ssh_user: "ecgame",
         game_name: "Friday Night EC",
         seat: 3,
+        player_name: "Commander \"Codex\"",
     };
     let plaintext = payload.to_json();
+    assert!(plaintext.contains(r#""player_name":"Commander \"Codex\"""#));
 
     let encrypted = nip44::encrypt(
         gate_keys.secret_key(),

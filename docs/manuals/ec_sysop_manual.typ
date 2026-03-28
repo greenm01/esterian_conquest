@@ -239,17 +239,21 @@ ec-sysop nostr init
 ec-sysop nostr serve
 ```
 
-After the daemon is running, give each player an invite code and the daemon's
-public key. The player-facing join command is:
+After the daemon is running, give each player an invite code, the daemon's
+public key, and the relay URL they should use. That relay may be one you host
+yourself or a trusted public relay, but it should be treated as part of the
+normal hosted setup contract. The player-facing join command is:
 
 ```
-ec-connect --join amber-river@play.example.com --gate npub1...
+ec-connect --join amber-river@play.example.com --gate npub1... --relay wss://relay.example.com
 ```
 
 On first join, `ec-connect` creates or unlocks the player's encrypted
 identity, binds that key to the seat, downloads the static starmap bundle, and
 opens the SSH-backed `ec-game` session. Returning players reconnect through
-`ec-connect` rather than launching `ec-game` directly.
+`ec-connect` rather than launching `ec-game` directly. After a successful join,
+`ec-connect` caches the exact relay per game, so most later reconnects do not
+need the relay entered again.
 
 // ─── 5. Game Directory Structure ─────────────────────────────────────────────
 

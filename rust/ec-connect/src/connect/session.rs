@@ -247,6 +247,7 @@ fn upsert_cache_entry(
         player_name: (!payload.player_name.is_empty()).then(|| payload.player_name.clone()),
         server: target.server_host.clone(),
         port: target.server_port,
+        relay_url: Some(target.relay_url.clone()),
         seat: payload.seat,
         npub: npub.to_string(),
         gate_npub: gate_npub.to_string(),

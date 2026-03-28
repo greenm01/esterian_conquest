@@ -4,11 +4,13 @@ use nostr_sdk::Keys;
 
 use ec_ui::session::TerminalSession;
 
+use crate::cache::save_cache;
 use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
 use crate::map_store::save_map_bundle;
 
+use super::relay::{RelayPromptAction, open_game_relay_prompt};
 use super::state::{PickerSession, PickerState, Screen};
 
 pub fn connect_selected(
@@ -23,20 +25,39 @@ pub fn connect_selected(
     use crate::config::load_config;
 
     let sorted = state.cache.sorted();
-    let Some(game) = sorted.get(state.selected).copied() else {
+    let Some(game) = sorted.get(state.selected).copied().cloned() else {
         return Ok(());
     };
 
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    if game
+        .relay_url
+        .as_ref()
+        .filter(|value| !value.is_empty())
+        .is_none()
+        && config.relay.is_none()
+    {
+        open_game_relay_prompt(
+            state,
+            state.selected,
+            &game.server,
+            RelayPromptAction::Connect,
+        );
+        return Ok(());
+    }
     let server_str = format!("{}:{}", game.server, game.port);
     let mut target = resolve_server(&server_str, &config)
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    if let Some(relay_url) = game.relay_url.as_ref().filter(|value| !value.is_empty()) {
+        target.relay_url = relay_url.clone();
+    }
     target.game_id = Some(game.id.clone());
     let effective_gate = if !game.gate_npub.is_empty() {
         game.gate_npub.clone()
     } else {
         gate_npub.to_string()
     };
+    let missing_cached_relay = game.relay_url.is_none() && config.relay.is_none();
     drop(sorted);
 
     let outcome = run_suspended(session, || {
@@ -49,6 +70,7 @@ pub fn connect_selected(
             maps_root,
         ))
     })?;
+    let outcome = annotate_missing_relay_timeout(outcome, missing_cached_relay);
     state.refresh_cache();
     apply_session_outcome(state, outcome, Some((target, effective_gate)));
     Ok(())
@@ -103,7 +125,7 @@ pub fn redownload_selected_maps(
     use crate::config::load_config;
 
     let sorted = state.cache.sorted();
-    let Some(game) = sorted.get(state.selected).copied() else {
+    let Some(game) = sorted.get(state.selected).copied().cloned() else {
         state.show_error("No joined games yet.");
         return Ok(());
     };
@@ -122,6 +144,21 @@ pub fn redownload_selected_maps(
     };
 
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    if game
+        .relay_url
+        .as_ref()
+        .filter(|value| !value.is_empty())
+        .is_none()
+        && config.relay.is_none()
+    {
+        open_game_relay_prompt(
+            state,
+            state.selected,
+            &game_server,
+            RelayPromptAction::DownloadMaps,
+        );
+        return Ok(());
+    }
     let server_str = format!("{}:{}", game_server, game_port);
     let mut target = match resolve_server(&server_str, &config) {
         Ok(target) => target,
@@ -130,6 +167,9 @@ pub fn redownload_selected_maps(
             return Ok(());
         }
     };
+    if let Some(relay_url) = game.relay_url.as_ref().filter(|value| !value.is_empty()) {
+        target.relay_url = relay_url.clone();
+    }
     target.game_id = Some(game_id.clone());
     drop(sorted);
 
@@ -162,6 +202,23 @@ pub fn move_selection(selected: &mut usize, delta: isize, total: usize) {
     *selected = (current + delta).clamp(0, max) as usize;
 }
 
+pub fn persist_cached_game_relay(
+    state: &mut PickerState,
+    index: usize,
+    relay_url: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let sorted = state.cache.sorted();
+    let Some(game) = sorted.get(index).copied().cloned() else {
+        return Err("selected game no longer exists".into());
+    };
+    drop(sorted);
+    let mut updated = game;
+    updated.relay_url = Some(relay_url.to_string());
+    state.cache.upsert(updated);
+    save_cache(&state.cache)?;
+    Ok(())
+}
+
 fn run_suspended<T>(
     session: &mut TerminalSession,
     action: impl FnOnce() -> T,
@@ -170,6 +227,20 @@ fn run_suspended<T>(
     let result = action();
     session.resume_after_bridge()?;
     Ok(result)
+}
+
+fn annotate_missing_relay_timeout(
+    outcome: SessionOutcome,
+    missing_cached_relay: bool,
+) -> SessionOutcome {
+    if missing_cached_relay && matches!(outcome, SessionOutcome::Timeout) {
+        SessionOutcome::Error(
+            "handshake timed out. This cached game has no saved relay URL yet; reconnect once with an explicit relay or add the relay to config."
+                .to_string(),
+        )
+    } else {
+        outcome
+    }
 }
 
 pub fn apply_session_outcome(

@@ -15,7 +15,7 @@ fn parse_empty_string_returns_empty_cache() {
     assert!(cache.games.is_empty());
 }
 
-const SAMPLE_CACHE: &str = r#"game id="friday-night" name="Friday Night EC" player-name="Empire One" server="play.example.com" port=22 seat=2 npub="npub1aaa" gate-npub="npub1gate" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+const SAMPLE_CACHE: &str = r#"game id="friday-night" name="Friday Night EC" player-name="Empire One" server="play.example.com" port=22 relay-url="wss://relay.example.com" seat=2 npub="npub1aaa" gate-npub="npub1gate" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1bbb" joined="2026-03-27T10:00:00Z"
 "#;
 
@@ -30,6 +30,7 @@ fn parse_sample_cache() {
     assert_eq!(g0.player_name.as_deref(), Some("Empire One"));
     assert_eq!(g0.server, "play.example.com");
     assert_eq!(g0.port, 22);
+    assert_eq!(g0.relay_url.as_deref(), Some("wss://relay.example.com"));
     assert_eq!(g0.seat, 2);
     assert_eq!(g0.npub, "npub1aaa");
     assert_eq!(g0.gate_npub, "npub1gate");
@@ -111,6 +112,7 @@ fn render_includes_gate_npub_when_set() {
         player_name: None,
         server: "s.example.com".to_string(),
         port: 22,
+        relay_url: Some("wss://relay.example.com".to_string()),
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: "npub1gate".to_string(),
@@ -122,6 +124,26 @@ fn render_includes_gate_npub_when_set() {
 }
 
 #[test]
+fn render_includes_relay_url_when_set() {
+    let mut cache = GameCache::empty();
+    cache.games.push(CachedGame {
+        id: "g".to_string(),
+        name: "G".to_string(),
+        player_name: None,
+        server: "s.example.com".to_string(),
+        port: 22,
+        relay_url: Some("wss://relay.example.com".to_string()),
+        seat: 1,
+        npub: "npub1p".to_string(),
+        gate_npub: String::new(),
+        joined: "2026-01-01T00:00:00Z".to_string(),
+        last_connected: None,
+    });
+    let rendered = render_cache(&cache);
+    assert!(rendered.contains("relay-url=\"wss://relay.example.com\""));
+}
+
+#[test]
 fn render_omits_gate_npub_when_empty() {
     let mut cache = GameCache::empty();
     cache.games.push(CachedGame {
@@ -130,6 +152,7 @@ fn render_omits_gate_npub_when_empty() {
         player_name: None,
         server: "s.example.com".to_string(),
         port: 22,
+        relay_url: None,
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: String::new(),
@@ -152,6 +175,23 @@ fn gate_npub_round_trip() {
 }
 
 #[test]
+fn relay_url_round_trip() {
+    let kdl = r#"game id="g" name="G" server="s.example.com" port=22 relay-url="ws://localhost:8080" seat=1 npub="npub1p" gate-npub="npub1gate" joined="2026-01-01T00:00:00Z"
+"#;
+    let cache = parse_cache_str(kdl).unwrap();
+    assert_eq!(
+        cache.games[0].relay_url.as_deref(),
+        Some("ws://localhost:8080")
+    );
+    let rendered = render_cache(&cache);
+    let cache2 = parse_cache_str(&rendered).unwrap();
+    assert_eq!(
+        cache2.games[0].relay_url.as_deref(),
+        Some("ws://localhost:8080")
+    );
+}
+
+#[test]
 fn gate_npub_for_server_returns_known_npub() {
     let mut cache = GameCache::empty();
     cache.games.push(CachedGame {
@@ -160,6 +200,7 @@ fn gate_npub_for_server_returns_known_npub() {
         player_name: None,
         server: "play.example.com".to_string(),
         port: 22,
+        relay_url: None,
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: "npub1gate".to_string(),
@@ -182,6 +223,7 @@ fn gate_npub_for_server_ignores_empty_gate_npub() {
         player_name: None,
         server: "play.example.com".to_string(),
         port: 22,
+        relay_url: None,
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: String::new(), // old-format entry
@@ -203,6 +245,7 @@ fn make_game(id: &str, joined: &str, last: Option<&str>) -> CachedGame {
         player_name: None,
         server: "localhost".to_string(),
         port: 22,
+        relay_url: None,
         seat: 1,
         npub: "npub1test".to_string(),
         gate_npub: String::new(),

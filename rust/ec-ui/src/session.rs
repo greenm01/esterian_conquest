@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use crossterm::cursor::Show;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
+use crossterm::style::{Attribute, ResetColor, SetAttribute};
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
@@ -63,12 +64,25 @@ impl TerminalSession {
             self.mouse_capture = false;
         }
         if self.alternate_screen {
-            execute!(stdout, LeaveAlternateScreen, Show)?;
+            execute!(stdout, LeaveAlternateScreen)?;
             self.alternate_screen = false;
         }
+        write_terminal_cleanup_sequence(&mut stdout)?;
         stdout.flush()?;
         Ok(())
     }
+}
+
+pub fn write_terminal_cleanup_sequence(out: &mut impl Write) -> io::Result<()> {
+    execute!(
+        out,
+        DisableMouseCapture,
+        Show,
+        SetAttribute(Attribute::Reset),
+        ResetColor
+    )?;
+    out.write_all(b"\x1b[0m\x1b[39m\x1b[49m\x1b(B\x1b]110\x07\x1b]111\x07\x1b]112\x07")?;
+    Ok(())
 }
 
 impl Drop for TerminalSession {

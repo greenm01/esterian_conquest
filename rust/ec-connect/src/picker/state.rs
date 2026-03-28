@@ -60,6 +60,7 @@ pub struct PickerState {
     pub join_input: String,
     pub alias_input: String,
     pub wallet_input: String,
+    pub relay_input: String,
     pub quit: bool,
     pub matrix: MatrixState,
 }
@@ -75,6 +76,7 @@ impl PickerState {
             join_input: String::new(),
             alias_input: String::new(),
             wallet_input: String::new(),
+            relay_input: String::new(),
             quit: false,
             matrix: MatrixState::new(),
         }

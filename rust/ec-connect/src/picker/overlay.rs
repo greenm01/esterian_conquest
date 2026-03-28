@@ -8,6 +8,10 @@ use super::help::HelpTopic;
 use super::layout::{
     PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box, format_help_row, truncate,
 };
+use super::relay::{
+    RelayPromptAction, handle_default_relay_key, handle_game_relay_key, render_default_relay_popup,
+    render_game_relay_popup,
+};
 use super::state::{PickerSession, PickerState};
 use crate::cache::save_cache;
 use crate::input_field::{draw_labeled_input_row, input_width};
@@ -21,18 +25,41 @@ pub enum NoticeLevel {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PickerOverlay {
-    Notice { level: NoticeLevel, message: String },
+    Notice {
+        level: NoticeLevel,
+        message: String,
+    },
     Help(HelpTopic),
     QuitConfirm,
-    WalletDetail { index: usize },
-    WalletDeleteConfirm { index: usize, step: u8 },
-    GameDeleteConfirm { index: usize, step: u8 },
+    DefaultRelayEditor {
+        error: Option<String>,
+    },
+    GameRelayPrompt {
+        index: usize,
+        action: RelayPromptAction,
+        error: Option<String>,
+    },
+    WalletDetail {
+        index: usize,
+    },
+    WalletDeleteConfirm {
+        index: usize,
+        step: u8,
+    },
+    GameDeleteConfirm {
+        index: usize,
+        step: u8,
+    },
 }
 
 pub fn handle_overlay_key(
     key: KeyEvent,
     state: &mut PickerState,
     picker_session: Option<&mut PickerSession>,
+    gate_npub: &str,
+    maps_root: &std::path::Path,
+    rt: Option<&tokio::runtime::Runtime>,
+    session: Option<&mut ec_ui::session::TerminalSession>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let Some(current) = state.overlay.clone() else {
         return Ok(());
@@ -62,6 +89,31 @@ pub fn handle_overlay_key(
             } else if is_cancel_confirm_key(key) {
                 state.overlay = None;
             }
+        }
+        PickerOverlay::DefaultRelayEditor { .. } => {
+            handle_default_relay_key(key, state)?;
+        }
+        PickerOverlay::GameRelayPrompt { index, action, .. } => {
+            let Some(picker_session) = picker_session else {
+                return Ok(());
+            };
+            let Some(rt) = rt else {
+                return Ok(());
+            };
+            let Some(session) = session else {
+                return Ok(());
+            };
+            handle_game_relay_key(
+                key,
+                index,
+                action,
+                state,
+                picker_session,
+                gate_npub,
+                maps_root,
+                rt,
+                session,
+            )?;
         }
         PickerOverlay::WalletDetail { index } => {
             let Some(picker_session) = picker_session else {
@@ -188,6 +240,12 @@ pub fn render_overlay(
                 "Are you sure Y/[N] ->",
             );
             buffer.clear_cursor();
+        }
+        Some(PickerOverlay::DefaultRelayEditor { error }) => {
+            render_default_relay_popup(buffer, &state.relay_input, error.as_deref());
+        }
+        Some(PickerOverlay::GameRelayPrompt { action, error, .. }) => {
+            render_game_relay_popup(buffer, &state.relay_input, error.as_deref(), *action);
         }
         Some(PickerOverlay::WalletDetail { index }) => {
             if let Some(session) = session {

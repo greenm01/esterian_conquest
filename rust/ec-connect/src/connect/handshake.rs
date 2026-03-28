@@ -105,7 +105,8 @@ pub async fn run_handshake(
     // Subscribe to 30502 and 30503 events addressed to us.
     let response_filter = Filter::new()
         .kinds([Kind::Custom(30502), Kind::Custom(30503)])
-        .pubkey(player_keys.public_key());
+        .author(gate_pubkey)
+        .pubkeys(vec![player_keys.public_key()]);
     client.subscribe(response_filter, None).await?;
 
     // Publish the 30501 SessionRequest.
@@ -126,7 +127,8 @@ pub async fn run_handshake(
         .fetch_events(
             Filter::new()
                 .kinds([Kind::Custom(30502), Kind::Custom(30503)])
-                .pubkey(player_keys.public_key()),
+                .author(gate_pubkey)
+                .pubkeys(vec![player_keys.public_key()]),
             timeout,
         )
         .await?;

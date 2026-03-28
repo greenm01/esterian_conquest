@@ -7,6 +7,10 @@ and provisions SSH sessions for `ec-game`. It runs on the VPS alongside
 For sysops, the public command surface is `ec-sysop nostr ...`. The
 `ec-gate` name remains the current internal crate/backend name.
 
+In normal hosted play, the sysop must also tell players which relay URL to
+use. The gate npub alone is not enough for `ec-connect` to find the right
+Nostr relay.
+
 ## Responsibilities
 
 - Listen on Nostr relays for session request events from players
@@ -233,7 +237,9 @@ key to connect and run `ec-game` for the correct seat.
 
 3. The entry is written to the authorized keys store for the `ecgame`
    service user.
-4. `ec-gate` publishes 30502 SessionReady to the player.
+4. `ec-gate` publishes 30502 SessionReady to the player, including the
+   game ID, SSH details, seat number, and the current empire name for
+   that seat.
 5. `ec-connect` uses the ephemeral private key to SSH in.
 6. sshd matches the key, enforces the `command=` restriction, and spawns
    `ec-game` in a PTY.

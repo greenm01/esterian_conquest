@@ -1,6 +1,6 @@
 use super::state::Screen;
 
-pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D L <Q>";
+pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D R L <Q>";
 pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N A D L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
 
@@ -53,6 +53,10 @@ const MAIN_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "D",
         description: "delete selected game",
+    },
+    HelpRow {
+        command: "R",
+        description: "edit default relay",
     },
     HelpRow {
         command: "L",

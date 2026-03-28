@@ -26,9 +26,6 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use crossterm::cursor::Show;
-use crossterm::execute;
-use crossterm::style::{Attribute, ResetColor, SetAttribute};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size as terminal_size};
 use russh::keys::ssh_key::{
     HashAlg,
@@ -42,6 +39,7 @@ use tokio::time::timeout;
 
 use crate::connect::handshake::SessionReadyPayload;
 use crate::connect::ssh_key::EphemeralKeypair;
+use ec_ui::session::write_terminal_cleanup_sequence;
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -269,7 +267,7 @@ fn restore_local_terminal_after_bridge() -> Result<(), BridgeError> {
 fn write_bridge_cleanup_sequence(
     out: &mut impl Write,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    execute!(out, Show, SetAttribute(Attribute::Reset), ResetColor)?;
+    write_terminal_cleanup_sequence(out)?;
     out.write_all(b"\r\n")?;
     Ok(())
 }

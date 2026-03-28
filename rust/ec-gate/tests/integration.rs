@@ -175,6 +175,7 @@ fn full_pipeline_first_time_join_with_invite_code() {
         ssh_user: &config.ssh_user,
         game_name: &seat.game_name,
         seat: seat.player,
+        player_name: "Empire of Sol",
     };
     let plaintext = payload.to_json();
 

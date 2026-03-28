@@ -113,6 +113,8 @@ fn run_loop(
             || matches!(
                 state.overlay,
                 Some(super::overlay::PickerOverlay::WalletDetail { .. })
+                    | Some(super::overlay::PickerOverlay::DefaultRelayEditor { .. })
+                    | Some(super::overlay::PickerOverlay::GameRelayPrompt { .. })
             );
         if is_manual_lock_key(key, text_entry) {
             lock_picker(state, picker_session);
@@ -122,7 +124,15 @@ fn run_loop(
         last_activity = Instant::now();
 
         if state.overlay.is_some() {
-            handle_overlay_key(key, state, picker_session.as_mut())?;
+            handle_overlay_key(
+                key,
+                state,
+                picker_session.as_mut(),
+                gate_npub,
+                maps_root,
+                Some(rt),
+                Some(session),
+            )?;
             if state.quit {
                 break;
             }
@@ -226,6 +236,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.join_input.clear();
     state.alias_input.clear();
     state.wallet_input.clear();
+    state.relay_input.clear();
     state.matrix.reset();
 }
 

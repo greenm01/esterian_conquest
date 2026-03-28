@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use ec_connect::config::io::{load_config_from, parse_config_str, render_config, save_config_to};
-use ec_connect::config::{ConnectConfig, ServerBookmark};
+use ec_connect::config::{ConnectConfig, ServerBookmark, validate_relay_url};
 
 // ---------------------------------------------------------------------------
 // parse_config_str
@@ -157,6 +157,29 @@ fn server_lookup_by_name() {
     let s = config.server("prod").unwrap();
     assert_eq!(s.host, "prod.example.com");
     assert!(config.server("missing").is_none());
+}
+
+#[test]
+fn validate_relay_url_accepts_ws_and_wss() {
+    assert_eq!(
+        validate_relay_url("ws://localhost:8080").unwrap(),
+        Some("ws://localhost:8080".to_string())
+    );
+    assert_eq!(
+        validate_relay_url("wss://relay.example.com").unwrap(),
+        Some("wss://relay.example.com".to_string())
+    );
+}
+
+#[test]
+fn validate_relay_url_allows_blank_for_clear() {
+    assert_eq!(validate_relay_url("   ").unwrap(), None);
+}
+
+#[test]
+fn validate_relay_url_rejects_non_websocket_scheme() {
+    let err = validate_relay_url("https://relay.example.com").unwrap_err();
+    assert!(err.contains("ws:// or wss://"));
 }
 
 // ---------------------------------------------------------------------------

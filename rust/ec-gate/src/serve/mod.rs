@@ -18,7 +18,7 @@ pub mod routing;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use ec_data::build_player_map_export_data;
+use ec_data::{CoreGameData, build_player_map_export_data};
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, ToBech32};
 use tokio::time::{Duration, interval};
 use tracing::{Instrument, debug, error, info, info_span, warn};
@@ -377,6 +377,7 @@ async fn handle_request(
 
             match provision::provision_key(&shared_config, &seat, &req.ssh_pubkey, &game_dir) {
                 Ok(provisioned) => {
+                    let player_name = player_name_for_seat(&game_dir, seat.player);
                     info!(
                         game_id = %seat.game_id,
                         player = seat.player,
@@ -389,6 +390,7 @@ async fn handle_request(
                         &req.nonce,
                         &shared_config,
                         &seat,
+                        &player_name,
                         &provisioned,
                     )
                     .await
@@ -420,4 +422,16 @@ async fn handle_request(
             }
         }
     }
+}
+
+fn player_name_for_seat(game_dir: &Path, player_index_1_based: usize) -> String {
+    let Ok(game_data) = CoreGameData::load(game_dir) else {
+        return String::new();
+    };
+    game_data
+        .player
+        .records
+        .get(player_index_1_based.saturating_sub(1))
+        .map(|record| record.controlled_empire_name_summary())
+        .unwrap_or_default()
 }

@@ -10,9 +10,10 @@ software and playtested accordingly.
 
 ## Player Experience
 
-In the recommended public flow, the sysop gives the player an invite code and
-the host's Nostr public key. The player joins once with `--join` and `--gate`,
-and `ec-connect` handles the identity, handshake, and terminal bridge.
+In the recommended public flow, the sysop gives the player an invite code, the
+host's Nostr public key, and the relay URL for the hosted game. The player
+joins once with `--join` and `--gate`, and `ec-connect` handles the identity,
+handshake, and terminal bridge.
 
 ### First Launch
 
@@ -253,7 +254,7 @@ Cache file at:
 Format:
 
 ```kdl
-game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 relay-url="wss://relay.example.com" seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-27T10:00:00Z"
 ```
 
@@ -266,6 +267,7 @@ Fields:
 | `player-name` | Cached server-reported empire name for the active identity in that game |
 | `server` | Server hostname |
 | `port` | SSH port |
+| `relay-url` | Exact relay URL used for successful sessions to this game, when known |
 | `seat` | Player seat number (1-based) |
 | `npub` | The identity that joined this game |
 | `gate-npub` | The Nostr public key for the daemon that served this game. Used for reconnects and manual map downloads. |
@@ -273,9 +275,14 @@ Fields:
 | `last-connected` | Timestamp of most recent connection (updated each session) |
 
 The cache is populated from the 30502 SessionReady payload, which
-includes `game_id`, `game_name`, and `seat`. The `npub` comes from the
-active wallet identity. `last-connected` is updated on each successful
-SSH connection.
+includes `game_id`, `game_name`, `seat`, and `player_name`. The `npub`
+comes from the active wallet identity. `relay-url` is copied from the
+resolved target used for the successful handshake so picker reconnects
+can reuse the same relay even when it is not the derived default. If an older
+cached row still has no saved `relay-url` and the player's config also has no
+default relay, the picker prompts for one before the handshake starts and
+saves it back onto that row after a successful reconnect.
+`last-connected` is updated on each successful SSH connection.
 
 The picker sorts games by `last-connected` descending, so the most
 recently played game appears first.
@@ -348,6 +355,7 @@ prompting the player to join a game.
 | Enter | Connect to selected game |
 | `J` | Enter invite code to join a new game |
 | `M` | Re-download the selected game's static starmap bundle |
+| `R` | Edit the default relay URL used for joins and legacy cache rows |
 | `I` | Show active identity (npub, number of identities in wallet) |
 | `Q` / Esc | Quit |
 

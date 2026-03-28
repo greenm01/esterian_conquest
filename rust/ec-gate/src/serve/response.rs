@@ -25,19 +25,26 @@ pub struct SessionReadyPayload<'a> {
     pub ssh_user: &'a str,
     pub game_name: &'a str,
     pub seat: usize,
+    pub player_name: &'a str,
 }
 
 impl SessionReadyPayload<'_> {
     /// Serialize to a compact JSON string.
     pub fn to_json(&self) -> String {
+        let game_id = escape_json_string(self.game_id);
+        let ssh_host = escape_json_string(self.ssh_host);
+        let ssh_user = escape_json_string(self.ssh_user);
+        let game_name = escape_json_string(self.game_name);
+        let player_name = escape_json_string(self.player_name);
         format!(
-            r#"{{"game_id":"{game_id}","ssh_host":"{ssh_host}","ssh_port":{ssh_port},"ssh_user":"{ssh_user}","game_name":"{game_name}","seat":{seat}}}"#,
-            game_id = self.game_id,
-            ssh_host = self.ssh_host,
+            r#"{{"game_id":"{game_id}","ssh_host":"{ssh_host}","ssh_port":{ssh_port},"ssh_user":"{ssh_user}","game_name":"{game_name}","seat":{seat},"player_name":"{player_name}"}}"#,
+            game_id = game_id,
+            ssh_host = ssh_host,
             ssh_port = self.ssh_port,
-            ssh_user = self.ssh_user,
-            game_name = self.game_name,
+            ssh_user = ssh_user,
+            game_name = game_name,
             seat = self.seat,
+            player_name = player_name,
         )
     }
 }
@@ -53,6 +60,7 @@ pub async fn publish_session_ready(
     session_nonce: &str,
     config: &GateConfig,
     seat: &ResolvedSeat,
+    player_name: &str,
     _provisioned: &ProvisionedKey,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let payload = SessionReadyPayload {
@@ -62,6 +70,7 @@ pub async fn publish_session_ready(
         ssh_user: &config.ssh_user,
         game_name: &seat.game_name,
         seat: seat.player,
+        player_name,
     };
     let plaintext = payload.to_json();
 

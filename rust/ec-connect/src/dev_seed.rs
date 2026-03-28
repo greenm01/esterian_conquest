@@ -125,6 +125,7 @@ fn build_cache(games: usize, wallet: &Wallet) -> Result<GameCache, Box<dyn std::
             player_name: fake_empire_name(index),
             server: fake_server(index),
             port: if index % 5 == 0 { 2222 } else { 22 },
+            relay_url: Some(fake_relay_url(index)),
             seat: ((index % 25) + 1) as u32,
             npub: npub.clone(),
             gate_npub: gate_keys.public_key().to_bech32()?,
@@ -198,5 +199,13 @@ fn fake_server(index: usize) -> String {
         format!("stress-{:02}.{}", (index % 17) + 1, host)
     } else {
         host.to_string()
+    }
+}
+
+fn fake_relay_url(index: usize) -> String {
+    if index % 3 == 0 {
+        "ws://localhost:8080".to_string()
+    } else {
+        format!("wss://relay{}.example.com", (index % 7) + 1)
     }
 }

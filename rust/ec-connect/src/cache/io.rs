@@ -100,6 +100,12 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
             .transpose()?
             .unwrap_or(22);
 
+        let relay_url = node
+            .get("relay-url")
+            .and_then(|v| v.as_string())
+            .map(str::to_string)
+            .filter(|value| !value.is_empty());
+
         let seat = node
             .get("seat")
             .and_then(|v| v.as_integer())
@@ -125,6 +131,7 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
             player_name,
             server,
             port,
+            relay_url,
             seat,
             npub,
             gate_npub,
@@ -149,9 +156,15 @@ pub fn render_cache(cache: &GameCache) -> String {
             out.push_str(&format!(" player-name=\"{}\"", kdl_escape(player_name)));
         }
         out.push_str(&format!(
-            " server=\"{}\" port={} seat={} npub=\"{}\" joined=\"{}\"",
+            " server=\"{}\" port={}",
             kdl_escape(&g.server),
             g.port,
+        ));
+        if let Some(relay_url) = g.relay_url.as_deref().filter(|value| !value.is_empty()) {
+            out.push_str(&format!(" relay-url=\"{}\"", kdl_escape(relay_url)));
+        }
+        out.push_str(&format!(
+            " seat={} npub=\"{}\" joined=\"{}\"",
             g.seat,
             kdl_escape(&g.npub),
             kdl_escape(&g.joined),

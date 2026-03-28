@@ -157,6 +157,30 @@ starmap bundle so you have the printable text map and CSV sheets locally.
 After that, most players simply reconnect through `ec-connect` and play
 through the interactive client.
 
+=== ec-connect Setup and Reconnects
+
+When you start `ec-connect` for the first time, it asks you to create a
+wallet password. That password protects your local EC wallet. If you lose it,
+you are locked out; there is no recovery path. After the password step,
+`ec-connect` creates or imports your first Nostr identity and lets you set an
+optional local alias so you can recognize it later.
+
+The no-argument `ec-connect` shell keeps a local picker of games you have
+joined. Press `W` there to manage identities in the wallet, switch the active
+identity, import an existing `nsec`, or set local aliases. Those aliases are
+local only; they are not sent to the server and do not replace your empire
+name inside a game.
+
+Press `R` in the picker to edit the default relay URL that `ec-connect` should
+use for new joins and for older cached games that do not yet remember a relay.
+Your sysop should tell you which relay to use. That relay may be self-hosted
+or a trusted public relay, but it is part of the normal hosted setup.
+
+If you reconnect to an older cached game and `ec-connect` does not already
+know its relay, it opens a `GAME RELAY` popup before starting the handshake.
+Enter the relay URL your sysop told you to use. Once the reconnect succeeds,
+that game row remembers the relay for later.
+
 If you are learning the interface, playing solo, or sharing one machine with
 friends, localhost and hotseat play remain fully supported. BBS door play
 still works too, but in the Rust edition it is best understood as legacy
