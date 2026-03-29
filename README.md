@@ -124,6 +124,10 @@ That installs:
 The host relay and game-server address live in `/etc/ec-gate/config.kdl`.
 `install_vps.sh` writes them from `--relay`, `--ssh-host`, and `--ssh-port`.
 If you change them later, edit that file and restart `ec-nostr.service`.
+If you self-host the relay on the same VPS, the relay host also needs a
+public HTTPS websocket front end. A common setup is `nostr-rs-relay` bound
+to `127.0.0.1:8080` with Caddy or another reverse proxy serving
+`relay.example.com` on `443`.
 
 Create and register games:
 ```bash

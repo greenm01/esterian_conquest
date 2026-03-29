@@ -374,6 +374,9 @@ if the admin prefers fully private games.
 - `sshd` running and configured
 - A Nostr relay (can be self-hosted with `nostr-rs-relay` or a public
   relay)
+- If the relay is self-hosted on this VPS, a public HTTPS websocket front end
+  for the relay host (for example Caddy proxying `relay.example.com` to a
+  local `nostr-rs-relay` on `127.0.0.1:8080`)
 - The `ec-game` and `ec-sysop` binaries installed
 - One or more game directories created with `ec-sysop`
 
@@ -391,7 +394,10 @@ if the admin prefers fully private games.
 
 For a fresh VPS host, `scripts/install_vps.sh` can bootstrap the standard
 filesystem layout, install the binaries under `/usr/local/bin`, write the
-systemd units, and initialize `/etc/ec-gate/identity.kdl`.
+systemd units, and initialize `/etc/ec-gate/identity.kdl`. If the relay also
+lives on that VPS, make sure its public reverse proxy is enabled too; the EC
+daemon cannot reach `wss://relay-host` until something is actually listening
+on `443`.
 
 ### systemd Unit
 

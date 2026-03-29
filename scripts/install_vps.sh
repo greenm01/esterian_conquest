@@ -324,4 +324,7 @@ Next steps:
      sudo systemctl restart ec-nostr.service
   4. Inspect hosted seats:
      sudo -u $EC_USER $EC_SYSOP_DEST nostr seats --dir $GAMES_ROOT/<slug>
+  5. If this VPS also hosts the relay, make sure the relay is publicly reachable on the configured host:
+     - run the relay daemon itself (for example nostr-rs-relay on localhost:8080)
+     - enable the HTTPS reverse proxy in front of it (for example: sudo systemctl enable --now caddy)
 EOF

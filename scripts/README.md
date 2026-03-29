@@ -54,6 +54,11 @@ It:
 - installs an `sshd` drop-in for the service user
 - initializes `/etc/ec-gate/identity.kdl` if missing
 
+It does not replace a public relay front end. If you self-host
+`nostr-rs-relay` on the same VPS and keep it bound to `127.0.0.1:8080`,
+you still need an HTTPS reverse proxy such as Caddy or nginx serving the
+relay hostname on `443`.
+
 Example:
 
 ```bash

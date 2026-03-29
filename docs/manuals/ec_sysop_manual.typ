@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 28),
+  date: datetime(year: 2026, month: 3, day: 29),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(0.5em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: March 28, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: March 29, 2026]
 ]
 
 #pagebreak()
@@ -211,6 +211,11 @@ The host-global relay URL and SSH address live in
 `--relay`, `--ssh-host`, and `--ssh-port`. If you change those values later,
 edit `/etc/ec-gate/config.kdl` as root and restart `ec-nostr.service`.
 
+If you self-host the relay on the same VPS, remember that the relay host must
+also be publicly reachable. A common setup is `nostr-rs-relay` bound to
+`127.0.0.1:8080` with Caddy or another HTTPS reverse proxy serving the relay
+hostname on port `443`.
+
 === 3. BBS Door Host
 
 Use this when the sysop wants `ec-game` as a door under Mystic, ENiGMA½, or a
@@ -294,6 +299,11 @@ The values handed to players come from `/etc/ec-gate/config.kdl`:
 
 - `relay` is the Nostr relay URL
 - `ssh-host` and `ssh-port` are published in relay discovery after the invite is claimed
+
+For a self-hosted relay, that `relay` URL must already work from outside the
+box. If `nostr-rs-relay` is listening only on loopback, also run the public
+HTTPS reverse proxy for the relay hostname before expecting hosted joins to
+work.
 
 After the daemon is running, view the hosted seat state and get the
 ready-to-distribute invite commands:
