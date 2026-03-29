@@ -135,3 +135,26 @@ fn quit_confirm_renders_and_only_y_exits() {
     let confirm = app.handle_key(key(KeyCode::Char('y')));
     assert_eq!(apply_action(&mut app, confirm), AppOutcome::Quit);
 }
+
+#[test]
+fn first_time_menu_quit_confirm_reuses_the_menu_prompt_row() {
+    let mut app = load_app();
+    app.current_screen = ScreenId::FirstTimeMenu;
+    app.request_quit();
+
+    let mut terminal = CaptureTerminal::default();
+    app.render(&mut terminal).expect("render");
+
+    assert!(
+        terminal.last_lines[4].contains("Are you sure Y/[N] ->"),
+        "quit confirm should replace the first-time command row"
+    );
+    assert!(
+        !terminal
+            .last_lines
+            .last()
+            .expect("last line")
+            .contains("Are you sure Y/[N] ->"),
+        "quit confirm should not fall to the bottom command line"
+    );
+}
