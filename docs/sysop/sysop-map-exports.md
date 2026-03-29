@@ -29,7 +29,7 @@ projection:
 Fog-of-war policy:
 
 - all players can see the full map layout and all world coordinates
-- world details only come from that player's `DATABASE.DAT`
+- world details only come from that player's visible runtime intel
 - undiscovered worlds still appear on the map as locations
 - undiscovered detail fields stay blank/unknown in the companion exports
 

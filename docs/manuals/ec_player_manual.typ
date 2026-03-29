@@ -152,6 +152,10 @@ the campaign starmap, and opens your `ec-game` session.
 
 == ec-connect Setup
 
+During the current beta, your sysop may hand you the `ec-connect` binary
+directly instead of pointing you at a public download page. Keep this manual
+with it.
+
 On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you
 lose it, the client cannot recover your wallet for you.

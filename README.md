@@ -48,6 +48,21 @@ The manuals cover everything from quick-start basics to deep strategy:
 
 Historical `.DOC` files are preserved in [original/v1.5](original/v1.5).
 
+## Beta Release Policy
+
+Public Rust downloads are intentionally limited during beta. The current
+policy is:
+
+| Audience | Current Path |
+|---|---|
+| Normal player | The sysop provides `ec-connect` directly for private testing, along with the player manual PDF |
+| Rust self-host sysop | Build from tagged source with Cargo |
+| Rust VPS sysop | Build from tagged source with Cargo and use `scripts/install_vps.sh` |
+| BBS sysop | Build from source, or use a direct/private beta build |
+
+Public GitHub Releases currently keep only the old DOS compatibility bundles.
+See [Release Policy](docs/release-policy.md).
+
 ## Background
 
 Esterian Conquest was a 1992 BBS door game with yearly turns and printed starmaps. This project is a full reimplementation in Rust — not a wrapper, but a ground-up reconstruction of the original rules and feel.
@@ -60,41 +75,42 @@ The engine is explicit. Seeded RNG ensures reproducible results, and the logs ex
 
 ## Quick Start
 
-### For Sysops: Create a Campaign
-\`\`\`bash
+### 1. Self-Host One Game
+```bash
 cd rust
 cargo run -q -p ec-sysop -- new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
-\`\`\`
+```
 
-Hosted game directories are DB-only:
+Each hosted game directory contains one runtime file:
 
-\`\`\`text
+```text
 /srv/ec/games/friday-night/
   ecgame.db
-\`\`\`
+```
 
-`ec-sysop new-game` does not generate classic `.DAT` files, does not copy DOS
-executables or docs, and does not bootstrap `config.kdl` or `themes/`.
-
-### For Sysops: Host via Nostr
-Initialize and run the Nostr-facing daemon:
-\`\`\`bash
+Run the client directly for local play or trusted SSH use:
+```bash
 cd rust
-cargo run -q -p ec-sysop -- nostr init
-cargo run -q -p ec-sysop -- nostr serve
-\`\`\`
+cargo run -q -p ec-game -- --dir /srv/ec/games/friday-night --player 1
+```
 
-For a VPS deployment, bootstrap the standard layout with:
+Advance the game when needed:
+```bash
+cd rust
+cargo run -q -p ec-sysop -- maint /srv/ec/games/friday-night 1
+```
 
-\`\`\`bash
+### 2. Host Many Games On One VPS
+Bootstrap the standard host layout:
+```bash
 sudo ./scripts/install_vps.sh \
   --relay wss://relay.example.com \
   --ssh-host play.example.com
-\`\`\`
+```
 
 That installs:
 
-\`\`\`text
+```text
 /usr/local/bin/ec-game
 /usr/local/bin/ec-sysop
 /usr/local/bin/ec-gate-keys
@@ -102,59 +118,64 @@ That installs:
 /etc/ec-gate/identity.kdl
 /var/lib/ec-gate/keys/
 /srv/ec/games/<slug>/ecgame.db
-\`\`\`
+```
 
-Generate player invite codes:
-\`\`\`bash
-cargo run -q -p ec-sysop -- nostr seats --dir /path/to/mygame
-\`\`\`
-
-### For Players: Join a Game
-1. Run `ec-connect`.
-2. Press `N`.
-3. Paste the invite code and press Enter.
-
-Power users can join directly:
-\`\`\`bash
-ec-connect --join ecinv1...
-\`\`\`
-
-### Run Maintenance
-Advance the game year:
-\`\`\`bash
-cargo run -q -p ec-sysop -- maint /tmp/ec-game 3
-\`\`\`
-For multi-game hosts, schedule the fleet-wide sweep instead:
-
-\`\`\`bash
-cargo run -q -p ec-sysop -- maint-all --config /etc/ec-gate/config.kdl
-\`\`\`
-
-Manage the daemon game list with:
-
-\`\`\`bash
+Create and register games:
+```bash
+cargo run -q -p ec-sysop -- new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 cargo run -q -p ec-sysop -- host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
-cargo run -q -p ec-sysop -- host status --config /etc/ec-gate/config.kdl
-\`\`\`
+```
 
-Schedule maintenance with `systemd` or `cron`. EC does not manage its own scheduler.
+Run the daemon:
+```bash
+cd rust
+cargo run -q -p ec-sysop -- nostr init
+cargo run -q -p ec-sysop -- nostr serve
+```
 
-## Useful Commands
+Schedule the fleet-wide sweep with `systemd` or `cron`:
+```bash
+cargo run -q -p ec-sysop -- maint-all --config /etc/ec-gate/config.kdl
+```
 
-**Inspect a game directory:**
-\`\`\`bash
+Players join with `ec-connect`:
+```bash
+ec-connect --join ecinv1...
+```
+
+### 3. Run `ec-game` As A BBS Door
+Create the game and reserve caller aliases:
+```bash
+cargo run -q -p ec-sysop -- new-game /srv/ec/games/night-shift --name "Night Shift EC" --players 4
+cargo run -q -p ec-sysop -- settings reserve --dir /srv/ec/games/night-shift --player 1 --alias SYSOP
+```
+
+During the current beta, a BBS sysop should build from source or use a
+direct/private test build. Then point the door entry at `ec-game` with a
+dropfile. For working setups, see:
+
+- [Mystic Rust Door Setup](docs/sysop/mystic-rust-setup.md)
+- [ENiGMA½ Rust Door Setup](docs/sysop/enigma-rust-setup.md)
+
+## Operator Docs
+
+- [EC Sysop Manual (PDF)](docs/manuals/ec_sysop_manual.pdf)
+- [Sysop Documentation Index](docs/sysop/README.md)
+- [EC Player Manual (PDF)](docs/manuals/ec_player_manual.pdf)
+
+## Developer Commands
+
+Inspect a game directory:
+```bash
+cd rust
 cargo run -q -p ec-cli -- core-report /tmp/ec-game
-\`\`\`
+```
 
-**Export a player starmap:**
-\`\`\`bash
-cargo run -q -p ec-cli -- map-export /tmp/ec-game 1 /tmp/ECMAP-P1.TXT
-\`\`\`
-
-**Inspect player mail:**
-\`\`\`bash
+Inspect player mail:
+```bash
+cd rust
 cargo run -q -p ec-cli -- inspect-messages /tmp/ec-game
-\`\`\`
+```
 
 ## Local Dependencies
 

@@ -101,19 +101,17 @@
 
 Esterian Conquest (EC) is a multi-player strategy game originally written for
 DOS-era BBS systems. The Rust-native stack reimplements the game engine, player
-client, and admin tooling for modern systems while preserving classic
-compatibility at a well-defined import/export boundary.
+client, and admin tooling for modern systems.
 
 This manual is for the *sysop* — the person responsible for hosting a game
 instance. It covers:
 
-- installing and initializing a game
-- configuration and theming
-- recommended Nostr hosting with `ec-sysop nostr`
-- localhost and direct deployment
-- legacy BBS door compatibility
-- player management
-- turn processing and maintenance
+- choosing the right deployment path
+- creating and maintaining a DB-only game
+- running the recommended Nostr host
+- running a local or direct SSH game
+- putting `ec-game` on a BBS door
+- managing players and yearly maintenance
 
 For player-facing rules and gameplay, see the *Player Manual*.
 
@@ -131,7 +129,7 @@ manuals.
 == System Requirements
 
 - Linux, macOS, or Windows
-- Rust toolchain (stable) to build from source, or a pre-built binary release
+- Rust toolchain (stable) for normal self-host and VPS deployment
 - For the recommended public-hosted flow: an SSH-accessible host plus a Nostr
   relay reachable by players
 - A terminal emulator for localhost or direct SSH play
@@ -148,14 +146,93 @@ cargo build --release -p ec-sysop -p ec-game -p ec-connect
 
 The release binaries will be in `target/release/`.
 
-== Directory Layout
+== Current Beta Distribution
 
-A running game occupies a single directory. A minimal populated game directory
-looks like:
+During the current beta, public GitHub Releases keep only the old DOS
+compatibility packages.
+
+For the Rust edition:
+
+1. Rust self-host and VPS sysops should build from tagged source with Cargo.
+2. Hosted test players should be given `ec-connect` directly, along with the
+   player manual.
+3. BBS sysops should build from source or use a direct/private beta build.
+
+A public Linux x64 BBS door package is planned later. When it ships, it should
+include `ec-game`, `ec-sysop`, the BBS wrapper/docs, the player manual, and
+this sysop manual.
+
+== Choose Your Deployment
+
+EC has three practical deployment paths.
+
+=== 1. Self-Host
+
+Use this when a sysop wants to run one game for himself and a few friends.
+
+1. Build the binaries.
+2. Create a game directory with `ec-sysop new-game`.
+3. Run `ec-game` directly, or turn on `ec-sysop nostr` if the players will
+   connect remotely.
+4. Run `ec-sysop maint` when the year should advance.
+
+The simplest local setup is:
+
+```
+ec-sysop new-game /home/sysop/ec-games/friday-night --name "Friday Night EC" --players 4
+ec-game --dir /home/sysop/ec-games/friday-night --player 1
+```
+
+=== 2. Dedicated VPS Host
+
+Use this when one operator wants to run many games for many players on one
+server.
+
+1. Run `scripts/install_vps.sh` as root.
+2. Put each game under `/srv/ec/games/<slug>/`.
+3. Register each game with `ec-sysop host games add`.
+4. Run one `ec-sysop nostr serve` daemon for all games.
+5. Run one `ec-sysop maint-all` timer for all games.
+
+The standard VPS layout is:
+
+```
+/usr/local/bin/ec-game
+/usr/local/bin/ec-sysop
+/usr/local/bin/ec-gate-keys
+/etc/ec-gate/config.kdl
+/etc/ec-gate/identity.kdl
+/var/lib/ec-gate/keys/
+/srv/ec/games/<slug>/ecgame.db
+```
+
+=== 3. BBS Door Host
+
+Use this when the sysop wants `ec-game` as a door under Mystic, ENiGMA½, or a
+similar BBS.
+
+1. Create the game with `ec-sysop new-game`.
+2. Reserve caller aliases with `ec-sysop settings reserve`.
+3. Launch `ec-game` with a BBS dropfile.
+4. Keep maintenance outside the door. Run `ec-sysop maint` from the host or
+   the BBS event runner.
+
+During the current beta, a BBS sysop should build from source or use a
+direct/private beta build. Windows BBS hosting is best-effort source-build
+only.
+
+For the exact launcher setups, see:
+
+- `docs/sysop/mystic-rust-setup.md`
+- `docs/sysop/enigma-rust-setup.md`
+
+== Game Directory Layout
+
+A hosted Rust game directory is DB-only:
 
 ```
 /path/to/mygame/
-  ecgame.db          runtime database (SQLite)
+  ecgame.db
 ```
 
 All tools take `--dir /path/to/mygame` to locate the game.
@@ -168,14 +245,7 @@ Create a new game with `ec-sysop new-game`:
 ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 ```
 
-This creates a fresh DB-only campaign directory containing exactly one runtime
-file: `ecgame.db`.
-
-`ec-sysop new-game` does not generate classic `.DAT` files, does not copy the
-original DOS executables or `.DOC` manuals, and does not bootstrap
-`config.kdl` or a `themes/` subdirectory. Hosted Rust campaigns are SQLite-
-native. Classic import/export and oracle tooling remain available separately on
-the developer/compatibility boundary.
+This creates one runtime file: `ecgame.db`.
 
 The supported public creation flags are:
 
@@ -195,7 +265,7 @@ lowercase ASCII letters, digits, and dashes. The slug is distinct from the
 human-readable `game_name`, and both are distinct from the per-seat invite
 codes used by `ec-connect`.
 
-== Recommended Hosted Play
+== Recommended Public Host
 
 For new public campaigns, the recommended deployment path is `ec-sysop nostr`
 plus `ec-connect`. In that model, the sysop runs the normal Rust engine on a
@@ -276,19 +346,8 @@ authority for invite codes, claim status, and bound player `npub`s. Legacy
 
 = Game Directory Structure
 
-== Core Files
-
-/ `ecgame.db`: The SQLite runtime database. All game state lives here. Do not
-  edit manually; use `ec-sysop` for normal operator actions.
-  Hosted Nostr seat claims also live here.
-
-== Subdirectories
-
-/ `exports/`: Default root for classic `.DAT` export output. Can be overridden
-  with `--export-root` or the `EC_CLIENT_EXPORT_ROOT` environment variable.
-
-/ `queue/`: Default directory for turn order queue files. Can be overridden
-  with `--queue-dir` or the `EC_CLIENT_QUEUE_DIR` environment variable.
+/ `ecgame.db`: The SQLite runtime database. All game state lives here. Hosted
+  seat claims live here too. Do not edit it by hand.
 
 // ─── 4. Configuration ─────────────────────────────────────────────────────────
 
@@ -309,7 +368,6 @@ ec-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SY
 ```text
 slug=friday-night
 game_name=Friday Night EC
-default_theme_key=tokyo_night
 snoop=true
 session_max_idle_minutes=10
 session_minimum_time_minutes=0
@@ -330,7 +388,7 @@ reservation seat=2 alias=NightShade
   columns: (auto, auto, auto, 1fr),
   [*Field*], [*Type*], [*Default*], [*Description*],
   [`game_name`], [string], [`"Esterian Conquest"`], [Display name shown in the main menu header.],
-  [`default_theme_key`], [string], [`"tokyo_night"`], [Bundled campaign theme key used as the default for local/SSH play.],
+  [`default_theme_key`], [string], [`"tokyo_night"`], [Bundled color set used by default. This is a compiled-in key, not a file path.],
   [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
   [`reservations`], [rows], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
   [`maintenance_enabled`], [bool], [`#true`], [Whether `maint-all` should advance this game when it becomes due.],
@@ -372,162 +430,13 @@ reservation seat=2 alias=NightShade
   Normal hosted Rust campaigns do not depend on that file at runtime.
 ]
 
-== Environment Variables
+== Display Defaults
 
-#table(
-  columns: (auto, 1fr),
-  [*Variable*], [*Description*],
-  [`EC_CLIENT_EXPORT_ROOT`], [Override the default export root directory.],
-  [`EC_CLIENT_QUEUE_DIR`], [Override the default turn queue directory.],
-  [`COLORTERM`], [Color depth hint. `truecolor` or `24bit` enables 24-bit color.],
-  [`TERM`], [Terminal type. A value containing `256color` enables 256-color mode.],
-)
+The default display look is controlled by `default_theme_key`. That key names a
+compiled-in color set. It is not a file path.
 
-// ─── 5. Theming ───────────────────────────────────────────────────────────────
-
-= Theming <theming>
-
-`ec-game` uses bundled built-in themes. The campaign default theme is stored by
-key in `ecgame.db`, while each player's local choice is stored there as a
-per-player preference. Hosted Rust campaigns do not require a per-game
-`themes/` directory.
-
-== Theme Selection
-
-`ec-game` resolves the theme in this order:
-
-1. If the player has a saved theme preference in `ecgame.db`, use that key.
-2. Otherwise, use the campaign `default_theme_key` from `ecgame.db`.
-3. If the stored key is missing or invalid, fall back to the bundled
-   `tokyo_night` theme.
-
-On parse error, the bundled default is used so a corrupted theme never
-prevents players from connecting.
-
-== Player Theme Picker
-
-From the Main Menu and First Time Menu in local-terminal sessions, players can
-open `C>olor Theme` to preview and apply the bundled themes shipped with
-`ec-game`. The picker stays open after `Enter` so players can try
-several looks before returning to the menu with `Q`.
-
-The picker exposes the compiled-in theme set plus a synthetic `Mono` option,
-which applies a monochrome
-projection over the current theme for players who prefer a plain white-on-black
-display.
-
-Joined players save their selected local theme immediately as a per-player
-preference in `ecgame.db`. A player choosing a theme from First Time Menu
-before fully joining uses it for that session, and the preference is saved when
-the join finishes successfully.
-
-If a stored player theme key later points to a missing or invalid theme,
-`ec-game` falls back to `tokyo_night` automatically. If a color theme still cannot
-be materialized, `Mono` remains the safe last-resort display.
-
-== Color Formats
-
-Three color formats are supported:
-
-#table(
-  columns: (auto, auto, 1fr),
-  [*Format*], [*Example*], [*Notes*],
-  [Named ANSI-16], [`"bright_blue"`], [Safe for all terminals including BBS/door clients. Recommended default.],
-  [256-color index], [`"idx:208"`], [Requires `--color-mode 256` or truecolor. Downgraded to nearest named color in 16-color mode.],
-  [24-bit hex RGB], [`"#ff8800"`], [Requires `--color-mode truecolor`. Downgraded gracefully in lower color modes.],
-)
-
-`tokyo_night` is the default: a rich dark palette using 24-bit hex
-colors for modern SSH and local terminals, downgraded gracefully to 256-color
-or named ANSI-16 on terminals that do not support truecolor. `mag16`
-is the ANSI-16 native alternative: a restrained dark palette using only named
-16-color values, safe for all terminal types including BBS door clients.
-The bundled theme set includes several other alternates. All hex colors
-degrade gracefully — they are automatically mapped to the nearest 256-color
-index or 16-color name when needed.
-
-== Color Mode
-
-`ec-game` selects a color mode at startup:
-
-#table(
-  columns: (auto, 1fr),
-  [*Mode*], [*Description*],
-  [`ansi16`], [Classic 16-color ANSI. Safe for BBS/door and all terminal types.],
-  [`256`], [256-color xterm palette.],
-  [`truecolor`], [24-bit RGB. Best for modern local or SSH terminals.],
-  [`auto`], [Detected from `COLORTERM` and `TERM` environment variables.],
-)
-
-Override with the `--color-mode` flag:
-
-```
-ec-game --dir /path/to/mygame --player 1 --color-mode truecolor
-```
-
-When `--encoding cp437` is specified (BBS door mode), `ec-game` defaults to
-`ansi16` regardless of the environment, unless `--color-mode` is set explicitly.
-
-== Semantic Style Tokens
-
-All required style tokens:
-
-#table(
-  columns: (auto, 1fr),
-  [*Token*], [*Purpose*],
-  [`body`], [Default body text.],
-  [`title`], [Screen and section titles.],
-  [`shell_title`], [Outer shell border title text such as the `EC CONNECT` frame title. This should normally use the same background as `body` with a more prominent foreground accent.],
-  [`shell_label`], [Outer shell border identity label text such as the active alias or shortened `npub` shown on the right side of the `EC CONNECT` frame. This should normally use the same background as `body` with its own accent color distinct from `shell_title`.],
-  [`menu`], [Menu item text.],
-  [`menu_hotkey`], [Menu hotkey letters.],
-  [`prompt`], [Input prompt text.],
-  [`prompt_angle_delimiter`], [Angle prompt punctuation such as the `< >` around explicit quit/cancel tokens like `<Q>`.],
-  [`prompt_square_delimiter`], [Square prompt punctuation such as the `[ ]` around defaults like `[03,03]` or yes/no defaults like `[Y]`.],
-  [`prompt_hotkey`], [Prompt hotkey letters.],
-  [`prompt_notice_action`], [Action-notice accent in prompts.],
-  [`bright`], [Emphasized body text.],
-  [`logo`], [Title logo decoration.],
-  [`intro_accent`], [Intro screen accent color.],
-  [`intro_tribute`], [Intro screen tribute line.],
-  [`stardate_label`], [Stardate label.],
-  [`stardate_week`], [Stardate week value.],
-  [`stardate_year`], [Stardate year value.],
-  [`error`], [Error messages.],
-  [`notice`], [Warning / notice messages.],
-  [`status_label`], [Status bar labels.],
-  [`status_value`], [Status bar values.],
-  [`table_chrome`], [Table borders and separators.],
-  [`table_header`], [Table column headers.],
-  [`table_body`], [Table body rows.],
-  [`disabled_row`], [Disabled / unavailable table rows.],
-  [`selected`], [Selected / highlighted row.],
-  [`alert`], [High-priority alert text.],
-  [`help_header`], [Help overlay section headers.],
-  [`help_panel`], [Help overlay body text.],
-  [`map_dot`], [Star map background dots.],
-  [`map_crosshair`], [Star map crosshair / cursor.],
-  [`map_center`], [Star map center marker.],
-  [`quote`], [Quote / flavor text body.],
-  [`quote_author`], [Quote attribution.],
-  [`report_header`], [Report page headers.],
-  [`indicator_on`], [Active indicator (e.g. status lit).],
-  [`indicator_off`], [Inactive indicator.],
-)
-
-The prompt delimiters are styled separately from the key text they contain.
-In command rails and inline prompts, the inner letters still use
-`prompt_hotkey`, while `< >` and `[ ]` come from their own delimiter styles.
-This lets a theme keep the command keys legible while giving quit markers and
-defaults their own visual distinction.
-
-== Mono Theme
-
-`Mono` is one of the local `C>olor Theme` picker entries. It applies a
-monochrome projection over the active theme and can be selected and saved like
-any other local player theme preference. In BBS door mode, monochrome output
-still comes from the separate `A>nsi color ON/OFF` toggle rather than the
-theme picker.
+Players may still choose a local color theme inside `ec-game`. That choice is
+stored in `ecgame.db` as a player preference.
 
 // ─── 6. SSH Access ────────────────────────────────────────────────────────────
 
@@ -741,9 +650,8 @@ For multi-game Nostr hosting, prefer a single global timer that runs
 config, skips games whose next due time has not arrived yet, and also skips
 games with live session leases so a player is never interrupted by maintenance.
 
-Do not treat game settings as a scheduler. Campaign policy such as theming,
-snoop, and inactivity thresholds lives in `ecgame.db`; maintenance timing still
-belongs to the host.
+Do not treat game settings as a scheduler. Snoop, inactivity, and the rest of
+the policy live in `ecgame.db`. The schedule still belongs to the host.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
 
@@ -789,24 +697,12 @@ routes the caller to the intended slot. The usual first-time join flow still
 claims an open empire, and that first successful join records the caller alias
 into the player record for later logins.
 
-// ─── 12. Classic Compatibility ────────────────────────────────────────────────
-
-= Classic Compatibility
-
-The Rust-native public deployment path is `ec-sysop nostr`, `ec-connect`, and
-`ec-game`.
-
-Classic `.DAT` import/export, oracle runs against the original binaries, and
-other preservation workflows still exist, but they belong to the internal
-`ec-cli` developer/compatibility surface rather than the normal sysop manual.
-
-// ─── 13. Terminology ──────────────────────────────────────────────────────────
+// ─── 12. Terminology ──────────────────────────────────────────────────────────
 
 = Terminology
 
-/ game directory: The directory containing `ecgame.db` and any lazily-created
-  export or queue subdirectories for a
-  single running game instance. Passed to all tools via `--dir`.
+/ game directory: The directory containing `ecgame.db` for one running game.
+  Passed to all tools with `--dir`.
 
 / `ec-sysop`: The public Rust command-line sysop tool for campaign creation
   maintenance, and Nostr hosting.
@@ -822,10 +718,10 @@ other preservation workflows still exist, but they belong to the internal
   Rust engine.
 
 / campaign settings: The sysop-managed runtime policy rows stored in
-  `ecgame.db`. They control game name, snoop mode, theme key, seat
-  reservations, maintenance cadence, and inactivity thresholds.
+  `ecgame.db`. They control game name, snoop mode, the default compiled-in
+  color set, seat reservations, maintenance cadence, and inactivity thresholds.
 
-// ─── 14. CLI Reference ────────────────────────────────────────────────────────
+// ─── 13. CLI Reference ────────────────────────────────────────────────────────
 
 = CLI Reference
 
@@ -870,7 +766,6 @@ Interactive client flags:
   [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through `ecgame.db` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
   [`--session-token <hex>`], [Hosted-session lease token injected by `ec-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
   [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
-  [`--export-root <path>`], [Override export directory. Default: `<game_dir>/exports`.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
 )
 
@@ -886,59 +781,3 @@ Interactive client flags:
 )
 
 #admonition("NOTE")[`ec-game submit-turn` is all-or-nothing. If any command in the file is invalid, the entire submission is rejected and nothing is written to `ecgame.db`.]
-
-// ─── 15. Theme Token Reference ────────────────────────────────────────────────
-
-= Theme Token Reference
-
-The ANSI-compatible reference palette below matches the bundled `mag16` theme.
-The default campaign theme key is still `tokyo_night`, but `mag16`
-is a useful baseline because it shows the semantic token split using portable
-named ANSI colors.
-
-#table(
-  columns: (auto, auto, auto, auto),
-  [*Token*], [*fg*], [*bg*], [*bold*],
-  [`body`], [`white`], [`black`], [—],
-  [`title`], [`bright_blue`], [`black`], [yes],
-  [`menu`], [`white`], [`black`], [—],
-  [`menu_hotkey`], [`yellow`], [`black`], [yes],
-  [`prompt`], [`white`], [`black`], [—],
-  [`prompt_angle_delimiter`], [`green`], [`black`], [yes],
-  [`prompt_square_delimiter`], [`red`], [`black`], [yes],
-  [`prompt_hotkey`], [`yellow`], [`black`], [yes],
-  [`prompt_notice_action`], [`bright_cyan`], [`black`], [yes],
-  [`bright`], [`bright_white`], [`black`], [yes],
-  [`logo`], [`bright_blue`], [`black`], [yes],
-  [`intro_accent`], [`bright_blue`], [`black`], [—],
-  [`intro_tribute`], [`bright_magenta`], [`black`], [—],
-  [`stardate_label`], [`cyan`], [`black`], [—],
-  [`stardate_week`], [`bright_cyan`], [`black`], [—],
-  [`stardate_year`], [`yellow`], [`black`], [—],
-  [`error`], [`red`], [`black`], [yes],
-  [`notice`], [`bright_red`], [`black`], [yes],
-  [`status_label`], [`white`], [`black`], [—],
-  [`status_value`], [`white`], [`black`], [—],
-  [`table_chrome`], [`blue`], [`black`], [—],
-  [`table_header`], [`cyan`], [`black`], [yes],
-  [`table_body`], [`bright_white`], [`black`], [—],
-  [`disabled_row`], [`bright_black`], [`black`], [—],
-  [`selected`], [`black`], [`bright_blue`], [—],
-  [`alert`], [`bright_white`], [`red`], [yes],
-  [`help_header`], [`bright_blue`], [`black`], [yes],
-  [`help_panel`], [`white`], [`black`], [—],
-  [`map_dot`], [`green`], [`black`], [—],
-  [`map_crosshair`], [`bright_red`], [`black`], [yes],
-  [`map_center`], [`bright_white`], [`black`], [yes],
-  [`quote`], [`white`], [`black`], [—],
-  [`quote_author`], [`white`], [`black`], [—],
-  [`report_header`], [`cyan`], [`black`], [—],
-  [`indicator_on`], [`bright_green`], [`black`], [yes],
-  [`indicator_off`], [`bright_black`], [`black`], [—],
-)
-
-Star decoration colors (6 slots, cycling):
-
-```kdl
-star-colors "bright_blue" "bright_white" "white" "bright_yellow" "yellow" "bright_red"
-```

@@ -292,7 +292,11 @@ Use this when you want:
 
 - a native Linux or macOS playtest bundle without requiring a Rust toolchain
 - one archive containing both the player and sysop binaries
-- a quick way to hand testers the manuals and startup instructions
+- a quick way to hand private testers the manuals and startup instructions
+
+This is an internal/private-beta helper. It is not part of the public GitHub
+release surface while the hosted Rust path is still being proven in live VPS
+games.
 
 ### `build_linux_playtest_bundle.py`
 
@@ -305,8 +309,9 @@ python3 scripts/build_linux_playtest_bundle.py --verify
 
 ### `publish_release_packages.sh`
 
-Builds the selected release bundles, verifies them, then uploads the generated
-assets to an existing GitHub Release with `gh release upload --clobber`.
+Builds the selected DOS release bundles, verifies them, then uploads the
+generated assets to an existing GitHub Release with `gh release upload
+--clobber`.
 
 Default example:
 
@@ -326,21 +331,9 @@ Unlocked-only example:
 ./scripts/publish_release_packages.sh --variant unlocked
 ```
 
-Apple Silicon playtest bundle example:
-
-```bash
-./scripts/publish_release_packages.sh --playtest-target aarch64-apple-darwin
-```
-
-Mixed DOS + macOS example:
-
-```bash
-./scripts/publish_release_packages.sh --variant classic --playtest-target aarch64-apple-darwin
-```
-
 Use this when you want:
 
-- the easiest "build, verify, publish" release workflow
+- the easiest DOS-only "build, verify, publish" release workflow
 - the generated release assets to stay untracked locally under `releases/`
 - the public downloadable copies to live on GitHub Releases instead of `main`
 

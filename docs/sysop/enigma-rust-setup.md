@@ -18,6 +18,9 @@ original `ECGAME.EXE`.
 
 ## 1. Build the Rust client
 
+During the current beta, build these from source or use a direct/private beta
+build. A public Linux x64 BBS door package is planned later.
+
 From the repo root:
 
 ```bash
@@ -52,16 +55,15 @@ cd rust
 cargo run -q -p ec-sysop -- maint /path/to/ec-campaign 1
 ```
 
-## 3. Reserve caller aliases in `config.kdl`
+## 3. Reserve caller aliases
 
 For BBS hosting, reserve each caller alias to a fixed empire slot so the door
 can resolve the seat from the dropfile:
 
-```kdl
-reservations {
-    seat player=1 alias="niltempus"
-    seat player=2 alias="NightShade"
-}
+```bash
+cd rust
+cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias niltempus
+cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
 If a caller alias is not reserved, `ec-game` still requires `--player`, which

@@ -22,6 +22,9 @@ translation layer.
 
 ## 1. Build the Rust binaries
 
+During the current beta, build these from source or use a direct/private beta
+build. A public Linux x64 BBS door package is planned later.
+
 From the repo root:
 
 ```bash
@@ -38,14 +41,13 @@ cd rust
 cargo run -q -p ec-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
 ```
 
-Reserve each caller alias in `config.kdl` so the door can resolve the seat
-from the dropfile without `--player`:
+Reserve each caller alias so the door can resolve the seat from the dropfile
+without `--player`:
 
-```kdl
-reservations {
-    seat player=1 alias="mag"
-    seat player=2 alias="NightShade"
-}
+```bash
+cd rust
+cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias mag
+cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
 Run yearly maintenance with your normal host tooling:
@@ -105,7 +107,7 @@ For local testing, connect with SyncTERM or telnet to the configured port.
 
 The expected first-pass smoke test is:
 
-1. create or log into a Mystic user whose alias is reserved in `config.kdl`
+1. create or log into a Mystic user whose alias is reserved in `ecgame.db`
 2. open the Doors menu
 3. launch the EC entry
 4. confirm the EC first-time menu renders in color and sits on the normal

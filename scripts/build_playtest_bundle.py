@@ -68,7 +68,7 @@ class BundleSpec:
 def parse_args(default_target: str | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a native ec-game/ec-sysop/ec-connect playtest bundle for Linux or macOS."
+            "Build a private beta ec-game/ec-sysop/ec-connect bundle for Linux or macOS."
         )
     )
     parser.add_argument(
@@ -89,7 +89,7 @@ def parse_args(default_target: str | None) -> argparse.Namespace:
     parser.add_argument(
         "--verify",
         action="store_true",
-        help="Unpack and verify the generated bundle after building it.",
+        help="Unpack and verify the generated private beta bundle after building it.",
     )
     return parser.parse_args()
 
@@ -196,9 +196,11 @@ xattr -d com.apple.quarantine ./bin/ec-game ./bin/ec-sysop ./bin/ec-connect
 ```
 """.rstrip()
 
-    return f"""# Esterian Conquest {spec.platform.display_name} Playtest Bundle
+    return f"""# Esterian Conquest {spec.platform.display_name} Private Beta Bundle
 
-This bundle contains the public Rust playtest binaries for {spec.platform.display_name}:
+This bundle is for private beta testing on {spec.platform.display_name}.
+
+It contains:
 
 - `bin/ec-game`
 - `bin/ec-sysop`
@@ -209,6 +211,10 @@ It also includes:
 - `docs/ec_player_manual.pdf`
 - `docs/ec_sysop_manual.pdf`
 - `BUILD-INFO.txt` with version/build metadata for bug reports
+
+This is not a public release package. Public GitHub Releases currently keep
+only the DOS compatibility bundles while the hosted Rust path is still under
+live playtest.
 
 ## Quick Start
 
@@ -225,7 +231,7 @@ Initialize and run the Nostr hosting daemon:
 ./bin/ec-sysop nostr serve
 ```
 
-The recommended player join path is `ec-connect`:
+The hosted-player join path is `ec-connect`:
 
 ```bash
 ./bin/ec-connect --join amber-river@play.example.com --gate npub1...
@@ -254,8 +260,7 @@ If you host `ec-game` as a BBS door, the current stable door-mode controls are:
 Arrow keys and `PgUp` / `PgDn` are not part of the primary door-mode contract.
 
 Hosted Rust campaigns are DB-only. `ec-sysop new-game` creates just
-`<game_dir>/ecgame.db`. The binaries do not require a per-game `config.kdl`
-or `themes/` directory.
+`<game_dir>/ecgame.db`.
 {macos_quarantine_note}
 
 ## Bug Reports
