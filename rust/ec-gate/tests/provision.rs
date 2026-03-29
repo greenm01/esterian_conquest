@@ -149,6 +149,12 @@ fn command_key_entry_has_command_restriction() {
         "entry should contain command= restriction"
     );
     assert!(
+        provisioned
+            .entry
+            .contains(&format!(r#"command="exec {}"#, DEFAULT_EC_GAME_PATH)),
+        "entry should exec ec-game directly so ssh exits back to ec-connect"
+    );
+    assert!(
         provisioned.entry.contains("--player 2"),
         "entry should contain the seat index"
     );

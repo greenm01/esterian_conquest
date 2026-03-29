@@ -221,7 +221,7 @@ key to connect and run `ec-game` for the correct seat.
 2. `ec-gate` writes an authorized key entry restricted with `command=`:
 
    ```
-   command="/usr/local/bin/ec-game --dir /srv/ec/games/friday-night --player 2 --session-token 4d9f...",no-port-forwarding,no-X11-forwarding,no-agent-forwarding <ephemeral-pubkey>
+   command="exec /usr/local/bin/ec-game --dir /srv/ec/games/friday-night --player 2 --session-token 4d9f...",no-port-forwarding,no-X11-forwarding,no-agent-forwarding <ephemeral-pubkey>
    ```
 
 3. The entry is written to the authorized keys store for the `ecgame`
@@ -230,8 +230,8 @@ key to connect and run `ec-game` for the correct seat.
    game ID, SSH details, seat number, and the current empire name for
    that seat.
 5. `ec-connect` uses the ephemeral private key to SSH in.
-6. sshd matches the key, enforces the `command=` restriction, and spawns
-   `ec-game` in a PTY.
+6. sshd matches the key, enforces the `command=` restriction, and the shell
+   `exec`s `ec-game` in a PTY.
 7. After the hosted session ends, `ec-connect` may issue a lightweight
    30507 state refresh so its local cache can pick up the player's final
    empire name and seat metadata.

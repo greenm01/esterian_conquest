@@ -88,12 +88,12 @@ pub fn provision_key(
     let now = unix_now();
     let expires_at = now + config.key_ttl;
 
-    // No `exec` prefix — running the binary directly avoids shell built-in
-    // conflicts (e.g. fish's `exec` parses flags differently from sh/bash/zsh).
-    // The shell runs ec-game as a subprocess; the extra shell process is
-    // negligible and this works correctly on all POSIX shells and fish.
+    // The service user shell is constrained to /bin/bash or /bin/sh by the
+    // installer. Use `exec` so the shell is replaced by ec-game; when the
+    // hosted session ends, sshd closes the connection cleanly instead of
+    // dropping the player to an interactive shell prompt.
     let command = format!(
-        "{} --dir {} --player {} --session-token {}",
+        "exec {} --dir {} --player {} --session-token {}",
         config.ec_game_path.display(),
         game_dir.display(),
         seat.player,

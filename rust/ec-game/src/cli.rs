@@ -170,7 +170,10 @@ fn should_emit_local_exit_attribution(
     interactive_terminal: bool,
     has_session_lease: bool,
 ) -> bool {
-    interactive_terminal && !parsed.use_door_terminal && !has_session_lease
+    interactive_terminal
+        && !parsed.use_door_terminal
+        && parsed.session_token.is_none()
+        && !has_session_lease
 }
 
 fn emit_local_exit_lines() {
@@ -657,6 +660,12 @@ mod tests {
         }
     }
 
+    fn hosted_args() -> ParsedLaunchArgs {
+        let mut parsed = parsed_args(false);
+        parsed.session_token = Some("session-token".to_string());
+        parsed
+    }
+
     #[test]
     fn session_lease_uses_explicit_timeout_when_present() {
         let mut game_config = GameConfig::default();
@@ -707,6 +716,11 @@ mod tests {
             &parsed_args(false),
             true,
             true
+        ));
+        assert!(!should_emit_local_exit_attribution(
+            &hosted_args(),
+            true,
+            false
         ));
     }
 }
