@@ -298,7 +298,7 @@ ec-sysop nostr serve
 The values handed to players come from `/etc/ec-gate/config.kdl`:
 
 - `relay` is the Nostr relay URL
-- `ssh-host` and `ssh-port` are published in relay discovery after the invite is claimed
+- `ssh-host` and `ssh-port` are published in relay discovery during the first session handshake
 
 For a self-hosted relay, that `relay` URL must already work from outside the
 box. If `nostr-rs-relay` is listening only on loopback, also run the public
@@ -333,9 +333,12 @@ host, and `ec-connect` discovers the rest from the relay. No extra flags are
 normally required.
 
 On first join, `ec-connect` creates or unlocks the player's encrypted
-identity, claims the hosted seat through the relay, downloads the static
-starmap bundle, and opens the SSH-backed `ec-game` session. Returning players
-reconnect through `ec-connect` without re-entering any flags.
+identity and opens the SSH-backed `ec-game` session. The hosted seat is not
+claimed until the player actually saves the in-game empire name. If the player
+disconnects before that save, the invite is still pending and can be used
+again. After a completed first join, `ec-connect` caches the game locally,
+downloads the static starmap bundle, and returning players reconnect without
+re-entering any flags.
 
 *Power users and scripted workflows* may also join directly from the command
 line:
@@ -355,10 +358,11 @@ player join again with the new code.
 
 == Hosted Player Identity Management
 
-Hosted seats are bound to the first player identity that claims them. In
-practice this means the seat is tied to one `npub` until the sysop changes it.
-Returning players should reconnect with the same local EC wallet identity they
-used when they first redeemed the invite.
+Hosted seats are bound to the first player identity that completes the
+in-game join and saves the empire name. In practice this means the seat is
+tied to one `npub` until the sysop changes it. Returning players should
+reconnect with the same local EC wallet identity they used when they finished
+that first join.
 
 Players should not expect to paste the same invite into a brand-new wallet and
 take over an already-claimed seat. `ec-gate` treats that as a different player

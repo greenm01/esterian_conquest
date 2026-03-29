@@ -142,15 +142,9 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                                     player_npub = %req.player_pubkey,
                                     nonce = %req.nonce,
                                 );
-                                handle_claim_request(
-                                    req,
-                                    shared_dirs,
-                                    shared_keys,
-                                    shared_config,
-                                    client_clone,
-                                )
-                                .instrument(span)
-                                .await;
+                                handle_claim_request(req, shared_keys, client_clone)
+                                    .instrument(span)
+                                    .await;
                             }
                             Err(e) => {
                                 debug!(error = %e, "rejected seat-claim event");
@@ -546,9 +540,7 @@ async fn handle_session_state_request(
 
 async fn handle_claim_request(
     req: claim::SeatClaimRequest,
-    shared_dirs: Arc<Vec<std::path::PathBuf>>,
     shared_keys: Arc<Keys>,
-    shared_config: Arc<GateConfig>,
     client: Client,
 ) {
     let player_pubkey = match PublicKey::from_hex(&req.player_pubkey) {
@@ -559,154 +551,23 @@ async fn handle_claim_request(
         }
     };
 
-    let loaded_games = match catalog::load_hosted_games(shared_dirs.as_slice()) {
-        Ok(games) => games,
-        Err(err) => {
-            error!(error = %err, "cannot load hosted games for seat claim");
-            if let Err(pub_err) = claim::publish_seat_claim_error(
-                &client,
-                &shared_keys,
-                &player_pubkey,
-                &req.nonce,
-                "internal_error",
-                "Unable to process this invite right now.",
-            )
-            .await
-            {
-                error!(error = %pub_err, "failed to publish 30511 SeatClaimError");
-            }
-            return;
-        }
-    };
-
-    let Some(game_entry) =
-        resolve_claim_target(&loaded_games, req.game_id.as_deref(), &req.invite_code)
-    else {
-        let (code, message) = if req.game_id.is_some() {
-            (
-                "invalid_code",
-                "The invite code does not match this hosted game.",
-            )
-        } else {
-            (
-                "game_not_found",
-                "The invite code is not valid for any hosted game on this server.",
-            )
-        };
-        if let Err(err) = claim::publish_seat_claim_error(
-            &client,
-            &shared_keys,
-            &player_pubkey,
-            &req.nonce,
-            code,
-            message,
-        )
-        .await
-        {
-            error!(error = %err, "failed to publish 30511 SeatClaimError");
-        }
-        return;
-    };
-
-    let store = match ec_data::CampaignStore::open_default_in_dir(&game_entry.dir) {
-        Ok(store) => store,
-        Err(err) => {
-            error!(game_id = %game_entry.game.game_id, error = %err, "cannot open campaign store for claim");
-            if let Err(pub_err) = claim::publish_seat_claim_error(
-                &client,
-                &shared_keys,
-                &player_pubkey,
-                &req.nonce,
-                "internal_error",
-                "Unable to process this invite right now.",
-            )
-            .await
-            {
-                error!(error = %pub_err, "failed to publish 30511 SeatClaimError");
-            }
-            return;
-        }
-    };
-
-    match store.claim_hosted_seat(&req.invite_code, &req.player_pubkey) {
-        Ok(_) => {
-            info!(
-                invite_code = %req.invite_code,
-                player_npub = %req.player_pubkey,
-                game_id = %game_entry.game.game_id,
-                "seat claimed"
-            );
-            match catalog::load_hosted_game(&game_entry.dir) {
-                Ok(entry) => match game_def::publish_game_definition(
-                    &client,
-                    &shared_keys,
-                    &entry.game,
-                    &shared_config.ssh_host,
-                    shared_config.ssh_port,
-                )
-                .await
-                {
-                    Ok(event_id) => info!(
-                        game_id = %entry.game.game_id,
-                        event_id = %event_id,
-                        "published updated 30500 GameDefinition after claim"
-                    ),
-                    Err(err) => warn!(
-                        game_id = %entry.game.game_id,
-                        error = %err,
-                        "failed to publish updated 30500 GameDefinition after claim"
-                    ),
-                },
-                Err(err) => warn!(
-                    game_id = %game_entry.game.game_id,
-                    error = %err,
-                    "cannot reload hosted game after claim"
-                ),
-            }
-        }
-        Err(ec_data::ClaimHostedSeatError::InvalidCode) => {
-            if let Err(err) = claim::publish_seat_claim_error(
-                &client,
-                &shared_keys,
-                &player_pubkey,
-                &req.nonce,
-                "invalid_code",
-                "The invite code is not valid.",
-            )
-            .await
-            {
-                error!(error = %err, "failed to publish 30511 SeatClaimError");
-            }
-        }
-        Err(ec_data::ClaimHostedSeatError::CodeClaimed) => {
-            if let Err(err) = claim::publish_seat_claim_error(
-                &client,
-                &shared_keys,
-                &player_pubkey,
-                &req.nonce,
-                "code_claimed",
-                "The invite code has already been claimed.",
-            )
-            .await
-            {
-                error!(error = %err, "failed to publish 30511 SeatClaimError");
-            }
-        }
-        Err(ec_data::ClaimHostedSeatError::Store(err)) => {
-            error!(game_id = %game_entry.game.game_id, error = %err, "claim failed");
-            if let Err(pub_err) = claim::publish_seat_claim_error(
-                &client,
-                &shared_keys,
-                &player_pubkey,
-                &req.nonce,
-                "internal_error",
-                "Unable to process this invite right now.",
-            )
-            .await
-            {
-                error!(error = %pub_err, "failed to publish 30511 SeatClaimError");
-            }
-        }
+    warn!(
+        invite_code = %req.invite_code,
+        player_npub = %req.player_pubkey,
+        game_id = req.game_id.as_deref().unwrap_or(""),
+        "received deprecated 30510 SeatClaimRequest"
+    );
+    if let Err(err) = claim::publish_seat_claim_error(
+        &client,
+        &shared_keys,
+        &player_pubkey,
+        &req.nonce,
+        "obsolete_flow",
+        "Invite codes are claimed only after you finish joining in game. Retry with a current client.",
+    )
+    .await
+    {
+        error!(error = %err, "failed to publish 30511 SeatClaimError");
     }
 }
 
@@ -749,81 +610,6 @@ async fn handle_request(
                     return;
                 }
             };
-            if seat.first_claim {
-                let Some(invite_code) = req.invite_code.as_deref() else {
-                    error!(game_id = %seat.game_id, "first claim missing invite code");
-                    return;
-                };
-                let store = match ec_data::CampaignStore::open_default_in_dir(&game_dir) {
-                    Ok(store) => store,
-                    Err(err) => {
-                        error!(game_id = %seat.game_id, error = %err, "cannot open campaign store for claim");
-                        return;
-                    }
-                };
-                match store.claim_hosted_seat(invite_code, &req.player_pubkey) {
-                    Ok(_) => match catalog::load_hosted_game(&game_dir) {
-                        Ok(entry) => {
-                            match game_def::publish_game_definition(
-                                &client,
-                                &shared_keys,
-                                &entry.game,
-                                &shared_config.ssh_host,
-                                shared_config.ssh_port,
-                            )
-                            .await
-                            {
-                                Ok(event_id) => info!(
-                                    game_id = %entry.game.game_id,
-                                    event_id = %event_id,
-                                    "published updated 30500 GameDefinition"
-                                ),
-                                Err(err) => warn!(
-                                    game_id = %seat.game_id,
-                                    error = %err,
-                                    "failed to publish updated 30500 GameDefinition"
-                                ),
-                            }
-                        }
-                        Err(err) => {
-                            warn!(game_id = %seat.game_id, error = %err, "cannot reload hosted game after claim")
-                        }
-                    },
-                    Err(ec_data::ClaimHostedSeatError::InvalidCode) => {
-                        if let Err(err) = response::publish_session_error(
-                            &client,
-                            &shared_keys,
-                            &player_pubkey,
-                            &req.nonce,
-                            &routing::RouteError::InvalidCode,
-                        )
-                        .await
-                        {
-                            error!(error = %err, "failed to publish 30503 SessionError");
-                        }
-                        return;
-                    }
-                    Err(ec_data::ClaimHostedSeatError::CodeClaimed) => {
-                        if let Err(err) = response::publish_session_error(
-                            &client,
-                            &shared_keys,
-                            &player_pubkey,
-                            &req.nonce,
-                            &routing::RouteError::CodeClaimed,
-                        )
-                        .await
-                        {
-                            error!(error = %err, "failed to publish 30503 SessionError");
-                        }
-                        return;
-                    }
-                    Err(ec_data::ClaimHostedSeatError::Store(err)) => {
-                        error!(game_id = %seat.game_id, error = %err, "claim failed");
-                        return;
-                    }
-                }
-            }
-
             let store = match ec_data::CampaignStore::open_default_in_dir(&game_dir) {
                 Ok(store) => store,
                 Err(err) => {
@@ -960,29 +746,4 @@ fn player_name_for_seat(
         .get(player_index_1_based.saturating_sub(1))
         .map(|record| record.controlled_empire_name_summary())
         .unwrap_or_default())
-}
-
-fn resolve_claim_target<'a>(
-    games: &'a [catalog::HostedGameEntry],
-    game_id: Option<&str>,
-    invite_code: &str,
-) -> Option<&'a catalog::HostedGameEntry> {
-    let normalized = invite_code.trim().to_ascii_lowercase();
-    if let Some(game_id) = game_id {
-        return games.iter().find(|entry| {
-            entry.game.game_id == game_id
-                && entry
-                    .game
-                    .seats
-                    .iter()
-                    .any(|seat| seat.invite_code == normalized)
-        });
-    }
-    games.iter().find(|entry| {
-        entry
-            .game
-            .seats
-            .iter()
-            .any(|seat| seat.invite_code == normalized)
-    })
 }

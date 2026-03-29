@@ -91,3 +91,33 @@ fn reissue_hosted_seat_clears_claim() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn claim_hosted_seat_for_player_claims_pending_seat_without_invite_lookup() {
+    let dir = unique_temp_dir("ec-data-hosted-claim-by-player");
+    let store = CampaignStore::open_default_in_dir(&dir).expect("open store");
+    store
+        .replace_hosted_seats(&[pending(1, "velvet-mountain"), pending(2, "copper-sunrise")])
+        .expect("seed hosted seats");
+
+    let claimed = store
+        .claim_hosted_seat_for_player(2, "npub1player000")
+        .expect("claim by player")
+        .expect("seat should exist");
+    assert_eq!(claimed.player_record_index_1_based, 2);
+    assert_eq!(claimed.status, HostedSeatStatus::Claimed);
+    assert_eq!(claimed.player_npub.as_deref(), Some("npub1player000"));
+
+    let reconnect = store
+        .claim_hosted_seat_for_player(2, "npub1player000")
+        .expect("same player reconnect")
+        .expect("seat should still exist");
+    assert_eq!(reconnect.status, HostedSeatStatus::Claimed);
+
+    let wrong_player = store
+        .claim_hosted_seat_for_player(2, "npub1other000")
+        .expect_err("different npub should fail");
+    assert!(format!("{wrong_player}").contains("already claimed"));
+
+    let _ = fs::remove_dir_all(&dir);
+}

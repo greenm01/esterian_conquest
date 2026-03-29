@@ -87,13 +87,14 @@ CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@relay.example.com
 ```
 
 After a successful join, the new game appears in the list and the player
-is connected immediately. Public first joins now claim the seat from the
-relay's published game state before opening SSH. On that first successful
-join, `ec-connect` also requests the game's static starmap bundle before
-opening SSH. The download is best-effort: if it fails, the player still
-enters the game and can retry later from the picker. Invalid invite codes
-stay in the prompt and show an error notice instead of dropping out of the
-shell.
+is connected immediately. Public first joins no longer claim the seat until
+the player actually saves the in-game empire name. If the player disconnects
+before that save, the invite remains reusable and the game is not cached yet.
+After a completed first join, `ec-connect` refreshes the seat state, caches
+the game locally, and then requests the static starmap bundle. The download is
+best-effort: if it fails, the player still enters the game and can retry later
+from the picker. Invalid invite codes stay in the prompt and show an error
+notice instead of dropping out of the shell.
 
 ### Nostr User
 
@@ -489,15 +490,16 @@ Connecting...
 2. Resolve server hostname and relay URL. If the server argument is a
    bookmark, look it up in config. Otherwise use the hostname directly
    and resolve the relay via the priority chain.
-3. For a first public invite join, discover the game's 30500 definition,
-   publish a 30510 seat-claim request, and wait for the updated 30500 to
-   show the seat claimed by this player.
+3. For a first public invite join, discover the game's 30500 definition
+   and resolve the target game ID, gate npub, and SSH host metadata from
+   the published pending invite hash.
 4. Generate an ephemeral ed25519 SSH keypair for this session. This
    keypair is never stored; it lives only in memory for the duration of
    the connection.
 5. Connect to the Nostr relay via WebSocket.
 6. Publish a signed 30501 SessionRequest containing the player's npub,
-   the ephemeral SSH public key, and the resolved game ID.
+   the ephemeral SSH public key, the resolved game ID, and the invite
+   code for a first join.
 7. Subscribe to 30502 (SessionReady) and 30503 (SessionError) events
    addressed to the player's npub.
 8. Wait for a response from `ec-gate` (timeout: 15 seconds).
@@ -507,11 +509,12 @@ Connecting...
 9. On receiving 30502 SessionReady: decrypt the NIP-44 payload to get
    the SSH host, port, server host key fingerprint, game ID, game name,
    and seat number.
-10. Update the local game cache with the connection details.
-11. If this was a first-time invite-code join, issue a 30504 MapRequest
-    for the joined game. On 30505, save the decrypted `starmap.txt`,
-    `starmap.csv`, and `starmap-DETAILS.csv` bundle under the resolved
-    maps directory. If the request fails, record a warning and continue.
+10. If this is a returning session, update the local game cache with the
+    connection details immediately.
+11. If this was a first-time invite-code join, wait until the SSH session
+    exits, refresh the hosted seat state, cache the game only if the seat
+    is now claimed, and then issue a 30504 MapRequest. If the player left
+    before saving the empire name, no cache row or maps are written.
 12. Disconnect from the Nostr relay. The relay is no longer needed.
 13. Tear down the picker screen (if in picker mode) and put the local
     terminal into raw mode.

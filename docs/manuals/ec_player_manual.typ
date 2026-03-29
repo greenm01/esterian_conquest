@@ -147,8 +147,10 @@ Your sysop will give you an invite code. Here is how you join:
 2. Press `N` to join a new game.
 3. Paste your invite code and press Enter.
 
-That is all. `ec-connect` handles your identity, claims your seat, downloads
-the campaign starmap, and opens your `ec-game` session.
+That is all. `ec-connect` handles your identity and opens your `ec-game`
+session. Your seat is not claimed until you actually save your empire name in
+the game. After that completed first join, `ec-connect` downloads the campaign
+starmap and remembers the game locally.
 
 == ec-connect Setup
 

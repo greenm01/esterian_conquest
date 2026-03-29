@@ -31,6 +31,7 @@ struct ParsedLaunchArgs {
 
 struct SessionLeaseGuard {
     store: CampaignStore,
+    player_npub: String,
     session_token: String,
     ttl_seconds: u64,
 }
@@ -41,10 +42,12 @@ impl SessionLeaseGuard {
         session_token: String,
         now_unix_seconds: u64,
         ttl_seconds: u64,
+        player_npub: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         store.activate_session_lease(&session_token, now_unix_seconds, ttl_seconds)?;
         Ok(Self {
             store,
+            player_npub,
             session_token,
             ttl_seconds,
         })
@@ -128,6 +131,9 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     );
     app.screen_geometry = parsed.screen_geometry;
     app.door_mode = parsed.use_door_terminal;
+    app.startup_state.hosted_player_npub = session_lease
+        .as_ref()
+        .map(|lease| lease.player_npub.clone());
     if app.door_mode {
         crate::theme::apply_default_theme();
     }
@@ -610,6 +616,7 @@ fn validate_session_lease(
         session_token,
         unix_now(),
         session_lease_ttl_seconds(session_timeout_secs, game_config),
+        lease.player_npub,
     )
 }
 

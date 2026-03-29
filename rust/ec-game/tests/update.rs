@@ -8,9 +8,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifi
 use ec_compat::{decode_report_block_rows, import_directory_snapshot};
 use ec_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, GameConfig, InactivityConfig, IntelTier, PlanetIntelSnapshot,
-    ProductionItemKind, QueuedPlayerMail, SeatReservation, SessionConfig,
-    map_size_for_player_count,
+    EmpireProductionRankingSort, GameConfig, HostedSeat, HostedSeatStatus, InactivityConfig,
+    IntelTier, PlanetIntelSnapshot, ProductionItemKind, QueuedPlayerMail, SeatReservation,
+    SessionConfig, map_size_for_player_count,
 };
 use ec_engine::yearly_tax_revenue;
 use ec_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
@@ -2355,6 +2355,82 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
             player.tax_rate(),
         )
     );
+}
+
+#[test]
+fn hosted_first_time_join_claims_seat_when_empire_name_is_saved() {
+    let fixture_dir = temp_first_time_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    store
+        .replace_hosted_seats(&[
+            HostedSeat {
+                player_record_index_1_based: 1,
+                invite_code: "velvet-mountain".to_string(),
+                status: HostedSeatStatus::Pending,
+                player_npub: None,
+            },
+            HostedSeat {
+                player_record_index_1_based: 2,
+                invite_code: "copper-sunrise".to_string(),
+                status: HostedSeatStatus::Pending,
+                player_npub: None,
+            },
+        ])
+        .expect("seed hosted seats");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.hosted_player_npub = Some("npub1hostedplayer".to_string());
+
+    assert_eq!(
+        store.hosted_seats().expect("load pending seats")[0].status,
+        HostedSeatStatus::Pending
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+
+    let claimed = store.hosted_seats().expect("reload hosted seats");
+    assert_eq!(claimed[0].status, HostedSeatStatus::Claimed);
+    assert_eq!(claimed[0].player_npub.as_deref(), Some("npub1hostedplayer"));
 }
 
 #[test]

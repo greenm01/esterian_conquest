@@ -74,6 +74,27 @@ impl CampaignStore {
             queued_mail,
             None,
             None,
+            None,
+        )
+    }
+
+    pub fn save_runtime_state_structured_and_claim_hosted_seat(
+        &self,
+        game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
+        report_block_rows: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+        player_record_index_1_based: usize,
+        player_npub: &str,
+    ) -> Result<i64, CampaignStoreError> {
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            None,
+            None,
+            Some((player_record_index_1_based, player_npub)),
         )
     }
 
@@ -111,6 +132,7 @@ impl CampaignStore {
             queued_mail,
             Some(planet_intel_by_viewer),
             campaign_seed,
+            None,
         )
     }
 
@@ -122,6 +144,7 @@ impl CampaignStore {
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
         campaign_seed_override: Option<u64>,
+        hosted_claim: Option<(usize, &str)>,
     ) -> Result<i64, CampaignStoreError> {
         let year = game_data.conquest.game_year();
         let mut conn = self.connection()?;
@@ -167,6 +190,19 @@ impl CampaignStore {
             planet_intel_by_viewer_override,
             &previous_intel,
         )?;
+        if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
+            super::hosted_seats::claim_hosted_seat_for_player_tx(
+                &tx,
+                player_record_index_1_based,
+                player_npub,
+            )?
+            .ok_or_else(|| {
+                CampaignStoreError::InvalidState(format!(
+                    "hosted seat {} is missing",
+                    player_record_index_1_based
+                ))
+            })?;
+        }
         tx.commit()?;
         Ok(snapshot_id)
     }

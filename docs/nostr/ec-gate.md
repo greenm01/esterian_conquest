@@ -93,9 +93,9 @@ as the `d` tag in 30500 GameDefinition events and includes it in 30502
 SessionReady payloads so that `ec-connect` can cache it for future
 connections.
 
-When a player redeems an invite code, `ec-gate` updates the hosted-seat
-row in `ecgame.db`: it sets the seat to `claimed` and records the
-player's `npub`.
+When a player completes the in-game first-time join flow and saves the
+empire name, `ec-game` updates the hosted-seat row in `ecgame.db`: it sets
+the seat to `claimed` and records the player's `npub`.
 
 ## Invite Code Management
 
@@ -124,17 +124,18 @@ published game definitions.
 
 ### Validation
 
-For normal public first joins, `ec-gate` receives a 30510 seat-claim request:
+For normal public first joins, `ec-gate` receives a 30501 session request with
+the invite code still present:
 
 1. Normalize the code (lowercase, trim whitespace, strip `@relay` suffix)
 2. Search all configured hosted seats for a seat with a matching code
 3. Verify the seat status is `pending`
-4. Bind the player's npub to the seat (set status to `claimed`)
-5. Save the updated hosted-seat row in `ecgame.db`
-6. Publish an updated 30500 GameDefinition for the claimed game
+4. Provision the SSH-backed `ec-game` session without claiming the seat yet
+5. Let `ec-game` claim the seat only after the player saves the empire name
+6. Publish an updated 30500 GameDefinition after that claim lands
 
-If validation fails, `ec-gate` publishes a 30511 seat-claim error with the
-reason.
+If the player disconnects before saving the empire name, the invite remains
+pending and reusable.
 
 ### Reissue
 

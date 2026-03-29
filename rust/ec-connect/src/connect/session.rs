@@ -13,6 +13,8 @@
 //!
 //! Future: `DisambigMode::Picker` for the ratatui UI (step 11).
 
+use std::path::PathBuf;
+
 use nostr_sdk::Keys;
 
 use crate::cache::{CachedGame, GameCache, load_cache, save_cache};
@@ -20,6 +22,7 @@ use crate::connect::bridge::run_bridge;
 use crate::connect::handshake::{GameEntry, HandshakeResult, SessionReadyPayload, run_handshake};
 use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::ResolvedTarget;
+use crate::connect::session_state::fetch_session_state;
 use crate::connect::ssh_key::EphemeralKeypair;
 use crate::map_store::save_map_bundle;
 use crate::wallet::io::now_iso8601;
@@ -57,13 +60,24 @@ pub enum SessionOutcome {
 pub struct PreparedSession {
     payload: SessionReadyPayload,
     keypair: EphemeralKeypair,
-    map_notice: Option<String>,
+    post_bridge: PostBridgeAction,
 }
 
 /// Result of the pre-bridge session phase.
 pub enum SessionPreparation {
     Ready(PreparedSession),
     Outcome(SessionOutcome),
+}
+
+enum PostBridgeAction {
+    TouchCache,
+    FinalizeFirstJoin {
+        player_keys: Keys,
+        target: ResolvedTarget,
+        gate_npub: String,
+        maps_root: PathBuf,
+        npub: String,
+    },
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -203,30 +217,59 @@ async fn prepare_session_with_keypair(
         }
 
         HandshakeResult::Ready(payload) => {
-            // Update game cache before starting the bridge.
-            upsert_cache_entry(&payload, username, gate_npub, &target);
-            let map_notice = if first_join {
-                auto_fetch_maps(player_keys, &target, gate_npub, &payload, maps_root).await
+            let post_bridge = if first_join {
+                PostBridgeAction::FinalizeFirstJoin {
+                    player_keys: player_keys.clone(),
+                    target: target.clone(),
+                    gate_npub: gate_npub.to_string(),
+                    maps_root: maps_root.to_path_buf(),
+                    npub: username.to_string(),
+                }
             } else {
-                None
+                upsert_cache_entry(&payload, username, gate_npub, &target);
+                PostBridgeAction::TouchCache
             };
             SessionPreparation::Ready(PreparedSession {
                 payload,
                 keypair,
-                map_notice,
+                post_bridge,
             })
         }
     }
 }
 
 pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) -> SessionOutcome {
-    match run_bridge(&prepared.payload, &prepared.keypair, username).await {
+    let PreparedSession {
+        payload,
+        keypair,
+        post_bridge,
+    } = prepared;
+    match run_bridge(&payload, &keypair, username).await {
         Ok(exit_code) => {
-            touch_cache_entry(&prepared.payload.game_id);
-            SessionOutcome::Done {
-                exit_code,
-                notice: prepared.map_notice,
-            }
+            let notice = match post_bridge {
+                PostBridgeAction::TouchCache => {
+                    touch_cache_entry(&payload.game_id);
+                    None
+                }
+                PostBridgeAction::FinalizeFirstJoin {
+                    player_keys,
+                    target,
+                    gate_npub,
+                    maps_root,
+                    npub,
+                } => {
+                    finalize_first_join_after_session(
+                        &payload,
+                        &player_keys,
+                        &target,
+                        &gate_npub,
+                        &maps_root,
+                        &npub,
+                    )
+                    .await
+                }
+            };
+            SessionOutcome::Done { exit_code, notice }
         }
         Err(e) => SessionOutcome::Error(format!(
             "Connection to game server was lost.\n\
@@ -237,14 +280,29 @@ pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) 
     }
 }
 
-async fn auto_fetch_maps(
+async fn finalize_first_join_after_session(
+    payload: &SessionReadyPayload,
     player_keys: &Keys,
     target: &ResolvedTarget,
     gate_npub: &str,
-    payload: &SessionReadyPayload,
     maps_root: &std::path::Path,
+    npub: &str,
 ) -> Option<String> {
-    match fetch_map_bundle(player_keys, target, gate_npub, &payload.game_id).await {
+    let state = match fetch_session_state(player_keys, target, gate_npub, &payload.game_id).await {
+        Ok(state) => state,
+        Err(_) => return None,
+    };
+    cache_joined_game(build_cached_game(
+        &state.game_id,
+        &state.game_name,
+        Some(&state.player_name),
+        target,
+        npub,
+        gate_npub,
+        state.seat,
+    ));
+    touch_cache_entry(&state.game_id);
+    match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
         Ok(bundle) => save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root)
             .err()
             .map(|err| format!("Warning: unable to save starmaps: {err}")),

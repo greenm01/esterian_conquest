@@ -1185,7 +1185,11 @@ impl App {
                 player.set_assigned_player_handle_raw(alias);
             }
         }
-        self.save_game_data()?;
+        if let Some(player_npub) = self.startup_state.hosted_player_npub.clone() {
+            self.save_game_data_and_claim_hosted_seat(&player_npub)?;
+        } else {
+            self.save_game_data()?;
+        }
         self.refresh_player_context()?;
         if self.player.is_joined {
             if let Some(theme_key) = self.startup_state.prejoin_theme_key.take() {

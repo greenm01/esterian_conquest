@@ -149,6 +149,18 @@ impl CampaignStore {
         Ok(seat)
     }
 
+    pub fn claim_hosted_seat_for_player(
+        &self,
+        player_record_index_1_based: usize,
+        player_npub: &str,
+    ) -> Result<Option<HostedSeat>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        let tx = conn.transaction()?;
+        let seat = claim_hosted_seat_for_player_tx(&tx, player_record_index_1_based, player_npub)?;
+        tx.commit()?;
+        Ok(seat)
+    }
+
     pub fn reissue_hosted_seat(
         &self,
         player_record_index_1_based: usize,
@@ -338,4 +350,35 @@ fn load_hosted_seat_by_player_tx(
     )
     .optional()
     .map_err(CampaignStoreError::Sql)
+}
+
+pub(super) fn claim_hosted_seat_for_player_tx(
+    tx: &rusqlite::Transaction<'_>,
+    player_record_index_1_based: usize,
+    player_npub: &str,
+) -> Result<Option<HostedSeat>, CampaignStoreError> {
+    let Some(mut seat) = load_hosted_seat_by_player_tx(tx, player_record_index_1_based)? else {
+        return Ok(None);
+    };
+    match seat.status {
+        HostedSeatStatus::Claimed => {
+            if seat.player_npub.as_deref() == Some(player_npub) {
+                return Ok(Some(seat));
+            }
+            return Err(CampaignStoreError::InvalidState(format!(
+                "hosted seat {} is already claimed by another player identity",
+                player_record_index_1_based
+            )));
+        }
+        HostedSeatStatus::Pending => {}
+    }
+    tx.execute(
+        "UPDATE hosted_player_seats
+         SET claim_status = 'claimed', player_npub = ?2
+         WHERE player_record_index = ?1",
+        params![player_record_index_1_based as i64, player_npub],
+    )?;
+    seat.status = HostedSeatStatus::Claimed;
+    seat.player_npub = Some(player_npub.to_string());
+    Ok(Some(seat))
 }

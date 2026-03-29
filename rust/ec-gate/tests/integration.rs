@@ -144,9 +144,12 @@ fn full_pipeline_first_time_join_with_invite_code() {
     assert!(seat.first_claim);
 
     let store = CampaignStore::open_default_in_dir(&game_dir).unwrap();
-    let claimed = store
-        .claim_hosted_seat("velvet-mountain", &player_hex)
-        .unwrap();
+    let pending = store.hosted_seats().unwrap();
+    assert_eq!(pending[0].status, HostedSeatStatus::Pending);
+    assert!(pending[0].player_npub.is_none());
+
+    let claimed = store.claim_hosted_seat_for_player(1, &player_hex).unwrap();
+    let claimed = claimed.expect("seat should exist");
     assert_eq!(claimed.status, HostedSeatStatus::Claimed);
     assert_eq!(claimed.player_npub.as_deref(), Some(player_hex.as_str()));
 
