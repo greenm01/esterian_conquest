@@ -3,8 +3,8 @@ use super::state::Screen;
 pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D R L <Q>";
 pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N A D L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
-pub const RELAY_MENU_RAIL: &str = "? J K ^U ^D A E S <Enter> <Q>";
-pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D <Q>";
+pub const RELAY_MENU_RAIL: &str = "? J K ^U ^D A E D S <Enter> <Q>";
+pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D R <Q>";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpTopic {
@@ -187,6 +187,10 @@ const RELAY_ROWS: &[HelpRow] = &[
         description: "set selected relay as default",
     },
     HelpRow {
+        command: "D",
+        description: "delete selected relay",
+    },
+    HelpRow {
         command: "Enter",
         description: "show games on selected relay",
     },
@@ -212,6 +216,10 @@ const RELAY_GAMES_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "^U/^D",
         description: "page up/down",
+    },
+    HelpRow {
+        command: "R",
+        description: "edit selected game relay",
     },
     HelpRow {
         command: "?",

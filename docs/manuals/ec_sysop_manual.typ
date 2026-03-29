@@ -353,6 +353,27 @@ ec-sysop nostr reissue --dir /path/to/mygame --player 2
 This generates a fresh code for that seat, clears the old claim, and lets the
 player join again with the new code.
 
+== Hosted Player Identity Management
+
+Hosted seats are bound to the first player identity that claims them. In
+practice this means the seat is tied to one `npub` until the sysop changes it.
+Returning players should reconnect with the same local EC wallet identity they
+used when they first redeemed the invite.
+
+Players should not expect to paste the same invite into a brand-new wallet and
+take over an already-claimed seat. `ec-gate` treats that as a different player
+identity and rejects the join.
+
+If a player loses or forgets the original local identity, the supported
+recovery path is:
+
+1. Reissue that seat with `ec-sysop nostr reissue`.
+2. Send the player the new invite.
+3. Have the player redeem it from the new wallet identity.
+
+Reissuing is the deliberate “move this seat to a new identity” action. It
+clears the old `npub` binding and rotates the invite code at the same time.
+
 Hosted seat claims are stored in `ecgame.db`. That SQLite state is the
 authority for invite codes, claim status, and bound player `npub`s. Legacy
 `roster.kdl` files are migration input only.

@@ -72,6 +72,10 @@ Keep this file short. Historical detail belongs in
   cannot be stolen after the SSH session exits.
 - `ec-connect` is still single-relay; multi-relay join/handshake redundancy is
   a future resilience improvement, not part of the current player fix stream.
+- `ec-connect` cache rows are still not modeled for the legitimate edge case of
+  one local wallet keeping multiple seats in the same hosted game under
+  different identities; that is a separate follow-up from current management
+  fixes.
 - The BBS door renderer still repaints full frames and may show the same flash
   that was just fixed for SSH/local play.
 - New gameplay features should not deepen the offset-shaped storage path.

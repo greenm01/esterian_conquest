@@ -60,6 +60,10 @@ pub enum PickerOverlay {
         index: usize,
         step: u8,
     },
+    RelayDeleteConfirm {
+        url: String,
+        step: u8,
+    },
     GameDeleteConfirm {
         index: usize,
         step: u8,
@@ -207,6 +211,43 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
+        PickerOverlay::RelayDeleteConfirm { url, step } => {
+            if is_yes_key(key) {
+                if step < 3 {
+                    state.overlay = Some(PickerOverlay::RelayDeleteConfirm {
+                        url,
+                        step: step + 1,
+                    });
+                } else {
+                    let result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        if state
+                            .cache
+                            .games
+                            .iter()
+                            .any(|game| game.relay_url.as_deref() == Some(url.as_str()))
+                        {
+                            return Err(
+                                "relay still has joined games; move or delete them first".into()
+                            );
+                        }
+                        let mut config = crate::config::load_config()
+                            .unwrap_or_else(|_| crate::config::ConnectConfig::empty());
+                        if !config.remove_relay(&url) {
+                            return Err("selected relay no longer exists".into());
+                        }
+                        crate::config::save_config(&config)?;
+                        Ok(())
+                    })();
+                    state.overlay = None;
+                    clamp_relay_selection(state);
+                    if let Err(err) = result {
+                        state.show_error(err.to_string());
+                    }
+                }
+            } else if is_cancel_confirm_key(key) {
+                state.overlay = None;
+            }
+        }
         PickerOverlay::GameDeleteConfirm { index, step } => {
             if is_yes_key(key) {
                 if step < 3 {
@@ -299,7 +340,7 @@ pub fn render_overlay(
         }
         Some(PickerOverlay::WalletDeleteConfirm { index, step }) => {
             if let Some(session) = session {
-                let popup = render_wallet_delete_popup(buffer, session, *index);
+                let popup = render_wallet_delete_popup(buffer, state, session, *index);
                 draw_command_line_prompt_text_at_col(
                     buffer,
                     popup_command_row(popup, command_row),
@@ -309,6 +350,17 @@ pub fn render_overlay(
                 );
                 buffer.clear_cursor();
             }
+        }
+        Some(PickerOverlay::RelayDeleteConfirm { url, step }) => {
+            let popup = render_relay_delete_popup(buffer, state, url);
+            draw_command_line_prompt_text_at_col(
+                buffer,
+                popup_command_row(popup, command_row),
+                popup.x as usize,
+                "COMMAND",
+                delete_prompt(*step),
+            );
+            buffer.clear_cursor();
         }
         Some(PickerOverlay::GameDeleteConfirm { index, step }) => {
             let popup = render_game_delete_popup(buffer, state, *index);
@@ -459,6 +511,7 @@ fn render_wallet_detail_popup(
 
 fn render_wallet_delete_popup(
     buffer: &mut PlayfieldBuffer,
+    state: &PickerState,
     session: &PickerSession,
     index: usize,
 ) -> Rect {
@@ -466,11 +519,18 @@ fn render_wallet_delete_popup(
         return Rect::new(0, 0, 0, 0);
     };
     let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
+    let affected_games = state
+        .cache
+        .games
+        .iter()
+        .filter(|game| game.npub == npub)
+        .count();
     let lines = [
         format!("Alias: {}", identity.alias.as_deref().unwrap_or("(none)")),
         format!("Npub: {}", super::render::short_npub(&npub)),
         String::new(),
         "Deleting this identity removes its keypair from this wallet.".to_string(),
+        format!("Joined games removed from picker: {}", affected_games),
         "Make sure you have copied the full nsec somewhere safe first.".to_string(),
     ];
     render_modal_box(
@@ -479,6 +539,27 @@ fn render_wallet_delete_popup(
         &lines,
         classic::table_body_style(),
     )
+}
+
+fn render_relay_delete_popup(buffer: &mut PlayfieldBuffer, state: &PickerState, url: &str) -> Rect {
+    let game_count = state
+        .cache
+        .games
+        .iter()
+        .filter(|game| game.relay_url.as_deref() == Some(url))
+        .count();
+    let config =
+        crate::config::load_config().unwrap_or_else(|_| crate::config::ConnectConfig::empty());
+    let is_default = config.default_relay_url() == Some(url);
+    let lines = [
+        format!("Relay: {}", truncate(url, 50)),
+        format!("Default: {}", if is_default { "yes" } else { "no" }),
+        format!("Joined games on this relay: {}", game_count),
+        String::new(),
+        "This removes the relay from your local config only.".to_string(),
+        "Joined games must be moved off this relay first.".to_string(),
+    ];
+    render_modal_box(buffer, "DELETE RELAY", &lines, classic::table_body_style())
 }
 
 fn render_game_delete_popup(
@@ -522,6 +603,15 @@ fn clamp_game_selection(state: &mut PickerState) {
         state.selected = 0;
     } else if state.selected >= len {
         state.selected = len - 1;
+    }
+}
+
+fn clamp_relay_selection(state: &mut PickerState) {
+    let len = super::relay::relay_summaries(state).len();
+    if len == 0 {
+        state.relay_selected = 0;
+    } else if state.relay_selected >= len {
+        state.relay_selected = len - 1;
     }
 }
 

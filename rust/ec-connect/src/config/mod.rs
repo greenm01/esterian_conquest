@@ -156,6 +156,18 @@ impl ConnectConfig {
         }
     }
 
+    pub fn remove_relay(&mut self, url: &str) -> bool {
+        let Some(index) = self.relays.iter().position(|relay| relay.url == url) else {
+            return false;
+        };
+        self.relays.remove(index);
+        if self.relay.as_deref() == Some(url) {
+            self.relay = None;
+        }
+        self.normalize_relays();
+        true
+    }
+
     pub fn normalize_relays(&mut self) {
         if self.relays.is_empty() {
             self.relay = self

@@ -394,3 +394,58 @@ fn update_relay_result_records_status_and_error() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn remove_default_relay_promotes_remaining_entry() {
+    let mut config = ConnectConfig {
+        relay: Some("wss://one.example.com".to_string()),
+        relays: vec![
+            RelayEntry {
+                url: "wss://one.example.com".to_string(),
+                is_default: true,
+                status: RelayStatus::Unknown,
+                last_error: None,
+                last_checked: None,
+            },
+            RelayEntry {
+                url: "wss://two.example.com".to_string(),
+                is_default: false,
+                status: RelayStatus::Unknown,
+                last_error: None,
+                last_checked: None,
+            },
+        ],
+        servers: vec![],
+        default_server: None,
+        maps_dir: None,
+        lock_timeout_minutes: None,
+    };
+
+    assert!(config.remove_relay("wss://one.example.com"));
+    assert_eq!(config.default_relay_url(), Some("wss://two.example.com"));
+    assert_eq!(config.relays.len(), 1);
+    assert!(config.relays[0].is_default);
+}
+
+#[test]
+fn remove_last_relay_clears_default() {
+    let mut config = ConnectConfig {
+        relay: Some("wss://one.example.com".to_string()),
+        relays: vec![RelayEntry {
+            url: "wss://one.example.com".to_string(),
+            is_default: true,
+            status: RelayStatus::Unknown,
+            last_error: None,
+            last_checked: None,
+        }],
+        servers: vec![],
+        default_server: None,
+        maps_dir: None,
+        lock_timeout_minutes: None,
+    };
+
+    assert!(config.remove_relay("wss://one.example.com"));
+    assert!(config.relays.is_empty());
+    assert!(config.default_relay_url().is_none());
+    assert!(config.relay.is_none());
+}

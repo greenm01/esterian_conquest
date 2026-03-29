@@ -200,10 +200,7 @@ pub fn handle_relay_key(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match state.screen.clone() {
         Screen::RelayList => handle_relay_list_key(key, state),
-        Screen::RelayGames { relay_url } => {
-            handle_relay_games_key(key, state, &relay_url);
-            Ok(())
-        }
+        Screen::RelayGames { relay_url } => handle_relay_games_key(key, state, &relay_url),
         _ => Ok(()),
     }
 }

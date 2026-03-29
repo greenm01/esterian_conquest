@@ -11,8 +11,8 @@ use ec_connect::connect::session::SessionOutcome;
 use ec_connect::picker::connecting::PendingConnectRequest;
 use ec_connect::picker::event::is_manual_refresh_key;
 use ec_connect::picker::flows::apply_session_outcome;
-use ec_connect::picker::help::HelpTopic;
-use ec_connect::picker::input::handle_game_list_key;
+use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL};
+use ec_connect::picker::input::{handle_game_list_key, handle_relay_key};
 use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::refresh::PendingRefreshRequest;
@@ -685,6 +685,55 @@ fn relay_games_screen_keeps_table_header_intact() {
         buffer
             .plain_line(row)
             .contains("Relay: wss://relay.example.com")
+    }));
+}
+
+#[test]
+fn relay_help_rails_expose_delete_and_edit_actions() {
+    assert!(RELAY_MENU_RAIL.contains("D"));
+    assert!(RELAY_GAMES_RAIL.contains("R"));
+}
+
+#[test]
+fn relay_games_uppercase_r_opens_selected_game_relay_prompt() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::RelayGames {
+        relay_url: "wss://relay.example.com".to_string(),
+    };
+
+    handle_relay_key(
+        KeyEvent::new(KeyCode::Char('R'), KeyModifiers::SHIFT),
+        &mut state,
+    )
+    .expect("handle shift-R in relay games");
+
+    assert!(matches!(
+        state.overlay,
+        Some(PickerOverlay::GameRelayPrompt {
+            action: RelayPromptAction::EditGame,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn wallet_delete_popup_previews_removed_games() {
+    let session = make_session(Some("Desk Alias"));
+    let selected_identity = session
+        .selected_identity(session.wallet.active)
+        .expect("identity");
+    let selected_npub = ec_connect::wallet::identity_npub(selected_identity).expect("npub");
+    let mut game = make_game("a", Some("2026-03-26T00:00:00Z"));
+    game.npub = selected_npub;
+    let mut state = make_state(vec![game]);
+    state.screen = Screen::WalletList;
+    state.overlay = Some(PickerOverlay::WalletDeleteConfirm { index: 0, step: 1 });
+    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Joined games removed from picker: 1")
     }));
 }
 

@@ -121,6 +121,33 @@ pub fn open_selected_game_relay_prompt(state: &mut PickerState) {
     });
 }
 
+fn open_selected_relay_game_relay_prompt(state: &mut PickerState, relay_url: &str) {
+    let games = relay_games(state, relay_url);
+    let Some(game) = games.get(state.relay_game_selected) else {
+        state.show_error("No joined games use this relay.");
+        return;
+    };
+    let Some(index) = state
+        .cache
+        .sorted()
+        .iter()
+        .position(|candidate| candidate.id == game.id && candidate.npub == game.npub)
+    else {
+        state.show_error("selected game no longer exists");
+        return;
+    };
+    state.relay_input = game
+        .relay_url
+        .clone()
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| derive_relay_url(&game.server));
+    state.overlay = Some(super::overlay::PickerOverlay::GameRelayPrompt {
+        index,
+        action: RelayPromptAction::EditGame,
+        error: None,
+    });
+}
+
 pub fn open_relay_editor(
     state: &mut PickerState,
     summary: Option<&RelaySummary>,
@@ -181,13 +208,17 @@ pub fn handle_relay_editor_key(
                     .relay_entry(old_url)
                     .map(|relay| relay.is_default)
                     .unwrap_or(false);
-                if let Some(entry) = config.relay_entry_mut(old_url) {
-                    entry.url = relay_url.clone();
-                    entry.status = RelayStatus::Unknown;
-                    entry.last_error = None;
-                    entry.last_checked = None;
+                if old_url != relay_url && config.relay_entry(&relay_url).is_some() {
+                    config.remove_relay(old_url);
                 } else {
-                    config.upsert_relay(relay_url.clone());
+                    if let Some(entry) = config.relay_entry_mut(old_url) {
+                        entry.url = relay_url.clone();
+                        entry.status = RelayStatus::Unknown;
+                        entry.last_error = None;
+                        entry.last_checked = None;
+                    } else {
+                        config.upsert_relay(relay_url.clone());
+                    }
                 }
                 for game in &mut state.cache.games {
                     if game.relay_url.as_deref() == Some(old_url) {
@@ -278,6 +309,24 @@ pub fn handle_relay_list_key(
             save_config(&config)?;
         }
         KeyEvent {
+            code: KeyCode::Char('d' | 'D'),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
+            let Some(selected) = relays.get(state.relay_selected) else {
+                state.show_error("No relays known yet.");
+                return Ok(());
+            };
+            if selected.game_count > 0 {
+                state.show_error("relay still has joined games; move or delete them first");
+            } else {
+                state.overlay = Some(super::overlay::PickerOverlay::RelayDeleteConfirm {
+                    url: selected.url.clone(),
+                    step: 1,
+                });
+            }
+        }
+        KeyEvent {
             code: KeyCode::Char('j'),
             modifiers: KeyModifiers::NONE,
             ..
@@ -330,15 +379,24 @@ pub fn handle_relay_list_key(
     Ok(())
 }
 
-pub fn handle_relay_games_key(key: KeyEvent, state: &mut PickerState, relay_url: &str) {
+pub fn handle_relay_games_key(
+    key: KeyEvent,
+    state: &mut PickerState,
+    relay_url: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let games = relay_games(state, relay_url);
     let game_count = games.len();
     if is_help_key(key) {
         state.open_help();
-        return;
+        return Ok(());
     }
     match key {
         key if is_back_key(key) => state.screen = Screen::RelayList,
+        KeyEvent {
+            code: KeyCode::Char('R'),
+            modifiers: KeyModifiers::SHIFT,
+            ..
+        } => open_selected_relay_game_relay_prompt(state, relay_url),
         KeyEvent {
             code: KeyCode::Char('j'),
             modifiers: KeyModifiers::NONE,
@@ -376,6 +434,7 @@ pub fn handle_relay_games_key(key: KeyEvent, state: &mut PickerState, relay_url:
         } => move_selection(&mut state.relay_game_selected, -BODY_PAGE, game_count),
         _ => {}
     }
+    Ok(())
 }
 
 pub fn render_relay_editor_popup(
