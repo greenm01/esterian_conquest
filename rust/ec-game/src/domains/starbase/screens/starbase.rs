@@ -17,8 +17,8 @@ use crate::screen::table::{
     TableColumn, TableFooter, draw_table_footer, draw_table_title, write_table_window_with_cursor,
 };
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, format_sector_coords_padded,
-    format_sector_coords_table,
+    COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
+    format_sector_coords_padded, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -280,7 +280,7 @@ impl Screen for StarbaseHelpScreen {
             "STARBASE HELP:",
             "Help - Starbase Control command descriptions:",
             &lines,
-            "STARBASE COMMAND",
+            COMMAND_LABEL,
         );
         Ok(buffer)
     }

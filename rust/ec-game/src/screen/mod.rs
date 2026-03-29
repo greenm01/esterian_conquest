@@ -251,6 +251,8 @@ pub enum CommandMenu {
     PlanetBuild,
 }
 
+pub const COMMAND_LABEL: &str = "COMMAND";
+
 pub fn command_menu_label(menu: CommandMenu) -> &'static str {
     match menu {
         CommandMenu::Main => "MAIN COMMAND",

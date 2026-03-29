@@ -14,7 +14,7 @@ use crate::screen::table::{
     draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
     resolve_table_columns, write_table_window_with_cursor_at,
 };
-use crate::screen::{PlayfieldBuffer, ScreenFrame};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct MessageComposeScreen;
@@ -233,7 +233,7 @@ impl MessageComposeScreen {
         draw_command_prompt_at(
             &mut buffer,
             command_line_row_for(geometry),
-            "GENERAL COMMAND",
+            COMMAND_LABEL,
             "CTRL-E CTRL-X",
         );
         let render_row = first_body_row + cursor_row.saturating_sub(start);
@@ -252,7 +252,7 @@ impl MessageComposeScreen {
         draw_command_line_prompt_text_at(
             &mut buffer,
             command_line_row_for(geometry),
-            "SEND MESSAGE",
+            COMMAND_LABEL,
             "Y/[N] ->",
         );
         buffer.clear_cursor();
@@ -270,7 +270,7 @@ impl MessageComposeScreen {
         draw_command_line_prompt_text_at(
             &mut buffer,
             command_line_row_for(geometry),
-            "CANCEL MESSAGE",
+            COMMAND_LABEL,
             "Y/[N] ->",
         );
         buffer.clear_cursor();

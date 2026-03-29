@@ -5,8 +5,7 @@ use crate::screen::layout::new_playfield;
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
     draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
-    resolve_table_columns,
-    write_table_window_with_states_at,
+    resolve_table_columns, write_table_window_with_states_at,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;

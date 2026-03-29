@@ -14,9 +14,7 @@ use crate::screen::table::{
     TableAlign, TableColumn, TableWidthMode, resolve_table_columns, table_column_start,
     table_render_width, write_table_window_with_states_at,
 };
-use crate::screen::{
-    CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, command_menu_label,
-};
+use crate::screen::{COMMAND_LABEL, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan};
 use crate::theme::classic;
 
 pub struct ReportsScreen;
@@ -33,7 +31,7 @@ impl ReportsScreen {
     pub fn render_inbox(
         &mut self,
         geometry: ScreenGeometry,
-        menu: CommandMenu,
+        _menu: CommandMenu,
         items: &[InboxDisplayItem],
         type_filter: InboxTypeFilter,
         year_filter: Option<u16>,
@@ -175,7 +173,7 @@ impl ReportsScreen {
                 draw_command_line_prompt_text_at(
                     &mut buffer,
                     command_line_row,
-                    command_menu_label(menu),
+                    COMMAND_LABEL,
                     &prompt,
                 );
                 if let Some((col, row)) = buffer.cursor() {
@@ -192,7 +190,7 @@ impl ReportsScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_line_row,
-                    command_menu_label(menu),
+                    COMMAND_LABEL,
                     "Year ",
                     &current_year.to_string(),
                     year_input,
@@ -202,7 +200,7 @@ impl ReportsScreen {
                 draw_command_line_prompt_text_at(
                     &mut buffer,
                     command_line_row,
-                    command_menu_label(menu),
+                    COMMAND_LABEL,
                     &format!(
                         "Delete item {}? [Y]/N -> ",
                         selected_id_label(items, cursor)

@@ -9,7 +9,7 @@ use crate::screen::table::{
     draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
     resolve_table_columns, write_table_window_with_cursor_at,
 };
-use crate::screen::{PlayfieldBuffer, ScreenFrame};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EnemiesScreen;
@@ -123,7 +123,7 @@ impl EnemiesScreen {
                 layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandText {
-                    label: "COMMANDS",
+                    label: COMMAND_LABEL,
                     text: "No empires found.",
                 },
             );

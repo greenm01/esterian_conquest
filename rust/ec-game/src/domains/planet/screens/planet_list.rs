@@ -8,9 +8,9 @@ use crate::screen::layout::{
     new_playfield_for, stacked_table_visible_rows_for,
 };
 use crate::screen::table::{
-    HorizontalAlign, LayoutRect, TableColumn, TableWidthMode, VerticalAlign,
-    TableFooter, draw_table_footer, draw_table_title, layout_stacked_table_block,
-    resolve_table_columns, write_stacked_table_window_with_states_at,
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, layout_stacked_table_block, resolve_table_columns,
+    write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
     PlayfieldBuffer, ScreenFrame, format_sector_coords_default, format_sector_coords_table,

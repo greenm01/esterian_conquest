@@ -3662,7 +3662,7 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     app.render(&mut terminal)
         .expect("transfer donor prompt should render");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Transfer From Fleet #")
+        line_containing(&terminal, "COMMAND <- Transfer From Fleet #")
             .contains("Transfer From Fleet # [")
     );
 
@@ -3671,7 +3671,7 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     app.render(&mut terminal)
         .expect("transfer host prompt should render");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Transfer To Fleet #")
+        line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
             .contains("Transfer To Fleet # [")
     );
 
@@ -4262,10 +4262,10 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
         .find('┌')
         .expect("theme picker table col");
     assert_eq!(title_col, border_col);
-    let command_line = line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q>");
-    assert!(command_line.contains("COMMANDS <- J K ^U ^D <Q>"));
+    let command_line = line_containing(&terminal, "COMMAND <- J K ^U ^D <Q>");
+    assert!(command_line.contains("COMMAND <- J K ^U ^D <Q>"));
     let command_col = command_line
-        .find("COMMANDS")
+        .find("COMMAND")
         .expect("theme picker command col");
     assert_eq!(command_col, border_col);
 
@@ -7327,7 +7327,7 @@ fn fleet_review_opens_with_an_inline_prompt_first() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet menu prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Review Fleet #");
+    let prompt = line_containing(&terminal, "COMMAND <- Review Fleet #");
     assert!(prompt.contains("Review Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
 }
@@ -7370,7 +7370,7 @@ fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
     app.render(&mut terminal)
         .expect("review prompt should render");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Review Fleet #")
+        line_containing(&terminal, "COMMAND <- Review Fleet #")
             .contains("Review Fleet # [2] <Q> ->")
     );
 
@@ -7385,8 +7385,7 @@ fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
     app.render(&mut terminal)
         .expect("order prompt should render");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Order Fleet #")
-            .contains("Order Fleet # [2] <Q> ->")
+        line_containing(&terminal, "COMMAND <- Order Fleet #").contains("Order Fleet # [2] <Q> ->")
     );
 }
 
@@ -7450,7 +7449,7 @@ fn fleet_review_close_returns_to_menu_without_restoring_review_prompt() {
         !terminal
             .lines
             .iter()
-            .any(|line| line.contains("FLEET COMMAND <- Review Fleet #"))
+            .any(|line| line.contains("COMMAND <- Review Fleet #"))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('r'))),
@@ -7495,9 +7494,7 @@ fn fleet_review_prompt_shows_invalid_fleet_message_on_unknown_typed_id() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet menu prompt should render invalid id notice");
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Review Fleet #").contains("Review Fleet #")
-    );
+    assert!(line_containing(&terminal, "COMMAND <- Review Fleet #").contains("Review Fleet #"));
     assert!(
         terminal
             .lines
@@ -7577,7 +7574,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Load Fleet #");
+    let prompt = line_containing(&terminal, "COMMAND <- Load Fleet #");
     assert!(prompt.contains("Load Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
     submit_fleet_menu_prompt(&mut app, Some(1));
@@ -7596,7 +7593,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
             .iter()
             .any(|line| line.contains("Planet:") && line.contains("Fleet 01"))
     );
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to load?");
+    let prompt = line_containing(&terminal, "COMMAND <- How many armies to load?");
     assert!(prompt.contains("How many armies to load? [4]"));
     assert!(prompt.contains("<Q> ->"));
     assert!(
@@ -7627,7 +7624,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     assert_eq!(app.fleet.menu_prompt_default_value, "2");
     app.render(&mut terminal)
         .expect("fleet unload prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Unload Fleet #");
+    let prompt = line_containing(&terminal, "COMMAND <- Unload Fleet #");
     assert!(prompt.contains("Unload Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
     submit_fleet_menu_prompt(&mut app, Some(2));
@@ -7646,7 +7643,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
             .iter()
             .any(|line| line.contains("Planet:") && line.contains("Fleet 02"))
     );
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to unload?");
+    let prompt = line_containing(&terminal, "COMMAND <- How many armies to unload?");
     assert!(prompt.contains("How many armies to unload? [3]"));
     assert!(prompt.contains("<Q> ->"));
 }
@@ -8024,9 +8021,7 @@ fn fleet_transport_quantity_prompt_stays_inline_on_fleet_menu() {
             .iter()
             .all(|line| !line.contains("Load Planet XX,YY"))
     );
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- How many armies to load?").contains("<Q> ->")
-    );
+    assert!(line_containing(&terminal, "COMMAND <- How many armies to load?").contains("<Q> ->"));
 }
 
 #[test]
@@ -8220,7 +8215,7 @@ fn fleet_transport_load_default_skips_full_fleets_and_caps_qty_by_planet_armies(
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load quantity prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to load?");
+    let prompt = line_containing(&terminal, "COMMAND <- How many armies to load?");
     assert!(prompt.contains("[2]"));
 }
 
@@ -8294,7 +8289,7 @@ fn fleet_transport_unload_default_skips_empty_fleets_and_caps_qty_by_planet_capa
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet unload quantity prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- How many armies to unload?");
+    let prompt = line_containing(&terminal, "COMMAND <- How many armies to unload?");
     assert!(prompt.contains("[2]"));
 }
 
@@ -9243,14 +9238,12 @@ fn fleet_merge_auto_swaps_higher_numbered_fleet_into_lower_host() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("merge source prompt should render");
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Merge Fleet #").contains("Merge Fleet # [")
-    );
+    assert!(line_containing(&terminal, "COMMAND <- Merge Fleet #").contains("Merge Fleet # ["));
 
     submit_fleet_menu_prompt(&mut app, Some(3));
     app.render(&mut terminal)
         .expect("merge host prompt should render");
-    assert!(line_containing(&terminal, "FLEET COMMAND <- Into Fleet #").contains("Into Fleet # ["));
+    assert!(line_containing(&terminal, "COMMAND <- Into Fleet #").contains("Into Fleet # ["));
 
     submit_fleet_menu_prompt(&mut app, Some(4));
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -9321,7 +9314,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         .expect("fleet group order screen should render");
     let top_border_line = line_containing(&terminal, "┌");
     let header_line = line_containing(&terminal, "│ID");
-    let command_line = line_containing(&terminal, "COMMANDS <- J K ^U ^D SPACE <Q>");
+    let command_line = line_containing(&terminal, "COMMAND <- J K ^U ^D SPACE <Q>");
     let table_left = top_border_line
         .chars()
         .position(|ch| ch == '┌')
@@ -9334,7 +9327,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     let command_left = command_line
         .chars()
         .position(|ch| ch == 'C')
-        .expect("command line should start with COMMANDS");
+        .expect("command line should start with COMMAND");
     assert_eq!(table_left, title_left);
     assert_eq!(table_left, command_left);
     assert!(header_line.contains("│ID│Sel│Location│Order"));
@@ -9475,9 +9468,9 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     );
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
-    let prompt = line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [");
-    assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
-    assert!(prompt.contains("COMMANDS <- J K ^U ^D <Q> ["));
+    let prompt = line_containing(&terminal, "COMMAND <- J K ^U ^D <Q> [");
+    assert_eq!(prompt.find("COMMAND"), Some(left_padding));
+    assert!(prompt.contains("COMMAND <- J K ^U ^D <Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -9521,7 +9514,7 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet order prompt should render");
-    let prompt = line_containing(&terminal, "FLEET COMMAND <- Order Fleet #");
+    let prompt = line_containing(&terminal, "COMMAND <- Order Fleet #");
     assert!(prompt.contains("Order Fleet # ["));
     assert!(prompt.contains("<Q> ->"));
 
@@ -9541,9 +9534,9 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         terminal.line(0).find("FLEET MISSION ORDERS:"),
         Some(left_padding)
     );
-    let prompt = line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [");
-    assert_eq!(prompt.find("COMMANDS"), Some(left_padding));
-    assert!(prompt.contains("COMMANDS <- J K ^U ^D <Q> ["));
+    let prompt = line_containing(&terminal, "COMMAND <- J K ^U ^D <Q> [");
+    assert_eq!(prompt.find("COMMAND"), Some(left_padding));
+    assert!(prompt.contains("COMMAND <- J K ^U ^D <Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -9561,7 +9554,7 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         !terminal
             .lines
             .iter()
-            .any(|line| line.contains("FLEET COMMAND <- Order Fleet #"))
+            .any(|line| line.contains("COMMAND <- Order Fleet #"))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('o'))),
@@ -9610,7 +9603,7 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         !terminal
             .lines
             .iter()
-            .any(|line| line.contains("FLEET COMMAND <- Order Fleet #"))
+            .any(|line| line.contains("COMMAND <- Order Fleet #"))
     );
     assert!(
         terminal
@@ -10293,7 +10286,7 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
             .contains("Enter target coordinates for new order: Bombard")
     );
     let prompt = line_containing(&terminal, "Target XX ");
-    assert!(prompt.contains("FLEET COMMAND <- Target XX "));
+    assert!(prompt.contains("COMMAND <- Target XX "));
     assert!(!prompt.contains('['));
     assert!(
         !terminal
@@ -10413,7 +10406,7 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
             .contains("Enter target coordinates for new order: Bombard")
     );
     let prompt = line_containing(&terminal, "Target XX ");
-    assert!(prompt.contains("FLEET COMMAND <- Target XX "));
+    assert!(prompt.contains("COMMAND <- Target XX "));
     assert!(!prompt.contains('['));
     assert!(!terminal.lines.iter().any(|line| line.contains("│Sel│")));
     assert!(!terminal.lines.iter().any(|line| line.contains('│')));
@@ -11056,7 +11049,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
-    assert!(line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMAND <- J K ^U ^D <Q>").contains("COMMAND"));
     assert!(
         terminal
             .lines
@@ -12240,7 +12233,7 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order should render normal command line");
-    assert!(line_containing(&terminal, "COMMANDS <- J K ^U ^D SPACE <Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMAND <- J K ^U ^D SPACE <Q>").contains("COMMAND"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
         !terminal
@@ -12359,7 +12352,7 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group join should return to normal command line");
-    assert!(line_containing(&terminal, "COMMANDS <- J K ^U ^D SPACE <Q>").contains("COMMANDS"));
+    assert!(line_containing(&terminal, "COMMAND <- J K ^U ^D SPACE <Q>").contains("COMMAND"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
         !terminal
@@ -12517,7 +12510,7 @@ fn fleet_change_field_prompt_uses_angle_bracket_commands_and_default() {
 
     app.render(&mut terminal).expect("fleet menu should render");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Change")
+        line_containing(&terminal, "COMMAND <- Change")
             .contains("Change <R>OE, <I>D, or <S>peed [R] <Q> ->")
     );
 }
@@ -12646,8 +12639,7 @@ fn fleet_change_id_rejects_duplicate_fleet_number_inline() {
             .contains("Fleet ID is already in use.")
     );
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- New Fleet ID")
-            .contains("New Fleet ID [4] <Q> ->")
+        line_containing(&terminal, "COMMAND <- New Fleet ID").contains("New Fleet ID [4] <Q> ->")
     );
 }
 
@@ -12732,8 +12724,8 @@ fn planet_database_render_uses_classic_stacked_headers() {
     assert!(terminal.line(3).contains("SBs"));
     assert!(!terminal.line(3).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
-    let prompt = line_containing(&terminal, "COMMANDS <- ");
-    assert_eq!(prompt.find("COMMANDS").expect("commands col"), border_col);
+    let prompt = line_containing(&terminal, "COMMAND <- ");
+    assert_eq!(prompt.find("COMMAND").expect("commands col"), border_col);
     assert!(prompt.contains("["));
     assert!(prompt.contains("->"));
 }
@@ -12767,8 +12759,8 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     );
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <- Filter <A>").trim(),
-        "COMMANDS <- Filter <A>, <R>, <E>, <M>, or <Q>? [A] ->"
+        line_containing(&terminal, "COMMAND <- Filter <A>").trim(),
+        "COMMAND <- Filter <A>, <R>, <E>, <M>, or <Q>? [A] ->"
     );
 
     assert_eq!(
@@ -12782,8 +12774,8 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     );
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
-    let prompt = line_containing(&terminal, "COMMANDS <- Range from").trim();
-    assert!(prompt.starts_with("COMMANDS <- Range from ["));
+    let prompt = line_containing(&terminal, "COMMAND <- Range from").trim();
+    assert!(prompt.starts_with("COMMAND <- Range from ["));
     assert!(prompt.ends_with("] <Q> ->"));
 
     assert_eq!(
@@ -12800,8 +12792,8 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <- Sort <L>").trim(),
-        "COMMANDS <- Sort <L>, <R>, <E>, <M>, or <Q>? [L] ->"
+        line_containing(&terminal, "COMMAND <- Sort <L>").trim(),
+        "COMMAND <- Sort <L>, <R>, <E>, <M>, or <Q>? [L] ->"
     );
 }
 
@@ -13988,7 +13980,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
-    assert_eq!(buffer.plain_line(6), "COMMANDS <- J K ^U ^D <Q> [4] ->");
+    assert_eq!(buffer.plain_line(6), "COMMAND <- J K ^U ^D <Q> [4] ->");
 }
 
 #[test]
@@ -14117,8 +14109,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [").trim_end(),
-        "COMMANDS <- J K ^U ^D <Q> [4] ->"
+        line_containing(&terminal, "COMMAND <- J K ^U ^D <Q> [").trim_end(),
+        "COMMAND <- J K ^U ^D <Q> [4] ->"
     );
 
     assert_eq!(
@@ -14128,8 +14120,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
-        line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q> [").trim_end(),
-        "COMMANDS <- J K ^U ^D <Q> [1] -> 1"
+        line_containing(&terminal, "COMMAND <- J K ^U ^D <Q> [").trim_end(),
+        "COMMAND <- J K ^U ^D <Q> [1] -> 1"
     );
 
     assert_eq!(
@@ -14183,7 +14175,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert!(
         buffer
             .plain_line(12)
-            .contains("FLEET COMMAND <- Destination [19,13] <Q> ->")
+            .contains("COMMAND <- Destination [19,13] <Q> ->")
     );
 }
 
@@ -14381,7 +14373,7 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains("BUILD COMMAND <- Unit number or 0 if done")
+            .contains("COMMAND <- Unit number or 0 if done")
     }));
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("[0] <Q> ->")));
     assert!(!(0..buffer.height()).any(|row| {
@@ -14437,7 +14429,7 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains("BUILD COMMAND <- How many new destroyers to build")
+            .contains("COMMAND <- How many new destroyers to build")
     }));
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("[1] <Q> ->")));
     assert!(!(0..buffer.height()).any(|row| {
@@ -16356,9 +16348,7 @@ fn fleet_detach_prompt_reports_missing_fleet_number() {
         .expect("render detach prompt missing fleet notice");
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(app.fleet.menu_prompt_default_value, "2");
-    assert!(
-        line_containing(&terminal, "FLEET COMMAND <- Detach Fleet #").contains("Detach Fleet #")
-    );
+    assert!(line_containing(&terminal, "COMMAND <- Detach Fleet #").contains("Detach Fleet #"));
     assert!(
         terminal
             .lines

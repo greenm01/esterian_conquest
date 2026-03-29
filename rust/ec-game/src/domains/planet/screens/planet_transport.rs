@@ -3,9 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_at,
-    draw_dismiss_prompt, draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield,
-    new_playfield_for, standard_table_visible_rows_for,
+    ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_at, draw_dismiss_prompt,
+    draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield, new_playfield_for,
+    standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     TableColumn, TableFooter, draw_table_footer, draw_table_title, fleet_id_column_width,

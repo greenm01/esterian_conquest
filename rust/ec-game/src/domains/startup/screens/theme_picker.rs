@@ -3,8 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    ScreenGeometry, new_playfield_for, standard_table_visible_rows,
-    standard_table_visible_rows_for,
+    ScreenGeometry, new_playfield_for, standard_table_visible_rows, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
@@ -86,7 +85,12 @@ impl ThemePickerScreen {
             VerticalAlign::Center,
         );
         let _ = layout.title_row;
-        draw_table_title(&mut buffer, layout.table_row, layout.table_col, "COLOR THEMES:");
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "COLOR THEMES:",
+        );
         let metrics = write_table_window_with_cursor_at(
             &mut buffer,
             layout.table_row,

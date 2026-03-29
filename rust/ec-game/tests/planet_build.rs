@@ -133,7 +133,7 @@ fn build_list_renders_queue_columns_without_dock() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("BUILD COMMAND <- J K ^U ^D D <Q> ->")
+                .contains("COMMAND <- J K ^U ^D D <Q> ->")
         })
         .expect("build list command row should render");
     let _ = command_row;
@@ -198,12 +198,20 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("BUILD COMMAND <- Delete 1 Destroyer? Y/[N] ->")
+                .contains("COMMAND <- Delete 1 Destroyer? Y/[N] ->")
         })
         .expect("build list confirm prompt should render");
     let _ = command_row;
-    assert!(!(0..25).any(|row| buffer.plain_line(row).contains("You have spent 10 out of 50 points.")));
-    assert!(!(0..25).any(|row| buffer.plain_line(row).contains("Notice: Delete 1 Destroyer?")));
+    assert!(!(0..25).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("You have spent 10 out of 50 points.")
+    }));
+    assert!(!(0..25).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Notice: Delete 1 Destroyer?")
+    }));
 }
 
 #[test]
@@ -257,7 +265,7 @@ fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("BUILD COMMAND <- No build orders are queued.")
+                .contains("COMMAND <- No build orders are queued.")
         })
         .expect("build list command row should render");
     let _ = command_row;
@@ -383,6 +391,6 @@ fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
     assert!(
         buffer
             .plain_line(23)
-            .contains("BUILD COMMAND <- J K ^U ^D <Q> ->")
+            .contains("COMMAND <- J K ^U ^D <Q> ->")
     );
 }

@@ -10,9 +10,9 @@ use ec_game::screen::table::{
     write_table_window_with_cursor_at, write_table_window_with_states,
 };
 use ec_game::screen::{
-    EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetBuildScreen, PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen,
-    PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
+    EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
+    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer,
+    RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use ec_game::theme::classic;
 
@@ -260,7 +260,7 @@ fn planet_database_screen_uses_stacked_header_table() {
     assert!(buffer.plain_line(5).contains("(12,34)"));
     assert!(buffer.plain_line(5).contains("Aurora"));
     assert_eq!(
-        buffer.plain_line(7).find("COMMANDS").expect("command col"),
+        buffer.plain_line(7).find("COMMAND").expect("command col"),
         border_col
     );
 }
@@ -306,7 +306,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
     assert_eq!(
         buffer
             .plain_line(prompt_row)
-            .find("COMMANDS")
+            .find("COMMAND")
             .expect("prompt col"),
         border_col
     );
@@ -349,7 +349,7 @@ fn planet_database_24_row_door_keeps_bottom_border_above_command_line() {
 
     assert_eq!(buffer.height(), 24);
     assert!(buffer.plain_line(22).contains('└'));
-    assert!(buffer.plain_line(23).contains("COMMANDS"));
+    assert!(buffer.plain_line(23).contains("COMMAND"));
 }
 
 #[test]
@@ -419,7 +419,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(5).contains("165"));
     assert!(buffer.plain_line(5).contains("0"));
     assert_eq!(
-        buffer.plain_line(7).find("COMMANDS").expect("command col"),
+        buffer.plain_line(7).find("COMMAND").expect("command col"),
         border_col
     );
     assert_eq!(
@@ -546,19 +546,20 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
         .find(|row| {
             buffer
                 .plain_line(*row)
-                .contains("COMMANDS <- J K ^U ^D D <Q>")
+                .contains("COMMAND <- J K ^U ^D D <Q>")
         })
         .expect("command row");
     let command_col = buffer
         .plain_line(command_row)
-        .find("COMMANDS")
+        .find("COMMAND")
         .expect("command col");
 
     assert_eq!(title_col, table_col);
     assert_eq!(command_col, table_col);
     assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("Available empires:")));
     assert!(
-        (0..buffer.height()).all(|row| !buffer.plain_line(row).contains("queued outgoing messages"))
+        (0..buffer.height())
+            .all(|row| !buffer.plain_line(row).contains("queued outgoing messages"))
     );
 }
 
@@ -634,7 +635,11 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .expect("render enemies screen");
 
     let title_row = (0..buffer.height())
-        .find(|row| buffer.plain_line(*row).contains("ENEMIES, DECLARE OR LIST:"))
+        .find(|row| {
+            buffer
+                .plain_line(*row)
+                .contains("ENEMIES, DECLARE OR LIST:")
+        })
         .expect("title row");
     let title_col = buffer
         .plain_line(title_row)
@@ -645,11 +650,11 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .expect("table row");
     let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
     let command_row = (0..buffer.height())
-        .find(|row| buffer.plain_line(*row).contains("COMMANDS <- J K ^U ^D <Q>"))
+        .find(|row| buffer.plain_line(*row).contains("COMMAND <- J K ^U ^D <Q>"))
         .expect("command row");
     let command_col = buffer
         .plain_line(command_row)
-        .find("COMMANDS")
+        .find("COMMAND")
         .expect("command col");
 
     assert_eq!(title_col, table_col);

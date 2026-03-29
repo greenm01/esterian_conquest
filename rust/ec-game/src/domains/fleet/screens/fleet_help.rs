@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use crate::app::Action;
 use crate::domains::fleet::FleetAction;
 use crate::screen::layout::{draw_help_panel, new_playfield};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct FleetHelpScreen;
 
@@ -43,7 +43,7 @@ impl Screen for FleetHelpScreen {
             "FLEET COMMAND HELP:",
             "Help - Fleet Command Center command descriptions:",
             &HELP_LINES,
-            "FLEET COMMAND",
+            COMMAND_LABEL,
         );
         Ok(buffer)
     }

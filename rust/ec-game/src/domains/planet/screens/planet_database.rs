@@ -4,12 +4,12 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{new_playfield_for, stacked_table_visible_rows_for};
 use crate::screen::table::{
-    HorizontalAlign, LayoutRect, TableColumn, TableWidthMode, VerticalAlign,
-    TableFooter, draw_table_footer, draw_table_title, layout_stacked_table_block,
-    resolve_table_columns, write_stacked_table_window_with_states_at,
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, layout_stacked_table_block, resolve_table_columns,
+    write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, ScreenGeometry, format_sector_coords_default,
+    COMMAND_LABEL, CommandMenu, PlayfieldBuffer, ScreenGeometry, format_sector_coords_default,
     format_sector_coords_table,
 };
 use crate::theme::classic;
@@ -175,7 +175,7 @@ impl PlanetDatabaseScreen {
                 layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandText {
-                    label: "COMMANDS",
+                    label: COMMAND_LABEL,
                     text: "No planets are in your database. Q quits.",
                 },
             );
@@ -263,7 +263,7 @@ impl PlanetDatabaseScreen {
                     layout.command_col,
                     bottom_row,
                     TableFooter::CommandInput {
-                        label: "COMMANDS",
+                        label: COMMAND_LABEL,
                         prompt: "Range from ",
                         default: prompt_default,
                         input,
@@ -277,7 +277,7 @@ impl PlanetDatabaseScreen {
                     layout.command_col,
                     bottom_row,
                     TableFooter::CommandInput {
-                        label: "COMMANDS",
+                        label: COMMAND_LABEL,
                         prompt: "Range radius ",
                         default: prompt_default,
                         input,
@@ -291,7 +291,7 @@ impl PlanetDatabaseScreen {
                     layout.command_col,
                     bottom_row,
                     TableFooter::CommandInput {
-                        label: "COMMANDS",
+                        label: COMMAND_LABEL,
                         prompt: "Empire ",
                         default: prompt_default,
                         input,
@@ -305,7 +305,7 @@ impl PlanetDatabaseScreen {
                     layout.command_col,
                     bottom_row,
                     TableFooter::CommandInput {
-                        label: "COMMANDS",
+                        label: COMMAND_LABEL,
                         prompt: "Max production at least ",
                         default: prompt_default,
                         input,
@@ -328,7 +328,7 @@ impl PlanetDatabaseScreen {
                     layout.command_col,
                     bottom_row,
                     TableFooter::CommandInput {
-                        label: "COMMANDS",
+                        label: COMMAND_LABEL,
                         prompt: "Sort range from ",
                         default: prompt_default,
                         input,

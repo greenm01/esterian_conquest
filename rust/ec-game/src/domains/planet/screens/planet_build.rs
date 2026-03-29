@@ -5,19 +5,18 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CMD_COL_1, EXPERT_MENU_PROMPT_ROW, MenuEntry, ScreenGeometry, centered_row,
-    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
-    draw_inline_planet_info_prompt, draw_menu_notice, draw_menu_row, draw_title_bar,
-    last_body_row, menu_prompt_row, new_playfield, new_playfield_for,
-    standard_table_visible_rows_for,
+    CMD_COL_1, EXPERT_MENU_PROMPT_ROW, MenuEntry, ScreenGeometry, centered_row, dismiss_prompt_row,
+    draw_command_line_default_input_at, draw_command_prompt_at, draw_dismiss_prompt,
+    draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
+    draw_inline_planet_info_prompt, draw_menu_notice, draw_menu_row, draw_title_bar, last_body_row,
+    menu_prompt_row, new_playfield, new_playfield_for, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, TableFooter, draw_table_footer, draw_table_title,
     write_split_table, write_table_window_with_cursor,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
+    COMMAND_LABEL, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
     format_sector_coords_table,
 };
 use crate::theme::classic;
@@ -408,7 +407,7 @@ impl PlanetBuildScreen {
                 0,
                 metrics.bottom_row,
                 TableFooter::CommandPrompt {
-                    label: "BUILD COMMAND",
+                    label: COMMAND_LABEL,
                     prompt: &format!("{summary} Y/[N] -> "),
                 },
             );
@@ -426,7 +425,7 @@ impl PlanetBuildScreen {
                     0,
                     metrics.bottom_row,
                     TableFooter::CommandPrompt {
-                        label: "BUILD COMMAND",
+                        label: COMMAND_LABEL,
                         prompt: &prompt,
                     },
                 );
@@ -437,7 +436,7 @@ impl PlanetBuildScreen {
                     0,
                     metrics.bottom_row,
                     TableFooter::CommandPrompt {
-                        label: "BUILD COMMAND",
+                        label: COMMAND_LABEL,
                         prompt: "J K ^U ^D D <Q> -> ",
                     },
                 );
@@ -445,12 +444,12 @@ impl PlanetBuildScreen {
         } else {
             let footer = if rows.is_empty() {
                 TableFooter::CommandText {
-                    label: "BUILD COMMAND",
+                    label: COMMAND_LABEL,
                     text: "No build orders are queued.",
                 }
             } else {
                 TableFooter::CommandPrompt {
-                    label: "BUILD COMMAND",
+                    label: COMMAND_LABEL,
                     prompt: "J K ^U ^D D <Q> -> ",
                 }
             };
@@ -502,7 +501,7 @@ impl PlanetBuildScreen {
         draw_command_line_default_input_at(
             &mut buffer,
             14,
-            "BUILD COMMAND",
+            COMMAND_LABEL,
             "Cancel these orders? ",
             "N",
             "",
@@ -533,7 +532,7 @@ impl PlanetBuildScreen {
             0,
             table_metrics.bottom_row,
             TableFooter::CommandInput {
-                label: "BUILD COMMAND",
+                label: COMMAND_LABEL,
                 prompt: &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
                 default: "0",
                 input,
@@ -565,7 +564,7 @@ impl PlanetBuildScreen {
             0,
             table_metrics.bottom_row,
             TableFooter::CommandInput {
-                label: "BUILD COMMAND",
+                label: COMMAND_LABEL,
                 prompt: &prompt,
                 default: "1",
                 input,
@@ -616,12 +615,12 @@ impl PlanetBuildScreen {
         );
         let footer = if rows.is_empty() {
             TableFooter::CommandText {
-                label: "BUILD COMMAND",
+                label: COMMAND_LABEL,
                 text: "No owned planets available.",
             }
         } else {
             TableFooter::CommandPrompt {
-                label: "BUILD COMMAND",
+                label: COMMAND_LABEL,
                 prompt: "J K ^U ^D <Q> -> ",
             }
         };

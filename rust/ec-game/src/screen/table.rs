@@ -502,7 +502,9 @@ pub fn draw_table_footer(
             input,
         } => {
             let row = table_prompt_row_for(geometry, bottom_row);
-            draw_command_line_default_input_at_col(buffer, row, table_col, label, prompt, default, input);
+            draw_command_line_default_input_at_col(
+                buffer, row, table_col, label, prompt, default, input,
+            );
             row
         }
         TableFooter::TablePrompt(prompt) => {

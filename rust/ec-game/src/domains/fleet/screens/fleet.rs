@@ -23,8 +23,8 @@ use crate::screen::table::{
     write_table_window_with_cursor, write_table_window_with_states_at,
 };
 use crate::screen::{
-    PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, StyledSpan,
-    format_sector_coords, format_sector_coords_table,
+    COMMAND_LABEL, PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
+    StyledSpan, format_sector_coords, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -411,7 +411,7 @@ impl FleetListScreen {
                 0,
                 metrics.bottom_row,
                 TableFooter::CommandText {
-                    label: "COMMANDS",
+                    label: COMMAND_LABEL,
                     text: "You have no active fleets.",
                 },
             );
@@ -506,12 +506,7 @@ impl FleetReviewScreen {
             &row.fleet_record_index_1_based.to_string(),
         );
         if return_to_list {
-            draw_command_prompt_at(
-                &mut buffer,
-                menu_prompt_row(12),
-                "FLEET COMMAND",
-                "HJKL <Q>",
-            );
+            draw_command_prompt_at(&mut buffer, menu_prompt_row(12), COMMAND_LABEL, "HJKL <Q>");
         } else {
             draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
         }
@@ -653,7 +648,7 @@ impl FleetSingleOrderScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Target XX ",
                     target_x_default,
                     target_x_input,
@@ -664,7 +659,7 @@ impl FleetSingleOrderScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Target XX ",
                     target_x_default,
                     target_x_input,
@@ -672,7 +667,7 @@ impl FleetSingleOrderScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row + 2,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Target YY ",
                     target_y_default,
                     target_y_input,
@@ -730,7 +725,7 @@ impl FleetSingleOrderScreen {
         draw_command_line_default_input_at(
             &mut buffer,
             command_row,
-            "FLEET COMMAND",
+            COMMAND_LABEL,
             target_prompt,
             target_default,
             input,
@@ -762,7 +757,7 @@ impl FleetSingleOrderScreen {
         draw_status_line(&mut buffer, 4, "", header_text);
         draw_status_line(&mut buffer, 6, "New Orders: ", new_order_label);
         let command_row = menu_prompt_row(6);
-        draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
+        draw_confirm_prompt_at(&mut buffer, command_row, COMMAND_LABEL, confirm_input);
         if let Some(status) = status {
             draw_prompt_error_after(&mut buffer, command_row, status);
         }
@@ -814,7 +809,7 @@ impl FleetEtaScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Destination ",
                     &format!("{},{}", destination_default[0], destination_default[1]),
                     destination_input,
@@ -828,7 +823,7 @@ impl FleetEtaScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Include time to enter system? ",
                     "N",
                     include_system_input,
@@ -1049,7 +1044,7 @@ impl FleetGroupScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     target_prompt,
                     target_default,
                     input,
@@ -1060,7 +1055,7 @@ impl FleetGroupScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Target XX ",
                     target_x_default,
                     target_x_input,
@@ -1071,7 +1066,7 @@ impl FleetGroupScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Target XX ",
                     target_x_default,
                     target_x_input,
@@ -1079,7 +1074,7 @@ impl FleetGroupScreen {
                 draw_command_line_default_input_at(
                     &mut buffer,
                     command_row + 2,
-                    "FLEET COMMAND",
+                    COMMAND_LABEL,
                     "Target YY ",
                     target_y_default,
                     target_y_input,
@@ -1113,7 +1108,7 @@ impl FleetGroupScreen {
         draw_status_line(&mut buffer, 5, "", header_text);
         draw_status_line(&mut buffer, 7, "New Orders: ", new_order_label);
         let command_row = menu_prompt_row(7);
-        draw_confirm_prompt_at(&mut buffer, command_row, "FLEET COMMAND", confirm_input);
+        draw_confirm_prompt_at(&mut buffer, command_row, COMMAND_LABEL, confirm_input);
         if let Some(status) = status {
             draw_prompt_error_after(&mut buffer, command_row, status);
         }
@@ -1248,7 +1243,7 @@ impl FleetTransferScreen {
         draw_command_line_default_input_at(
             &mut buffer,
             COMMAND_ROW,
-            "FLEET COMMAND",
+            COMMAND_LABEL,
             prompt,
             default,
             input,
@@ -1464,7 +1459,7 @@ impl FleetDetachScreen {
         draw_command_line_default_input_at(
             &mut buffer,
             COMMAND_ROW,
-            "FLEET COMMAND",
+            COMMAND_LABEL,
             prompt,
             default,
             input,

@@ -186,7 +186,7 @@ pub fn draw_table_command_bar_at_col(
             row,
             col,
             &[
-                StyledSpan::new("COMMANDS", classic::title_style()),
+                StyledSpan::new("COMMAND", classic::title_style()),
                 StyledSpan::new(" <- ", classic::prompt_style()),
             ],
         );
@@ -239,7 +239,7 @@ pub fn draw_table_command_prompt_at_col(
             row,
             col,
             &[
-                StyledSpan::new("COMMANDS", classic::title_style()),
+                StyledSpan::new("COMMAND", classic::title_style()),
                 StyledSpan::new(" <- ", classic::prompt_style()),
             ],
         );
@@ -511,7 +511,7 @@ mod tests {
     fn table_command_bar_renders_commands_label() {
         let mut buffer = buffer();
         draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <N> <Q>", None, "");
-        assert!(buffer.plain_line(24).starts_with("COMMANDS <- "));
+        assert!(buffer.plain_line(24).starts_with("COMMAND <- "));
     }
 
     #[test]

@@ -9,13 +9,16 @@ use crate::screen::layout::{
     standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, TableFooter, draw_table_footer, draw_table_title, write_table_window_with_cursor,
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, resolve_table_columns, table_render_width,
+    write_table_window_with_cursor_at,
 };
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_table,
 };
 use crate::theme::classic;
 use ec_data::ProductionItemKind;
+use ec_ui::table_layout::{TableBlockLayout, layout_table_block};
 
 pub struct PlanetCommissionScreen;
 
@@ -37,6 +40,52 @@ pub fn planet_auto_commission_report_last_row(geometry: ScreenGeometry) -> usize
 
 pub fn planet_auto_commission_report_page_rows(geometry: ScreenGeometry) -> usize {
     planet_auto_commission_report_last_row(geometry) + 1
+}
+
+fn centered_commission_layout(
+    area: LayoutRect,
+    columns: &[TableColumn<'_>],
+    displayed_rows: usize,
+    title: &str,
+    command_width: usize,
+    scrollbar_visible: bool,
+) -> TableBlockLayout {
+    let table_width = table_render_width(columns);
+    let block_width = title
+        .chars()
+        .count()
+        .max(command_width)
+        .max(table_width + usize::from(scrollbar_visible));
+    layout_table_block(
+        area,
+        block_width,
+        displayed_rows + 4,
+        true,
+        true,
+        false,
+        HorizontalAlign::Center,
+        VerticalAlign::Center,
+    )
+}
+
+fn command_bar_width(hotkeys_markup: &str, default: Option<&str>) -> usize {
+    let base = "COMMAND <- ".chars().count() + hotkeys_markup.chars().count();
+    if let Some(default) = default {
+        base + " [".chars().count() + default.chars().count() + "] -> ".chars().count()
+    } else {
+        base + " -> ".chars().count()
+    }
+}
+
+fn command_prompt_width(prompt: &str) -> usize {
+    "COMMAND <- ".chars().count() + prompt.chars().count()
+}
+
+fn command_input_width(prompt: &str, default: &str) -> usize {
+    command_prompt_width(prompt)
+        + "[".chars().count()
+        + default.chars().count()
+        + "] <Q> -> ".chars().count()
 }
 
 const COMMISSION_PICKER_COLUMNS: [TableColumn<'static>; 9] = [
@@ -114,7 +163,6 @@ impl PlanetCommissionScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_table_title(&mut buffer, 1, 0, "COMMISSION SHIPS:");
 
         let table_rows: Vec<Vec<String>> = rows
             .iter()
@@ -133,27 +181,55 @@ impl PlanetCommissionScreen {
             })
             .collect();
 
-        let selected = if rows.is_empty() { None } else { Some(cursor) };
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            1,
+        let visible_rows = planet_commission_picker_visible_rows(geometry);
+        let displayed_rows = table_rows
+            .len()
+            .saturating_sub(scroll_offset)
+            .min(visible_rows);
+        let scrollable = table_rows.len() > visible_rows;
+        let columns = resolve_table_columns(
             &COMMISSION_PICKER_COLUMNS,
             &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let default = rows
+            .get(cursor.min(rows.len().saturating_sub(1)))
+            .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
+        let layout = centered_commission_layout(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            "COMMISSION SHIPS:",
+            command_bar_width("J K ^U ^D <Q>", default.as_deref()),
+            scrollable,
+        );
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "COMMISSION SHIPS:",
+        );
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            &columns,
+            &table_rows,
             scroll_offset,
-            planet_commission_picker_visible_rows(geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
             0,
         );
 
-        let default = rows
-            .get(cursor.min(rows.len().saturating_sub(1)))
-            .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
         draw_table_footer(
             &mut buffer,
             geometry,
-            0,
+            layout.command_col,
             metrics.bottom_row,
             TableFooter::CommandBar {
                 hotkeys_markup: "J K ^U ^D <Q>",
@@ -179,7 +255,6 @@ impl PlanetCommissionScreen {
             view.planet_name,
             format_sector_coords(view.coords)
         );
-        draw_table_title(&mut buffer, 1, 0, &title);
 
         let table_rows: Vec<Vec<String>> = view
             .rows
@@ -198,18 +273,41 @@ impl PlanetCommissionScreen {
             })
             .collect();
 
+        let visible_rows = planet_commission_visible_rows(geometry);
+        let displayed_rows = table_rows
+            .len()
+            .saturating_sub(scroll_offset)
+            .min(visible_rows);
+        let scrollable = table_rows.len() > visible_rows;
+        let columns = resolve_table_columns(
+            &COMMISSION_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = centered_commission_layout(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            &title,
+            command_bar_width("J K ^U ^D SPACE <Q>", None),
+            scrollable,
+        );
+        draw_table_title(&mut buffer, layout.table_row, layout.table_col, &title);
         let selected = if view.rows.is_empty() {
             None
         } else {
             Some(cursor)
         };
-        let metrics = write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor_at(
             &mut buffer,
-            1,
-            &COMMISSION_COLUMNS,
+            layout.table_row,
+            layout.table_col,
+            &columns,
             &table_rows,
             scroll_offset,
-            planet_commission_visible_rows(geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
@@ -218,7 +316,7 @@ impl PlanetCommissionScreen {
         draw_table_footer(
             &mut buffer,
             geometry,
-            0,
+            layout.command_col,
             metrics.bottom_row,
             TableFooter::CommandBar {
                 hotkeys_markup: "J K ^U ^D SPACE <Q>",
@@ -242,7 +340,6 @@ impl PlanetCommissionScreen {
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_table_title(&mut buffer, 1, 0, title);
         let table_rows: Vec<Vec<String>> = rows
             .iter()
             .enumerate()
@@ -261,17 +358,15 @@ impl PlanetCommissionScreen {
                 ]
             })
             .collect();
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            1,
+        let visible_rows = planet_commission_draft_visible_rows(geometry);
+        let displayed_rows = table_rows.len().min(visible_rows);
+        let scrollable = table_rows.len() > visible_rows;
+        let columns = resolve_table_columns(
             &COMMISSION_DRAFT_COLUMNS,
             &table_rows,
-            0,
-            planet_commission_draft_visible_rows(geometry),
-            classic::status_value_style(),
-            classic::status_value_style(),
-            if rows.is_empty() { None } else { Some(cursor) },
-            0,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
         );
         let has_ship_draft = rows
             .iter()
@@ -280,6 +375,41 @@ impl PlanetCommissionScreen {
         let current_is_ship = current_row
             .map(PlanetCommissionDraftRow::accepts_fleet_qty)
             .unwrap_or(false);
+        let command_width = if current_is_ship {
+            let prompt_label = current_row
+                .map(|row| format!("Qty for {} ", row.unit_label))
+                .unwrap_or_else(|| "Qty ".to_string());
+            let default_qty = current_row
+                .map(|row| format_draft_qty(row.remaining_qty))
+                .unwrap_or_else(|| "00".to_string());
+            command_input_width(&prompt_label, &default_qty)
+        } else if has_ship_draft {
+            command_prompt_width("<ENTER> commissions the drafted fleet. <Q> -> ")
+        } else {
+            command_prompt_width("<ENTER> commissions the highlighted starbase. <Q> -> ")
+        };
+        let layout = centered_commission_layout(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            title,
+            command_width,
+            scrollable,
+        );
+        draw_table_title(&mut buffer, layout.table_row, layout.table_col, title);
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            &columns,
+            &table_rows,
+            0,
+            visible_rows,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if rows.is_empty() { None } else { Some(cursor) },
+            0,
+        );
         if current_is_ship {
             let prompt_label = current_row
                 .map(|row| format!("Qty for {} ", row.unit_label))
@@ -290,7 +420,7 @@ impl PlanetCommissionScreen {
             draw_table_footer(
                 &mut buffer,
                 geometry,
-                0,
+                layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandInput {
                     label: "COMMAND",
@@ -303,7 +433,7 @@ impl PlanetCommissionScreen {
             draw_table_footer(
                 &mut buffer,
                 geometry,
-                0,
+                layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandPrompt {
                     label: "COMMAND",
@@ -314,7 +444,7 @@ impl PlanetCommissionScreen {
             draw_table_footer(
                 &mut buffer,
                 geometry,
-                0,
+                layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandPrompt {
                     label: "COMMAND",

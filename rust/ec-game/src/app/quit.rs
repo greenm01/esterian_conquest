@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use super::{Action, state::App};
 use crate::domains::startup::screens::main_menu::MENU_PROMPT_ROW;
 use crate::screen::layout::{command_line_row_for, draw_command_line_prompt_text_at};
-use crate::screen::{PlayfieldBuffer, ScreenId};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, ScreenId};
 
 impl App {
     pub fn request_quit(&mut self) {
@@ -35,7 +35,7 @@ impl App {
         } else {
             command_line_row_for(self.screen_geometry)
         };
-        draw_command_line_prompt_text_at(buffer, row, "MAIN COMMAND", "Are you sure Y/[N] ->");
+        draw_command_line_prompt_text_at(buffer, row, COMMAND_LABEL, "Are you sure Y/[N] ->");
         buffer.clear_cursor();
     }
 }

@@ -2,7 +2,7 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{draw_help_panel, new_playfield};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct GeneralHelpScreen;
 
@@ -40,7 +40,7 @@ impl Screen for GeneralHelpScreen {
             "GENERAL COMMAND HELP:",
             "Help - General Command Center command descriptions:",
             &HELP_LINES,
-            "GENERAL COMMAND",
+            COMMAND_LABEL,
         );
         Ok(buffer)
     }

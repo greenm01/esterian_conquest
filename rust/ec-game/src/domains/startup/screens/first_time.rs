@@ -8,7 +8,7 @@ use crate::screen::layout::{
     draw_command_message_stack, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
     draw_menu_notice, draw_plain_prompt, draw_title_bar, menu_prompt_row, new_playfield,
 };
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
 
 pub struct FirstTimeMenuScreen;
@@ -123,7 +123,7 @@ impl FirstTimeHelpScreen {
             } else {
                 &LOCAL_HELP_LINES
             },
-            "FIRST TIME COMMAND",
+            COMMAND_LABEL,
         );
         Ok(buffer)
     }
@@ -170,7 +170,7 @@ pub fn render_first_time_reserved_prompt(
     draw_command_line_prompt_text_at(
         &mut buffer,
         menu_prompt_row(6),
-        "FIRST LOGIN",
+        COMMAND_LABEL,
         "Continue with reserved setup? Y/[N] ->",
     );
     Ok(buffer)

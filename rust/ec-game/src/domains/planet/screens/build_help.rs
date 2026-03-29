@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{draw_help_panel, new_playfield};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct BuildHelpScreen;
 
@@ -41,7 +41,7 @@ impl Screen for BuildHelpScreen {
             "BUILD COMMAND HELP:",
             "Help - Build Command option descriptions:",
             &HELP_LINES,
-            "BUILD COMMAND",
+            COMMAND_LABEL,
         );
         Ok(buffer)
     }
