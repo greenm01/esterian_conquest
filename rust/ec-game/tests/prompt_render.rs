@@ -626,16 +626,15 @@ fn commission_picker_renders_planets_with_stardock_counts() {
         .render_picker(ScreenGeometry::local_default(), &rows, 0, 0)
         .expect("commission picker renders");
 
-    assert!(row_text(&buffer, 1).trim().is_empty());
-    assert!(row_text(&buffer, 2).starts_with("┌"));
-    assert!(row_text(&buffer, 3).contains("Planet Name"));
-    assert!(row_text(&buffer, 3).contains("ET"));
-    assert!(row_text(&buffer, 5).contains("(08,09)"));
-    assert!(row_text(&buffer, 5).contains("Aurora Prime"));
-    assert!(row_text(&buffer, 5).contains("│04│02│"));
-    assert!(row_text(&buffer, 5).contains("│03│"));
+    assert!(row_text(&buffer, 1).starts_with("┌"));
+    assert!(row_text(&buffer, 2).contains("Planet Name"));
+    assert!(row_text(&buffer, 2).contains("ET"));
+    assert!(row_text(&buffer, 4).contains("(08,09)"));
+    assert!(row_text(&buffer, 4).contains("Aurora Prime"));
+    assert!(row_text(&buffer, 4).contains("│04│02│"));
+    assert!(row_text(&buffer, 4).contains("│03│"));
+    assert!(row_text(&buffer, 4).contains("│01│"));
     assert!(row_text(&buffer, 5).contains("│01│"));
-    assert!(row_text(&buffer, 6).contains("│01│"));
 }
 
 #[test]
@@ -670,15 +669,12 @@ fn commission_draft_starts_table_under_title_and_defaults_ship_prompt_to_remaini
         )
         .expect("commission draft renders");
 
-    assert!(row_text(&buffer, 1).trim().is_empty());
-    assert!(row_text(&buffer, 2).starts_with("┌"));
-    assert!(row_text(&buffer, 5).contains("│Destroyers"));
-    assert!(row_text(&buffer, 5).contains("│       04│         00│"));
-    assert!(row_text(&buffer, 6).contains("│Starbases"));
-    assert!(row_text(&buffer, 6).contains("│       01│           │"));
-    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Destroyers [04] <Q> ->"));
-    assert!(row_text(&buffer, 9).trim().is_empty());
-    assert!(row_text(&buffer, 10).contains("Set quantities for the ships you want in this fleet."));
+    assert!(row_text(&buffer, 1).starts_with("┌"));
+    assert!(row_text(&buffer, 4).contains("│Destroyers"));
+    assert!(row_text(&buffer, 4).contains("│       04│         00│"));
+    assert!(row_text(&buffer, 5).contains("│Starbases"));
+    assert!(row_text(&buffer, 5).contains("│       01│           │"));
+    assert!(row_text(&buffer, 7).contains("COMMAND <- Qty for Destroyers [04] <Q> ->"));
 }
 
 #[test]
@@ -714,12 +710,8 @@ fn commission_draft_switches_prompt_for_starbase_rows() {
         .expect("commission draft renders");
 
     assert!(
-        row_text(&buffer, 8)
+        row_text(&buffer, 7)
             .contains("COMMAND <- <ENTER> commissions the highlighted starbase. <Q> -> ")
-    );
-    assert!(
-        row_text(&buffer, 10)
-            .contains("ENTER commissions the highlighted starbase directly to the planet.")
     );
 }
 
@@ -755,12 +747,11 @@ fn commission_draft_renders_inline_notice_below_command_row() {
         )
         .expect("commission draft renders");
 
-    assert!(row_text(&buffer, 2).starts_with("┌"));
-    assert!(row_text(&buffer, 8).contains("COMMAND <- Qty for Battleships [03] <Q> ->"));
-    assert!(row_text(&buffer, 9).trim().is_empty());
-    assert!(row_text(&buffer, 10).contains("ENTER commissions the current fleet draft."));
-    assert!(row_text(&buffer, 11).trim().is_empty());
-    assert!(row_text(&buffer, 12).contains("Notice: Commissioned selected ships into Fleet 02."));
+    assert!(row_text(&buffer, 1).starts_with("┌"));
+    assert!(row_text(&buffer, 7).contains("COMMAND <- Qty for Battleships [03] <Q> ->"));
+    assert!((8..buffer.height()).all(|row| {
+        !row_text(&buffer, row).contains("Commissioned selected ships into Fleet 02.")
+    }));
 }
 
 #[test]
@@ -795,7 +786,7 @@ fn commission_draft_zero_pads_live_input_in_this_fleet_column() {
         )
         .expect("commission draft renders");
 
-    assert!(row_text(&buffer, 5).contains("│Destroyers              │       04│         03│"));
+    assert!(row_text(&buffer, 4).contains("│Destroyers              │       04│         03│"));
 }
 
 #[test]

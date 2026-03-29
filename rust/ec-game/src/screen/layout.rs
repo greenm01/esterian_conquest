@@ -221,8 +221,12 @@ pub fn new_playfield() -> PlayfieldBuffer {
 }
 
 pub fn draw_title_bar(buffer: &mut PlayfieldBuffer, row: usize, title: &str) {
+    draw_title_bar_at_col(buffer, row, 0, title);
+}
+
+pub fn draw_title_bar_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usize, title: &str) {
     buffer.fill_row(row, classic::menu_style());
-    buffer.write_text(row, 0, title, classic::title_style());
+    buffer.write_text(row, col, title, classic::title_style());
 }
 
 pub fn draw_menu_row(buffer: &mut PlayfieldBuffer, row: usize, entries: &[MenuEntry<'_>]) {
@@ -801,7 +805,17 @@ pub fn draw_command_line_prompt_text_at(
     label: &str,
     prompt: &str,
 ) {
-    shared_prompt::draw_command_line_prompt_text_at(buffer, row, label, prompt);
+    draw_command_line_prompt_text_at_col(buffer, row, 0, label, prompt);
+}
+
+pub fn draw_command_line_prompt_text_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+) {
+    shared_prompt::draw_command_line_prompt_text_at_col(buffer, row, col, label, prompt);
 }
 
 pub fn draw_command_line_default_input_at(
@@ -881,11 +895,24 @@ pub fn draw_table_command_prompt_at_col(
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
-    shared_prompt::draw_plain_prompt(buffer, row, prompt)
+    draw_plain_prompt_at_col(buffer, row, 0, prompt)
+}
+
+pub fn draw_plain_prompt_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    prompt: &str,
+) -> usize {
+    shared_prompt::draw_plain_prompt_at_col(buffer, row, col, prompt)
 }
 
 pub fn draw_dismiss_prompt(buffer: &mut PlayfieldBuffer, row: usize) -> usize {
-    draw_plain_prompt(buffer, row, "(slap a key)")
+    draw_dismiss_prompt_at_col(buffer, row, 0)
+}
+
+pub fn draw_dismiss_prompt_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
+    draw_plain_prompt_at_col(buffer, row, col, "(slap a key)")
 }
 
 pub fn draw_help_panel(

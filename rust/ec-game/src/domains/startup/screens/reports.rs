@@ -11,8 +11,8 @@ use crate::screen::layout::{
     wrap_text,
 };
 use crate::screen::table::{
-    TableAlign, TableColumn, fit_table_columns, table_column_start, table_render_width,
-    write_table_window_with_states_at,
+    TableAlign, TableColumn, TableWidthMode, resolve_table_columns, table_column_start,
+    table_render_width, write_table_window_with_states_at,
 };
 use crate::screen::{
     CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, StyledSpan, command_menu_label,
@@ -24,8 +24,6 @@ pub struct ReportsScreen;
 const TABLE_START_ROW: usize = 1;
 const STATUS_ROW: usize = 0;
 const FEEDBACK_MAX_ROWS: usize = 3;
-const INBOX_MAX_TABLE_WIDTH: usize = PLAYFIELD_WIDTH - 1;
-
 impl ReportsScreen {
     pub fn new() -> Self {
         Self
@@ -88,11 +86,11 @@ impl ReportsScreen {
             TableColumn::right("ID", 2),
             TableColumn::center("Type", 4),
             TableColumn::right("Stardate", 8),
-            TableColumn::left("Subject", 24),
+            TableColumn::left_flex("Subject", 24, 1),
         ];
-        let columns = fit_inbox_columns(&base_columns, &table_rows);
-        let table_width = table_render_width(&columns);
         let visible_rows = items.len().min(INBOX_VISIBLE_ROWS);
+        let columns = fit_inbox_columns(&base_columns, &table_rows, items.len() > visible_rows);
+        let table_width = table_render_width(&columns);
         let metrics = write_table_window_with_states_at(
             &mut buffer,
             TABLE_START_ROW,
@@ -248,28 +246,15 @@ impl Screen for ReportsScreen {
 fn fit_inbox_columns(
     columns: &[TableColumn<'static>],
     rows: &[Vec<String>],
+    scrollbar_visible: bool,
 ) -> Vec<TableColumn<'static>> {
-    let mut columns = fit_table_columns(columns, rows);
-    if columns.is_empty() {
-        return columns;
-    }
-    let subject_min_width = "Subject".len().max(16);
-    let render_width = table_render_width(&columns);
-    if render_width < INBOX_MAX_TABLE_WIDTH {
-        let extra = INBOX_MAX_TABLE_WIDTH - render_width;
-        columns[3].width += extra;
-        return columns;
-    }
-
-    let overflow = table_render_width(&columns).saturating_sub(INBOX_MAX_TABLE_WIDTH);
-    if overflow > 0 {
-        let subject = &mut columns[3];
-        subject.width = subject
-            .width
-            .saturating_sub(overflow)
-            .max(subject_min_width);
-    }
-    columns
+    resolve_table_columns(
+        columns,
+        rows,
+        PLAYFIELD_WIDTH,
+        scrollbar_visible,
+        TableWidthMode::Expand,
+    )
 }
 
 fn highlight_selected_id_cell(

@@ -4,12 +4,12 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_at,
-    draw_command_line_text_at, draw_dismiss_prompt, draw_general_message_after_command,
-    draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield, new_playfield_for,
-    standard_table_visible_rows_for, table_prompt_row_for,
+    draw_dismiss_prompt, draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield,
+    new_playfield_for, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
+    TableColumn, TableFooter, draw_table_footer, draw_table_title, fleet_id_column_width,
+    format_fleet_number, write_table_window_with_cursor,
 };
 use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_table};
 use crate::theme::classic;
@@ -17,7 +17,7 @@ use crate::theme::classic;
 pub struct PlanetTransportScreen;
 
 pub fn planet_transport_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 2)
+    standard_table_visible_rows_for(geometry, 1)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +92,7 @@ impl PlanetTransportScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, mode.title());
+        draw_table_title(&mut buffer, 1, 0, mode.title());
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -111,7 +111,7 @@ impl PlanetTransportScreen {
         };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            2,
+            1,
             &PLANET_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -121,36 +121,32 @@ impl PlanetTransportScreen {
             selected,
             0,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_command_line_text_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                prompt_label,
-                "No eligible planets remain. Q quits.",
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandText {
+                    label: prompt_label,
+                    text: "No eligible planets remain. Q quits.",
+                },
             );
         } else {
-            draw_command_line_default_input_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                prompt_label,
-                "",
-                &format!("{},{}", default_coords[0], default_coords[1]),
-                input,
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandInput {
+                    label: prompt_label,
+                    prompt: "",
+                    default: &format!("{},{}", default_coords[0], default_coords[1]),
+                    input,
+                },
             );
-            let message_end_row = draw_general_message_after_command(
-                &mut buffer,
-                command_row,
-                "",
-                &format!(
-                    "Select a planet, then press ENTER to {} armies.",
-                    mode.verb()
-                ),
-            );
-            if let Some(status) = status {
-                draw_prompt_error_after(&mut buffer, message_end_row, status);
-            }
         }
+        let _ = status;
         Ok(buffer)
     }
 
@@ -167,7 +163,7 @@ impl PlanetTransportScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, mode.title());
+        draw_table_title(&mut buffer, 1, 0, mode.title());
         let max_fleet_number = max_fleet_number(fleets);
         let fleet_columns = fleet_columns(max_fleet_number);
         let table_rows = fleets
@@ -188,7 +184,7 @@ impl PlanetTransportScreen {
         };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            2,
+            1,
             &fleet_columns,
             &table_rows,
             scroll_offset,
@@ -198,38 +194,35 @@ impl PlanetTransportScreen {
             selected,
             0,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let max_qty = fleets.get(cursor).map(|row| row.available_qty).unwrap_or(0);
         if table_rows.is_empty() {
-            draw_command_line_text_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                prompt_label,
-                "No eligible fleets remain here. Q quits.",
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandText {
+                    label: prompt_label,
+                    text: "No eligible fleets remain here. Q quits.",
+                },
             );
         } else {
-            draw_command_line_default_input_at(
+            let default_qty = max_qty.to_string();
+            let prompt = format!("How many armies to {}? ", mode.verb());
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                prompt_label,
-                &format!("How many armies to {}? ", mode.verb()),
-                &max_qty.to_string(),
-                input,
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandInput {
+                    label: prompt_label,
+                    prompt: &prompt,
+                    default: &default_qty,
+                    input,
+                },
             );
-            let message_end_row = draw_general_message_after_command(
-                &mut buffer,
-                command_row,
-                "",
-                &format!(
-                    "Select a fleet at {} {}, then press ENTER.",
-                    planet.planet_name,
-                    format_sector_coords(planet.coords)
-                ),
-            );
-            if let Some(status) = status {
-                draw_prompt_error_after(&mut buffer, message_end_row, status);
-            }
         }
+        let _ = (planet, status);
         Ok(buffer)
     }
 

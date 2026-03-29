@@ -10,21 +10,22 @@ use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
     draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt, draw_menu_entry,
-    draw_menu_notice, draw_prompt_error_after, draw_status_line, draw_table_command_bar_at,
-    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows,
-    standard_table_visible_rows_for, table_prompt_row_for,
+    draw_menu_notice, draw_prompt_error_after, draw_status_line, draw_title_bar, menu_prompt_row,
+    new_playfield, standard_table_visible_rows, standard_table_visible_rows_for,
 };
-use crate::screen::table::{TableColumn, write_table_window_with_cursor};
+use crate::screen::table::{
+    TableColumn, TableFooter, draw_table_footer, draw_table_title, write_table_window_with_cursor,
+};
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, format_sector_coords_padded,
     format_sector_coords_table,
 };
 use crate::theme::classic;
 
-pub const STARBASE_VISIBLE_ROWS: usize = standard_table_visible_rows(3);
+pub const STARBASE_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
 
 pub fn starbase_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 3)
+    standard_table_visible_rows_for(geometry, 1)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -302,8 +303,7 @@ impl StarbaseListScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, "STARBASE LIST:");
-        draw_status_line(&mut buffer, 1, "", "Use J/K to move, ^U/^D to page.");
+        draw_table_title(&mut buffer, 1, 0, "STARBASE LIST:");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -322,7 +322,7 @@ impl StarbaseListScreen {
             .collect::<Vec<_>>();
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            3,
+            1,
             &STARBASE_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -336,12 +336,16 @@ impl StarbaseListScreen {
             },
             0,
         );
-        draw_table_command_bar_at(
+        draw_table_footer(
             &mut buffer,
-            table_prompt_row_for(geometry, metrics.bottom_row),
-            "J K ^U ^D <Q>",
-            None,
-            "",
+            geometry,
+            0,
+            metrics.bottom_row,
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: None,
+                input: "",
+            },
         );
         Ok(buffer)
     }
@@ -380,8 +384,7 @@ impl StarbaseReviewScreen {
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, "REVIEW A STARBASE:");
-        draw_status_line(&mut buffer, 1, "", "Select a starbase with J/K.");
+        draw_table_title(&mut buffer, 1, 0, "REVIEW A STARBASE:");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -400,7 +403,7 @@ impl StarbaseReviewScreen {
             .collect::<Vec<_>>();
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            3,
+            1,
             &STARBASE_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -414,20 +417,33 @@ impl StarbaseReviewScreen {
             },
             0,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D <Q>", None, "");
+            draw_table_footer(
+                &mut buffer,
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: None,
+                    input: "",
+                },
+            );
         } else {
             let default_base = rows
                 .get(cursor)
                 .map(|row| row.base_id.to_string())
                 .unwrap_or_else(|| "1".to_string());
-            draw_table_command_bar_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "J K ^U ^D <Q>",
-                Some(&default_base),
-                input,
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(&default_base),
+                    input,
+                },
             );
         }
         Ok(buffer)

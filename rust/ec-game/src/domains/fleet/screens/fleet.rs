@@ -9,17 +9,18 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, PromptFeedback, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_message_stack, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry,
-    draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
-    draw_table_command_bar_at, draw_table_command_bar_at_col, draw_title_bar, draw_wrapped_message,
-    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows,
-    standard_table_visible_rows_for, table_prompt_row, table_prompt_row_for,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, PromptFeedback, dismiss_prompt_row,
+    draw_command_line_default_input_at, draw_command_prompt_at, draw_dismiss_prompt,
+    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice,
+    draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line, draw_title_bar,
+    draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, TableRowState, centered_table_start_col, fit_table_columns, fleet_id_column_width,
-    format_fleet_number, write_table_window_with_cursor, write_table_window_with_states_at,
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableRowState, TableWidthMode,
+    VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns, fleet_id_column_width,
+    format_fleet_number, layout_standard_table_block, resolve_table_columns,
+    write_table_window_with_cursor, write_table_window_with_states_at,
 };
 use crate::screen::{
     PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, StyledSpan,
@@ -370,8 +371,7 @@ impl FleetListScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         let max_fleet_number = max_fleet_number(rows);
-        buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "FLEET LIST:", classic::title_style());
+        draw_table_title(&mut buffer, 1, 0, "FLEET LIST:");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -404,25 +404,32 @@ impl FleetListScreen {
             },
             0,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D <Q>", None, "");
-            draw_command_message_stack(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                &[CommandMessage::Notice("You have no active fleets.")],
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandText {
+                    label: "COMMANDS",
+                    text: "You have no active fleets.",
+                },
             );
         } else {
             let default_fleet_number = rows
                 .get(cursor)
                 .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
                 .unwrap_or_else(|| format_fleet_number(rows[0].fleet_number, max_fleet_number));
-            draw_table_command_bar_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "J K ^U ^D <Q>",
-                Some(&default_fleet_number),
-                input,
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(&default_fleet_number),
+                    input,
+                },
             );
         }
         Ok(buffer)
@@ -936,23 +943,39 @@ impl FleetGroupScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let columns = fit_table_columns(&group_selection_columns(max_fleet_number), &table_rows);
-        let start_col = centered_table_start_col(buffer.width(), &columns);
-        buffer.write_text(0, start_col, "GROUP FLEET ORDER:", classic::title_style());
-        buffer.write_text(
-            1,
-            start_col,
-            "Select Fleets with SPACE",
-            classic::status_value_style(),
+        let visible_rows = fleet_visible_rows(geometry);
+        let scrollable = table_rows.len() > visible_rows;
+        let columns = resolve_table_columns(
+            &group_selection_columns(max_fleet_number),
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            visible_rows,
+            false,
+            false,
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Top,
+        );
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "GROUP FLEET ORDER:",
         );
         let metrics = crate::screen::table::write_table_window_with_states_at(
             &mut buffer,
-            2,
-            start_col,
+            layout.table_row,
+            layout.table_col,
             &columns,
             &table_rows,
             scroll_offset,
-            fleet_visible_rows(geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -963,17 +986,29 @@ impl FleetGroupScreen {
             0,
             None,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_table_command_bar_at_col(&mut buffer, command_row, start_col, "<Q>", None, "");
-        } else {
-            draw_table_command_bar_at_col(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                start_col,
-                "J K ^U ^D SPACE <Q>",
-                None,
-                "",
+                geometry,
+                layout.command_col,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "<Q>",
+                    default: None,
+                    input: "",
+                },
+            );
+        } else {
+            draw_table_footer(
+                &mut buffer,
+                geometry,
+                layout.command_col,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D SPACE <Q>",
+                    default: None,
+                    input: "",
+                },
             );
         }
         Ok(buffer)
@@ -1271,15 +1306,6 @@ impl FleetMissionPickerScreen {
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        buffer.fill_row(0, classic::menu_style());
-        let columns = mission_picker_columns();
-        let start_col = centered_table_start_col(buffer.width(), &columns);
-        buffer.write_text(
-            0,
-            start_col,
-            "FLEET MISSION ORDERS:",
-            classic::title_style(),
-        );
         let rows = FLEET_MISSION_OPTIONS
             .iter()
             .map(|option| {
@@ -1290,6 +1316,30 @@ impl FleetMissionPickerScreen {
                 ]
             })
             .collect::<Vec<_>>();
+        let columns = resolve_table_columns(
+            &mission_picker_columns(),
+            &rows,
+            buffer.width(),
+            false,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            rows.len(),
+            true,
+            true,
+            false,
+            HorizontalAlign::Center,
+            VerticalAlign::Top,
+        );
+        let _ = layout.title_row;
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "FLEET MISSION ORDERS:",
+        );
         let row_states = enabled
             .iter()
             .map(|enabled| {
@@ -1302,8 +1352,8 @@ impl FleetMissionPickerScreen {
             .collect::<Vec<_>>();
         let metrics = write_table_window_with_states_at(
             &mut buffer,
-            1,
-            start_col,
+            layout.table_row,
+            layout.table_col,
             &columns,
             &rows,
             0,
@@ -1314,21 +1364,21 @@ impl FleetMissionPickerScreen {
             0,
             Some(&row_states),
         );
-        let command_row = table_prompt_row(metrics.bottom_row);
-        {
-            let default = FLEET_MISSION_OPTIONS
-                .get(cursor)
-                .map(|option| option.code.to_string())
-                .unwrap_or_else(|| "1".to_string());
-            draw_table_command_bar_at_col(
-                &mut buffer,
-                command_row,
-                start_col,
-                "J K ^U ^D <Q>",
-                Some(&default),
+        let default = FLEET_MISSION_OPTIONS
+            .get(cursor)
+            .map(|option| option.code.to_string())
+            .unwrap_or_else(|| "1".to_string());
+        draw_table_footer(
+            &mut buffer,
+            ScreenGeometry::local_default(),
+            layout.command_col,
+            metrics.bottom_row,
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: Some(&default),
                 input,
-            );
-        }
+            },
+        );
         Ok(buffer)
     }
 }

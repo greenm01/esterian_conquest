@@ -252,9 +252,18 @@ pub fn draw_table_command_prompt_at_col(
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
+    draw_plain_prompt_at_col(buffer, row, 0, prompt)
+}
+
+pub fn draw_plain_prompt_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    prompt: &str,
+) -> usize {
     buffer.fill_row(row, classic::prompt_style());
     let prompt = ensure_cursor_gap(prompt);
-    let cursor_col = write_prompt_markup(buffer, row, 0, &prompt);
+    let cursor_col = write_prompt_markup(buffer, row, col, &prompt);
     if cursor_col < buffer.width() {
         buffer.set_cursor(cursor_col as u16, row as u16);
     }

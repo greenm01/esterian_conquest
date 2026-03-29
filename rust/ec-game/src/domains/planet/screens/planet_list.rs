@@ -4,13 +4,13 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row_for, draw_dismiss_prompt, draw_status_line, draw_table_command_bar_at_col,
-    draw_table_command_prompt_at_col, draw_title_bar, new_playfield_for,
-    stacked_table_visible_rows_for, table_prompt_row_for,
+    dismiss_prompt_row_for, draw_dismiss_prompt, draw_status_line, draw_title_bar,
+    new_playfield_for, stacked_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, centered_table_start_col, fit_table_columns,
-    write_stacked_table_window_with_states_at,
+    HorizontalAlign, LayoutRect, TableColumn, TableWidthMode, VerticalAlign,
+    TableFooter, draw_table_footer, draw_table_title, layout_stacked_table_block,
+    resolve_table_columns, write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
     PlayfieldBuffer, ScreenFrame, format_sector_coords_default, format_sector_coords_table,
@@ -78,10 +78,37 @@ impl PlanetListScreen {
 
         let mut buffer =
             self.render_brief_list(frame, mode, rows, sort, scroll_offset, cursor, input)?;
-        let columns = fit_table_columns(&BRIEF_COLUMNS, &planet_table_rows(frame, rows));
-        let start_col = centered_table_start_col(buffer.width(), &columns);
-        let command_row = brief_list_command_row(frame.geometry, rows.len(), scroll_offset);
-        draw_table_command_prompt_at_col(&mut buffer, command_row, start_col, BRIEF_SORT_PROMPT);
+        let table_rows = planet_table_rows(frame, rows);
+        let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
+        let displayed_rows = table_rows
+            .len()
+            .saturating_sub(scroll_offset)
+            .min(visible_rows);
+        let scrollable = table_rows.len() > visible_rows;
+        let columns = resolve_table_columns(
+            &BRIEF_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_stacked_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            true,
+            true,
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Top,
+        );
+        draw_table_footer(
+            &mut buffer,
+            frame.geometry,
+            layout.command_col,
+            brief_list_table_bottom_row(frame.geometry, rows.len(), scroll_offset),
+            TableFooter::TablePrompt(BRIEF_SORT_PROMPT),
+        );
         Ok(buffer)
     }
 
@@ -98,15 +125,40 @@ impl PlanetListScreen {
         let mut buffer = new_playfield_for(frame.geometry);
         let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
         let table_rows = planet_table_rows(frame, rows);
-        let columns = fit_table_columns(&BRIEF_COLUMNS, &table_rows);
-        let start_col = centered_table_start_col(buffer.width(), &columns);
-        buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, start_col, brief_list_title(mode), classic::title_style());
+        let scrollable = table_rows.len() > visible_rows;
+        let displayed_rows = table_rows
+            .len()
+            .saturating_sub(scroll_offset)
+            .min(visible_rows);
+        let columns = resolve_table_columns(
+            &BRIEF_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_stacked_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            true,
+            true,
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Top,
+        );
+        let _ = layout.title_row;
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            brief_list_title(mode),
+        );
 
         let metrics = write_stacked_table_window_with_states_at(
             &mut buffer,
-            1,
-            start_col,
+            layout.table_row,
+            layout.table_col,
             &BRIEF_TOP_HEADER_CELLS,
             &columns,
             &table_rows,
@@ -127,13 +179,16 @@ impl PlanetListScreen {
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
             .unwrap_or_else(|| "00,00".to_string());
-        draw_table_command_bar_at_col(
+        draw_table_footer(
             &mut buffer,
-            table_prompt_row_for(frame.geometry, metrics.bottom_row),
-            start_col,
-            "J K S <Q>",
-            Some(&default_coords),
-            input,
+            frame.geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K S <Q>",
+                default: Some(&default_coords),
+                input,
+            },
         );
         Ok(buffer)
     }
@@ -184,7 +239,7 @@ impl PlanetListScreen {
     }
 }
 
-fn brief_list_command_row(
+fn brief_list_table_bottom_row(
     geometry: crate::screen::ScreenGeometry,
     total_rows: usize,
     scroll_offset: usize,
@@ -192,7 +247,7 @@ fn brief_list_command_row(
     let displayed_rows = total_rows
         .saturating_sub(scroll_offset)
         .min(stacked_table_visible_rows_for(geometry, 1));
-    table_prompt_row_for(geometry, 1 + 4 + displayed_rows)
+    1 + 4 + displayed_rows
 }
 
 fn brief_list_title(mode: PlanetListMode) -> &'static str {

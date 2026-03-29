@@ -4,14 +4,13 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    CommandMessage, ScreenGeometry, command_line_row_for, dismiss_prompt_row,
-    draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_message_stack, draw_dismiss_prompt,
-    draw_general_message_after_command, draw_plain_prompt, draw_table_command_bar_at,
-    draw_title_bar, new_playfield, new_playfield_for, standard_table_visible_rows_for,
-    table_prompt_row_for,
+    ScreenGeometry, command_line_row_for, dismiss_prompt_row, draw_bottom_aligned_transcript_rows,
+    draw_dismiss_prompt, draw_plain_prompt, draw_title_bar, new_playfield, new_playfield_for,
+    standard_table_visible_rows_for,
 };
-use crate::screen::table::{TableColumn, write_table_window_with_cursor};
+use crate::screen::table::{
+    TableColumn, TableFooter, draw_table_footer, draw_table_title, write_table_window_with_cursor,
+};
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_table,
 };
@@ -21,15 +20,15 @@ use ec_data::ProductionItemKind;
 pub struct PlanetCommissionScreen;
 
 pub fn planet_commission_picker_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 2)
+    standard_table_visible_rows_for(geometry, 1)
 }
 
 pub fn planet_commission_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 2)
+    standard_table_visible_rows_for(geometry, 1)
 }
 
 pub fn planet_commission_draft_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 2)
+    standard_table_visible_rows_for(geometry, 1)
 }
 
 pub fn planet_auto_commission_report_last_row(geometry: ScreenGeometry) -> usize {
@@ -115,7 +114,7 @@ impl PlanetCommissionScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, "COMMISSION SHIPS:");
+        draw_table_title(&mut buffer, 1, 0, "COMMISSION SHIPS:");
 
         let table_rows: Vec<Vec<String>> = rows
             .iter()
@@ -137,7 +136,7 @@ impl PlanetCommissionScreen {
         let selected = if rows.is_empty() { None } else { Some(cursor) };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            2,
+            1,
             &COMMISSION_PICKER_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -151,12 +150,16 @@ impl PlanetCommissionScreen {
         let default = rows
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
-        draw_table_command_bar_at(
+        draw_table_footer(
             &mut buffer,
-            table_prompt_row_for(geometry, metrics.bottom_row),
-            "J K ^U ^D <Q>",
-            default.as_deref(),
-            "",
+            geometry,
+            0,
+            metrics.bottom_row,
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: default.as_deref(),
+                input: "",
+            },
         );
         Ok(buffer)
     }
@@ -171,15 +174,12 @@ impl PlanetCommissionScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(
-            &mut buffer,
-            0,
-            &format!(
-                "COMMISSION SHIPS: \"{}\" IN SYSTEM {}:",
-                view.planet_name,
-                format_sector_coords(view.coords)
-            ),
+        let title = format!(
+            "COMMISSION SHIPS: \"{}\" IN SYSTEM {}:",
+            view.planet_name,
+            format_sector_coords(view.coords)
         );
+        draw_table_title(&mut buffer, 1, 0, &title);
 
         let table_rows: Vec<Vec<String>> = view
             .rows
@@ -205,7 +205,7 @@ impl PlanetCommissionScreen {
         };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            2,
+            1,
             &COMMISSION_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -215,18 +215,18 @@ impl PlanetCommissionScreen {
             selected,
             0,
         );
-
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
-        draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D SPACE <Q>", None, "");
-        let message_end_row = draw_general_message_after_command(
+        draw_table_footer(
             &mut buffer,
-            command_row,
-            "",
-            "ENTER drafts a fleet from the current selection.",
+            geometry,
+            0,
+            metrics.bottom_row,
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D SPACE <Q>",
+                default: None,
+                input: "",
+            },
         );
-        if let Some(status) = status {
-            crate::screen::layout::draw_prompt_error_after(&mut buffer, message_end_row, status);
-        }
+        let _ = status;
         Ok(buffer)
     }
 
@@ -242,7 +242,7 @@ impl PlanetCommissionScreen {
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, title);
+        draw_table_title(&mut buffer, 1, 0, title);
         let table_rows: Vec<Vec<String>> = rows
             .iter()
             .enumerate()
@@ -263,7 +263,7 @@ impl PlanetCommissionScreen {
             .collect();
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            2,
+            1,
             &COMMISSION_DRAFT_COLUMNS,
             &table_rows,
             0,
@@ -273,7 +273,6 @@ impl PlanetCommissionScreen {
             if rows.is_empty() { None } else { Some(cursor) },
             0,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let has_ship_draft = rows
             .iter()
             .any(|row| row.accepts_fleet_qty() && row.fleet_qty > 0);
@@ -288,46 +287,42 @@ impl PlanetCommissionScreen {
             let default_qty = current_row
                 .map(|row| format_draft_qty(row.remaining_qty))
                 .unwrap_or_else(|| "00".to_string());
-            draw_command_line_default_input_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "COMMAND",
-                &prompt_label,
-                &default_qty,
-                input,
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: &prompt_label,
+                    default: &default_qty,
+                    input,
+                },
             );
         } else if has_ship_draft {
-            draw_command_line_prompt_text_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "COMMAND",
-                "<ENTER> commissions the drafted fleet. <Q> -> ",
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "<ENTER> commissions the drafted fleet. <Q> -> ",
+                },
             );
         } else {
-            draw_command_line_prompt_text_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "COMMAND",
-                "<ENTER> commissions the highlighted starbase. <Q> -> ",
+                geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: "<ENTER> commissions the highlighted starbase. <Q> -> ",
+                },
             );
         }
-        let mut messages = vec![CommandMessage::General {
-            label: "",
-            value: if has_ship_draft {
-                "ENTER commissions the current fleet draft."
-            } else if current_is_ship {
-                "Set quantities for the ships you want in this fleet."
-            } else {
-                "ENTER commissions the highlighted starbase directly to the planet."
-            },
-        }];
-        if let Some(status) = status {
-            messages.push(CommandMessage::Error(status));
-        }
-        if let Some(notice) = notice {
-            messages.push(CommandMessage::Notice(notice));
-        }
-        draw_command_message_stack(&mut buffer, command_row, &messages);
+        let _ = (status, notice);
         Ok(buffer)
     }
 

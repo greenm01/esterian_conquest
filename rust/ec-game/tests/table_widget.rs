@@ -7,12 +7,12 @@ use ec_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_game::screen::table::{
     SplitTableRow, TableColumn, TableRowState, table_render_width, write_split_table,
     write_stacked_table_window_with_states, write_table_row, write_table_window_with_cursor,
-    write_table_window_with_states,
+    write_table_window_with_cursor_at, write_table_window_with_states,
 };
 use ec_game::screen::{
-    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow,
-    PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer, ScreenFrame,
-    ScreenGeometry,
+    MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
+    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer,
+    RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use ec_game::theme::classic;
 
@@ -476,6 +476,144 @@ fn selected_column_can_target_second_column_without_highlighting_first() {
 }
 
 #[test]
+fn cursor_table_can_render_at_nonzero_column() {
+    let columns = [
+        TableColumn::center("", 1),
+        TableColumn::left("Theme", 12),
+        TableColumn::left("Type", 8),
+    ];
+    let rows = vec![vec![
+        "*".to_string(),
+        "Mono".to_string(),
+        "Mono".to_string(),
+    ]];
+    let mut buffer = PlayfieldBuffer::new(40, 8, classic::body_style());
+
+    write_table_window_with_cursor_at(
+        &mut buffer,
+        1,
+        6,
+        &columns,
+        &rows,
+        0,
+        1,
+        classic::status_value_style(),
+        classic::status_value_style(),
+        Some(0),
+        1,
+    );
+
+    assert_eq!(buffer.plain_line(1).find('┌'), Some(6));
+    assert!(buffer.plain_line(4).contains("│*│Mono"));
+}
+
+#[test]
+fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
+    let mut screen = MessageComposeScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        geometry: ScreenGeometry::local_default(),
+    };
+
+    let buffer = screen
+        .render_recipient(&frame, "", None, 0, 0)
+        .expect("render recipient picker");
+
+    let title_row = (0..buffer.height())
+        .find(|row| {
+            buffer
+                .plain_line(*row)
+                .contains("COMMUNICATE (SEND MESSAGE):")
+        })
+        .expect("title row");
+    let title_col = buffer
+        .plain_line(title_row)
+        .find("COMMUNICATE (SEND MESSAGE):")
+        .expect("title col");
+    let table_row = (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains('┌'))
+        .expect("table row");
+    let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
+    let command_row = (0..buffer.height())
+        .find(|row| {
+            buffer
+                .plain_line(*row)
+                .contains("COMMANDS <- J K ^U ^D D <Q>")
+        })
+        .expect("command row");
+    let command_col = buffer
+        .plain_line(command_row)
+        .find("COMMANDS")
+        .expect("command col");
+
+    assert_eq!(title_col, table_col);
+    assert_eq!(command_col, table_col);
+    assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("Available empires:")));
+    assert!(
+        (0..buffer.height()).all(|row| !buffer.plain_line(row).contains("queued outgoing messages"))
+    );
+}
+
+#[test]
+fn rankings_screen_centers_block_and_pins_dismiss_prompt_to_table() {
+    let mut screen = RankingsScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        geometry: ScreenGeometry::local_default(),
+    };
+
+    let buffer = screen
+        .render_table(
+            &frame,
+            ec_data::EmpireProductionRankingSort::Production,
+            ec_game::screen::CommandMenu::General,
+        )
+        .expect("render rankings screen");
+
+    let title_row = (0..buffer.height())
+        .find(|row| {
+            buffer
+                .plain_line(*row)
+                .contains("OTHER EMPIRES (RANKINGS):")
+        })
+        .expect("title row");
+    let title_col = buffer
+        .plain_line(title_row)
+        .find("OTHER EMPIRES (RANKINGS):")
+        .expect("title col");
+    let table_row = (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains('┌'))
+        .expect("table row");
+    let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
+    let dismiss_row = (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains("(slap a key)"))
+        .expect("dismiss row");
+    let dismiss_col = buffer
+        .plain_line(dismiss_row)
+        .find("(slap a key)")
+        .expect("dismiss col");
+
+    assert_eq!(title_col, table_col);
+    assert_eq!(dismiss_col, table_col);
+}
+
+#[test]
 fn planet_build_specify_screen_uses_split_table() {
     let mut screen = PlanetBuildScreen::new();
     let view = PlanetBuildMenuView {
@@ -511,23 +649,22 @@ fn planet_build_specify_screen_uses_split_table() {
         .render_specify(&view, &orders, "", None, None)
         .expect("render specify");
 
-    assert_eq!(buffer.plain_line(1), "");
-    assert!(buffer.plain_line(2).starts_with("┌"));
-    assert_eq!(buffer.plain_line(3).matches("NO.").count(), 2);
-    assert!(buffer.plain_line(3).contains("QTY."));
-    assert!(buffer.plain_line(5).contains("<01>"));
-    assert!(buffer.plain_line(5).contains("<06>"));
-    assert!(buffer.plain_line(5).contains("Destroyers"));
-    assert!(buffer.plain_line(5).contains("05"));
-    assert!(buffer.plain_line(7).contains("<09>"));
-    assert!(buffer.plain_line(7).contains("02"));
-    assert!(buffer.plain_line(8).contains("<10>"));
-    assert!(buffer.plain_line(8).contains("20"));
-    assert!(buffer.plain_line(9).contains("<05>"));
-    assert!(!buffer.plain_line(5).contains("DONE"));
-    assert!(
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert_eq!(buffer.plain_line(2).matches("NO.").count(), 2);
+    assert!(buffer.plain_line(2).contains("QTY."));
+    assert!(buffer.plain_line(4).contains("<01>"));
+    assert!(buffer.plain_line(4).contains("<06>"));
+    assert!(buffer.plain_line(4).contains("Destroyers"));
+    assert!(buffer.plain_line(4).contains("05"));
+    assert!(buffer.plain_line(6).contains("<09>"));
+    assert!(buffer.plain_line(6).contains("02"));
+    assert!(buffer.plain_line(7).contains("<10>"));
+    assert!(buffer.plain_line(7).contains("20"));
+    assert!(buffer.plain_line(8).contains("<05>"));
+    assert!(!buffer.plain_line(4).contains("DONE"));
+    assert!(!(0..buffer.height()).any(|row| {
         buffer
-            .plain_line(13)
+            .plain_line(row)
             .contains("You have spent 10 out of 50 points.")
-    );
+    }));
 }

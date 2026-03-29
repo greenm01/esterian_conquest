@@ -3,10 +3,14 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    ScreenGeometry, draw_table_command_bar_at, draw_title_bar, new_playfield_for,
-    standard_table_visible_rows, standard_table_visible_rows_for, table_prompt_row_for,
+    ScreenGeometry, new_playfield_for, standard_table_visible_rows,
+    standard_table_visible_rows_for,
 };
-use crate::screen::table::{TableColumn, write_table_window_with_cursor};
+use crate::screen::table::{
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, layout_standard_table_block, resolve_table_columns,
+    write_table_window_with_cursor_at,
+};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::{ThemeEntry, ThemeEntryKind, classic};
 
@@ -41,7 +45,6 @@ impl ThemePickerScreen {
         _status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, "COLOR THEMES:");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -59,13 +62,39 @@ impl ThemePickerScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            1,
+        let visible_rows = theme_picker_visible_rows(geometry);
+        let displayed_rows = table_rows
+            .len()
+            .saturating_sub(scroll_offset)
+            .min(visible_rows);
+        let scrollable = table_rows.len() > visible_rows;
+        let columns = resolve_table_columns(
             &THEME_COLUMNS,
             &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            true,
+            true,
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
+        );
+        let _ = layout.title_row;
+        draw_table_title(&mut buffer, layout.table_row, layout.table_col, "COLOR THEMES:");
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            &columns,
+            &table_rows,
             scroll_offset,
-            theme_picker_visible_rows(geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -75,16 +104,19 @@ impl ThemePickerScreen {
             },
             THEME_SELECTION_COL,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         let default_theme = rows
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| row.display_name.as_str());
-        draw_table_command_bar_at(
+        draw_table_footer(
             &mut buffer,
-            command_row,
-            "J K ^U ^D <Q>",
-            default_theme,
-            input,
+            geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: default_theme,
+                input,
+            },
         );
         Ok(buffer)
     }

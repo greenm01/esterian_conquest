@@ -3,18 +3,18 @@ use ec_data::DiplomaticRelation;
 
 use crate::app::Action;
 use crate::domains::empire::EmpireAction;
-use crate::screen::layout::{
-    ScreenGeometry, draw_command_line_text_at, draw_table_command_bar_at, draw_title_bar,
-    new_playfield_for, standard_table_visible_rows_for, table_prompt_row_for,
+use crate::screen::layout::{ScreenGeometry, new_playfield_for, standard_table_visible_rows_for};
+use crate::screen::table::{
+    TableColumn, TableFooter, draw_table_footer, draw_table_title, format_empire_id,
+    write_table_window_with_cursor,
 };
-use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EnemiesScreen;
 
 pub fn enemies_visible_rows(geometry: ScreenGeometry) -> usize {
-    standard_table_visible_rows_for(geometry, 3)
+    standard_table_visible_rows_for(geometry, 1)
 }
 
 const ENEMIES_COLUMNS: [TableColumn<'static>; 3] = [
@@ -37,13 +37,7 @@ impl EnemiesScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
-        draw_title_bar(&mut buffer, 0, "ENEMIES, DECLARE OR LIST:");
-        buffer.write_text(
-            1,
-            0,
-            "Declare empires as enemies or restore them to neutral status.",
-            classic::body_style(),
-        );
+        draw_table_title(&mut buffer, 1, 0, "ENEMIES, DECLARE OR LIST:");
 
         let viewer_empire = frame.player.record_index_1_based as u8;
         let mut others = frame
@@ -84,7 +78,7 @@ impl EnemiesScreen {
         let selected = if rows.is_empty() { None } else { Some(cursor) };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            3,
+            1,
             &ENEMIES_COLUMNS,
             &rows,
             scroll_offset,
@@ -94,22 +88,34 @@ impl EnemiesScreen {
             selected,
             0,
         );
-        let command_row = table_prompt_row_for(frame.geometry, metrics.bottom_row);
 
         if rows.is_empty() {
-            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", "No empires found.");
+            draw_table_footer(
+                &mut buffer,
+                frame.geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandText {
+                    label: "COMMANDS",
+                    text: "No empires found.",
+                },
+            );
         } else {
             let default_empire = rows
                 .get(cursor)
                 .and_then(|row| row.first())
                 .map(String::as_str)
                 .unwrap_or("");
-            draw_table_command_bar_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "J K ^U ^D <Q>",
-                Some(default_empire),
-                input,
+                frame.geometry,
+                0,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(default_empire),
+                    input,
+                },
             );
         }
         Ok(buffer)

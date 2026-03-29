@@ -120,16 +120,15 @@ fn build_list_renders_queue_columns_without_dock() {
         )
         .expect("render list");
 
-    assert_eq!(buffer.plain_line(1), "");
-    assert!(buffer.plain_line(2).starts_with("┌"));
-    assert!(buffer.plain_line(3).contains("Unit"));
-    assert!(buffer.plain_line(3).contains("Points"));
-    assert!(buffer.plain_line(3).contains("Queue"));
-    assert!(!buffer.plain_line(3).contains("Dock"));
-    assert!(buffer.plain_line(5).contains("Destroyers"));
-    assert!(buffer.plain_line(5).contains("2"));
-    assert!(buffer.plain_line(6).contains("Armies"));
-    assert!(!buffer.plain_line(6).contains("N/A"));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(2).contains("Unit"));
+    assert!(buffer.plain_line(2).contains("Points"));
+    assert!(buffer.plain_line(2).contains("Queue"));
+    assert!(!buffer.plain_line(2).contains("Dock"));
+    assert!(buffer.plain_line(4).contains("Destroyers"));
+    assert!(buffer.plain_line(4).contains("2"));
+    assert!(buffer.plain_line(5).contains("Armies"));
+    assert!(!buffer.plain_line(5).contains("N/A"));
     let command_row = (0..25)
         .find(|&row| {
             buffer
@@ -196,19 +195,15 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
         .expect("render confirming build list");
 
     let command_row = (0..25)
-        .find(|&row| buffer.plain_line(row).contains("BUILD COMMAND <- Y/[N] ->"))
+        .find(|&row| {
+            buffer
+                .plain_line(row)
+                .contains("BUILD COMMAND <- Delete 1 Destroyer? Y/[N] ->")
+        })
         .expect("build list confirm prompt should render");
     let _ = command_row;
-    assert!(!(0..25).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("You have spent 10 out of 50 points.")
-    }));
-    assert!((0..25).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("Notice: Delete 1 Destroyer?")
-    }));
+    assert!(!(0..25).any(|row| buffer.plain_line(row).contains("You have spent 10 out of 50 points.")));
+    assert!(!(0..25).any(|row| buffer.plain_line(row).contains("Notice: Delete 1 Destroyer?")));
 }
 
 #[test]
@@ -254,23 +249,18 @@ fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
         )
         .expect("render empty build list");
 
-    assert!(buffer.plain_line(2).starts_with("┌"));
-    assert!(buffer.plain_line(3).contains("Unit"));
-    assert!(buffer.plain_line(4).contains("├"));
-    assert!(buffer.plain_line(5).contains("└"));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(2).contains("Unit"));
+    assert!(buffer.plain_line(3).contains("├"));
+    assert!(buffer.plain_line(4).contains("└"));
     let command_row = (0..25)
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("BUILD COMMAND <- J K ^U ^D D <Q> ->")
+                .contains("BUILD COMMAND <- No build orders are queued.")
         })
         .expect("build list command row should render");
-    assert_eq!(buffer.plain_line(command_row + 1), "");
-    assert!(
-        buffer
-            .plain_line(command_row + 2)
-            .contains("Notice: No build orders are queued.")
-    );
+    let _ = command_row;
 }
 
 #[test]
@@ -359,14 +349,14 @@ fn build_change_renders_pp_and_spent_columns() {
         .render_change(ScreenGeometry::local_default(), &rows, 0, 0)
         .expect("render change");
 
-    assert!(buffer.plain_line(4).starts_with("┌"));
-    assert!(buffer.plain_line(5).contains("Planet Name"));
-    assert!(buffer.plain_line(5).contains("Location"));
-    assert!(buffer.plain_line(5).contains("Production"));
-    assert!(buffer.plain_line(5).contains("PP"));
-    assert!(buffer.plain_line(5).contains("Spent"));
-    assert!(buffer.plain_line(7).contains("50"));
-    assert!(buffer.plain_line(7).contains("20"));
+    assert!(buffer.plain_line(1).starts_with("┌"));
+    assert!(buffer.plain_line(2).contains("Planet Name"));
+    assert!(buffer.plain_line(2).contains("Location"));
+    assert!(buffer.plain_line(2).contains("Production"));
+    assert!(buffer.plain_line(2).contains("PP"));
+    assert!(buffer.plain_line(2).contains("Spent"));
+    assert!(buffer.plain_line(4).contains("50"));
+    assert!(buffer.plain_line(4).contains("20"));
 }
 
 #[test]

@@ -6,10 +6,14 @@ use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
     ScreenGeometry, command_line_row_for, dismiss_prompt_row, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_prompt_error_after, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    new_playfield_for, standard_table_visible_rows_for, table_prompt_row_for,
+    draw_prompt_error_after, draw_title_bar, new_playfield, new_playfield_for,
+    standard_table_visible_rows_for,
 };
-use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
+use crate::screen::table::{
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
+    resolve_table_columns, write_table_window_with_cursor_at,
+};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -46,14 +50,6 @@ impl MessageComposeScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
-        draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(2, 0, "Available empires:", classic::body_style());
-        buffer.write_text(
-            3,
-            0,
-            "Press D to review or delete queued outgoing messages.",
-            classic::body_style(),
-        );
         let rows = frame
             .game_data
             .player
@@ -69,34 +65,75 @@ impl MessageComposeScreen {
                 vec![format_empire_id(empire_id as u8), display]
             })
             .collect::<Vec<_>>();
-        let selected = if rows.is_empty() { None } else { Some(cursor) };
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            5,
+        let visible_rows = recipient_visible_rows(frame.geometry);
+        let displayed_rows = rows.len().saturating_sub(scroll_offset).min(visible_rows);
+        let scrollable = rows.len() > visible_rows;
+        let columns = resolve_table_columns(
             &RECIPIENT_COLUMNS,
             &rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let table_layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            true,
+            true,
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
+        );
+        let _ = table_layout.title_row;
+        draw_table_title(
+            &mut buffer,
+            table_layout.table_row,
+            table_layout.table_col,
+            "COMMUNICATE (SEND MESSAGE):",
+        );
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            table_layout.table_row,
+            table_layout.table_col,
+            &columns,
+            &rows,
             scroll_offset,
-            recipient_visible_rows(frame.geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
             0,
         );
-        let command_row = table_prompt_row_for(frame.geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D D <Q>", None, "");
+            draw_table_footer(
+                &mut buffer,
+                frame.geometry,
+                table_layout.command_col,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D D <Q>",
+                    default: None,
+                    input: "",
+                },
+            );
         } else {
             let default_empire = rows
                 .get(cursor)
                 .and_then(|row| row.first())
                 .map(String::as_str)
                 .unwrap_or("");
-            draw_table_command_bar_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "J K ^U ^D D <Q>",
-                Some(default_empire),
-                input,
+                frame.geometry,
+                table_layout.command_col,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D D <Q>",
+                    default: Some(default_empire),
+                    input,
+                },
             );
         }
         Ok(buffer)
@@ -251,13 +288,6 @@ impl MessageComposeScreen {
         game_data: &ec_data::CoreGameData,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
-        draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(
-            2,
-            0,
-            "Queued messages awaiting turn maintenance:",
-            classic::body_style(),
-        );
         let rows = queue
             .iter()
             .enumerate()
@@ -271,34 +301,75 @@ impl MessageComposeScreen {
                 vec![format!("{:02}", idx + 1), recipient, subject]
             })
             .collect::<Vec<_>>();
-        let selected = if rows.is_empty() { None } else { Some(cursor) };
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            4,
+        let visible_rows = outbox_visible_rows(geometry);
+        let displayed_rows = rows.len().saturating_sub(scroll_offset).min(visible_rows);
+        let scrollable = rows.len() > visible_rows;
+        let columns = resolve_table_columns(
             &OUTBOX_COLUMNS,
             &rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            true,
+            true,
+            scrollable,
+            HorizontalAlign::Left,
+            VerticalAlign::Top,
+        );
+        let _ = layout.title_row;
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "COMMUNICATE (SEND MESSAGE):",
+        );
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            &columns,
+            &rows,
             scroll_offset,
-            outbox_visible_rows(geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
             0,
         );
-        let command_row = table_prompt_row_for(geometry, metrics.bottom_row);
         if rows.is_empty() {
-            draw_table_command_bar_at(&mut buffer, command_row, "J K ^U ^D <Q>", None, "");
+            draw_table_footer(
+                &mut buffer,
+                geometry,
+                layout.command_col,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: None,
+                    input: "",
+                },
+            );
         } else {
             let default_queue_no = if rows.is_empty() {
                 String::new()
             } else {
                 format!("{:02}", cursor + 1)
             };
-            draw_table_command_bar_at(
+            draw_table_footer(
                 &mut buffer,
-                command_row,
-                "J K ^U ^D <Q>",
-                Some(&default_queue_no),
-                input,
+                geometry,
+                layout.command_col,
+                metrics.bottom_row,
+                TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(&default_queue_no),
+                    input,
+                },
             );
         }
         Ok(buffer)

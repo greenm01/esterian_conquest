@@ -4245,11 +4245,29 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("theme picker should render");
-    assert_eq!(terminal.line(0).trim_end(), "COLOR THEMES:");
-    assert!(
-        line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q>")
-            .contains("COMMANDS <- J K ^U ^D <Q>")
-    );
+    let title_row = terminal
+        .lines
+        .iter()
+        .position(|line| line.contains("COLOR THEMES:"))
+        .expect("theme picker title row");
+    let title_col = terminal.lines[title_row]
+        .find("COLOR THEMES:")
+        .expect("theme picker title col");
+    let border_row = terminal
+        .lines
+        .iter()
+        .position(|line| line.contains('┌'))
+        .expect("theme picker table row");
+    let border_col = terminal.lines[border_row]
+        .find('┌')
+        .expect("theme picker table col");
+    assert_eq!(title_col, border_col);
+    let command_line = line_containing(&terminal, "COMMANDS <- J K ^U ^D <Q>");
+    assert!(command_line.contains("COMMANDS <- J K ^U ^D <Q>"));
+    let command_col = command_line
+        .find("COMMANDS")
+        .expect("theme picker command col");
+    assert_eq!(command_col, border_col);
 
     theme_picker_select(&mut app, "tokyo_night");
     assert_eq!(
@@ -5061,7 +5079,13 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("Set quantities for the ships you want in this fleet."))
+            .any(|line| line.contains("COMMAND <- Qty for"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Set quantities for the ships you want in this fleet."))
     );
 
     assert_eq!(
@@ -14354,17 +14378,17 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
         .render_specify(&view, &orders, "", None, None)
         .expect("build specify renders");
 
-    assert!(
+    assert!((0..buffer.height()).any(|row| {
         buffer
-            .plain_line(11)
+            .plain_line(row)
             .contains("BUILD COMMAND <- Unit number or 0 if done")
-    );
-    assert!(buffer.plain_line(11).contains("[0] <Q> ->"));
-    assert!(
+    }));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("[0] <Q> ->")));
+    assert!(!(0..buffer.height()).any(|row| {
         buffer
-            .plain_line(13)
-            .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
-    );
+            .plain_line(row)
+            .contains("You have spent 10 out of 40 points.")
+    }));
 }
 
 #[test]
@@ -14410,17 +14434,17 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
         )
         .expect("build quantity renders");
 
-    assert!(
+    assert!((0..buffer.height()).any(|row| {
         buffer
-            .plain_line(11)
+            .plain_line(row)
             .contains("BUILD COMMAND <- How many new destroyers to build")
-    );
-    assert!(buffer.plain_line(11).contains("[1] <Q> ->"));
-    assert!(
+    }));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("[1] <Q> ->")));
+    assert!(!(0..buffer.height()).any(|row| {
         buffer
-            .plain_line(13)
-            .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
-    );
+            .plain_line(row)
+            .contains("You have spent 10 out of 40 points.")
+    }));
 }
 
 #[test]
@@ -14459,12 +14483,12 @@ fn planet_build_specify_renders_success_as_notice_not_error() {
         .render_specify(&view, &orders, "", None, Some("Queued 2 Destroyers."))
         .expect("build specify renders with notice");
 
-    assert!(
+    assert!(!(0..buffer.height()).any(|row| {
         buffer
-            .plain_line(15)
+            .plain_line(row)
             .contains("Notice: Queued 2 Destroyers.")
-    );
-    assert!(!buffer.plain_line(15).contains("Error:"));
+    }));
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("Error:")));
 }
 
 #[test]

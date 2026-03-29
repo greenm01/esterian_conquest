@@ -1,5 +1,14 @@
 use crate::screen::PlayfieldBuffer;
+use crate::screen::layout::{
+    ScreenGeometry, draw_command_line_default_input_at_col, draw_command_line_prompt_text_at_col,
+    draw_command_line_text_at_col, draw_dismiss_prompt_at_col, draw_table_command_bar_at_col,
+    draw_table_command_prompt_at_col, table_dismiss_prompt_row_for, table_prompt_row_for,
+};
 use crate::theme::classic;
+use ec_ui::table_layout::{ColumnWidthSpec, distribute_column_widths, layout_table_block};
+pub use ec_ui::table_layout::{
+    HorizontalAlign, LayoutRect, TableBlockLayout, TableWidthMode, VerticalAlign,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableAlign {
@@ -13,6 +22,7 @@ pub struct TableColumn<'a> {
     pub header: &'a str,
     pub width: usize,
     pub align: TableAlign,
+    pub flex: u16,
 }
 
 impl<'a> TableColumn<'a> {
@@ -21,6 +31,7 @@ impl<'a> TableColumn<'a> {
             header,
             width,
             align: TableAlign::Left,
+            flex: 0,
         }
     }
 
@@ -29,6 +40,7 @@ impl<'a> TableColumn<'a> {
             header,
             width,
             align: TableAlign::Right,
+            flex: 0,
         }
     }
 
@@ -37,6 +49,34 @@ impl<'a> TableColumn<'a> {
             header,
             width,
             align: TableAlign::Center,
+            flex: 0,
+        }
+    }
+
+    pub const fn left_flex(header: &'a str, width: usize, flex: u16) -> Self {
+        Self {
+            header,
+            width,
+            align: TableAlign::Left,
+            flex,
+        }
+    }
+
+    pub const fn right_flex(header: &'a str, width: usize, flex: u16) -> Self {
+        Self {
+            header,
+            width,
+            align: TableAlign::Right,
+            flex,
+        }
+    }
+
+    pub const fn center_flex(header: &'a str, width: usize, flex: u16) -> Self {
+        Self {
+            header,
+            width,
+            align: TableAlign::Center,
+            flex,
         }
     }
 }
@@ -60,8 +100,57 @@ pub fn fit_table_columns<'a>(
                 header: column.header,
                 width: column.header.chars().count().max(content_width),
                 align: column.align,
+                flex: column.flex,
             }
         })
+        .collect()
+}
+
+pub fn resolve_table_columns<'a>(
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    available_width: usize,
+    scrollbar_visible: bool,
+    width_mode: TableWidthMode,
+) -> Vec<TableColumn<'a>> {
+    let fitted = if width_mode == TableWidthMode::Compact {
+        fit_table_columns(columns, rows)
+    } else {
+        columns
+            .iter()
+            .enumerate()
+            .map(|(index, column)| {
+                let content_width = rows
+                    .iter()
+                    .filter_map(|row| row.get(index))
+                    .filter(|cell| !cell.trim().is_empty())
+                    .map(|cell| cell.chars().count())
+                    .max()
+                    .unwrap_or(0);
+                TableColumn {
+                    header: column.header,
+                    width: column
+                        .width
+                        .max(column.header.chars().count())
+                        .max(content_width),
+                    align: column.align,
+                    flex: column.flex,
+                }
+            })
+            .collect::<Vec<_>>()
+    };
+    let specs = fitted
+        .iter()
+        .map(|column| ColumnWidthSpec {
+            base_width: column.width,
+            flex: column.flex,
+        })
+        .collect::<Vec<_>>();
+    let widths = distribute_column_widths(&specs, available_width, scrollbar_visible, width_mode);
+    fitted
+        .into_iter()
+        .zip(widths)
+        .map(|(column, width)| TableColumn { width, ..column })
         .collect()
 }
 
@@ -75,6 +164,30 @@ pub enum TableRowState {
 pub struct TableRenderMetrics {
     pub bottom_row: usize,
     pub displayed_rows: usize,
+}
+
+pub enum TableFooter<'a> {
+    Dismiss,
+    CommandBar {
+        hotkeys_markup: &'a str,
+        default: Option<&'a str>,
+        input: &'a str,
+    },
+    CommandText {
+        label: &'a str,
+        text: &'a str,
+    },
+    CommandPrompt {
+        label: &'a str,
+        prompt: &'a str,
+    },
+    CommandInput {
+        label: &'a str,
+        prompt: &'a str,
+        default: &'a str,
+        input: &'a str,
+    },
+    TablePrompt(&'a str),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -164,6 +277,35 @@ pub fn write_table_window_with_cursor<'a>(
     write_table_window_with_states(
         buffer,
         start_row,
+        columns,
+        rows,
+        scroll_offset,
+        visible_rows,
+        header_style,
+        body_style,
+        selected,
+        selection_col,
+        None,
+    )
+}
+
+pub fn write_table_window_with_cursor_at<'a>(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    start_col: usize,
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    scroll_offset: usize,
+    visible_rows: usize,
+    header_style: crate::screen::CellStyle,
+    body_style: crate::screen::CellStyle,
+    selected: Option<usize>,
+    selection_col: usize,
+) -> TableRenderMetrics {
+    write_table_window_with_states_at(
+        buffer,
+        start_row,
+        start_col,
         columns,
         rows,
         scroll_offset,
@@ -275,6 +417,120 @@ pub fn table_render_width(columns: &[TableColumn<'_>]) -> usize {
 
 pub fn centered_table_start_col(total_width: usize, columns: &[TableColumn<'_>]) -> usize {
     total_width.saturating_sub(table_render_width(columns)) / 2
+}
+
+pub fn layout_standard_table_block(
+    area: LayoutRect,
+    columns: &[TableColumn<'_>],
+    visible_rows: usize,
+    title: bool,
+    command: bool,
+    scrollbar_visible: bool,
+    horizontal_align: HorizontalAlign,
+    vertical_align: VerticalAlign,
+) -> TableBlockLayout {
+    layout_table_block(
+        area,
+        table_render_width(columns),
+        visible_rows + 4,
+        title,
+        command,
+        scrollbar_visible,
+        horizontal_align,
+        vertical_align,
+    )
+}
+
+pub fn layout_stacked_table_block(
+    area: LayoutRect,
+    columns: &[TableColumn<'_>],
+    visible_rows: usize,
+    title: bool,
+    command: bool,
+    scrollbar_visible: bool,
+    horizontal_align: HorizontalAlign,
+    vertical_align: VerticalAlign,
+) -> TableBlockLayout {
+    layout_table_block(
+        area,
+        table_render_width(columns),
+        visible_rows + 5,
+        title,
+        command,
+        scrollbar_visible,
+        horizontal_align,
+        vertical_align,
+    )
+}
+
+pub fn draw_table_footer(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    table_col: usize,
+    bottom_row: usize,
+    footer: TableFooter<'_>,
+) -> usize {
+    match footer {
+        TableFooter::Dismiss => {
+            let row = table_dismiss_prompt_row_for(geometry, bottom_row);
+            draw_dismiss_prompt_at_col(buffer, row, table_col);
+            row
+        }
+        TableFooter::CommandBar {
+            hotkeys_markup,
+            default,
+            input,
+        } => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            draw_table_command_bar_at_col(buffer, row, table_col, hotkeys_markup, default, input);
+            row
+        }
+        TableFooter::CommandText { label, text } => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            draw_command_line_text_at_col(buffer, row, table_col, label, text);
+            row
+        }
+        TableFooter::CommandPrompt { label, prompt } => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            draw_command_line_prompt_text_at_col(buffer, row, table_col, label, prompt);
+            row
+        }
+        TableFooter::CommandInput {
+            label,
+            prompt,
+            default,
+            input,
+        } => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            draw_command_line_default_input_at_col(buffer, row, table_col, label, prompt, default, input);
+            row
+        }
+        TableFooter::TablePrompt(prompt) => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            draw_table_command_prompt_at_col(buffer, row, table_col, prompt);
+            row
+        }
+    }
+}
+
+pub fn draw_table_title_at(
+    buffer: &mut PlayfieldBuffer,
+    title_row: usize,
+    table_col: usize,
+    title: &str,
+) -> usize {
+    buffer.fill_row(title_row, classic::menu_style());
+    buffer.write_text(title_row, table_col, title, classic::title_style());
+    title_row
+}
+
+pub fn draw_table_title(
+    buffer: &mut PlayfieldBuffer,
+    table_row: usize,
+    table_col: usize,
+    title: &str,
+) -> usize {
+    draw_table_title_at(buffer, table_row.saturating_sub(1), table_col, title)
 }
 
 pub fn write_stacked_table_window_with_states<'a>(

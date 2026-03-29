@@ -1,10 +1,13 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{
-    draw_dismiss_prompt, draw_title_bar, new_playfield, table_dismiss_prompt_row,
+use crate::screen::layout::new_playfield;
+use crate::screen::table::{
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
+    resolve_table_columns,
+    write_table_window_with_states_at,
 };
-use crate::screen::table::{TableColumn, format_empire_id, write_table_window};
 use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
@@ -53,20 +56,53 @@ impl RankingsScreen {
             .collect::<Vec<_>>();
 
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "OTHER EMPIRES (RANKINGS):");
-        let metrics = write_table_window(
-            &mut buffer,
-            2,
+        let columns = resolve_table_columns(
             &RANKINGS_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            false,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            table_rows.len(),
+            true,
+            true,
+            false,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
+        );
+        let _ = layout.title_row;
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "OTHER EMPIRES (RANKINGS):",
+        );
+        let metrics = write_table_window_with_states_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            &columns,
             &table_rows,
             0,
             table_rows.len(),
             classic::status_value_style(),
             classic::status_value_style(),
+            None,
+            0,
+            None,
         );
 
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, table_dismiss_prompt_row(metrics.bottom_row));
+        draw_table_footer(
+            &mut buffer,
+            frame.geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            TableFooter::Dismiss,
+        );
         Ok(buffer)
     }
     pub fn handle_key(&self, _key: KeyEvent) -> Action {
