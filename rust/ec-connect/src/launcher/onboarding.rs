@@ -10,18 +10,18 @@
 
 use std::time::Duration;
 
-use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, poll, read};
 use ec_ui::buffer::PlayfieldBuffer;
-use ec_ui::paint::render_to_stdout;
+use ec_ui::paint::StdoutRenderer;
 use ec_ui::session::TerminalSession;
 use ec_ui::theme::classic;
 
 use crate::hard_quit::is_hard_quit_key;
 use crate::input_field::{draw_labeled_input_row, input_width};
-use crate::picker::layout::{centered_rect, draw_box, Rect};
-use crate::shell::{terminal_fits_outer, wrap_inner_buffer, INNER_HEIGHT, INNER_WIDTH};
+use crate::picker::layout::{Rect, centered_rect, draw_box};
+use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
 use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{push_identity_from_input, set_identity_alias, Wallet};
+use crate::wallet::{Wallet, push_identity_from_input, set_identity_alias};
 
 enum SetupMode {
     AddOrImport,
@@ -51,11 +51,12 @@ pub fn run_first_identity_setup_in_session(
     let mut wallet = Wallet::empty();
     let mut state = SetupState::new();
     let path = wallet_path();
+    let mut renderer = StdoutRenderer::new();
 
     loop {
         let (width, height) = crossterm::terminal::size().unwrap_or((82, 27));
         let buffer = render_setup_buffer(&state, width, height);
-        render_to_stdout(&buffer)?;
+        renderer.render(&buffer)?;
 
         if !poll(Duration::from_millis(250))? {
             continue;

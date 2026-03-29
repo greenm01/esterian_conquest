@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, poll, read};
 
-use ec_ui::paint::render_to_stdout;
+use ec_ui::paint::StdoutRenderer;
 use ec_ui::session::TerminalSession;
 
 use crate::cache::{GameCache, load_cache};
@@ -58,13 +58,14 @@ fn run_loop(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut last_activity = Instant::now();
     let mut replayed_key = None;
+    let mut renderer = StdoutRenderer::new();
 
     loop {
         let (term_width, term_height) = crossterm::terminal::size().unwrap_or((80, 25));
         let too_small = !terminal_fits_outer(usize::from(term_width), usize::from(term_height));
         let buffer =
             super::render::render_buffer(state, picker_session.as_ref(), term_width, term_height);
-        render_to_stdout(&buffer)?;
+        renderer.render(&buffer)?;
 
         if !too_small {
             if let Some(session_state) = picker_session.as_mut() {
@@ -79,6 +80,7 @@ fn run_loop(
                 }
                 if state.pending_connect.is_some() {
                     execute_pending_connect(state, session_state, maps_root, rt, session)?;
+                    renderer.reset();
                     replayed_key = capture_post_bridge_key()?;
                     if state.quit {
                         break;

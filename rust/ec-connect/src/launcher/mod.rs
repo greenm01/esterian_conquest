@@ -3,15 +3,15 @@ pub mod render;
 
 use std::time::Duration;
 
-use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, poll, read};
 
-use ec_ui::paint::render_to_stdout;
+use ec_ui::paint::StdoutRenderer;
 use ec_ui::session::TerminalSession;
 
 use crate::hard_quit::is_hard_quit_key;
 use crate::password::wallet_exists;
 use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{push_new_identity, Wallet};
+use crate::wallet::{Wallet, push_new_identity};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PasswordGateMode {
@@ -129,11 +129,12 @@ pub fn run_password_gate_in_session(
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let existing_wallet = wallet_exists(&wallet_path());
     let mut state = PasswordGateState::new(existing_wallet, error_msg);
+    let mut renderer = StdoutRenderer::new();
 
     loop {
         let (width, height) = crossterm::terminal::size().unwrap_or((80, 25));
         let buffer = render::render_buffer(&state, width, height);
-        render_to_stdout(&buffer)?;
+        renderer.render(&buffer)?;
 
         if !poll(Duration::from_millis(250))? {
             continue;
