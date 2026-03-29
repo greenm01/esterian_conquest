@@ -9,6 +9,7 @@ These scripts are intended for:
 - creating richer stress-test campaigns for UI work
 - creating classic-probe campaigns that open in original `ECGAME` with a busy
   player-1 report backlog
+- bootstrapping a VPS host for DB-only Rust campaigns
 - launching `ec-game` against a chosen campaign and player seat
 - building standalone release bundles for playtesting
 
@@ -36,6 +37,32 @@ The scripts expect:
 - the repo workspace intact under `rust/`
 
 ## Available Scripts
+
+### `install_vps.sh`
+
+Root-only idempotent bootstrap for the recommended VPS layout.
+
+It:
+
+- creates the dedicated `ecgame` service user
+- creates `/etc/ec-gate`, `/var/lib/ec-gate/keys`, and `/srv/ec/games`
+- installs `ec-game` and `ec-sysop` into `/usr/local/bin`
+- installs `/usr/local/bin/ec-gate-keys`
+- writes `/etc/ec-gate/config.kdl`
+- installs the `ec-nostr.service`, `ec-maint-all.service`, and `ec-maint-all.timer` units
+- installs an `sshd` drop-in for the service user
+- initializes `/etc/ec-gate/identity.kdl` if missing
+
+Example:
+
+```bash
+sudo ./scripts/install_vps.sh \
+  --relay wss://relay.example.com \
+  --ssh-host play.example.com
+```
+
+This script never creates classic `.DAT` files or copies DOS artifacts into
+per-game directories. Hosted Rust campaigns remain DB-only.
 
 ### `new_test_game.py`
 
@@ -242,8 +269,6 @@ It currently:
 - builds optimized `ec-game` and `ec-sysop` release binaries
 - packages both binaries into one archive
 - includes only the public PDF manuals under `docs/`
-- includes the shipped `themes/` KDL files
-- includes a sample `config.kdl`
 - writes `README.md` and `BUILD-INFO.txt` into the bundle root
 - can unpack and smoke-test the bundle when `--verify` is passed
 - defaults to the current host Rust target, with explicit support for:
@@ -267,7 +292,7 @@ Use this when you want:
 
 - a native Linux or macOS playtest bundle without requiring a Rust toolchain
 - one archive containing both the player and sysop binaries
-- a quick way to hand testers the manuals, themes, and startup instructions
+- a quick way to hand testers the manuals and startup instructions
 
 ### `build_linux_playtest_bundle.py`
 

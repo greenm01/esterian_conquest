@@ -66,8 +66,19 @@ fn seat(game_id: &str, player: usize) -> ResolvedSeat {
 
 const TEST_SSH_PUBKEY: &str =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBGk6testTestTestTestTestTestTestTestTestAA test";
+const TEST_SESSION_TOKEN: &str = "session-test-token";
 
 const GAME_DIR: &str = "/srv/ec/friday-night";
+
+fn provision(
+    config: &GateConfig,
+    seat: &ResolvedSeat,
+    ssh_pubkey: &str,
+    game_dir: &PathBuf,
+) -> ec_gate::serve::provision::ProvisionedKey {
+    provision_key(config, seat, ssh_pubkey, game_dir, TEST_SESSION_TOKEN)
+        .expect("provision_key should succeed")
+}
 
 // ---------------------------------------------------------------------------
 // Command method tests
@@ -79,13 +90,12 @@ fn command_provision_creates_key_file() {
     let config = config_command(dir.join("keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 2),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     let key_path = config
         .auth_keys_path
@@ -99,13 +109,12 @@ fn command_key_file_contains_expires_and_entry() {
     let config = config_command(dir.join("keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 2),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     let key_path = config
         .auth_keys_path
@@ -128,25 +137,26 @@ fn command_key_entry_has_command_restriction() {
     let config = config_command(dir.join("keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 2),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     assert!(
         provisioned.entry.contains("command="),
         "entry should contain command= restriction"
     );
     assert!(
-        provisioned.entry.contains("exec "),
-        "entry should exec ec-game directly"
-    );
-    assert!(
         provisioned.entry.contains("--player 2"),
         "entry should contain the seat index"
+    );
+    assert!(
+        provisioned
+            .entry
+            .contains("--session-token session-test-token"),
+        "entry should contain the DB-backed session token"
     );
     assert!(
         provisioned.entry.contains(GAME_DIR),
@@ -168,13 +178,12 @@ fn command_remove_key_deletes_file() {
     let config = config_command(dir.join("keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 1),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     remove_key(&config, &provisioned.key_id).expect("remove_key should succeed");
 
@@ -199,13 +208,12 @@ fn command_reap_removes_expired_entry() {
     config.key_ttl = 0; // expires immediately
 
     let game_dir = PathBuf::from(GAME_DIR);
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 1),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     // Sleep 1s so the timestamp is definitely past.
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -225,13 +233,12 @@ fn command_reap_leaves_non_expired_entry() {
     let config = config_command(dir.join("keys"));
 
     let game_dir = PathBuf::from(GAME_DIR);
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 1),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     let removed = reap_expired_keys(&config).expect("reap should succeed");
     assert_eq!(removed, 0, "non-expired entry should not be reaped");
@@ -261,13 +268,12 @@ fn file_provision_appends_block() {
     let config = config_file(dir.join("authorized_keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 3),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     let contents = fs::read_to_string(&config.auth_keys_path).unwrap();
     assert!(
@@ -290,13 +296,12 @@ fn file_remove_key_strips_block() {
     let config = config_file(dir.join("authorized_keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 1),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     remove_key(&config, &provisioned.key_id).expect("remove_key should succeed");
 
@@ -320,10 +325,8 @@ fn file_remove_key_leaves_other_entries() {
     let ssh_a = "ssh-ed25519 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA comment_a";
     let ssh_b = "ssh-ed25519 BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB comment_b";
 
-    let key_a = provision_key(&config, &seat("friday-night", 1), ssh_a, &game_dir)
-        .expect("provision key A");
-    let _key_b = provision_key(&config, &seat("friday-night", 2), ssh_b, &game_dir)
-        .expect("provision key B");
+    let key_a = provision(&config, &seat("friday-night", 1), ssh_a, &game_dir);
+    let _key_b = provision(&config, &seat("friday-night", 2), ssh_b, &game_dir);
 
     remove_key(&config, &key_a.key_id).expect("remove key A");
 
@@ -339,13 +342,12 @@ fn file_reap_removes_expired_block() {
     config.key_ttl = 0;
 
     let game_dir = PathBuf::from(GAME_DIR);
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 1),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     std::thread::sleep(std::time::Duration::from_secs(1));
 
@@ -365,13 +367,12 @@ fn file_reap_leaves_non_expired_block() {
     let config = config_file(dir.join("authorized_keys"));
     let game_dir = PathBuf::from(GAME_DIR);
 
-    let provisioned = provision_key(
+    let provisioned = provision(
         &config,
         &seat("friday-night", 1),
         TEST_SSH_PUBKEY,
         &game_dir,
-    )
-    .expect("provision_key should succeed");
+    );
 
     let removed = reap_expired_keys(&config).expect("reap should succeed");
     assert_eq!(removed, 0, "non-expired block should not be reaped");

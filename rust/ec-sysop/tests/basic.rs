@@ -4,7 +4,9 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_data::{CampaignStore, CoreGameData};
+use ec_data::CampaignStore;
+use ec_gate::config::parse_config_str;
+use ec_gate::config::save_config;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -72,12 +74,22 @@ fn ec_sysop_new_game_initializes_default_campaign() {
     let stdout = run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
     assert!(stdout.contains("Initialized new game"));
     assert!(stdout.contains("players=4"));
-    assert!(target.join("DATABASE.DAT").exists());
+    assert!(target.join("ecgame.db").exists());
+    assert!(!target.join("DATABASE.DAT").exists());
+    assert!(!target.join("config.kdl").exists());
 
-    let game_data = CoreGameData::load(&target).expect("generated game should load");
-    assert_eq!(game_data.player.records[0].owner_mode_raw(), 0);
-    assert_eq!(game_data.planets.records[0].planet_name(), "Not Named Yet");
+    let runtime = CampaignStore::open_default_in_dir(&target)
+        .expect("open campaign store")
+        .load_latest_runtime_state()
+        .expect("load runtime")
+        .expect("runtime snapshot should exist");
+    assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 0);
+    assert_eq!(
+        runtime.game_data.planets.records[0].planet_name(),
+        "Not Named Yet"
+    );
     assert_eq!(hosted_seat_count(&target), 4);
+    assert_eq!(fs::read_dir(&target).expect("read dir").count(), 1);
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -91,7 +103,7 @@ fn ec_sysop_new_game_rejects_internal_setup_preset_flag() {
         "--config",
         "ec-cli/config/setup.example.kdl",
     ]);
-    assert!(stderr.contains("--config is only supported"));
+    assert!(stderr.contains("unexpected argument: --config"));
     let _ = fs::remove_dir_all(&target);
 }
 
@@ -134,8 +146,12 @@ fn ec_sysop_new_game_accepts_year_flag() {
     assert!(stdout.contains("Initialized new game"));
     assert!(stdout.contains("year=3012"));
 
-    let game_data = CoreGameData::load(&target).expect("generated game should load");
-    assert_eq!(game_data.conquest.game_year(), 3012);
+    let runtime = CampaignStore::open_default_in_dir(&target)
+        .expect("open campaign store")
+        .load_latest_runtime_state()
+        .expect("load runtime")
+        .expect("runtime snapshot");
+    assert_eq!(runtime.game_data.conquest.game_year(), 3012);
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -147,6 +163,9 @@ fn ec_sysop_help_lists_public_subcommands() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("new-game <target_dir>"));
     assert!(stdout.contains("maint <dir> [turns]"));
+    assert!(stdout.contains("maint-all [--config <path>]"));
+    assert!(stdout.contains("settings <show|set|reserve|unreserve|import-kdl>"));
+    assert!(stdout.contains("host <games|status>"));
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
 }
@@ -187,8 +206,112 @@ fn ec_sysop_unknown_subcommand_fails_with_full_usage() {
     let stderr = String::from_utf8(output.stderr).expect("stderr should be utf-8");
     assert!(stdout.contains("new-game <target_dir>"));
     assert!(stdout.contains("maint <dir> [turns]"));
+    assert!(stdout.contains("maint-all [--config <path>]"));
+    assert!(stdout.contains("host <games|status>"));
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stderr.contains("unknown subcommand: badcmd"));
+}
+
+#[test]
+fn ec_sysop_host_help_prints_usage() {
+    let output = run_ec_sysop_output(&["host", "--help"], None);
+    assert!(output.status.success(), "host help should succeed");
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("host games list [--config <path>]"));
+    assert!(stdout.contains("host games add --dir <game_dir> [--config <path>]"));
+    assert!(stdout.contains("host status [--config <path>]"));
+}
+
+#[test]
+fn ec_sysop_host_games_add_list_remove_and_status_use_gate_config() {
+    let root = unique_temp_dir("ec-sysop-host-games");
+    let config_path = root.join("config.kdl");
+    let game_one = root.join("friday-night");
+    let game_two = root.join("saturday-showdown");
+
+    let cfg = parse_config_str(
+        r#"
+relay "wss://relay.example.com"
+ssh-host "play.example.com"
+ssh-port 22
+ssh-user "ecgame"
+auth-keys-method "command"
+auth-keys-path "/var/lib/ec-gate/keys"
+key-ttl 60
+"#,
+    )
+    .expect("parse config");
+    save_config(&config_path, &cfg).expect("save config");
+
+    run_ec_sysop(&["new-game", game_one.to_str().expect("utf-8 path")]);
+    run_ec_sysop(&["new-game", game_two.to_str().expect("utf-8 path")]);
+
+    let add_one = run_ec_sysop(&[
+        "host",
+        "games",
+        "add",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+        "--dir",
+        game_one.to_str().expect("utf-8 path"),
+    ]);
+    assert!(add_one.contains("Registered game"));
+
+    let add_two = run_ec_sysop(&[
+        "host",
+        "games",
+        "add",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+        "--dir",
+        game_two.to_str().expect("utf-8 path"),
+    ]);
+    assert!(add_two.contains("Registered game"));
+
+    let list = run_ec_sysop(&[
+        "host",
+        "games",
+        "list",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+    ]);
+    assert!(list.contains("config="));
+    assert!(list.contains(game_one.to_str().expect("utf-8 path")));
+    assert!(list.contains(game_two.to_str().expect("utf-8 path")));
+
+    let status = run_ec_sysop(&[
+        "host",
+        "status",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+    ]);
+    assert!(status.contains("games=2"));
+    assert!(status.contains("slug=friday-night"));
+    assert!(status.contains("name=Friday Night"));
+    assert!(status.contains("slug=saturday-showdown"));
+
+    let remove = run_ec_sysop(&[
+        "host",
+        "games",
+        "remove",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+        "--dir",
+        game_one.to_str().expect("utf-8 path"),
+    ]);
+    assert!(remove.contains("Removed game"));
+
+    let list_after = run_ec_sysop(&[
+        "host",
+        "games",
+        "list",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+    ]);
+    assert!(!list_after.contains(game_one.to_str().expect("utf-8 path")));
+    assert!(list_after.contains(game_two.to_str().expect("utf-8 path")));
+
+    let _ = fs::remove_dir_all(&root);
 }
 
 #[test]
@@ -260,8 +383,8 @@ fn ec_sysop_nostr_seats_lists_sqlite_backed_hosted_seats() {
         target.to_str().expect("utf-8 path"),
     ]);
     assert!(stdout.contains("Game:"));
-    assert!(stdout.contains("Seat  1: pending"));
-    assert!(stdout.contains("Seat  4: pending"));
+    assert!(stdout.contains("Seat 1  [pending]"));
+    assert!(stdout.contains("Seat 4  [pending]"));
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -337,8 +460,8 @@ fn ec_sysop_nostr_migrate_roster_imports_legacy_file_and_archives_it() {
     assert_eq!(seats.len(), 2);
     assert_eq!(seats[1].player_npub.as_deref(), Some("npub1migrated000"));
 
-    let config = ec_data::GameConfig::load_kdl(&target.join("config.kdl")).expect("load config");
-    assert_eq!(config.game_name, "Migrated Friday Night");
+    let settings = store.load_campaign_settings().expect("load settings");
+    assert_eq!(settings.game_name, "Migrated Friday Night");
 
     let _ = fs::remove_dir_all(&target);
 }

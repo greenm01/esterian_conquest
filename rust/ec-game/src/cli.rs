@@ -11,10 +11,7 @@ use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
 use crate::terminal::door::DoorTerminal;
 use crate::terminal::stdout::StdoutTerminal;
-use ec_data::{
-    CampaignStore,
-    game_config::{DEFAULT_GAME_CONFIG_KDL, GameConfig},
-};
+use ec_data::{CampaignStore, GameConfig};
 
 struct ParsedLaunchArgs {
     game_dir: PathBuf,
@@ -28,7 +25,47 @@ struct ParsedLaunchArgs {
     screen_geometry: ScreenGeometry,
     dropfile_alias: Option<String>,
     session_timeout_secs: Option<u32>,
+    session_token: Option<String>,
     use_door_terminal: bool,
+}
+
+struct SessionLeaseGuard {
+    store: CampaignStore,
+    session_token: String,
+    ttl_seconds: u64,
+}
+
+impl SessionLeaseGuard {
+    fn activate(
+        store: CampaignStore,
+        session_token: String,
+        now_unix_seconds: u64,
+        ttl_seconds: u64,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        store.activate_session_lease(&session_token, now_unix_seconds, ttl_seconds)?;
+        Ok(Self {
+            store,
+            session_token,
+            ttl_seconds,
+        })
+    }
+
+    fn heartbeat(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.store
+            .heartbeat_session_lease(&self.session_token, unix_now(), self.ttl_seconds)?;
+        Ok(())
+    }
+
+    fn release(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.store.release_session_lease(&self.session_token)?;
+        Ok(())
+    }
+}
+
+impl Drop for SessionLeaseGuard {
+    fn drop(&mut self) {
+        let _ = self.store.release_session_lease(&self.session_token);
+    }
 }
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -53,10 +90,21 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         );
     }
 
-    // Load (or bootstrap) config.kdl before anything else.
-    let game_config = load_or_bootstrap_game_config(&parsed.game_dir)?;
-    validate_runtime_game_config(&parsed.game_dir, &game_config)?;
+    let campaign_store = CampaignStore::open_default_in_dir(&parsed.game_dir)?;
+    let game_config = load_runtime_game_config(&campaign_store)?;
+    validate_runtime_game_config(&campaign_store, &game_config)?;
     let player_record_index_1_based = resolve_player_record_index_1_based(&parsed, &game_config)?;
+    let session_lease = parsed
+        .session_token
+        .clone()
+        .map(|session_token| {
+            validate_session_lease(
+                campaign_store.clone(),
+                session_token,
+                player_record_index_1_based,
+            )
+        })
+        .transpose()?;
     let config = AppConfig {
         game_dir: parsed.game_dir.clone(),
         player_record_index_1_based,
@@ -93,19 +141,27 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         ))
     };
 
-    if std::io::stdout().is_terminal() {
-        run_interactive(&mut app, terminal.as_mut())
+    let result = if std::io::stdout().is_terminal() {
+        run_interactive(&mut app, terminal.as_mut(), session_lease.as_ref())
     } else {
+        if let Some(session_lease) = session_lease.as_ref() {
+            session_lease.heartbeat()?;
+        }
         app.render(terminal.as_mut())
+    };
+    if let Some(session_lease) = session_lease.as_ref() {
+        session_lease.release()?;
     }
+    result
 }
 
 fn run_interactive(
     app: &mut App,
     terminal: &mut dyn Terminal,
+    session_lease: Option<&SessionLeaseGuard>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
-    let result = run_interactive_inner(app, terminal);
+    let result = run_interactive_inner(app, terminal, session_lease);
     disable_raw_mode()?;
     let cleanup_result = terminal.clear_and_restore();
     result.and(cleanup_result)
@@ -114,8 +170,12 @@ fn run_interactive(
 fn run_interactive_inner(
     app: &mut App,
     terminal: &mut dyn Terminal,
+    session_lease: Option<&SessionLeaseGuard>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     loop {
+        if let Some(session_lease) = session_lease {
+            session_lease.heartbeat()?;
+        }
         app.render(terminal)?;
         let key = terminal.read_key()?;
         let action = app.handle_key(key);
@@ -141,6 +201,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut explicit_color_mode: Option<ColorMode> = None;
     let mut dropfile_path: Option<PathBuf> = None;
     let mut explicit_timeout_minutes: Option<u32> = None;
+    let mut session_token = None;
     let mut idx = 1;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -245,6 +306,13 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
                 explicit_timeout_minutes = Some(minutes);
                 idx += 2;
             }
+            "--session-token" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --session-token".into());
+                };
+                session_token = Some(value.to_string());
+                idx += 2;
+            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -309,6 +377,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         screen_geometry,
         dropfile_alias,
         session_timeout_secs,
+        session_token,
         use_door_terminal,
     })
 }
@@ -363,7 +432,7 @@ fn print_usage() {
     println!(
         "  ec-game --dir <game_dir> [--player <1-based empire index>] \
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
-         [--dropfile <path>] [--timeout <minutes>] \
+         [--dropfile <path>] [--timeout <minutes>] [--session-token <token>] \
          [--export-root <dir>] [--queue-dir <dir>] \
          [--log-file <path>] [--log-level <error|warn|info|debug|trace>]"
     );
@@ -375,7 +444,7 @@ fn print_usage() {
     println!("  --dropfile <path>   Parse a BBS dropfile (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT).");
     println!("                      Supplies alias and timeout; explicit flags always override.");
     println!("                      Defaults encoding to cp437 when no --encoding is given.");
-    println!("                      Reserved aliases in config.kdl can omit --player.");
+    println!("                      Reserved aliases in ecgame.db can omit --player.");
     println!("  --timeout <minutes> Session time limit in minutes.");
     println!();
     println!("Logging:");
@@ -389,20 +458,29 @@ fn print_usage() {
     println!("  auto       Detect from COLORTERM/TERM environment variables (default)");
 }
 
-/// Load `config.kdl` from the game directory, bootstrapping the default if
-/// absent.
-///
-/// Returns the parsed [`GameConfig`] on success, or a descriptive error if the
-/// file is present but invalid.
-fn load_or_bootstrap_game_config(
-    game_dir: &std::path::Path,
+fn load_runtime_game_config(
+    campaign_store: &CampaignStore,
 ) -> Result<GameConfig, Box<dyn std::error::Error>> {
-    let config_path = game_dir.join("config.kdl");
-    if !config_path.exists() {
-        std::fs::write(&config_path, DEFAULT_GAME_CONFIG_KDL)?;
-    }
-    GameConfig::load_kdl(&config_path)
-        .map_err(|err| format!("{}: {}", config_path.display(), err).into())
+    let settings = campaign_store.load_campaign_settings()?;
+    Ok(GameConfig {
+        game_name: settings.game_name,
+        theme: Some(PathBuf::from(format!(
+            "themes/{}.kdl",
+            settings.default_theme_key
+        ))),
+        snoop: settings.snoop_enabled,
+        session: ec_data::SessionConfig {
+            max_idle_minutes: settings.session_max_idle_minutes,
+            minimum_time_minutes: settings.session_minimum_time_minutes,
+            local_timeout: settings.session_local_timeout,
+            remote_timeout: settings.session_remote_timeout,
+        },
+        inactivity: ec_data::InactivityConfig {
+            purge_after_turns: settings.inactivity_purge_after_turns,
+            autopilot_after_turns: settings.inactivity_autopilot_after_turns,
+        },
+        reservations: settings.reservations,
+    })
 }
 
 fn resolve_player_record_index_1_based(
@@ -429,18 +507,17 @@ fn resolve_player_record_index_1_based(
     }
 
     parsed.explicit_player_record_index_1_based.ok_or_else(|| {
-        "usage: ec-game --dir <game_dir> --player <1-based empire index>\n       or reserve the dropfile alias in config.kdl and use --dropfile".into()
+        "usage: ec-game --dir <game_dir> --player <1-based empire index>\n       or reserve the dropfile alias in ecgame.db and use --dropfile".into()
     })
 }
 
 fn validate_runtime_game_config(
-    game_dir: &std::path::Path,
+    campaign_store: &CampaignStore,
     game_config: &GameConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if game_config.reservations.is_empty() {
         return Ok(());
     }
-    let campaign_store = CampaignStore::open_default_in_dir(game_dir)?;
     let runtime_state = campaign_store
         .load_latest_runtime_state()?
         .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
@@ -473,10 +550,33 @@ fn validate_reserved_seat_runtime(
     let handle = player.assigned_player_handle_summary();
     if !handle.is_empty() && !handle.eq_ignore_ascii_case(&reservation.alias) {
         return Err(format!(
-            "reserved alias '{}' conflicts with stored player handle '{}' for seat {}; reconcile config.kdl or the campaign state",
+            "reserved alias '{}' conflicts with stored player handle '{}' for seat {}; reconcile ecgame.db settings or the campaign state",
             reservation.alias, handle, reservation.player_record_index_1_based
         )
         .into());
     }
     Ok(())
+}
+
+fn validate_session_lease(
+    campaign_store: CampaignStore,
+    session_token: String,
+    player_record_index_1_based: usize,
+) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
+    let lease = campaign_store.load_session_lease(&session_token, unix_now())?;
+    if lease.player_record_index_1_based != player_record_index_1_based {
+        return Err(format!(
+            "session token is for seat {}, not seat {}",
+            lease.player_record_index_1_based, player_record_index_1_based
+        )
+        .into());
+    }
+    SessionLeaseGuard::activate(campaign_store, session_token, unix_now(), 120)
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }

@@ -638,32 +638,32 @@ async fn handle_claim_request(
                 "seat claimed"
             );
             match catalog::load_hosted_game(&game_entry.dir) {
-            Ok(entry) => match game_def::publish_game_definition(
-                &client,
-                &shared_keys,
-                &entry.game,
-                &shared_config.ssh_host,
-                shared_config.ssh_port,
-                &shared_config.relay,
-            )
-            .await
-            {
-                Ok(event_id) => info!(
-                    game_id = %entry.game.game_id,
-                    event_id = %event_id,
-                    "published updated 30500 GameDefinition after claim"
-                ),
+                Ok(entry) => match game_def::publish_game_definition(
+                    &client,
+                    &shared_keys,
+                    &entry.game,
+                    &shared_config.ssh_host,
+                    shared_config.ssh_port,
+                    &shared_config.relay,
+                )
+                .await
+                {
+                    Ok(event_id) => info!(
+                        game_id = %entry.game.game_id,
+                        event_id = %event_id,
+                        "published updated 30500 GameDefinition after claim"
+                    ),
+                    Err(err) => warn!(
+                        game_id = %entry.game.game_id,
+                        error = %err,
+                        "failed to publish updated 30500 GameDefinition after claim"
+                    ),
+                },
                 Err(err) => warn!(
-                    game_id = %entry.game.game_id,
+                    game_id = %game_entry.game.game_id,
                     error = %err,
-                    "failed to publish updated 30500 GameDefinition after claim"
+                    "cannot reload hosted game after claim"
                 ),
-            },
-            Err(err) => warn!(
-                game_id = %game_entry.game.game_id,
-                error = %err,
-                "cannot reload hosted game after claim"
-            ),
             }
         }
         Err(ec_data::ClaimHostedSeatError::InvalidCode) => {
@@ -827,11 +827,59 @@ async fn handle_request(
                 }
             }
 
-            match provision::provision_key(&shared_config, &seat, &req.ssh_pubkey, &game_dir) {
+            let store = match ec_data::CampaignStore::open_default_in_dir(&game_dir) {
+                Ok(store) => store,
+                Err(err) => {
+                    error!(game_id = %seat.game_id, error = %err, "cannot open campaign store for session lease");
+                    return;
+                }
+            };
+            let session_token = provision::new_session_token();
+            match store.create_pending_session_lease(
+                &session_token,
+                seat.player,
+                &req.player_pubkey,
+                unix_now(),
+                shared_config.key_ttl,
+            ) {
+                Ok(_) => {}
+                Err(ec_data::SessionLeaseError::SeatBusy { .. }) => {
+                    if let Err(err) = response::publish_session_error_message(
+                        &client,
+                        &shared_keys,
+                        &player_pubkey,
+                        &req.nonce,
+                        "seat_busy",
+                        "That seat already has an active session.",
+                    )
+                    .await
+                    {
+                        error!(error = %err, "failed to publish 30503 SessionError");
+                    }
+                    return;
+                }
+                Err(ec_data::SessionLeaseError::InvalidToken) => {
+                    error!(game_id = %seat.game_id, "new session token rejected unexpectedly");
+                    return;
+                }
+                Err(ec_data::SessionLeaseError::Store(err)) => {
+                    error!(game_id = %seat.game_id, error = %err, "cannot create session lease");
+                    return;
+                }
+            }
+
+            match provision::provision_key(
+                &shared_config,
+                &seat,
+                &req.ssh_pubkey,
+                &game_dir,
+                &session_token,
+            ) {
                 Ok(provisioned) => {
                     let player_name = match player_name_for_seat(&game_dir, seat.player) {
                         Ok(player_name) => player_name,
                         Err(err) => {
+                            let _ = store.release_session_lease(&session_token);
                             error!(game_id = %seat.game_id, error = %err, "cannot load runtime player state");
                             if let Err(pub_err) = response::publish_session_error_message(
                                 &client,
@@ -865,10 +913,12 @@ async fn handle_request(
                     )
                     .await
                     {
+                        let _ = store.release_session_lease(&session_token);
                         error!(error = %e, "failed to publish 30502 SessionReady");
                     }
                 }
                 Err(e) => {
+                    let _ = store.release_session_lease(&session_token);
                     error!(error = %e, "provision failed");
                 }
             }
@@ -892,6 +942,13 @@ async fn handle_request(
             }
         }
     }
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 fn player_name_for_seat(

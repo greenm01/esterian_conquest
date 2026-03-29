@@ -2,22 +2,13 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ec_data::{CampaignStore, CoreGameData, GameConfig, HostedSeat, HostedSeatStatus};
+use ec_data::{CampaignSettings, CampaignStore, GameConfig, HostedSeat, HostedSeatStatus};
 use ec_gate::config::io::{config_path, load_config};
 use ec_gate::identity::io::{identity_path, load_identity};
 use ec_gate::invite::generate_invite_code;
 use ec_gate::roster::io::load_roster;
 use ec_nostr::invite::{InvitePayload, encode_invite};
 use nostr_sdk::ToBech32;
-
-pub fn initialize_hosted_seats_for_new_game(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let game_data = CoreGameData::load(dir)?;
-    let player_count = game_data.conquest.player_count() as usize;
-    let store = CampaignStore::open_default_in_dir(dir)?;
-    let seats = build_pending_seats(player_count);
-    store.initialize_hosted_seats_if_empty(&seats)?;
-    Ok(())
-}
 
 pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let roster_path = dir.join("roster.kdl");
@@ -50,10 +41,19 @@ pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> 
         .collect::<Vec<_>>();
     store.replace_hosted_seats(&seats)?;
 
-    let config_path = dir.join("config.kdl");
-    let mut game_config = GameConfig::load_kdl(&config_path)?;
-    game_config.game_name = roster.name;
-    game_config.save_kdl(&config_path)?;
+    let roster_name = roster.name.clone();
+    let settings = if dir.join("config.kdl").exists() {
+        let game_config = GameConfig::load_kdl(&dir.join("config.kdl"))?;
+        CampaignSettings::from_legacy_game_config(expected_game_id, &game_config, None)
+    } else {
+        CampaignSettings::new(expected_game_id, &roster_name)
+    };
+    let settings = CampaignSettings {
+        game_name: roster_name,
+        reservations: settings.reservations,
+        ..settings
+    };
+    store.save_campaign_settings(&settings)?;
 
     let legacy_path = dir.join("roster.kdl.legacy");
     fs::rename(&roster_path, &legacy_path)?;
@@ -65,9 +65,8 @@ pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> 
 }
 
 pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
-    let game_config_path = dir.join("config.kdl");
-    let game_config = GameConfig::load_kdl(&game_config_path)?;
     let store = CampaignStore::open_default_in_dir(dir)?;
+    let settings = store.load_campaign_settings()?;
     let seats = store.hosted_seats()?;
 
     // Attempt to load gate config + identity for bech32 invite generation.
@@ -84,14 +83,13 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
             }
             let mut bytes = [0u8; 32];
             for (i, chunk) in hex.as_bytes().chunks(2).enumerate().take(32) {
-                bytes[i] =
-                    u8::from_str_radix(std::str::from_utf8(chunk).ok()?, 16).ok()?;
+                bytes[i] = u8::from_str_radix(std::str::from_utf8(chunk).ok()?, 16).ok()?;
             }
             Some((cfg.relay, cfg.ssh_host, cfg.ssh_port, bytes))
         })();
 
     let mut out = String::new();
-    out.push_str(&format!("Game: {}\n", game_config.game_name));
+    out.push_str(&format!("Game: {}\n", settings.game_name));
     out.push_str(&format!("Dir:  {}\n", dir.display()));
     out.push('\n');
 
@@ -99,7 +97,10 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
         let npub = seat.player_npub.as_deref().unwrap_or("");
         match seat.status {
             HostedSeatStatus::Pending => {
-                out.push_str(&format!("Seat {}  [pending]\n", seat.player_record_index_1_based));
+                out.push_str(&format!(
+                    "Seat {}  [pending]\n",
+                    seat.player_record_index_1_based
+                ));
                 match bech32_ctx.as_ref() {
                     Some((relay, ssh_host, ssh_port, gate_npub_bytes)) => {
                         let payload = InvitePayload {
@@ -128,7 +129,10 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
                 }
             }
             HostedSeatStatus::Claimed => {
-                out.push_str(&format!("Seat {}  [claimed]\n", seat.player_record_index_1_based));
+                out.push_str(&format!(
+                    "Seat {}  [claimed]\n",
+                    seat.player_record_index_1_based
+                ));
                 let display_npub = nostr_sdk::PublicKey::from_hex(npub)
                     .ok()
                     .and_then(|pk| pk.to_bech32().ok())
@@ -160,7 +164,7 @@ pub fn reissue_hosted_seat(
     ))
 }
 
-fn build_pending_seats(player_count: usize) -> Vec<HostedSeat> {
+pub(crate) fn build_pending_seats(player_count: usize) -> Vec<HostedSeat> {
     let mut seen_codes = BTreeSet::new();
     (1..=player_count)
         .map(|player| HostedSeat {

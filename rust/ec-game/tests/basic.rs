@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
 use ec_compat::import_directory_snapshot;
-use ec_data::{CampaignStore, CoreGameData};
+use ec_data::{CampaignSettings, CampaignStore, CoreGameData};
 use ec_game::terminal::ColorMode;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -29,6 +29,9 @@ fn temp_fixture_copy() -> PathBuf {
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
     let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
     import_directory_snapshot(&store, &root).expect("seed sqlite snapshot");
+    store
+        .save_campaign_settings(&CampaignSettings::new("fixture-game", "Esterian Conquest"))
+        .expect("seed campaign settings");
     root
 }
 
@@ -43,27 +46,15 @@ fn write_dropfile(root: &Path, alias: &str) -> PathBuf {
 }
 
 fn write_reserved_config(root: &Path, alias: &str, player: usize) {
-    fs::write(
-        root.join("config.kdl"),
-        format!(
-            "game_name \"Esterian Conquest\"\n\
-             snoop #true\n\
-             session {{\n\
-                 max_idle_minutes 10\n\
-                 minimum_time_minutes 0\n\
-                 local_timeout #false\n\
-                 remote_timeout #true\n\
-             }}\n\
-             inactivity {{\n\
-                 purge_after_turns 0\n\
-                 autopilot_after_turns 0\n\
-             }}\n\
-             reservations {{\n\
-                 seat player={player} alias=\"{alias}\"\n\
-             }}\n"
-        ),
-    )
-    .expect("write config");
+    let store = CampaignStore::open_default_in_dir(root).expect("open campaign store");
+    let mut settings = store.load_campaign_settings().expect("load settings");
+    settings.reservations = vec![ec_data::SeatReservation {
+        player_record_index_1_based: player,
+        alias: alias.to_string(),
+    }];
+    store
+        .save_campaign_settings(&settings)
+        .expect("write settings");
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) {
@@ -216,8 +207,7 @@ fn unreserved_dropfile_alias_without_player_still_requires_player() {
 
     assert!(!output.status.success(), "ec-game should require --player");
     assert!(
-        String::from_utf8_lossy(&output.stderr)
-            .contains("reserve the dropfile alias in config.kdl"),
+        String::from_utf8_lossy(&output.stderr).contains("reserve the dropfile alias in ecgame.db"),
         "stderr={:?}",
         String::from_utf8_lossy(&output.stderr)
     );

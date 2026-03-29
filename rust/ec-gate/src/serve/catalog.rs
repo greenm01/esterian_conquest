@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use ec_data::{CampaignStore, GameConfig, HostedSeat};
+use ec_data::{CampaignStore, HostedSeat};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HostedGame {
@@ -48,14 +48,14 @@ pub fn load_hosted_game(dir: &Path) -> Result<HostedGameEntry, String> {
             dir.display()
         ));
     }
-    let config_path = dir.join("config.kdl");
-    let game_config = GameConfig::load_kdl(&config_path)
-        .map_err(|err| format!("cannot load {}: {err}", config_path.display()))?;
+    let settings = store
+        .load_campaign_settings()
+        .map_err(|err| format!("cannot load campaign settings for {}: {err}", dir.display()))?;
     Ok(HostedGameEntry {
         dir: dir.to_path_buf(),
         game: HostedGame {
             game_id,
-            game_name: game_config.game_name,
+            game_name: settings.game_name,
             seats,
         },
     })

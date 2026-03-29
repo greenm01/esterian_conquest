@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
-use ec_gate::config::io::{config_path, load_config, parse_config_str};
+use ec_gate::config::io::{config_path, load_config, parse_config_str, render_config, save_config};
 use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH};
 
 // --- Canonical round-trip ---
@@ -119,7 +119,7 @@ game "/srv/ec/game1"
 }
 
 #[test]
-fn parse_missing_games_is_error() {
+fn parse_missing_games_is_allowed() {
     let kdl = r#"
 relay "wss://r.example.com"
 ssh-host "h.example.com"
@@ -129,9 +129,8 @@ auth-keys-method "command"
 auth-keys-path "/var/lib/ec-gate/keys"
 key-ttl 60
 "#;
-    let result = parse_config_str(kdl);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("game"));
+    let cfg = parse_config_str(kdl).expect("parse failed");
+    assert!(cfg.games.is_empty(), "config should allow zero games");
 }
 
 #[test]
@@ -169,6 +168,26 @@ fn load_config_from_file() {
     let cfg = load_config(&path).expect("load failed");
     assert_eq!(cfg.relay, "wss://relay.example.com");
     assert_eq!(cfg.games.len(), 2);
+
+    fs::remove_file(&path).ok();
+    fs::remove_dir(&dir).ok();
+}
+
+#[test]
+fn render_and_save_config_round_trip() {
+    let dir = std::env::temp_dir().join("ec-gate-config-save-test");
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.kdl");
+    let cfg = parse_config_str(CANONICAL_CONFIG).expect("parse failed");
+
+    save_config(&path, &cfg).expect("save failed");
+    let round_trip = load_config(&path).expect("reload failed");
+    let rendered = render_config(&round_trip);
+
+    assert_eq!(round_trip.relay, cfg.relay);
+    assert_eq!(round_trip.games, cfg.games);
+    assert!(rendered.contains("relay \"wss://relay.example.com\""));
+    assert!(rendered.contains("game \"/srv/ec/friday-night\""));
 
     fs::remove_file(&path).ok();
     fs::remove_dir(&dir).ok();

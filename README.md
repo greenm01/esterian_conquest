@@ -63,8 +63,18 @@ The engine is explicit. Seeded RNG ensures reproducible results, and the logs ex
 ### For Sysops: Create a Campaign
 \`\`\`bash
 cd rust
-cargo run -q -p ec-sysop -- new-game /tmp/ec-game --players 4
+cargo run -q -p ec-sysop -- new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 \`\`\`
+
+Hosted game directories are DB-only:
+
+\`\`\`text
+/srv/ec/games/friday-night/
+  ecgame.db
+\`\`\`
+
+`ec-sysop new-game` does not generate classic `.DAT` files, does not copy DOS
+executables or docs, and does not bootstrap `config.kdl` or `themes/`.
 
 ### For Sysops: Host via Nostr
 Initialize and run the Nostr-facing daemon:
@@ -72,6 +82,26 @@ Initialize and run the Nostr-facing daemon:
 cd rust
 cargo run -q -p ec-sysop -- nostr init
 cargo run -q -p ec-sysop -- nostr serve
+\`\`\`
+
+For a VPS deployment, bootstrap the standard layout with:
+
+\`\`\`bash
+sudo ./scripts/install_vps.sh \
+  --relay wss://relay.example.com \
+  --ssh-host play.example.com
+\`\`\`
+
+That installs:
+
+\`\`\`text
+/usr/local/bin/ec-game
+/usr/local/bin/ec-sysop
+/usr/local/bin/ec-gate-keys
+/etc/ec-gate/config.kdl
+/etc/ec-gate/identity.kdl
+/var/lib/ec-gate/keys/
+/srv/ec/games/<slug>/ecgame.db
 \`\`\`
 
 Generate player invite codes:
@@ -94,7 +124,20 @@ Advance the game year:
 \`\`\`bash
 cargo run -q -p ec-sysop -- maint /tmp/ec-game 3
 \`\`\`
-Schedule this via `cron` or `systemd`. EC does not manage its own scheduler.
+For multi-game hosts, schedule the fleet-wide sweep instead:
+
+\`\`\`bash
+cargo run -q -p ec-sysop -- maint-all --config /etc/ec-gate/config.kdl
+\`\`\`
+
+Manage the daemon game list with:
+
+\`\`\`bash
+cargo run -q -p ec-sysop -- host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+cargo run -q -p ec-sysop -- host status --config /etc/ec-gate/config.kdl
+\`\`\`
+
+Schedule maintenance with `systemd` or `cron`. EC does not manage its own scheduler.
 
 ## Useful Commands
 

@@ -7,6 +7,14 @@ Keep this file short. Historical detail belongs in
 
 - Public gameplay work is centered on `ec-connect`, `ec-game`, and
   `ec-sysop`.
+- Hosted Rust campaigns are now DB-only: `ec-sysop new-game` creates only
+  `ecgame.db`.
+- `ec-sysop` now owns SQLite-native `new-game`, `settings`, `maint-all`, and
+  host game-registry commands directly instead of delegating to `ec-cli`.
+- `ec-game` and `ec-sysop` normal dependency graphs no longer pull
+  `ec-compat` / `ec-classic`.
+- `ec-gate` now reads game names and seat/session metadata from `ecgame.db`
+  and issues per-seat session leases to block duplicate logins.
 - `ec-game` is broadly feature-complete and the player TUI is in good shape.
 - `ec-sysop` is also in good enough shape for normal campaign operation.
 - The total planet database now supports both `F` filters and `S` sorting.
@@ -41,15 +49,14 @@ Keep this file short. Historical detail belongs in
 
 ## Recent Fixes
 
-- **Theme picker cursor snapping to Tokyo Night on reopen** (fixed):
-  `ensure_bundled_themes_in_game_dir` only wrote bundled theme files if they
-  were absent. When a new style (e.g. `shell_title`) was added to the schema,
-  existing on-disk theme files became stale and failed validation, causing
-  `apply_theme_entry` to silently fall back to the default and reset the
-  active theme. Fix: always overwrite bundled files so `themes/` stays current
-  with the compiled-in versions. `themes/` is a managed cache, not a
-  user-customisation surface; custom themes should live outside it and be
-  referenced via `config.kdl`.
+- **Hosted Rust runtime decoupled from classic packaging** (fixed):
+  `ec-sysop new-game` now writes only `ecgame.db`; no `.DAT` files, classic
+  executables/docs, `config.kdl`, or `themes/` are produced in hosted game
+  directories.
+- **Multi-game host operations moved into `ec-sysop`** (fixed):
+  per-game settings now live in SQLite, `maint-all` sweeps registered games
+  from the gate config, and host `games add/remove/list` plus `status` now
+  manage and inspect the daemon-facing game registry.
 
 ## Biggest Blockers
 
@@ -64,8 +71,7 @@ Keep this file short. Historical detail belongs in
 
 ## Immediate Next Steps
 
-1. Run real player and sysop playtests and capture friction points, crashes,
-   unclear prompts, and campaign-operation pain points.
+1. Run VPS and live multi-game playtests against the new DB-only hosted layout.
 2. Fix reported bugs and UX issues in small, well-tested increments.
 3. Preserve the storage roundtrip tests and source-policy guardrails so runtime
    code does not drift back toward raw-offset dependence.

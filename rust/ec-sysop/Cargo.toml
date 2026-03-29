@@ -9,8 +9,8 @@ name = "ec-sysop"
 path = "src/main.rs"
 
 [dependencies]
-ec-cli = { path = "../ec-cli" }
 ec-data = { path = "../ec-data" }
+ec-engine = { path = "../ec-engine" }
 ec-gate = { path = "../ec-gate" }
 ec-log = { path = "../ec-log" }
 ec-nostr = { path = "../ec-nostr" }

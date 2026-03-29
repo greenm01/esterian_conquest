@@ -8,7 +8,7 @@ pub mod io;
 
 use std::path::PathBuf;
 
-pub use io::{config_path, load_config, parse_config_str};
+pub use io::{config_path, load_config, parse_config_str, render_config, save_config};
 
 pub const DEFAULT_EC_GAME_PATH: &str = "/usr/local/bin/ec-game";
 

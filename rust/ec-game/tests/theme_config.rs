@@ -7,8 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ec_game::screen::GameColor;
 use ec_game::theme::classic;
 use ec_game::theme::{
-    ansi_mode, bundled_theme_file_names, bundled_theme_kdl, initialize_from_game_dir,
-    load_theme_from_path, toggle_ansi_mode, AnsiMode,
+    AnsiMode, ansi_mode, bundled_theme_file_names, bundled_theme_kdl, initialize_from_game_dir,
+    load_theme_from_path, toggle_ansi_mode,
 };
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -35,55 +35,34 @@ fn temp_game_dir(label: &str) -> PathBuf {
     dir
 }
 
-// ─── Bootstrap ────────────────────────────────────────────────────────────────
+// ─── Bundled discovery ────────────────────────────────────────────────────────
 
 #[test]
-fn game_dir_bootstraps_theme_kdl_when_absent() {
+fn game_dir_uses_bundled_themes_without_creating_theme_files() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-bootstrap");
 
     initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
 
-    let theme_file = game_dir.join("themes").join("tokyo_night.kdl");
+    assert_eq!(classic::logo_style().fg, GameColor::Rgb(122, 162, 247));
     assert!(
-        theme_file.exists(),
-        "themes/tokyo_night.kdl should be bootstrapped"
+        fs::read_dir(&game_dir).expect("read dir").next().is_none(),
+        "DB-only runtime should not create theme files"
     );
-    assert_eq!(
-        fs::read_to_string(&theme_file).expect("read bootstrapped theme"),
-        bundled_theme_kdl()
-    );
-    for name in bundled_theme_file_names() {
-        assert!(
-            game_dir.join("themes").join(name).exists(),
-            "bootstrapped themes should include {name}"
-        );
-    }
 }
 
 #[test]
-fn game_dir_always_refreshes_bundled_themes_in_themes_dir() {
+fn discover_theme_entries_lists_bundled_themes_without_paths() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-existing");
 
-    // Write a stale/custom version of a bundled theme into themes/
-    let stale = bundled_theme_kdl().replace(
-        "style \"logo\" {\n    fg \"#7aa2f7\"",
-        "style \"logo\" {\n    fg \"bright_cyan\"",
-    );
-    let themes_dir = game_dir.join("themes");
-    fs::create_dir_all(&themes_dir).expect("create themes dir");
-    fs::write(themes_dir.join("tokyo_night.kdl"), &stale).expect("write stale theme");
-
-    initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
-
-    // Bundled file must be refreshed to current bundled content, not left stale
-    assert_eq!(
-        fs::read_to_string(themes_dir.join("tokyo_night.kdl")).expect("read theme"),
-        bundled_theme_kdl()
-    );
-    // Active theme reflects the bundled default, not the stale custom version
-    assert_eq!(classic::logo_style().fg, GameColor::Rgb(122, 162, 247));
+    let entries = ec_game::theme::discover_theme_entries(&game_dir).expect("discover themes");
+    let bundled = entries
+        .into_iter()
+        .filter(|entry| entry.kind == ec_game::theme::ThemeEntryKind::Theme)
+        .collect::<Vec<_>>();
+    assert_eq!(bundled.len(), bundled_theme_file_names().len());
+    assert!(bundled.iter().all(|entry| entry.path.is_none()));
 }
 
 // ─── config.kdl theme directive ───────────────────────────────────────────────
@@ -112,8 +91,6 @@ fn config_kdl_absent_falls_back_to_themes_default() {
     let _guard = theme_test_guard();
     let game_dir = temp_game_dir("ec-theme-fallback");
 
-    // No config.kdl; no pre-existing themes dir.
-    // Should bootstrap themes/ and load themes/tokyo_night.kdl (bundled default).
     initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
     assert_eq!(classic::logo_style().fg, GameColor::Rgb(122, 162, 247));
 }
@@ -135,13 +112,11 @@ fn invalid_theme_falls_back_to_bundled_default() {
     load_theme_from_path(&custom_path).expect("load custom theme");
     assert_eq!(classic::logo_style().fg, GameColor::BrightCyan);
 
-    // Point config at a bad custom file (not in themes/; won't be overwritten by bootstrap)
     let bad_path = game_dir.join("bad-theme.kdl");
     fs::write(&bad_path, "this is not valid kdl").expect("write bad theme");
 
     initialize_from_game_dir(&game_dir, Some(PathBuf::from("bad-theme.kdl")))
         .expect("initialize with invalid theme");
-    // Should silently fall back to bundled default (tokyo_night)
     assert_eq!(classic::logo_style().fg, GameColor::Rgb(122, 162, 247));
 }
 

@@ -35,6 +35,8 @@ use crate::serve::routing::ResolvedSeat;
 pub struct ProvisionedKey {
     /// Unique identifier for this key entry (hex timestamp + random bytes).
     pub key_id: String,
+    /// Database-backed session token passed to the forced ec-game command.
+    pub session_token: String,
     /// The full authorized-keys entry text (single line for `Command` method;
     /// bracketed block for `File` method).
     pub entry: String,
@@ -80,6 +82,7 @@ pub fn provision_key(
     seat: &ResolvedSeat,
     ssh_pubkey: &str,
     game_dir: &std::path::Path,
+    session_token: &str,
 ) -> Result<ProvisionedKey, ProvisionError> {
     let key_id = new_key_id();
     let now = unix_now();
@@ -90,10 +93,11 @@ pub fn provision_key(
     // The shell runs ec-game as a subprocess; the extra shell process is
     // negligible and this works correctly on all POSIX shells and fish.
     let command = format!(
-        "{} --dir {} --player {}",
+        "{} --dir {} --player {} --session-token {}",
         config.ec_game_path.display(),
         game_dir.display(),
-        seat.player
+        seat.player,
+        session_token
     );
     let restrictions = "no-port-forwarding,no-X11-forwarding,no-agent-forwarding";
     let key_line = format!(r#"command="{command}",{restrictions} {ssh_pubkey}"#);
@@ -109,9 +113,17 @@ pub fn provision_key(
 
     Ok(ProvisionedKey {
         key_id,
+        session_token: session_token.to_string(),
         entry: key_line,
         expires_at,
     })
+}
+
+pub fn new_session_token() -> String {
+    let mut rng = rand::rngs::StdRng::from_entropy();
+    let mut buf = [0u8; 16];
+    rng.fill_bytes(&mut buf);
+    buf.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 /// Remove a provisioned key entry by its key ID.

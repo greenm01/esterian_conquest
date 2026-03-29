@@ -63,7 +63,7 @@ Running `init` again is safe and will not overwrite an existing identity.
 Each hosted game stores its seat claims in the campaign database:
 
 ```
-/srv/ec/friday-night/ecgame.db
+/srv/ec/games/friday-night/ecgame.db
 ```
 
 The hosted-seat rows track the player seat, current invite code, claim
@@ -75,8 +75,8 @@ Fields:
 | Field | Description |
 |-------|-------------|
 | `id` | Game identifier slug, derived from the directory name. Unique across all games on the server. Used in `game-id` tags for disambiguation. |
-| `name` | Human-readable game name, loaded from `config.kdl` `game_name`. |
-| `player` | Player seat index (1-based, matches `--player-record-index-1-based`) |
+| `name` | Human-readable game name, loaded from the campaign settings rows in `ecgame.db`. |
+| `player` | Player seat index (1-based, matches `ec-game --player <N>`) |
 | `code` | Current invite code for this seat |
 | `status` | `pending` (unclaimed) or `claimed` (bound to npub) |
 | `npub` | Player's Nostr public key (present only when claimed) |
@@ -84,7 +84,7 @@ Fields:
 ### Game ID Slugs
 
 The game ID is a short slug derived from the game directory name. For
-example, `/srv/ec/friday-night` produces `friday-night`. Slugs are
+example, `/srv/ec/games/friday-night` produces `friday-night`. Slugs are
 lowercase, alphanumeric with hyphens, and unique across all games managed
 by the same `ec-gate` instance.
 
@@ -107,14 +107,15 @@ are two words from the Monero mnemonic wordlist (1626 words), hyphenated
 and lowercase.
 
 ```
-$ ec-sysop new-game /srv/ec/friday-night --players 4 --seed 1515
-$ ec-sysop nostr seats --dir /srv/ec/friday-night
+$ ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4 --seed 1515
+$ ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+$ ec-sysop nostr seats --dir /srv/ec/games/friday-night
 Game: Friday Night EC
-Dir: /srv/ec/friday-night
-Seat  1: pending velvet-mountain
-Seat  2: pending copper-sunrise
-Seat  3: pending amber-cascade
-Seat  4: pending silver-meadow
+Dir:  /srv/ec/games/friday-night
+
+Seat 1  [pending]
+  ec-connect --join ecinv1...
+  velvet-mountain@play.example.com --relay wss://relay.example.com --gate npub1...
 ```
 
 The sysop shares the invite code and relay URL with each player. The relay is
@@ -141,7 +142,7 @@ If a player loses their identity and needs a new invite code for their
 seat:
 
 ```
-$ ec-sysop nostr reissue --dir /srv/ec/friday-night --player 2
+$ ec-sysop nostr reissue --dir /srv/ec/games/friday-night --player 2
 Reissued invite for seat 2: jade-river
 ```
 
@@ -220,7 +221,7 @@ key to connect and run `ec-game` for the correct seat.
 2. `ec-gate` writes an authorized key entry restricted with `command=`:
 
    ```
-   command="/usr/local/bin/ec-game --game-dir /srv/ec/friday-night --player-record-index-1-based 2",no-port-forwarding,no-X11-forwarding,no-agent-forwarding <ephemeral-pubkey>
+   command="/usr/local/bin/ec-game --dir /srv/ec/games/friday-night --player 2 --session-token 4d9f...",no-port-forwarding,no-X11-forwarding,no-agent-forwarding <ephemeral-pubkey>
    ```
 
 3. The entry is written to the authorized keys store for the `ecgame`
@@ -331,9 +332,9 @@ auth-keys-path "/var/lib/ec-gate/keys"
 // Ephemeral key TTL in seconds
 key-ttl 60
 
-// Game directories to serve
-game "/srv/ec/friday-night"
-game "/srv/ec/saturday-showdown"
+// Game directories to serve. Zero or more entries are valid.
+game "/srv/ec/games/friday-night"
+game "/srv/ec/games/saturday-showdown"
 ```
 
 ## Multi-Game Support
@@ -343,8 +344,8 @@ has its own hosted-seat rows in `ecgame.db` with its own invite codes and
 game ID slug.
 
 On startup, `ec-gate` loads the hosted-seat snapshot for each configured
-game from `ecgame.db` plus the human-readable `game_name` from
-`config.kdl`.
+game from `ecgame.db` plus the human-readable `game_name` from the campaign
+settings rows in that same database.
 
 When invite codes are claimed or seats are reissued, `ec-gate` and
 `ec-sysop` update the SQLite-backed hosted-seat rows directly.
@@ -382,9 +383,13 @@ if the admin prefers fully private games.
 3. Create the `ecgame` system user
 4. Configure sshd for the `ecgame` user (see sshd integration above)
 5. Create games with `ec-sysop new-game`
-6. Configure `ec-gate` with relay URL and game directories
+6. Register the game directories in `/etc/ec-gate/config.kdl`
 7. Start the daemon with `ec-sysop nostr serve` (systemd unit recommended)
 8. Share invite codes with players
+
+For a fresh VPS host, `scripts/install_vps.sh` can bootstrap the standard
+filesystem layout, install the binaries under `/usr/local/bin`, write the
+systemd units, and initialize `/etc/ec-gate/identity.kdl`.
 
 ### systemd Unit
 

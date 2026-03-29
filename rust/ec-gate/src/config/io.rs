@@ -1,6 +1,7 @@
 //! KDL serialization for `config.kdl`, plus path resolution.
 
 use std::fs;
+use std::io::Write as IoWrite;
 use std::path::{Path, PathBuf};
 
 use super::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
@@ -30,6 +31,32 @@ pub fn load_config(path: &Path) -> Result<GateConfig, Box<dyn std::error::Error>
         fs::read_to_string(path).map_err(|err| format!("cannot read {}: {err}", path.display()))?;
     parse_config_str(&text)
         .map_err(|err| format!("invalid config at {}: {err}", path.display()).into())
+}
+
+/// Save the gate config to `path` atomically.
+pub fn save_config(path: &Path, config: &GateConfig) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("cannot create directory {}: {err}", parent.display()))?;
+    }
+    let content = render_config(config);
+    let tmp = path.with_extension("kdl.tmp");
+    {
+        let mut file = fs::File::create(&tmp)
+            .map_err(|err| format!("cannot create temp file {}: {err}", tmp.display()))?;
+        file.write_all(content.as_bytes())
+            .map_err(|err| format!("write error {}: {err}", tmp.display()))?;
+        file.flush()
+            .map_err(|err| format!("flush error {}: {err}", tmp.display()))?;
+    }
+    fs::rename(&tmp, path).map_err(|err| {
+        format!(
+            "cannot rename {} -> {}: {err}",
+            tmp.display(),
+            path.display()
+        )
+    })?;
+    Ok(())
 }
 
 /// Parse a `GateConfig` from KDL source text.
@@ -70,10 +97,6 @@ pub fn parse_config_str(text: &str) -> Result<GateConfig, String> {
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    if games.is_empty() {
-        return Err("config must include at least one `game` directory".to_string());
-    }
-
     Ok(GateConfig {
         relay,
         ssh_host,
@@ -85,6 +108,39 @@ pub fn parse_config_str(text: &str) -> Result<GateConfig, String> {
         key_ttl,
         games,
     })
+}
+
+/// Render a `GateConfig` back to KDL source text.
+pub fn render_config(config: &GateConfig) -> String {
+    let auth_keys_method = match config.auth_keys_method {
+        AuthKeysMethod::Command => "command",
+        AuthKeysMethod::File => "file",
+    };
+
+    let mut out = String::new();
+    out.push_str(&format!("relay \"{}\"\n", kdl_escape(&config.relay)));
+    out.push_str(&format!("ssh-host \"{}\"\n", kdl_escape(&config.ssh_host)));
+    out.push_str(&format!("ssh-port {}\n", config.ssh_port));
+    out.push_str(&format!("ssh-user \"{}\"\n", kdl_escape(&config.ssh_user)));
+    if config.ec_game_path != PathBuf::from(DEFAULT_EC_GAME_PATH) {
+        out.push_str(&format!(
+            "ec-game-path \"{}\"\n",
+            kdl_escape(&config.ec_game_path.display().to_string())
+        ));
+    }
+    out.push_str(&format!("auth-keys-method \"{}\"\n", auth_keys_method));
+    out.push_str(&format!(
+        "auth-keys-path \"{}\"\n",
+        kdl_escape(&config.auth_keys_path.display().to_string())
+    ));
+    out.push_str(&format!("key-ttl {}\n", config.key_ttl));
+    for game in &config.games {
+        out.push_str(&format!(
+            "game \"{}\"\n",
+            kdl_escape(&game.display().to_string())
+        ));
+    }
+    out
 }
 
 fn opt_top_string(doc: &kdl::KdlDocument, name: &str) -> Result<Option<String>, String> {
@@ -138,4 +194,8 @@ fn top_u64(doc: &kdl::KdlDocument, name: &str) -> Result<u64, String> {
         .and_then(|e| e.value().as_integer())
         .ok_or_else(|| format!("`{name}` must have an integer argument"))?;
     u64::try_from(n).map_err(|_| format!("`{name}` value {n} is out of range for u64"))
+}
+
+fn kdl_escape(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }

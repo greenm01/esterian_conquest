@@ -843,8 +843,8 @@ dependencies = [
 name = "ec-sysop"
 version = "1.0.0-beta.1"
 dependencies = [
- "ec-cli",
  "ec-data",
+ "ec-engine",
  "ec-gate",
  "ec-log",
  "ec-nostr",

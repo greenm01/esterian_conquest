@@ -38,7 +38,7 @@ pub struct AppConfig {
     /// Session time limit in seconds sourced from `--timeout` or a dropfile.
     /// `None` means no limit.
     pub session_timeout_secs: Option<u32>,
-    /// Runtime configuration loaded from `config.kdl`.
+    /// Runtime configuration materialized from campaign settings in `ecgame.db`.
     pub game_config: GameConfig,
 }
 
@@ -137,8 +137,9 @@ impl App {
         let queued_mail = runtime_state.queued_mail;
         let planet_scorch_orders = runtime_state.planet_scorch_orders;
 
-        // Apply config.kdl overrides to game_data.  Only save a new snapshot
-        // if any field actually changed, to avoid churn on clean starts.
+        // Apply campaign-setting overrides to game_data. Only save a new
+        // snapshot if any field actually changed, to avoid churn on clean
+        // starts.
         let (game_data, snapshot_id) = apply_game_config_overrides(
             runtime_state.game_data,
             &config.game_config,
@@ -285,7 +286,7 @@ fn apply_player_theme_preference(
     Ok(())
 }
 
-/// Apply `config.kdl` operational settings to `game_data.setup`.
+/// Apply runtime operational settings to `game_data.setup`.
 ///
 /// If any SetupDat byte changed, save a new snapshot so the engine always
 /// sees the current config on the next run.  Returns the (possibly updated)

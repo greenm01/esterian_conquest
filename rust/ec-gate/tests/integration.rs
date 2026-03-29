@@ -4,16 +4,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_data::{CampaignStore, GameConfig, HostedSeat, HostedSeatStatus};
+use ec_data::{CampaignSettings, CampaignStore, HostedSeat, HostedSeatStatus};
 use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
 use ec_gate::serve::catalog::{HostedGame, HostedGameEntry};
 use ec_gate::serve::game_def::build_game_def_tags;
 use ec_gate::serve::provision::{provision_key, reap_expired_keys, remove_key};
 use ec_gate::serve::request::parse_session_request;
-use ec_nostr::hash::sha256_hex;
-use ec_nostr::timing::MAX_EVENT_AGE_SECS;
 use ec_gate::serve::response::{SessionReadyPayload, session_error_payload};
 use ec_gate::serve::routing::{RouteError, RoutingDecision, route};
+use ec_nostr::hash::sha256_hex;
+use ec_nostr::timing::MAX_EVENT_AGE_SECS;
 use nostr_sdk::nips::nip44;
 use nostr_sdk::nips::nip44::Version;
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
@@ -38,12 +38,10 @@ fn hosted_game_entry(
     name: &str,
     seats: Vec<HostedSeat>,
 ) -> HostedGameEntry {
-    let config = GameConfig {
-        game_name: name.to_string(),
-        ..GameConfig::default()
-    };
-    config.save_kdl(&dir.join("config.kdl")).unwrap();
     let store = CampaignStore::open_default_in_dir(dir).unwrap();
+    store
+        .save_campaign_settings(&CampaignSettings::new(id, name))
+        .unwrap();
     store.replace_hosted_seats(&seats).unwrap();
     HostedGameEntry {
         dir: dir.to_path_buf(),
@@ -153,7 +151,8 @@ fn full_pipeline_first_time_join_with_invite_code() {
     assert_eq!(claimed.player_npub.as_deref(), Some(player_hex.as_str()));
 
     let config = gate_config_command(keys_dir);
-    let provisioned = provision_key(&config, &seat, ssh_pubkey, &game_dir).unwrap();
+    let provisioned =
+        provision_key(&config, &seat, ssh_pubkey, &game_dir, "session-test-token").unwrap();
     let key_file = config
         .auth_keys_path
         .join(format!("{}.key", provisioned.key_id));
@@ -321,7 +320,14 @@ fn full_pipeline_game_definition_tags_four_seat_game() {
     };
 
     let gate_keys = Keys::generate();
-    let tags = build_game_def_tags(&game, "play.example.com", 22, "wss://relay.example.com:7777", &gate_keys.public_key()).unwrap();
+    let tags = build_game_def_tags(
+        &game,
+        "play.example.com",
+        22,
+        "wss://relay.example.com:7777",
+        &gate_keys.public_key(),
+    )
+    .unwrap();
     let tag_vecs: Vec<Vec<String>> = tags.iter().map(|tag| tag.clone().to_vec()).collect();
     let d = tag_vecs.iter().find(|tag| tag[0] == "d").unwrap();
     assert_eq!(d[1], "friday-night");
@@ -361,11 +367,19 @@ fn full_pipeline_reaper_cleans_expired_while_leaving_live() {
     let ssh_b = "ssh-ed25519 AAAA666666666666666666666666666666666666666666666666666 expired";
 
     let config_live = gate_config_command(keys_dir.clone());
-    let key_live = provision_key(&config_live, &seat_live, ssh_a, &game_dir).unwrap();
+    let key_live =
+        provision_key(&config_live, &seat_live, ssh_a, &game_dir, "session-live").unwrap();
 
     let mut config_expired = gate_config_command(keys_dir.clone());
     config_expired.key_ttl = 0;
-    let key_expired = provision_key(&config_expired, &seat_expired, ssh_b, &game_dir).unwrap();
+    let key_expired = provision_key(
+        &config_expired,
+        &seat_expired,
+        ssh_b,
+        &game_dir,
+        "session-expired",
+    )
+    .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(1));
 

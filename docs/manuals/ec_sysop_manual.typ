@@ -156,10 +156,6 @@ looks like:
 ```
 /path/to/mygame/
   ecgame.db          runtime database (SQLite)
-  config.kdl         sysop runtime config (bootstrapped on first run)
-  themes/            theme directory (bootstrapped with tokyo_night plus bundled alternates)
-  exports/           default export root for classic .DAT output
-  queue/             default turn order queue directory
 ```
 
 All tools take `--dir /path/to/mygame` to locate the game.
@@ -169,27 +165,35 @@ All tools take `--dir /path/to/mygame` to locate the game.
 Create a new game with `ec-sysop new-game`:
 
 ```
-ec-sysop new-game /path/to/mygame --players 4
+ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 ```
 
-This creates a fresh campaign directory with `ecgame.db`, classic auxiliary
-files, `config.kdl`, and a `themes/` subdirectory containing the bootstrapped
-theme files shipped with `ec-game`.
+This creates a fresh DB-only campaign directory containing exactly one runtime
+file: `ecgame.db`.
 
-`config.kdl` is the only sysop-edited KDL file in the public workflow.
-An internal `ec-cli` setup-preset format still exists for reproducible tests
-and harness work, but normal sysop operation does not use it.
+`ec-sysop new-game` does not generate classic `.DAT` files, does not copy the
+original DOS executables or `.DOC` manuals, and does not bootstrap
+`config.kdl` or a `themes/` subdirectory. Hosted Rust campaigns are SQLite-
+native. Classic import/export and oracle tooling remain available separately on
+the developer/compatibility boundary.
 
 The supported public creation flags are:
 
 #table(
   columns: (auto, auto, 1fr),
   [*Flag*], [*Type*], [*Description*],
+  [`--name`], [string], [Optional human-readable game title stored in `ecgame.db`. If omitted, `ec-sysop` derives a title from the directory slug.],
   [`--players`], [integer], [Number of empires. Supported range: 1–25. Defaults to `4`.],
+  [`--year`], [integer], [Optional starting campaign year. Defaults to `3000`.],
   [`--seed`], [integer], [Optional integer seed for the campaign RNG. Controls map layout, starting positions, and all random events. If omitted, the engine picks a random seed and saves it to `ecgame.db`. The seed cannot be changed after creation.],
 )
 
 #admonition("NOTE")[Use a different seed for every game. Reusing the same seed produces the same map, starting positions, and event sequence every time.]
+
+The target directory basename becomes the stable game slug. It must use only
+lowercase ASCII letters, digits, and dashes. The slug is distinct from the
+human-readable `game_name`, and both are distinct from the per-seat invite
+codes used by `ec-connect`.
 
 == Recommended Hosted Play
 
@@ -204,7 +208,8 @@ BBS door middleware.
 A minimal hosted setup looks like:
 
 ```
-ec-sysop new-game /path/to/mygame --players 4
+ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
+ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
 ec-sysop nostr init
 ec-sysop nostr serve
 ```
@@ -277,14 +282,6 @@ authority for invite codes, claim status, and bound player `npub`s. Legacy
   edit manually; use `ec-sysop` for normal operator actions.
   Hosted Nostr seat claims also live here.
 
-/ `themes/`: Theme KDL files for `ec-game`. Bootstrapped on first run with
-  `themes/tokyo_night.kdl` (the default) plus the other bundled alternates.
-  Sysop-owned once created; not silently overwritten. See @theming.
-
-/ `config.kdl`: Sysop runtime configuration. Bootstrapped from the bundled
-  default on first run. Edit to change snoop mode, session timeouts,
-  inactivity thresholds, game name, or theme path. See @configuration.
-
 == Subdirectories
 
 / `exports/`: Default root for classic `.DAT` export output. Can be overridden
@@ -297,66 +294,48 @@ authority for invite codes, claim status, and bound player `npub`s. Legacy
 
 = Configuration <configuration>
 
-== config.kdl
+Hosted Rust campaigns do not use a per-game `config.kdl`. Sysop-editable
+runtime policy now lives in SQLite alongside the rest of the campaign state.
+Use `ec-sysop settings ...` to inspect or change it:
 
-`config.kdl` is the sysop runtime configuration file. It lives in the game
-directory alongside `ecgame.db`. If absent when `ec-game` starts, it is
-bootstrapped from the bundled default automatically.
-
-Changes to `config.kdl` take effect on the next `ec-game` startup. The
-runtime policy settings backed by `SETUP.DAT` bytes are applied into the
-runtime database at that point; no manual database edits are required.
+```
+ec-sysop settings show --dir /srv/ec/games/friday-night
+ec-sysop settings set --dir /srv/ec/games/friday-night --game-name "Friday Night EC"
+ec-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SYSOP
+```
 
 === Full Example
 
-```kdl
-// Display name shown in the main menu header.
-game_name "Esterian Conquest"
-
-// Theme file (relative to game directory, or absolute path).
-// Shipped themes live under themes/. Tokyo Night is the default.
-// Omit to use themes/tokyo_night.kdl.
-// theme "themes/tokyo_night.kdl"
-
-// Sysop snoop: set to #false to disable.
-snoop #true
-
-// Session timeout and timing policies.
-session {
-    // Minutes of inactivity before timeout (0–120).
-    max_idle_minutes 10
-    // Minimum time granted per session in minutes (0–120).
-    minimum_time_minutes 0
-    // Apply timeout to local (non-remote) sessions.
-    local_timeout #false
-    // Apply timeout to remote sessions.
-    remote_timeout #true
-}
-
-// Inactivity thresholds (in turns). Set to 0 to disable.
-inactivity {
-    // Purge a player after this many inactive turns (0–100).
-    purge_after_turns 0
-    // Put a player on autopilot after this many inactive turns (0–100).
-    autopilot_after_turns 0
-}
-
-// Optional BBS/dropfile seat reservations by caller alias.
-reservations {
-    seat player=1 alias="SYSOP"
-    seat player=2 alias="NightShade"
-}
+```text
+slug=friday-night
+game_name=Friday Night EC
+default_theme_key=tokyo_night
+snoop=true
+session_max_idle_minutes=10
+session_minimum_time_minutes=0
+session_local_timeout=false
+session_remote_timeout=true
+inactivity_purge_after_turns=0
+inactivity_autopilot_after_turns=0
+maintenance_enabled=true
+maintenance_interval_minutes=10080
+maintenance_next_due_unix_seconds=1775347200
+reservation seat=1 alias=SYSOP
+reservation seat=2 alias=NightShade
 ```
 
-=== Top-Level Fields
+=== Stored Fields
 
 #table(
   columns: (auto, auto, auto, 1fr),
   [*Field*], [*Type*], [*Default*], [*Description*],
   [`game_name`], [string], [`"Esterian Conquest"`], [Display name shown in the main menu header.],
-  [`theme`], [string], [_(absent)_], [Theme file path, relative to the game directory. Omit to use `themes/tokyo_night.kdl`. Example: `"themes/gruvbox.kdl"`.],
+  [`default_theme_key`], [string], [`"tokyo_night"`], [Bundled campaign theme key used as the default for local/SSH play.],
   [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
-  [`reservations`], [block], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
+  [`reservations`], [rows], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
+  [`maintenance_enabled`], [bool], [`#true`], [Whether `maint-all` should advance this game when it becomes due.],
+  [`maintenance_interval_minutes`], [integer], [`10080`], [Maintenance cadence in minutes. `10080` = one week.],
+  [`maintenance_next_due_unix_seconds`], [integer], [_(auto)_], [Next scheduled maintenance time as a Unix timestamp.],
 )
 
 === `session` Block
@@ -388,9 +367,9 @@ reservations {
 )
 
 #admonition("NOTE")[
-  `config.kdl` is for sysop use only. Players do not interact with it.
-  Fields not present in the file use their default values. Omitting a field
-  is equivalent to setting it to its default.
+  `ec-sysop settings import-kdl --dir <game_dir>` still exists as a one-time
+  migration tool for older beta campaigns that carried a per-game `config.kdl`.
+  Normal hosted Rust campaigns do not depend on that file at runtime.
 ]
 
 == Environment Variables
@@ -408,26 +387,19 @@ reservations {
 
 = Theming <theming>
 
-`ec-game` uses a file-driven theme system. `config.kdl` defines the campaign's
-default theme, while local-terminal players can choose among the available
-themes from the client's `C>olor Theme` picker. Each player's last local theme
-choice is saved in `ecgame.db` as a per-player preference rather than by
-rewriting theme files. In BBS door mode, the client keeps the classic
-`A>nsi color ON/OFF` toggle and starts from the campaign default theme.
+`ec-game` uses bundled built-in themes. The campaign default theme is stored by
+key in `ecgame.db`, while each player's local choice is stored there as a
+per-player preference. Hosted Rust campaigns do not require a per-game
+`themes/` directory.
 
-== Theme File Location
+== Theme Selection
 
 `ec-game` resolves the theme in this order:
 
-1. If `<game_dir>/config.kdl` contains a `theme` directive, use that path
-   (relative to `game_dir`).
-2. Otherwise, use `<game_dir>/themes/tokyo_night.kdl`.
-3. If `themes/tokyo_night.kdl` does not exist, create the `themes/` directory and
-   bootstrap it from the bundled default.
-
-`config.kdl` itself is bootstrapped on first run if absent, so it is always
-present by the time this resolution runs. The `theme` directive within it is
-optional; omitting it falls through to step 2.
+1. If the player has a saved theme preference in `ecgame.db`, use that key.
+2. Otherwise, use the campaign `default_theme_key` from `ecgame.db`.
+3. If the stored key is missing or invalid, fall back to the bundled
+   `tokyo_night` theme.
 
 On parse error, the bundled default is used so a corrupted theme never
 prevents players from connecting.
@@ -435,13 +407,12 @@ prevents players from connecting.
 == Player Theme Picker
 
 From the Main Menu and First Time Menu in local-terminal sessions, players can
-open `C>olor Theme` to preview and apply the themes currently available in
-`<game_dir>/themes/`. The picker stays open after `Enter` so players can try
+open `C>olor Theme` to preview and apply the bundled themes shipped with
+`ec-game`. The picker stays open after `Enter` so players can try
 several looks before returning to the menu with `Q`.
 
-The picker exposes all file-backed themes currently present in `themes/`,
-including the bundled `tokyo_night` theme and the additional shipped alternates.
-It also exposes a synthetic `Mono` option, which applies a monochrome
+The picker exposes the compiled-in theme set plus a synthetic `Mono` option,
+which applies a monochrome
 projection over the current theme for players who prefer a plain white-on-black
 display.
 
@@ -450,38 +421,9 @@ preference in `ecgame.db`. A player choosing a theme from First Time Menu
 before fully joining uses it for that session, and the preference is saved when
 the join finishes successfully.
 
-If a stored player theme key later points to a missing or invalid file,
+If a stored player theme key later points to a missing or invalid theme,
 `ec-game` falls back to `tokyo_night` automatically. If a color theme still cannot
 be materialized, `Mono` remains the safe last-resort display.
-
-== Theme File Format
-
-A theme file is a KDL document. Each visual element is declared as a `style`
-node with a name and child `fg`, `bg`, and optional `bold` fields.
-
-```kdl
-style "body" {
-    fg "white"
-    bg "black"
-}
-
-style "logo" {
-    fg "bright_blue"
-    bg "black"
-    bold #true
-}
-
-style "selected" {
-    fg "black"
-    bg "bright_blue"
-}
-```
-
-The star decoration colors are declared separately:
-
-```kdl
-star-colors "bright_blue" "bright_white" "white" "bright_yellow" "yellow" "bright_red"
-```
 
 == Color Formats
 
@@ -495,15 +437,14 @@ Three color formats are supported:
   [24-bit hex RGB], [`"#ff8800"`], [Requires `--color-mode truecolor`. Downgraded gracefully in lower color modes.],
 )
 
-`themes/tokyo_night.kdl` is the default: a rich dark palette using 24-bit hex
+`tokyo_night` is the default: a rich dark palette using 24-bit hex
 colors for modern SSH and local terminals, downgraded gracefully to 256-color
-or named ANSI-16 on terminals that do not support truecolor. `themes/mag16.kdl`
+or named ANSI-16 on terminals that do not support truecolor. `mag16`
 is the ANSI-16 native alternative: a restrained dark palette using only named
 16-color values, safe for all terminal types including BBS door clients.
-The shipped bundle also includes several other alternates. All hex colors
+The bundled theme set includes several other alternates. All hex colors
 degrade gracefully — they are automatically mapped to the nearest 256-color
-index or 16-color name when needed. Custom themes may use any of the three
-color formats.
+index or 16-color name when needed.
 
 == Color Mode
 
@@ -682,14 +623,12 @@ flags always override drop file values. When `--dropfile` is given and
 
 `--timeout <minutes>` sets a session time limit independently of a drop file.
 
-Reserve seats in `config.kdl` when you want the caller alias to determine the
+Reserve seats in `ecgame.db` when you want the caller alias to determine the
 empire automatically:
 
-```kdl
-reservations {
-  seat player=1 alias="SYSOP"
-  seat player=2 alias="NightShade"
-}
+```sh
+ec-sysop settings reserve --dir /path/to/mygame --player 1 --alias SYSOP
+ec-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 With that in place, a reserved caller can launch with `--dropfile` alone.
@@ -711,7 +650,7 @@ For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
 `io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
 `--encoding cp437`, and `--color-mode ansi16` to the client, or use the
 helper wrapper at `tools/bbs/run_ec_rust.sh`. Use `--player` for unreserved
-callers, or reserve the alias in `config.kdl` and let `--dropfile` resolve
+callers, or reserve the alias in `ecgame.db` and let `--dropfile` resolve
 the seat.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
@@ -785,6 +724,7 @@ Run yearly maintenance with:
 
 ```
 ec-sysop maint /path/to/mygame [turns]
+ec-sysop maint-all [--config /etc/ec-gate/config.kdl]
 ```
 
 `ec-sysop maint` advances the campaign in `ecgame.db`. EC does not schedule
@@ -796,15 +736,20 @@ host scheduler or BBS tooling:
 - a BBS event runner
 - or manual sysop operation
 
-Do not treat KDL config as a scheduler. `config.kdl` owns runtime policy such
-as theming, snoop, and inactivity thresholds. Maintenance timing belongs to
-the host.
+For multi-game Nostr hosting, prefer a single global timer that runs
+`ec-sysop maint-all`. It reads the configured game directories from the gate
+config, skips games whose next due time has not arrived yet, and also skips
+games with live session leases so a player is never interrupted by maintenance.
+
+Do not treat game settings as a scheduler. Campaign policy such as theming,
+snoop, and inactivity thresholds lives in `ecgame.db`; maintenance timing still
+belongs to the host.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
 
 = Player Management
 
-Inactive-player policy is configured in `config.kdl` under the `inactivity`
+Inactive-player policy is configured in `ecgame.db` under the campaign settings
 block. The two public thresholds are:
 
 - `purge_after_turns`
@@ -814,14 +759,11 @@ These values are runtime policy, not setup-time game creation input.
 
 == Reserving Seats
 
-To reserve empire slots for specific BBS users, add a `reservations` block to
-`config.kdl`:
+To reserve empire slots for specific BBS users:
 
-```kdl
-reservations {
-    seat player=1 alias="SYSOP"
-    seat player=2 alias="NightShade"
-}
+```sh
+ec-sysop settings reserve --dir /path/to/mygame --player 1 --alias SYSOP
+ec-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 Each `seat` entry binds one 1-based empire slot to one caller alias. Alias
@@ -840,7 +782,7 @@ Important rules:
 - if the caller alias is reserved, `--player` becomes optional
 - if the caller alias is not reserved, `--player` is still required
 - if both `--player` and `--dropfile` are supplied for a reserved caller, they must match
-- if a reservation conflicts with an already-stored different player handle, `ec-game` will stop with a clear error so the sysop can reconcile `config.kdl` and the runtime state
+- if a reservation conflicts with an already-stored different player handle, `ec-game` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
 
 Reserving a seat does not by itself join or pre-name the empire. It only
 routes the caller to the intended slot. The usual first-time join flow still
@@ -862,7 +804,8 @@ other preservation workflows still exist, but they belong to the internal
 
 = Terminology
 
-/ game directory: The directory containing `ecgame.db` and related files for a
+/ game directory: The directory containing `ecgame.db` and any lazily-created
+  export or queue subdirectories for a
   single running game instance. Passed to all tools via `--dir`.
 
 / `ec-sysop`: The public Rust command-line sysop tool for campaign creation
@@ -878,14 +821,9 @@ other preservation workflows still exist, but they belong to the internal
 / `ecgame.db`: The SQLite database that is the runtime source of truth for the
   Rust engine.
 
-/ `themes/`: Subdirectory containing theme KDL files. `themes/tokyo_night.kdl`
-  is the default and is bootstrapped on first run alongside the other bundled
-  themes. Sysops can add their own theme files here.
-
-/ `config.kdl`: The sysop-managed runtime configuration file in the game
-  directory. Bootstrapped from the bundled default on first run. Controls
-  snoop mode, session timeouts, inactivity thresholds, game name, and theme
-  path. Changes take effect on the next `ec-game` startup.
+/ campaign settings: The sysop-managed runtime policy rows stored in
+  `ecgame.db`. They control game name, snoop mode, theme key, seat
+  reservations, maintenance cadence, and inactivity thresholds.
 
 // ─── 14. CLI Reference ────────────────────────────────────────────────────────
 
@@ -900,13 +838,17 @@ ec-sysop <subcommand> [options]
 #table(
   columns: (auto, 1fr),
   [*Subcommand*], [*Purpose*],
-  [`new-game`], [Create a fresh campaign directory. Public flags: `--players` and `--seed`.],
+  [`new-game`], [Create a fresh DB-only campaign directory. Public flags: `--name`, `--players`, `--year`, and `--seed`.],
+  [`settings show|set|reserve|unreserve`], [Inspect or edit the per-game runtime policy stored in `ecgame.db`.],
+  [`host games list|add|remove`], [Inspect or edit the global game registry in `/etc/ec-gate/config.kdl`.],
+  [`host status`], [Summarize the configured host, served game directories, claim counts, busy state, and maintenance-due state.],
   [`nostr init`], [Initialize the Nostr-hosting identity and config for the recommended public multiplayer path.],
   [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `ec-game` sessions.],
   [`nostr seats`], [List the hosted seat state stored in `ecgame.db` for one game directory.],
   [`nostr reissue`], [Generate a fresh invite code for one hosted seat and clear its old `npub` claim.],
-  [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ecgame.db`, copy its display name into `config.kdl`, and archive the old roster file.],
+  [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ecgame.db`, copy its display name into the campaign settings rows, and archive the old roster file.],
   [`maint`], [Run one or more maintenance turns against `ecgame.db`.],
+  [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions.],
 )
 
 == ec-game
@@ -922,10 +864,11 @@ Interactive client flags:
   columns: (auto, 1fr),
   [*Flag*], [*Description*],
   [`--dir <path>`], [Game directory containing `ecgame.db`. Required.],
-  [`--player <N>`], [1-based empire index. Required unless a reserved dropfile alias resolves the seat from `config.kdl`.],
+  [`--player <N>`], [1-based empire index. Required unless a reserved dropfile alias resolves the seat from `ecgame.db` campaign settings.],
   [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
   [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
-  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through `config.kdl` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
+  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through `ecgame.db` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
+  [`--session-token <hex>`], [Hosted-session lease token injected by `ec-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
   [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
   [`--export-root <path>`], [Override export directory. Default: `<game_dir>/exports`.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
@@ -949,7 +892,7 @@ Interactive client flags:
 = Theme Token Reference
 
 The ANSI-compatible reference palette below matches the bundled `mag16` theme.
-The default bootstrapped game theme is still `tokyo_night.kdl`, but `mag16`
+The default campaign theme key is still `tokyo_night`, but `mag16`
 is a useful baseline because it shows the semantic token split using portable
 named ANSI colors.
 

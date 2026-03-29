@@ -12,12 +12,17 @@ mod metadata;
 mod planet_scorch_orders;
 mod report_blocks;
 mod runtime;
+mod settings;
 mod snapshot_core;
 
 pub use hosted_seats::{ClaimHostedSeatError, HostedSeat, HostedSeatStatus};
+pub use settings::{
+    CampaignSettings, DEFAULT_CAMPAIGN_THEME_KEY, DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
+    SessionLease, SessionLeaseError, SessionLeaseState,
+};
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 5;
+const RUNTIME_SCHEMA_VERSION: i64 = 6;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -295,6 +300,35 @@ impl CampaignStore {
                      OR (claim_status = 'claimed' AND player_npub IS NOT NULL)
                  )
              );
+             CREATE TABLE IF NOT EXISTS campaign_settings (
+                 singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                 slug TEXT NOT NULL,
+                 game_name TEXT NOT NULL,
+                 default_theme_key TEXT NOT NULL,
+                 snoop_enabled INTEGER NOT NULL,
+                 session_max_idle_minutes INTEGER NOT NULL,
+                 session_minimum_time_minutes INTEGER NOT NULL,
+                 session_local_timeout INTEGER NOT NULL,
+                 session_remote_timeout INTEGER NOT NULL,
+                 inactivity_purge_after_turns INTEGER NOT NULL,
+                 inactivity_autopilot_after_turns INTEGER NOT NULL,
+                 maintenance_enabled INTEGER NOT NULL,
+                 maintenance_interval_minutes INTEGER NOT NULL,
+                 maintenance_next_due_unix_seconds INTEGER
+             );
+             CREATE TABLE IF NOT EXISTS seat_reservations (
+                 player_record_index INTEGER PRIMARY KEY,
+                 alias TEXT NOT NULL UNIQUE
+             );
+             CREATE TABLE IF NOT EXISTS active_sessions (
+                 session_token TEXT PRIMARY KEY,
+                 player_record_index INTEGER NOT NULL UNIQUE,
+                 player_npub TEXT NOT NULL,
+                 state TEXT NOT NULL,
+                 started_at INTEGER NOT NULL,
+                 last_heartbeat_at INTEGER NOT NULL,
+                 expires_at INTEGER NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS planet_intel (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  viewer_empire_id INTEGER NOT NULL,
@@ -521,6 +555,9 @@ impl CampaignStore {
         match schema_version {
             Some(found) if found == RUNTIME_SCHEMA_VERSION => {}
             Some(4) => {
+                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
+            }
+            Some(5) => {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(found) => {

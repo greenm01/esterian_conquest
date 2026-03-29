@@ -17,8 +17,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
 BINARIES = ("ec-game", "ec-sysop", "ec-connect")
-THEMES_DIR = RUST_ROOT / "ec-game" / "config" / "themes"
-CONFIG_TEMPLATE = RUST_ROOT / "ec-data" / "config" / "config.kdl"
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_player_manual.pdf"
 SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_sysop_manual.pdf"
 
@@ -210,8 +208,6 @@ It also includes:
 
 - `docs/ec_player_manual.pdf`
 - `docs/ec_sysop_manual.pdf`
-- `themes/` with the bundled theme KDL files
-- `config.kdl`, a sample sysop config template
 - `BUILD-INFO.txt` with version/build metadata for bug reports
 
 ## Quick Start
@@ -219,7 +215,7 @@ It also includes:
 Create a fresh campaign:
 
 ```bash
-./bin/ec-sysop new-game /tmp/ec-game --players 4 --seed 1515
+./bin/ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4 --seed 1515
 ```
 
 Initialize and run the Nostr hosting daemon:
@@ -238,7 +234,7 @@ The recommended player join path is `ec-connect`:
 Run maintenance:
 
 ```bash
-./bin/ec-sysop maint /tmp/ec-game 1
+./bin/ec-sysop maint-all --config /etc/ec-gate/config.kdl
 ```
 
 For localhost or hotseat play, you can still launch the game client directly:
@@ -257,17 +253,9 @@ If you host `ec-game` as a BBS door, the current stable door-mode controls are:
 
 Arrow keys and `PgUp` / `PgDn` are not part of the primary door-mode contract.
 
-## config.kdl
-
-The bundled `config.kdl` is a template for sysops to review or copy. The live
-`config.kdl` for actual play belongs inside each campaign directory, and the
-tools will bootstrap one automatically when needed.
-
-## Themes
-
-The files under `themes/` are the bundled theme KDLs shipped with `ec-game`.
-Campaigns normally keep their active theme files under each game directory's
-own `themes/` subdirectory.
+Hosted Rust campaigns are DB-only. `ec-sysop new-game` creates just
+`<game_dir>/ecgame.db`. The binaries do not require a per-game `config.kdl`
+or `themes/` directory.
 {macos_quarantine_note}
 
 ## Bug Reports
@@ -293,7 +281,6 @@ def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
 def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root: Path) -> Path:
     bundle_root = workspace_root / spec.bundle_root_name
     docs_dir = bundle_root / "docs"
-    themes_dest = bundle_root / "themes"
     bin_dir = bundle_root / "bin"
 
     for name, path in binary_paths.items():
@@ -301,8 +288,6 @@ def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root
 
     copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
     copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
-    copy_file(CONFIG_TEMPLATE, bundle_root / "config.kdl")
-    shutil.copytree(THEMES_DIR, themes_dest, dirs_exist_ok=True)
 
     (bundle_root / "README.md").write_text(package_readme(spec), encoding="utf-8")
     (bundle_root / "BUILD-INFO.txt").write_text(build_info_text(spec), encoding="utf-8")
@@ -328,13 +313,11 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         for relative in (
             "README.md",
             "BUILD-INFO.txt",
-            "config.kdl",
             "docs/ec_player_manual.pdf",
             "docs/ec_sysop_manual.pdf",
             "bin/ec-game",
             "bin/ec-sysop",
             "bin/ec-connect",
-            "themes/tokyo_night.kdl",
         ):
             path = bundle_root / relative
             if not path.exists():

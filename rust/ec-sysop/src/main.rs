@@ -1,8 +1,12 @@
 mod nostr;
 mod usage;
 
+use std::collections::BTreeSet;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use ec_data::{CampaignSettings, CampaignStore, SeatReservation, generate_campaign_seed};
+use ec_engine::{build_seeded_new_game, run_maintenance_turn_with_seed};
 
 #[derive(Clone)]
 struct ParsedArgs {
@@ -39,14 +43,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 usage::print_new_game_usage();
                 return Ok(());
             }
-            if rest.is_empty() {
-                usage::print_new_game_usage();
-                return Err("missing target_dir for new-game".into());
-            }
-            tracing::info!(target_dir = %rest[0], "running ec-sysop new-game");
-            let target_dir = resolve_repo_path(&rest[0]);
-            ec_cli::run_sysop_cli("ec-sysop", std::iter::once(cmd).chain(rest))?;
-            nostr::initialize_hosted_seats_for_new_game(&target_dir)
+            tracing::info!("running ec-sysop new-game");
+            run_new_game(&rest)
         }
         "maint" => {
             init_logging(&parsed, false)?;
@@ -54,12 +52,35 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 usage::print_maint_usage();
                 return Ok(());
             }
-            if rest.is_empty() {
-                usage::print_maint_usage();
-                return Err("missing dir for maint".into());
+            tracing::info!("running ec-sysop maint");
+            run_maint(&rest)
+        }
+        "maint-all" => {
+            init_logging(&parsed, false)?;
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_maint_all_usage();
+                return Ok(());
             }
-            tracing::info!(dir = %rest[0], "running ec-sysop maint");
-            ec_cli::run_maintenance_cli("ec-sysop maint", rest.into_iter())
+            tracing::info!("running ec-sysop maint-all");
+            run_maint_all(&rest)
+        }
+        "settings" => {
+            init_logging(&parsed, false)?;
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_settings_usage();
+                return Ok(());
+            }
+            tracing::info!("running ec-sysop settings");
+            run_settings(&rest)
+        }
+        "host" => {
+            init_logging(&parsed, false)?;
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_host_usage();
+                return Ok(());
+            }
+            tracing::info!("running ec-sysop host");
+            run_host(&rest)
         }
         "nostr" => run_nostr(&parsed, rest),
         _ => {
@@ -67,6 +88,614 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Err(format!("unknown subcommand: {cmd}").into())
         }
     }
+}
+
+fn run_new_game(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(target_arg) = args.first() else {
+        usage::print_new_game_usage();
+        return Err("missing target_dir for new-game".into());
+    };
+    let target_dir = resolve_repo_path(target_arg);
+    let mut player_count = 4u8;
+    let mut seed = None;
+    let mut year = 3000u16;
+    let mut game_name = None;
+    let mut idx = 1;
+    while idx < args.len() {
+        match args[idx].as_str() {
+            "--players" | "-p" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --players".into());
+                };
+                player_count = parse_player_count(value)?;
+                idx += 2;
+            }
+            "--seed" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --seed".into());
+                };
+                seed = Some(value.parse::<u64>()?);
+                idx += 2;
+            }
+            "--year" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --year".into());
+                };
+                year = value.parse::<u16>()?;
+                idx += 2;
+            }
+            "--name" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --name".into());
+                };
+                game_name = Some(value.to_string());
+                idx += 2;
+            }
+            other => {
+                return Err(format!("unexpected argument: {other}").into());
+            }
+        }
+    }
+
+    std::fs::create_dir_all(&target_dir)?;
+    let slug = slug_from_dir(&target_dir)?;
+    let game_name = game_name.unwrap_or_else(|| humanize_slug(&slug));
+    let existing_entries = std::fs::read_dir(&target_dir)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .collect::<Vec<_>>();
+    if existing_entries
+        .iter()
+        .any(|path| path.file_name().and_then(|name| name.to_str()) != Some("ecgame.db"))
+    {
+        return Err(format!(
+            "{} must be empty before creating a DB-only campaign",
+            target_dir.display()
+        )
+        .into());
+    }
+
+    let store = CampaignStore::open_default_in_dir(&target_dir)?;
+    if store.has_snapshots()? {
+        return Err(format!("{} already contains a campaign", target_dir.display()).into());
+    }
+
+    let seed = seed.unwrap_or_else(generate_campaign_seed);
+    let game_data = build_seeded_new_game(player_count, year, seed)?;
+    store.save_runtime_state_structured(&game_data, &BTreeSet::new(), &[], &[])?;
+    store.save_campaign_settings(&CampaignSettings::new(&slug, &game_name))?;
+    store.initialize_hosted_seats_if_empty(&nostr::build_pending_seats(player_count as usize))?;
+
+    println!(
+        "Initialized new game at: {} (name={}, players={}, year={}, seed={})",
+        target_dir.display(),
+        game_name,
+        player_count,
+        year,
+        seed
+    );
+    Ok(())
+}
+
+fn run_maint(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(dir_arg) = args.first() else {
+        usage::print_maint_usage();
+        return Err("missing dir for maint".into());
+    };
+    let dir = resolve_repo_path(dir_arg);
+    let turns = match args.get(1) {
+        Some(value) => value.parse::<u16>()?,
+        None => 1,
+    };
+    if args.len() > 2 {
+        return Err("usage: ec-sysop maint <dir> [turns]".into());
+    }
+    run_maintenance_for_dir(&dir, turns, false)
+}
+
+fn run_maint_all(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = parse_single_path_flag(args, "--config")?;
+    let config_path = config_path.unwrap_or_else(ec_gate::config::config_path);
+    let config = ec_gate::config::load_config(&config_path)?;
+    let now = unix_now();
+    let mut ran = 0usize;
+    let mut skipped_due_busy = 0usize;
+    let mut skipped_not_due = 0usize;
+
+    for dir in &config.games {
+        let store = CampaignStore::open_default_in_dir(dir)?;
+        let settings = store.load_campaign_settings()?;
+        if !settings.maintenance_due_at(now) {
+            skipped_not_due += 1;
+            continue;
+        }
+        if store.has_live_session_leases(now)? {
+            skipped_due_busy += 1;
+            println!("Skipped busy game: {}", dir.display());
+            continue;
+        }
+        run_maintenance_for_dir(dir, 1, true)?;
+        ran += 1;
+    }
+
+    println!(
+        "maint-all complete: ran={}, skipped_busy={}, skipped_not_due={}",
+        ran, skipped_due_busy, skipped_not_due
+    );
+    Ok(())
+}
+
+fn run_settings(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(cmd) = args.first().map(String::as_str) else {
+        usage::print_settings_usage();
+        return Ok(());
+    };
+    match cmd {
+        "show" => {
+            let dir = parse_required_dir_flag(&args[1..])?;
+            let store = CampaignStore::open_default_in_dir(&dir)?;
+            let settings = store.load_campaign_settings()?;
+            println!("slug={}", settings.slug);
+            println!("game_name={}", settings.game_name);
+            println!("default_theme_key={}", settings.default_theme_key);
+            println!("snoop={}", settings.snoop_enabled);
+            println!(
+                "session_max_idle_minutes={}",
+                settings.session_max_idle_minutes
+            );
+            println!(
+                "session_minimum_time_minutes={}",
+                settings.session_minimum_time_minutes
+            );
+            println!("session_local_timeout={}", settings.session_local_timeout);
+            println!("session_remote_timeout={}", settings.session_remote_timeout);
+            println!(
+                "inactivity_purge_after_turns={}",
+                settings.inactivity_purge_after_turns
+            );
+            println!(
+                "inactivity_autopilot_after_turns={}",
+                settings.inactivity_autopilot_after_turns
+            );
+            println!("maintenance_enabled={}", settings.maintenance_enabled);
+            println!(
+                "maintenance_interval_minutes={}",
+                settings.maintenance_interval_minutes
+            );
+            println!(
+                "maintenance_next_due_unix_seconds={}",
+                settings
+                    .maintenance_next_due_unix_seconds
+                    .map(|value| value.to_string())
+                    .unwrap_or_default()
+            );
+            for reservation in settings.reservations {
+                println!(
+                    "reservation seat={} alias={}",
+                    reservation.player_record_index_1_based, reservation.alias
+                );
+            }
+            Ok(())
+        }
+        "set" => {
+            let dir = parse_required_dir_flag(&args[1..])?;
+            let store = CampaignStore::open_default_in_dir(&dir)?;
+            let mut settings = store.load_campaign_settings()?;
+            let mut idx = 1;
+            while idx < args.len() {
+                match args[idx].as_str() {
+                    "--dir" => idx += 2,
+                    "--game-name" => {
+                        settings.game_name = args_value(args, &mut idx, "--game-name")?;
+                    }
+                    "--theme-key" => {
+                        settings.default_theme_key = args_value(args, &mut idx, "--theme-key")?;
+                    }
+                    "--snoop" => {
+                        settings.snoop_enabled =
+                            parse_on_off(&args_value(args, &mut idx, "--snoop")?)?;
+                    }
+                    "--session-max-idle" => {
+                        settings.session_max_idle_minutes =
+                            args_value(args, &mut idx, "--session-max-idle")?.parse::<u8>()?;
+                    }
+                    "--session-minimum-time" => {
+                        settings.session_minimum_time_minutes =
+                            args_value(args, &mut idx, "--session-minimum-time")?.parse::<u8>()?;
+                    }
+                    "--session-local-timeout" => {
+                        settings.session_local_timeout =
+                            parse_on_off(&args_value(args, &mut idx, "--session-local-timeout")?)?;
+                    }
+                    "--session-remote-timeout" => {
+                        settings.session_remote_timeout =
+                            parse_on_off(&args_value(args, &mut idx, "--session-remote-timeout")?)?;
+                    }
+                    "--inactivity-purge-after" => {
+                        settings.inactivity_purge_after_turns =
+                            args_value(args, &mut idx, "--inactivity-purge-after")?
+                                .parse::<u8>()?;
+                    }
+                    "--inactivity-autopilot-after" => {
+                        settings.inactivity_autopilot_after_turns =
+                            args_value(args, &mut idx, "--inactivity-autopilot-after")?
+                                .parse::<u8>()?;
+                    }
+                    "--maintenance-enabled" => {
+                        settings.maintenance_enabled =
+                            parse_on_off(&args_value(args, &mut idx, "--maintenance-enabled")?)?;
+                    }
+                    "--maintenance-interval-minutes" => {
+                        settings.maintenance_interval_minutes =
+                            args_value(args, &mut idx, "--maintenance-interval-minutes")?
+                                .parse::<u32>()?;
+                    }
+                    "--maintenance-next-due" => {
+                        let value = args_value(args, &mut idx, "--maintenance-next-due")?;
+                        settings.maintenance_next_due_unix_seconds = if value.trim().is_empty() {
+                            None
+                        } else {
+                            Some(value.parse::<u64>()?)
+                        };
+                    }
+                    other => return Err(format!("unexpected argument: {other}").into()),
+                }
+            }
+            store.save_campaign_settings(&settings)?;
+            println!("Updated settings for {}", dir.display());
+            Ok(())
+        }
+        "reserve" => {
+            let dir = parse_required_dir_flag(&args[1..])?;
+            let player = parse_required_usize_flag(&args[1..], "--player")?;
+            let alias = parse_required_string_flag(&args[1..], "--alias")?;
+            let store = CampaignStore::open_default_in_dir(&dir)?;
+            let mut settings = store.load_campaign_settings()?;
+            settings
+                .reservations
+                .retain(|reservation| reservation.player_record_index_1_based != player);
+            settings.reservations.push(SeatReservation {
+                player_record_index_1_based: player,
+                alias,
+            });
+            validate_reservations_against_runtime(&store, &settings)?;
+            store.save_campaign_settings(&settings)?;
+            println!("Reserved seat {} in {}", player, dir.display());
+            Ok(())
+        }
+        "unreserve" => {
+            let dir = parse_required_dir_flag(&args[1..])?;
+            let player = parse_required_usize_flag(&args[1..], "--player")?;
+            let store = CampaignStore::open_default_in_dir(&dir)?;
+            let mut settings = store.load_campaign_settings()?;
+            settings
+                .reservations
+                .retain(|reservation| reservation.player_record_index_1_based != player);
+            store.save_campaign_settings(&settings)?;
+            println!(
+                "Removed reservation for seat {} in {}",
+                player,
+                dir.display()
+            );
+            Ok(())
+        }
+        "import-kdl" => {
+            let dir = parse_required_dir_flag(&args[1..])?;
+            let file =
+                parse_path_flag(&args[1..], "--file")?.unwrap_or_else(|| dir.join("config.kdl"));
+            let legacy = ec_data::GameConfig::load_kdl(&file)?;
+            let slug = slug_from_dir(&dir)?;
+            let settings = CampaignSettings::from_legacy_game_config(slug, &legacy, None);
+            let store = CampaignStore::open_default_in_dir(&dir)?;
+            validate_reservations_against_runtime(&store, &settings)?;
+            store.save_campaign_settings(&settings)?;
+            println!("Imported settings from {}", file.display());
+            Ok(())
+        }
+        other => Err(format!("unknown settings subcommand: {other}").into()),
+    }
+}
+
+fn run_host(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(cmd) = args.first().map(String::as_str) else {
+        usage::print_host_usage();
+        return Ok(());
+    };
+    match cmd {
+        "games" => run_host_games(&args[1..]),
+        "status" => run_host_status(&args[1..]),
+        other => Err(format!("unknown host subcommand: {other}").into()),
+    }
+}
+
+fn run_host_games(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(cmd) = args.first().map(String::as_str) else {
+        usage::print_host_usage();
+        return Ok(());
+    };
+    match cmd {
+        "list" => {
+            let config_path = parse_single_path_flag(&args[1..], "--config")?
+                .unwrap_or_else(ec_gate::config::config_path);
+            let config = ec_gate::config::load_config(&config_path)?;
+            println!("config={}", config_path.display());
+            if config.games.is_empty() {
+                println!("games=0");
+                return Ok(());
+            }
+            for dir in &config.games {
+                println!("{}", dir.display());
+            }
+            Ok(())
+        }
+        "add" => {
+            let flags = parse_path_flags(&args[1..], &["--config", "--dir"])?;
+            let config_path = flags
+                .get("--config")
+                .cloned()
+                .flatten()
+                .unwrap_or_else(ec_gate::config::config_path);
+            let dir = flags
+                .get("--dir")
+                .cloned()
+                .flatten()
+                .ok_or_else(|| "missing value for --dir".to_string())?;
+            let mut config = ec_gate::config::load_config(&config_path)?;
+            if config.games.iter().any(|game| game == &dir) {
+                println!("Game already registered: {}", dir.display());
+                return Ok(());
+            }
+            config.games.push(dir.clone());
+            ec_gate::config::save_config(&config_path, &config)?;
+            println!(
+                "Registered game {} in {}",
+                dir.display(),
+                config_path.display()
+            );
+            Ok(())
+        }
+        "remove" => {
+            let flags = parse_path_flags(&args[1..], &["--config", "--dir"])?;
+            let config_path = flags
+                .get("--config")
+                .cloned()
+                .flatten()
+                .unwrap_or_else(ec_gate::config::config_path);
+            let dir = flags
+                .get("--dir")
+                .cloned()
+                .flatten()
+                .ok_or_else(|| "missing value for --dir".to_string())?;
+            let mut config = ec_gate::config::load_config(&config_path)?;
+            let before = config.games.len();
+            config.games.retain(|game| game != &dir);
+            if config.games.len() == before {
+                println!("Game was not registered: {}", dir.display());
+                return Ok(());
+            }
+            ec_gate::config::save_config(&config_path, &config)?;
+            println!(
+                "Removed game {} from {}",
+                dir.display(),
+                config_path.display()
+            );
+            Ok(())
+        }
+        other => Err(format!("unknown host games subcommand: {other}").into()),
+    }
+}
+
+fn run_host_status(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let config_path =
+        parse_single_path_flag(args, "--config")?.unwrap_or_else(ec_gate::config::config_path);
+    let config = ec_gate::config::load_config(&config_path)?;
+    let now = unix_now();
+
+    println!("config={}", config_path.display());
+    println!("relay={}", config.relay);
+    println!("ssh_host={}", config.ssh_host);
+    println!("ssh_user={}", config.ssh_user);
+    println!("games={}", config.games.len());
+
+    for dir in &config.games {
+        let store = match CampaignStore::open_default_in_dir(dir) {
+            Ok(store) => store,
+            Err(err) => {
+                println!("game={} error={err}", dir.display());
+                continue;
+            }
+        };
+        let settings = match store.load_campaign_settings() {
+            Ok(settings) => settings,
+            Err(err) => {
+                println!("game={} error={err}", dir.display());
+                continue;
+            }
+        };
+        let seats = match store.hosted_seats() {
+            Ok(seats) => seats,
+            Err(err) => {
+                println!("game={} error={err}", dir.display());
+                continue;
+            }
+        };
+        let claimed = seats
+            .iter()
+            .filter(|seat| seat.player_npub.as_deref().is_some())
+            .count();
+        let busy = store.has_live_session_leases(now)?;
+        let due = settings.maintenance_due_at(now);
+        println!(
+            "game={} slug={} name={} seats={} claimed={} busy={} maintenance_due={}",
+            dir.display(),
+            settings.slug,
+            settings.game_name,
+            seats.len(),
+            claimed,
+            busy,
+            due
+        );
+    }
+
+    Ok(())
+}
+
+fn run_maintenance_for_dir(
+    dir: &Path,
+    turns: u16,
+    update_schedule: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!(
+        "Running Rust maintenance on: {} ({} turn{})",
+        dir.display(),
+        turns,
+        if turns == 1 { "" } else { "s" }
+    );
+    let store = CampaignStore::open_default_in_dir(dir)?;
+    let runtime_state = store
+        .load_latest_runtime_state()?
+        .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
+    let mut game_data = runtime_state.game_data;
+    let campaign_seed = runtime_state.campaign_seed;
+    let start_year = game_data.conquest.game_year();
+
+    for turn in 1..=turns {
+        run_maintenance_turn_with_seed(&mut game_data, campaign_seed)?;
+        println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
+    }
+
+    store.save_runtime_state_structured(
+        &game_data,
+        &runtime_state.planet_scorch_orders,
+        &[],
+        &runtime_state.queued_mail,
+    )?;
+
+    if update_schedule {
+        let mut settings = store.load_campaign_settings()?;
+        if settings.maintenance_enabled {
+            settings.maintenance_next_due_unix_seconds = Some(unix_now().saturating_add(
+                u64::from(settings.maintenance_interval_minutes).saturating_mul(60),
+            ));
+            store.save_campaign_settings(&settings)?;
+        }
+    }
+
+    println!(
+        "  Year advanced: {} -> {}",
+        start_year,
+        game_data.conquest.game_year()
+    );
+    println!("Rust maintenance complete.");
+    Ok(())
+}
+
+fn validate_reservations_against_runtime(
+    store: &CampaignStore,
+    settings: &CampaignSettings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let runtime_state = store
+        .load_latest_runtime_state()?
+        .ok_or("campaign store has no snapshots; initialize the campaign with ec-sysop first")?;
+    settings
+        .validate_reservations_for_player_count(runtime_state.game_data.player.records.len())?;
+    Ok(())
+}
+
+fn slug_from_dir(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let slug = dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .ok_or_else(|| format!("cannot derive slug from {}", dir.display()))?
+        .to_string();
+    if !slug
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+    {
+        return Err(format!(
+            "game slug '{}' must use only lowercase ascii letters, digits, and dashes",
+            slug
+        )
+        .into());
+    }
+    Ok(slug)
+}
+
+fn humanize_slug(slug: &str) -> String {
+    slug.split('-')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => {
+                    let mut word = String::new();
+                    word.extend(first.to_uppercase());
+                    word.push_str(chars.as_str());
+                    word
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn parse_player_count(value: &str) -> Result<u8, Box<dyn std::error::Error>> {
+    let player_count = value.parse::<u8>()?;
+    if !(1..=25).contains(&player_count) {
+        return Err(format!("player_count must be 1-25, got {player_count}").into());
+    }
+    Ok(player_count)
+}
+
+fn parse_on_off(value: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "on" | "true" | "1" => Ok(true),
+        "off" | "false" | "0" => Ok(false),
+        other => Err(format!("expected on/off, got {other}").into()),
+    }
+}
+
+fn parse_required_dir_flag(args: &[String]) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    parse_path_flag(args, "--dir")?.ok_or_else(|| "missing value for --dir".into())
+}
+
+fn parse_required_string_flag(
+    args: &[String],
+    flag: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if arg == flag {
+            let Some(next) = args.get(i + 1) else {
+                return Err(format!("missing value for {flag}").into());
+            };
+            return Ok(next.to_string());
+        }
+        i += 1;
+    }
+    Err(format!("missing value for {flag}").into())
+}
+
+fn parse_required_usize_flag(
+    args: &[String],
+    flag: &str,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    Ok(parse_required_string_flag(args, flag)?.parse::<usize>()?)
+}
+
+fn args_value(
+    args: &[String],
+    idx: &mut usize,
+    flag: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let Some(value) = args.get(*idx + 1) else {
+        return Err(format!("missing value for {flag}").into());
+    };
+    *idx += 2;
+    Ok(value.to_string())
 }
 
 fn resolve_repo_path(arg: &str) -> PathBuf {
@@ -218,6 +847,13 @@ fn parse_single_path_flag(
     Ok(value)
 }
 
+fn parse_path_flag(
+    args: &[String],
+    flag: &str,
+) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+    parse_single_path_flag(args, flag)
+}
+
 fn parse_path_flags(
     args: &[String],
     allowed_flags: &[&str],
@@ -256,31 +892,29 @@ fn parse_path_flags(
 }
 
 fn parse_args(
-    args: impl Iterator<Item = String>,
+    args: impl IntoIterator<Item = String>,
 ) -> Result<ParsedArgs, Box<dyn std::error::Error>> {
-    let mut rest = Vec::new();
     let mut log_file = None;
     let mut log_level = ec_log::LogLevel::Info;
-    let mut args = args.peekable();
-    while let Some(arg) = args.next() {
+    let mut remaining = Vec::new();
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--log-file" => {
-                let Some(value) = args.next() else {
+                let Some(value) = iter.next() else {
                     return Err("missing value for --log-file".into());
                 };
                 log_file = Some(PathBuf::from(value));
             }
             "--log-level" => {
-                let Some(value) = args.next() else {
-                    return Err(
-                        "missing value for --log-level (error, warn, info, debug, or trace)".into(),
-                    );
+                let Some(value) = iter.next() else {
+                    return Err("missing value for --log-level".into());
                 };
                 log_level = ec_log::LogLevel::parse(&value)?;
             }
-            other => {
-                rest.push(other.to_string());
-                rest.extend(args);
+            _ => {
+                remaining.push(arg);
+                remaining.extend(iter);
                 break;
             }
         }
@@ -288,6 +922,13 @@ fn parse_args(
     Ok(ParsedArgs {
         log_file,
         log_level,
-        args: rest,
+        args: remaining,
     })
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
