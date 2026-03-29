@@ -7,7 +7,8 @@ use ec_engine::yearly_tax_revenue;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield,
+    aligned_label_width, dismiss_prompt_row, draw_aligned_detail_line, draw_aligned_status_line,
+    draw_dismiss_prompt, draw_title_bar, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetBuildOrder, PlayfieldBuffer, ScreenFrame, format_sector_coords_zero_padded,
@@ -51,75 +52,119 @@ impl PlanetInfoScreen {
         let tax_rate =
             frame.game_data.player.records[frame.player.record_index_1_based - 1].tax_rate();
         let expected_revenue = yearly_tax_revenue(present, tax_rate);
+        let top_label_width = aligned_label_width([
+            "Coordinates",
+            "Planet",
+            "Owner",
+            "State",
+            "Present Production",
+            "Potential Production",
+            "Stored Production Points",
+            "Efficiency",
+            "Expected Revenue",
+        ]);
+        let detail_label_width =
+            aligned_label_width(["Armies", "Ground Batteries", "Space Forces", "Status"]);
+        let bottom_label_width = aligned_label_width(["Build Queue", "Stardock"]);
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             2,
-            "Coordinates: ",
+            top_label_width,
+            "Coordinates",
             &format_sector_coords_zero_padded([x, y]),
         );
-        draw_status_line(&mut buffer, 3, "Planet: ", &planet.status_or_name_summary());
-        draw_status_line(&mut buffer, 4, "Owner: ", &owner_label);
-        draw_status_line(&mut buffer, 5, "State: ", &state_label);
-        draw_status_line(&mut buffer, 6, "Present Production: ", &present.to_string());
-        draw_status_line(
+        draw_aligned_status_line(
+            &mut buffer,
+            3,
+            top_label_width,
+            "Planet",
+            &planet.status_or_name_summary(),
+        );
+        draw_aligned_status_line(&mut buffer, 4, top_label_width, "Owner", &owner_label);
+        draw_aligned_status_line(&mut buffer, 5, top_label_width, "State", &state_label);
+        draw_aligned_status_line(
+            &mut buffer,
+            6,
+            top_label_width,
+            "Present Production",
+            &present.to_string(),
+        );
+        draw_aligned_status_line(
             &mut buffer,
             7,
-            "Potential Production: ",
+            top_label_width,
+            "Potential Production",
             &potential.to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             8,
-            "Stored Production Points: ",
+            top_label_width,
+            "Stored Production Points",
             &planet.stored_production_points().to_string(),
         );
-        draw_status_line(&mut buffer, 9, "Efficiency: ", &format!("{efficiency:.1}%"));
-        draw_status_line(
+        draw_aligned_status_line(
+            &mut buffer,
+            9,
+            top_label_width,
+            "Efficiency",
+            &format!("{efficiency:.1}%"),
+        );
+        draw_aligned_status_line(
             &mut buffer,
             10,
-            "Expected Revenue: ",
+            top_label_width,
+            "Expected Revenue",
             &format!("{expected_revenue} points"),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             12,
-            "Armies: ",
+            detail_label_width,
+            "Armies",
             &planet.army_count_raw().to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             13,
-            "Ground Batteries: ",
+            detail_label_width,
+            "Ground Batteries",
             &planet.ground_batteries_raw().to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             14,
-            "Build Queue: ",
-            &format_build_queue_summary(planet),
-        );
-        draw_status_line(
-            &mut buffer,
-            15,
-            "Docked: ",
-            &format_stardock_summary(planet),
-        );
-        draw_status_line(
-            &mut buffer,
-            16,
-            "Space Forces: ",
+            detail_label_width,
+            "Space Forces",
             &format_owned_orbit_summary(frame, [x, y]),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
-            17,
-            "Status: ",
+            15,
+            detail_label_width,
+            "Status",
             &owned_status_summary(frame, planet_idx, [x, y], planet_scorch_orders),
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(17));
+        draw_aligned_detail_line(
+            &mut buffer,
+            17,
+            bottom_label_width,
+            "Build Queue",
+            "  ",
+            &format_build_queue_summary(planet),
+        );
+        draw_aligned_detail_line(
+            &mut buffer,
+            18,
+            bottom_label_width,
+            "Stardock",
+            "  ",
+            &format_stardock_summary(planet),
+        );
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(18));
         Ok(buffer)
     }
 
@@ -147,106 +192,135 @@ impl PlanetInfoScreen {
                     .map(|id| format!("Empire #{id}"))
             })
             .unwrap_or_else(|| "?".to_string());
+        let top_label_width = aligned_label_width([
+            "Coordinates",
+            "Planet",
+            "Owner",
+            "State",
+            "Last Viewed/Scouted",
+            "Present Production",
+            "Potential Production",
+            "Efficiency",
+            "Stored Production Points",
+            "Armies",
+            "Ground Batteries",
+            "Space Forces",
+            "Intel Tier",
+        ]);
+        let bottom_label_width = aligned_label_width(["Docked"]);
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             2,
-            "Coordinates: ",
+            top_label_width,
+            "Coordinates",
             &format_sector_coords_zero_padded(world.coords),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             3,
-            "Planet: ",
+            top_label_width,
+            "Planet",
             world.known_name.as_deref().unwrap_or("?"),
         );
-        draw_status_line(&mut buffer, 4, "Owner: ", &owner_label);
-        draw_status_line(&mut buffer, 5, "State: ", "?");
+        draw_aligned_status_line(&mut buffer, 4, top_label_width, "Owner", &owner_label);
+        draw_aligned_status_line(&mut buffer, 5, top_label_width, "State", "?");
         let intel_snapshot = frame.planet_intel_snapshots.get(&(planet_idx + 1));
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             6,
-            "Last Viewed/Scouted: ",
+            top_label_width,
+            "Last Viewed/Scouted",
             &intel_snapshot
                 .and_then(|snapshot| snapshot.last_intel_year)
                 .map(|year| format!("Y{year}"))
                 .unwrap_or_else(|| "?".to_string()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             7,
-            "Present Production: ",
+            top_label_width,
+            "Present Production",
             &world
                 .known_current_production
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "?".to_string()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             8,
-            "Potential Production: ",
+            top_label_width,
+            "Potential Production",
             &world
                 .known_potential_production
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "?".to_string()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             9,
-            "Efficiency: ",
+            top_label_width,
+            "Efficiency",
             &intel_efficiency_label(
                 world.known_current_production,
                 world.known_potential_production,
             ),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             10,
-            "Stored Production Points: ",
+            top_label_width,
+            "Stored Production Points",
             &world
                 .known_stored_points
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "?".to_string()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             12,
-            "Armies: ",
+            top_label_width,
+            "Armies",
             &world
                 .known_armies
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "?".to_string()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             13,
-            "Ground Batteries: ",
+            top_label_width,
+            "Ground Batteries",
             &world
                 .known_ground_batteries
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "?".to_string()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             14,
-            "Docked: ",
-            world.known_docked_summary.as_deref().unwrap_or("?"),
-        );
-        draw_status_line(
-            &mut buffer,
-            15,
-            "Space Forces: ",
+            top_label_width,
+            "Space Forces",
             world.known_orbit_summary.as_deref().unwrap_or("?"),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
-            16,
-            "Intel Tier: ",
+            15,
+            top_label_width,
+            "Intel Tier",
             intel_tier_label(intel_snapshot, &world),
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(16));
+        draw_aligned_detail_line(
+            &mut buffer,
+            17,
+            bottom_label_width,
+            "Docked",
+            "  ",
+            world.known_docked_summary.as_deref().unwrap_or("?"),
+        );
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(17));
         Ok(buffer)
     }
 

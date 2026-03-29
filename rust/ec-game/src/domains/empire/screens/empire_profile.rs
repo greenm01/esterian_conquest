@@ -2,7 +2,9 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_centered_text, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    DetailField, aligned_label_width, dismiss_prompt_row, draw_aligned_detail_line,
+    draw_aligned_detail_pair_at, draw_centered_text, draw_dismiss_prompt, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -24,6 +26,31 @@ impl EmpireProfileScreen {
         let economy = frame.game_data.empire_economy_summary(player_idx);
         let active = frame.game_data.empire_active_duty_summary(player_idx);
         let stardock = frame.game_data.empire_stardock_summary(player_idx);
+        let left_stat_width = aligned_label_width([
+            "Number of Planets",
+            "Present Production",
+            "Potential Production",
+            "Total Available Points",
+            "Efficiency of Empire",
+        ]);
+        let right_stat_width = aligned_label_width([
+            "Rank by Number of Planets",
+            "Rank by Present Production",
+            "Tax Rate of Empire",
+            "Maximum # of Fleets & Bases",
+            "Current # of Fleets & Bases",
+        ]);
+        let unit_label_width = aligned_label_width([
+            "Destroyers",
+            "Cruisers",
+            "Battleships",
+            "Scouts",
+            "Transports",
+            "ETACs",
+            "StarBases",
+            "Armies",
+            "Ground Batteries",
+        ]);
 
         let mut buffer = new_playfield();
         draw_title_bar(
@@ -38,40 +65,50 @@ impl EmpireProfileScreen {
         write_stat_pair(
             &mut buffer,
             2,
+            left_stat_width,
             "Number of Planets",
             &economy.owned_planets.to_string(),
+            right_stat_width,
             "Rank by Number of Planets",
             &ordinal_rank(economy.rank_by_planets),
         );
         write_stat_pair(
             &mut buffer,
             3,
+            left_stat_width,
             "Present Production",
             &economy.present_production.to_string(),
+            right_stat_width,
             "Rank by Present Production",
             &ordinal_rank(economy.rank_by_present_production),
         );
         write_stat_pair(
             &mut buffer,
             4,
+            left_stat_width,
             "Potential Production",
             &economy.potential_production.to_string(),
+            right_stat_width,
             "Tax Rate of Empire",
             &format!("{:.1}%", economy.tax_rate as f64),
         );
         write_stat_pair(
             &mut buffer,
             5,
+            left_stat_width,
             "Total Available Points",
             &economy.total_available_points.to_string(),
+            right_stat_width,
             "Maximum # of Fleets & Bases",
             &economy.max_fleets_and_bases.to_string(),
         );
         write_stat_pair(
             &mut buffer,
             6,
+            left_stat_width,
             "Efficiency of Empire",
             &format!("{:.3}%", economy.efficiency_percent),
+            right_stat_width,
             "Current # of Fleets & Bases",
             &economy.current_fleets_and_bases.to_string(),
         );
@@ -92,6 +129,7 @@ impl EmpireProfileScreen {
         write_unit_line(
             &mut buffer,
             9,
+            unit_label_width,
             "Destroyers",
             active.destroyers,
             stardock.destroyers,
@@ -99,6 +137,7 @@ impl EmpireProfileScreen {
         write_unit_line(
             &mut buffer,
             10,
+            unit_label_width,
             "Cruisers",
             active.cruisers,
             stardock.cruisers,
@@ -106,37 +145,58 @@ impl EmpireProfileScreen {
         write_unit_line(
             &mut buffer,
             11,
+            unit_label_width,
             "Battleships",
             active.battleships,
             stardock.battleships,
         );
-        write_unit_line(&mut buffer, 12, "Scouts", active.scouts, stardock.scouts);
+        write_unit_line(
+            &mut buffer,
+            12,
+            unit_label_width,
+            "Scouts",
+            active.scouts,
+            stardock.scouts,
+        );
         write_unit_line(
             &mut buffer,
             13,
+            unit_label_width,
             "Transports",
             active.transports,
             stardock.transports,
         );
-        write_unit_line(&mut buffer, 14, "ETACs", active.etacs, stardock.etacs);
+        write_unit_line(
+            &mut buffer,
+            14,
+            unit_label_width,
+            "ETACs",
+            active.etacs,
+            stardock.etacs,
+        );
         write_unit_line(
             &mut buffer,
             15,
+            unit_label_width,
             "StarBases",
             active.starbases,
             stardock.starbases,
         );
-        buffer.write_text(
+        draw_aligned_detail_line(
+            &mut buffer,
             16,
-            0,
-            &format!("Armies           : {}", active.armies),
-            classic::status_value_style(),
+            unit_label_width,
+            "Armies",
+            " : ",
+            &active.armies.to_string(),
         );
-        buffer.write_text(
+        draw_aligned_detail_line(
+            &mut buffer,
             17,
-            0,
-            &format!("Ground Batteries : {}", active.ground_batteries),
-            classic::status_value_style(),
+            unit_label_width,
+            "Ground Batteries",
+            " : ",
+            &active.ground_batteries.to_string(),
         );
 
         draw_centered_text(
@@ -174,33 +234,61 @@ impl Screen for EmpireProfileScreen {
 fn write_stat_pair(
     buffer: &mut PlayfieldBuffer,
     row: usize,
+    left_label_width: usize,
     left_label: &str,
     left_value: &str,
+    right_label_width: usize,
     right_label: &str,
     right_value: &str,
 ) {
-    buffer.write_text(row, 0, left_label, classic::status_value_style());
-    buffer.write_text(row, 22, ": ", classic::status_value_style());
-    buffer.write_text(row, 24, left_value, classic::status_value_style());
-    buffer.write_text(row, 40, right_label, classic::status_value_style());
-    buffer.write_text(row, 68, ": ", classic::status_value_style());
-    buffer.write_text(row, 70, right_value, classic::status_value_style());
+    draw_aligned_detail_pair_at(
+        buffer,
+        row,
+        0,
+        DetailField {
+            label_width: left_label_width,
+            label: left_label,
+            separator: " : ",
+            value: left_value,
+        },
+        40,
+        DetailField {
+            label_width: right_label_width,
+            label: right_label,
+            separator: " : ",
+            value: right_value,
+        },
+    );
 }
 
 fn write_unit_line(
     buffer: &mut PlayfieldBuffer,
     row: usize,
+    label_width: usize,
     label: &str,
     active_value: u32,
     stardock_value: u32,
 ) {
-    let line = format!(
-        "{label:<17}: {active_value:<20}{label:<17}: {stardock_value}",
-        label = label,
-        active_value = active_value,
-        stardock_value = stardock_value,
+    let active_text = active_value.to_string();
+    let stardock_text = stardock_value.to_string();
+    draw_aligned_detail_pair_at(
+        buffer,
+        row,
+        0,
+        DetailField {
+            label_width,
+            label,
+            separator: " : ",
+            value: &active_text,
+        },
+        38,
+        DetailField {
+            label_width,
+            label,
+            separator: " : ",
+            value: &stardock_text,
+        },
     );
-    buffer.write_text(row, 0, &line, classic::status_value_style());
 }
 
 fn ordinal_rank(rank: usize) -> String {

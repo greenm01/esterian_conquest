@@ -648,7 +648,7 @@ impl PlanetBuildScreen {
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::PlanetBuild))
             }
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::Planet(PlanetAction::OpenBuildHelp),
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('c') | KeyCode::Char('C') => {
                 Action::Planet(PlanetAction::OpenBuildChange)
             }

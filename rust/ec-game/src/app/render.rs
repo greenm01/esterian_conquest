@@ -13,7 +13,6 @@ impl App {
         let mut playfield = match self.current_screen {
             ScreenId::Startup(_)
             | ScreenId::FirstTimeMenu
-            | ScreenId::FirstTimeHelp
             | ScreenId::FirstTimeEmpires
             | ScreenId::FirstTimeIntro
             | ScreenId::FirstTimeReservedPrompt
@@ -28,13 +27,10 @@ impl App {
             | ScreenId::ColonyWorldConfirm
             | ScreenId::ThemePicker
             | ScreenId::MainMenu
-            | ScreenId::MainHelp
             | ScreenId::GeneralMenu
-            | ScreenId::GeneralHelp
             | ScreenId::Reports => domains::startup::views::render(self)?,
 
-            ScreenId::FleetHelp
-            | ScreenId::FleetMenu
+            ScreenId::FleetMenu
             | ScreenId::FleetList
             | ScreenId::FleetReview
             | ScreenId::FleetOrder
@@ -45,13 +41,11 @@ impl App {
             | ScreenId::FleetEta => domains::fleet::views::render(self)?,
 
             ScreenId::StarbaseMenu
-            | ScreenId::StarbaseHelp
             | ScreenId::StarbaseList
             | ScreenId::StarbaseReviewSelect
             | ScreenId::StarbaseReview => domains::starbase::views::render(self)?,
 
             ScreenId::PlanetMenu
-            | ScreenId::PlanetHelp
             | ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)
@@ -61,7 +55,6 @@ impl App {
             | ScreenId::PlanetCommissionDraft
             | ScreenId::PlanetCommissionResult
             | ScreenId::PlanetAutoCommissionReport
-            | ScreenId::PlanetBuildHelp
             | ScreenId::PlanetBuildMenu
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange

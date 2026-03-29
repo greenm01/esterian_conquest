@@ -39,8 +39,8 @@ Read it together with:
   - `HOMEWORLD`
   - `WORLD NAME`
 - On help-capable screens, `?` is the visible popup-help token.
-- On classic primary menus, `H` may remain available implicitly even when it is
-  not repeated in the visible rail.
+- On classic primary menus, `H` is an implicit alias for the same popup help
+  even when it is not repeated in the visible rail.
 - Command rails never list `ENTER`.
 
 ## Standard Grammar

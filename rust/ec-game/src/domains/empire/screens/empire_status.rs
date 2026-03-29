@@ -2,7 +2,8 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield,
+    aligned_label_width, dismiss_prompt_row, draw_aligned_status_line, draw_dismiss_prompt,
+    draw_title_bar, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 pub struct EmpireStatusScreen;
@@ -20,70 +21,90 @@ impl EmpireStatusScreen {
         let player_idx = frame.player.record_index_1_based;
         let player = &frame.game_data.player.records[player_idx - 1];
         let empire_raw = player_idx as u8;
+        let label_width = aligned_label_width([
+            "Empire",
+            "Handle",
+            "Year",
+            "Campaign state",
+            "Tax rate",
+            "Owned planets",
+            "Owned fleets",
+            "Starbases",
+            "Autopilot",
+        ]);
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "STATUS, YOUR EMPIRE: ");
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             2,
-            "Empire: ",
+            label_width,
+            "Empire",
             display_or_unknown(&frame.player.empire_name),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             3,
-            "Handle: ",
+            label_width,
+            "Handle",
             display_or_unknown(&frame.player.handle),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             4,
-            "Year: ",
+            label_width,
+            "Year",
             &frame.game_data.conquest.game_year().to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             5,
-            "Campaign state: ",
+            label_width,
+            "Campaign state",
             campaign_state_label(frame.game_data.empire_campaign_state(empire_raw)),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             7,
-            "Tax rate: ",
+            label_width,
+            "Tax rate",
             &format!("{}%", player.tax_rate()),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             8,
-            "Owned planets: ",
+            label_width,
+            "Owned planets",
             &frame
                 .game_data
                 .player_owned_planet_count_current_known(player_idx)
                 .to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             9,
-            "Owned fleets: ",
+            label_width,
+            "Owned fleets",
             &frame
                 .game_data
                 .player_owned_fleet_count_current_known(player_idx)
                 .to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             10,
-            "Starbases: ",
+            label_width,
+            "Starbases",
             &frame
                 .game_data
                 .player_owned_base_record_count_current_known(player_idx)
                 .to_string(),
         );
-        draw_status_line(
+        draw_aligned_status_line(
             &mut buffer,
             11,
-            "Autopilot: ",
+            label_width,
+            "Autopilot",
             if player.autopilot_flag() != 0 {
                 "ON"
             } else {

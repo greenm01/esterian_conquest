@@ -1,7 +1,6 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetAction {
     OpenMenu,
-    OpenHelp,
     OpenList,
     OpenReviewPrompt,
     OpenReview,

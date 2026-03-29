@@ -1,5 +1,5 @@
 use crate::app::state::App;
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, ScreenId, format_sector_coords};
+use crate::screen::{PlayfieldBuffer, ScreenFrame, ScreenId, format_sector_coords};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
@@ -27,7 +27,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         _ => None,
     };
     match app.current_screen {
-        ScreenId::FleetHelp => app.fleet_help.render(&frame),
         ScreenId::FleetMenu => app.fleet_menu.render_with_notice(
             app.command_menu_notice.as_deref(),
             app.expert_mode,

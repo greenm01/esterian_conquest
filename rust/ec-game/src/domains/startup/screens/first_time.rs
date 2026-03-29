@@ -2,7 +2,6 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
-use crate::screen::help::{MenuHelpTopic, draw_full_screen_help, menu_help_spec};
 use crate::screen::layout::{
     CommandMessage, MenuEntry, ScreenGeometry, dismiss_prompt_row,
     draw_command_line_default_input_at, draw_command_line_prompt_text_at,
@@ -13,7 +12,6 @@ use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, format_
 use crate::theme::classic;
 
 pub struct FirstTimeMenuScreen;
-pub struct FirstTimeHelpScreen;
 pub struct FirstTimeEmpiresScreen;
 pub struct FirstTimeIntroScreen;
 
@@ -52,9 +50,7 @@ impl FirstTimeMenuScreen {
 
     pub fn handle_key_for_mode(&self, key: KeyEvent, door_mode: bool) -> Action {
         match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => {
-                Action::Startup(StartupAction::OpenFirstTimeHelp)
-            }
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::Startup(StartupAction::OpenFirstTimeEmpires)
             }
@@ -84,37 +80,6 @@ impl Screen for FirstTimeMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         self.handle_key_for_mode(key, false)
-    }
-}
-
-impl FirstTimeHelpScreen {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn render_for_mode(
-        &mut self,
-        door_mode: bool,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_full_screen_help(
-            &mut buffer,
-            menu_help_spec(MenuHelpTopic::FirstTime, door_mode),
-        );
-        Ok(buffer)
-    }
-}
-
-impl Screen for FirstTimeHelpScreen {
-    fn render(
-        &mut self,
-        _frame: &ScreenFrame<'_>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_for_mode(false)
-    }
-
-    fn handle_key(&self, _key: KeyEvent) -> Action {
-        Action::Startup(StartupAction::OpenFirstTimeMenu)
     }
 }
 

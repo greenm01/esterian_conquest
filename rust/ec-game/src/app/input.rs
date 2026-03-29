@@ -81,7 +81,6 @@ impl App {
             ScreenId::FirstTimeMenu => self
                 .first_time_menu
                 .handle_key_for_mode(key, self.door_mode),
-            ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
             ScreenId::FirstTimeReservedPrompt => match key.code {
                 crossterm::event::KeyCode::Enter
@@ -213,12 +212,8 @@ impl App {
                 _ => Action::Noop,
             },
             ScreenId::MainMenu => self.main_menu.handle_key_for_mode(key, self.door_mode),
-            ScreenId::MainHelp => self.main_help.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
-            ScreenId::GeneralHelp => self.general_help.handle_key(key),
-            ScreenId::FleetHelp => self.fleet_help.handle_key(key),
             ScreenId::StarbaseMenu => self.starbase_menu.handle_key(key),
-            ScreenId::StarbaseHelp => self.starbase_help.handle_key(key),
             ScreenId::StarbaseList => self.starbase_list.handle_key(key),
             ScreenId::StarbaseReviewSelect => self.handle_starbase_review_select_key(key),
             ScreenId::StarbaseReview => Action::Starbase(StarbaseAction::OpenReviewSelect),
@@ -238,7 +233,6 @@ impl App {
             ScreenId::FleetDetach => self.handle_fleet_detach_key(key),
             ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
-            ScreenId::PlanetHelp => self.planet_help.handle_key(key),
             ScreenId::PlanetCommissionPicker => self.planet_commission.handle_picker_key(key),
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_detail_key(key),
             ScreenId::PlanetCommissionDraft => self.planet_commission.handle_draft_key(key),
@@ -254,7 +248,6 @@ impl App {
                 self.planet_transport.handle_quantity_key(key)
             }
             ScreenId::PlanetTransportDone(_) => Action::Planet(PlanetAction::OpenMenu),
-            ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildList => self.planet_build.handle_list_key(
                 key,

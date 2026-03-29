@@ -1,6 +1,6 @@
 use crate::app::state::App;
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
+    PlayfieldBuffer, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
     render_first_time_homeworld_name, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
     render_first_time_join_summary,
@@ -38,7 +38,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.startup_state.first_time_status.as_deref(),
             app.door_mode,
         ),
-        ScreenId::FirstTimeHelp => app.first_time_help.render_for_mode(app.door_mode),
         ScreenId::FirstTimeEmpires => app
             .first_time_empires
             .render_rows(frame.geometry, &app.first_time_empire_rows()),
@@ -128,7 +127,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
         ),
-        ScreenId::MainHelp => app.main_help.render_for_mode(app.door_mode),
         ScreenId::GeneralMenu => app.general_menu.render_with_notice(
             &frame,
             app.command_menu_notice.as_deref(),
@@ -140,7 +138,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
         ),
-        ScreenId::GeneralHelp => app.general_help.render(&frame),
         ScreenId::Reports => app.reports.render_inbox(
             frame.geometry,
             app.command_return_menu,

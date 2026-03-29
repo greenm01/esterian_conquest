@@ -13,7 +13,6 @@ pub const BODY_END_ROW: usize = 22;
 pub const INNER_COMMAND_ROW: usize = 24;
 pub const MAX_BODY_ROWS: usize = 20;
 const MIN_BODY_ROWS: usize = 1;
-const HELP_COMMAND_WIDTH: usize = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rect {
@@ -258,10 +257,6 @@ pub fn table_message_col(columns: &[Column<'_>], message: &str) -> usize {
 
 pub fn table_message_col_in(metrics: TableMetrics, message: &str) -> usize {
     metrics.table_col + metrics.table_width.saturating_sub(message.chars().count()) / 2
-}
-
-pub fn format_help_row(command: &str, description: &str) -> String {
-    format!("{command:<HELP_COMMAND_WIDTH$} {description}")
 }
 
 pub fn table_cell_start(columns: &[Column<'_>], index: usize) -> Option<usize> {

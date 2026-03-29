@@ -1,7 +1,7 @@
 use crate::app::state::App;
 use crate::domains::planet::state::{PlanetMenuTransportPromptMode, PlanetScorchPromptMode};
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, ScreenId, build_unit_spec_by_kind, format_sector_coords,
+    PlayfieldBuffer, ScreenFrame, ScreenId, build_unit_spec_by_kind, format_sector_coords,
 };
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -87,7 +87,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 .as_ref()
                 .map(|(_, summary)| summary.as_str()),
         ),
-        ScreenId::PlanetHelp => app.planet_help.render(&frame),
         ScreenId::PlanetTransportPlanetSelect(mode) => app.planet_transport.render_planet_select(
             frame.geometry,
             "COMMAND",
@@ -180,7 +179,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 app.planet.auto_commission_report_revealed_rows,
             )
         }
-        ScreenId::PlanetBuildHelp => app.build_help.render(&frame),
         ScreenId::PlanetBuildMenu => app.planet_build.render_menu(
             &app.current_planet_build_view()?,
             &app.current_planet_build_orders(),

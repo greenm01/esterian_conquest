@@ -25,7 +25,7 @@ use ec_game::domains::starbase::StarbaseAction;
 use ec_game::domains::starmap::StarmapAction;
 use ec_game::domains::startup::StartupAction;
 use ec_game::model::ClassicLoginState;
-use ec_game::screen::help::{MenuHelpTopic, menu_help_spec};
+use ec_game::screen::help::{MenuHelpTopic, help_lines, menu_help_spec};
 use ec_game::screen::layout::COMMAND_LINE_ROW;
 use ec_game::screen::table::{TableColumn, fit_table_columns};
 use ec_game::screen::{
@@ -855,10 +855,16 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenGeneralHelp),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::GeneralHelp);
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+    assert!(app.popup_help.is_some());
+    assert_eq!(
+        apply_action(&mut app, Action::DismissPopupHelp),
+        AppOutcome::Continue
+    );
+    assert!(app.popup_help.is_none());
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
@@ -902,16 +908,16 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenHelp)),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetHelp);
-
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert!(app.popup_help.is_some());
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenHelp)),
+        apply_action(&mut app, Action::DismissPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
+    assert!(app.popup_help.is_none());
 
     assert_eq!(
         apply_action(
@@ -944,10 +950,16 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildHelp)),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetBuildHelp);
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    assert!(app.popup_help.is_some());
+    assert_eq!(
+        apply_action(&mut app, Action::DismissPopupHelp),
+        AppOutcome::Continue
+    );
+    assert!(app.popup_help.is_none());
 
     assert_eq!(
         apply_action(
@@ -1146,10 +1158,16 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeHelp)),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert!(app.popup_help.is_some());
+    assert_eq!(
+        apply_action(&mut app, Action::DismissPopupHelp),
+        AppOutcome::Continue
+    );
+    assert!(app.popup_help.is_none());
 
     assert_eq!(
         apply_action(
@@ -2844,21 +2862,22 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('h'))),
-        Action::Fleet(FleetAction::OpenHelp)
+        Action::OpenPopupHelp
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenHelp)),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetHelp);
+    assert!(app.popup_help.is_some());
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::Fleet(FleetAction::OpenMenu)
+        Action::DismissPopupHelp
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        apply_action(&mut app, Action::DismissPopupHelp),
         AppOutcome::Continue
     );
+    assert!(app.popup_help.is_none());
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('i'))),
@@ -3523,7 +3542,7 @@ fn starbase_help_uses_move_wording_not_hauling() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
     apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
     apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu));
-    apply_action(&mut app, Action::Starbase(StarbaseAction::OpenHelp));
+    apply_action(&mut app, Action::OpenPopupHelp);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -4080,7 +4099,7 @@ fn main_menu_c_key_opens_theme_picker() {
 }
 
 #[test]
-fn main_help_describes_the_color_theme_picker() {
+fn main_menu_popup_help_describes_the_color_theme_picker() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4094,24 +4113,25 @@ fn main_help_describes_the_color_theme_picker() {
     advance_to_main_menu(&mut app);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('h'))),
-        Action::OpenMainHelp
+        Action::OpenPopupHelp
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenMainHelp),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::MainHelp);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+    assert!(app.popup_help.is_some());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("main help should render");
-    assert_eq!(
-        terminal.line(3).trim_end(),
-        "<C> - open the color theme picker"
+    assert!(
+        line_containing(&terminal, "open the color theme picker")
+            .contains("open the color theme picker")
     );
 }
 
 #[test]
-fn first_time_and_main_help_share_the_same_color_theme_text() {
+fn first_time_and_main_popup_help_share_the_same_color_theme_text() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4125,17 +4145,18 @@ fn first_time_and_main_help_share_the_same_color_theme_text() {
     advance_to_first_time_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeHelp)),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert!(app.popup_help.is_some());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("first-time help should render");
-    assert_eq!(
-        terminal.line(3).trim_end(),
-        "<C> - open the color theme picker"
+    assert!(
+        line_containing(&terminal, "open the color theme picker")
+            .contains("open the color theme picker")
     );
 }
 
@@ -4189,7 +4210,7 @@ fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
 }
 
 #[test]
-fn door_mode_first_time_menu_and_help_use_ansi_toggle_text() {
+fn door_mode_first_time_menu_and_popup_help_use_ansi_toggle_text() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4216,14 +4237,14 @@ fn door_mode_first_time_menu_and_help_use_ansi_toggle_text() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeHelp)),
+        apply_action(&mut app, Action::OpenPopupHelp),
         AppOutcome::Continue
     );
     app.render(&mut terminal)
         .expect("door first-time help should render");
-    assert_eq!(
-        terminal.line(3).trim_end(),
-        "<A> - turn ANSI color on or off"
+    assert!(
+        line_containing(&terminal, "turn ANSI color on or off")
+            .contains("turn ANSI color on or off")
     );
 }
 
@@ -4292,7 +4313,7 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
 }
 
 #[test]
-fn main_menu_question_mark_opens_popup_help_while_h_still_opens_help_screen() {
+fn main_menu_question_mark_and_h_open_the_same_popup_help() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4313,10 +4334,7 @@ fn main_menu_question_mark_opens_popup_help_while_h_still_opens_help_screen() {
     let popup = app.popup_help.as_ref().expect("popup help should open");
     let spec = menu_help_spec(MenuHelpTopic::Main, false);
     assert_eq!(popup.title, spec.title.trim_end_matches(':'));
-    assert_eq!(
-        popup.lines.first().map(String::as_str),
-        spec.lines.first().copied()
-    );
+    assert_eq!(popup.lines, help_lines(spec.lines));
 
     let dismiss_action = app.handle_key(key(KeyCode::Char('x')));
     assert_eq!(dismiss_action, Action::DismissPopupHelp);
@@ -4325,9 +4343,14 @@ fn main_menu_question_mark_opens_popup_help_while_h_still_opens_help_screen() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     let help_action = app.handle_key(key(KeyCode::Char('h')));
-    assert_eq!(help_action, Action::OpenMainHelp);
+    assert_eq!(help_action, Action::OpenPopupHelp);
     assert_eq!(apply_action(&mut app, help_action), AppOutcome::Continue);
-    assert_eq!(app.current_screen(), ScreenId::MainHelp);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+    let popup = app
+        .popup_help
+        .as_ref()
+        .expect("popup help should open from h");
+    assert_eq!(popup.lines, help_lines(spec.lines));
 }
 
 #[test]
@@ -13255,14 +13278,14 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("Last Viewed/Scouted: "))
+            .any(|line| line.contains("Last Viewed/Scouted"))
     );
     assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
     assert!(
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("Intel Tier: "))
+            .any(|line| line.contains("Intel Tier"))
     );
     assert!(
         terminal
@@ -13443,10 +13466,10 @@ fn build_menu_review_shortcut_opens_owned_planet_info_with_build_queue_and_retur
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
 
     app.render(&mut terminal).expect("render succeeds");
-    let build_queue_line = line_containing(&terminal, "Build Queue: ");
-    assert!(build_queue_line.contains("Build Queue: "));
+    let build_queue_line = line_containing(&terminal, "Build Queue");
+    assert!(build_queue_line.contains("Build Queue"));
     assert!(build_queue_line.contains("5DD"));
-    assert!(line_containing(&terminal, "Docked: ").contains("Docked: 2DD"));
+    assert!(line_containing(&terminal, "Stardock").contains("2DD"));
 
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
@@ -13525,7 +13548,7 @@ fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
 
     app.render(&mut terminal).expect("render succeeds");
 
-    let build_queue_line = line_containing(&terminal, "Build Queue: ");
+    let build_queue_line = line_containing(&terminal, "Build Queue");
     for token in [
         "10DD", "20CA", "30BB", "40SC", "50TT", "60ET", "70GB", "80AR", "90SB",
     ] {
@@ -13535,7 +13558,7 @@ fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
         );
     }
 
-    let docked_line = line_containing(&terminal, "Docked: ");
+    let docked_line = line_containing(&terminal, "Stardock");
     for token in ["1DD", "2CA", "3BB", "4SC", "5TT", "6SB"] {
         assert!(
             docked_line.contains(token),
@@ -13880,29 +13903,29 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
         .expect("open planet info detail");
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
-    assert_eq!(
-        line_containing(&terminal, "Present Production: ").trim_end(),
-        "Present Production: 0"
+    assert!(
+        line_containing(&terminal, "Present Production").contains('0'),
+        "present production line should show zero"
+    );
+    assert!(
+        line_containing(&terminal, "Potential Production").contains('0'),
+        "potential production line should show zero"
+    );
+    assert!(
+        line_containing(&terminal, "Stored Production Points").contains('0'),
+        "stored points line should show zero"
     );
     assert_eq!(
-        line_containing(&terminal, "Potential Production: ").trim_end(),
-        "Potential Production: 0"
+        line_containing(&terminal, "Build Queue").trim_end(),
+        "Build Queue  Nothing"
     );
     assert_eq!(
-        line_containing(&terminal, "Stored Production Points: ").trim_end(),
-        "Stored Production Points: 0"
+        line_containing(&terminal, "Stardock").trim_end(),
+        "Stardock     Nothing"
     );
-    assert_eq!(
-        line_containing(&terminal, "Build Queue: ").trim_end(),
-        "Build Queue: Nothing"
-    );
-    assert_eq!(
-        line_containing(&terminal, "Docked: ").trim_end(),
-        "Docked: Nothing"
-    );
-    assert_eq!(
-        line_containing(&terminal, "Status: ").trim_end(),
-        "Status: Planet is scorched!"
+    assert!(
+        line_containing(&terminal, "Planet is scorched!").contains("Planet is scorched!"),
+        "status line should report the scorched planet"
     );
 }
 

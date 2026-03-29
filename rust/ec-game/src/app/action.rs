@@ -18,9 +18,7 @@ pub enum Action {
 
     // Top-level / Generic App Actions
     OpenMainMenu,
-    OpenMainHelp,
     OpenGeneralMenu,
-    OpenGeneralHelp,
     OpenPopupHelp,
     DismissPopupHelp,
     ToggleAnsiMode,

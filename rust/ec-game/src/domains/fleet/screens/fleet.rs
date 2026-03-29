@@ -330,7 +330,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenList),
             KeyCode::Char('r') | KeyCode::Char('R') => Action::Fleet(FleetAction::OpenReviewPrompt),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::Fleet(FleetAction::OpenHelp),
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Starbase(StarbaseAction::OpenMenu),
             KeyCode::Char('d') | KeyCode::Char('D') => Action::Fleet(FleetAction::OpenDetach),
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Fleet(FleetAction::OpenMerge),

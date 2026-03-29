@@ -340,6 +340,114 @@ pub fn draw_status_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, v
     );
 }
 
+pub fn aligned_label_width<'a, I>(labels: I) -> usize
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    labels
+        .into_iter()
+        .map(|label| label.trim_end().trim_end_matches(':').chars().count())
+        .max()
+        .unwrap_or(0)
+}
+
+pub fn draw_aligned_status_line_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label_width: usize,
+    label: &str,
+    value: &str,
+) {
+    if col >= buffer.width() {
+        return;
+    }
+    let normalized_label = label.trim_end().trim_end_matches(':');
+    let label_text = format!("{normalized_label:<label_width$}");
+    buffer.write_text_clipped(row, col, &label_text, classic::status_label_style());
+    let separator_col = col + label_width;
+    buffer.write_text_clipped(row, separator_col, ": ", classic::status_label_style());
+    let value_col = separator_col + 2;
+    buffer.write_text_clipped(row, value_col, value, classic::status_value_style());
+}
+
+pub fn draw_aligned_status_line(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label_width: usize,
+    label: &str,
+    value: &str,
+) {
+    draw_aligned_status_line_at(buffer, row, 0, label_width, label, value);
+}
+
+pub fn draw_aligned_detail_line_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label_width: usize,
+    label: &str,
+    separator: &str,
+    value: &str,
+) {
+    if col >= buffer.width() {
+        return;
+    }
+    let normalized_label = label.trim_end().trim_end_matches(':');
+    let label_text = format!("{normalized_label:<label_width$}");
+    buffer.write_text_clipped(row, col, &label_text, classic::status_label_style());
+    let separator_col = col + label_width;
+    buffer.write_text_clipped(row, separator_col, separator, classic::status_label_style());
+    let value_col = separator_col + separator.chars().count();
+    buffer.write_text_clipped(row, value_col, value, classic::status_value_style());
+}
+
+pub fn draw_aligned_detail_line(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label_width: usize,
+    label: &str,
+    separator: &str,
+    value: &str,
+) {
+    draw_aligned_detail_line_at(buffer, row, 0, label_width, label, separator, value);
+}
+
+pub struct DetailField<'a> {
+    pub label_width: usize,
+    pub label: &'a str,
+    pub separator: &'a str,
+    pub value: &'a str,
+}
+
+pub fn draw_aligned_detail_pair_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    left_col: usize,
+    left: DetailField<'_>,
+    right_col: usize,
+    right: DetailField<'_>,
+) {
+    draw_aligned_detail_line_at(
+        buffer,
+        row,
+        left_col,
+        left.label_width,
+        left.label,
+        left.separator,
+        left.value,
+    );
+    draw_aligned_detail_line_at(
+        buffer,
+        row,
+        right_col,
+        right.label_width,
+        right.label,
+        right.separator,
+        right.value,
+    );
+}
+
 pub fn draw_notice_line(buffer: &mut PlayfieldBuffer, row: usize, value: &str) {
     buffer.write_spans(
         row,

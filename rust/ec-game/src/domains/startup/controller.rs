@@ -445,11 +445,6 @@ impl App {
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
-    pub fn open_first_time_help(&mut self) {
-        self.startup_state.first_time_status = None;
-        self.current_screen = ScreenId::FirstTimeHelp;
-    }
-
     pub fn open_first_time_empires(&mut self) {
         self.startup_state.first_time_status = None;
         self.current_screen = ScreenId::FirstTimeEmpires;

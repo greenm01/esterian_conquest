@@ -2,7 +2,6 @@ use ec_ui::modal::{ModalTheme, render_modal_box};
 use ec_ui::theme::classic;
 
 use crate::screen::PlayfieldBuffer;
-use crate::screen::layout::draw_help_panel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuHelpTopic {
@@ -15,9 +14,8 @@ pub enum MenuHelpTopic {
     FirstTime,
 }
 
-pub struct HelpPanelSpec {
+pub struct HelpSpec {
     pub title: &'static str,
-    pub header: &'static str,
     pub lines: &'static [&'static str],
 }
 
@@ -27,7 +25,7 @@ const MAIN_LOCAL_LINES: [&str; 12] = [
     "<D> - display all empire information in detailed format",
     "<F> - bring up the Fleet Command Center menu",
     "<G> - bring up the General Command Center menu",
-    "<H> - describe Main Menu commands",
+    "<?> - show Main Menu command help",
     "<I> - show Intelligence on what you know about any planet",
     "<P> - bring up the Planet Command Center menu",
     "<Q> - quit Esterian Conquest and returns you back to Jump Start",
@@ -42,7 +40,7 @@ const MAIN_DOOR_LINES: [&str; 12] = [
     "<D> - display all empire information in detailed format",
     "<F> - bring up the Fleet Command Center menu",
     "<G> - bring up the General Command Center menu",
-    "<H> - describe Main Menu commands",
+    "<?> - show Main Menu command help",
     "<I> - show Intelligence on what you know about any planet",
     "<P> - bring up the Planet Command Center menu",
     "<Q> - quit Esterian Conquest and returns you back to Jump Start",
@@ -56,7 +54,7 @@ const GENERAL_LINES: [&str; 14] = [
     "<C> - type and send messages to other players in the game",
     "<D> - delete all messages and result reports from your message base",
     "<E> - list and declare your enemies",
-    "<H> - describe General Command Center commands",
+    "<?> - show General Command Center help",
     "<I> - show intelligence on what you know about any planet",
     "<M> - display the entire game map for capture or export",
     "<O> - list all empires in the order you specify",
@@ -75,7 +73,7 @@ const FLEET_LINES: [&str; 16] = [
     "<E> - calculate any fleet's travel time to any potential destination",
     "<F> - display a longer but detailed list of your fleets",
     "<G> - order a group of fleets; ex: g 1 2 3 4 m 0 orders fleets 1-4 on m0",
-    "<H> - describe Fleet Command Center commands",
+    "<?> - show Fleet Command Center help",
     "<I> - show Intelligence on what you know about any planet",
     "<L> - load one or more armies from a planet onto the transports of a fleet",
     "<M> - merge two fleets into a single fleet - also see merge mission under <O>",
@@ -88,7 +86,7 @@ const FLEET_LINES: [&str; 16] = [
 ];
 
 const STARBASE_LINES: [&str; 8] = [
-    "<H> - describe Starbase Control commands",
+    "<?> - show Starbase Control help",
     "<I> - show Intelligence on what you know about any planet",
     "<M> - order a starbase to move to a new location",
     "<Q> - quit the Starbase Control menu & returns you to the Fleet Command Center",
@@ -103,7 +101,7 @@ const PLANET_LINES: [&str; 14] = [
     "<B> - open the build menu to spend production on local construction",
     "<C> - open the commission menu for fine-grained ground-defense control",
     "<D> - display a detailed list of your planets and their economies",
-    "<H> - describe Planet Command options",
+    "<?> - show Planet Command help",
     "<I> - display information you know about any planet",
     "<L> - load transport fleets with armies from the selected planet",
     "<P> - display a brief list of your planets",
@@ -134,7 +132,7 @@ const BUILD_LINES: [&str; 14] = [
 
 const FIRST_TIME_LOCAL_LINES: [&str; 6] = [
     "<C> - open the color theme picker",
-    "<H> - describe First Time Menu commands",
+    "<?> - show First Time Menu help",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
     "<Q> - quit Esterian Conquest and return to the BBS",
@@ -143,52 +141,45 @@ const FIRST_TIME_LOCAL_LINES: [&str; 6] = [
 
 const FIRST_TIME_DOOR_LINES: [&str; 6] = [
     "<A> - turn ANSI color on or off",
-    "<H> - describe First Time Menu commands",
+    "<?> - show First Time Menu help",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
     "<Q> - quit Esterian Conquest and return to the BBS",
     "<V> - view the introduction to this game",
 ];
 
-pub fn menu_help_spec(topic: MenuHelpTopic, door_mode: bool) -> HelpPanelSpec {
+pub fn menu_help_spec(topic: MenuHelpTopic, door_mode: bool) -> HelpSpec {
     match topic {
-        MenuHelpTopic::Main => HelpPanelSpec {
-            title: "HELP WITH COMMANDS:",
-            header: "Help - Main Menu command descriptions:",
+        MenuHelpTopic::Main => HelpSpec {
+            title: "HELP WITH COMMANDS",
             lines: if door_mode {
                 &MAIN_DOOR_LINES
             } else {
                 &MAIN_LOCAL_LINES
             },
         },
-        MenuHelpTopic::General => HelpPanelSpec {
-            title: "GENERAL COMMAND HELP:",
-            header: "Help - General Command Center command descriptions:",
+        MenuHelpTopic::General => HelpSpec {
+            title: "GENERAL COMMAND HELP",
             lines: &GENERAL_LINES,
         },
-        MenuHelpTopic::Fleet => HelpPanelSpec {
-            title: "FLEET COMMAND HELP:",
-            header: "Help - Fleet Command Center command descriptions:",
+        MenuHelpTopic::Fleet => HelpSpec {
+            title: "FLEET COMMAND HELP",
             lines: &FLEET_LINES,
         },
-        MenuHelpTopic::Starbase => HelpPanelSpec {
-            title: "STARBASE HELP:",
-            header: "Help - Starbase Control command descriptions:",
+        MenuHelpTopic::Starbase => HelpSpec {
+            title: "STARBASE HELP",
             lines: &STARBASE_LINES,
         },
-        MenuHelpTopic::Planet => HelpPanelSpec {
-            title: "PLANET COMMAND HELP:",
-            header: "Help - Planet Command option descriptions:",
+        MenuHelpTopic::Planet => HelpSpec {
+            title: "PLANET COMMAND HELP",
             lines: &PLANET_LINES,
         },
-        MenuHelpTopic::Build => HelpPanelSpec {
-            title: "BUILD COMMAND HELP:",
-            header: "Help - Build Command option descriptions:",
+        MenuHelpTopic::Build => HelpSpec {
+            title: "BUILD COMMAND HELP",
             lines: &BUILD_LINES,
         },
-        MenuHelpTopic::FirstTime => HelpPanelSpec {
-            title: "FIRST TIME HELP:",
-            header: "Help - First Time Menu command descriptions:",
+        MenuHelpTopic::FirstTime => HelpSpec {
+            title: "FIRST TIME HELP",
             lines: if door_mode {
                 &FIRST_TIME_DOOR_LINES
             } else {
@@ -198,8 +189,34 @@ pub fn menu_help_spec(topic: MenuHelpTopic, door_mode: bool) -> HelpPanelSpec {
     }
 }
 
-pub fn draw_full_screen_help(buffer: &mut PlayfieldBuffer, spec: HelpPanelSpec) {
-    draw_help_panel(buffer, spec.title, spec.header, spec.lines, "COMMAND");
+pub fn help_lines(lines: &[&str]) -> Vec<String> {
+    let mut rendered = Vec::new();
+    let mut block = Vec::new();
+
+    let flush_block = |rendered: &mut Vec<String>, block: &mut Vec<(&str, &str)>| {
+        if block.is_empty() {
+            return;
+        }
+        rendered.extend(ec_ui::modal::format_help_rows(block.iter().copied()));
+        block.clear();
+    };
+
+    for line in lines {
+        if line.is_empty() {
+            flush_block(&mut rendered, &mut block);
+            rendered.push(String::new());
+            continue;
+        }
+        if let Some((command, description)) = line.split_once(" - ") {
+            block.push((command, description));
+        } else {
+            flush_block(&mut rendered, &mut block);
+            rendered.push((*line).to_string());
+        }
+    }
+    flush_block(&mut rendered, &mut block);
+
+    rendered
 }
 
 pub fn render_help_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[String]) {

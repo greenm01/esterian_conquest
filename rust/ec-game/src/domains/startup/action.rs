@@ -7,7 +7,6 @@ pub enum StartupAction {
     RejectChoice,
     EnableNonstop,
     OpenFirstTimeMenu,
-    OpenFirstTimeHelp,
     OpenFirstTimeEmpires,
     OpenFirstTimeIntro,
     OpenThemePicker,

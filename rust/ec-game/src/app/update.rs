@@ -44,16 +44,8 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_main_menu();
             AppOutcome::Continue
         }
-        Action::OpenMainHelp => {
-            app.open_main_help();
-            AppOutcome::Continue
-        }
         Action::OpenGeneralMenu => {
             app.open_general_menu();
-            AppOutcome::Continue
-        }
-        Action::OpenGeneralHelp => {
-            *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
             AppOutcome::Continue
         }
         Action::OpenPopupHelp => {

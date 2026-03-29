@@ -135,6 +135,17 @@ pub fn render_modal_box(
     popup
 }
 
-pub fn format_help_row(command: &str, description: &str) -> String {
-    format!("{command:<6} {description}")
+pub fn format_help_rows<'a, I>(rows: I) -> Vec<String>
+where
+    I: IntoIterator<Item = (&'a str, &'a str)>,
+{
+    let rows = rows.into_iter().collect::<Vec<_>>();
+    let command_width = rows
+        .iter()
+        .map(|(command, _)| command.chars().count())
+        .max()
+        .unwrap_or(0);
+    rows.into_iter()
+        .map(|(command, description)| format!("{command:<command_width$} {description}"))
+        .collect()
 }

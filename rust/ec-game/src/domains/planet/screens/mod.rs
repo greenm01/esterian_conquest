@@ -1,8 +1,6 @@
-pub mod build_help;
 pub mod planet_build;
 pub mod planet_commission;
 pub mod planet_database;
-pub mod planet_help;
 pub mod planet_info;
 pub mod planet_list;
 pub mod planet_menu;

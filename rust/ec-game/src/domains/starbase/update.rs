@@ -4,7 +4,6 @@ use crate::domains::starbase::StarbaseAction;
 pub fn update(app: &mut App, action: StarbaseAction) {
     match action {
         StarbaseAction::OpenMenu => app.open_starbase_menu(),
-        StarbaseAction::OpenHelp => app.open_starbase_help(),
         StarbaseAction::OpenList => app.open_starbase_list(),
         StarbaseAction::OpenReviewSelect => app.open_starbase_review_select(),
         StarbaseAction::OpenReview => app.open_starbase_review(),

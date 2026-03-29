@@ -4,7 +4,6 @@ use crate::domains::planet::PlanetAction;
 pub fn update(app: &mut App, action: PlanetAction) {
     match action {
         PlanetAction::OpenMenu => app.open_planet_menu(),
-        PlanetAction::OpenHelp => app.open_planet_help(),
         PlanetAction::OpenAutoCommissionPrompt => app.open_planet_auto_commission_prompt(),
         PlanetAction::CloseAutoCommissionPrompt => app.close_planet_auto_commission_prompt(),
         PlanetAction::AdvanceAutoCommissionReport => app.advance_planet_auto_commission_report(),
@@ -54,7 +53,6 @@ pub fn update(app: &mut App, action: PlanetAction) {
         }
         PlanetAction::CancelTransportPrompt => app.cancel_planet_transport_prompt(),
         PlanetAction::OpenBuildMenu => app.open_planet_build_menu(),
-        PlanetAction::OpenBuildHelp => app.open_planet_build_help(),
         PlanetAction::OpenCurrentBuildPlanetInfo => app.open_current_build_planet_info(),
         PlanetAction::OpenBuildList => app.open_planet_build_list(),
         PlanetAction::OpenBuildChange => app.open_planet_build_change(),

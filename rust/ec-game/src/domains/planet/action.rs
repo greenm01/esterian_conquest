@@ -7,7 +7,6 @@ use crossterm::event::KeyCode;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetAction {
     OpenMenu,
-    OpenHelp,
     OpenAutoCommissionPrompt,
     CloseAutoCommissionPrompt,
     AdvanceAutoCommissionReport,
@@ -32,7 +31,6 @@ pub enum PlanetAction {
     BackspaceTransportPromptInput,
     CancelTransportPrompt,
     OpenBuildMenu,
-    OpenBuildHelp,
     OpenCurrentBuildPlanetInfo,
     OpenBuildList,
     OpenBuildChange,

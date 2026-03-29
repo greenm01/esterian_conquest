@@ -138,7 +138,7 @@ impl MainMenuScreen {
 
     pub fn handle_key_for_mode(&self, key: KeyEvent, door_mode: bool) -> Action {
         match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('a') | KeyCode::Char('A') if door_mode => Action::ToggleAnsiMode,
             KeyCode::Char('c') | KeyCode::Char('C') if !door_mode => {
                 Action::Startup(crate::domains::startup::StartupAction::OpenThemePicker)

@@ -20,12 +20,6 @@ impl App {
         self.current_screen = ScreenId::StarbaseMenu;
     }
 
-    pub fn open_starbase_help(&mut self) {
-        self.clear_command_menu_notice();
-        self.clear_starbase_move_prompt();
-        self.current_screen = ScreenId::StarbaseHelp;
-    }
-
     pub fn open_starbase_list(&mut self) {
         let total = self.starbase_rows().len();
         if total == 0 {

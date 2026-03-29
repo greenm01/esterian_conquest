@@ -1,5 +1,5 @@
 use crate::app::state::App;
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, ScreenId};
+use crate::screen::{PlayfieldBuffer, ScreenFrame, ScreenId};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
@@ -25,7 +25,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.starbase.move_prompt_input,
             app.starbase.move_prompt_status.as_deref(),
         ),
-        ScreenId::StarbaseHelp => app.starbase_help.render(&frame),
         ScreenId::StarbaseList => app.starbase_list.render(
             frame.geometry,
             &app.starbase_rows(),

@@ -179,11 +179,6 @@ impl App {
         self.planet.commission_result_dismiss_key = None;
     }
 
-    pub fn open_planet_build_help(&mut self) {
-        self.clear_command_menu_notice();
-        self.current_screen = ScreenId::PlanetBuildHelp;
-    }
-
     pub fn open_planet_build_menu(&mut self) {
         self.command_return_menu = CommandMenu::PlanetBuild;
         self.close_planet_build_abort_prompt();

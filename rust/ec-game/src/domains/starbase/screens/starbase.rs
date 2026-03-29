@@ -6,7 +6,6 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starbase::state::StarbaseMovePromptMode;
 use crate::domains::starmap::StarmapAction;
-use crate::screen::help::{MenuHelpTopic, draw_full_screen_help, menu_help_spec};
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
@@ -43,7 +42,6 @@ pub struct StarbaseRow {
 }
 
 pub struct StarbaseMenuScreen;
-pub struct StarbaseHelpScreen;
 pub struct StarbaseListScreen;
 pub struct StarbaseReviewScreen;
 
@@ -191,7 +189,7 @@ impl Screen for StarbaseMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::Starbase(StarbaseAction::OpenHelp),
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::OpenMenu)
             }
@@ -253,27 +251,6 @@ fn draw_starbase_move_prompt(
     }
     if let Some(status) = prompt_status {
         draw_prompt_error_after(buffer, command_row, status);
-    }
-}
-
-impl StarbaseHelpScreen {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Screen for StarbaseHelpScreen {
-    fn render(
-        &mut self,
-        _frame: &ScreenFrame<'_>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_full_screen_help(&mut buffer, menu_help_spec(MenuHelpTopic::Starbase, false));
-        Ok(buffer)
-    }
-
-    fn handle_key(&self, _key: KeyEvent) -> Action {
-        Action::Starbase(StarbaseAction::OpenMenu)
     }
 }
 

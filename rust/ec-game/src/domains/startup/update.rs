@@ -31,7 +31,6 @@ pub fn update(app: &mut App, action: StartupAction) {
             }
         }
         StartupAction::OpenFirstTimeMenu => app.open_first_time_menu(),
-        StartupAction::OpenFirstTimeHelp => app.open_first_time_help(),
         StartupAction::OpenFirstTimeEmpires => app.open_first_time_empires(),
         StartupAction::OpenFirstTimeIntro => app.open_first_time_intro(),
         StartupAction::OpenThemePicker => app.open_theme_picker(),

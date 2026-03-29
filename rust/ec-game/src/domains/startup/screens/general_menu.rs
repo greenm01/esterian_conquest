@@ -122,7 +122,7 @@ impl Screen for GeneralMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenGeneralHelp,
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::General))
             }

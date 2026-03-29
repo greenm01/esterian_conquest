@@ -26,12 +26,6 @@ impl App {
         self.current_screen = ScreenId::FleetMenu;
     }
 
-    pub fn open_fleet_help(&mut self) {
-        self.clear_command_menu_notice();
-        self.clear_fleet_menu_prompt();
-        self.current_screen = ScreenId::FleetHelp;
-    }
-
     pub(crate) fn clear_fleet_menu_prompt(&mut self) {
         self.fleet.menu_prompt_mode = None;
         self.fleet.menu_prompt_input.clear();

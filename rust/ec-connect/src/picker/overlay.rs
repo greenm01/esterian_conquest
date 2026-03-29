@@ -344,11 +344,8 @@ pub fn render_identity_popup(buffer: &mut PlayfieldBuffer, session: &PickerSessi
 
 fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
     let spec = topic.spec();
-    let mut lines = spec
-        .rows
-        .iter()
-        .map(|row| ec_ui::modal::format_help_row(row.command, row.description))
-        .collect::<Vec<_>>();
+    let mut lines =
+        ec_ui::modal::format_help_rows(spec.rows.iter().map(|row| (row.command, row.description)));
     if let Some(note) = spec.note {
         lines.push(note.to_string());
     }

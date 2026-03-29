@@ -35,11 +35,6 @@ impl App {
         self.current_screen = ScreenId::PlanetMenu;
     }
 
-    pub fn open_planet_help(&mut self) {
-        self.clear_command_menu_notice();
-        self.current_screen = ScreenId::PlanetHelp;
-    }
-
     pub fn open_planet_tax_prompt(&mut self) {
         self.clear_command_menu_notice();
         self.close_planet_auto_commission_prompt();

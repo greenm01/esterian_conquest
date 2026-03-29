@@ -58,13 +58,6 @@ impl App {
         self.current_screen = ScreenId::MainMenu;
     }
 
-    pub fn open_main_help(&mut self) {
-        self.clear_command_menu_notice();
-        self.return_screen = None;
-        self.popup_help = None;
-        self.current_screen = ScreenId::MainHelp;
-    }
-
     pub fn open_general_menu(&mut self) {
         self.clear_command_menu_notice();
         self.return_screen = None;
@@ -96,11 +89,9 @@ impl App {
     pub(crate) fn origin_command_menu(&self) -> CommandMenu {
         match self.current_screen {
             ScreenId::MainMenu
-            | ScreenId::MainHelp
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseFilterPrompt => CommandMenu::Main,
-            ScreenId::FleetHelp
-            | ScreenId::FleetMenu
+            ScreenId::FleetMenu
             | ScreenId::FleetList
             | ScreenId::FleetReview
             | ScreenId::FleetOrder
@@ -110,12 +101,10 @@ impl App {
             | ScreenId::FleetDetach
             | ScreenId::FleetEta => CommandMenu::Fleet,
             ScreenId::StarbaseMenu
-            | ScreenId::StarbaseHelp
             | ScreenId::StarbaseList
             | ScreenId::StarbaseReviewSelect
             | ScreenId::StarbaseReview => CommandMenu::Starbase,
             ScreenId::GeneralMenu
-            | ScreenId::GeneralHelp
             | ScreenId::Enemies
             | ScreenId::ComposeMessageRecipient
             | ScreenId::ComposeMessageSubject
@@ -130,7 +119,6 @@ impl App {
             | ScreenId::Reports
             | ScreenId::Starmap => CommandMenu::General,
             ScreenId::PlanetMenu
-            | ScreenId::PlanetHelp
             | ScreenId::PlanetCommissionPicker
             | ScreenId::PlanetCommissionMenu
             | ScreenId::PlanetCommissionDraft
@@ -145,7 +133,6 @@ impl App {
             | ScreenId::PlanetTransportQuantityPrompt(_)
             | ScreenId::PlanetTransportDone(_) => CommandMenu::Planet,
             ScreenId::PlanetBuildMenu
-            | ScreenId::PlanetBuildHelp
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange
             | ScreenId::PlanetBuildSpecify
@@ -154,7 +141,6 @@ impl App {
             | ScreenId::PlanetBriefList(PlanetListMode::BuildSelect, _) => CommandMenu::PlanetBuild,
             ScreenId::Startup(_)
             | ScreenId::FirstTimeMenu
-            | ScreenId::FirstTimeHelp
             | ScreenId::FirstTimeEmpires
             | ScreenId::FirstTimeIntro
             | ScreenId::FirstTimeReservedPrompt

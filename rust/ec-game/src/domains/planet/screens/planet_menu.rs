@@ -320,7 +320,7 @@ impl Screen for PlanetMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::Planet(PlanetAction::OpenHelp),
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPopupHelp,
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Planet))
             }

@@ -64,6 +64,22 @@ fn draw_plain_prompt_highlights_square_and_angle_hotkeys() {
 }
 
 #[test]
+fn shared_help_rows_align_descriptions_to_the_longest_command() {
+    let rows = ec_ui::modal::format_help_rows([
+        ("J/K", "move selection"),
+        ("^U/^D", "page up/down"),
+        ("Backspace", "erase typed input"),
+    ]);
+
+    let move_col = rows[0].find("move selection").expect("move column");
+    let page_col = rows[1].find("page up/down").expect("page column");
+    let erase_col = rows[2].find("erase typed input").expect("erase column");
+
+    assert_eq!(move_col, page_col);
+    assert_eq!(page_col, erase_col);
+}
+
+#[test]
 fn draw_plain_prompt_highlights_bare_slash_separated_choices() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     draw_plain_prompt(&mut buffer, 19, "Delete this report [Y]/N ->");

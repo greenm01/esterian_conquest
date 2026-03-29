@@ -1,4 +1,4 @@
-use crate::screen::help::{MenuHelpTopic, menu_help_spec, render_help_popup};
+use crate::screen::help::{MenuHelpTopic, help_lines, menu_help_spec, render_help_popup};
 use crate::screen::{PlayfieldBuffer, ScreenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -166,18 +166,15 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
 fn from_menu_topic(topic: MenuHelpTopic, door_mode: bool) -> PopupHelp {
     let spec = menu_help_spec(topic, door_mode);
     PopupHelp {
-        title: spec.title.trim_end_matches(':').to_string(),
-        lines: spec.lines.iter().map(|line| (*line).to_string()).collect(),
+        title: spec.title.to_string(),
+        lines: help_lines(spec.lines),
     }
 }
 
 fn table_help(title: &str, rows: &[(&str, &str)]) -> PopupHelp {
     PopupHelp {
         title: title.to_string(),
-        lines: rows
-            .iter()
-            .map(|(command, description)| ec_ui::modal::format_help_row(command, description))
-            .collect(),
+        lines: ec_ui::modal::format_help_rows(rows.iter().copied()),
     }
 }
 

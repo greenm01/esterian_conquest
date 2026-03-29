@@ -4,9 +4,6 @@ pub mod layout;
 pub mod table;
 pub mod table_selection;
 
-pub mod build_help {
-    pub use crate::domains::planet::screens::build_help::*;
-}
 pub mod empire_profile {
     pub use crate::domains::empire::screens::empire_profile::*;
 }
@@ -22,17 +19,8 @@ pub mod first_time {
 pub mod fleet {
     pub use crate::domains::fleet::screens::fleet::*;
 }
-pub mod fleet_help {
-    pub use crate::domains::fleet::screens::fleet_help::*;
-}
-pub mod general_help {
-    pub use crate::domains::startup::screens::general_help::*;
-}
 pub mod general_menu {
     pub use crate::domains::startup::screens::general_menu::*;
-}
-pub mod main_help {
-    pub use crate::domains::startup::screens::main_help::*;
 }
 pub mod main_menu {
     pub use crate::domains::startup::screens::main_menu::*;
@@ -51,9 +39,6 @@ pub mod planet_commission {
 }
 pub mod planet_database {
     pub use crate::domains::planet::screens::planet_database::*;
-}
-pub mod planet_help {
-    pub use crate::domains::planet::screens::planet_help::*;
 }
 pub mod planet_info {
     pub use crate::domains::planet::screens::planet_info::*;
@@ -102,12 +87,10 @@ pub use crate::domains::fleet::screens::fleet::{
     FleetMissionPickerScreen, FleetReviewScreen, FleetRow, FleetSingleOrderMode,
     FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
 };
-pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;
 pub(crate) use crate::domains::messaging::screens::message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT,
 };
-pub use crate::domains::planet::screens::build_help::BuildHelpScreen;
 pub use crate::domains::planet::screens::planet_build::{
     BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, build_kind_count_label, build_kind_name, build_order_summary,
@@ -121,7 +104,6 @@ pub use crate::domains::planet::screens::planet_database::{
     PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode, PlanetDatabaseRow,
     PlanetDatabaseScreen, PlanetDatabaseSort, PlanetDatabaseSortMode,
 };
-pub use crate::domains::planet::screens::planet_help::PlanetHelpScreen;
 pub use crate::domains::planet::screens::planet_info::{PlanetInfoScreen, parse_planet_coords};
 pub use crate::domains::planet::screens::planet_list::{
     PlanetListMode, PlanetListScreen, PlanetListSort,
@@ -132,22 +114,20 @@ pub use crate::domains::planet::screens::planet_transport::{
     PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen,
 };
 pub use crate::domains::starbase::screens::starbase::{
-    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow,
+    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow,
 };
 pub use crate::domains::starmap::screens::partial_starmap::PartialStarmapScreen;
 pub use crate::domains::starmap::screens::starmap::StarmapScreen;
 pub(crate) use crate::domains::startup::screens::first_time::FIRST_TIME_INTRO_PAGE_COUNT;
 pub use crate::domains::startup::screens::first_time::{
-    FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
-    render_colony_world_confirm, render_colony_world_name, render_first_time_homeworld_confirm,
+    FirstTimeEmpiresScreen, FirstTimeIntroScreen, FirstTimeMenuScreen, render_colony_world_confirm,
+    render_colony_world_name, render_first_time_homeworld_confirm,
     render_first_time_homeworld_name, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
     render_first_time_join_summary, render_first_time_reserved_prompt,
     render_preloaded_first_login_rename_prompt,
 };
-pub use crate::domains::startup::screens::general_help::GeneralHelpScreen;
 pub use crate::domains::startup::screens::general_menu::GeneralMenuScreen;
-pub use crate::domains::startup::screens::main_help::MainHelpScreen;
 pub use crate::domains::startup::screens::main_menu::MainMenuScreen;
 pub use crate::domains::startup::screens::reports::ReportsScreen;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COUNT;
@@ -171,7 +151,6 @@ use crate::startup::StartupPhase;
 pub enum ScreenId {
     Startup(StartupPhase),
     FirstTimeMenu,
-    FirstTimeHelp,
     FirstTimeEmpires,
     FirstTimeIntro,
     FirstTimeReservedPrompt,
@@ -186,12 +165,8 @@ pub enum ScreenId {
     ColonyWorldConfirm,
     ThemePicker,
     MainMenu,
-    MainHelp,
     GeneralMenu,
-    GeneralHelp,
-    FleetHelp,
     StarbaseMenu,
-    StarbaseHelp,
     StarbaseList,
     StarbaseReviewSelect,
     StarbaseReview,
@@ -205,9 +180,7 @@ pub enum ScreenId {
     FleetDetach,
     FleetEta,
     PlanetMenu,
-    PlanetHelp,
     PlanetBuildMenu,
-    PlanetBuildHelp,
     PlanetBuildList,
     PlanetBuildChange,
     PlanetBuildSpecify,
