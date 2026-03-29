@@ -16,15 +16,17 @@ use crossterm::{
     style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
     terminal::{self, Clear, ClearType},
 };
-use diff::changed_spans;
+use diff::{changed_spans, fingerprint_row};
 
 pub struct StdoutTerminal {
     encoding: OutputEncoding,
     color_mode: ColorMode,
-    previous_frame: Option<RenderSnapshot>,
+    previous_frame: RenderSnapshot,
+    current_frame: RenderSnapshot,
+    has_previous_frame: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct RenderSnapshot {
     width: usize,
     height: usize,
@@ -32,28 +34,32 @@ struct RenderSnapshot {
     term_height: u16,
     origin: (u16, u16),
     cells: Vec<Cell>,
+    row_fingerprints: Vec<u64>,
     cursor: Option<(u16, u16)>,
 }
 
 impl RenderSnapshot {
-    fn from_playfield(
+    fn capture_from_playfield(
+        &mut self,
         playfield: &PlayfieldBuffer,
         term_width: u16,
         term_height: u16,
         origin: (u16, u16),
-    ) -> Self {
-        let mut cells = Vec::with_capacity(playfield.width() * playfield.height());
-        for row in 0..playfield.height() {
-            cells.extend_from_slice(playfield.row(row));
-        }
-        Self {
-            width: playfield.width(),
-            height: playfield.height(),
-            term_width,
-            term_height,
-            origin,
-            cells,
-            cursor: playfield.cursor(),
+    ) {
+        self.width = playfield.width();
+        self.height = playfield.height();
+        self.term_width = term_width;
+        self.term_height = term_height;
+        self.origin = origin;
+        self.cursor = playfield.cursor();
+        self.cells.clear();
+        self.row_fingerprints.clear();
+        self.cells.reserve(self.width * self.height);
+        self.row_fingerprints.reserve(self.height);
+        for row_idx in 0..self.height {
+            let row = playfield.row(row_idx);
+            self.row_fingerprints.push(fingerprint_row(row));
+            self.cells.extend_from_slice(row);
         }
     }
 
@@ -68,7 +74,9 @@ impl StdoutTerminal {
         Self {
             encoding: OutputEncoding::Utf8,
             color_mode: ColorMode::TrueColor,
-            previous_frame: None,
+            previous_frame: RenderSnapshot::default(),
+            current_frame: RenderSnapshot::default(),
+            has_previous_frame: false,
         }
     }
 
@@ -76,7 +84,9 @@ impl StdoutTerminal {
         Self {
             encoding,
             color_mode: ColorMode::TrueColor,
-            previous_frame: None,
+            previous_frame: RenderSnapshot::default(),
+            current_frame: RenderSnapshot::default(),
+            has_previous_frame: false,
         }
     }
 
@@ -84,7 +94,9 @@ impl StdoutTerminal {
         Self {
             encoding,
             color_mode,
-            previous_frame: None,
+            previous_frame: RenderSnapshot::default(),
+            current_frame: RenderSnapshot::default(),
+            has_previous_frame: false,
         }
     }
 }
@@ -92,31 +104,51 @@ impl StdoutTerminal {
 impl Terminal for StdoutTerminal {
     fn render(&mut self, playfield: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
-        let bg = resolve_color(classic::app_background(), self.color_mode);
-        let fg = resolve_color(classic::terminal_foreground(), self.color_mode);
         if stdout.is_terminal() {
             let (term_width, term_height) = terminal::size()?;
             let (offset_x, offset_y) = render_origin(term_width, term_height, self.encoding);
-            let current_frame = RenderSnapshot::from_playfield(
+            self.current_frame.capture_from_playfield(
                 playfield,
                 term_width,
                 term_height,
                 (offset_x, offset_y),
             );
-            execute!(stdout, Hide, SetBackgroundColor(bg), SetForegroundColor(fg))?;
-            if frame_reset_required(self.previous_frame.as_ref(), &current_frame) {
-                full_repaint(&mut stdout, &current_frame, self.encoding, self.color_mode)?;
-            } else if let Some(previous_frame) = self.previous_frame.as_ref() {
-                diff_repaint(
+
+            let content_redrawn = if !self.has_previous_frame
+                || frame_reset_required(&self.previous_frame, &self.current_frame)
+            {
+                full_repaint(
                     &mut stdout,
-                    previous_frame,
-                    &current_frame,
+                    &self.current_frame,
                     self.encoding,
                     self.color_mode,
+                )?
+            } else {
+                diff_repaint(
+                    &mut stdout,
+                    &self.previous_frame,
+                    &self.current_frame,
+                    self.encoding,
+                    self.color_mode,
+                )?
+            };
+
+            if cursor_update_required(
+                self.has_previous_frame
+                    .then_some(self.previous_frame.cursor)
+                    .flatten(),
+                self.current_frame.cursor,
+                content_redrawn,
+            ) {
+                render_cursor(
+                    &mut stdout,
+                    self.current_frame.cursor,
+                    self.current_frame.origin,
                 )?;
             }
-            render_cursor(&mut stdout, &current_frame)?;
-            self.previous_frame = Some(current_frame);
+
+            std::mem::swap(&mut self.previous_frame, &mut self.current_frame);
+            self.has_previous_frame = true;
         } else {
             for row in 0..playfield.height() {
                 let line = playfield.plain_line(row);
@@ -151,7 +183,7 @@ impl Terminal for StdoutTerminal {
                 Show
             )?;
             stdout.write_all(b"\x1b[0m")?;
-            self.previous_frame = None;
+            self.has_previous_frame = false;
         }
         stdout.write_all(text.as_bytes())?;
         if !text.ends_with('\n') {
@@ -176,19 +208,13 @@ impl Terminal for StdoutTerminal {
             )?;
             stdout.write_all(b"\x1b[0m")?;
             stdout.flush()?;
-            self.previous_frame = None;
+            self.has_previous_frame = false;
         }
         Ok(())
     }
 }
 
-fn frame_reset_required(
-    previous_frame: Option<&RenderSnapshot>,
-    current_frame: &RenderSnapshot,
-) -> bool {
-    let Some(previous_frame) = previous_frame else {
-        return true;
-    };
+fn frame_reset_required(previous_frame: &RenderSnapshot, current_frame: &RenderSnapshot) -> bool {
     previous_frame.width != current_frame.width
         || previous_frame.height != current_frame.height
         || previous_frame.term_width != current_frame.term_width
@@ -201,13 +227,20 @@ fn full_repaint(
     frame: &RenderSnapshot,
     encoding: OutputEncoding,
     color_mode: ColorMode,
-) -> Result<(), Box<dyn std::error::Error>> {
-    queue!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+) -> Result<bool, Box<dyn std::error::Error>> {
+    queue!(
+        stdout,
+        Hide,
+        SetBackgroundColor(resolve_color(classic::app_background(), color_mode)),
+        SetForegroundColor(resolve_color(classic::terminal_foreground(), color_mode)),
+        Clear(ClearType::All),
+        MoveTo(0, 0)
+    )?;
     for row in 0..frame.height {
         queue!(stdout, MoveTo(frame.origin.0, frame.origin.1 + row as u16))?;
         write_styled_cells(stdout, frame.row(row), encoding, color_mode)?;
     }
-    Ok(())
+    Ok(true)
 }
 
 fn diff_repaint(
@@ -216,14 +249,19 @@ fn diff_repaint(
     current_frame: &RenderSnapshot,
     encoding: OutputEncoding,
     color_mode: ColorMode,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let mut content_redrawn = false;
     for row in 0..current_frame.height {
-        let previous_row = previous_frame.row(row);
-        let current_row = current_frame.row(row);
-        if previous_row == current_row {
+        if previous_frame.row_fingerprints[row] == current_frame.row_fingerprints[row] {
             continue;
         }
+        let previous_row = previous_frame.row(row);
+        let current_row = current_frame.row(row);
         for span in changed_spans(previous_row, current_row) {
+            if !content_redrawn {
+                queue!(stdout, Hide)?;
+                content_redrawn = true;
+            }
             queue!(
                 stdout,
                 MoveTo(
@@ -239,26 +277,31 @@ fn diff_repaint(
             )?;
         }
     }
-    Ok(())
+    Ok(content_redrawn)
 }
 
 fn render_cursor(
     stdout: &mut io::Stdout,
-    frame: &RenderSnapshot,
+    cursor: Option<(u16, u16)>,
+    origin: (u16, u16),
 ) -> Result<(), Box<dyn std::error::Error>> {
-    match frame.cursor {
+    match cursor {
         Some((column, row)) => {
-            queue!(
-                stdout,
-                Show,
-                MoveTo(frame.origin.0 + column, frame.origin.1 + row)
-            )?;
+            queue!(stdout, Show, MoveTo(origin.0 + column, origin.1 + row))?;
         }
         None => {
             queue!(stdout, Hide)?;
         }
     }
     Ok(())
+}
+
+fn cursor_update_required(
+    previous_cursor: Option<(u16, u16)>,
+    current_cursor: Option<(u16, u16)>,
+    content_redrawn: bool,
+) -> bool {
+    content_redrawn || previous_cursor != current_cursor
 }
 
 fn render_origin(term_width: u16, term_height: u16, encoding: OutputEncoding) -> (u16, u16) {
@@ -308,7 +351,7 @@ fn write_styled_cells(
 
 #[cfg(test)]
 mod tests {
-    use super::{RenderSnapshot, frame_reset_required};
+    use super::{RenderSnapshot, cursor_update_required, frame_reset_required};
     use crate::screen::{Cell, CellStyle, GameColor};
 
     fn snapshot(
@@ -326,28 +369,38 @@ mod tests {
             term_height,
             origin,
             cells: vec![Cell::new(' ', style); width * height],
+            row_fingerprints: vec![0; height],
             cursor: None,
         }
-    }
-
-    #[test]
-    fn frame_reset_is_required_without_a_previous_frame() {
-        let current = snapshot(80, 25, 120, 40, (20, 7));
-        assert!(frame_reset_required(None, &current));
     }
 
     #[test]
     fn frame_reset_is_not_required_when_geometry_is_stable() {
         let previous = snapshot(80, 25, 120, 40, (20, 7));
         let current = snapshot(80, 25, 120, 40, (20, 7));
-        assert!(!frame_reset_required(Some(&previous), &current));
+        assert!(!frame_reset_required(&previous, &current));
     }
 
     #[test]
     fn frame_reset_is_required_when_render_origin_changes() {
         let previous = snapshot(80, 25, 120, 40, (20, 7));
         let current = snapshot(80, 25, 121, 40, (20, 7));
-        assert!(frame_reset_required(Some(&previous), &current));
+        assert!(frame_reset_required(&previous, &current));
+    }
+
+    #[test]
+    fn cursor_update_is_skipped_when_nothing_changed() {
+        assert!(!cursor_update_required(Some((4, 5)), Some((4, 5)), false));
+    }
+
+    #[test]
+    fn cursor_update_happens_after_content_redraw_even_if_position_matches() {
+        assert!(cursor_update_required(Some((4, 5)), Some((4, 5)), true));
+    }
+
+    #[test]
+    fn cursor_update_happens_when_visibility_changes() {
+        assert!(cursor_update_required(Some((4, 5)), None, false));
     }
 }
 
