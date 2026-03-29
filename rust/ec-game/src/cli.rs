@@ -102,6 +102,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
                 campaign_store.clone(),
                 session_token,
                 player_record_index_1_based,
+                parsed.session_timeout_secs,
+                &game_config,
             )
         })
         .transpose()?;
@@ -562,6 +564,8 @@ fn validate_session_lease(
     campaign_store: CampaignStore,
     session_token: String,
     player_record_index_1_based: usize,
+    session_timeout_secs: Option<u32>,
+    game_config: &GameConfig,
 ) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
     let lease = campaign_store.load_session_lease(&session_token, unix_now())?;
     if lease.player_record_index_1_based != player_record_index_1_based {
@@ -571,7 +575,23 @@ fn validate_session_lease(
         )
         .into());
     }
-    SessionLeaseGuard::activate(campaign_store, session_token, unix_now(), 120)
+    SessionLeaseGuard::activate(
+        campaign_store,
+        session_token,
+        unix_now(),
+        session_lease_ttl_seconds(session_timeout_secs, game_config),
+    )
+}
+
+fn session_lease_ttl_seconds(session_timeout_secs: Option<u32>, game_config: &GameConfig) -> u64 {
+    session_timeout_secs
+        .map(u64::from)
+        .or_else(|| {
+            let idle_timeout_secs =
+                u64::from(game_config.session.max_idle_minutes).saturating_mul(60);
+            (idle_timeout_secs > 0).then_some(idle_timeout_secs)
+        })
+        .unwrap_or(120)
 }
 
 fn unix_now() -> u64 {
@@ -579,4 +599,31 @@ fn unix_now() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::session_lease_ttl_seconds;
+    use ec_data::GameConfig;
+
+    #[test]
+    fn session_lease_uses_explicit_timeout_when_present() {
+        let mut game_config = GameConfig::default();
+        game_config.session.max_idle_minutes = 10;
+        assert_eq!(session_lease_ttl_seconds(Some(45), &game_config), 45);
+    }
+
+    #[test]
+    fn session_lease_uses_campaign_idle_timeout_by_default() {
+        let mut game_config = GameConfig::default();
+        game_config.session.max_idle_minutes = 10;
+        assert_eq!(session_lease_ttl_seconds(None, &game_config), 600);
+    }
+
+    #[test]
+    fn session_lease_falls_back_when_timeout_is_disabled() {
+        let mut game_config = GameConfig::default();
+        game_config.session.max_idle_minutes = 0;
+        assert_eq!(session_lease_ttl_seconds(None, &game_config), 120);
+    }
 }
