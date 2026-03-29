@@ -7,8 +7,8 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
-    draw_table_footer, draw_table_title, layout_standard_table_block, resolve_table_columns,
-    write_table_window_with_cursor_at,
+    draw_table_footer, draw_table_title, layout_standard_table_block,
+    resolve_table_columns_for_widget, write_table_window_with_cursor_at,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::{ThemeEntry, ThemeEntryKind, classic};
@@ -67,13 +67,6 @@ impl ThemePickerScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &THEME_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let default_theme = rows
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| row.display_name.as_str());
@@ -82,6 +75,15 @@ impl ThemePickerScreen {
             default: default_theme,
             input,
         };
+        let columns = resolve_table_columns_for_widget(
+            &THEME_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some("COLOR THEMES:"),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,

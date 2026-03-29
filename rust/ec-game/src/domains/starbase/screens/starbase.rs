@@ -14,7 +14,8 @@ use crate::screen::layout::{
     new_playfield, standard_table_visible_rows, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, TableFooter, draw_table_footer, draw_table_title, write_table_window_with_cursor,
+    TableColumn, TableFooter, draw_table_footer, draw_table_title, fit_table_columns_for_widget,
+    write_table_window_with_cursor,
 };
 use crate::screen::{
     COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
@@ -320,10 +321,21 @@ impl StarbaseListScreen {
                 ]
             })
             .collect::<Vec<_>>();
+        let footer = TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D <Q>",
+            default: None,
+            input: "",
+        };
+        let columns = fit_table_columns_for_widget(
+            &STARBASE_COLUMNS,
+            &table_rows,
+            Some("STARBASE LIST:"),
+            Some(footer),
+        );
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
-            &STARBASE_COLUMNS,
+            &columns,
             &table_rows,
             scroll_offset,
             starbase_visible_rows(geometry),
@@ -336,17 +348,7 @@ impl StarbaseListScreen {
             },
             0,
         );
-        draw_table_footer(
-            &mut buffer,
-            geometry,
-            0,
-            metrics.bottom_row,
-            TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
-                default: None,
-                input: "",
-            },
-        );
+        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         Ok(buffer)
     }
 
@@ -401,10 +403,33 @@ impl StarbaseReviewScreen {
                 ]
             })
             .collect::<Vec<_>>();
+        let default_base = rows
+            .get(cursor)
+            .map(|row| row.base_id.to_string())
+            .unwrap_or_else(|| "1".to_string());
+        let footer = if rows.is_empty() {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: None,
+                input: "",
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: Some(&default_base),
+                input,
+            }
+        };
+        let columns = fit_table_columns_for_widget(
+            &STARBASE_COLUMNS,
+            &table_rows,
+            Some("REVIEW A STARBASE:"),
+            Some(footer),
+        );
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
-            &STARBASE_COLUMNS,
+            &columns,
             &table_rows,
             scroll_offset,
             starbase_visible_rows(geometry),
@@ -417,35 +442,7 @@ impl StarbaseReviewScreen {
             },
             0,
         );
-        if rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
-                    default: None,
-                    input: "",
-                },
-            );
-        } else {
-            let default_base = rows
-                .get(cursor)
-                .map(|row| row.base_id.to_string())
-                .unwrap_or_else(|| "1".to_string());
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
-                    default: Some(&default_base),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         Ok(buffer)
     }
 

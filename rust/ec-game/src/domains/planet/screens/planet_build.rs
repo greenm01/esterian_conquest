@@ -13,7 +13,7 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, TableFooter, draw_table_footer, draw_table_title,
-    write_split_table, write_table_window_with_cursor,
+    fit_table_columns_for_widget, write_split_table, write_table_window_with_cursor,
 };
 use crate::screen::{
     COMMAND_LABEL, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
@@ -374,12 +374,62 @@ impl PlanetBuildScreen {
                 ]
             })
             .collect();
+        let confirm_summary = rows
+            .get(cursor)
+            .map(|row| {
+                let quantity = pending_delete_qty.unwrap_or(row.queue_qty);
+                format!(
+                    "Delete {} {}?",
+                    quantity,
+                    build_kind_count_label(row.kind, quantity)
+                )
+            })
+            .unwrap_or_else(|| "Delete queued build(s) for this unit?".to_string());
+        let confirm_prompt = format!("{confirm_summary} Y/[N] -> ");
+        let delete_prompt = rows
+            .get(cursor)
+            .map(|row| {
+                format!(
+                    "Delete how many {}? <A>ll or 1-{} <Q> -> {}",
+                    build_kind_name(row.kind),
+                    row.queue_qty,
+                    delete_qty_input
+                )
+            })
+            .unwrap_or_else(|| "J K ^U ^D D <Q> -> ".to_string());
+        let footer = if confirming {
+            TableFooter::CommandPrompt {
+                label: COMMAND_LABEL,
+                prompt: &confirm_prompt,
+            }
+        } else if delete_qty_prompt_active {
+            TableFooter::CommandPrompt {
+                label: COMMAND_LABEL,
+                prompt: &delete_prompt,
+            }
+        } else if rows.is_empty() {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: "No build orders are queued.",
+            }
+        } else {
+            TableFooter::CommandPrompt {
+                label: COMMAND_LABEL,
+                prompt: "J K ^U ^D D <Q> -> ",
+            }
+        };
+        let columns = fit_table_columns_for_widget(
+            &BUILD_LIST_COLUMNS,
+            &table_rows,
+            Some(&title),
+            Some(footer),
+        );
 
         let selected = if rows.is_empty() { None } else { Some(cursor) };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
-            &BUILD_LIST_COLUMNS,
+            &columns,
             &table_rows,
             scroll_offset,
             planet_build_list_visible_rows(geometry),
@@ -389,72 +439,7 @@ impl PlanetBuildScreen {
             0,
         );
 
-        if confirming {
-            let summary = rows
-                .get(cursor)
-                .map(|row| {
-                    let quantity = pending_delete_qty.unwrap_or(row.queue_qty);
-                    format!(
-                        "Delete {} {}?",
-                        quantity,
-                        build_kind_count_label(row.kind, quantity)
-                    )
-                })
-                .unwrap_or_else(|| "Delete queued build(s) for this unit?".to_string());
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandPrompt {
-                    label: COMMAND_LABEL,
-                    prompt: &format!("{summary} Y/[N] -> "),
-                },
-            );
-        } else if delete_qty_prompt_active {
-            if let Some(row) = rows.get(cursor) {
-                let prompt = format!(
-                    "Delete how many {}? <A>ll or 1-{} <Q> -> {}",
-                    build_kind_name(row.kind),
-                    row.queue_qty,
-                    delete_qty_input
-                );
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    0,
-                    metrics.bottom_row,
-                    TableFooter::CommandPrompt {
-                        label: COMMAND_LABEL,
-                        prompt: &prompt,
-                    },
-                );
-            } else {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    0,
-                    metrics.bottom_row,
-                    TableFooter::CommandPrompt {
-                        label: COMMAND_LABEL,
-                        prompt: "J K ^U ^D D <Q> -> ",
-                    },
-                );
-            }
-        } else {
-            let footer = if rows.is_empty() {
-                TableFooter::CommandText {
-                    label: COMMAND_LABEL,
-                    text: "No build orders are queued.",
-                }
-            } else {
-                TableFooter::CommandPrompt {
-                    label: COMMAND_LABEL,
-                    prompt: "J K ^U ^D D <Q> -> ",
-                }
-            };
-            draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
-        }
+        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         let _ = delete_qty_status;
         Ok(buffer)
     }
@@ -599,20 +584,6 @@ impl PlanetBuildScreen {
                 ]
             })
             .collect();
-
-        let selected = if rows.is_empty() { None } else { Some(cursor) };
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            1,
-            &CHANGE_COLUMNS,
-            &table_rows,
-            scroll_offset,
-            planet_build_change_visible_rows(geometry),
-            classic::status_value_style(),
-            classic::status_value_style(),
-            selected,
-            0,
-        );
         let footer = if rows.is_empty() {
             TableFooter::CommandText {
                 label: COMMAND_LABEL,
@@ -624,6 +595,26 @@ impl PlanetBuildScreen {
                 prompt: "J K ^U ^D <Q> -> ",
             }
         };
+        let columns = fit_table_columns_for_widget(
+            &CHANGE_COLUMNS,
+            &table_rows,
+            Some("CHANGE CURRENT PLANET:"),
+            Some(footer),
+        );
+
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        let metrics = write_table_window_with_cursor(
+            &mut buffer,
+            1,
+            &columns,
+            &table_rows,
+            scroll_offset,
+            planet_build_change_visible_rows(geometry),
+            classic::status_value_style(),
+            classic::status_value_style(),
+            selected,
+            0,
+        );
         draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         Ok(buffer)
     }

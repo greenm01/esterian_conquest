@@ -8,8 +8,8 @@ use crate::screen::layout::{
     standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, TableFooter, draw_table_footer, draw_table_title, fleet_id_column_width,
-    format_fleet_number, write_table_window_with_cursor,
+    TableColumn, TableFooter, draw_table_footer, draw_table_title, fit_table_columns_for_widget,
+    fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
 use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_table};
 use crate::theme::classic;
@@ -109,10 +109,30 @@ impl PlanetTransportScreen {
         } else {
             Some(cursor)
         };
+        let default_coords_label = format!("{},{}", default_coords[0], default_coords[1]);
+        let footer = if table_rows.is_empty() {
+            TableFooter::CommandText {
+                label: prompt_label,
+                text: "No eligible planets remain. Q quits.",
+            }
+        } else {
+            TableFooter::CommandInput {
+                label: prompt_label,
+                prompt: "",
+                default: &default_coords_label,
+                input,
+            }
+        };
+        let columns = fit_table_columns_for_widget(
+            &PLANET_COLUMNS,
+            &table_rows,
+            Some(mode.title()),
+            Some(footer),
+        );
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
-            &PLANET_COLUMNS,
+            &columns,
             &table_rows,
             scroll_offset,
             planet_transport_visible_rows(geometry),
@@ -121,31 +141,7 @@ impl PlanetTransportScreen {
             selected,
             0,
         );
-        if table_rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandText {
-                    label: prompt_label,
-                    text: "No eligible planets remain. Q quits.",
-                },
-            );
-        } else {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandInput {
-                    label: prompt_label,
-                    prompt: "",
-                    default: &format!("{},{}", default_coords[0], default_coords[1]),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         let _ = status;
         Ok(buffer)
     }
@@ -182,10 +178,32 @@ impl PlanetTransportScreen {
         } else {
             Some(cursor)
         };
+        let max_qty = fleets.get(cursor).map(|row| row.available_qty).unwrap_or(0);
+        let default_qty = max_qty.to_string();
+        let prompt = format!("How many armies to {}? ", mode.verb());
+        let footer = if table_rows.is_empty() {
+            TableFooter::CommandText {
+                label: prompt_label,
+                text: "No eligible fleets remain here. Q quits.",
+            }
+        } else {
+            TableFooter::CommandInput {
+                label: prompt_label,
+                prompt: &prompt,
+                default: &default_qty,
+                input,
+            }
+        };
+        let columns = fit_table_columns_for_widget(
+            &fleet_columns,
+            &table_rows,
+            Some(mode.title()),
+            Some(footer),
+        );
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
-            &fleet_columns,
+            &columns,
             &table_rows,
             scroll_offset,
             planet_transport_visible_rows(geometry),
@@ -194,34 +212,7 @@ impl PlanetTransportScreen {
             selected,
             0,
         );
-        let max_qty = fleets.get(cursor).map(|row| row.available_qty).unwrap_or(0);
-        if table_rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandText {
-                    label: prompt_label,
-                    text: "No eligible fleets remain here. Q quits.",
-                },
-            );
-        } else {
-            let default_qty = max_qty.to_string();
-            let prompt = format!("How many armies to {}? ", mode.verb());
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandInput {
-                    label: prompt_label,
-                    prompt: &prompt,
-                    default: &default_qty,
-                    input,
-                },
-            );
-        }
+        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         let _ = (planet, status);
         Ok(buffer)
     }

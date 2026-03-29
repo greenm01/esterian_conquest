@@ -9,8 +9,8 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
-    draw_table_footer, draw_table_title, layout_stacked_table_block, resolve_table_columns,
-    write_stacked_table_window_with_states_at,
+    draw_table_footer, draw_table_title, layout_stacked_table_block,
+    resolve_table_columns_for_widget, write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
     PlayfieldBuffer, ScreenFrame, format_sector_coords_default, format_sector_coords_table,
@@ -85,14 +85,16 @@ impl PlanetListScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
+        let footer = TableFooter::TablePrompt(BRIEF_SORT_PROMPT);
+        let columns = resolve_table_columns_for_widget(
             &BRIEF_COLUMNS,
             &table_rows,
             buffer.width(),
             scrollable,
             TableWidthMode::Compact,
+            Some(brief_list_title(mode)),
+            Some(footer),
         );
-        let footer = TableFooter::TablePrompt(BRIEF_SORT_PROMPT);
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
@@ -131,13 +133,6 @@ impl PlanetListScreen {
             .len()
             .saturating_sub(scroll_offset)
             .min(visible_rows);
-        let columns = resolve_table_columns(
-            &BRIEF_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let default_coords = rows
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
@@ -147,6 +142,15 @@ impl PlanetListScreen {
             default: Some(&default_coords),
             input,
         };
+        let columns = resolve_table_columns_for_widget(
+            &BRIEF_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some(brief_list_title(mode)),
+            Some(footer),
+        );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,

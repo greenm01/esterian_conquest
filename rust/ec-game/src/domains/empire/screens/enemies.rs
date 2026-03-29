@@ -7,7 +7,7 @@ use crate::screen::layout::{ScreenGeometry, new_playfield_for, standard_table_vi
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
     draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
-    resolve_table_columns, write_table_window_with_cursor_at,
+    resolve_table_columns_for_widget, write_table_window_with_cursor_at,
 };
 use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
@@ -78,13 +78,6 @@ impl EnemiesScreen {
         let visible_rows = enemies_visible_rows(frame.geometry);
         let displayed_rows = rows.len().saturating_sub(scroll_offset).min(visible_rows);
         let scrollable = rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &ENEMIES_COLUMNS,
-            &rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let footer = if rows.is_empty() {
             TableFooter::CommandText {
                 label: COMMAND_LABEL,
@@ -102,6 +95,15 @@ impl EnemiesScreen {
                 input,
             }
         };
+        let columns = resolve_table_columns_for_widget(
+            &ENEMIES_COLUMNS,
+            &rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some("ENEMIES, DECLARE OR LIST:"),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,

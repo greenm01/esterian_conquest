@@ -10,8 +10,8 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
-    draw_table_footer, draw_table_title, layout_standard_table_block, resolve_table_columns,
-    write_table_window_with_cursor_at,
+    draw_table_footer, draw_table_title, layout_standard_table_block,
+    resolve_table_columns_for_widget, write_table_window_with_cursor_at,
 };
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_table,
@@ -140,13 +140,6 @@ impl PlanetCommissionScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &COMMISSION_PICKER_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let default = rows
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
@@ -155,6 +148,15 @@ impl PlanetCommissionScreen {
             default: default.as_deref(),
             input: "",
         };
+        let columns = resolve_table_columns_for_widget(
+            &COMMISSION_PICKER_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some("COMMISSION SHIPS:"),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
@@ -235,18 +237,20 @@ impl PlanetCommissionScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &COMMISSION_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let footer = TableFooter::CommandBar {
             hotkeys_markup: "J K ^U ^D SPACE <Q>",
             default: None,
             input: "",
         };
+        let columns = resolve_table_columns_for_widget(
+            &COMMISSION_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some(&title),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
@@ -320,13 +324,6 @@ impl PlanetCommissionScreen {
         let visible_rows = planet_commission_draft_visible_rows(geometry);
         let displayed_rows = table_rows.len().min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &COMMISSION_DRAFT_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let has_ship_draft = rows
             .iter()
             .any(|row| row.accepts_fleet_qty() && row.fleet_qty > 0);
@@ -357,6 +354,15 @@ impl PlanetCommissionScreen {
                 },
             }
         };
+        let columns = resolve_table_columns_for_widget(
+            &COMMISSION_DRAFT_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some(title),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,

@@ -5,8 +5,8 @@ use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{new_playfield_for, stacked_table_visible_rows_for};
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
-    draw_table_footer, draw_table_title, layout_stacked_table_block, resolve_table_columns,
-    write_stacked_table_window_with_states_at,
+    draw_table_footer, draw_table_title, layout_stacked_table_block,
+    resolve_table_columns_for_widget, write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
     COMMAND_LABEL, CommandMenu, PlayfieldBuffer, ScreenGeometry, format_sector_coords_default,
@@ -123,13 +123,6 @@ impl PlanetDatabaseScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &DATABASE_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let default = rows
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
@@ -146,6 +139,15 @@ impl PlanetDatabaseScreen {
                 input,
             }
         };
+        let columns = resolve_table_columns_for_widget(
+            &DATABASE_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some("TOTAL PLANET DATABASE:"),
+            Some(footer),
+        );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
@@ -223,13 +225,6 @@ impl PlanetDatabaseScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &DATABASE_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let footer = match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => {
                 TableFooter::TablePrompt(DATABASE_FILTER_PROMPT)
@@ -266,6 +261,15 @@ impl PlanetDatabaseScreen {
                 input,
             },
         };
+        let columns = resolve_table_columns_for_widget(
+            &DATABASE_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some("TOTAL PLANET DATABASE:"),
+            Some(footer),
+        );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,

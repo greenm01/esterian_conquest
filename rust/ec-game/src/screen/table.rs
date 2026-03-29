@@ -155,6 +155,103 @@ pub fn resolve_table_columns<'a>(
         .collect()
 }
 
+pub fn fit_table_columns_for_widget<'a>(
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
+) -> Vec<TableColumn<'a>> {
+    let fitted = fit_table_columns(columns, rows);
+    widen_table_columns_to_minimum_render_width(&fitted, minimum_table_render_width(title, footer))
+}
+
+pub fn resolve_table_columns_for_widget<'a>(
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    available_width: usize,
+    scrollbar_visible: bool,
+    width_mode: TableWidthMode,
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
+) -> Vec<TableColumn<'a>> {
+    let resolved = resolve_table_columns(
+        columns,
+        rows,
+        available_width,
+        scrollbar_visible,
+        width_mode,
+    );
+    widen_table_columns_to_minimum_render_width(
+        &resolved,
+        minimum_table_render_width(title, footer),
+    )
+}
+
+pub fn minimum_table_render_width(title: Option<&str>, footer: Option<TableFooter<'_>>) -> usize {
+    title
+        .map_or(0, |title| title.chars().count())
+        .max(footer.map_or(0, table_footer_width))
+}
+
+pub fn widen_table_columns_to_minimum_render_width<'a>(
+    columns: &[TableColumn<'a>],
+    minimum_render_width: usize,
+) -> Vec<TableColumn<'a>> {
+    let current_width = table_render_width(columns);
+    if columns.is_empty() || current_width >= minimum_render_width {
+        return columns.to_vec();
+    }
+
+    let mut widened = columns.to_vec();
+    let extra = minimum_render_width - current_width;
+    let flex_total = widened
+        .iter()
+        .map(|column| usize::from(column.flex))
+        .sum::<usize>();
+    if flex_total > 0 {
+        let mut assigned = 0usize;
+        for column in &mut widened {
+            if column.flex == 0 {
+                continue;
+            }
+            let share = extra * usize::from(column.flex) / flex_total;
+            column.width += share;
+            assigned += share;
+        }
+        let mut remainder = extra.saturating_sub(assigned);
+        if remainder > 0 {
+            for column in &mut widened {
+                if column.flex == 0 {
+                    continue;
+                }
+                column.width += 1;
+                remainder -= 1;
+                if remainder == 0 {
+                    break;
+                }
+            }
+        }
+        return widened;
+    }
+
+    let target_index = widened
+        .iter()
+        .enumerate()
+        .filter(|(_, column)| column.align != TableAlign::Right)
+        .max_by_key(|(_, column)| column.width)
+        .map(|(idx, _)| idx)
+        .unwrap_or_else(|| {
+            widened
+                .iter()
+                .enumerate()
+                .max_by_key(|(_, column)| column.width)
+                .map(|(idx, _)| idx)
+                .unwrap_or(0)
+        });
+    widened[target_index].width += extra;
+    widened
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableRowState {
     Normal,
@@ -500,12 +597,7 @@ fn table_block_minimum_width(
     scrollbar_visible: bool,
 ) -> usize {
     let mut width = table_width + usize::from(scrollbar_visible);
-    if let Some(title) = title {
-        width = width.max(title.chars().count());
-    }
-    if let Some(footer) = footer {
-        width = width.max(table_footer_width(footer));
-    }
+    width = width.max(minimum_table_render_width(title, footer));
     width
 }
 

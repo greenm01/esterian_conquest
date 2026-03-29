@@ -18,9 +18,10 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableRowState, TableWidthMode,
-    VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns, fleet_id_column_width,
-    format_fleet_number, layout_standard_table_block, resolve_table_columns,
-    write_table_window_with_cursor, write_table_window_with_states_at,
+    VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns,
+    fit_table_columns_for_widget, fleet_id_column_width, format_fleet_number,
+    layout_standard_table_block, resolve_table_columns_for_widget, write_table_window_with_cursor,
+    write_table_window_with_states_at,
 };
 use crate::screen::{
     COMMAND_LABEL, PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
@@ -387,7 +388,32 @@ impl FleetListScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let columns = fit_table_columns(&full_columns(max_fleet_number), &table_rows);
+        let default_fleet_number = rows
+            .get(cursor)
+            .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
+            .unwrap_or_else(|| {
+                rows.first()
+                    .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
+                    .unwrap_or_else(|| format_fleet_number(1, max_fleet_number))
+            });
+        let footer = if table_rows.is_empty() {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: "You have no active fleets.",
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: Some(&default_fleet_number),
+                input,
+            }
+        };
+        let columns = fit_table_columns_for_widget(
+            &full_columns(max_fleet_number),
+            &table_rows,
+            Some("FLEET LIST:"),
+            Some(footer),
+        );
         let metrics = write_table_window_with_cursor(
             &mut buffer,
             1,
@@ -404,34 +430,7 @@ impl FleetListScreen {
             },
             0,
         );
-        if table_rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandText {
-                    label: COMMAND_LABEL,
-                    text: "You have no active fleets.",
-                },
-            );
-        } else {
-            let default_fleet_number = rows
-                .get(cursor)
-                .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
-                .unwrap_or_else(|| format_fleet_number(rows[0].fleet_number, max_fleet_number));
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                0,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
-                    default: Some(&default_fleet_number),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
         Ok(buffer)
     }
 
@@ -940,13 +939,6 @@ impl FleetGroupScreen {
             .collect::<Vec<_>>();
         let visible_rows = fleet_visible_rows(geometry);
         let scrollable = table_rows.len() > visible_rows;
-        let columns = resolve_table_columns(
-            &group_selection_columns(max_fleet_number),
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-        );
         let footer = if table_rows.is_empty() {
             TableFooter::CommandBar {
                 hotkeys_markup: "<Q>",
@@ -960,6 +952,15 @@ impl FleetGroupScreen {
                 input: "",
             }
         };
+        let columns = resolve_table_columns_for_widget(
+            &group_selection_columns(max_fleet_number),
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some("GROUP FLEET ORDER:"),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
@@ -1306,13 +1307,6 @@ impl FleetMissionPickerScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let columns = resolve_table_columns(
-            &mission_picker_columns(),
-            &rows,
-            buffer.width(),
-            false,
-            TableWidthMode::Compact,
-        );
         let default = FLEET_MISSION_OPTIONS
             .get(cursor)
             .map(|option| option.code.to_string())
@@ -1322,6 +1316,15 @@ impl FleetMissionPickerScreen {
             default: Some(&default),
             input,
         };
+        let columns = resolve_table_columns_for_widget(
+            &mission_picker_columns(),
+            &rows,
+            buffer.width(),
+            false,
+            TableWidthMode::Compact,
+            Some("FLEET MISSION ORDERS:"),
+            Some(footer),
+        );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
