@@ -14,8 +14,8 @@ use crate::password::{
 };
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
 use crate::wallet::{
-    active_identity_npub, push_imported_identity, push_new_identity, set_identity_alias,
-    switch_active_identity, Identity, Wallet,
+    Identity, Wallet, active_identity_npub, push_imported_identity, push_new_identity,
+    set_identity_alias, switch_active_identity,
 };
 
 // ---------------------------------------------------------------------------

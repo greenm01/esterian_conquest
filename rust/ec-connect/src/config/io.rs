@@ -6,7 +6,9 @@ use std::path::PathBuf;
 
 use kdl::KdlDocument;
 
-use super::{ConnectConfig, ServerBookmark, validate_relay_url};
+use crate::wallet::io::now_iso8601;
+
+use super::{ConnectConfig, RelayStatus, ServerBookmark, validate_relay_url};
 
 /// Default SSH port used when a server bookmark omits `port`.
 const DEFAULT_PORT: u16 = 22;
@@ -91,17 +93,47 @@ pub fn seed_default_relay_at(
 
     let mut config = load_config_from(path)?;
     let has_valid_default = config
-        .relay
-        .as_deref()
+        .default_relay_url()
         .map(|current| validate_relay_url(current).ok().flatten().is_some())
         .unwrap_or(false);
     if has_valid_default {
         return Ok(false);
     }
 
-    config.relay = Some(relay);
+    config.set_default_relay(&relay);
     save_config_to(&config, path)?;
     Ok(true)
+}
+
+pub fn update_relay_result(
+    relay_url: &str,
+    status: RelayStatus,
+    last_error: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    update_relay_result_at(relay_url, status, last_error, &config_path())
+}
+
+pub fn update_relay_result_at(
+    relay_url: &str,
+    status: RelayStatus,
+    last_error: Option<&str>,
+    path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let relay = validate_relay_url(relay_url)
+        .map_err(|err| format!("relay update rejected: {err}"))?
+        .ok_or("relay update rejected: relay URL must not be empty")?;
+
+    let mut config = load_config_from(path)?;
+    let entry = config.upsert_relay(relay);
+    entry.status = status;
+    entry.last_error = last_error
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    entry.last_checked = Some(now_iso8601());
+    config.normalize_relays();
+    save_config_to(&config, path)?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +153,31 @@ pub fn parse_config_str(kdl: &str) -> Result<ConnectConfig, Box<dyn std::error::
                     .and_then(|v| v.as_string())
                     .ok_or("relay node requires a string argument")?
                     .to_string();
-                config.relay = Some(url);
+                let is_default = node
+                    .get("default")
+                    .and_then(|value| value.as_bool())
+                    .unwrap_or(false);
+                let status = node
+                    .get("status")
+                    .and_then(|value| value.as_string())
+                    .and_then(RelayStatus::from_str)
+                    .unwrap_or(RelayStatus::Unknown);
+                let last_error = node
+                    .get("last-error")
+                    .and_then(|value| value.as_string())
+                    .map(str::to_string);
+                let last_checked = node
+                    .get("checked")
+                    .and_then(|value| value.as_string())
+                    .map(str::to_string);
+                let entry = config.upsert_relay(url.clone());
+                entry.is_default = is_default;
+                entry.status = status;
+                entry.last_error = last_error;
+                entry.last_checked = last_checked;
+                if is_default {
+                    config.relay = Some(url);
+                }
             }
             "server" => {
                 let name = node
@@ -172,14 +228,36 @@ pub fn parse_config_str(kdl: &str) -> Result<ConnectConfig, Box<dyn std::error::
         }
     }
 
+    config.normalize_relays();
     Ok(config)
 }
 
 /// Render a `ConnectConfig` to a KDL string.
 pub fn render_config(config: &ConnectConfig) -> String {
     let mut out = String::new();
-    if let Some(relay) = &config.relay {
-        out.push_str(&format!("relay \"{}\"\n", kdl_escape(relay)));
+    for relay in &config.relays {
+        out.push_str(&format!("relay \"{}\"", kdl_escape(&relay.url)));
+        if relay.is_default {
+            out.push_str(" default=#true");
+        }
+        if relay.status != RelayStatus::Unknown {
+            out.push_str(&format!(" status=\"{}\"", relay.status.as_str()));
+        }
+        if let Some(last_error) = relay
+            .last_error
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            out.push_str(&format!(" last-error=\"{}\"", kdl_escape(last_error)));
+        }
+        if let Some(last_checked) = relay
+            .last_checked
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            out.push_str(&format!(" checked=\"{}\"", kdl_escape(last_checked)));
+        }
+        out.push('\n');
     }
     for server in &config.servers {
         out.push_str(&format!(

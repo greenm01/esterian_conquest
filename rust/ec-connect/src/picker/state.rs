@@ -6,7 +6,7 @@ use crate::connect::resolve::ResolvedTarget;
 use crate::wallet::Wallet;
 use nostr_sdk::Keys;
 
-use super::connecting::PendingConnectRequest;
+use super::connecting::{ActiveConnect, PendingConnectRequest};
 use super::help::HelpTopic;
 use super::overlay::{NoticeLevel, PickerOverlay};
 use super::refresh::PendingRefreshRequest;
@@ -17,6 +17,10 @@ const MANUAL_REFRESH_COOLDOWN: Duration = Duration::from_millis(500);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Screen {
     GameList,
+    RelayList,
+    RelayGames {
+        relay_url: String,
+    },
     IdentityOverlay,
     WalletList,
     WalletAddPrompt,
@@ -107,10 +111,13 @@ impl ConnectDisplay {
 pub struct PickerState {
     pub cache: GameCache,
     pub selected: usize,
+    pub relay_selected: usize,
+    pub relay_game_selected: usize,
     pub wallet_selected: usize,
     pub screen: Screen,
     pub overlay: Option<PickerOverlay>,
     pub pending_connect: Option<PendingConnectRequest>,
+    pub active_connect: Option<ActiveConnect>,
     pub pending_refresh: Option<PendingRefreshRequest>,
     pub join_input: String,
     pub alias_input: String,
@@ -126,10 +133,13 @@ impl PickerState {
         Self {
             cache,
             selected: 0,
+            relay_selected: 0,
+            relay_game_selected: 0,
             wallet_selected: 0,
             screen: Screen::GameList,
             overlay: None,
             pending_connect: None,
+            active_connect: None,
             pending_refresh: None,
             join_input: String::new(),
             alias_input: String::new(),

@@ -4,11 +4,11 @@ use nostr_sdk::nips::nip44;
 use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag, Timestamp};
 use serde::{Deserialize, Serialize};
 
-use ec_nostr::nonce::random_nonce_hex;
 use crate::connect::live_response::{
     build_response_filter, is_matching_response_event, wait_for_matching_response,
 };
 use crate::connect::resolve::ResolvedTarget;
+use ec_nostr::nonce::random_nonce_hex;
 
 pub const MAP_REQUEST_TIMEOUT_SECS: u64 = 15;
 

@@ -53,6 +53,19 @@ pub enum SessionOutcome {
     NeedsDisambiguation { games: Vec<GameEntry> },
 }
 
+/// Prepared session state ready to enter the SSH bridge.
+pub struct PreparedSession {
+    payload: SessionReadyPayload,
+    keypair: EphemeralKeypair,
+    map_notice: Option<String>,
+}
+
+/// Result of the pre-bridge session phase.
+pub enum SessionPreparation {
+    Ready(PreparedSession),
+    Outcome(SessionOutcome),
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /// Run a full session: handshake → (optional disambig) → bridge.
@@ -74,7 +87,32 @@ pub async fn run_session(
     maps_root: &std::path::Path,
 ) -> SessionOutcome {
     let keypair = EphemeralKeypair::generate();
-    run_session_with_keypair(
+    match prepare_session_with_keypair(
+        player_keys,
+        target,
+        username,
+        gate_npub,
+        disambig,
+        maps_root,
+        keypair,
+    )
+    .await
+    {
+        SessionPreparation::Ready(prepared) => finish_prepared_session(prepared, username).await,
+        SessionPreparation::Outcome(outcome) => outcome,
+    }
+}
+
+pub async fn prepare_session(
+    player_keys: &Keys,
+    target: ResolvedTarget,
+    username: &str,
+    gate_npub: &str,
+    disambig: DisambigMode,
+    maps_root: &std::path::Path,
+) -> SessionPreparation {
+    let keypair = EphemeralKeypair::generate();
+    prepare_session_with_keypair(
         player_keys,
         target,
         username,
@@ -88,7 +126,7 @@ pub async fn run_session(
 
 // ── Inner implementation (allows retry with same keypair after disambig) ───────
 
-async fn run_session_with_keypair(
+async fn prepare_session_with_keypair(
     player_keys: &Keys,
     mut target: ResolvedTarget,
     username: &str,
@@ -96,7 +134,7 @@ async fn run_session_with_keypair(
     disambig: DisambigMode,
     maps_root: &std::path::Path,
     keypair: EphemeralKeypair,
-) -> SessionOutcome {
+) -> SessionPreparation {
     let first_join = target.invite_code.is_some();
     // ── Handshake ─────────────────────────────────────────────────────────────
     let result = match run_handshake(
@@ -110,17 +148,17 @@ async fn run_session_with_keypair(
     {
         Ok(r) => r,
         Err(e) => {
-            return SessionOutcome::Error(format!(
+            return SessionPreparation::Outcome(SessionOutcome::Error(format!(
                 "Could not reach the game server.\n\
              Contact your sysop if this persists.\n\
              \n\
              Technical: handshake failed: {e}"
-            ));
+            )));
         }
     };
 
     match result {
-        HandshakeResult::Timeout => SessionOutcome::Timeout,
+        HandshakeResult::Timeout => SessionPreparation::Outcome(SessionOutcome::Timeout),
 
         HandshakeResult::Error(err) => {
             if err.error == "multiple_games" && !err.games.is_empty() {
@@ -134,7 +172,7 @@ async fn run_session_with_keypair(
                                 // Generate a fresh keypair for the retry.
                                 let retry_keypair = EphemeralKeypair::generate();
                                 // Note: DisambigMode doesn't implement Clone; pass Prompt again.
-                                Box::pin(run_session_with_keypair(
+                                Box::pin(prepare_session_with_keypair(
                                     player_keys,
                                     target,
                                     username,
@@ -145,17 +183,22 @@ async fn run_session_with_keypair(
                                 ))
                                 .await
                             }
-                            Err(msg) => SessionOutcome::Error(msg),
+                            Err(msg) => SessionPreparation::Outcome(SessionOutcome::Error(msg)),
                         }
                     }
                     DisambigMode::Picker => {
                         // Return control to the picker so it can show a
                         // game-selection screen and retry with the chosen id.
-                        SessionOutcome::NeedsDisambiguation { games: err.games }
+                        SessionPreparation::Outcome(SessionOutcome::NeedsDisambiguation {
+                            games: err.games,
+                        })
                     }
                 }
             } else {
-                SessionOutcome::Error(format!("{}: {}", err.error, err.message))
+                SessionPreparation::Outcome(SessionOutcome::Error(format!(
+                    "{}: {}",
+                    err.error, err.message
+                )))
             }
         }
 
@@ -167,25 +210,30 @@ async fn run_session_with_keypair(
             } else {
                 None
             };
+            SessionPreparation::Ready(PreparedSession {
+                payload,
+                keypair,
+                map_notice,
+            })
+        }
+    }
+}
 
-            // Run the SSH bridge.
-            match run_bridge(&payload, &keypair, username).await {
-                Ok(exit_code) => {
-                    // Update last-connected timestamp.
-                    touch_cache_entry(&payload.game_id);
-                    SessionOutcome::Done {
-                        exit_code,
-                        notice: map_notice,
-                    }
-                }
-                Err(e) => SessionOutcome::Error(format!(
-                    "Connection to game server was lost.\n\
-                     Contact your sysop if this persists.\n\
-                     \n\
-                     Technical: bridge error: {e}"
-                )),
+pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) -> SessionOutcome {
+    match run_bridge(&prepared.payload, &prepared.keypair, username).await {
+        Ok(exit_code) => {
+            touch_cache_entry(&prepared.payload.game_id);
+            SessionOutcome::Done {
+                exit_code,
+                notice: prepared.map_notice,
             }
         }
+        Err(e) => SessionOutcome::Error(format!(
+            "Connection to game server was lost.\n\
+             Contact your sysop if this persists.\n\
+             \n\
+             Technical: bridge error: {e}"
+        )),
     }
 }
 

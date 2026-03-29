@@ -3,8 +3,8 @@ use ec_ui::theme::classic;
 
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::password::WALLET_WARNING_LINES;
-use crate::picker::layout::{centered_rect, draw_box, Rect};
-use crate::shell::{terminal_fits_outer, wrap_inner_buffer, INNER_HEIGHT, INNER_WIDTH};
+use crate::picker::layout::{Rect, centered_rect, draw_box};
+use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
 
 use super::PasswordGateState;
 
@@ -40,6 +40,13 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
         state.title(),
         classic::table_chrome_style(),
         classic::table_header_style(),
+    );
+    buffer.fill_rect(
+        popup.y as usize + 1,
+        popup.x as usize + 1,
+        popup.width.saturating_sub(2) as usize,
+        popup.height.saturating_sub(2) as usize,
+        classic::table_body_style(),
     );
 
     let left = popup.x as usize + 2;

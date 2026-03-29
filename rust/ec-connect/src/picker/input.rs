@@ -9,7 +9,9 @@ use super::flows::{
     connect_selected, move_selection, queue_selected_game_refresh, redownload_selected_maps,
 };
 use super::overlay::PickerOverlay;
-use super::relay::open_default_relay_editor;
+use super::relay::{
+    handle_relay_games_key, handle_relay_list_key, open_relay_list, open_selected_game_relay_prompt,
+};
 use super::state::{BODY_PAGE, ConnectDisplay, ConnectOrigin, PickerSession, PickerState, Screen};
 
 pub fn handle_game_list_key(
@@ -56,14 +58,15 @@ pub fn handle_game_list_key(
             ..
         } => redownload_selected_maps(state, &picker_session.keys, gate_npub, maps_root, rt)?,
         KeyEvent {
-            code: KeyCode::Char('r' | 'R'),
-            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            code: KeyCode::Char('r'),
+            modifiers: KeyModifiers::NONE,
             ..
-        } => {
-            if let Err(err) = open_default_relay_editor(state) {
-                state.show_error(err.to_string());
-            }
-        }
+        } => open_relay_list(state),
+        KeyEvent {
+            code: KeyCode::Char('R'),
+            modifiers: KeyModifiers::SHIFT,
+            ..
+        } => open_selected_game_relay_prompt(state),
         KeyEvent {
             code: KeyCode::Char('d' | 'D'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
@@ -128,7 +131,6 @@ pub fn handle_game_list_key(
     Ok(())
 }
 
-
 /// Key handler for the [`super::overlay::PickerOverlay::JoinCodePopup`] overlay.
 pub fn handle_join_code_popup_key(
     key: KeyEvent,
@@ -188,6 +190,20 @@ pub fn handle_wallet_key(
     match state.screen {
         Screen::WalletList => handle_wallet_list_key(key, state, picker_session),
         Screen::WalletAddPrompt => handle_wallet_add_key(key, state, picker_session),
+        _ => Ok(()),
+    }
+}
+
+pub fn handle_relay_key(
+    key: KeyEvent,
+    state: &mut PickerState,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match state.screen.clone() {
+        Screen::RelayList => handle_relay_list_key(key, state),
+        Screen::RelayGames { relay_url } => {
+            handle_relay_games_key(key, state, &relay_url);
+            Ok(())
+        }
         _ => Ok(()),
     }
 }

@@ -10,9 +10,9 @@ use crate::cache::{GameCache, load_cache};
 use crate::hard_quit::is_hard_quit_key;
 use crate::launcher::run_password_gate_in_session;
 
-use super::connecting::execute_pending_connect;
+use super::connecting::{poll_active_connect, start_pending_connect};
 use super::input::{
-    handle_game_list_key, handle_game_select_key, handle_identity_overlay_key,
+    handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_relay_key,
     handle_wallet_key,
 };
 use super::overlay::handle_overlay_key;
@@ -79,13 +79,18 @@ fn run_loop(
                     }
                 }
                 if state.pending_connect.is_some() {
-                    execute_pending_connect(state, session_state, maps_root, rt, session)?;
-                    renderer.reset();
-                    replayed_key = capture_post_bridge_key()?;
-                    if state.quit {
-                        break;
+                    start_pending_connect(state, session_state, maps_root)?;
+                }
+                if state.active_connect.is_some() {
+                    let bridged = poll_active_connect(state, session, rt, session_state)?;
+                    if bridged {
+                        renderer.reset();
+                        replayed_key = capture_post_bridge_key()?;
+                        if state.quit {
+                            break;
+                        }
+                        continue;
                     }
-                    continue;
                 }
             }
         }
@@ -123,7 +128,9 @@ fn run_loop(
         }
 
         if matches!(state.screen, Screen::Locked) {
-            if let Some(unlocked) = unlock_picker_session(session)? {
+            let unlocked = unlock_picker_session(session)?;
+            renderer.reset();
+            if let Some(unlocked) = unlocked {
                 *picker_session = Some(unlocked);
                 state.screen = Screen::GameList;
                 last_activity = Instant::now();
@@ -135,7 +142,7 @@ fn run_loop(
             || matches!(
                 state.overlay,
                 Some(super::overlay::PickerOverlay::WalletDetail { .. })
-                    | Some(super::overlay::PickerOverlay::DefaultRelayEditor { .. })
+                    | Some(super::overlay::PickerOverlay::RelayEditor { .. })
                     | Some(super::overlay::PickerOverlay::GameRelayPrompt { .. })
                     | Some(super::overlay::PickerOverlay::JoinCodePopup { .. })
             );
@@ -167,6 +174,9 @@ fn run_loop(
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
                 handle_game_list_key(key, state, session_state, gate_npub, maps_root, rt)?;
+            }
+            Screen::RelayList | Screen::RelayGames { .. } => {
+                handle_relay_key(key, state)?;
             }
             Screen::IdentityOverlay => handle_identity_overlay_key(key, state),
             Screen::WalletList | Screen::WalletAddPrompt => {
@@ -216,6 +226,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.wallet_input.clear();
     state.relay_input.clear();
     state.pending_connect = None;
+    state.active_connect = None;
     state.pending_refresh = None;
     state.matrix.reset();
 }
@@ -249,6 +260,9 @@ fn next_wait_duration(
 ) -> Duration {
     if let Some(request) = state.pending_refresh.as_ref() {
         return request.remaining_until_execute();
+    }
+    if state.active_connect.is_some() {
+        return Duration::from_millis(50);
     }
     if matches!(state.screen, Screen::Locked) {
         return Duration::from_millis(80);

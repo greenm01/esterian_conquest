@@ -4,8 +4,11 @@ use std::path::PathBuf;
 
 use ec_connect::config::io::{
     load_config_from, parse_config_str, render_config, save_config_to, seed_default_relay_at,
+    update_relay_result_at,
 };
-use ec_connect::config::{ConnectConfig, ServerBookmark, validate_relay_url};
+use ec_connect::config::{
+    ConnectConfig, RelayEntry, RelayStatus, ServerBookmark, validate_relay_url,
+};
 
 // ---------------------------------------------------------------------------
 // parse_config_str
@@ -15,6 +18,7 @@ use ec_connect::config::{ConnectConfig, ServerBookmark, validate_relay_url};
 fn parse_empty_string_returns_empty_config() {
     let config = parse_config_str("").unwrap();
     assert!(config.relay.is_none());
+    assert!(config.relays.is_empty());
     assert!(config.servers.is_empty());
     assert!(config.default_server.is_none());
     assert!(config.maps_dir.is_none());
@@ -33,6 +37,8 @@ lock-timeout-minutes 7
 "#;
     let config = parse_config_str(kdl).unwrap();
     assert_eq!(config.relay.as_deref(), Some("wss://relay.example.com"));
+    assert_eq!(config.relays.len(), 1);
+    assert!(config.relays[0].is_default);
     assert_eq!(config.servers.len(), 2);
     assert_eq!(config.servers[0].name, "friday");
     assert_eq!(config.servers[0].host, "play.example.com");
@@ -56,8 +62,29 @@ fn parse_server_without_port_defaults_to_22() {
 fn parse_relay_only() {
     let config = parse_config_str("relay \"wss://nostr.example.com\"\n").unwrap();
     assert_eq!(config.relay.as_deref(), Some("wss://nostr.example.com"));
+    assert_eq!(config.relays.len(), 1);
+    assert_eq!(config.relays[0].url, "wss://nostr.example.com");
     assert!(config.servers.is_empty());
     assert!(config.default_server.is_none());
+}
+
+#[test]
+fn parse_relay_entries_with_status_and_checked() {
+    let config = parse_config_str(
+        "relay \"wss://relay.example.com\" default=#true status=\"ok\" checked=\"2026-03-29T12:00:00Z\"\n\
+         relay \"wss://backup.example.com\" status=\"timeout\" last-error=\"timed out\"\n",
+    )
+    .unwrap();
+
+    assert_eq!(config.relay.as_deref(), Some("wss://relay.example.com"));
+    assert_eq!(config.relays.len(), 2);
+    assert_eq!(config.relays[0].status, RelayStatus::Ok);
+    assert_eq!(
+        config.relays[0].last_checked.as_deref(),
+        Some("2026-03-29T12:00:00Z")
+    );
+    assert_eq!(config.relays[1].status, RelayStatus::Timeout);
+    assert_eq!(config.relays[1].last_error.as_deref(), Some("timed out"));
 }
 
 #[test]
@@ -93,6 +120,13 @@ fn render_empty_config_is_empty_string() {
 fn render_full_config_roundtrip() {
     let config = ConnectConfig {
         relay: Some("wss://relay.example.com".to_string()),
+        relays: vec![RelayEntry {
+            url: "wss://relay.example.com".to_string(),
+            is_default: true,
+            status: RelayStatus::Ok,
+            last_error: None,
+            last_checked: Some("2026-03-29T12:00:00Z".to_string()),
+        }],
         servers: vec![
             ServerBookmark {
                 name: "alpha".to_string(),
@@ -114,6 +148,8 @@ fn render_full_config_roundtrip() {
     let parsed = parse_config_str(&rendered).unwrap();
 
     assert_eq!(parsed.relay.as_deref(), Some("wss://relay.example.com"));
+    assert_eq!(parsed.relays.len(), 1);
+    assert_eq!(parsed.relays[0].status, RelayStatus::Ok);
     assert_eq!(parsed.servers.len(), 2);
     assert_eq!(parsed.servers[0].name, "alpha");
     assert_eq!(parsed.servers[0].port, 22);
@@ -128,15 +164,25 @@ fn render_full_config_roundtrip() {
 fn render_escapes_special_chars() {
     let config = ConnectConfig {
         relay: Some("wss://re\"lay.example.com".to_string()),
+        relays: vec![RelayEntry {
+            url: "wss://re\"lay.example.com".to_string(),
+            is_default: true,
+            status: RelayStatus::ProtocolError,
+            last_error: Some("bad \"quote\"".to_string()),
+            last_checked: None,
+        }],
         servers: vec![],
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
     };
     let rendered = render_config(&config);
-    // Must parse back without error.
     let parsed = parse_config_str(&rendered).unwrap();
     assert_eq!(parsed.relay.as_deref(), Some("wss://re\"lay.example.com"));
+    assert_eq!(
+        parsed.relays[0].last_error.as_deref(),
+        Some("bad \"quote\"")
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +193,7 @@ fn render_escapes_special_chars() {
 fn server_lookup_by_name() {
     let config = ConnectConfig {
         relay: None,
+        relays: vec![],
         servers: vec![ServerBookmark {
             name: "prod".to_string(),
             host: "prod.example.com".to_string(),
@@ -209,6 +256,7 @@ fn load_config_from_missing_file_returns_empty() {
     let _ = std::fs::remove_file(&path);
     let config = load_config_from(&path).unwrap();
     assert!(config.relay.is_none());
+    assert!(config.relays.is_empty());
     assert!(config.servers.is_empty());
 }
 
@@ -219,6 +267,13 @@ fn save_load_config_roundtrip() {
 
     let config = ConnectConfig {
         relay: Some("wss://r.test".to_string()),
+        relays: vec![RelayEntry {
+            url: "wss://r.test".to_string(),
+            is_default: true,
+            status: RelayStatus::Unknown,
+            last_error: None,
+            last_checked: None,
+        }],
         servers: vec![ServerBookmark {
             name: "test".to_string(),
             host: "localhost".to_string(),
@@ -233,6 +288,7 @@ fn save_load_config_roundtrip() {
     let loaded = load_config_from(&path).unwrap();
 
     assert_eq!(loaded.relay.as_deref(), Some("wss://r.test"));
+    assert_eq!(loaded.relays.len(), 1);
     assert_eq!(loaded.servers.len(), 1);
     assert_eq!(loaded.servers[0].port, 2222);
     assert_eq!(loaded.default_server.as_deref(), Some("test"));
@@ -252,6 +308,12 @@ fn seed_default_relay_sets_value_when_unset() {
 
     assert!(changed);
     assert_eq!(loaded.relay.as_deref(), Some("wss://relay.example.com"));
+    assert!(
+        loaded
+            .relays
+            .iter()
+            .any(|relay| relay.url == "wss://relay.example.com" && relay.is_default)
+    );
 
     let _ = std::fs::remove_file(&path);
 }
@@ -264,6 +326,13 @@ fn seed_default_relay_keeps_existing_valid_default() {
     save_config_to(
         &ConnectConfig {
             relay: Some("wss://existing.example.com".to_string()),
+            relays: vec![RelayEntry {
+                url: "wss://existing.example.com".to_string(),
+                is_default: true,
+                status: RelayStatus::Unknown,
+                last_error: None,
+                last_checked: None,
+            }],
             servers: vec![],
             default_server: None,
             maps_dir: None,
@@ -287,13 +356,41 @@ fn seed_default_relay_replaces_invalid_existing_default() {
     let path = tmp_config_path("seed_replace_invalid");
     let _ = std::fs::remove_file(&path);
 
-    std::fs::write(&path, "relay \"ws://localhost:80800wd6r5wps8qc\"\n").unwrap();
+    std::fs::write(&path, "relay \"https://relay.example.com\"\n").unwrap();
 
     let changed = seed_default_relay_at("wss://relay.example.com", &path).unwrap();
     let loaded = load_config_from(&path).unwrap();
 
     assert!(changed);
     assert_eq!(loaded.relay.as_deref(), Some("wss://relay.example.com"));
+    assert!(
+        loaded
+            .relays
+            .iter()
+            .any(|relay| relay.url == "wss://relay.example.com" && relay.is_default)
+    );
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn update_relay_result_records_status_and_error() {
+    let path = tmp_config_path("relay_result");
+    let _ = std::fs::remove_file(&path);
+
+    update_relay_result_at(
+        "wss://relay.example.com",
+        RelayStatus::ConnectFailed,
+        Some("dns failed"),
+        &path,
+    )
+    .unwrap();
+    let loaded = load_config_from(&path).unwrap();
+
+    assert_eq!(loaded.relays.len(), 1);
+    assert_eq!(loaded.relays[0].status, RelayStatus::ConnectFailed);
+    assert_eq!(loaded.relays[0].last_error.as_deref(), Some("dns failed"));
+    assert!(loaded.relays[0].last_checked.is_some());
 
     let _ = std::fs::remove_file(&path);
 }

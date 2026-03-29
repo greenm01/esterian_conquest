@@ -3,6 +3,8 @@ use super::state::Screen;
 pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D R L <Q>";
 pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N A D L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
+pub const RELAY_MENU_RAIL: &str = "? J K ^U ^D A E S <Enter> <Q>";
+pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D <Q>";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpTopic {
@@ -10,6 +12,8 @@ pub enum HelpTopic {
     WalletCommand,
     ConnectCommand,
     SelectGame,
+    RelayCommand,
+    RelayGames,
     Identity,
 }
 
@@ -55,8 +59,12 @@ const MAIN_ROWS: &[HelpRow] = &[
         description: "delete selected game",
     },
     HelpRow {
+        command: "r",
+        description: "open relay manager",
+    },
+    HelpRow {
         command: "R",
-        description: "edit default relay",
+        description: "edit selected game relay",
     },
     HelpRow {
         command: "Space",
@@ -157,6 +165,60 @@ const GAME_SELECT_ROWS: &[HelpRow] = &[
     },
 ];
 
+const RELAY_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "J/K",
+        description: "move selection",
+    },
+    HelpRow {
+        command: "^U/^D",
+        description: "page up/down",
+    },
+    HelpRow {
+        command: "A",
+        description: "add relay",
+    },
+    HelpRow {
+        command: "E",
+        description: "edit selected relay",
+    },
+    HelpRow {
+        command: "S",
+        description: "set selected relay as default",
+    },
+    HelpRow {
+        command: "Enter",
+        description: "show games on selected relay",
+    },
+    HelpRow {
+        command: "Q",
+        description: "return to main menu",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
+const RELAY_GAMES_ROWS: &[HelpRow] = &[
+    HelpRow {
+        command: "J/K",
+        description: "move selection",
+    },
+    HelpRow {
+        command: "^U/^D",
+        description: "page up/down",
+    },
+    HelpRow {
+        command: "Q",
+        description: "return to relay list",
+    },
+    HelpRow {
+        command: "Esc",
+        description: "same as <Q> on this screen",
+    },
+];
+
 const IDENTITY_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "Q",
@@ -176,6 +238,8 @@ impl HelpTopic {
     pub fn for_screen(screen: &Screen) -> Option<Self> {
         match screen {
             Screen::GameList => Some(Self::MainCommand),
+            Screen::RelayList => Some(Self::RelayCommand),
+            Screen::RelayGames { .. } => Some(Self::RelayGames),
             Screen::WalletAddPrompt => Some(Self::ConnectCommand),
             Screen::IdentityOverlay => Some(Self::Identity),
             Screen::WalletList => Some(Self::WalletCommand),
@@ -205,6 +269,16 @@ impl HelpTopic {
                 title: "SELECT GAME HELP",
                 rows: GAME_SELECT_ROWS,
                 note: Some("Press Enter to connect to the selected game."),
+            },
+            Self::RelayCommand => HelpSpec {
+                title: "RELAY COMMAND HELP",
+                rows: RELAY_ROWS,
+                note: Some("Relay health is cached from recent connect and refresh activity."),
+            },
+            Self::RelayGames => HelpSpec {
+                title: "RELAY GAMES HELP",
+                rows: RELAY_GAMES_ROWS,
+                note: Some("This view shows games currently assigned to the selected relay."),
             },
             Self::Identity => HelpSpec {
                 title: "IDENTITY HELP",

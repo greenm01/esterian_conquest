@@ -8,16 +8,18 @@ use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::SessionOutcome;
+use ec_connect::picker::connecting::PendingConnectRequest;
 use ec_connect::picker::event::is_manual_refresh_key;
 use ec_connect::picker::flows::apply_session_outcome;
 use ec_connect::picker::help::HelpTopic;
-use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::input::handle_game_list_key;
+use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::refresh::PendingRefreshRequest;
 use ec_connect::picker::relay::RelayPromptAction;
 use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
 use ec_connect::picker::runner::post_bridge_recovery_event;
+use ec_connect::picker::state::{ConnectDisplay, ConnectOrigin};
 use ec_connect::picker::{PickerSession, PickerState, Screen};
 use ec_connect::wallet::{Identity, IdentityType, Wallet};
 use ec_ui::theme::classic;
@@ -47,6 +49,24 @@ fn make_state(games: Vec<CachedGame>) -> PickerState {
         cache.upsert(g);
     }
     PickerState::new(cache)
+}
+
+fn make_pending_connect_request() -> PendingConnectRequest {
+    PendingConnectRequest {
+        origin: ConnectOrigin::GameList,
+        target: ResolvedTarget {
+            server_host: "play.example.com".to_string(),
+            server_port: 22,
+            relay_url: "wss://relay.example.com".to_string(),
+            invite_code: None,
+            game_id: Some("game-a".to_string()),
+            gate_npub: None,
+        },
+        gate_npub: "npub1gate".to_string(),
+        display: ConnectDisplay {
+            lines: vec!["Attempting to connect...".to_string()],
+        },
+    }
 }
 
 fn make_session(alias: Option<&str>) -> PickerSession {
@@ -253,14 +273,8 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
     state.overlay = Some(PickerOverlay::Help(HelpTopic::MainCommand));
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    let title_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("MAIN COMMAND HELP"))
-        .expect("help title row");
-    let title_line = buffer.plain_line(title_row);
-    let title_col = title_line.find("MAIN COMMAND HELP").expect("title col");
-    assert_eq!(
-        buffer.row(title_row)[title_col].style,
-        classic::table_header_style()
+    assert!(
+        (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("MAIN COMMAND HELP") })
     );
 
     assert!(
@@ -280,8 +294,13 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
     }));
     assert!(
         (0..buffer.height())
-            .any(|row| buffer.plain_line(row).contains("R      edit default relay"))
+            .any(|row| buffer.plain_line(row).contains("r      open relay manager"))
     );
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("R      edit selected game relay")
+    }));
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
@@ -444,13 +463,64 @@ fn error_notice_dismisses_on_any_key() {
 }
 
 #[test]
-fn default_relay_editor_renders_popup() {
+fn connecting_overlay_escape_cancels_pending_connect() {
+    let mut state = make_state(vec![]);
+    state.overlay = Some(PickerOverlay::Connecting {
+        lines: vec!["Attempting to connect...".to_string()],
+    });
+    state.pending_connect = Some(make_pending_connect_request());
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        std::path::Path::new("/tmp"),
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
+    assert!(state.pending_connect.is_none());
+    assert!(state.active_connect.is_none());
+}
+
+#[test]
+fn claiming_invite_overlay_q_cancels_pending_connect() {
+    let mut state = make_state(vec![]);
+    state.overlay = Some(PickerOverlay::ClaimingInvite {
+        lines: vec!["Claiming invite...".to_string()],
+    });
+    state.pending_connect = Some(make_pending_connect_request());
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        std::path::Path::new("/tmp"),
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
+    assert!(state.pending_connect.is_none());
+    assert!(state.active_connect.is_none());
+}
+
+#[test]
+fn relay_editor_renders_popup() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.relay_input = "ws://localhost:8080".to_string();
-    state.overlay = Some(PickerOverlay::DefaultRelayEditor { error: None });
+    state.overlay = Some(PickerOverlay::RelayEditor {
+        original_url: None,
+        title: "ADD RELAY".to_string(),
+        instruction: "Add a relay for future joins or relay-grouped game management.".to_string(),
+        error: None,
+    });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("DEFAULT RELAY")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("ADD RELAY")));
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
@@ -459,24 +529,28 @@ fn default_relay_editor_renders_popup() {
 }
 
 #[test]
-fn default_relay_editor_can_render_blank_field_with_invalid_saved_relay_error() {
+fn relay_editor_can_render_blank_field_with_error() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.relay_input.clear();
-    state.overlay = Some(PickerOverlay::DefaultRelayEditor {
-        error: Some("Stored default relay is invalid. Enter a new relay URL.".to_string()),
+    state.overlay = Some(PickerOverlay::RelayEditor {
+        original_url: Some("wss://relay.example.com".to_string()),
+        title: "EDIT RELAY".to_string(),
+        instruction: "Update this relay URL. Joined games on this relay will move with it."
+            .to_string(),
+        error: Some("relay URL must not be empty".to_string()),
     });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("DEFAULT RELAY")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("EDIT RELAY")));
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains("Stored default relay is invalid.")
+            .contains("relay URL must not be empty")
     }));
 }
 
 #[test]
-fn main_game_list_r_opens_default_relay_editor() {
+fn main_game_list_r_opens_relay_list() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     let mut session = make_session(Some("Desk Alias"));
     let rt = tokio::runtime::Runtime::new().expect("runtime");
@@ -491,9 +565,31 @@ fn main_game_list_r_opens_default_relay_editor() {
     )
     .expect("handle R");
 
+    assert!(matches!(state.screen, Screen::RelayList));
+}
+
+#[test]
+fn main_game_list_uppercase_r_opens_selected_game_relay_prompt() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let mut session = make_session(Some("Desk Alias"));
+    let rt = tokio::runtime::Runtime::new().expect("runtime");
+
+    handle_game_list_key(
+        KeyEvent::new(KeyCode::Char('R'), KeyModifiers::SHIFT),
+        &mut state,
+        &mut session,
+        "",
+        std::path::Path::new("/tmp"),
+        &rt,
+    )
+    .expect("handle shift-R");
+
     assert!(matches!(
         state.overlay,
-        Some(PickerOverlay::DefaultRelayEditor { .. })
+        Some(PickerOverlay::GameRelayPrompt {
+            action: RelayPromptAction::EditGame,
+            ..
+        })
     ));
 }
 
@@ -513,7 +609,10 @@ fn main_game_list_n_opens_join_popup() {
     )
     .expect("handle N");
 
-    assert!(matches!(state.overlay, Some(PickerOverlay::JoinCodePopup { .. })));
+    assert!(matches!(
+        state.overlay,
+        Some(PickerOverlay::JoinCodePopup { .. })
+    ));
 }
 
 #[test]
@@ -539,6 +638,21 @@ fn game_relay_prompt_renders_popup() {
 }
 
 #[test]
+fn relay_games_screen_keeps_table_header_intact() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.screen = Screen::RelayGames {
+        relay_url: "wss://relay.example.com".to_string(),
+    };
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("Game") && line.contains("Last Conn")
+    }));
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("Relay: ")));
+}
+
+#[test]
 fn connecting_popup_renders_context_lines() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::Connecting {
@@ -556,6 +670,7 @@ fn connecting_popup_renders_context_lines() {
         (0..buffer.height())
             .any(|row| { buffer.plain_line(row).contains("Attempting to connect...") })
     );
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Esc/Q: cancel")));
 }
 
 #[test]

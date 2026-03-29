@@ -3,6 +3,7 @@ use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
 use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_command_line_prompt_text_at_col};
 use ec_ui::theme::classic;
 
+use super::connecting::cancel_active_connect;
 use super::connecting::render_connecting_popup;
 use super::event::{is_back_key, is_cancel_confirm_key, is_help_key, is_yes_key};
 use super::help::HelpTopic;
@@ -11,8 +12,8 @@ use super::layout::{
 };
 use super::refresh::render_refreshing_popup;
 use super::relay::{
-    RelayPromptAction, handle_default_relay_key, handle_game_relay_key, render_default_relay_popup,
-    render_game_relay_popup,
+    RelayPromptAction, handle_game_relay_key, handle_relay_editor_key, render_game_relay_popup,
+    render_relay_editor_popup,
 };
 use super::state::{PickerSession, PickerState};
 use crate::cache::save_cache;
@@ -42,7 +43,10 @@ pub enum PickerOverlay {
     },
     Help(HelpTopic),
     QuitConfirm,
-    DefaultRelayEditor {
+    RelayEditor {
+        original_url: Option<String>,
+        title: String,
+        instruction: String,
         error: Option<String>,
     },
     GameRelayPrompt {
@@ -87,9 +91,12 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
-        PickerOverlay::ClaimingInvite { .. }
-        | PickerOverlay::Connecting { .. }
-        | PickerOverlay::RefreshingGame { .. } => {}
+        PickerOverlay::ClaimingInvite { .. } | PickerOverlay::Connecting { .. } => {
+            if is_back_key(key) {
+                cancel_active_connect(state);
+            }
+        }
+        PickerOverlay::RefreshingGame { .. } => {}
         PickerOverlay::Help(_) => {
             if is_help_key(key)
                 || is_back_key(key)
@@ -106,8 +113,13 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
-        PickerOverlay::DefaultRelayEditor { .. } => {
-            handle_default_relay_key(key, state)?;
+        PickerOverlay::RelayEditor {
+            original_url,
+            title,
+            instruction,
+            ..
+        } => {
+            handle_relay_editor_key(key, state, original_url.as_deref(), &title, &instruction)?;
         }
         PickerOverlay::GameRelayPrompt { index, action, .. } => {
             let Some(picker_session) = picker_session else {
@@ -265,8 +277,19 @@ pub fn render_overlay(
             );
             buffer.clear_cursor();
         }
-        Some(PickerOverlay::DefaultRelayEditor { error }) => {
-            render_default_relay_popup(buffer, &state.relay_input, error.as_deref());
+        Some(PickerOverlay::RelayEditor {
+            title,
+            instruction,
+            error,
+            ..
+        }) => {
+            render_relay_editor_popup(
+                buffer,
+                title,
+                instruction,
+                &state.relay_input,
+                error.as_deref(),
+            );
         }
         Some(PickerOverlay::GameRelayPrompt { action, error, .. }) => {
             render_game_relay_popup(buffer, &state.relay_input, error.as_deref(), *action);
@@ -655,7 +678,11 @@ fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Opti
     let inner_width = popup.width.saturating_sub(4) as usize;
 
     let instruction = "Paste the ecinv1... invite code from your sysop, then press Enter.";
-    for (idx, line) in wrapped_lines(instruction, inner_width).into_iter().take(2).enumerate() {
+    for (idx, line) in wrapped_lines(instruction, inner_width)
+        .into_iter()
+        .take(2)
+        .enumerate()
+    {
         buffer.write_text_clipped(
             popup.y as usize + 1 + idx,
             left,
@@ -671,10 +698,20 @@ fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Opti
     let visible = compact_invite_input(input, width);
     buffer.write_text_clipped(input_row, left, label, classic::status_label_style());
     for offset in 0..width {
-        buffer.set_cell(input_row, input_col + offset, ' ', classic::prompt_hotkey_style());
+        buffer.set_cell(
+            input_row,
+            input_col + offset,
+            ' ',
+            classic::prompt_hotkey_style(),
+        );
     }
     let cursor_col = input_col
-        + buffer.write_text_clipped(input_row, input_col, &visible, classic::prompt_hotkey_style());
+        + buffer.write_text_clipped(
+            input_row,
+            input_col,
+            &visible,
+            classic::prompt_hotkey_style(),
+        );
     if cursor_col < buffer.width() {
         buffer.set_cursor(cursor_col as u16, input_row as u16);
     }

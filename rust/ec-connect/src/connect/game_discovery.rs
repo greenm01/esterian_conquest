@@ -83,14 +83,14 @@ pub fn select_discovered_game_from_events<'a>(
         {
             continue;
         }
-        
+
         let seat = game
             .slots
             .iter()
             .find(|slot| slot.status == "pending" && slot.invite_code_hash == invite_hash)
             .map(|slot| slot.seat)
             .unwrap_or(0);
-            
+
         hash_matches.push((game, seat));
     }
 
@@ -197,4 +197,3 @@ pub fn parse_game_definition(event: &Event) -> Option<PublishedGameDefinition> {
         slots,
     })
 }
-

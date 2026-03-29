@@ -82,4 +82,3 @@ fn has_pubkey_tag(event: &Event, name: &str, expected: &PublicKey) -> bool {
         }
     })
 }
-

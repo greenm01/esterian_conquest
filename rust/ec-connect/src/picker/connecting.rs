@@ -1,11 +1,16 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::thread;
 
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
 
 use crate::connect::game_discovery::discover_game_for_invite;
-use crate::connect::public_join::run_public_join;
-use crate::connect::session::{DisambigMode, SessionOutcome, run_session};
+use crate::connect::public_join::prepare_public_join;
+use crate::connect::session::{
+    DisambigMode, PreparedSession, SessionOutcome, SessionPreparation, finish_prepared_session,
+    prepare_session,
+};
 
 use super::flows::apply_session_outcome;
 use super::layout::{PLAYFIELD_WIDTH, truncate};
@@ -18,6 +23,21 @@ pub struct PendingConnectRequest {
     pub target: crate::connect::resolve::ResolvedTarget,
     pub gate_npub: String,
     pub display: ConnectDisplay,
+}
+
+pub struct ActiveConnect {
+    rx: Receiver<ConnectTaskResult>,
+}
+
+enum ConnectTaskResult {
+    Outcome {
+        request: PendingConnectRequest,
+        outcome: SessionOutcome,
+    },
+    Prepared {
+        request: PendingConnectRequest,
+        prepared: PreparedSession,
+    },
 }
 
 pub fn queue_connect_request(state: &mut PickerState, request: PendingConnectRequest) {
@@ -38,64 +58,87 @@ pub fn queue_connect_request(state: &mut PickerState, request: PendingConnectReq
     state.pending_connect = Some(request);
 }
 
-pub fn execute_pending_connect(
+pub fn start_pending_connect(
     state: &mut PickerState,
     picker_session: &mut PickerSession,
     maps_root: &Path,
-    rt: &tokio::runtime::Runtime,
-    session: &mut ec_ui::session::TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(mut request) = state.pending_connect.take() else {
+    if state.active_connect.is_some() {
+        return Ok(());
+    }
+    let Some(request) = state.pending_connect.take() else {
         return Ok(());
     };
+    let keys = picker_session.keys.clone();
+    let npub = picker_session.npub.clone();
+    let maps_root = maps_root.to_path_buf();
+    let (tx, rx) = mpsc::channel();
 
-    let outcome = if matches!(request.origin, ConnectOrigin::JoinPrompt)
-        && request.gate_npub.trim().is_empty()
-        && request.target.invite_code.is_some()
-    {
-        run_suspended(session, || {
-            rt.block_on(run_public_join(
-                &picker_session.keys,
-                request.target.clone(),
-                &picker_session.npub,
-                request.disambig_mode(),
-                maps_root,
-            ))
-        })?
-        .map_err(|err| -> Box<dyn std::error::Error> { err })?
-    } else {
-        if request.gate_npub.trim().is_empty() {
-            if let Some(invite_code) = request.target.invite_code.clone() {
-                match rt.block_on(discover_game_for_invite(
-                    &picker_session.keys,
-                    &request.target,
-                    &invite_code,
-                )) {
-                    Ok(discovered) => {
-                        request.gate_npub = discovered.gate_npub;
-                        request.target.game_id.get_or_insert(discovered.game_id);
-                    }
-                    Err(err) => {
-                        state.overlay = None;
-                        state.show_error(err);
-                        return Ok(());
-                    }
-                }
+    thread::spawn(move || {
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(err) => {
+                let _ = tx.send(ConnectTaskResult::Outcome {
+                    request,
+                    outcome: SessionOutcome::Error(format!("unable to start runtime: {err}")),
+                });
+                return;
             }
-        }
+        };
+        let result = rt.block_on(run_connect_task(&keys, &npub, maps_root, request));
+        let _ = tx.send(result);
+    });
+    state.active_connect = Some(ActiveConnect { rx });
+    Ok(())
+}
 
-        run_suspended(session, || {
-            rt.block_on(run_session(
-                &picker_session.keys,
-                request.target.clone(),
-                &picker_session.npub,
-                &request.gate_npub,
-                request.disambig_mode(),
-                maps_root,
-            ))
-        })?
+pub fn poll_active_connect(
+    state: &mut PickerState,
+    session: &mut ec_ui::session::TerminalSession,
+    rt: &tokio::runtime::Runtime,
+    picker_session: &PickerSession,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let Some(active) = state.active_connect.as_ref() else {
+        return Ok(false);
     };
+    let result = match active.rx.try_recv() {
+        Ok(result) => result,
+        Err(TryRecvError::Empty) => return Ok(false),
+        Err(TryRecvError::Disconnected) => {
+            state.active_connect = None;
+            state.overlay = None;
+            state.show_error("connection attempt ended unexpectedly");
+            return Ok(false);
+        }
+    };
+    state.active_connect = None;
 
+    match result {
+        ConnectTaskResult::Prepared { request, prepared } => {
+            let outcome = run_suspended(session, || {
+                rt.block_on(finish_prepared_session(prepared, &picker_session.npub))
+            })?;
+            apply_connect_outcome(state, request, outcome)?;
+            Ok(true)
+        }
+        ConnectTaskResult::Outcome { request, outcome } => {
+            apply_connect_outcome(state, request, outcome)?;
+            Ok(false)
+        }
+    }
+}
+
+pub fn cancel_active_connect(state: &mut PickerState) {
+    state.pending_connect = None;
+    state.active_connect = None;
+    state.overlay = None;
+}
+
+fn apply_connect_outcome(
+    state: &mut PickerState,
+    request: PendingConnectRequest,
+    outcome: SessionOutcome,
+) -> Result<(), Box<dyn std::error::Error>> {
     match request.origin {
         ConnectOrigin::GameList => {
             state.overlay = None;
@@ -178,12 +221,13 @@ pub fn execute_pending_connect(
             }
         },
     }
-
     Ok(())
 }
 
 pub fn render_connecting_popup(buffer: &mut PlayfieldBuffer, lines: &[String]) {
-    render_status_popup(buffer, "CONNECTING TO GAME", lines);
+    let mut popup_lines = lines.to_vec();
+    popup_lines.push("Esc/Q: cancel".to_string());
+    render_status_popup(buffer, "CONNECTING TO GAME", &popup_lines);
 }
 
 pub fn render_status_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[String]) {
@@ -214,10 +258,7 @@ pub fn render_status_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[S
 
 impl PendingConnectRequest {
     fn disambig_mode(&self) -> DisambigMode {
-        match self.origin {
-            ConnectOrigin::GameSelect => DisambigMode::Prompt,
-            _ => DisambigMode::Picker,
-        }
+        DisambigMode::Picker
     }
 }
 
@@ -229,4 +270,66 @@ fn run_suspended<T>(
     let result = action();
     session.resume_after_bridge()?;
     Ok(result)
+}
+
+async fn run_connect_task(
+    keys: &nostr_sdk::Keys,
+    npub: &str,
+    maps_root: PathBuf,
+    mut request: PendingConnectRequest,
+) -> ConnectTaskResult {
+    let preparation = if matches!(request.origin, ConnectOrigin::JoinPrompt)
+        && request.gate_npub.trim().is_empty()
+        && request.target.invite_code.is_some()
+    {
+        match prepare_public_join(
+            keys,
+            request.target.clone(),
+            npub,
+            request.disambig_mode(),
+            &maps_root,
+        )
+        .await
+        {
+            Ok(preparation) => preparation,
+            Err(err) => {
+                return ConnectTaskResult::Outcome {
+                    request,
+                    outcome: SessionOutcome::Error(err.to_string()),
+                };
+            }
+        }
+    } else {
+        if request.gate_npub.trim().is_empty() {
+            if let Some(invite_code) = request.target.invite_code.clone() {
+                match discover_game_for_invite(keys, &request.target, &invite_code).await {
+                    Ok(discovered) => {
+                        request.gate_npub = discovered.gate_npub;
+                        request.target.game_id.get_or_insert(discovered.game_id);
+                    }
+                    Err(err) => {
+                        return ConnectTaskResult::Outcome {
+                            request,
+                            outcome: SessionOutcome::Error(err),
+                        };
+                    }
+                }
+            }
+        }
+
+        prepare_session(
+            keys,
+            request.target.clone(),
+            npub,
+            &request.gate_npub,
+            request.disambig_mode(),
+            &maps_root,
+        )
+        .await
+    };
+
+    match preparation {
+        SessionPreparation::Ready(prepared) => ConnectTaskResult::Prepared { request, prepared },
+        SessionPreparation::Outcome(outcome) => ConnectTaskResult::Outcome { request, outcome },
+    }
 }

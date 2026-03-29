@@ -1,6 +1,6 @@
 use crossterm::event::KeyEvent;
 
-use super::{state::App, Action};
+use super::{Action, state::App};
 use crate::domains::startup::screens::main_menu::MENU_PROMPT_ROW;
 use crate::screen::layout::{command_line_row_for, draw_command_line_prompt_text_at};
 use crate::screen::{PlayfieldBuffer, ScreenId};

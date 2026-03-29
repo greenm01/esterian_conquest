@@ -294,4 +294,3 @@ fn parse_game_entries(json: &str) -> Vec<GameEntry> {
     }
     entries
 }
-

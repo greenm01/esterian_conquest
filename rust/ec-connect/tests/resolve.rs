@@ -1,4 +1,4 @@
-use ec_connect::config::{ConnectConfig, ServerBookmark};
+use ec_connect::config::{ConnectConfig, RelayEntry, RelayStatus, ServerBookmark};
 use ec_connect::connect::resolve::{
     DEFAULT_SSH_PORT, ParsedInviteCode, derive_relay_url, parse_invite_code, resolve_invite,
     resolve_server,
@@ -178,8 +178,21 @@ fn relay_url_ipv6_loopback_uses_ws() {
 // ── resolve_invite ───────────────────────────────────────────────────────────
 
 fn config_with_default(host: &str, port: u16, relay: Option<&str>) -> ConnectConfig {
+    let relay = relay.map(|s| s.to_string());
     ConnectConfig {
-        relay: relay.map(|s| s.to_string()),
+        relays: relay
+            .as_ref()
+            .map(|url| {
+                vec![RelayEntry {
+                    url: url.clone(),
+                    is_default: true,
+                    status: RelayStatus::Unknown,
+                    last_error: None,
+                    last_checked: None,
+                }]
+            })
+            .unwrap_or_default(),
+        relay,
         servers: vec![ServerBookmark {
             name: "default".into(),
             host: host.to_string(),
@@ -221,6 +234,13 @@ fn resolve_invite_prefers_inline_host_over_default() {
 #[test]
 fn resolve_invite_uses_config_relay_over_derived() {
     let config = ConnectConfig {
+        relays: vec![RelayEntry {
+            url: "wss://relay.custom.com".into(),
+            is_default: true,
+            status: RelayStatus::Unknown,
+            last_error: None,
+            last_checked: None,
+        }],
         relay: Some("wss://relay.custom.com".into()),
         servers: vec![],
         default_server: None,
@@ -240,6 +260,7 @@ fn resolve_invite_no_server_is_err() {
 #[test]
 fn resolve_invite_missing_default_bookmark_is_err() {
     let config = ConnectConfig {
+        relays: vec![],
         relay: None,
         servers: vec![],
         default_server: Some("ghost".into()),
@@ -253,6 +274,7 @@ fn resolve_invite_missing_default_bookmark_is_err() {
 
 fn config_with_bookmark(name: &str, host: &str, port: u16) -> ConnectConfig {
     ConnectConfig {
+        relays: vec![],
         relay: None,
         servers: vec![ServerBookmark {
             name: name.to_string(),
@@ -303,6 +325,13 @@ fn resolve_server_prefers_bookmark_over_literal() {
 #[test]
 fn resolve_server_relay_from_config() {
     let config = ConnectConfig {
+        relays: vec![RelayEntry {
+            url: "wss://relay.custom.com".into(),
+            is_default: true,
+            status: RelayStatus::Unknown,
+            last_error: None,
+            last_checked: None,
+        }],
         relay: Some("wss://relay.custom.com".into()),
         servers: vec![],
         default_server: None,

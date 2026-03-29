@@ -165,6 +165,13 @@ fn render_setup_buffer(state: &SetupState, width: u16, height: u16) -> Playfield
         classic::table_chrome_style(),
         classic::table_header_style(),
     );
+    buffer.fill_rect(
+        popup.y as usize + 1,
+        popup.x as usize + 1,
+        popup.width.saturating_sub(2) as usize,
+        popup.height.saturating_sub(2) as usize,
+        classic::table_body_style(),
+    );
 
     let left = popup.x as usize + 2;
     let mut row = popup.y as usize + 1;

@@ -2,7 +2,9 @@ use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 use ec_ui::prompt::draw_table_command_bar_at;
 use ec_ui::theme::classic;
 
-use super::help::{GAME_SELECT_RAIL, MAIN_MENU_RAIL, WALLET_MENU_RAIL};
+use super::help::{
+    GAME_SELECT_RAIL, MAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, WALLET_MENU_RAIL,
+};
 use super::layout::{
     BODY_START_ROW, Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH,
     displayed_body_rows, draw_scroll_gutter, draw_table_frame, middle_ellipsis, pad_right,
@@ -10,6 +12,7 @@ use super::layout::{
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_date, short_npub, truncate};
 use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_popup};
+use super::relay::{relay_games, relay_status_label, relay_summaries};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
 use crate::shell::{terminal_fits_outer, wrap_inner_buffer};
@@ -75,6 +78,52 @@ const GAME_SELECT_COLUMNS: [Column<'_>; 2] = [
     },
 ];
 
+const RELAY_COLUMNS: [Column<'_>; 5] = [
+    Column {
+        title: "Relay",
+        width: 28,
+    },
+    Column {
+        title: "Status",
+        width: 10,
+    },
+    Column {
+        title: "Games",
+        width: 5,
+    },
+    Column {
+        title: "Last Error",
+        width: 19,
+    },
+    Column {
+        title: "Checked",
+        width: 9,
+    },
+];
+
+const RELAY_GAME_COLUMNS: [Column<'_>; 5] = [
+    Column {
+        title: "Game",
+        width: 29,
+    },
+    Column {
+        title: "Server",
+        width: 20,
+    },
+    Column {
+        title: "Seat",
+        width: 4,
+    },
+    Column {
+        title: "Joined",
+        width: 10,
+    },
+    Column {
+        title: "Last Conn",
+        width: 12,
+    },
+];
+
 pub fn render_buffer(
     state: &PickerState,
     session: Option<&PickerSession>,
@@ -89,9 +138,9 @@ pub fn render_buffer(
     let identity_label = session.map(PickerSession::header_identity_label);
 
     let command_row = match &state.screen {
-        Screen::GameList | Screen::IdentityOverlay => {
-            render_main_menu(&mut buffer, state, session)
-        }
+        Screen::GameList | Screen::IdentityOverlay => render_main_menu(&mut buffer, state, session),
+        Screen::RelayList => render_relay_list(&mut buffer, state),
+        Screen::RelayGames { relay_url } => render_relay_games(&mut buffer, state, relay_url),
         Screen::WalletList | Screen::WalletAddPrompt => {
             render_wallet_menu(&mut buffer, state, session)
         }
@@ -251,6 +300,66 @@ fn render_game_select(buffer: &mut PlayfieldBuffer, games: &[GameEntry], selecte
     metrics.command_row
 }
 
+fn render_relay_list(buffer: &mut PlayfieldBuffer, state: &PickerState) -> usize {
+    let relays = relay_summaries(state);
+    let start = scroll_start(state.relay_selected, MAX_BODY_ROWS, relays.len());
+    let metrics = draw_table_frame(
+        buffer,
+        &RELAY_COLUMNS,
+        displayed_body_rows(relays.len(), start),
+    );
+    if relays.is_empty() {
+        let message = "No relays known yet. Press A to add one.";
+        let row = BODY_START_ROW + metrics.displayed_rows / 2;
+        let col = table_message_col(&RELAY_COLUMNS, message);
+        buffer.write_text_clipped(row, col, message, classic::notice_style());
+    } else {
+        for (idx, relay) in relays
+            .iter()
+            .skip(start)
+            .take(metrics.displayed_rows)
+            .enumerate()
+        {
+            let row = BODY_START_ROW + idx;
+            let is_selected = start + idx == state.relay_selected;
+            draw_relay_row(buffer, row, relay, is_selected);
+        }
+        draw_scroll_gutter(buffer, metrics, start, relays.len());
+    }
+    draw_table_command_bar_at(buffer, metrics.command_row, RELAY_MENU_RAIL, None, "");
+    metrics.command_row
+}
+
+fn render_relay_games(buffer: &mut PlayfieldBuffer, state: &PickerState, relay_url: &str) -> usize {
+    let games = relay_games(state, relay_url);
+    let start = scroll_start(state.relay_game_selected, MAX_BODY_ROWS, games.len());
+    let metrics = draw_table_frame(
+        buffer,
+        &RELAY_GAME_COLUMNS,
+        displayed_body_rows(games.len(), start),
+    );
+    if games.is_empty() {
+        let message = "No joined games currently use this relay.";
+        let row = BODY_START_ROW + metrics.displayed_rows / 2;
+        let col = table_message_col(&RELAY_GAME_COLUMNS, message);
+        buffer.write_text_clipped(row, col, message, classic::notice_style());
+    } else {
+        for (idx, game) in games
+            .iter()
+            .skip(start)
+            .take(metrics.displayed_rows)
+            .enumerate()
+        {
+            let row = BODY_START_ROW + idx;
+            let is_selected = start + idx == state.relay_game_selected;
+            draw_relay_game_row(buffer, row, game, is_selected);
+        }
+        draw_scroll_gutter(buffer, metrics, start, games.len());
+    }
+    draw_table_command_bar_at(buffer, metrics.command_row, RELAY_GAMES_RAIL, None, "");
+    metrics.command_row
+}
+
 fn render_locked_screen(buffer: &mut PlayfieldBuffer, matrix: &MatrixState) {
     let trail_style = CellStyle::new(GameColor::Green, GameColor::Black, false);
     let head_style = CellStyle::new(GameColor::BrightGreen, GameColor::Black, true);
@@ -313,10 +422,7 @@ fn draw_main_row(
             MAIN_COLUMNS[3].width,
         ),
         format!("{:>width$}", game.seat, width = MAIN_COLUMNS[4].width),
-        pad_right(
-            &short_date(&game.joined),
-            MAIN_COLUMNS[5].width,
-        ),
+        pad_right(&short_date(&game.joined), MAIN_COLUMNS[5].width),
     ];
     draw_row_cells(buffer, row, &MAIN_COLUMNS, &columns, selected, false);
 }
@@ -365,6 +471,75 @@ fn draw_select_row(buffer: &mut PlayfieldBuffer, row: usize, game: &GameEntry, s
         ),
     ];
     draw_row_cells(buffer, row, &GAME_SELECT_COLUMNS, &columns, selected, false);
+}
+
+fn draw_relay_row(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    relay: &super::relay::RelaySummary,
+    selected: bool,
+) {
+    let relay_label = if relay.is_default {
+        format!(
+            "{} *",
+            truncate(&relay.url, RELAY_COLUMNS[0].width.saturating_sub(2))
+        )
+    } else {
+        truncate(&relay.url, RELAY_COLUMNS[0].width)
+    };
+    let columns = [
+        pad_right(&relay_label, RELAY_COLUMNS[0].width),
+        pad_right(relay_status_label(relay.status), RELAY_COLUMNS[1].width),
+        format!(
+            "{:>width$}",
+            relay.game_count,
+            width = RELAY_COLUMNS[2].width
+        ),
+        pad_right(
+            &truncate(
+                relay.last_error.as_deref().unwrap_or(""),
+                RELAY_COLUMNS[3].width,
+            ),
+            RELAY_COLUMNS[3].width,
+        ),
+        pad_right(
+            &relative_time(relay.last_checked.as_deref()),
+            RELAY_COLUMNS[4].width,
+        ),
+    ];
+    draw_row_cells(buffer, row, &RELAY_COLUMNS, &columns, selected, false);
+}
+
+fn draw_relay_game_row(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    game: &crate::cache::CachedGame,
+    selected: bool,
+) {
+    let columns = [
+        pad_right(
+            &truncate(&game.name, RELAY_GAME_COLUMNS[0].width),
+            RELAY_GAME_COLUMNS[0].width,
+        ),
+        pad_right(
+            &truncate(
+                &format!("{}:{}", game.server, game.port),
+                RELAY_GAME_COLUMNS[1].width,
+            ),
+            RELAY_GAME_COLUMNS[1].width,
+        ),
+        format!("{:>width$}", game.seat, width = RELAY_GAME_COLUMNS[2].width),
+        pad_right(&short_date(&game.joined), RELAY_GAME_COLUMNS[3].width),
+        pad_right(
+            game.last_connected
+                .as_deref()
+                .map(short_date)
+                .as_deref()
+                .unwrap_or(""),
+            RELAY_GAME_COLUMNS[4].width,
+        ),
+    ];
+    draw_row_cells(buffer, row, &RELAY_GAME_COLUMNS, &columns, selected, false);
 }
 
 fn draw_row_cells(

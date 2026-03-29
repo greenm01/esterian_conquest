@@ -70,6 +70,8 @@ Keep this file short. Historical detail belongs in
 - `ec-connect`'s post-`ec-game` first-key fix is currently Unix-only; Windows
   still needs a bridge-side stdin shutdown path so the first returned keypress
   cannot be stolen after the SSH session exits.
+- `ec-connect` is still single-relay; multi-relay join/handshake redundancy is
+  a future resilience improvement, not part of the current player fix stream.
 - The BBS door renderer still repaints full frames and may show the same flash
   that was just fixed for SSH/local play.
 - New gameplay features should not deepen the offset-shaped storage path.
@@ -85,5 +87,7 @@ Keep this file short. Historical detail belongs in
 5. Add the Windows half of the `ec-connect` bridge stdin shutdown fix so
    post-game return behavior matches Linux/macOS and the first keypress works
    immediately after leaving `ec-game`.
-6. Only do deeper semantic cleanup when it materially helps a real gameplay,
+6. Revisit multi-relay support for `ec-connect` join/handshake flows if relay
+   reliability remains a recurring playtest problem.
+7. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.

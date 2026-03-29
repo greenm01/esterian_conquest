@@ -31,7 +31,7 @@ pub fn connect_selected(
         .as_ref()
         .filter(|value| !value.is_empty())
         .is_none()
-        && config.relay.is_none()
+        && config.default_relay_url().is_none()
     {
         open_game_relay_prompt(
             state,
@@ -146,7 +146,7 @@ pub fn redownload_selected_maps(
         .as_ref()
         .filter(|value| !value.is_empty())
         .is_none()
-        && config.relay.is_none()
+        && config.default_relay_url().is_none()
     {
         open_game_relay_prompt(
             state,
@@ -211,7 +211,7 @@ pub fn queue_selected_game_refresh(
         .as_ref()
         .filter(|value| !value.is_empty())
         .is_none()
-        && config.relay.is_none()
+        && config.default_relay_url().is_none()
     {
         state.show_error(
             "Relay not known for this game. Set a default relay with R, then try again.",

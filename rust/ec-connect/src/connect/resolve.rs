@@ -242,8 +242,8 @@ pub fn derive_relay_url(host: &str) -> String {
 /// Pick the relay URL to use: config-explicit relay first, otherwise derive
 /// from the server host.
 fn pick_relay_url(server_host: &str, config: &ConnectConfig) -> String {
-    if let Some(relay) = &config.relay {
-        relay.clone()
+    if let Some(relay) = config.default_relay_url() {
+        relay.to_string()
     } else {
         derive_relay_url(server_host)
     }

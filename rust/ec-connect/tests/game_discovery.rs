@@ -94,8 +94,9 @@ fn discovery_disambiguates_by_host_and_port_when_multiple_hashes_match() {
     let second = build_game_definition_event("play.example.com", 2222, &sha256_hex("amber-river"));
 
     // Even though two games have the same hash, exactly one matches the target host/port.
-    let discovered = select_discovered_game_from_events([&first, &second], &target(), "amber-river")
-        .expect("should disambiguate using exact host/port match");
+    let discovered =
+        select_discovered_game_from_events([&first, &second], &target(), "amber-river")
+            .expect("should disambiguate using exact host/port match");
 
     assert_eq!(discovered.game_id, "friday-night");
 }

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use nostr_sdk::Keys;
 
-use crate::config::{ConnectConfig, load_config};
+use crate::config::{ConnectConfig, load_config, seed_default_relay};
 use crate::connect::game_discovery::discover_game_for_invite;
 use crate::connect::public_join::run_public_join;
 use crate::connect::resolve::{resolve_invite, resolve_server};
@@ -255,6 +255,7 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
     if let Some(relay) = opts.relay_override {
         target.relay_url = relay;
     }
+    let join_relay_url = target.relay_url.clone();
 
     eprintln!("Joining game...");
     let outcome = if let Some(gate_npub) = opts.gate_npub {
@@ -281,6 +282,7 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
         ))?
         .map_err(|err| -> Box<dyn std::error::Error> { err })?
     };
+    maybe_seed_default_relay_after_join(&outcome, &join_relay_url);
 
     report_outcome(outcome)
 }
@@ -372,6 +374,16 @@ fn init_connect_logging(opts: &ConnectOpts) -> Result<(), Box<dyn std::error::Er
         );
     }
     Ok(())
+}
+
+fn should_seed_default_relay_after_join(outcome: &SessionOutcome) -> bool {
+    matches!(outcome, SessionOutcome::Done { .. })
+}
+
+fn maybe_seed_default_relay_after_join(outcome: &SessionOutcome, relay_url: &str) {
+    if should_seed_default_relay_after_join(outcome) {
+        let _ = seed_default_relay(relay_url);
+    }
 }
 
 fn prompt_and_load_identity() -> Result<Option<(Wallet, Keys, String)>, Box<dyn std::error::Error>>
@@ -642,7 +654,8 @@ Options:
 
 #[cfg(test)]
 mod tests {
-    use super::parse_connect_opts;
+    use super::{parse_connect_opts, should_seed_default_relay_after_join};
+    use crate::connect::session::SessionOutcome;
     use std::path::PathBuf;
 
     #[test]
@@ -669,5 +682,34 @@ mod tests {
         let args = vec!["--log-level".to_string(), "debug".to_string()];
         let err = parse_connect_opts(&mut args.into_iter()).expect_err("parse should fail");
         assert!(format!("{err}").contains("--log-level requires --log-file"));
+    }
+
+    #[test]
+    fn successful_join_outcome_seeds_the_default_relay() {
+        assert!(should_seed_default_relay_after_join(
+            &SessionOutcome::Done {
+                exit_code: 0,
+                notice: None,
+            }
+        ));
+        assert!(should_seed_default_relay_after_join(
+            &SessionOutcome::Done {
+                exit_code: 7,
+                notice: Some("warning".to_string()),
+            }
+        ));
+    }
+
+    #[test]
+    fn failed_join_outcomes_do_not_seed_the_default_relay() {
+        assert!(!should_seed_default_relay_after_join(
+            &SessionOutcome::Error("nope".to_string(),)
+        ));
+        assert!(!should_seed_default_relay_after_join(
+            &SessionOutcome::Timeout
+        ));
+        assert!(!should_seed_default_relay_after_join(
+            &SessionOutcome::NeedsDisambiguation { games: Vec::new() },
+        ));
     }
 }

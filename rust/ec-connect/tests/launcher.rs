@@ -1,5 +1,6 @@
 use ec_connect::launcher::render::render_buffer;
 use ec_connect::launcher::{GateSubmit, PasswordGateMode, PasswordGateState};
+use ec_connect::picker::layout::{Rect, centered_rect};
 use ec_ui::theme::classic;
 
 fn first_non_space_column(line: &str) -> Option<usize> {
@@ -92,6 +93,17 @@ fn render_buffer_masks_input_without_showing_plaintext() {
     assert!(line.contains("******"));
     assert!(!line.contains("secret"));
     assert!(buffer.cursor().is_some());
+}
+
+#[test]
+fn render_buffer_fills_popup_interior_with_body_style() {
+    let state = PasswordGateState::new(true, None);
+    let buffer = render_buffer(&state, 82, 27);
+    let popup = centered_rect(68, 4, Rect::new(1, 3, 78, 19));
+    let interior_cell = &buffer.row(popup.y as usize + 2)[popup.x as usize + 2];
+
+    assert_eq!(interior_cell.ch, ' ');
+    assert_eq!(interior_cell.style, classic::table_body_style());
 }
 
 #[test]
