@@ -190,7 +190,7 @@ pub fn resolve_table_columns_for_widget<'a>(
 pub fn minimum_table_render_width(title: Option<&str>, footer: Option<TableFooter<'_>>) -> usize {
     title
         .map_or(0, |title| title.chars().count())
-        .max(footer.map_or(0, table_footer_width))
+        .max(footer.map_or(0, table_footer_scaffold_width))
 }
 
 pub fn widen_table_columns_to_minimum_render_width<'a>(
@@ -586,6 +586,30 @@ pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
             default,
             input,
         } => shared_prompt::command_line_default_input_width(label, prompt, default, input),
+        TableFooter::TablePrompt(prompt) => shared_prompt::table_command_prompt_width(prompt),
+    }
+}
+
+pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
+    match footer {
+        TableFooter::Dismiss => shared_prompt::dismiss_prompt_width(),
+        TableFooter::CommandBar {
+            hotkeys_markup,
+            default,
+            ..
+        } => shared_prompt::table_command_bar_scaffold_width(hotkeys_markup, default),
+        TableFooter::CommandText { label, text } => {
+            shared_prompt::command_line_text_width(label, text)
+        }
+        TableFooter::CommandPrompt { label, prompt } => {
+            shared_prompt::command_line_prompt_text_width(label, prompt)
+        }
+        TableFooter::CommandInput {
+            label,
+            prompt,
+            default,
+            ..
+        } => shared_prompt::command_line_default_input_scaffold_width(label, prompt, default),
         TableFooter::TablePrompt(prompt) => shared_prompt::table_command_prompt_width(prompt),
     }
 }

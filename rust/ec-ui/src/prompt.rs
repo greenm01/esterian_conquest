@@ -31,6 +31,14 @@ pub fn command_line_default_input_width(
     default: &str,
     input: &str,
 ) -> usize {
+    command_line_default_input_scaffold_width(label, prompt, default) + input.chars().count()
+}
+
+pub fn command_line_default_input_scaffold_width(
+    label: &str,
+    prompt: &str,
+    default: &str,
+) -> usize {
     let mut width =
         label.chars().count() + COMMAND_ARROW_PREFIX.chars().count() + plain_prompt_width(prompt);
     if !default.is_empty() {
@@ -38,10 +46,14 @@ pub fn command_line_default_input_width(
             + default.chars().count()
             + DEFAULT_CLOSE_WITH_SPACE.chars().count();
     }
-    width + "<Q> -> ".chars().count() + input.chars().count()
+    width + "<Q> -> ".chars().count()
 }
 
 pub fn table_command_bar_width(hotkeys_markup: &str, default: Option<&str>, input: &str) -> usize {
+    table_command_bar_scaffold_width(hotkeys_markup, default) + input.chars().count()
+}
+
+pub fn table_command_bar_scaffold_width(hotkeys_markup: &str, default: Option<&str>) -> usize {
     let mut width = COMMAND_LABEL.chars().count()
         + COMMAND_ARROW_PREFIX.chars().count()
         + command_rail_width(hotkeys_markup);
@@ -49,8 +61,7 @@ pub fn table_command_bar_width(hotkeys_markup: &str, default: Option<&str>, inpu
         width += " ".chars().count()
             + DEFAULT_OPEN.chars().count()
             + default.chars().count()
-            + DEFAULT_CLOSE_WITH_SUFFIX.chars().count()
-            + input.chars().count();
+            + DEFAULT_CLOSE_WITH_SUFFIX.chars().count();
     } else {
         width += COMMAND_ARROW_SUFFIX.chars().count();
     }
@@ -555,8 +566,9 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
 #[cfg(test)]
 mod tests {
     use super::{
-        command_line_default_input_width, draw_command_line_prompt_text_at, draw_plain_prompt,
-        draw_table_command_bar_at, table_command_bar_width, table_command_prompt_width,
+        command_line_default_input_scaffold_width, command_line_default_input_width,
+        draw_command_line_prompt_text_at, draw_plain_prompt, draw_table_command_bar_at,
+        table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
@@ -617,5 +629,23 @@ mod tests {
         let width = command_line_default_input_width("COMMAND", "Qty ", "12", "345");
         assert!(width > table_command_prompt_width("Qty -> "));
         assert_eq!(width, "COMMAND <- Qty [12] <Q> -> 345".chars().count());
+    }
+
+    #[test]
+    fn scaffold_width_helpers_ignore_live_input_text() {
+        assert_eq!(
+            table_command_bar_scaffold_width("J K ^U ^D <Q>", Some("Matrix")),
+            table_command_bar_width("J K ^U ^D <Q>", Some("Matrix"), "")
+        );
+        assert_eq!(
+            table_command_bar_scaffold_width("J K ^U ^D <Q>", Some("Matrix")),
+            table_command_bar_width("J K ^U ^D <Q>", Some("Matrix"), "tokyo")
+                - "tokyo".chars().count()
+        );
+        assert_eq!(
+            command_line_default_input_scaffold_width("COMMAND", "Qty ", "12"),
+            command_line_default_input_width("COMMAND", "Qty ", "12", "345")
+                - "345".chars().count()
+        );
     }
 }
