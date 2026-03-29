@@ -139,16 +139,22 @@ if [ ! -x "$EC_SYSOP_SRC" ]; then
   exit 1
 fi
 
-if command -v nologin >/dev/null 2>&1; then
-  NOLOGIN_SHELL="$(command -v nologin)"
-elif [ -x /usr/sbin/nologin ]; then
-  NOLOGIN_SHELL="/usr/sbin/nologin"
+if [ -x /bin/bash ]; then
+  LOGIN_SHELL="/bin/bash"
+elif [ -x /bin/sh ]; then
+  LOGIN_SHELL="/bin/sh"
 else
-  NOLOGIN_SHELL="/bin/false"
+  echo "error: need a real login shell for forced SSH commands (/bin/bash or /bin/sh)" >&2
+  exit 1
 fi
 
 if ! id "$EC_USER" >/dev/null 2>&1; then
-  useradd --system --home "$STATE_DIR" --shell "$NOLOGIN_SHELL" --create-home "$EC_USER"
+  useradd --system --home "$STATE_DIR" --shell "$LOGIN_SHELL" --create-home "$EC_USER"
+else
+  current_shell="$(getent passwd "$EC_USER" | cut -d: -f7 || true)"
+  if [ "$current_shell" != "$LOGIN_SHELL" ]; then
+    usermod --shell "$LOGIN_SHELL" "$EC_USER"
+  fi
 fi
 
 install -d -m 0750 -o "$EC_USER" -g "$EC_USER" "$GAMES_ROOT"
@@ -313,7 +319,9 @@ Next steps:
   1. Create a game:
      sudo -u $EC_USER $EC_SYSOP_DEST new-game $GAMES_ROOT/<slug> --name "<Game Name>" --players 4
   2. Register it:
-     sudo -u $EC_USER $EC_SYSOP_DEST host games add --config $CONFIG_PATH --dir $GAMES_ROOT/<slug>
-  3. Inspect hosted seats:
+     sudo $EC_SYSOP_DEST host games add --config $CONFIG_PATH --dir $GAMES_ROOT/<slug>
+  3. Restart the daemon so it reloads the updated game registry:
+     sudo systemctl restart ec-nostr.service
+  4. Inspect hosted seats:
      sudo -u $EC_USER $EC_SYSOP_DEST nostr seats --dir $GAMES_ROOT/<slug>
 EOF

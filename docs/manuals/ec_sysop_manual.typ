@@ -190,7 +190,7 @@ server.
 
 1. Run `scripts/install_vps.sh` as root.
 2. Put each game under `/srv/ec/games/<slug>/`.
-3. Register each game with `ec-sysop host games add`.
+3. Register each game with `ec-sysop host games add` as root.
 4. Run one `ec-sysop nostr serve` daemon for all games.
 5. Run one `ec-sysop maint-all` timer for all games.
 
@@ -205,6 +205,11 @@ The standard VPS layout is:
 /var/lib/ec-gate/keys/
 /srv/ec/games/<slug>/ecgame.db
 ```
+
+The host-global relay URL and SSH address live in
+`/etc/ec-gate/config.kdl`. `scripts/install_vps.sh` writes them from
+`--relay`, `--ssh-host`, and `--ssh-port`. If you change those values later,
+edit `/etc/ec-gate/config.kdl` as root and restart `ec-nostr.service`.
 
 === 3. BBS Door Host
 
@@ -279,10 +284,17 @@ A minimal hosted setup looks like:
 
 ```
 ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
-ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo systemctl restart ec-nostr.service
 ec-sysop nostr init
 ec-sysop nostr serve
 ```
+
+The values handed to players come from `/etc/ec-gate/config.kdl`:
+
+- `relay` is the Nostr relay URL
+- `ssh-host` is the game server address embedded in invite flows
+- `ssh-port` is the SSH port if it is not the default `22`
 
 After the daemon is running, view the hosted seat state and get the
 ready-to-distribute invite commands:
@@ -341,6 +353,13 @@ player join again with the new code.
 Hosted seat claims are stored in `ecgame.db`. That SQLite state is the
 authority for invite codes, claim status, and bound player `npub`s. Legacy
 `roster.kdl` files are migration input only.
+
+#admonition("NOTE")[
+  `/etc/ec-gate/config.kdl` is host-owned. Game-registry edits such as
+  `host games add` and `host games remove` should be run as root. Restart
+  `ec-nostr.service` after changing the game list so the daemon reloads the
+  config.
+]
 
 // ─── 3. Game Directory Structure ─────────────────────────────────────────────
 

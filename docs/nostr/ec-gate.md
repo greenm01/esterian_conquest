@@ -108,7 +108,8 @@ and lowercase.
 
 ```
 $ ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4 --seed 1515
-$ ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+$ sudo ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+$ sudo systemctl restart ec-nostr.service
 $ ec-sysop nostr seats --dir /srv/ec/games/friday-night
 Game: Friday Night EC
 Dir:  /srv/ec/games/friday-night
@@ -250,7 +251,8 @@ removes expired entries as a safety net.
 
 SSH sessions run under a dedicated system user (e.g., `ecgame`) with:
 
-- No login shell (`/usr/sbin/nologin` or `/bin/false`)
+- A real shell (`/bin/bash` or `/bin/sh`) so sshd can execute the forced
+  `ec-game` command after key authentication
 - No home directory contents beyond the authorized keys mechanism
 - No sudo or privilege escalation
 - `command=` restriction on every authorized key entry
@@ -383,9 +385,10 @@ if the admin prefers fully private games.
 3. Create the `ecgame` system user
 4. Configure sshd for the `ecgame` user (see sshd integration above)
 5. Create games with `ec-sysop new-game`
-6. Register the game directories in `/etc/ec-gate/config.kdl`
-7. Start the daemon with `ec-sysop nostr serve` (systemd unit recommended)
-8. Share invite codes with players
+6. Register the game directories in `/etc/ec-gate/config.kdl` as root
+7. Restart the daemon after game-registry changes so it reloads the config
+8. Start the daemon with `ec-sysop nostr serve` (systemd unit recommended)
+9. Share invite codes with players
 
 For a fresh VPS host, `scripts/install_vps.sh` can bootstrap the standard
 filesystem layout, install the binaries under `/usr/local/bin`, write the

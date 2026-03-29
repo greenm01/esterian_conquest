@@ -120,10 +120,15 @@ That installs:
 /srv/ec/games/<slug>/ecgame.db
 ```
 
+The host relay and game-server address live in `/etc/ec-gate/config.kdl`.
+`install_vps.sh` writes them from `--relay`, `--ssh-host`, and `--ssh-port`.
+If you change them later, edit that file and restart `ec-nostr.service`.
+
 Create and register games:
 ```bash
 cargo run -q -p ec-sysop -- new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
-cargo run -q -p ec-sysop -- host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo /usr/local/bin/ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo systemctl restart ec-nostr.service
 ```
 
 Run the daemon:

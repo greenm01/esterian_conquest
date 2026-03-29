@@ -45,6 +45,7 @@ Root-only idempotent bootstrap for the recommended VPS layout.
 It:
 
 - creates the dedicated `ecgame` service user
+- ensures the service user has a real shell for forced SSH commands
 - creates `/etc/ec-gate`, `/var/lib/ec-gate/keys`, and `/srv/ec/games`
 - installs `ec-game` and `ec-sysop` into `/usr/local/bin`
 - installs `/usr/local/bin/ec-gate-keys`
@@ -63,6 +64,10 @@ sudo ./scripts/install_vps.sh \
 
 This script never creates classic `.DAT` files or copies DOS artifacts into
 per-game directories. Hosted Rust campaigns remain DB-only.
+
+Host game-registry edits still happen as `root` because `/etc/ec-gate/config.kdl`
+is host-owned. After `host games add/remove`, restart `ec-nostr.service` so the
+daemon reloads the updated game list.
 
 ### `new_test_game.py`
 
