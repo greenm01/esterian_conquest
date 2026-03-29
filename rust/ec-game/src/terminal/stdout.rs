@@ -1,6 +1,8 @@
+mod diff;
+
 use std::io::{self, IsTerminal, Write};
 
-use crate::screen::{CellStyle, GameColor, PlayfieldBuffer};
+use crate::screen::{Cell, CellStyle, GameColor, PlayfieldBuffer};
 use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
@@ -14,10 +16,51 @@ use crossterm::{
     style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
     terminal::{self, Clear, ClearType},
 };
+use diff::changed_spans;
 
 pub struct StdoutTerminal {
     encoding: OutputEncoding,
     color_mode: ColorMode,
+    previous_frame: Option<RenderSnapshot>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RenderSnapshot {
+    width: usize,
+    height: usize,
+    term_width: u16,
+    term_height: u16,
+    origin: (u16, u16),
+    cells: Vec<Cell>,
+    cursor: Option<(u16, u16)>,
+}
+
+impl RenderSnapshot {
+    fn from_playfield(
+        playfield: &PlayfieldBuffer,
+        term_width: u16,
+        term_height: u16,
+        origin: (u16, u16),
+    ) -> Self {
+        let mut cells = Vec::with_capacity(playfield.width() * playfield.height());
+        for row in 0..playfield.height() {
+            cells.extend_from_slice(playfield.row(row));
+        }
+        Self {
+            width: playfield.width(),
+            height: playfield.height(),
+            term_width,
+            term_height,
+            origin,
+            cells,
+            cursor: playfield.cursor(),
+        }
+    }
+
+    fn row(&self, row: usize) -> &[Cell] {
+        let start = row * self.width;
+        &self.cells[start..start + self.width]
+    }
 }
 
 impl StdoutTerminal {
@@ -25,6 +68,7 @@ impl StdoutTerminal {
         Self {
             encoding: OutputEncoding::Utf8,
             color_mode: ColorMode::TrueColor,
+            previous_frame: None,
         }
     }
 
@@ -32,6 +76,7 @@ impl StdoutTerminal {
         Self {
             encoding,
             color_mode: ColorMode::TrueColor,
+            previous_frame: None,
         }
     }
 
@@ -39,6 +84,7 @@ impl StdoutTerminal {
         Self {
             encoding,
             color_mode,
+            previous_frame: None,
         }
     }
 }
@@ -51,41 +97,26 @@ impl Terminal for StdoutTerminal {
         if stdout.is_terminal() {
             let (term_width, term_height) = terminal::size()?;
             let (offset_x, offset_y) = render_origin(term_width, term_height, self.encoding);
-            execute!(
-                stdout,
-                Hide,
-                SetBackgroundColor(bg),
-                SetForegroundColor(fg),
-                Clear(ClearType::All),
-                MoveTo(0, 0)
-            )?;
-            let blank_playfield = " ".repeat(PLAYFIELD_WIDTH);
-            if self.encoding == OutputEncoding::Utf8 {
-                let blank_terminal_row = " ".repeat(term_width as usize);
-                for row in 0..term_height {
-                    execute!(stdout, MoveTo(0, row))?;
-                    stdout.write_all(blank_terminal_row.as_bytes())?;
-                }
-            }
-            for row in 0..playfield.height() {
-                execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
-                stdout.write_all(blank_playfield.as_bytes())?;
-                execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
-                write_styled_row(
+            let current_frame = RenderSnapshot::from_playfield(
+                playfield,
+                term_width,
+                term_height,
+                (offset_x, offset_y),
+            );
+            execute!(stdout, Hide, SetBackgroundColor(bg), SetForegroundColor(fg))?;
+            if frame_reset_required(self.previous_frame.as_ref(), &current_frame) {
+                full_repaint(&mut stdout, &current_frame, self.encoding, self.color_mode)?;
+            } else if let Some(previous_frame) = self.previous_frame.as_ref() {
+                diff_repaint(
                     &mut stdout,
-                    playfield.row(row),
+                    previous_frame,
+                    &current_frame,
                     self.encoding,
                     self.color_mode,
                 )?;
             }
-            match playfield.cursor() {
-                Some((column, row)) => {
-                    execute!(stdout, Show, MoveTo(offset_x + column, offset_y + row))?;
-                }
-                None => {
-                    execute!(stdout, Hide)?;
-                }
-            }
+            render_cursor(&mut stdout, &current_frame)?;
+            self.previous_frame = Some(current_frame);
         } else {
             for row in 0..playfield.height() {
                 let line = playfield.plain_line(row);
@@ -120,6 +151,7 @@ impl Terminal for StdoutTerminal {
                 Show
             )?;
             stdout.write_all(b"\x1b[0m")?;
+            self.previous_frame = None;
         }
         stdout.write_all(text.as_bytes())?;
         if !text.ends_with('\n') {
@@ -144,9 +176,89 @@ impl Terminal for StdoutTerminal {
             )?;
             stdout.write_all(b"\x1b[0m")?;
             stdout.flush()?;
+            self.previous_frame = None;
         }
         Ok(())
     }
+}
+
+fn frame_reset_required(
+    previous_frame: Option<&RenderSnapshot>,
+    current_frame: &RenderSnapshot,
+) -> bool {
+    let Some(previous_frame) = previous_frame else {
+        return true;
+    };
+    previous_frame.width != current_frame.width
+        || previous_frame.height != current_frame.height
+        || previous_frame.term_width != current_frame.term_width
+        || previous_frame.term_height != current_frame.term_height
+        || previous_frame.origin != current_frame.origin
+}
+
+fn full_repaint(
+    stdout: &mut io::Stdout,
+    frame: &RenderSnapshot,
+    encoding: OutputEncoding,
+    color_mode: ColorMode,
+) -> Result<(), Box<dyn std::error::Error>> {
+    queue!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+    for row in 0..frame.height {
+        queue!(stdout, MoveTo(frame.origin.0, frame.origin.1 + row as u16))?;
+        write_styled_cells(stdout, frame.row(row), encoding, color_mode)?;
+    }
+    Ok(())
+}
+
+fn diff_repaint(
+    stdout: &mut io::Stdout,
+    previous_frame: &RenderSnapshot,
+    current_frame: &RenderSnapshot,
+    encoding: OutputEncoding,
+    color_mode: ColorMode,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for row in 0..current_frame.height {
+        let previous_row = previous_frame.row(row);
+        let current_row = current_frame.row(row);
+        if previous_row == current_row {
+            continue;
+        }
+        for span in changed_spans(previous_row, current_row) {
+            queue!(
+                stdout,
+                MoveTo(
+                    current_frame.origin.0 + span.start as u16,
+                    current_frame.origin.1 + row as u16
+                )
+            )?;
+            write_styled_cells(
+                stdout,
+                &current_row[span.start..span.end],
+                encoding,
+                color_mode,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn render_cursor(
+    stdout: &mut io::Stdout,
+    frame: &RenderSnapshot,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match frame.cursor {
+        Some((column, row)) => {
+            queue!(
+                stdout,
+                Show,
+                MoveTo(frame.origin.0 + column, frame.origin.1 + row)
+            )?;
+        }
+        None => {
+            queue!(stdout, Hide)?;
+        }
+    }
+    Ok(())
 }
 
 fn render_origin(term_width: u16, term_height: u16, encoding: OutputEncoding) -> (u16, u16) {
@@ -163,15 +275,15 @@ fn render_origin(term_width: u16, term_height: u16, encoding: OutputEncoding) ->
     }
 }
 
-fn write_styled_row(
+fn write_styled_cells(
     stdout: &mut io::Stdout,
-    row: &[crate::screen::Cell],
+    cells: &[Cell],
     encoding: OutputEncoding,
     color_mode: ColorMode,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut current_style = None;
     let mut run = String::new();
-    for cell in row {
+    for cell in cells {
         if current_style != Some(cell.style) {
             if !run.is_empty() {
                 flush_run(stdout, &run, encoding)?;
@@ -192,6 +304,51 @@ fn write_styled_row(
         SetBackgroundColor(resolve_color(classic::app_background(), color_mode))
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RenderSnapshot, frame_reset_required};
+    use crate::screen::{Cell, CellStyle, GameColor};
+
+    fn snapshot(
+        width: usize,
+        height: usize,
+        term_width: u16,
+        term_height: u16,
+        origin: (u16, u16),
+    ) -> RenderSnapshot {
+        let style = CellStyle::new(GameColor::White, GameColor::Black, false);
+        RenderSnapshot {
+            width,
+            height,
+            term_width,
+            term_height,
+            origin,
+            cells: vec![Cell::new(' ', style); width * height],
+            cursor: None,
+        }
+    }
+
+    #[test]
+    fn frame_reset_is_required_without_a_previous_frame() {
+        let current = snapshot(80, 25, 120, 40, (20, 7));
+        assert!(frame_reset_required(None, &current));
+    }
+
+    #[test]
+    fn frame_reset_is_not_required_when_geometry_is_stable() {
+        let previous = snapshot(80, 25, 120, 40, (20, 7));
+        let current = snapshot(80, 25, 120, 40, (20, 7));
+        assert!(!frame_reset_required(Some(&previous), &current));
+    }
+
+    #[test]
+    fn frame_reset_is_required_when_render_origin_changes() {
+        let previous = snapshot(80, 25, 120, 40, (20, 7));
+        let current = snapshot(80, 25, 121, 40, (20, 7));
+        assert!(frame_reset_required(Some(&previous), &current));
+    }
 }
 
 /// Write a text run to stdout, encoding it according to the output mode.

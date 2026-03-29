@@ -34,6 +34,9 @@ Keep this file short. Historical detail belongs in
 - The Rust BBS door client is now verified on both Mystic and ENiGMA½.
 - For BBS play, the stable door control contract is `HJKL` movement, `^U` /
   `^D` paging, and `Q` / `Esc` for back/quit.
+- The SSH/local `ec-game` renderer now diffs retained frames instead of
+  clearing the whole terminal every keypress; the BBS door path still uses
+  full-frame repaint and should get the same treatment later.
 - Latest broad baselines before new work:
   - `cargo test -q`
   - `cargo test -q -p ec-game`
@@ -67,6 +70,8 @@ Keep this file short. Historical detail belongs in
 - `ec-connect`'s post-`ec-game` first-key fix is currently Unix-only; Windows
   still needs a bridge-side stdin shutdown path so the first returned keypress
   cannot be stolen after the SSH session exits.
+- The BBS door renderer still repaints full frames and may show the same flash
+  that was just fixed for SSH/local play.
 - New gameplay features should not deepen the offset-shaped storage path.
 
 ## Immediate Next Steps
