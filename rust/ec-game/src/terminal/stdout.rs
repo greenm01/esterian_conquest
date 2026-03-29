@@ -53,6 +53,7 @@ impl Terminal for StdoutTerminal {
             let (offset_x, offset_y) = render_origin(term_width, term_height, self.encoding);
             execute!(
                 stdout,
+                Hide,
                 SetBackgroundColor(bg),
                 SetForegroundColor(fg),
                 Clear(ClearType::All),

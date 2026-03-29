@@ -24,6 +24,7 @@ pub fn render_to_stdout(buffer: &PlayfieldBuffer) -> Result<(), Box<dyn std::err
         .unwrap_or((0, 0));
     execute!(
         stdout,
+        Hide,
         SetBackgroundColor(bg),
         SetForegroundColor(fg),
         Clear(ClearType::All),
