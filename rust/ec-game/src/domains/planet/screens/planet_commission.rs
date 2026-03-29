@@ -10,7 +10,7 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
-    draw_table_footer, draw_table_title, resolve_table_columns, table_render_width,
+    draw_table_footer, draw_table_title, layout_standard_table_block, resolve_table_columns,
     write_table_window_with_cursor_at,
 };
 use crate::screen::{
@@ -18,7 +18,6 @@ use crate::screen::{
 };
 use crate::theme::classic;
 use ec_data::ProductionItemKind;
-use ec_ui::table_layout::{TableBlockLayout, layout_table_block};
 
 pub struct PlanetCommissionScreen;
 
@@ -40,52 +39,6 @@ pub fn planet_auto_commission_report_last_row(geometry: ScreenGeometry) -> usize
 
 pub fn planet_auto_commission_report_page_rows(geometry: ScreenGeometry) -> usize {
     planet_auto_commission_report_last_row(geometry) + 1
-}
-
-fn centered_commission_layout(
-    area: LayoutRect,
-    columns: &[TableColumn<'_>],
-    displayed_rows: usize,
-    title: &str,
-    command_width: usize,
-    scrollbar_visible: bool,
-) -> TableBlockLayout {
-    let table_width = table_render_width(columns);
-    let block_width = title
-        .chars()
-        .count()
-        .max(command_width)
-        .max(table_width + usize::from(scrollbar_visible));
-    layout_table_block(
-        area,
-        block_width,
-        displayed_rows + 4,
-        true,
-        true,
-        false,
-        HorizontalAlign::Center,
-        VerticalAlign::Center,
-    )
-}
-
-fn command_bar_width(hotkeys_markup: &str, default: Option<&str>) -> usize {
-    let base = "COMMAND <- ".chars().count() + hotkeys_markup.chars().count();
-    if let Some(default) = default {
-        base + " [".chars().count() + default.chars().count() + "] -> ".chars().count()
-    } else {
-        base + " -> ".chars().count()
-    }
-}
-
-fn command_prompt_width(prompt: &str) -> usize {
-    "COMMAND <- ".chars().count() + prompt.chars().count()
-}
-
-fn command_input_width(prompt: &str, default: &str) -> usize {
-    command_prompt_width(prompt)
-        + "[".chars().count()
-        + default.chars().count()
-        + "] <Q> -> ".chars().count()
 }
 
 const COMMISSION_PICKER_COLUMNS: [TableColumn<'static>; 9] = [
@@ -197,13 +150,20 @@ impl PlanetCommissionScreen {
         let default = rows
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
-        let layout = centered_commission_layout(
+        let footer = TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D <Q>",
+            default: default.as_deref(),
+            input: "",
+        };
+        let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            "COMMISSION SHIPS:",
-            command_bar_width("J K ^U ^D <Q>", default.as_deref()),
+            Some("COMMISSION SHIPS:"),
+            Some(footer),
             scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
         );
         draw_table_title(
             &mut buffer,
@@ -231,11 +191,7 @@ impl PlanetCommissionScreen {
             geometry,
             layout.command_col,
             metrics.bottom_row,
-            TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
-                default: default.as_deref(),
-                input: "",
-            },
+            footer,
         );
         Ok(buffer)
     }
@@ -286,13 +242,20 @@ impl PlanetCommissionScreen {
             scrollable,
             TableWidthMode::Compact,
         );
-        let layout = centered_commission_layout(
+        let footer = TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D SPACE <Q>",
+            default: None,
+            input: "",
+        };
+        let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            &title,
-            command_bar_width("J K ^U ^D SPACE <Q>", None),
+            Some(&title),
+            Some(footer),
             scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
         );
         draw_table_title(&mut buffer, layout.table_row, layout.table_col, &title);
         let selected = if view.rows.is_empty() {
@@ -318,11 +281,7 @@ impl PlanetCommissionScreen {
             geometry,
             layout.command_col,
             metrics.bottom_row,
-            TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D SPACE <Q>",
-                default: None,
-                input: "",
-            },
+            footer,
         );
         let _ = status;
         Ok(buffer)
@@ -375,26 +334,38 @@ impl PlanetCommissionScreen {
         let current_is_ship = current_row
             .map(PlanetCommissionDraftRow::accepts_fleet_qty)
             .unwrap_or(false);
-        let command_width = if current_is_ship {
-            let prompt_label = current_row
-                .map(|row| format!("Qty for {} ", row.unit_label))
-                .unwrap_or_else(|| "Qty ".to_string());
-            let default_qty = current_row
-                .map(|row| format_draft_qty(row.remaining_qty))
-                .unwrap_or_else(|| "00".to_string());
-            command_input_width(&prompt_label, &default_qty)
-        } else if has_ship_draft {
-            command_prompt_width("<ENTER> commissions the drafted fleet. <Q> -> ")
+        let prompt_label = current_row
+            .map(|row| format!("Qty for {} ", row.unit_label))
+            .unwrap_or_else(|| "Qty ".to_string());
+        let default_qty = current_row
+            .map(|row| format_draft_qty(row.remaining_qty))
+            .unwrap_or_else(|| "00".to_string());
+        let footer = if current_is_ship {
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: &prompt_label,
+                default: &default_qty,
+                input,
+            }
         } else {
-            command_prompt_width("<ENTER> commissions the highlighted starbase. <Q> -> ")
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: if has_ship_draft {
+                    "<ENTER> commissions the drafted fleet. <Q> -> "
+                } else {
+                    "<ENTER> commissions the highlighted starbase. <Q> -> "
+                },
+            }
         };
-        let layout = centered_commission_layout(
+        let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            title,
-            command_width,
+            Some(title),
+            Some(footer),
             scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
         );
         draw_table_title(&mut buffer, layout.table_row, layout.table_col, title);
         let metrics = write_table_window_with_cursor_at(
@@ -410,48 +381,13 @@ impl PlanetCommissionScreen {
             if rows.is_empty() { None } else { Some(cursor) },
             0,
         );
-        if current_is_ship {
-            let prompt_label = current_row
-                .map(|row| format!("Qty for {} ", row.unit_label))
-                .unwrap_or_else(|| "Qty ".to_string());
-            let default_qty = current_row
-                .map(|row| format_draft_qty(row.remaining_qty))
-                .unwrap_or_else(|| "00".to_string());
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandInput {
-                    label: "COMMAND",
-                    prompt: &prompt_label,
-                    default: &default_qty,
-                    input,
-                },
-            );
-        } else if has_ship_draft {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandPrompt {
-                    label: "COMMAND",
-                    prompt: "<ENTER> commissions the drafted fleet. <Q> -> ",
-                },
-            );
-        } else {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandPrompt {
-                    label: "COMMAND",
-                    prompt: "<ENTER> commissions the highlighted starbase. <Q> -> ",
-                },
-            );
-        }
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            footer,
+        );
         let _ = (status, notice);
         Ok(buffer)
     }

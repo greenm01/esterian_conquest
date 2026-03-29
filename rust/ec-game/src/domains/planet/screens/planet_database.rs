@@ -130,12 +130,28 @@ impl PlanetDatabaseScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let default = rows
+            .get(cursor)
+            .map(|row| format_sector_coords_default(row.coords))
+            .unwrap_or_else(|| "00,00".to_string());
+        let footer = if rows.is_empty() {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: "No planets are in your database. Q quits.",
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D F S <Q>",
+                default: Some(&default),
+                input,
+            }
+        };
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some("TOTAL PLANET DATABASE:"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
@@ -168,34 +184,13 @@ impl PlanetDatabaseScreen {
             None,
         );
 
-        if rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandText {
-                    label: COMMAND_LABEL,
-                    text: "No planets are in your database. Q quits.",
-                },
-            );
-        } else {
-            let default = rows
-                .get(cursor)
-                .map(|row| format_sector_coords_default(row.coords))
-                .unwrap_or_else(|| "00,00".to_string());
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D F S <Q>",
-                    default: Some(&default),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 
@@ -235,107 +230,60 @@ impl PlanetDatabaseScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let footer = match prompt_mode {
+            PlanetDatabasePromptMode::FilterMenu => {
+                TableFooter::TablePrompt(DATABASE_FILTER_PROMPT)
+            }
+            PlanetDatabasePromptMode::FilterRangeCoords => TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: "Range from ",
+                default: prompt_default,
+                input,
+            },
+            PlanetDatabasePromptMode::FilterRangeDistance => TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: "Range radius ",
+                default: prompt_default,
+                input,
+            },
+            PlanetDatabasePromptMode::FilterEmpireInput => TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: "Empire ",
+                default: prompt_default,
+                input,
+            },
+            PlanetDatabasePromptMode::FilterMaxProductionInput => TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: "Max production at least ",
+                default: prompt_default,
+                input,
+            },
+            PlanetDatabasePromptMode::SortMenu => TableFooter::TablePrompt(DATABASE_SORT_PROMPT),
+            PlanetDatabasePromptMode::SortRangeInput => TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: "Sort range from ",
+                default: prompt_default,
+                input,
+            },
+        };
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some("TOTAL PLANET DATABASE:"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
         );
         let bottom_row = database_table_bottom_row(geometry, rows.len(), scroll_offset);
-        match prompt_mode {
-            PlanetDatabasePromptMode::FilterMenu => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::TablePrompt(DATABASE_FILTER_PROMPT),
-                );
-            }
-            PlanetDatabasePromptMode::FilterRangeCoords => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::CommandInput {
-                        label: COMMAND_LABEL,
-                        prompt: "Range from ",
-                        default: prompt_default,
-                        input,
-                    },
-                );
-            }
-            PlanetDatabasePromptMode::FilterRangeDistance => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::CommandInput {
-                        label: COMMAND_LABEL,
-                        prompt: "Range radius ",
-                        default: prompt_default,
-                        input,
-                    },
-                );
-            }
-            PlanetDatabasePromptMode::FilterEmpireInput => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::CommandInput {
-                        label: COMMAND_LABEL,
-                        prompt: "Empire ",
-                        default: prompt_default,
-                        input,
-                    },
-                );
-            }
-            PlanetDatabasePromptMode::FilterMaxProductionInput => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::CommandInput {
-                        label: COMMAND_LABEL,
-                        prompt: "Max production at least ",
-                        default: prompt_default,
-                        input,
-                    },
-                );
-            }
-            PlanetDatabasePromptMode::SortMenu => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::TablePrompt(DATABASE_SORT_PROMPT),
-                );
-            }
-            PlanetDatabasePromptMode::SortRangeInput => {
-                draw_table_footer(
-                    &mut buffer,
-                    geometry,
-                    layout.command_col,
-                    bottom_row,
-                    TableFooter::CommandInput {
-                        label: COMMAND_LABEL,
-                        prompt: "Sort range from ",
-                        default: prompt_default,
-                        input,
-                    },
-                );
-            }
-        }
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 

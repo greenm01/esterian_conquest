@@ -74,12 +74,20 @@ impl ThemePickerScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let default_theme = rows
+            .get(cursor.min(rows.len().saturating_sub(1)))
+            .map(|row| row.display_name.as_str());
+        let footer = TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D <Q>",
+            default: default_theme,
+            input,
+        };
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some("COLOR THEMES:"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Center,
@@ -108,19 +116,12 @@ impl ThemePickerScreen {
             },
             THEME_SELECTION_COL,
         );
-        let default_theme = rows
-            .get(cursor.min(rows.len().saturating_sub(1)))
-            .map(|row| row.display_name.as_str());
         draw_table_footer(
             &mut buffer,
             geometry,
             layout.command_col,
             metrics.bottom_row,
-            TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
-                default: default_theme,
-                input,
-            },
+            footer,
         );
         Ok(buffer)
     }

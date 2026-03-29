@@ -5,9 +5,11 @@ use ec_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 use ec_game::model::{ClassicLoginState, PlayerContext};
 use ec_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_game::screen::table::{
-    SplitTableRow, TableColumn, TableRowState, table_render_width, write_split_table,
-    write_stacked_table_window_with_states, write_table_row, write_table_window_with_cursor,
-    write_table_window_with_cursor_at, write_table_window_with_states,
+    HorizontalAlign, LayoutRect, SplitTableRow, TableColumn, TableFooter, TableRowState,
+    VerticalAlign, layout_standard_table_block, table_footer_width, table_render_width,
+    write_split_table, write_stacked_table_window_with_states, write_table_row,
+    write_table_window_with_cursor, write_table_window_with_cursor_at,
+    write_table_window_with_states,
 };
 use ec_game::screen::{
     EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
@@ -110,6 +112,35 @@ fn scrollable_table_panics_when_border_would_consume_last_playfield_col() {
         0,
         None,
     );
+}
+
+#[test]
+fn centered_table_block_expands_to_match_command_footer_width() {
+    let columns = [TableColumn::left("ID", 2), TableColumn::left("Name", 8)];
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: "J K ^U ^D <Q>",
+        default: Some("02,02"),
+        input: "",
+    };
+    let layout = layout_standard_table_block(
+        LayoutRect::new(0, 0, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT),
+        &columns,
+        3,
+        Some("COMMISSION SHIPS:"),
+        Some(footer),
+        false,
+        HorizontalAlign::Center,
+        VerticalAlign::Center,
+    );
+
+    let table_width = table_render_width(&columns);
+    assert!(table_footer_width(footer) > table_width);
+    assert_eq!(
+        layout.table_col,
+        (PLAYFIELD_WIDTH - table_footer_width(footer)) / 2
+    );
+    assert_eq!(layout.title_col, layout.table_col);
+    assert_eq!(layout.command_col, layout.table_col);
 }
 
 #[test]

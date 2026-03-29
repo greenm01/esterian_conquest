@@ -947,12 +947,25 @@ impl FleetGroupScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let footer = if table_rows.is_empty() {
+            TableFooter::CommandBar {
+                hotkeys_markup: "<Q>",
+                default: None,
+                input: "",
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D SPACE <Q>",
+                default: None,
+                input: "",
+            }
+        };
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             visible_rows,
-            false,
-            false,
+            Some("GROUP FLEET ORDER:"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
@@ -981,31 +994,13 @@ impl FleetGroupScreen {
             0,
             None,
         );
-        if table_rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "<Q>",
-                    default: None,
-                    input: "",
-                },
-            );
-        } else {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D SPACE <Q>",
-                    default: None,
-                    input: "",
-                },
-            );
-        }
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 
@@ -1318,12 +1313,21 @@ impl FleetMissionPickerScreen {
             false,
             TableWidthMode::Compact,
         );
+        let default = FLEET_MISSION_OPTIONS
+            .get(cursor)
+            .map(|option| option.code.to_string())
+            .unwrap_or_else(|| "1".to_string());
+        let footer = TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D <Q>",
+            default: Some(&default),
+            input,
+        };
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             rows.len(),
-            true,
-            true,
+            Some("FLEET MISSION ORDERS:"),
+            Some(footer),
             false,
             HorizontalAlign::Center,
             VerticalAlign::Top,
@@ -1359,20 +1363,12 @@ impl FleetMissionPickerScreen {
             0,
             Some(&row_states),
         );
-        let default = FLEET_MISSION_OPTIONS
-            .get(cursor)
-            .map(|option| option.code.to_string())
-            .unwrap_or_else(|| "1".to_string());
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
             layout.command_col,
             metrics.bottom_row,
-            TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
-                default: Some(&default),
-                input,
-            },
+            footer,
         );
         Ok(buffer)
     }

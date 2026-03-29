@@ -75,12 +75,30 @@ impl MessageComposeScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let footer = if rows.is_empty() {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D D <Q>",
+                default: None,
+                input: "",
+            }
+        } else {
+            let default_empire = rows
+                .get(cursor)
+                .and_then(|row| row.first())
+                .map(String::as_str)
+                .unwrap_or("");
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D D <Q>",
+                default: Some(default_empire),
+                input,
+            }
+        };
         let table_layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some("COMMUNICATE (SEND MESSAGE):"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Center,
@@ -106,36 +124,13 @@ impl MessageComposeScreen {
             selected,
             0,
         );
-        if rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                frame.geometry,
-                table_layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D D <Q>",
-                    default: None,
-                    input: "",
-                },
-            );
-        } else {
-            let default_empire = rows
-                .get(cursor)
-                .and_then(|row| row.first())
-                .map(String::as_str)
-                .unwrap_or("");
-            draw_table_footer(
-                &mut buffer,
-                frame.geometry,
-                table_layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D D <Q>",
-                    default: Some(default_empire),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(
+            &mut buffer,
+            frame.geometry,
+            table_layout.command_col,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 
@@ -311,12 +306,26 @@ impl MessageComposeScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let default_queue_no = format!("{:02}", cursor + 1);
+        let footer = if rows.is_empty() {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: None,
+                input: "",
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: Some(&default_queue_no),
+                input,
+            }
+        };
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some("COMMUNICATE (SEND MESSAGE):"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Left,
             VerticalAlign::Top,
@@ -342,36 +351,13 @@ impl MessageComposeScreen {
             selected,
             0,
         );
-        if rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
-                    default: None,
-                    input: "",
-                },
-            );
-        } else {
-            let default_queue_no = if rows.is_empty() {
-                String::new()
-            } else {
-                format!("{:02}", cursor + 1)
-            };
-            draw_table_footer(
-                &mut buffer,
-                geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
-                    default: Some(&default_queue_no),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 

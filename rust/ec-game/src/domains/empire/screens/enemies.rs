@@ -85,12 +85,29 @@ impl EnemiesScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let footer = if rows.is_empty() {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: "No empires found.",
+            }
+        } else {
+            let default_empire = rows
+                .get(cursor)
+                .and_then(|row| row.first())
+                .map(String::as_str)
+                .unwrap_or("");
+            TableFooter::CommandBar {
+                hotkeys_markup: "J K ^U ^D <Q>",
+                default: Some(default_empire),
+                input,
+            }
+        };
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some("ENEMIES, DECLARE OR LIST:"),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Center,
@@ -116,35 +133,13 @@ impl EnemiesScreen {
             0,
         );
 
-        if rows.is_empty() {
-            draw_table_footer(
-                &mut buffer,
-                frame.geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandText {
-                    label: COMMAND_LABEL,
-                    text: "No empires found.",
-                },
-            );
-        } else {
-            let default_empire = rows
-                .get(cursor)
-                .and_then(|row| row.first())
-                .map(String::as_str)
-                .unwrap_or("");
-            draw_table_footer(
-                &mut buffer,
-                frame.geometry,
-                layout.command_col,
-                metrics.bottom_row,
-                TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
-                    default: Some(default_empire),
-                    input,
-                },
-            );
-        }
+        draw_table_footer(
+            &mut buffer,
+            frame.geometry,
+            layout.command_col,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 

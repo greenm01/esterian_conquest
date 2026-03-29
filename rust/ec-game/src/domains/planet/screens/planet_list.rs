@@ -92,12 +92,13 @@ impl PlanetListScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let footer = TableFooter::TablePrompt(BRIEF_SORT_PROMPT);
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some(brief_list_title(mode)),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
@@ -107,7 +108,7 @@ impl PlanetListScreen {
             frame.geometry,
             layout.command_col,
             brief_list_table_bottom_row(frame.geometry, rows.len(), scroll_offset),
-            TableFooter::TablePrompt(BRIEF_SORT_PROMPT),
+            footer,
         );
         Ok(buffer)
     }
@@ -137,12 +138,21 @@ impl PlanetListScreen {
             scrollable,
             TableWidthMode::Compact,
         );
+        let default_coords = rows
+            .get(cursor)
+            .map(|row| format_sector_coords_default(row.coords))
+            .unwrap_or_else(|| "00,00".to_string());
+        let footer = TableFooter::CommandBar {
+            hotkeys_markup: "J K S <Q>",
+            default: Some(&default_coords),
+            input,
+        };
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            true,
-            true,
+            Some(brief_list_title(mode)),
+            Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
@@ -175,20 +185,12 @@ impl PlanetListScreen {
             None,
         );
 
-        let default_coords = rows
-            .get(cursor)
-            .map(|row| format_sector_coords_default(row.coords))
-            .unwrap_or_else(|| "00,00".to_string());
         draw_table_footer(
             &mut buffer,
             frame.geometry,
             layout.command_col,
             metrics.bottom_row,
-            TableFooter::CommandBar {
-                hotkeys_markup: "J K S <Q>",
-                default: Some(&default_coords),
-                input,
-            },
+            footer,
         );
         Ok(buffer)
     }

@@ -5,6 +5,7 @@ use crate::screen::layout::{
     draw_table_command_prompt_at_col, table_dismiss_prompt_row_for, table_prompt_row_for,
 };
 use crate::theme::classic;
+use ec_ui::prompt as shared_prompt;
 use ec_ui::table_layout::{ColumnWidthSpec, distribute_column_widths, layout_table_block};
 pub use ec_ui::table_layout::{
     HorizontalAlign, LayoutRect, TableBlockLayout, TableWidthMode, VerticalAlign,
@@ -166,6 +167,7 @@ pub struct TableRenderMetrics {
     pub displayed_rows: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableFooter<'a> {
     Dismiss,
     CommandBar {
@@ -423,18 +425,20 @@ pub fn layout_standard_table_block(
     area: LayoutRect,
     columns: &[TableColumn<'_>],
     visible_rows: usize,
-    title: bool,
-    command: bool,
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
     scrollbar_visible: bool,
     horizontal_align: HorizontalAlign,
     vertical_align: VerticalAlign,
 ) -> TableBlockLayout {
+    let table_width = table_render_width(columns);
     layout_table_block(
         area,
-        table_render_width(columns),
+        table_width,
         visible_rows + 4,
-        title,
-        command,
+        table_block_minimum_width(table_width, title, footer, scrollbar_visible),
+        title.is_some(),
+        footer.is_some(),
         scrollbar_visible,
         horizontal_align,
         vertical_align,
@@ -445,22 +449,64 @@ pub fn layout_stacked_table_block(
     area: LayoutRect,
     columns: &[TableColumn<'_>],
     visible_rows: usize,
-    title: bool,
-    command: bool,
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
     scrollbar_visible: bool,
     horizontal_align: HorizontalAlign,
     vertical_align: VerticalAlign,
 ) -> TableBlockLayout {
+    let table_width = table_render_width(columns);
     layout_table_block(
         area,
-        table_render_width(columns),
+        table_width,
         visible_rows + 5,
-        title,
-        command,
+        table_block_minimum_width(table_width, title, footer, scrollbar_visible),
+        title.is_some(),
+        footer.is_some(),
         scrollbar_visible,
         horizontal_align,
         vertical_align,
     )
+}
+
+pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
+    match footer {
+        TableFooter::Dismiss => shared_prompt::dismiss_prompt_width(),
+        TableFooter::CommandBar {
+            hotkeys_markup,
+            default,
+            input,
+        } => shared_prompt::table_command_bar_width(hotkeys_markup, default, input),
+        TableFooter::CommandText { label, text } => {
+            shared_prompt::command_line_text_width(label, text)
+        }
+        TableFooter::CommandPrompt { label, prompt } => {
+            shared_prompt::command_line_prompt_text_width(label, prompt)
+        }
+        TableFooter::CommandInput {
+            label,
+            prompt,
+            default,
+            input,
+        } => shared_prompt::command_line_default_input_width(label, prompt, default, input),
+        TableFooter::TablePrompt(prompt) => shared_prompt::table_command_prompt_width(prompt),
+    }
+}
+
+fn table_block_minimum_width(
+    table_width: usize,
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
+    scrollbar_visible: bool,
+) -> usize {
+    let mut width = table_width + usize::from(scrollbar_visible);
+    if let Some(title) = title {
+        width = width.max(title.chars().count());
+    }
+    if let Some(footer) = footer {
+        width = width.max(table_footer_width(footer));
+    }
+    width
 }
 
 pub fn draw_table_footer(

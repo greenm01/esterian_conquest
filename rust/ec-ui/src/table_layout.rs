@@ -117,13 +117,14 @@ pub fn layout_table_block(
     area: LayoutRect,
     table_width: usize,
     table_height: usize,
+    minimum_block_width: usize,
     title: bool,
     command: bool,
     scrollbar_visible: bool,
     horizontal_align: HorizontalAlign,
     vertical_align: VerticalAlign,
 ) -> TableBlockLayout {
-    let total_width = table_width + usize::from(scrollbar_visible);
+    let total_width = (table_width + usize::from(scrollbar_visible)).max(minimum_block_width);
     let total_height = table_height + usize::from(title) + usize::from(command);
     let col = area.col
         + align_offset(
@@ -242,6 +243,7 @@ mod tests {
             LayoutRect::new(0, 0, 80, 25),
             30,
             10,
+            31,
             true,
             true,
             true,
@@ -253,5 +255,23 @@ mod tests {
         assert_eq!(layout.title_row, Some(6));
         assert_eq!(layout.table_row, 7);
         assert_eq!(layout.command_row, Some(17));
+    }
+
+    #[test]
+    fn block_width_can_expand_beyond_table_width_for_footer_or_title() {
+        let layout = layout_table_block(
+            LayoutRect::new(0, 0, 80, 25),
+            20,
+            10,
+            36,
+            true,
+            true,
+            false,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
+        );
+        assert_eq!(layout.table_col, 22);
+        assert_eq!(layout.title_col, 22);
+        assert_eq!(layout.command_col, 22);
     }
 }

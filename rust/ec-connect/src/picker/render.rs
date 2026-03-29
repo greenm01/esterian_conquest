@@ -515,6 +515,7 @@ fn draw_picker_table_frame(
         LayoutRect::new(0, 0, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT),
         table_render_width(columns),
         displayed_rows + 4,
+        table_render_width(columns) + usize::from(scrollable),
         false,
         true,
         scrollable,

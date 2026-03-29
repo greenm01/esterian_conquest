@@ -1,6 +1,68 @@
 use crate::buffer::{PlayfieldBuffer, StyledSpan};
 use crate::theme::classic;
 
+const COMMAND_LABEL: &str = "COMMAND";
+const COMMAND_ARROW_PREFIX: &str = " <- ";
+const COMMAND_ARROW_SUFFIX: &str = " -> ";
+const DEFAULT_OPEN: &str = "[";
+const DEFAULT_CLOSE_WITH_SPACE: &str = "] ";
+const DEFAULT_CLOSE_WITH_SUFFIX: &str = "] -> ";
+const SLAP_A_KEY_PROMPT: &str = "(slap a key)";
+
+pub fn plain_prompt_width(prompt: &str) -> usize {
+    ensure_cursor_gap(prompt).chars().count()
+}
+
+pub fn dismiss_prompt_width() -> usize {
+    plain_prompt_width(SLAP_A_KEY_PROMPT)
+}
+
+pub fn command_line_text_width(label: &str, text: &str) -> usize {
+    label.chars().count() + COMMAND_ARROW_PREFIX.chars().count() + text.chars().count()
+}
+
+pub fn command_line_prompt_text_width(label: &str, prompt: &str) -> usize {
+    label.chars().count() + COMMAND_ARROW_PREFIX.chars().count() + plain_prompt_width(prompt)
+}
+
+pub fn command_line_default_input_width(
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+) -> usize {
+    let mut width =
+        label.chars().count() + COMMAND_ARROW_PREFIX.chars().count() + plain_prompt_width(prompt);
+    if !default.is_empty() {
+        width += DEFAULT_OPEN.chars().count()
+            + default.chars().count()
+            + DEFAULT_CLOSE_WITH_SPACE.chars().count();
+    }
+    width + "<Q> -> ".chars().count() + input.chars().count()
+}
+
+pub fn table_command_bar_width(hotkeys_markup: &str, default: Option<&str>, input: &str) -> usize {
+    let mut width = COMMAND_LABEL.chars().count()
+        + COMMAND_ARROW_PREFIX.chars().count()
+        + command_rail_width(hotkeys_markup);
+    if let Some(default) = default {
+        width += " ".chars().count()
+            + DEFAULT_OPEN.chars().count()
+            + default.chars().count()
+            + DEFAULT_CLOSE_WITH_SUFFIX.chars().count()
+            + input.chars().count();
+    } else {
+        width += COMMAND_ARROW_SUFFIX.chars().count();
+    }
+    width
+}
+
+pub fn table_command_prompt_width(prompt: &str) -> usize {
+    COMMAND_LABEL.chars().count()
+        + COMMAND_ARROW_PREFIX.chars().count()
+        + plain_prompt_width(prompt)
+}
+
 pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
     draw_command_prompt_at_col(buffer, row, 0, label, keys);
 }
@@ -23,7 +85,7 @@ pub fn draw_command_prompt_at_col(
                 StyledSpan::new(" <-", classic::prompt_style()),
             ],
         );
-        let slap_width = "(slap a key)".chars().count();
+        let slap_width = SLAP_A_KEY_PROMPT.chars().count();
         let suffix_col = buffer.width().saturating_sub(suffix.chars().count() + 1);
         let slap_col = suffix_col.saturating_sub(slap_width);
         write_slap_a_key(buffer, row, slap_col);
@@ -186,8 +248,8 @@ pub fn draw_table_command_bar_at_col(
             row,
             col,
             &[
-                StyledSpan::new("COMMAND", classic::title_style()),
-                StyledSpan::new(" <- ", classic::prompt_style()),
+                StyledSpan::new(COMMAND_LABEL, classic::title_style()),
+                StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
             ],
         );
     cursor_col = write_command_rail_tokens(buffer, row, cursor_col, hotkeys_markup);
@@ -197,10 +259,10 @@ pub fn draw_table_command_bar_at_col(
             cursor_col,
             &[
                 StyledSpan::new(" ", classic::prompt_style()),
-                StyledSpan::new("[", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(DEFAULT_OPEN, classic::prompt_square_delimiter_style()),
                 StyledSpan::new(default, classic::prompt_hotkey_style()),
                 StyledSpan::new("]", classic::prompt_square_delimiter_style()),
-                StyledSpan::new(" -> ", classic::prompt_style()),
+                StyledSpan::new(COMMAND_ARROW_SUFFIX, classic::prompt_style()),
             ],
         );
         let written = buffer.write_text(row, cursor_col, input, classic::prompt_hotkey_style());
@@ -210,7 +272,12 @@ pub fn draw_table_command_bar_at_col(
         }
         final_cursor_col
     } else {
-        let written = buffer.write_text(row, cursor_col, " -> ", classic::prompt_style());
+        let written = buffer.write_text(
+            row,
+            cursor_col,
+            COMMAND_ARROW_SUFFIX,
+            classic::prompt_style(),
+        );
         let final_cursor_col = cursor_col + written;
         if final_cursor_col < buffer.width() {
             buffer.set_cursor(final_cursor_col as u16, row as u16);
@@ -239,8 +306,8 @@ pub fn draw_table_command_prompt_at_col(
             row,
             col,
             &[
-                StyledSpan::new("COMMAND", classic::title_style()),
-                StyledSpan::new(" <- ", classic::prompt_style()),
+                StyledSpan::new(COMMAND_LABEL, classic::title_style()),
+                StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
             ],
         );
     let prompt = ensure_cursor_gap(prompt);
@@ -278,6 +345,14 @@ fn ensure_cursor_gap(prompt: &str) -> String {
     } else {
         prompt.to_string()
     }
+}
+
+fn command_rail_width(tokens: &str) -> usize {
+    tokens
+        .split_whitespace()
+        .map(|token| token.chars().count())
+        .sum::<usize>()
+        + tokens.split_whitespace().count().saturating_sub(1)
 }
 
 fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
@@ -479,7 +554,10 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
 
 #[cfg(test)]
 mod tests {
-    use super::{draw_command_line_prompt_text_at, draw_plain_prompt, draw_table_command_bar_at};
+    use super::{
+        command_line_default_input_width, draw_command_line_prompt_text_at, draw_plain_prompt,
+        draw_table_command_bar_at, table_command_bar_width, table_command_prompt_width,
+    };
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
 
@@ -522,5 +600,22 @@ mod tests {
         let line = buffer.plain_line(row as usize);
         let arrow = line.find("->").expect("arrow");
         assert_eq!(col as usize, arrow + "->".chars().count() + 1);
+    }
+
+    #[test]
+    fn table_command_bar_width_matches_rendered_footer_width() {
+        let mut buffer = buffer();
+        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <Q>", Some("02"), "");
+        assert_eq!(
+            end_col,
+            table_command_bar_width("J K ^U ^D <Q>", Some("02"), "")
+        );
+    }
+
+    #[test]
+    fn prompt_width_helpers_include_default_and_input_span() {
+        let width = command_line_default_input_width("COMMAND", "Qty ", "12", "345");
+        assert!(width > table_command_prompt_width("Qty -> "));
+        assert_eq!(width, "COMMAND <- Qty [12] <Q> -> 345".chars().count());
     }
 }
