@@ -358,6 +358,12 @@ Linux player archive example:
 ./scripts/publish_release_packages.sh --ec-connect-target x86_64-unknown-linux-gnu
 ```
 
+Apple Silicon player archive example:
+
+```bash
+./scripts/publish_release_packages.sh --ec-connect-target aarch64-apple-darwin
+```
+
 Use this when you want:
 
 - the easiest release workflow for DOS bundles and public `ec-connect` archives

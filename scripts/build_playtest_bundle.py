@@ -223,13 +223,7 @@ It contains:
 Join a hosted game with the invite code from your sysop:
 
 ```bash
-./bin/ec-connect --join ecinv1...
-```
-
-Or, for a plain two-word code:
-
-```bash
-./bin/ec-connect --join amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+./bin/ec-connect --join amber-river@relay.example.com
 ```
 
 The player manual PDF in `docs/` is the companion manual for this binary.
@@ -284,7 +278,7 @@ Initialize and run the Nostr hosting daemon:
 The hosted-player join path is `ec-connect`:
 
 ```bash
-./bin/ec-connect --join amber-river@play.example.com --gate npub1...
+./bin/ec-connect --join amber-river@relay.example.com
 ```
 
 Run maintenance:
