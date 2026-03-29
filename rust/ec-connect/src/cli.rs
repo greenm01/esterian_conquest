@@ -3,13 +3,13 @@ use std::path::PathBuf;
 
 use nostr_sdk::Keys;
 
-use crate::config::{load_config, ConnectConfig};
+use crate::config::{ConnectConfig, load_config};
 use crate::connect::game_discovery::discover_game_for_invite;
 use crate::connect::public_join::run_public_join;
 use crate::connect::resolve::{resolve_invite, resolve_server};
-use crate::connect::session::{resolve_gate_npub, run_session, DisambigMode, SessionOutcome};
+use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
 #[cfg(debug_assertions)]
-use crate::dev_seed::{seed_ui, SeedUiOptions};
+use crate::dev_seed::{SeedUiOptions, seed_ui};
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_reset, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
@@ -18,7 +18,7 @@ use crate::map_store::resolve_maps_root;
 
 use crate::picker::{load_picker_session, run_picker_in_session};
 use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{push_new_identity, Wallet};
+use crate::wallet::{Wallet, push_new_identity};
 use ec_ui::session::TerminalSession;
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -68,6 +68,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             .map(|(_, v)| v.clone())
             .collect();
         let opts = parse_connect_opts(&mut rest.into_iter())?;
+        init_connect_logging(&opts)?;
         return cmd_join(&code, opts);
     }
 
@@ -115,7 +116,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut i = 0;
     while i < all_args.len() {
         match all_args[i].as_str() {
-            "--gate" | "--relay" => {
+            "--gate" | "--relay" | "--maps-dir" | "--log-file" | "--log-level" => {
                 flag_args.push(all_args[i].clone());
                 i += 1;
                 if i < all_args.len() {
@@ -137,6 +138,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let opts = parse_connect_opts(&mut flag_args.into_iter())?;
+    init_connect_logging(&opts)?;
 
     match positional {
         None => cmd_picker(opts),
@@ -146,10 +148,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 // ── Connect option parsing ────────────────────────────────────────────────────
 
+#[derive(Debug)]
 struct ConnectOpts {
     gate_npub: Option<String>,
     relay_override: Option<String>,
     maps_dir: Option<PathBuf>,
+    log_file: Option<PathBuf>,
+    log_level: ec_log::LogLevel,
 }
 
 fn parse_connect_opts(
@@ -158,6 +163,9 @@ fn parse_connect_opts(
     let mut gate_npub = None;
     let mut relay_override = None;
     let mut maps_dir = None;
+    let mut log_file = None;
+    let mut log_level = ec_log::LogLevel::Info;
+    let mut saw_log_level = false;
 
     let remaining: Vec<String> = args.collect();
     let mut i = 0;
@@ -190,16 +198,40 @@ fn parse_connect_opts(
                         .ok_or("--maps-dir requires a path argument")?,
                 ));
             }
+            "--log-file" => {
+                i += 1;
+                log_file = Some(PathBuf::from(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--log-file requires a path argument")?,
+                ));
+            }
+            "--log-level" => {
+                i += 1;
+                let value = remaining
+                    .get(i)
+                    .cloned()
+                    .ok_or("--log-level requires a value")?;
+                log_level = ec_log::LogLevel::parse(&value)?;
+                saw_log_level = true;
+            }
             other => return Err(format!("unexpected argument: {other}").into()),
         }
         i += 1;
     }
     drop(remaining);
 
+    if saw_log_level && log_file.is_none() {
+        return Err("--log-level requires --log-file".into());
+    }
+
     Ok(ConnectOpts {
         gate_npub,
         relay_override,
         maps_dir,
+        log_file,
+        log_level,
     })
 }
 
@@ -329,6 +361,18 @@ fn cmd_picker(opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
+
+fn init_connect_logging(opts: &ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(path) = &opts.log_file {
+        ec_log::init_file_logging(path, opts.log_level)?;
+        tracing::info!(
+            log_file = %path.display(),
+            level = ?opts.log_level,
+            "ec-connect file logging initialized"
+        );
+    }
+    Ok(())
+}
 
 fn prompt_and_load_identity() -> Result<Option<(Wallet, Keys, String)>, Box<dyn std::error::Error>>
 {
@@ -588,8 +632,42 @@ Options:
   --gate <NPUB>    Gate server Nostr public key (optional override / fallback)
   --relay <URL>    Override Nostr relay URL
   --maps-dir <PATH> Override where downloaded starmap bundles are stored
+  --log-file <PATH> Append diagnostic logs to a file
+  --log-level <LVL> error, warn, info, debug, or trace (requires --log-file)
   --version        Print version
   --help           Print this help",
         developer
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_connect_opts;
+    use std::path::PathBuf;
+
+    #[test]
+    fn parse_connect_opts_accepts_log_flags() {
+        let args = vec![
+            "--gate".to_string(),
+            "npub1example".to_string(),
+            "--log-file".to_string(),
+            "/tmp/ec-connect.log".to_string(),
+            "--log-level".to_string(),
+            "debug".to_string(),
+        ];
+        let opts = parse_connect_opts(&mut args.into_iter()).expect("opts should parse");
+        assert_eq!(opts.gate_npub.as_deref(), Some("npub1example"));
+        assert_eq!(
+            opts.log_file.as_deref(),
+            Some(PathBuf::from("/tmp/ec-connect.log").as_path())
+        );
+        assert_eq!(opts.log_level, ec_log::LogLevel::Debug);
+    }
+
+    #[test]
+    fn parse_connect_opts_rejects_log_level_without_log_file() {
+        let args = vec!["--log-level".to_string(), "debug".to_string()];
+        let err = parse_connect_opts(&mut args.into_iter()).expect_err("parse should fail");
+        assert!(format!("{err}").contains("--log-level requires --log-file"));
+    }
 }

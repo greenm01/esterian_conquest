@@ -52,7 +52,9 @@ url = "2"
 # Terminal raw mode + resize events
 crossterm = "0.29"
 ec-ui = { path = "../ec-ui" }
+ec-log = { path = "../ec-log" }
 libc = "0.2"
+tracing = "0.1"
 
 # CLI argument parsing
 # clap = { version = "...", features = ["derive"] }

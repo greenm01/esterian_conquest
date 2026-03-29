@@ -27,7 +27,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size as terminal_size};
 use russh::keys::ssh_key::{
@@ -35,7 +35,7 @@ use russh::keys::ssh_key::{
     private::{Ed25519Keypair, Ed25519PrivateKey, KeypairData},
 };
 use russh::keys::{PrivateKey, PrivateKeyWithHashAlg};
-use russh::{ChannelMsg, Disconnect, client};
+use russh::{ChannelMsg, client};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
@@ -48,12 +48,40 @@ use ec_ui::session::write_terminal_cleanup_sequence;
 
 /// Error type for bridge operations.
 pub type BridgeError = Box<dyn std::error::Error + Send + Sync>;
-const POST_EXIT_DRAIN_GRACE: Duration = Duration::from_millis(150);
-const SESSION_DISCONNECT_GRACE: Duration = Duration::from_secs(1);
+const POST_EXIT_DRAIN_GRACE: Duration = Duration::from_millis(10);
 const STDIN_POLL_GRACE: Duration = Duration::from_millis(20);
 
 fn terminal_channel_event(msg: &ChannelMsg) -> bool {
     matches!(msg, ChannelMsg::Eof | ChannelMsg::Close)
+}
+
+fn bridge_terminal_exit_code(msg: &ChannelMsg) -> Option<u32> {
+    match msg {
+        ChannelMsg::ExitStatus { exit_status } => Some(*exit_status),
+        msg if terminal_channel_event(msg) => Some(0),
+        _ => None,
+    }
+}
+
+fn bridge_terminal_exit_label(msg: &ChannelMsg) -> Option<&'static str> {
+    match msg {
+        ChannelMsg::ExitStatus { .. } => Some("exit_status"),
+        ChannelMsg::Eof => Some("eof"),
+        ChannelMsg::Close => Some("close"),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct PostExitDrainSummary {
+    timed_out: bool,
+    saw_terminal_close: bool,
+    data_messages: usize,
+    data_bytes: usize,
+}
+
+fn elapsed_ms(started_at: Instant) -> u128 {
+    started_at.elapsed().as_millis()
 }
 
 enum StdinEvent {
@@ -172,6 +200,7 @@ pub async fn run_bridge(
     keypair: &EphemeralKeypair,
     username: &str,
 ) -> Result<u32, BridgeError> {
+    let bridge_started = Instant::now();
     let addr = (payload.ssh_host.as_str(), payload.ssh_port);
     let ssh_username = if payload.ssh_user.is_empty() {
         username
@@ -189,6 +218,13 @@ pub async fn run_bridge(
     };
 
     let mut session = client::connect(config, addr, handler).await?;
+    tracing::debug!(
+        ssh_host = %payload.ssh_host,
+        ssh_port = payload.ssh_port,
+        ssh_user = ssh_username,
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge ssh session connected"
+    );
 
     // Authenticate with the ephemeral keypair.
     let privkey = keypair.to_russh_private_key()?;
@@ -199,35 +235,93 @@ pub async fn run_bridge(
             PrivateKeyWithHashAlg::new(Arc::new(privkey), hash_alg),
         )
         .await?;
+    tracing::debug!(
+        ssh_user = ssh_username,
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge ssh authentication completed"
+    );
 
     if !auth_result.success() {
+        tracing::warn!(
+            ssh_host = %payload.ssh_host,
+            ssh_port = payload.ssh_port,
+            ssh_user = ssh_username,
+            elapsed_ms = elapsed_ms(bridge_started),
+            "bridge ssh public-key authentication failed"
+        );
         return Err("SSH public-key authentication failed".into());
     }
 
     let mut channel = session.channel_open_session().await?;
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge channel opened"
+    );
 
     let term = env::var("TERM").unwrap_or_else(|_| "xterm-256color".to_string());
     let (cols, rows) = terminal_size().unwrap_or((80, 24));
     channel
         .request_pty(false, &term, cols as u32, rows as u32, 0, 0, &[])
         .await?;
+    tracing::debug!(
+        term = %term,
+        cols,
+        rows,
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge pty requested"
+    );
 
     // Empty exec — the server runs its configured forced command.
     channel.exec(true, "").await?;
+    tracing::info!(
+        ssh_host = %payload.ssh_host,
+        ssh_port = payload.ssh_port,
+        ssh_user = ssh_username,
+        term = %term,
+        cols,
+        rows,
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge started"
+    );
 
     // Enter raw mode for the duration of the session.
     enable_raw_mode()?;
-    let exit_code = io_loop(&mut channel).await;
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge raw mode enabled"
+    );
+    let exit_code = io_loop(&mut channel, bridge_started).await;
+    tracing::debug!(
+        exit = ?exit_code,
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge io loop completed"
+    );
     let _ = disable_raw_mode();
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge raw mode disabled"
+    );
     let _ = restore_local_terminal_after_bridge();
-
-    match timeout(
-        SESSION_DISCONNECT_GRACE,
-        session.disconnect(Disconnect::ByApplication, "", "English"),
-    )
-    .await
-    {
-        Ok(Ok(())) | Ok(Err(_)) | Err(_) => {}
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge terminal cleanup completed"
+    );
+    drop(session);
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge session dropped"
+    );
+    match &exit_code {
+        Ok(code) => tracing::info!(
+            exit_code = *code,
+            elapsed_ms = elapsed_ms(bridge_started),
+            "bridge finished"
+        ),
+        Err(err) => tracing::warn!(
+            error = %err,
+            elapsed_ms = elapsed_ms(bridge_started),
+            "bridge failed"
+        ),
     }
 
     exit_code
@@ -236,12 +330,19 @@ pub async fn run_bridge(
 // ── I/O loop ─────────────────────────────────────────────────────────────────
 
 /// Drive stdin → channel and channel → stdout until the remote side closes.
-async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, BridgeError> {
+async fn io_loop(
+    channel: &mut russh::Channel<client::Msg>,
+    bridge_started: Instant,
+) -> Result<u32, BridgeError> {
     let mut stdin_pump = StdinPump::spawn();
     let mut stdout = tokio::io::stdout();
     let mut stdin_closed = false;
     #[allow(unused_assignments)] // set inside select! arm; false positive
     let mut exit_code: Option<u32> = None;
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge io loop entered"
+    );
 
     // On Unix, watch for SIGWINCH to forward terminal resize events.
     #[cfg(unix)]
@@ -262,35 +363,60 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
                 match maybe_event {
                     Some(StdinEvent::Eof) | None => {
                         stdin_closed = true;
+                        tracing::debug!(
+                            elapsed_ms = elapsed_ms(bridge_started),
+                            "bridge stdin eof observed"
+                        );
                         let _ = channel.eof().await;
                     }
                     Some(StdinEvent::Data(data)) => {
                         channel.data(std::io::Cursor::new(&data)).await?;
                     }
-                    Some(StdinEvent::Error(err)) => return Err(err.into()),
+                    Some(StdinEvent::Error(err)) => {
+                        tracing::warn!(
+                            error = %err,
+                            elapsed_ms = elapsed_ms(bridge_started),
+                            "bridge stdin pump error"
+                        );
+                        return Err(err.into());
+                    }
                 }
             }
             // Handle events from the SSH channel.
             msg = channel.wait() => {
                 let Some(msg) = msg else {
                     exit_code.get_or_insert(0);
+                    tracing::debug!(
+                        exit_code = exit_code.unwrap_or(0),
+                        elapsed_ms = elapsed_ms(bridge_started),
+                        "bridge channel stream ended"
+                    );
+                    stdin_pump.stop();
+                    tracing::debug!(
+                        elapsed_ms = elapsed_ms(bridge_started),
+                        "bridge stdin pump stopped after channel end"
+                    );
                     break;
                 };
+                if let Some(code) = bridge_terminal_exit_code(&msg) {
+                    exit_code.get_or_insert(code);
+                    tracing::debug!(
+                        event = bridge_terminal_exit_label(&msg).unwrap_or("unknown"),
+                        exit_code = code,
+                        elapsed_ms = elapsed_ms(bridge_started),
+                        "bridge terminal exit event received"
+                    );
+                    stdin_pump.stop();
+                    tracing::debug!(
+                        elapsed_ms = elapsed_ms(bridge_started),
+                        "bridge stdin pump stopped after terminal exit event"
+                    );
+                    break;
+                }
                 match msg {
                     ChannelMsg::Data { ref data } => {
                         stdout.write_all(data).await?;
                         stdout.flush().await?;
-                    }
-                    ChannelMsg::ExitStatus { exit_status } => {
-                        exit_code = Some(exit_status);
-                        if !stdin_closed {
-                            let _ = channel.eof().await;
-                        }
-                        break;
-                    }
-                    msg if terminal_channel_event(&msg) => {
-                        exit_code.get_or_insert(0);
-                        break;
                     }
                     ChannelMsg::WindowAdjusted { .. }
                     | ChannelMsg::Success
@@ -301,14 +427,36 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
             // Forward terminal resize events to the SSH channel.
             _ = resize => {
                 if let Ok((cols, rows)) = terminal_size() {
+                    tracing::trace!(
+                        cols,
+                        rows,
+                        elapsed_ms = elapsed_ms(bridge_started),
+                        "bridge forwarding terminal resize"
+                    );
                     let _ = channel.window_change(cols as u32, rows as u32, 0, 0).await;
                 }
             }
         }
     }
 
-    drain_post_exit_output(channel, &mut stdout).await;
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge post-exit drain started"
+    );
+    let drain = drain_post_exit_output(channel, &mut stdout).await;
+    tracing::debug!(
+        timed_out = drain.timed_out,
+        saw_terminal_close = drain.saw_terminal_close,
+        data_messages = drain.data_messages,
+        data_bytes = drain.data_bytes,
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge post-exit drain completed"
+    );
     stdin_pump.stop();
+    tracing::debug!(
+        elapsed_ms = elapsed_ms(bridge_started),
+        "bridge stdin pump joined"
+    );
 
     Ok(exit_code.unwrap_or(1))
 }
@@ -316,9 +464,11 @@ async fn io_loop(channel: &mut russh::Channel<client::Msg>) -> Result<u32, Bridg
 async fn drain_post_exit_output(
     channel: &mut russh::Channel<client::Msg>,
     stdout: &mut tokio::io::Stdout,
-) {
+) -> PostExitDrainSummary {
+    let mut summary = PostExitDrainSummary::default();
     loop {
         let Ok(message) = timeout(POST_EXIT_DRAIN_GRACE, channel.wait()).await else {
+            summary.timed_out = true;
             break;
         };
         let Some(msg) = message else {
@@ -326,13 +476,19 @@ async fn drain_post_exit_output(
         };
         match msg {
             ChannelMsg::Data { ref data } => {
+                summary.data_messages += 1;
+                summary.data_bytes += data.len();
                 let _ = stdout.write_all(data).await;
                 let _ = stdout.flush().await;
             }
-            ChannelMsg::Eof | ChannelMsg::Close => break,
+            ChannelMsg::Eof | ChannelMsg::Close => {
+                summary.saw_terminal_close = true;
+                break;
+            }
             _ => {}
         }
     }
+    summary
 }
 
 fn restore_local_terminal_after_bridge() -> Result<(), BridgeError> {
@@ -376,7 +532,10 @@ impl client::Handler for FingerprintHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::{terminal_channel_event, write_bridge_cleanup_sequence};
+    use super::{
+        PostExitDrainSummary, bridge_terminal_exit_code, bridge_terminal_exit_label,
+        terminal_channel_event, write_bridge_cleanup_sequence,
+    };
     use russh::ChannelMsg;
 
     #[test]
@@ -398,6 +557,48 @@ mod tests {
         assert!(terminal_channel_event(&ChannelMsg::Eof));
         assert!(terminal_channel_event(&ChannelMsg::Close));
         assert!(!terminal_channel_event(&ChannelMsg::Success));
+    }
+
+    #[test]
+    fn bridge_exit_status_returns_the_remote_code() {
+        assert_eq!(
+            bridge_terminal_exit_code(&ChannelMsg::ExitStatus { exit_status: 7 }),
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn bridge_close_events_default_to_zero() {
+        assert_eq!(bridge_terminal_exit_code(&ChannelMsg::Eof), Some(0));
+        assert_eq!(bridge_terminal_exit_code(&ChannelMsg::Close), Some(0));
+        assert_eq!(bridge_terminal_exit_code(&ChannelMsg::Success), None);
+    }
+
+    #[test]
+    fn bridge_exit_labels_match_terminal_messages() {
+        assert_eq!(
+            bridge_terminal_exit_label(&ChannelMsg::ExitStatus { exit_status: 7 }),
+            Some("exit_status")
+        );
+        assert_eq!(bridge_terminal_exit_label(&ChannelMsg::Eof), Some("eof"));
+        assert_eq!(
+            bridge_terminal_exit_label(&ChannelMsg::Close),
+            Some("close")
+        );
+        assert_eq!(bridge_terminal_exit_label(&ChannelMsg::Success), None);
+    }
+
+    #[test]
+    fn post_exit_drain_summary_defaults_to_no_activity() {
+        assert_eq!(
+            PostExitDrainSummary::default(),
+            PostExitDrainSummary {
+                timed_out: false,
+                saw_terminal_close: false,
+                data_messages: 0,
+                data_bytes: 0,
+            }
+        );
     }
 }
 
