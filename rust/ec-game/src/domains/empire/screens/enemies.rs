@@ -5,8 +5,9 @@ use crate::app::Action;
 use crate::domains::empire::EmpireAction;
 use crate::screen::layout::{ScreenGeometry, new_playfield_for, standard_table_visible_rows_for};
 use crate::screen::table::{
-    TableColumn, TableFooter, draw_table_footer, draw_table_title, format_empire_id,
-    write_table_window_with_cursor,
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
+    draw_table_footer, draw_table_title, format_empire_id, layout_standard_table_block,
+    resolve_table_columns, write_table_window_with_cursor_at,
 };
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
@@ -37,7 +38,6 @@ impl EnemiesScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
-        draw_table_title(&mut buffer, 1, 0, "ENEMIES, DECLARE OR LIST:");
 
         let viewer_empire = frame.player.record_index_1_based as u8;
         let mut others = frame
@@ -75,14 +75,41 @@ impl EnemiesScreen {
             })
             .collect::<Vec<_>>();
 
-        let selected = if rows.is_empty() { None } else { Some(cursor) };
-        let metrics = write_table_window_with_cursor(
-            &mut buffer,
-            1,
+        let visible_rows = enemies_visible_rows(frame.geometry);
+        let displayed_rows = rows.len().saturating_sub(scroll_offset).min(visible_rows);
+        let scrollable = rows.len() > visible_rows;
+        let columns = resolve_table_columns(
             &ENEMIES_COLUMNS,
             &rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+        );
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            true,
+            true,
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Center,
+        );
+        draw_table_title(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            "ENEMIES, DECLARE OR LIST:",
+        );
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
+            &columns,
+            &rows,
             scroll_offset,
-            enemies_visible_rows(frame.geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             selected,
@@ -93,7 +120,7 @@ impl EnemiesScreen {
             draw_table_footer(
                 &mut buffer,
                 frame.geometry,
-                0,
+                layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandText {
                     label: "COMMANDS",
@@ -109,7 +136,7 @@ impl EnemiesScreen {
             draw_table_footer(
                 &mut buffer,
                 frame.geometry,
-                0,
+                layout.command_col,
                 metrics.bottom_row,
                 TableFooter::CommandBar {
                     hotkeys_markup: "J K ^U ^D <Q>",

@@ -10,9 +10,9 @@ use ec_game::screen::table::{
     write_table_window_with_cursor_at, write_table_window_with_states,
 };
 use ec_game::screen::{
-    MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
-    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer,
-    RankingsScreen, ScreenFrame, ScreenGeometry,
+    EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen, PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen,
+    PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use ec_game::theme::classic;
 
@@ -611,6 +611,50 @@ fn rankings_screen_centers_block_and_pins_dismiss_prompt_to_table() {
 
     assert_eq!(title_col, table_col);
     assert_eq!(dismiss_col, table_col);
+}
+
+#[test]
+fn enemies_screen_centers_block_and_pins_prompt_to_table() {
+    let mut screen = EnemiesScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        geometry: ScreenGeometry::local_default(),
+    };
+
+    let buffer = screen
+        .render(&frame, "", None, 0, 0)
+        .expect("render enemies screen");
+
+    let title_row = (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains("ENEMIES, DECLARE OR LIST:"))
+        .expect("title row");
+    let title_col = buffer
+        .plain_line(title_row)
+        .find("ENEMIES, DECLARE OR LIST:")
+        .expect("title col");
+    let table_row = (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains('┌'))
+        .expect("table row");
+    let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
+    let command_row = (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains("COMMANDS <- J K ^U ^D <Q>"))
+        .expect("command row");
+    let command_col = buffer
+        .plain_line(command_row)
+        .find("COMMANDS")
+        .expect("command col");
+
+    assert_eq!(title_col, table_col);
+    assert_eq!(command_col, table_col);
+    assert!(table_col > 0);
 }
 
 #[test]

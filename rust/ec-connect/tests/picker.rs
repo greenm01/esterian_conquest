@@ -649,7 +649,11 @@ fn relay_games_screen_keeps_table_header_intact() {
         let line = buffer.plain_line(row);
         line.contains("Game") && line.contains("Last Conn")
     }));
-    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("Relay: ")));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Relay: wss://relay.example.com")
+    }));
 }
 
 #[test]
