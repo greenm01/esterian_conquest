@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/publish_release_packages.sh [--tag TAG] [--variant classic|unlocked]
+  ./scripts/publish_release_packages.sh [--tag TAG] [--variant classic|unlocked] [--ec-connect-target TARGET]
 
 Builds the selected release assets under releases/ and uploads them to an
 existing GitHub Release with `gh release upload --clobber`.
@@ -17,6 +17,11 @@ Options:
                             Default: release-artifacts
   --variant classic         Build and upload only the classic package.
   --variant unlocked        Build and upload only the unlocked package.
+  --ec-connect-target TARGET
+                            Build and upload a public ec-connect archive.
+                            Supported targets:
+                              x86_64-unknown-linux-gnu
+                              aarch64-apple-darwin
   -h, --help                Show this help text.
 EOF
 }
@@ -29,6 +34,7 @@ build_args=()
 assets=()
 want_classic=0
 want_unlocked=0
+ec_connect_targets=()
 selection_made=0
 
 while [[ $# -gt 0 ]]; do
@@ -53,6 +59,20 @@ while [[ $# -gt 0 ]]; do
       esac
       selection_made=1
       build_args+=("--variant" "$2")
+      shift 2
+      ;;
+    --ec-connect-target)
+      case "$2" in
+        x86_64-unknown-linux-gnu|aarch64-apple-darwin)
+          ;;
+        *)
+          echo "Unknown ec-connect target: $2" >&2
+          usage >&2
+          exit 2
+          ;;
+      esac
+      selection_made=1
+      ec_connect_targets+=("$2")
       shift 2
       ;;
     -h|--help)
@@ -83,6 +103,13 @@ if [[ $want_classic -eq 1 || $want_unlocked -eq 1 ]]; then
 
   python3 scripts/build_release_packages.py "${build_args[@]}" --verify
 fi
+
+for target in "${ec_connect_targets[@]}"; do
+  archive_path="$(
+    python3 scripts/build_playtest_bundle.py --artifact ec-connect --target "$target" --verify | tail -n 1
+  )"
+  assets+=("$archive_path")
+done
 
 if [[ ${#assets[@]} -eq 0 ]]; then
   echo "No release assets selected." >&2

@@ -16,7 +16,6 @@ import re
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
-BINARIES = ("ec-game", "ec-sysop", "ec-connect")
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_player_manual.pdf"
 SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_sysop_manual.pdf"
 
@@ -55,9 +54,12 @@ SUPPORTED_TARGETS = {
 class BundleSpec:
     version: str
     platform: TargetPlatform
+    artifact: str
 
     @property
     def bundle_root_name(self) -> str:
+        if self.artifact == "ec-connect":
+            return f"ec-connect-v{self.version}-{self.platform.slug}"
         return f"esterian-conquest-v{self.version}-{self.platform.slug}"
 
     @property
@@ -70,6 +72,15 @@ def parse_args(default_target: str | None) -> argparse.Namespace:
         description=(
             "Build a private beta ec-game/ec-sysop/ec-connect bundle for Linux or macOS."
         )
+    )
+    parser.add_argument(
+        "--artifact",
+        choices=("private-beta", "ec-connect"),
+        default="private-beta",
+        help=(
+            "Artifact type to package. `private-beta` keeps the internal combined "
+            "bundle; `ec-connect` builds the public player archive."
+        ),
     )
     parser.add_argument(
         "--target",
@@ -143,26 +154,22 @@ def resolve_target(target_triple: str | None) -> TargetPlatform:
         ) from err
 
 
+def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
+    if spec.artifact == "ec-connect":
+        return ("ec-connect",)
+    return ("ec-game", "ec-sysop", "ec-connect")
+
+
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
+    binaries = artifact_binaries(spec)
     run(
-        [
-            "cargo",
-            "build",
-            "--release",
-            "--target",
-            spec.platform.target_triple,
-            "-p",
-            "ec-game",
-            "-p",
-            "ec-sysop",
-            "-p",
-            "ec-connect",
-        ],
+        ["cargo", "build", "--release", "--target", spec.platform.target_triple]
+        + [arg for name in binaries for arg in ("-p", name)],
         cwd=RUST_ROOT,
     )
 
     target_dir = RUST_ROOT / "target" / spec.platform.target_triple / "release"
-    return {name: target_dir / name for name in BINARIES}
+    return {name: target_dir / name for name in binaries}
 
 
 def build_info_text(spec: BundleSpec) -> str:
@@ -171,6 +178,7 @@ def build_info_text(spec: BundleSpec) -> str:
     rustc = capture(["rustc", "-V"])
     built_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
+        f"artifact={spec.artifact}",
         f"version={spec.version}",
         f"git_commit={commit}",
         f"git_commit_short={short_commit}",
@@ -184,7 +192,10 @@ def build_info_text(spec: BundleSpec) -> str:
 def package_readme(spec: BundleSpec) -> str:
     macos_quarantine_note = ""
     if spec.platform.target_triple.endswith("-apple-darwin"):
-        macos_quarantine_note = """
+        binary_list = "./bin/ec-connect"
+        if spec.artifact == "private-beta":
+            binary_list = "./bin/ec-game ./bin/ec-sysop ./bin/ec-connect"
+        macos_quarantine_note = f"""
 ## macOS First Run Note
 
 These are command-line binaries, not bundled `.app` applications. If macOS
@@ -192,9 +203,48 @@ blocks them after download, remove the quarantine attribute from the unpacked
 bundle root:
 
 ```bash
-xattr -d com.apple.quarantine ./bin/ec-game ./bin/ec-sysop ./bin/ec-connect
+xattr -d com.apple.quarantine {binary_list}
 ```
 """.rstrip()
+
+    if spec.artifact == "ec-connect":
+        return f"""# ec-connect {spec.platform.display_name}
+
+This archive contains the public player client for {spec.platform.display_name}.
+
+It contains:
+
+- `bin/ec-connect`
+- `docs/ec_player_manual.pdf`
+- `BUILD-INFO.txt` with version/build metadata
+
+## Quick Start
+
+Join a hosted game with the invite code from your sysop:
+
+```bash
+./bin/ec-connect --join ecinv1...
+```
+
+Or, for a plain two-word code:
+
+```bash
+./bin/ec-connect --join amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+```
+
+The player manual PDF in `docs/` is the companion manual for this binary.
+{macos_quarantine_note}
+
+## Bug Reports
+
+When reporting a player-client issue, include:
+
+- the version and commit from `BUILD-INFO.txt`
+- your {spec.platform.issue_platform_label} and terminal emulator
+- the exact command you ran
+- any stderr output
+- a screenshot if the issue is visual
+"""
 
     return f"""# Esterian Conquest {spec.platform.display_name} Private Beta Bundle
 
@@ -292,7 +342,8 @@ def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root
         copy_file(path, bin_dir / name, executable=True)
 
     copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
-    copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
+    if spec.artifact == "private-beta":
+        copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
 
     (bundle_root / "README.md").write_text(package_readme(spec), encoding="utf-8")
     (bundle_root / "BUILD-INFO.txt").write_text(build_info_text(spec), encoding="utf-8")
@@ -315,15 +366,15 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         if not bundle_root.exists():
             raise SystemExit(f"{archive_path.name}: missing bundle root {spec.bundle_root_name}")
 
-        for relative in (
-            "README.md",
-            "BUILD-INFO.txt",
-            "docs/ec_player_manual.pdf",
-            "docs/ec_sysop_manual.pdf",
-            "bin/ec-game",
-            "bin/ec-sysop",
-            "bin/ec-connect",
-        ):
+        required_files = ["README.md", "BUILD-INFO.txt", "docs/ec_player_manual.pdf"]
+        if spec.artifact == "private-beta":
+            required_files.extend(
+                ("docs/ec_sysop_manual.pdf", "bin/ec-game", "bin/ec-sysop", "bin/ec-connect")
+            )
+        else:
+            required_files.append("bin/ec-connect")
+
+        for relative in required_files:
             path = bundle_root / relative
             if not path.exists():
                 raise SystemExit(f"{archive_path.name}: missing {relative}")
@@ -335,31 +386,32 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             )
             return
 
-        run([str(bundle_root / "bin" / "ec-game"), "--help"], cwd=bundle_root)
-        run([str(bundle_root / "bin" / "ec-sysop"), "--help"], cwd=bundle_root)
         run([str(bundle_root / "bin" / "ec-connect"), "--help"], cwd=bundle_root)
+        if spec.artifact == "private-beta":
+            run([str(bundle_root / "bin" / "ec-game"), "--help"], cwd=bundle_root)
+            run([str(bundle_root / "bin" / "ec-sysop"), "--help"], cwd=bundle_root)
 
-        campaign_dir = temp_root / "playtest-campaign"
-        run(
-            [
-                str(bundle_root / "bin" / "ec-sysop"),
-                "new-game",
-                str(campaign_dir),
-                "--players",
-                "4",
-                "--seed",
-                "1515",
-            ],
-            cwd=bundle_root,
-        )
-        if not (campaign_dir / "ecgame.db").exists():
-            raise SystemExit(f"{archive_path.name}: ec-sysop did not create ecgame.db")
+            campaign_dir = temp_root / "playtest-campaign"
+            run(
+                [
+                    str(bundle_root / "bin" / "ec-sysop"),
+                    "new-game",
+                    str(campaign_dir),
+                    "--players",
+                    "4",
+                    "--seed",
+                    "1515",
+                ],
+                cwd=bundle_root,
+            )
+            if not (campaign_dir / "ecgame.db").exists():
+                raise SystemExit(f"{archive_path.name}: ec-sysop did not create ecgame.db")
 
 
 def main(*, default_target: str | None = None) -> None:
     args = parse_args(default_target)
     platform = resolve_target(args.target)
-    spec = BundleSpec(version=load_version(), platform=platform)
+    spec = BundleSpec(version=load_version(), platform=platform, artifact=args.artifact)
     host_target = detect_host_target()
     binary_paths = build_binaries(spec)
 

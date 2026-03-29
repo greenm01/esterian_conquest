@@ -55,12 +55,13 @@ policy is:
 
 | Audience | Current Path |
 |---|---|
-| Normal player | The sysop provides `ec-connect` directly for private testing, along with the player manual PDF |
+| Normal player | Download the public `ec-connect` archive and use the bundled player manual PDF |
 | Rust self-host sysop | Build from tagged source with Cargo |
 | Rust VPS sysop | Build from tagged source with Cargo and use `scripts/install_vps.sh` |
 | BBS sysop | Build from source, or use a direct/private beta build |
 
-Public GitHub Releases currently keep only the old DOS compatibility bundles.
+Public GitHub Releases currently keep the DOS compatibility bundles plus the
+player-facing `ec-connect` archives.
 See [Release Policy](docs/release-policy.md).
 
 ## Background

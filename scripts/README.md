@@ -271,9 +271,10 @@ Builds a standalone Linux or macOS `tar.gz` playtest bundle under `releases/`.
 
 It currently:
 
-- builds optimized `ec-game` and `ec-sysop` release binaries
-- packages both binaries into one archive
-- includes only the public PDF manuals under `docs/`
+- builds either:
+  - the internal combined private-beta bundle
+  - or a public `ec-connect` player archive
+- includes the matching public PDF manuals under `docs/`
 - writes `README.md` and `BUILD-INFO.txt` into the bundle root
 - can unpack and smoke-test the bundle when `--verify` is passed
 - defaults to the current host Rust target, with explicit support for:
@@ -287,21 +288,31 @@ Example:
 python3 scripts/build_playtest_bundle.py --verify
 ```
 
+Public player archive example:
+
+```bash
+python3 scripts/build_playtest_bundle.py --artifact ec-connect --verify
+```
+
 Explicit Apple Silicon example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --target aarch64-apple-darwin --verify
+python3 scripts/build_playtest_bundle.py --artifact ec-connect --target aarch64-apple-darwin --verify
 ```
 
 Use this when you want:
 
-- a native Linux or macOS playtest bundle without requiring a Rust toolchain
-- one archive containing both the player and sysop binaries
-- a quick way to hand private testers the manuals and startup instructions
+- a native Linux or macOS archive without requiring a Rust toolchain
+- either a public `ec-connect` player package or the internal combined bundle
+- a quick way to hand players or testers the right manual with the binary
 
-This is an internal/private-beta helper. It is not part of the public GitHub
-release surface while the hosted Rust path is still being proven in live VPS
-games.
+The combined bundle is an internal/private-beta helper. The `ec-connect`
+artifact is the public player-facing archive.
+
+The public `ec-connect` release flow currently publishes:
+
+- `x86_64-unknown-linux-gnu`
+- `aarch64-apple-darwin`
 
 ### `build_linux_playtest_bundle.py`
 
@@ -314,9 +325,9 @@ python3 scripts/build_linux_playtest_bundle.py --verify
 
 ### `publish_release_packages.sh`
 
-Builds the selected DOS release bundles, verifies them, then uploads the
-generated assets to an existing GitHub Release with `gh release upload
---clobber`.
+Builds the selected DOS release bundles and/or `ec-connect` player archives,
+verifies them, then uploads the generated assets to an existing GitHub Release
+with `gh release upload --clobber`.
 
 Default example:
 
@@ -336,9 +347,15 @@ Unlocked-only example:
 ./scripts/publish_release_packages.sh --variant unlocked
 ```
 
+Linux player archive example:
+
+```bash
+./scripts/publish_release_packages.sh --ec-connect-target x86_64-unknown-linux-gnu
+```
+
 Use this when you want:
 
-- the easiest DOS-only "build, verify, publish" release workflow
+- the easiest release workflow for DOS bundles and public `ec-connect` archives
 - the generated release assets to stay untracked locally under `releases/`
 - the public downloadable copies to live on GitHub Releases instead of `main`
 
