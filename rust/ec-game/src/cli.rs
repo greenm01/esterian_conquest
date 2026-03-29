@@ -68,6 +68,8 @@ impl Drop for SessionLeaseGuard {
     }
 }
 
+const LOCAL_EXIT_ATTRIBUTION: &str = "For Griffith and glory.";
+
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
     if matches!(
@@ -143,7 +145,10 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         ))
     };
 
-    let result = if std::io::stdout().is_terminal() {
+    let interactive_terminal = std::io::stdout().is_terminal();
+    let emit_local_exit_attribution =
+        should_emit_local_exit_attribution(&parsed, interactive_terminal, session_lease.is_some());
+    let result = if interactive_terminal {
         run_interactive(&mut app, terminal.as_mut(), session_lease.as_ref())
     } else {
         if let Some(session_lease) = session_lease.as_ref() {
@@ -154,7 +159,29 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     if let Some(session_lease) = session_lease.as_ref() {
         session_lease.release()?;
     }
+    if result.is_ok() && emit_local_exit_attribution {
+        emit_local_exit_lines();
+    }
     result
+}
+
+fn should_emit_local_exit_attribution(
+    parsed: &ParsedLaunchArgs,
+    interactive_terminal: bool,
+    has_session_lease: bool,
+) -> bool {
+    interactive_terminal && !parsed.use_door_terminal && !has_session_lease
+}
+
+fn emit_local_exit_lines() {
+    for line in local_exit_lines() {
+        eprintln!("{line}");
+    }
+}
+
+#[doc(hidden)]
+pub fn local_exit_lines() -> Vec<String> {
+    vec![LOCAL_EXIT_ATTRIBUTION.to_string()]
 }
 
 fn run_interactive(
@@ -603,8 +630,32 @@ fn unix_now() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::session_lease_ttl_seconds;
+    use super::{
+        ParsedLaunchArgs, local_exit_lines, session_lease_ttl_seconds,
+        should_emit_local_exit_attribution,
+    };
+    use crate::screen::ScreenGeometry;
+    use crate::terminal::{ColorMode, OutputEncoding};
     use ec_data::GameConfig;
+    use std::path::PathBuf;
+
+    fn parsed_args(use_door_terminal: bool) -> ParsedLaunchArgs {
+        ParsedLaunchArgs {
+            game_dir: PathBuf::from("/tmp/test"),
+            explicit_player_record_index_1_based: Some(1),
+            export_root: None,
+            queue_dir: None,
+            log_file: None,
+            log_level: ec_log::LogLevel::Info,
+            encoding: OutputEncoding::Utf8,
+            color_mode: ColorMode::TrueColor,
+            screen_geometry: ScreenGeometry::local_default(),
+            dropfile_alias: None,
+            session_timeout_secs: None,
+            session_token: None,
+            use_door_terminal,
+        }
+    }
 
     #[test]
     fn session_lease_uses_explicit_timeout_when_present() {
@@ -625,5 +676,37 @@ mod tests {
         let mut game_config = GameConfig::default();
         game_config.session.max_idle_minutes = 0;
         assert_eq!(session_lease_ttl_seconds(None, &game_config), 120);
+    }
+
+    #[test]
+    fn local_exit_lines_match_ec_connect_attribution() {
+        assert_eq!(
+            local_exit_lines(),
+            vec!["For Griffith and glory.".to_string()]
+        );
+    }
+
+    #[test]
+    fn attribution_only_emits_for_local_interactive_stdout_sessions() {
+        assert!(should_emit_local_exit_attribution(
+            &parsed_args(false),
+            true,
+            false
+        ));
+        assert!(!should_emit_local_exit_attribution(
+            &parsed_args(true),
+            true,
+            false
+        ));
+        assert!(!should_emit_local_exit_attribution(
+            &parsed_args(false),
+            false,
+            false
+        ));
+        assert!(!should_emit_local_exit_attribution(
+            &parsed_args(false),
+            true,
+            true
+        ));
     }
 }
