@@ -1,129 +1,82 @@
-# ec-rust Invite Code System Design
+# EC Invite Format
 
 ## Overview
 
-The invite code system uses NIP-05 identity resolution to bootstrap a secure
-connection between a player and a game server, without requiring the player to
-handle raw npubs or bech32-encoded strings.
+The canonical public invite format is:
 
-## Invite Code Format
-
-```
-{token}@{domain}
+```text
+{token}@{relay-host[:port]}
 ```
 
-Example: `foo-bar@esterianconquest.com`
+Examples:
 
-- `token` — a short server-generated secret (e.g. two hyphenated words)
-- `domain` — the sysop's domain, used to resolve server identity and relay
+```text
+amber-river@relay.example.com
+amber-river@relay.example.com:7447
+```
+
+The invite is intentionally human-readable. It replaces the older bech32
+invite flow and the older requirement for players to manually type relay URLs
+and gate public keys.
+
+## Components
+
+- `token` is the two-word seat claim code stored in the hosted-seat rows.
+- `relay-host[:port]` is derived from the sysop's configured `relay` URL in
+  `ec-gate` config.
+
+`ec-connect` rebuilds the relay URL from that suffix:
+
+- public hosts default to `wss://`
+- localhost/private hosts default to `ws://`
+- an explicit port is preserved when present
 
 ## Sysop Requirements
 
-### 1. Nostr Keypair
+Hosted EC requires a Nostr relay. The sysop configures the full relay URL in
+`ec-gate` config, for example:
 
-The game server maintains its own Nostr keypair, separate from the sysop's
-personal Nostr identity. This keypair signs all game events and serves as the
-trust anchor for connecting players.
-
-### 2. Nostr Relay
-
-The sysop runs a Nostr relay (e.g. `nostr-rs-relay`) accessible at a known
-WebSocket endpoint:
-
-```
-wss://relay.esterianconquest.com
+```kdl
+relay "wss://relay.example.com"
 ```
 
-Running a relay is a hard requirement for hosting an ec-rust game server. It
-is the communication backbone for all client-server interaction and is
-equivalent in spirit to the BBS node of the original Esterian Conquest era.
+or:
 
-### 3. NIP-05 Identity File
-
-Serve a static JSON file over HTTPS at:
-
-```
-https://{domain}/.well-known/nostr.json
+```kdl
+relay "wss://relay.example.com:7447"
 ```
 
-Example:
+The configured relay URL must be convertible to an invite host[:port]:
 
-```json
-{
-  "names": {
-    "ec_sysop":    "npub1<sysop_pubkey>",
-    "ec-rust":     "npub1<server_pubkey>"
-  },
-  "relays": {
-    "npub1<server_pubkey>": ["wss://relay.esterianconquest.com"]
-  }
-}
+- scheme must be `ws://` or `wss://`
+- username/password are not allowed
+- query/fragment are not allowed
+- path is not allowed
+
+`ec-sysop nostr seats` renders the public player join line from that relay
+configuration:
+
+```text
+ec-connect --join amber-river@relay.example.com
 ```
 
-- `ec_sysop` — the sysop's personal Nostr identity (optional but conventional)
-- `ec-rust` — the game server's identity; this is what the client resolves
-- `relays` — maps the server npub to its recommended relay URL (NIP-05 extension)
+## Client Join Flow
 
-This file is served as static content by nginx. No dynamic backend required.
+Given `amber-river@relay.example.com`:
 
-### nginx snippet
+1. Parse the token and relay host[:port].
+2. Rebuild the relay URL (`wss://relay.example.com` here).
+3. Connect to the relay.
+4. Discover the matching 30500 game definition by invite hash.
+5. Claim the hosted seat.
+6. Use the discovered `ssh-host`, `ssh-port`, `game-id`, and gate identity for
+   the normal session handshake.
 
-```nginx
-location /.well-known/nostr.json {
-    add_header Access-Control-Allow-Origin *;
-    alias /var/www/nostr.json;
-}
-```
+The invite no longer carries SSH coordinates, game id, or gate key directly.
+Those come from relay discovery.
 
-The CORS header is required by the NIP-05 spec.
+## Notes
 
-## Client Connection Flow
-
-Given invite code `foo-bar@esterianconquest.com`:
-
-1. Parse domain: `esterianconquest.com`, token: `foo-bar`
-2. Fetch `https://esterianconquest.com/.well-known/nostr.json`
-3. Extract server npub from `names["ec-rust"]`
-4. Extract relay URL from `relays[npub]`
-5. Open WebSocket to `wss://relay.esterianconquest.com`
-6. Subscribe to events signed by the server npub
-7. Publish invite redemption event signed by player keypair, containing token `foo-bar`
-8. Server validates token, issues game session
-
-## Server-Side Invite Issuance
-
-The server generates invite tokens and stores them in SQLite:
-
-```sql
-CREATE TABLE invites (
-    token      TEXT PRIMARY KEY,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER,
-    redeemed   INTEGER NOT NULL DEFAULT 0,
-    player_pk  TEXT
-);
-```
-
-Token format is at the sysop's discretion. Two hyphenated lowercase words
-from a fixed word list is recommended for human friendliness.
-
-## Player Relay Configuration
-
-The relay embedded in nostr.json is the bootstrap relay only. Once connected,
-the player's ec-rust client can be pointed at any relay the server publishes
-to. The server may advertise additional or preferred relays via a
-`kind:10002` relay list event, which the client picks up automatically.
-
-The player can also override the relay manually in the ec-rust client config
-at any time. The invite relay is not a permanent constraint.
-
-## Security Properties
-
-- The domain is the trust anchor. Players trust the sysop's domain via HTTPS,
-  which resolves to the server npub, which signs all game events.
-- The invite token is a short-lived server-side secret. It cannot be forged
-  without access to the server's database.
-- The server npub is the long-term game identity. Even if the sysop rotates
-  their relay URL, existing invite codes remain valid as long as nostr.json
-  is updated.
-- No bech32 encoding appears in the user-facing invite code.
+- Bare two-word public invites are no longer the normal supported join shape.
+- `ecinv1...` bech32 invites are removed from the public flow.
+- NIP-05 `nostr.json` bootstrap is not part of the normal invite path.

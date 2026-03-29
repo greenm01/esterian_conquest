@@ -111,4 +111,3 @@ pub fn parse_session_request(event: &Event) -> Result<SessionRequest, ParseError
         game_id,
     })
 }
-

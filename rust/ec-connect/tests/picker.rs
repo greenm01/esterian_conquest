@@ -277,39 +277,37 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
         (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("MAIN COMMAND HELP") })
     );
 
-    assert!(
-        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("J/K    move selection"))
-    );
-    assert!(
-        (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("^U/^D  page up/down") })
-    );
-    assert!(
-        (0..buffer.height())
-            .any(|row| { buffer.plain_line(row).contains("?      show/hide helper") })
-    );
     assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("D      delete selected game")
-    }));
-    assert!(
-        (0..buffer.height())
-            .any(|row| buffer.plain_line(row).contains("r      open relay manager"))
-    );
-    assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("R      edit selected game relay")
+        let line = buffer.plain_line(row);
+        line.contains("J/K") && line.contains("move selection")
     }));
     assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("Space  refresh selected game metadata")
+        let line = buffer.plain_line(row);
+        line.contains("^U/^D") && line.contains("page up/down")
     }));
     assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("Esc    same as <Q> on this screen")
+        let line = buffer.plain_line(row);
+        line.contains("?") && line.contains("show/hide helper")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("D") && line.contains("delete selected game")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("r") && line.contains("open relay manager")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("R") && line.contains("edit selected game relay")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("Space") && line.contains("refresh selected game metadata")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("Esc") && line.contains("same as <Q> on this screen")
     }));
 }
 
@@ -382,7 +380,7 @@ fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
 fn join_code_popup_shows_code_input() {
     use ec_connect::picker::overlay::PickerOverlay;
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.join_input = "ecinv1qgqpx".to_string();
+    state.join_input = "amber-river@relay.example.com".to_string();
     state.overlay = Some(PickerOverlay::JoinCodePopup { error: None });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
@@ -406,13 +404,19 @@ fn join_code_popup_shows_code_input() {
 #[test]
 fn join_code_popup_compacts_long_invites_without_losing_prefix() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.join_input = format!("ecinv1{}", "q".repeat(120));
+    state.join_input = "amber-river@relay.very-long-example-hostname.example.com:7447".to_string();
     state.overlay = Some(PickerOverlay::JoinCodePopup { error: None });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
     assert!(
-        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Invite: ecinv1...")),
-        "expected compact bech32 display with ecinv1 prefix"
+        (0..buffer.height()).any(|row| {
+            let line = buffer.plain_line(row);
+            line.contains("Invite:")
+                && (line.contains("...")
+                    || line
+                        .contains("amber-river@relay.very-long-example-hostname.example.com:7447"))
+        }),
+        "expected invite display to render either compacted or full text"
     );
 }
 

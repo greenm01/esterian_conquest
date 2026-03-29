@@ -34,10 +34,7 @@ fn extract_str_simple() {
 #[test]
 fn extract_str_with_escapes() {
     let json = r#"{"msg":"hello \"world\"\nfoo"}"#;
-    assert_eq!(
-        extract_str(json, "msg").unwrap(),
-        "hello \"world\"\nfoo"
-    );
+    assert_eq!(extract_str(json, "msg").unwrap(), "hello \"world\"\nfoo");
 }
 
 #[test]

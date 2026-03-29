@@ -262,6 +262,8 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
         let discovered = run_tokio(discover_game_for_invite(&keys, &target, code))
             .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
         if let Ok(discovered) = discovered {
+            target.server_host = discovered.ssh_host;
+            target.server_port = discovered.ssh_port;
             target.game_id = Some(discovered.game_id);
         }
         run_tokio(run_session(

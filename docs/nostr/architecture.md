@@ -161,12 +161,11 @@ connect.
 ### Code Format
 
 Invite codes use two words from the Monero mnemonic wordlist, hyphenated
-and lowercase, optionally suffixed with a relay URL:
+and lowercase, suffixed with the relay host[:port]:
 
 ```
-velvet-mountain
-velvet-mountain@play.example.com
-velvet-mountain@play.example.com:2222
+velvet-mountain@relay.example.com
+velvet-mountain@relay.example.com:7447
 ```
 
 The wordlist contains 1626 words, giving approximately 2.6 million
@@ -194,10 +193,10 @@ seat.
 $ ec-sysop new-game /srv/ec/friday-night --players 4 --seed 1515 --nostr
 Game created: /srv/ec/friday-night
 Invite codes:
-  Seat 1: velvet-mountain@play.example.com
-  Seat 2: copper-sunrise@play.example.com
-  Seat 3: amber-cascade@play.example.com
-  Seat 4: silver-meadow@play.example.com
+  Seat 1: velvet-mountain@relay.example.com
+  Seat 2: copper-sunrise@relay.example.com
+  Seat 3: amber-cascade@relay.example.com
+  Seat 4: silver-meadow@relay.example.com
 ```
 
 The admin shares these codes with their friends. Each player redeems

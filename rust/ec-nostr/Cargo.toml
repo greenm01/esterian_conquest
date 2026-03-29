@@ -8,4 +8,4 @@ license-file = "../../LICENSE"
 nostr-sdk = { version = "0.44", features = ["nip44"] }
 sha2 = "0.10"
 rand = "0.8"
-bech32 = "0.11"
+url = "2"

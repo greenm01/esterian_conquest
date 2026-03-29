@@ -46,6 +46,8 @@ fn discovery_matches_invite_hash_and_ssh_target() {
 
     assert_eq!(discovered.game_id, "friday-night");
     assert_eq!(discovered.game_name, "Friday Night EC");
+    assert_eq!(discovered.ssh_host, "play.example.com");
+    assert_eq!(discovered.ssh_port, 2222);
     assert_eq!(discovered.seat, 1);
     assert!(discovered.gate_npub.starts_with("npub1"));
 }
@@ -57,7 +59,7 @@ fn discovery_normalizes_invite_with_host_suffix() {
     let discovered = select_discovered_game_from_events(
         [&event],
         &target(),
-        "amber-river@play.example.com:2222",
+        "amber-river@relay.example.com:7447",
     )
     .expect("discover game");
 

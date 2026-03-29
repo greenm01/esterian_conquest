@@ -4,10 +4,9 @@ use std::path::{Path, PathBuf};
 
 use ec_data::{CampaignSettings, CampaignStore, GameConfig, HostedSeat, HostedSeatStatus};
 use ec_gate::config::io::{config_path, load_config};
-use ec_gate::identity::io::{identity_path, load_identity};
 use ec_gate::invite::generate_invite_code;
 use ec_gate::roster::io::load_roster;
-use ec_nostr::invite::{InvitePayload, encode_invite};
+use ec_nostr::hosted::invite_address_from_relay;
 use nostr_sdk::ToBech32;
 
 pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
@@ -69,24 +68,7 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
     let settings = store.load_campaign_settings()?;
     let seats = store.hosted_seats()?;
 
-    // Attempt to load gate config + identity for bech32 invite generation.
-    // If either is missing (e.g. gate not configured yet) we fall back to
-    // plain invite codes without failing.
-    // (relay_url, ssh_host, ssh_port, gate_npub_bytes)
-    let bech32_ctx: Option<(String, String, u16, [u8; 32])> =
-        (|| -> Option<(String, String, u16, [u8; 32])> {
-            let cfg = load_config(&config_path()).ok()?;
-            let identity = load_identity(&identity_path()).ok()?;
-            let hex = identity.keys.public_key().to_hex();
-            if hex.len() != 64 {
-                return None;
-            }
-            let mut bytes = [0u8; 32];
-            for (i, chunk) in hex.as_bytes().chunks(2).enumerate().take(32) {
-                bytes[i] = u8::from_str_radix(std::str::from_utf8(chunk).ok()?, 16).ok()?;
-            }
-            Some((cfg.relay, cfg.ssh_host, cfg.ssh_port, bytes))
-        })();
+    let relay = load_config(&config_path()).ok().map(|cfg| cfg.relay);
 
     let mut out = String::new();
     out.push_str(&format!("Game: {}\n", settings.game_name));
@@ -101,31 +83,16 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
                     "Seat {}  [pending]\n",
                     seat.player_record_index_1_based
                 ));
-                match bech32_ctx.as_ref() {
-                    Some((relay, ssh_host, ssh_port, gate_npub_bytes)) => {
-                        let payload = InvitePayload {
-                            relay_url: relay.clone(),
-                            words: seat.invite_code.to_ascii_lowercase(),
-                            ssh_host: ssh_host.clone(),
-                            ssh_port: *ssh_port,
-                            game_id: None,
-                            gate_npub: Some(*gate_npub_bytes),
-                        };
-                        if let Ok(encoded) = encode_invite(&payload) {
-                            out.push_str(&format!("  ec-connect --join {encoded}\n"));
+                match relay.as_deref() {
+                    Some(relay_url) => {
+                        match invite_address_from_relay(&seat.invite_code, relay_url) {
+                            Ok(invite) => out.push_str(&format!("  ec-connect --join {invite}\n")),
+                            Err(_) => {
+                                out.push_str(&format!("  ec-connect --join {}\n", seat.invite_code))
+                            }
                         }
-                        let gate_npub_str = nostr_sdk::PublicKey::from_slice(gate_npub_bytes)
-                            .ok()
-                            .and_then(|pk| pk.to_bech32().ok())
-                            .unwrap_or_default();
-                        out.push_str(&format!(
-                            "  {}@{} --relay {} --gate {}\n",
-                            seat.invite_code, ssh_host, relay, gate_npub_str
-                        ));
                     }
-                    None => {
-                        out.push_str(&format!("  ec-connect --join {}\n", seat.invite_code));
-                    }
+                    None => out.push_str(&format!("  ec-connect --join {}\n", seat.invite_code)),
                 }
             }
             HostedSeatStatus::Claimed => {

@@ -183,4 +183,3 @@ async fn publish_session_error_payload(
 
     Ok(event.id.to_hex())
 }
-

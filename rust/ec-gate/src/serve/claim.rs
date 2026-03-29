@@ -99,4 +99,3 @@ pub fn seat_claim_error_payload(code: &str, message: &str) -> String {
     let message = escape_json_string(message);
     format!(r#"{{"error":"{code}","message":"{message}"}}"#)
 }
-

@@ -305,6 +305,8 @@ async fn run_connect_task(
                 match discover_game_for_invite(keys, &request.target, &invite_code).await {
                     Ok(discovered) => {
                         request.gate_npub = discovered.gate_npub;
+                        request.target.server_host = discovered.ssh_host;
+                        request.target.server_port = discovered.ssh_port;
                         request.target.game_id.get_or_insert(discovered.game_id);
                     }
                     Err(err) => {

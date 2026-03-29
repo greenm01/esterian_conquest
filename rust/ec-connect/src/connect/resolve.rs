@@ -1,12 +1,10 @@
 //! Invite code parsing and server resolution.
 //!
-//! Invite codes are accepted in three forms:
+//! Invite codes are accepted in one canonical form:
 //!
 //! ```text
-//! ecinv1...                                  bech32 (relay URL embedded)
-//! velvet-mountain                            plain slug (uses config relay)
-//! velvet-mountain@play.example.com           plain slug + inline host
-//! velvet-mountain@play.example.com:2222      plain slug + inline host:port
+//! velvet-mountain@relay.example.com
+//! velvet-mountain@relay.example.com:7447
 //! ```
 //!
 //! The `SERVER` argument for direct mode can be a hostname, `hostname:port`,
@@ -14,8 +12,6 @@
 //!
 //! Resolution produces a [`ResolvedTarget`] that contains the server
 //! coordinates and relay URL needed to start a Nostr session handshake.
-
-use ec_nostr::invite::{decode_invite, is_bech32_invite};
 
 use crate::config::ConnectConfig;
 
@@ -35,15 +31,10 @@ const PRIVATE_PREFIXES: &[&str] = &["localhost", "127.", "10.", "192.168.", "::1
 pub struct ParsedInviteCode {
     /// The two-word slug (e.g. `"velvet-mountain"`).
     pub words: String,
-    /// Optional server host and port extracted from the `@host[:port]` suffix.
-    pub server: Option<(String, u16)>,
-    /// Relay URL embedded in a bech32 invite (overrides derived relay).
-    pub relay_url: Option<String>,
-    /// Game ID hint embedded in a bech32 invite (skips 30500 lookup).
-    pub game_id: Option<String>,
-    /// Gate public key hint embedded in a bech32 invite (skips 30500 discovery).
-    /// Stored as hex string.
-    pub gate_npub: Option<String>,
+    /// Relay host extracted from the `@host[:port]` suffix.
+    pub relay_host: String,
+    /// Optional relay port extracted from the `@host[:port]` suffix.
+    pub relay_port: Option<u16>,
 }
 
 /// Fully resolved connection target, ready for the handshake step.
@@ -57,10 +48,9 @@ pub struct ResolvedTarget {
     pub relay_url: String,
     /// Raw invite code words, if this was an invite-code resolution.
     pub invite_code: Option<String>,
-    /// Game ID hint (from bech32 invite or cache).
+    /// Game ID hint (from cache or discovery).
     pub game_id: Option<String>,
-    /// Gate public key hint (from bech32 invite) — skips 30500 discovery.
-    /// Stored as hex string.
+    /// Gate public key hint (from cache or explicit input).
     pub gate_npub: Option<String>,
 }
 
@@ -68,8 +58,7 @@ pub struct ResolvedTarget {
 
 /// Parse an invite code string.
 ///
-/// Accepts bech32 (`ecinv1...`), plain slugs (`velvet-mountain`), and
-/// slug-with-host (`velvet-mountain@play.example.com[:port]`).
+/// Accepts `word-word@relay-host[:port]`.
 ///
 /// Returns `Err` if the code is empty or structurally invalid.
 pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
@@ -78,47 +67,21 @@ pub fn parse_invite_code(code: &str) -> Result<ParsedInviteCode, String> {
         return Err("invite code must not be empty".into());
     }
 
-    // Bech32 invite: self-contained with embedded relay URL.
-    if is_bech32_invite(code) {
-        let payload = decode_invite(code).map_err(|e| format!("invalid bech32 invite: {e}"))?;
-        let gate_npub = payload
-            .gate_npub
-            .map(|bytes| bytes.iter().map(|b| format!("{b:02x}")).collect());
-        return Ok(ParsedInviteCode {
-            words: payload.words,
-            server: Some((payload.ssh_host, payload.ssh_port)),
-            relay_url: Some(payload.relay_url),
-            game_id: payload.game_id,
-            gate_npub,
-        });
+    let Some(at) = code.find('@') else {
+        return Err("invite code must be in the form word-word@relay-host[:port]".to_string());
+    };
+    let raw_words = &code[..at];
+    if raw_words.is_empty() {
+        return Err("invite code words must not be empty".into());
     }
-
-    // Plain slug with optional @host[:port] suffix.
-    if let Some(at) = code.find('@') {
-        let raw_words = &code[..at];
-        if raw_words.is_empty() {
-            return Err("invite code words must not be empty".into());
-        }
-        let words = validate_and_normalize_words(raw_words)?;
-        let host_part = &code[at + 1..];
-        let (host, port) = split_host_port(host_part)?;
-        Ok(ParsedInviteCode {
-            words,
-            server: Some((host, port)),
-            relay_url: None,
-            game_id: None,
-            gate_npub: None,
-        })
-    } else {
-        let words = validate_and_normalize_words(code)?;
-        Ok(ParsedInviteCode {
-            words,
-            server: None,
-            relay_url: None,
-            game_id: None,
-            gate_npub: None,
-        })
-    }
+    let words = validate_and_normalize_words(raw_words)?;
+    let relay_part = &code[at + 1..];
+    let (relay_host, relay_port) = split_relay_host_port(relay_part)?;
+    Ok(ParsedInviteCode {
+        words,
+        relay_host,
+        relay_port,
+    })
 }
 
 /// Validate that `s` is a `word-word` invite code slug (exactly two runs of
@@ -151,40 +114,20 @@ fn validate_and_normalize_words(s: &str) -> Result<String, String> {
 
 /// Resolve an invite code to a [`ResolvedTarget`].
 ///
-/// Server coordinates are taken from (in priority order):
-/// 1. The `@host[:port]` suffix in the invite code itself.
-/// 2. The `default_server` bookmark in `config`.
-/// 3. Returns `Err` if neither is available.
-///
-/// Relay URL is derived from the resolved server host unless the config
-/// provides an explicit `relay` field.
-pub fn resolve_invite(code: &str, config: &ConnectConfig) -> Result<ResolvedTarget, String> {
+/// Relay URL is derived directly from the invite's `@relay-host[:port]` suffix.
+/// SSH coordinates are discovered later from the relay's published game
+/// definition after the invite is claimed.
+pub fn resolve_invite(code: &str, _config: &ConnectConfig) -> Result<ResolvedTarget, String> {
     let parsed = parse_invite_code(code)?;
-
-    // For bech32 invites all coordinates are embedded — no config needed.
-    // For plain invites, derive relay from the server host or config.
-    let (server_host, server_port, relay_url) = if let Some(ref relay) = parsed.relay_url {
-        let (host, port) = resolve_server_coords(
-            parsed.server.as_ref().map(|(h, p)| (h.as_str(), *p)),
-            config,
-        )?;
-        (host, port, relay.clone())
-    } else {
-        let (host, port) = resolve_server_coords(
-            parsed.server.as_ref().map(|(h, p)| (h.as_str(), *p)),
-            config,
-        )?;
-        let relay = pick_relay_url(&host, config);
-        (host, port, relay)
-    };
+    let relay_url = relay_url_for_host_port(&parsed.relay_host, parsed.relay_port);
 
     Ok(ResolvedTarget {
-        server_host,
-        server_port,
+        server_host: String::new(),
+        server_port: DEFAULT_SSH_PORT,
         relay_url,
         invite_code: Some(parsed.words),
-        game_id: parsed.game_id,
-        gate_npub: parsed.gate_npub,
+        game_id: None,
+        gate_npub: None,
     })
 }
 
@@ -233,8 +176,7 @@ pub fn resolve_server(server: &str, config: &ConnectConfig) -> Result<ResolvedTa
 /// everything else.  The relay is assumed to be on port 7777, following the
 /// ec-gate default.
 pub fn derive_relay_url(host: &str) -> String {
-    let scheme = if is_private_host(host) { "ws" } else { "wss" };
-    format!("{scheme}://{host}:7777")
+    relay_url_for_host_port(host, Some(7777))
 }
 
 // ── Private helpers ──────────────────────────────────────────────────────────
@@ -249,27 +191,12 @@ fn pick_relay_url(server_host: &str, config: &ConnectConfig) -> String {
     }
 }
 
-/// Resolve server coordinates from an optional inline `(host, port)` pair
-/// (from the invite code) or from the config's default server bookmark.
-fn resolve_server_coords(
-    inline: Option<(&str, u16)>,
-    config: &ConnectConfig,
-) -> Result<(String, u16), String> {
-    if let Some((host, port)) = inline {
-        return Ok((host.to_string(), port));
+fn relay_url_for_host_port(host: &str, port: Option<u16>) -> String {
+    let scheme = if is_private_host(host) { "ws" } else { "wss" };
+    match port {
+        Some(port) => format!("{scheme}://{host}:{port}"),
+        None => format!("{scheme}://{host}"),
     }
-
-    // Fall back to the default bookmark.
-    if let Some(name) = &config.default_server {
-        if let Some(bm) = config.server(name) {
-            return Ok((bm.host.clone(), bm.port));
-        }
-        return Err(format!(
-            "default server bookmark '{name}' not found in config"
-        ));
-    }
-
-    Err("no server specified: include a @host suffix in the invite code or set a default server in config".into())
 }
 
 /// Split `host` or `host:port` into `(host, port)`.
@@ -308,6 +235,43 @@ fn split_host_port(s: &str) -> Result<(String, u16), String> {
     }
     // Multiple colons without brackets — treat as bare IPv6, no port.
     Ok((s.to_string(), DEFAULT_SSH_PORT))
+}
+
+fn split_relay_host_port(s: &str) -> Result<(String, Option<u16>), String> {
+    if s.trim().is_empty() {
+        return Err("invite relay host must not be empty".into());
+    }
+
+    if s.starts_with('[') {
+        if let Some(close) = s.find(']') {
+            let host = s[..=close].to_string();
+            let rest = &s[close + 1..];
+            if rest.is_empty() {
+                return Ok((host, None));
+            }
+            if let Some(port_str) = rest.strip_prefix(':') {
+                let port = parse_port(port_str)?;
+                return Ok((host, Some(port)));
+            }
+            return Err(format!("invalid relay host:port '{s}'"));
+        }
+        return Err(format!("unmatched '[' in relay address '{s}'"));
+    }
+
+    let colon_count = s.chars().filter(|&c| c == ':').count();
+    if colon_count == 0 {
+        return Ok((s.to_string(), None));
+    }
+    if colon_count == 1 {
+        let idx = s.find(':').unwrap();
+        let host = s[..idx].to_string();
+        if host.is_empty() {
+            return Err("invite relay host must not be empty".into());
+        }
+        let port = parse_port(&s[idx + 1..])?;
+        return Ok((host, Some(port)));
+    }
+    Ok((s.to_string(), None))
 }
 
 fn parse_port(s: &str) -> Result<u16, String> {

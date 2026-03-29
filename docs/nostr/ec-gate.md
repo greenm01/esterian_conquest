@@ -7,9 +7,9 @@ and provisions SSH sessions for `ec-game`. It runs on the VPS alongside
 For sysops, the public command surface is `ec-sysop nostr ...`. The
 `ec-gate` name remains the current internal crate/backend name.
 
-In normal hosted play, the sysop must also tell players which relay URL to
-use. The gate npub alone is not enough for `ec-connect` to find the right
-Nostr relay.
+In normal hosted play, the relay host is part of the invite itself, derived
+from the configured `relay` URL. Players no longer need separate `--relay`
+or `--gate` flags for the normal public join path.
 
 ## Responsibilities
 
@@ -115,13 +115,12 @@ Game: Friday Night EC
 Dir:  /srv/ec/games/friday-night
 
 Seat 1  [pending]
-  ec-connect --join ecinv1...
-  velvet-mountain@play.example.com --relay wss://relay.example.com --gate npub1...
+  ec-connect --join velvet-mountain@relay.example.com
 ```
 
-The sysop shares the invite code and relay URL with each player. The relay is
-not baked into the invite code. For private or non-discoverable games, the
-sysop should also share the daemon `npub` so players can pass `--gate`.
+The sysop shares that single join line with each player. The relay host is
+baked into the invite, and `ec-connect` discovers the rest from the relay's
+published game definitions.
 
 ### Validation
 

@@ -88,7 +88,6 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                 &entry.game,
                 &config.ssh_host,
                 config.ssh_port,
-                &config.relay,
             )
             .await
             {
@@ -644,7 +643,6 @@ async fn handle_claim_request(
                     &entry.game,
                     &shared_config.ssh_host,
                     shared_config.ssh_port,
-                    &shared_config.relay,
                 )
                 .await
                 {
@@ -772,7 +770,6 @@ async fn handle_request(
                                 &entry.game,
                                 &shared_config.ssh_host,
                                 shared_config.ssh_port,
-                                &shared_config.relay,
                             )
                             .await
                             {

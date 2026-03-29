@@ -10,8 +10,8 @@ software and playtested accordingly.
 
 ## Player Experience
 
-In the recommended public flow, the sysop gives the player an invite code and
-the relay URL for the hosted game. The player joins once with `--join`.
+In the recommended public flow, the sysop gives the player one invite string in
+the form `token@relay-host[:port]`. The player joins once with `--join`.
 `ec-connect` discovers the gate key from the relay's public 30500 game
 definition, claims the seat, and then launches the normal session handshake
 and terminal bridge.
@@ -19,7 +19,7 @@ and terminal bridge.
 ### First Launch
 
 ```
-$ ec-connect --join velvet-mountain@play.example.com --relay wss://relay.example.com
+$ ec-connect --join velvet-mountain@relay.example.com
 [centered password window]
 This password encrypts your wallet.
 If you lose it, you will be locked out.
@@ -83,7 +83,7 @@ When the game session ends, the player returns to this menu.
 Pressing `N` in the picker opens an inline invite prompt:
 
 ```
-CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@play.example.com
+CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@relay.example.com
 ```
 
 After a successful join, the new game appears in the list and the player
@@ -105,7 +105,7 @@ $ ec-connect id import
 Enter your nsec: nsec1...
 Identity imported.
 
-$ ec-connect --join copper-sunrise@play.example.com --relay wss://relay.example.com
+$ ec-connect --join copper-sunrise@relay.example.com
 [centered password window]
 Password: ********
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
@@ -241,8 +241,8 @@ When connecting, `ec-connect` resolves the Nostr relay URL from these
 sources, in order:
 
 1. Explicit command-line flag (`--relay wss://...`)
-2. Invite code suffix (`velvet-mountain@play.example.com` implies
-   `wss://play.example.com`)
+2. Invite code suffix (`velvet-mountain@relay.example.com` implies
+   `wss://relay.example.com`)
 3. Config file `relay` field
 4. Fallback: derive from server hostname (`wss://SERVER`)
 
@@ -315,8 +315,9 @@ ec-connect --join <INVITE-CODE>      Join a new game with invite code
 `SERVER` can be a hostname, a hostname:port, or a bookmark name from the
 config file.
 
-`INVITE-CODE` is a two-word code, optionally with a server suffix:
-`velvet-mountain` or `velvet-mountain@play.example.com:2222`.
+`INVITE-CODE` is the public invite string:
+`velvet-mountain@relay.example.com` or
+`velvet-mountain@relay.example.com:7447`.
 
 ### Identity Subcommands
 
@@ -578,7 +579,7 @@ When connecting, `ec-connect` needs to know which Nostr relay to use for
 the authentication handshake. The relay URL can come from:
 
 1. Explicit command-line flag (`--relay wss://relay.example.com`)
-2. Invite code suffix (`velvet-mountain@play.example.com`)
+2. Invite code suffix (`velvet-mountain@relay.example.com`)
 3. Config file `relay` field
 4. Fallback: derive from server hostname (`wss://SERVER`)
 

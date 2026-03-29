@@ -12,6 +12,8 @@ pub struct DiscoveredGame {
     pub gate_npub: String,
     pub game_id: String,
     pub game_name: String,
+    pub ssh_host: String,
+    pub ssh_port: u16,
     pub seat: u32,
 }
 
@@ -124,6 +126,8 @@ pub fn select_discovered_game_from_events<'a>(
             gate_npub: game.gate_npub,
             game_id: game.game_id,
             game_name: game.game_name,
+            ssh_host: game.ssh_host,
+            ssh_port: game.ssh_port,
             seat,
         });
     }
@@ -144,6 +148,8 @@ pub fn select_discovered_game_from_events<'a>(
                 gate_npub: game.gate_npub,
                 game_id: game.game_id,
                 game_name: game.game_name,
+                ssh_host: game.ssh_host,
+                ssh_port: game.ssh_port,
                 seat,
             })
         }

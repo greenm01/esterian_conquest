@@ -130,4 +130,3 @@ pub async fn publish_session_state_error(
     client.send_event(&event).await?;
     Ok(event.id.to_hex())
 }
-

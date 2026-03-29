@@ -160,22 +160,15 @@ On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you
 lose it, the client cannot recover your wallet for you.
 
-Your sysop gives you one invite code. It begins with `ecinv1` and contains
-everything the client needs. Paste it when prompted.
+Your sysop gives you one invite code in the form
+`amber-river@relay.example.com`. Paste it when prompted.
 
 == Power Users
 
 You can also join from the command line directly:
 
-```
-ec-connect --join ecinv1...
-```
-
-If your sysop gives you a plain two-word code, he will include the relay
-address and gate key as well. Supply all three:
-
-```
-ec-connect --join amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+``` 
+ec-connect --join amber-river@relay.example.com
 ```
 
 If you join from the picker later and a cached game is missing its relay,
@@ -196,10 +189,8 @@ The wallet is local client state. It is not the server's player list.
 == Relay Configuration
 
 Press `R` in the main `ec-connect` menu to edit your default relay. This
-applies when reconnecting to older cached games that do not carry an embedded
-relay, or when joining with a plain two-word code that does not include one.
-Modern bech32 invite codes (`ecinv1...`) carry the relay address inside them,
-so the default relay setting is not needed for those.
+applies when reconnecting to older cached games that do not carry a saved
+relay, or when manually editing relay settings for existing cached games.
 
 After a successful join, `ec-connect` caches the exact relay for that game, so
 most reconnects do not need relay entry again.

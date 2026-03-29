@@ -319,15 +319,7 @@ fn full_pipeline_game_definition_tags_four_seat_game() {
         ],
     };
 
-    let gate_keys = Keys::generate();
-    let tags = build_game_def_tags(
-        &game,
-        "play.example.com",
-        22,
-        "wss://relay.example.com:7777",
-        &gate_keys.public_key(),
-    )
-    .unwrap();
+    let tags = build_game_def_tags(&game, "play.example.com", 22).unwrap();
     let tag_vecs: Vec<Vec<String>> = tags.iter().map(|tag| tag.clone().to_vec()).collect();
     let d = tag_vecs.iter().find(|tag| tag[0] == "d").unwrap();
     assert_eq!(d[1], "friday-night");
@@ -339,6 +331,7 @@ fn full_pipeline_game_definition_tags_four_seat_game() {
     assert_eq!(slot1[2], sha256_hex(b"velvet-mountain"));
     assert_eq!(slot1[3], "npub1aaa");
     assert_eq!(slot1[4], "claimed");
+    assert!(tag_vecs.iter().all(|tag| tag[0] != "invite-bech32"));
 }
 
 #[test]

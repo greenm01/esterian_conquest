@@ -74,11 +74,19 @@ pub struct ConnectDisplay {
 }
 
 impl ConnectDisplay {
+    fn server_line(target: &ResolvedTarget) -> String {
+        if target.server_host.trim().is_empty() {
+            "Server: discover via relay".to_string()
+        } else {
+            format!("Server: {}:{}", target.server_host, target.server_port)
+        }
+    }
+
     pub fn from_game(name: &str, target: &ResolvedTarget) -> Self {
         Self {
             lines: vec![
                 format!("Game: {}", name),
-                format!("Server: {}:{}", target.server_host, target.server_port),
+                Self::server_line(target),
                 format!("Relay: {}", target.relay_url),
                 "Attempting to connect...".to_string(),
             ],
@@ -89,7 +97,7 @@ impl ConnectDisplay {
         Self {
             lines: vec![
                 format!("Invite: {}", invite_code),
-                format!("Server: {}:{}", target.server_host, target.server_port),
+                Self::server_line(target),
                 format!("Relay: {}", target.relay_url),
                 "Attempting to connect...".to_string(),
             ],
@@ -100,7 +108,7 @@ impl ConnectDisplay {
         Self {
             lines: vec![
                 format!("Invite: {}", invite_code),
-                format!("Server: {}:{}", target.server_host, target.server_port),
+                Self::server_line(target),
                 format!("Relay: {}", target.relay_url),
                 "Claiming invite...".to_string(),
             ],

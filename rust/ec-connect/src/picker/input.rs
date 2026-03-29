@@ -138,7 +138,7 @@ pub fn handle_join_code_popup_key(
     gate_npub: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match key {
-        // Only Esc cancels — not 'q', since bech32 codes contain 'q' characters.
+        // Only Esc cancels — not 'q', since invite text may legitimately contain it.
         key if is_escape_key(key) => {
             state.overlay = None;
             state.join_input.clear();

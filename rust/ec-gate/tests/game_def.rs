@@ -4,7 +4,6 @@ use ec_data::{HostedSeat, HostedSeatStatus};
 use ec_gate::serve::catalog::HostedGame;
 use ec_gate::serve::game_def::build_game_def_tags;
 use ec_nostr::hash::sha256_hex;
-use nostr_sdk::Keys;
 
 #[test]
 fn sha256_hex_known_value() {
@@ -36,7 +35,10 @@ fn sha256_hex_same_input_same_output() {
 
 #[test]
 fn sha256_hex_different_input_different_output() {
-    assert_ne!(sha256_hex(b"velvet-mountain"), sha256_hex(b"copper-sunrise"));
+    assert_ne!(
+        sha256_hex(b"velvet-mountain"),
+        sha256_hex(b"copper-sunrise")
+    );
 }
 
 fn make_game() -> HostedGame {
@@ -61,8 +63,7 @@ fn make_game() -> HostedGame {
 }
 
 fn tags_as_strings(game: &HostedGame) -> Vec<Vec<String>> {
-    let keys = Keys::generate();
-    build_game_def_tags(game, "play.example.com", 2222, "wss://relay.example.com:7777", &keys.public_key())
+    build_game_def_tags(game, "play.example.com", 2222)
         .unwrap()
         .iter()
         .map(|tag| tag.clone().to_vec())
@@ -142,6 +143,12 @@ fn game_def_tags_slot_code_is_sha256_hash() {
         .find(|tag| tag[0] == "slot" && tag[1] == "1")
         .unwrap();
     assert_eq!(slot[2], sha256_hex(b"velvet-mountain"));
+}
+
+#[test]
+fn game_def_tags_do_not_publish_plain_invites() {
+    let tags = tags_as_strings(&make_game());
+    assert!(tags.iter().all(|tag| tag[0] != "invite-bech32"));
 }
 
 #[test]

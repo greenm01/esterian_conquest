@@ -293,8 +293,7 @@ ec-sysop nostr serve
 The values handed to players come from `/etc/ec-gate/config.kdl`:
 
 - `relay` is the Nostr relay URL
-- `ssh-host` is the game server address embedded in invite flows
-- `ssh-port` is the SSH port if it is not the default `22`
+- `ssh-host` and `ssh-port` are published in relay discovery after the invite is claimed
 
 After the daemon is running, view the hosted seat state and get the
 ready-to-distribute invite commands:
@@ -303,25 +302,25 @@ ready-to-distribute invite commands:
 ec-sysop nostr seats --dir /path/to/mygame
 ```
 
-The output lists every seat. Pending seats show two invite formats:
+The output lists every seat. Pending seats show the canonical join line:
 
 ```
 Seat 1  [pending]
-  ec-connect --join ecinv1...
-  amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+  ec-connect --join amber-river@relay.example.com
 
 Seat 2  [claimed]
   npub1...
 ```
 
-Send each player his `ec-connect --join ecinv1...` line. The player:
+Send each player his `ec-connect --join ...` line. The player:
 
 1. Runs `ec-connect`.
 2. Presses `N`.
 3. Pastes the invite code and presses Enter.
 
-That is the full player-side flow. The code is self-contained — it carries the
-relay URL, server host, and gate key. No extra configuration required.
+That is the full player-side flow. The invite carries the seat token and relay
+host, and `ec-connect` discovers the rest from the relay. No extra flags are
+normally required.
 
 On first join, `ec-connect` creates or unlocks the player's encrypted
 identity, claims the hosted seat through the relay, downloads the static
@@ -332,13 +331,7 @@ reconnect through `ec-connect` without re-entering any flags.
 line:
 
 ```
-ec-connect --join ecinv1...
-```
-
-Or with a plain two-word code (includes relay and gate flags for reliability):
-
-```
-ec-connect --join amber-river@play.example.com --relay wss://relay.example.com --gate npub1...
+ec-connect --join amber-river@relay.example.com
 ```
 
 If an invite code is lost or compromised, reissue it:

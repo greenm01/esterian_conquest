@@ -39,6 +39,8 @@ pub async fn prepare_public_join(
     match claim_seat_and_wait(player_keys, &target, &invite_code, &discovered).await? {
         SeatClaimResult::Claimed(claimed) => {
             let mut session_target = target;
+            session_target.server_host = discovered.ssh_host.clone();
+            session_target.server_port = discovered.ssh_port;
             session_target.game_id = Some(claimed.game_id.clone());
             session_target.invite_code = None;
             let _ = seed_default_relay(&session_target.relay_url);

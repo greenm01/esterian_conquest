@@ -638,7 +638,7 @@ fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Opti
     let inner_right = popup.x as usize + popup.width as usize - 2;
     let inner_width = popup.width.saturating_sub(4) as usize;
 
-    let instruction = "Paste the ecinv1... invite code from your sysop, then press Enter.";
+    let instruction = "Paste the invite code from your sysop, then press Enter.";
     for (idx, line) in wrapped_lines(instruction, inner_width)
         .into_iter()
         .take(2)

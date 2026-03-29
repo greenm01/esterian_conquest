@@ -205,4 +205,3 @@ pub fn build_map_bundle_payload(
         files,
     })
 }
-

@@ -1,5 +1,5 @@
 pub mod hash;
-pub mod invite;
+pub mod hosted;
 pub mod json;
 pub mod nonce;
 pub mod tags;

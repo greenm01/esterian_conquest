@@ -146,7 +146,7 @@ cargo run -q -p ec-sysop -- maint-all --config /etc/ec-gate/config.kdl
 
 Players join with `ec-connect`:
 ```bash
-ec-connect --join ecinv1...
+ec-connect --join amber-river@relay.example.com
 ```
 
 ### 3. Run `ec-game` As A BBS Door
