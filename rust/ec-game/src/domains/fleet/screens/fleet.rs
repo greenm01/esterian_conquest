@@ -20,8 +20,9 @@ use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableRowState, TableWidthMode,
     VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns,
     fit_table_columns_for_widget, fleet_id_column_width, format_fleet_number,
-    layout_standard_table_block, resolve_table_columns_for_widget, write_table_window_with_cursor,
-    write_table_window_with_states_at,
+    layout_standard_table_block, resolve_table_columns_for_widget,
+    resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
+    write_table_window_with_cursor, write_table_window_with_states_at,
 };
 use crate::screen::{
     COMMAND_LABEL, PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
@@ -1316,7 +1317,18 @@ impl FleetMissionPickerScreen {
             default: Some(&default),
             input,
         };
-        let columns = resolve_table_columns_for_widget(
+        let footer_scaffold_floor = FLEET_MISSION_OPTIONS
+            .iter()
+            .map(|option| {
+                table_footer_scaffold_width(TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(&option.code.to_string()),
+                    input: "",
+                })
+            })
+            .max()
+            .unwrap_or(0);
+        let columns = resolve_table_columns_for_widget_with_footer_floor(
             &mission_picker_columns(),
             &rows,
             buffer.width(),
@@ -1324,6 +1336,7 @@ impl FleetMissionPickerScreen {
             TableWidthMode::Compact,
             Some("FLEET MISSION ORDERS:"),
             Some(footer),
+            footer_scaffold_floor,
         );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),

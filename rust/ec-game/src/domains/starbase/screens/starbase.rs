@@ -15,6 +15,7 @@ use crate::screen::layout::{
 };
 use crate::screen::table::{
     TableColumn, TableFooter, draw_table_footer, draw_table_title, fit_table_columns_for_widget,
+    fit_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
     write_table_window_with_cursor,
 };
 use crate::screen::{
@@ -420,11 +421,23 @@ impl StarbaseReviewScreen {
                 input,
             }
         };
-        let columns = fit_table_columns_for_widget(
+        let footer_scaffold_floor = rows
+            .iter()
+            .map(|row| {
+                table_footer_scaffold_width(TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(&row.base_id.to_string()),
+                    input: "",
+                })
+            })
+            .max()
+            .unwrap_or(0);
+        let columns = fit_table_columns_for_widget_with_footer_floor(
             &STARBASE_COLUMNS,
             &table_rows,
             Some("REVIEW A STARBASE:"),
             Some(footer),
+            footer_scaffold_floor,
         );
         let metrics = write_table_window_with_cursor(
             &mut buffer,

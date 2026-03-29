@@ -7,7 +7,8 @@ use ec_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_game::screen::table::{
     HorizontalAlign, LayoutRect, SplitTableRow, TableColumn, TableFooter, TableRowState,
     TableWidthMode, VerticalAlign, layout_standard_table_block, resolve_table_columns_for_widget,
-    table_footer_scaffold_width, table_footer_width, table_render_width, write_split_table,
+    resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
+    table_footer_width, table_render_width, write_split_table,
     write_stacked_table_window_with_states, write_table_row, write_table_window_with_cursor,
     write_table_window_with_cursor_at, write_table_window_with_states,
 };
@@ -183,6 +184,59 @@ fn widget_minimum_width_ignores_live_footer_input() {
     );
 
     assert_eq!(without_input, with_input);
+}
+
+#[test]
+fn widget_minimum_width_can_freeze_selection_driven_footer_defaults() {
+    let base_columns = [
+        TableColumn::center("", 1),
+        TableColumn::left("Theme", 22),
+        TableColumn::left("Type", 8),
+    ];
+    let rows = vec![
+        vec!["*".to_string(), "Matrix".to_string(), "Theme".to_string()],
+        vec!["".to_string(), "One Dark".to_string(), "Theme".to_string()],
+        vec![
+            "".to_string(),
+            "Catppuccin Mocha".to_string(),
+            "Theme".to_string(),
+        ],
+    ];
+    let footer_floor = table_footer_scaffold_width(TableFooter::CommandBar {
+        hotkeys_markup: "J K ^U ^D <Q>",
+        default: Some("Catppuccin Mocha"),
+        input: "",
+    });
+    let short_default = resolve_table_columns_for_widget_with_footer_floor(
+        &base_columns,
+        &rows,
+        PLAYFIELD_WIDTH,
+        false,
+        TableWidthMode::Compact,
+        Some("COLOR THEMES:"),
+        Some(TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D <Q>",
+            default: Some("Matrix"),
+            input: "",
+        }),
+        footer_floor,
+    );
+    let long_default = resolve_table_columns_for_widget_with_footer_floor(
+        &base_columns,
+        &rows,
+        PLAYFIELD_WIDTH,
+        false,
+        TableWidthMode::Compact,
+        Some("COLOR THEMES:"),
+        Some(TableFooter::CommandBar {
+            hotkeys_markup: "J K ^U ^D <Q>",
+            default: Some("One Dark"),
+            input: "",
+        }),
+        footer_floor,
+    );
+
+    assert_eq!(short_default, long_default);
 }
 
 #[test]

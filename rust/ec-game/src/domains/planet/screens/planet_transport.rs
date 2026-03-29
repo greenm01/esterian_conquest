@@ -8,8 +8,9 @@ use crate::screen::layout::{
     standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, TableFooter, draw_table_footer, draw_table_title, fit_table_columns_for_widget,
-    fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
+    TableColumn, TableFooter, draw_table_footer, draw_table_title,
+    fit_table_columns_for_widget_with_footer_floor, fleet_id_column_width, format_fleet_number,
+    table_footer_scaffold_width, write_table_window_with_cursor,
 };
 use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_table};
 use crate::theme::classic;
@@ -123,11 +124,25 @@ impl PlanetTransportScreen {
                 input,
             }
         };
-        let columns = fit_table_columns_for_widget(
+        let footer_scaffold_floor = rows
+            .iter()
+            .map(|row| {
+                let default = format!("{},{}", row.coords[0], row.coords[1]);
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: prompt_label,
+                    prompt: "",
+                    default: default.as_str(),
+                    input: "",
+                })
+            })
+            .max()
+            .unwrap_or_else(|| table_footer_scaffold_width(footer));
+        let columns = fit_table_columns_for_widget_with_footer_floor(
             &PLANET_COLUMNS,
             &table_rows,
             Some(mode.title()),
             Some(footer),
+            footer_scaffold_floor,
         );
         let metrics = write_table_window_with_cursor(
             &mut buffer,
@@ -194,11 +209,25 @@ impl PlanetTransportScreen {
                 input,
             }
         };
-        let columns = fit_table_columns_for_widget(
+        let footer_scaffold_floor = fleets
+            .iter()
+            .map(|row| {
+                let default_qty = row.available_qty.to_string();
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: prompt_label,
+                    prompt: prompt.as_str(),
+                    default: default_qty.as_str(),
+                    input: "",
+                })
+            })
+            .max()
+            .unwrap_or_else(|| table_footer_scaffold_width(footer));
+        let columns = fit_table_columns_for_widget_with_footer_floor(
             &fleet_columns,
             &table_rows,
             Some(mode.title()),
             Some(footer),
+            footer_scaffold_floor,
         );
         let metrics = write_table_window_with_cursor(
             &mut buffer,

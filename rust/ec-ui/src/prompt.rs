@@ -228,11 +228,13 @@ pub fn draw_command_line_default_input_at_col(
         );
     }
     cursor_col = write_prompt_markup(buffer, row, cursor_col, "<Q> -> ");
-    let written = buffer.write_text(row, cursor_col, input, classic::prompt_hotkey_style());
-    let cursor_col = cursor_col + written;
-    if cursor_col < buffer.width() {
-        buffer.set_cursor(cursor_col as u16, row as u16);
-    }
+    let _ = write_live_input_clipped(
+        buffer,
+        row,
+        cursor_col,
+        input,
+        classic::prompt_hotkey_style(),
+    );
 }
 
 pub fn draw_table_command_bar_at(
@@ -276,12 +278,13 @@ pub fn draw_table_command_bar_at_col(
                 StyledSpan::new(COMMAND_ARROW_SUFFIX, classic::prompt_style()),
             ],
         );
-        let written = buffer.write_text(row, cursor_col, input, classic::prompt_hotkey_style());
-        let final_cursor_col = cursor_col + written;
-        if final_cursor_col < buffer.width() {
-            buffer.set_cursor(final_cursor_col as u16, row as u16);
-        }
-        final_cursor_col
+        write_live_input_clipped(
+            buffer,
+            row,
+            cursor_col,
+            input,
+            classic::prompt_hotkey_style(),
+        )
     } else {
         let written = buffer.write_text(
             row,
@@ -364,6 +367,34 @@ fn command_rail_width(tokens: &str) -> usize {
         .map(|token| token.chars().count())
         .sum::<usize>()
         + tokens.split_whitespace().count().saturating_sub(1)
+}
+
+fn write_live_input_clipped(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    input: &str,
+    style: crate::buffer::CellStyle,
+) -> usize {
+    if buffer.width() == 0 {
+        return col;
+    }
+    if col >= buffer.width() {
+        buffer.set_cursor((buffer.width() - 1) as u16, row as u16);
+        return buffer.width() - 1;
+    }
+
+    let written = buffer.write_text_clipped(row, col, input, style);
+    let input_width = input.chars().count();
+    let cursor_col = if input_width > written {
+        buffer.width() - 1
+    } else {
+        col + written
+    };
+    if cursor_col < buffer.width() {
+        buffer.set_cursor(cursor_col as u16, row as u16);
+    }
+    cursor_col
 }
 
 fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
@@ -567,8 +598,9 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
 mod tests {
     use super::{
         command_line_default_input_scaffold_width, command_line_default_input_width,
-        draw_command_line_prompt_text_at, draw_plain_prompt, draw_table_command_bar_at,
-        table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
+        draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_plain_prompt,
+        draw_table_command_bar_at, table_command_bar_scaffold_width, table_command_bar_width,
+        table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
@@ -647,5 +679,39 @@ mod tests {
             command_line_default_input_width("COMMAND", "Qty ", "12", "345")
                 - "345".chars().count()
         );
+    }
+
+    #[test]
+    fn table_command_bar_clips_long_live_input_without_panicking() {
+        let mut buffer = PlayfieldBuffer::new(40, 25, classic::body_style());
+        let end_col = draw_table_command_bar_at(
+            &mut buffer,
+            24,
+            "J K ^U ^D <Q>",
+            Some("One Dark"),
+            "sdfsdflsdfasdfasldfdd",
+        );
+        let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
+        assert_eq!(cursor_row, 24);
+        assert_eq!(cursor_col as usize, 39);
+        assert_eq!(end_col, 39);
+        assert!(buffer.plain_line(24).starts_with("COMMAND <- "));
+    }
+
+    #[test]
+    fn command_input_clips_long_live_input_without_panicking() {
+        let mut buffer = PlayfieldBuffer::new(32, 25, classic::body_style());
+        draw_command_line_default_input_at(
+            &mut buffer,
+            24,
+            "COMMAND",
+            "Qty ",
+            "12",
+            "12345678901234567890",
+        );
+        let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
+        assert_eq!(cursor_row, 24);
+        assert_eq!(cursor_col as usize, 31);
+        assert!(buffer.plain_line(24).starts_with("COMMAND <- Qty "));
     }
 }

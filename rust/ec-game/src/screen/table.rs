@@ -161,8 +161,21 @@ pub fn fit_table_columns_for_widget<'a>(
     title: Option<&str>,
     footer: Option<TableFooter<'_>>,
 ) -> Vec<TableColumn<'a>> {
+    fit_table_columns_for_widget_with_footer_floor(columns, rows, title, footer, 0)
+}
+
+pub fn fit_table_columns_for_widget_with_footer_floor<'a>(
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
+    footer_scaffold_floor: usize,
+) -> Vec<TableColumn<'a>> {
     let fitted = fit_table_columns(columns, rows);
-    widen_table_columns_to_minimum_render_width(&fitted, minimum_table_render_width(title, footer))
+    widen_table_columns_to_minimum_render_width(
+        &fitted,
+        minimum_table_render_width_with_footer_floor(title, footer, footer_scaffold_floor),
+    )
 }
 
 pub fn resolve_table_columns_for_widget<'a>(
@@ -174,6 +187,28 @@ pub fn resolve_table_columns_for_widget<'a>(
     title: Option<&str>,
     footer: Option<TableFooter<'_>>,
 ) -> Vec<TableColumn<'a>> {
+    resolve_table_columns_for_widget_with_footer_floor(
+        columns,
+        rows,
+        available_width,
+        scrollbar_visible,
+        width_mode,
+        title,
+        footer,
+        0,
+    )
+}
+
+pub fn resolve_table_columns_for_widget_with_footer_floor<'a>(
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    available_width: usize,
+    scrollbar_visible: bool,
+    width_mode: TableWidthMode,
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
+    footer_scaffold_floor: usize,
+) -> Vec<TableColumn<'a>> {
     let resolved = resolve_table_columns(
         columns,
         rows,
@@ -183,14 +218,23 @@ pub fn resolve_table_columns_for_widget<'a>(
     );
     widen_table_columns_to_minimum_render_width(
         &resolved,
-        minimum_table_render_width(title, footer),
+        minimum_table_render_width_with_footer_floor(title, footer, footer_scaffold_floor),
     )
 }
 
 pub fn minimum_table_render_width(title: Option<&str>, footer: Option<TableFooter<'_>>) -> usize {
+    minimum_table_render_width_with_footer_floor(title, footer, 0)
+}
+
+pub fn minimum_table_render_width_with_footer_floor(
+    title: Option<&str>,
+    footer: Option<TableFooter<'_>>,
+    footer_scaffold_floor: usize,
+) -> usize {
     title
         .map_or(0, |title| title.chars().count())
         .max(footer.map_or(0, table_footer_scaffold_width))
+        .max(footer_scaffold_floor)
 }
 
 pub fn widen_table_columns_to_minimum_render_width<'a>(

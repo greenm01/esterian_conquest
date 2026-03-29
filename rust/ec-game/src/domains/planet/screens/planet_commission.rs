@@ -11,7 +11,8 @@ use crate::screen::layout::{
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
     draw_table_footer, draw_table_title, layout_standard_table_block,
-    resolve_table_columns_for_widget, write_table_window_with_cursor_at,
+    resolve_table_columns_for_widget, resolve_table_columns_for_widget_with_footer_floor,
+    table_footer_scaffold_width, write_table_window_with_cursor_at,
 };
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_table,
@@ -148,7 +149,19 @@ impl PlanetCommissionScreen {
             default: default.as_deref(),
             input: "",
         };
-        let columns = resolve_table_columns_for_widget(
+        let footer_scaffold_floor = rows
+            .iter()
+            .map(|row| {
+                let default = format!("{:02},{:02}", row.coords[0], row.coords[1]);
+                table_footer_scaffold_width(TableFooter::CommandBar {
+                    hotkeys_markup: "J K ^U ^D <Q>",
+                    default: Some(default.as_str()),
+                    input: "",
+                })
+            })
+            .max()
+            .unwrap_or(0);
+        let columns = resolve_table_columns_for_widget_with_footer_floor(
             &COMMISSION_PICKER_COLUMNS,
             &table_rows,
             buffer.width(),
@@ -156,6 +169,7 @@ impl PlanetCommissionScreen {
             TableWidthMode::Compact,
             Some("COMMISSION SHIPS:"),
             Some(footer),
+            footer_scaffold_floor,
         );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
@@ -354,7 +368,22 @@ impl PlanetCommissionScreen {
                 },
             }
         };
-        let columns = resolve_table_columns_for_widget(
+        let footer_scaffold_floor = rows
+            .iter()
+            .filter(|row| row.accepts_fleet_qty())
+            .map(|row| {
+                let prompt_label = format!("Qty for {} ", row.unit_label);
+                let default_qty = format_draft_qty(row.remaining_qty);
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: prompt_label.as_str(),
+                    default: default_qty.as_str(),
+                    input: "",
+                })
+            })
+            .max()
+            .unwrap_or_else(|| table_footer_scaffold_width(footer));
+        let columns = resolve_table_columns_for_widget_with_footer_floor(
             &COMMISSION_DRAFT_COLUMNS,
             &table_rows,
             buffer.width(),
@@ -362,6 +391,7 @@ impl PlanetCommissionScreen {
             TableWidthMode::Compact,
             Some(title),
             Some(footer),
+            footer_scaffold_floor,
         );
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
