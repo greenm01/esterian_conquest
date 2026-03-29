@@ -1,4 +1,5 @@
 use super::state::App;
+use crate::app::help;
 use crate::screen::ScreenId;
 use crate::terminal::Terminal;
 
@@ -91,6 +92,9 @@ impl App {
         };
         if self.quit_confirm_open {
             self.render_quit_confirm(&mut playfield);
+        }
+        if let Some(popup) = &self.popup_help {
+            help::render_popup(&mut playfield, popup);
         }
         let geometry = self.screen_geometry;
         assert_eq!(

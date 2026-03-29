@@ -211,9 +211,9 @@ impl Screen for MainMenuScreen {
 
 fn main_menu_command_keys(door_mode: bool) -> &'static str {
     if door_mode {
-        "H X V A G P F T I B D <Q>"
+        "? X V A G P F T I B D <Q>"
     } else {
-        "H X V C G P F T I B D <Q>"
+        "? X V C G P F T I B D <Q>"
     }
 }
 

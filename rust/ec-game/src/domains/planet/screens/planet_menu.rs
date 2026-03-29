@@ -160,7 +160,7 @@ impl PlanetMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "PLANET COMMAND",
-                    "H X V C A B I P T S L U <Q>",
+                    "? X V C A B I P T S L U <Q>",
                     notice,
                 );
             }
@@ -282,7 +282,7 @@ impl PlanetMenuScreen {
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",
-                "H X V C A B I P T S L U <Q>",
+                "? X V C A B I P T S L U <Q>",
             );
         }
         Ok(buffer)

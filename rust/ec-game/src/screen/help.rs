@@ -1,0 +1,218 @@
+use ec_ui::modal::{ModalTheme, render_modal_box};
+use ec_ui::theme::classic;
+
+use crate::screen::PlayfieldBuffer;
+use crate::screen::layout::draw_help_panel;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuHelpTopic {
+    Main,
+    General,
+    Fleet,
+    Starbase,
+    Planet,
+    Build,
+    FirstTime,
+}
+
+pub struct HelpPanelSpec {
+    pub title: &'static str,
+    pub header: &'static str,
+    pub lines: &'static [&'static str],
+}
+
+const MAIN_LOCAL_LINES: [&str; 12] = [
+    "<C> - open the color theme picker",
+    "<B> - display all empire information in brief format",
+    "<D> - display all empire information in detailed format",
+    "<F> - bring up the Fleet Command Center menu",
+    "<G> - bring up the General Command Center menu",
+    "<H> - describe Main Menu commands",
+    "<I> - show Intelligence on what you know about any planet",
+    "<P> - bring up the Planet Command Center menu",
+    "<Q> - quit Esterian Conquest and returns you back to Jump Start",
+    "<T> - list database information about planets",
+    "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
+    "<X> - hide/show command menus",
+];
+
+const MAIN_DOOR_LINES: [&str; 12] = [
+    "<A> - turn ANSI color on or off",
+    "<B> - display all empire information in brief format",
+    "<D> - display all empire information in detailed format",
+    "<F> - bring up the Fleet Command Center menu",
+    "<G> - bring up the General Command Center menu",
+    "<H> - describe Main Menu commands",
+    "<I> - show Intelligence on what you know about any planet",
+    "<P> - bring up the Planet Command Center menu",
+    "<Q> - quit Esterian Conquest and returns you back to Jump Start",
+    "<T> - list database information about planets",
+    "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
+    "<X> - hide/show command menus",
+];
+
+const GENERAL_LINES: [&str; 14] = [
+    "<A> - allow maintenance to issue orders and builds automatically",
+    "<C> - type and send messages to other players in the game",
+    "<D> - delete all messages and result reports from your message base",
+    "<E> - list and declare your enemies",
+    "<H> - describe General Command Center commands",
+    "<I> - show intelligence on what you know about any planet",
+    "<M> - display the entire game map for capture or export",
+    "<O> - list all empires in the order you specify",
+    "<P> - display the profile of your empire",
+    "<Q> - quit the General Command Center and return to the Main Menu",
+    "<R> - review your inbox of recent messages and reports",
+    "<S> - display time left to play and other status information",
+    "<V> - display a portion of the map; use M for the whole map",
+    "<X> - hide/show command menus",
+];
+
+const FLEET_LINES: [&str; 16] = [
+    "<B> - display a brief list of your fleets with locations, destinations, etc.",
+    "<C> - change a fleet's ROE, ID Number, or Speed of Travel.",
+    "<D> - detach one or more starships from a fleet to form a new fleet",
+    "<E> - calculate any fleet's travel time to any potential destination",
+    "<F> - display a longer but detailed list of your fleets",
+    "<G> - order a group of fleets; ex: g 1 2 3 4 m 0 orders fleets 1-4 on m0",
+    "<H> - describe Fleet Command Center commands",
+    "<I> - show Intelligence on what you know about any planet",
+    "<L> - load one or more armies from a planet onto the transports of a fleet",
+    "<M> - merge two fleets into a single fleet - also see merge mission under <O>",
+    "<O> - allow you to assign orders to any fleet (ie, send it onto a mission)",
+    "<Q> - quit the Fleet Command Center menu & returns you to the Main Menu",
+    "<S> - bring up the Starbase Control menu",
+    "<T> - transfer one or more starships from one fleet to another",
+    "<U> - unload one or more armies from a fleet to a planet",
+    "<V>/<X> - display a partial map / hide or show menus",
+];
+
+const STARBASE_LINES: [&str; 8] = [
+    "<H> - describe Starbase Control commands",
+    "<I> - show Intelligence on what you know about any planet",
+    "<M> - order a starbase to move to a new location",
+    "<Q> - quit the Starbase Control menu & returns you to the Fleet Command Center",
+    "<R> - display all game information regarding a specified starbase",
+    "<S> - display all of your starbases with their locations, destinations etc.",
+    "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
+    "<X> - hide/show menus",
+];
+
+const PLANET_LINES: [&str; 14] = [
+    "<A> - automatically commission armies and batteries for your planets",
+    "<B> - open the build menu to spend production on local construction",
+    "<C> - open the commission menu for fine-grained ground-defense control",
+    "<D> - display a detailed list of your planets and their economies",
+    "<H> - describe Planet Command options",
+    "<I> - display information you know about any planet",
+    "<L> - load transport fleets with armies from the selected planet",
+    "<P> - display a brief list of your planets",
+    "<Q> - quit Planet Command and return to the Main Menu",
+    "<S> - scorch your own planets as a last-resort denial order",
+    "<T> - set the empire-wide tax rate used for yearly revenue",
+    "<U> - unload transport fleets with armies at a planet",
+    "<V> - display a partial starmap centered where you choose",
+    "<X> - hide/show command menus",
+];
+
+const BUILD_LINES: [&str; 14] = [
+    "<S> - specify build orders using this planet's current-turn PP budget",
+    "<L> - list units currently queued for construction",
+    "<R> - review the current build planet through planet information",
+    "<C> - change to another owned planet for local build orders",
+    "<N> - move to the next owned planet in the build cycle",
+    "<A> - abort queued build orders on the current planet",
+    "<Q> - return to the Build Command menu",
+    "<X> - hide/show command menus",
+    "",
+    "Build queue = work still in progress.  Those PP are already committed.",
+    "Stardock   = completed ships and starbases waiting for commission.",
+    "Armies and ground batteries do not enter stardock when they complete.",
+    "If stardock is full, ship and starbase builds wait in queue until space opens.",
+    "Use Commission to lift completed ships and starbases out of stardock.",
+];
+
+const FIRST_TIME_LOCAL_LINES: [&str; 6] = [
+    "<C> - open the color theme picker",
+    "<H> - describe First Time Menu commands",
+    "<J> - join the game and control an unowned empire",
+    "<L> - list all empires in the order you specify",
+    "<Q> - quit Esterian Conquest and return to the BBS",
+    "<V> - view the introduction to this game",
+];
+
+const FIRST_TIME_DOOR_LINES: [&str; 6] = [
+    "<A> - turn ANSI color on or off",
+    "<H> - describe First Time Menu commands",
+    "<J> - join the game and control an unowned empire",
+    "<L> - list all empires in the order you specify",
+    "<Q> - quit Esterian Conquest and return to the BBS",
+    "<V> - view the introduction to this game",
+];
+
+pub fn menu_help_spec(topic: MenuHelpTopic, door_mode: bool) -> HelpPanelSpec {
+    match topic {
+        MenuHelpTopic::Main => HelpPanelSpec {
+            title: "HELP WITH COMMANDS:",
+            header: "Help - Main Menu command descriptions:",
+            lines: if door_mode {
+                &MAIN_DOOR_LINES
+            } else {
+                &MAIN_LOCAL_LINES
+            },
+        },
+        MenuHelpTopic::General => HelpPanelSpec {
+            title: "GENERAL COMMAND HELP:",
+            header: "Help - General Command Center command descriptions:",
+            lines: &GENERAL_LINES,
+        },
+        MenuHelpTopic::Fleet => HelpPanelSpec {
+            title: "FLEET COMMAND HELP:",
+            header: "Help - Fleet Command Center command descriptions:",
+            lines: &FLEET_LINES,
+        },
+        MenuHelpTopic::Starbase => HelpPanelSpec {
+            title: "STARBASE HELP:",
+            header: "Help - Starbase Control command descriptions:",
+            lines: &STARBASE_LINES,
+        },
+        MenuHelpTopic::Planet => HelpPanelSpec {
+            title: "PLANET COMMAND HELP:",
+            header: "Help - Planet Command option descriptions:",
+            lines: &PLANET_LINES,
+        },
+        MenuHelpTopic::Build => HelpPanelSpec {
+            title: "BUILD COMMAND HELP:",
+            header: "Help - Build Command option descriptions:",
+            lines: &BUILD_LINES,
+        },
+        MenuHelpTopic::FirstTime => HelpPanelSpec {
+            title: "FIRST TIME HELP:",
+            header: "Help - First Time Menu command descriptions:",
+            lines: if door_mode {
+                &FIRST_TIME_DOOR_LINES
+            } else {
+                &FIRST_TIME_LOCAL_LINES
+            },
+        },
+    }
+}
+
+pub fn draw_full_screen_help(buffer: &mut PlayfieldBuffer, spec: HelpPanelSpec) {
+    draw_help_panel(buffer, spec.title, spec.header, spec.lines, "COMMAND");
+}
+
+pub fn render_help_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[String]) {
+    render_modal_box(
+        buffer,
+        title,
+        lines,
+        ModalTheme {
+            body_style: classic::help_panel_style(),
+            pad_style: classic::help_panel_style(),
+            chrome_style: classic::table_chrome_style(),
+            title_style: classic::table_header_style(),
+        },
+    );
+    buffer.clear_cursor();
+}

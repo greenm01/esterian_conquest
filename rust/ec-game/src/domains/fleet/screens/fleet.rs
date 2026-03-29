@@ -218,7 +218,7 @@ impl FleetMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "FLEET COMMAND",
-                    "H X V S F R E C I D T O G M L U <Q>",
+                    "? X V S F R E C I D T O G M L U <Q>",
                     notice,
                 );
             }
@@ -296,7 +296,7 @@ impl FleetMenuScreen {
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
-                "H X V S F R E C I D T O G M L U <Q>",
+                "? X V S F R E C I D T O G M L U <Q>",
             );
         }
         Ok(buffer)
@@ -404,7 +404,7 @@ impl FleetListScreen {
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
+                hotkeys_markup: "? J K ^U ^D <Q>",
                 default: Some(&default_fleet_number),
                 input,
             }
@@ -506,7 +506,12 @@ impl FleetReviewScreen {
             &row.fleet_record_index_1_based.to_string(),
         );
         if return_to_list {
-            draw_command_prompt_at(&mut buffer, menu_prompt_row(12), COMMAND_LABEL, "HJKL <Q>");
+            draw_command_prompt_at(
+                &mut buffer,
+                menu_prompt_row(12),
+                COMMAND_LABEL,
+                "? HJKL <Q>",
+            );
         } else {
             draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
         }
@@ -948,7 +953,7 @@ impl FleetGroupScreen {
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D SPACE <Q>",
+                hotkeys_markup: "? J K ^U ^D SPACE <Q>",
                 default: None,
                 input: "",
             }
@@ -1313,7 +1318,7 @@ impl FleetMissionPickerScreen {
             .map(|option| option.code.to_string())
             .unwrap_or_else(|| "1".to_string());
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? J K ^U ^D <Q>",
             default: Some(&default),
             input,
         };
@@ -1321,7 +1326,7 @@ impl FleetMissionPickerScreen {
             .iter()
             .map(|option| {
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
+                    hotkeys_markup: "? J K ^U ^D <Q>",
                     default: Some(&option.code.to_string()),
                     input: "",
                 })

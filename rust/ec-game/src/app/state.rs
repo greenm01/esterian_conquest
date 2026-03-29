@@ -6,6 +6,7 @@ use ec_data::{
     CampaignStore, CoreGameData, GameConfig, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
 };
 
+use crate::app::help::PopupHelp;
 use crate::domains::empire::EmpireState;
 use crate::domains::fleet::FleetState;
 use crate::domains::messaging::MessagingState;
@@ -114,6 +115,7 @@ pub struct App {
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub command_menu_notice: Option<String>,
     pub quit_confirm_open: bool,
+    pub popup_help: Option<PopupHelp>,
     pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
     pub planet_scorch_orders: BTreeSet<usize>,
 }
@@ -257,6 +259,7 @@ impl App {
             queued_mail,
             command_menu_notice: None,
             quit_confirm_open: false,
+            popup_help: None,
             planet_intel_snapshots,
             planet_scorch_orders,
         })

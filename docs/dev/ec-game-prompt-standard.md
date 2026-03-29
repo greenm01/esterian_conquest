@@ -24,13 +24,23 @@ Read it together with:
 - The only allowed exception is classic yes/no shorthand:
   - `Y/[N]`
   - `[Y]/N`
-- Prompt labels keep the current screen command-center identity:
-  - `FLEET COMMAND`
-  - `PLANET COMMAND`
+- Primary command-center menu rails keep their menu identity:
+  - `MAIN COMMAND`
   - `GENERAL COMMAND`
-  - `SEND MESSAGE`
+  - `FLEET COMMAND`
+  - `STARBASE COMMAND`
+  - `PLANET COMMAND`
+  - `BUILD COMMAND`
+  - `FIRST TIME COMMAND`
+- Outside those primary command-center menu rails, the default live prompt label
+  is `COMMAND`.
+- Explicit startup/naming prompts may keep their classic labels such as:
+  - `EMPIRE NAME`
   - `HOMEWORLD`
-  - and similar screen-owned labels
+  - `WORLD NAME`
+- On help-capable screens, `?` is the visible popup-help token.
+- On classic primary menus, `H` may remain available implicitly even when it is
+  not repeated in the visible rail.
 - Command rails never list `ENTER`.
 
 ## Standard Grammar
@@ -44,8 +54,8 @@ LABEL <- Prompt text [default] <Q> ->
 Examples:
 
 ```text
-FLEET COMMAND <- Review Fleet # [2] <Q> ->
-PLANET COMMAND <- Empire tax rate (0 - 100) [65] <Q> ->
+COMMAND <- Review Fleet # [2] <Q> ->
+COMMAND <- Empire tax rate (0 - 100) [65] <Q> ->
 COMMAND <- Planet coords [16,13] <Q> ->
 ```
 
@@ -58,7 +68,7 @@ LABEL <- Prompt text <R>, <I>, <S> [R] <Q> ->
 Examples:
 
 ```text
-FLEET COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <Q> ->
+COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <Q> ->
 Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->
 Filter by <L>ocation, <R>ange, <E>mpire, <M>ax Prod, or <Q>uit? [L] ->
 ```
@@ -72,8 +82,8 @@ LABEL <- Prompt text <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
 Examples:
 
 ```text
-FLEET COMMAND <- Class <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
-FLEET COMMAND <- Class <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
+COMMAND <- Class <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
+COMMAND <- Class <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
 ```
 
 The repeated fleet examples are intentional: detach and transfer should follow
@@ -145,22 +155,22 @@ Implementation consequence:
 Fleet:
 
 ```text
-FLEET COMMAND <- Review Fleet # [2] <Q> ->
-FLEET COMMAND <- Order Fleet # [2] <Q> ->
-FLEET COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <Q> ->
-FLEET COMMAND <- New ROE [0] <Q> ->
-FLEET COMMAND <- New Fleet ID [4] <Q> ->
-FLEET COMMAND <- New Speed [5] <Q> ->
-FLEET COMMAND <- ETA Fleet # [2] <Q> ->
-FLEET COMMAND <- Merge Fleet # [4] <Q> ->
-FLEET COMMAND <- Into Fleet # [2] <Q> ->
-FLEET COMMAND <- Transfer From Fleet # [4] <Q> ->
-FLEET COMMAND <- Transfer To Fleet # [2] <Q> ->
-FLEET COMMAND <- Load Fleet # [3] <Q> ->
-FLEET COMMAND <- How many armies to load? [2] <Q> ->
-FLEET COMMAND <- Unload Fleet # [2] <Q> ->
-FLEET COMMAND <- How many armies to unload? [2] <Q> ->
-FLEET COMMAND <- Class <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
+COMMAND <- Review Fleet # [2] <Q> ->
+COMMAND <- Order Fleet # [2] <Q> ->
+COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <Q> ->
+COMMAND <- New ROE [0] <Q> ->
+COMMAND <- New Fleet ID [4] <Q> ->
+COMMAND <- New Speed [5] <Q> ->
+COMMAND <- ETA Fleet # [2] <Q> ->
+COMMAND <- Merge Fleet # [4] <Q> ->
+COMMAND <- Into Fleet # [2] <Q> ->
+COMMAND <- Transfer From Fleet # [4] <Q> ->
+COMMAND <- Transfer To Fleet # [2] <Q> ->
+COMMAND <- Load Fleet # [3] <Q> ->
+COMMAND <- How many armies to load? [2] <Q> ->
+COMMAND <- Unload Fleet # [2] <Q> ->
+COMMAND <- How many armies to unload? [2] <Q> ->
+COMMAND <- Class <BB,CA,DD,TT*,TT,SC,ET,C,X> <Q> ->
 ```
 
 Startup / naming:
@@ -180,7 +190,7 @@ Messaging and planet-side prompts:
 SEND MESSAGE <- Y/[N] ->
 GENERAL COMMAND <- Y/[N] ->
 COMMAND <- Planet coords [16,13] <Q> ->
-PLANET COMMAND <- Empire tax rate (0 - 100) [65] <Q> ->
+COMMAND <- Empire tax rate (0 - 100) [65] <Q> ->
 COMMAND <- Qty for Destroyers [00] <Q> ->
 COMMAND <- How many new destroyers to build [1] <Q> ->
 COMMAND <- <ENTER> commissions the drafted fleet. <Q> ->
@@ -191,9 +201,9 @@ COMMAND <- Delete how many Destroyers? <A>ll or 1-2 <Q> ->
 ## Command Rail Examples
 
 ```text
-MAIN COMMAND <- H X V C G P F T I B D <Q> ->
-GENERAL COMMAND <- H X V I A S P M C R D O E <Q> ->
-MAP COMMAND <- HJKL 1 2 3 4 6 7 8 9 <Q> ->
+MAIN COMMAND <- ? X V C G P F T I B D <Q> ->
+GENERAL COMMAND <- ? X V I A S P M C R D O E <Q> ->
+MAP COMMAND <- ? HJKL 1 2 3 4 6 7 8 9 <Q> ->
 COMMANDS <- J K ^U ^D <Q> [03,03] ->
 ```
 

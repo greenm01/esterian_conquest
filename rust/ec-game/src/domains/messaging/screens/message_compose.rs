@@ -70,7 +70,7 @@ impl MessageComposeScreen {
         let scrollable = rows.len() > visible_rows;
         let footer = if rows.is_empty() {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D D <Q>",
+                hotkeys_markup: "? J K ^U ^D D <Q>",
                 default: None,
                 input: "",
             }
@@ -81,7 +81,7 @@ impl MessageComposeScreen {
                 .map(String::as_str)
                 .unwrap_or("");
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D D <Q>",
+                hotkeys_markup: "? J K ^U ^D D <Q>",
                 default: Some(default_empire),
                 input,
             }
@@ -304,13 +304,13 @@ impl MessageComposeScreen {
         let default_queue_no = format!("{:02}", cursor + 1);
         let footer = if rows.is_empty() {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
+                hotkeys_markup: "? J K ^U ^D <Q>",
                 default: None,
                 input: "",
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
+                hotkeys_markup: "? J K ^U ^D <Q>",
                 default: Some(&default_queue_no),
                 input,
             }

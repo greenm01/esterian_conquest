@@ -1,4 +1,5 @@
 pub mod buffer;
+pub mod help;
 pub mod layout;
 pub mod table;
 pub mod table_selection;

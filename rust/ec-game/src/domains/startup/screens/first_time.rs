@@ -2,11 +2,12 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
+use crate::screen::help::{MenuHelpTopic, draw_full_screen_help, menu_help_spec};
 use crate::screen::layout::{
     CommandMessage, MenuEntry, ScreenGeometry, dismiss_prompt_row,
     draw_command_line_default_input_at, draw_command_line_prompt_text_at,
-    draw_command_message_stack, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
-    draw_menu_notice, draw_plain_prompt, draw_title_bar, menu_prompt_row, new_playfield,
+    draw_command_message_stack, draw_command_prompt_at, draw_dismiss_prompt, draw_menu_notice,
+    draw_plain_prompt, draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -20,24 +21,6 @@ const FIRST_TIME_ROW_2: [MenuEntry<'static>; 3] = [
     MenuEntry::new(2, "Q", "uit back to BBS"),
     MenuEntry::new(28, "J", "oin this game"),
     MenuEntry::new(55, "V", "iew Game Introduction"),
-];
-
-const LOCAL_HELP_LINES: [&str; 6] = [
-    "<C> - open the color theme picker",
-    "<H> - describe First Time Menu commands",
-    "<J> - join the game and control an unowned empire",
-    "<L> - list all empires in the order you specify",
-    "<Q> - quit Esterian Conquest and return to the BBS",
-    "<V> - view the introduction to this game",
-];
-
-const DOOR_HELP_LINES: [&str; 6] = [
-    "<A> - turn ANSI color on or off",
-    "<H> - describe First Time Menu commands",
-    "<J> - join the game and control an unowned empire",
-    "<L> - list all empires in the order you specify",
-    "<Q> - quit Esterian Conquest and return to the BBS",
-    "<V> - view the introduction to this game",
 ];
 
 impl FirstTimeMenuScreen {
@@ -114,16 +97,9 @@ impl FirstTimeHelpScreen {
         door_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_help_panel(
+        draw_full_screen_help(
             &mut buffer,
-            "FIRST TIME HELP:",
-            "Help - First Time Menu command descriptions:",
-            if door_mode {
-                &DOOR_HELP_LINES
-            } else {
-                &LOCAL_HELP_LINES
-            },
-            COMMAND_LABEL,
+            menu_help_spec(MenuHelpTopic::FirstTime, door_mode),
         );
         Ok(buffer)
     }
@@ -343,9 +319,9 @@ pub fn render_first_time_join_name_confirm(
 
 fn first_time_command_keys(door_mode: bool) -> &'static str {
     if door_mode {
-        "H L J A V <Q>"
+        "? L J A V <Q>"
     } else {
-        "H L J C V <Q>"
+        "? L J C V <Q>"
     }
 }
 

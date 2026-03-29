@@ -56,6 +56,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
             AppOutcome::Continue
         }
+        Action::OpenPopupHelp => {
+            app.open_popup_help();
+            AppOutcome::Continue
+        }
+        Action::DismissPopupHelp => {
+            app.dismiss_popup_help();
+            AppOutcome::Continue
+        }
         Action::ToggleAnsiMode => {
             let _ = crate::theme::toggle_ansi_mode();
             AppOutcome::Continue

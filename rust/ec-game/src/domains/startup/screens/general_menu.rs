@@ -76,7 +76,7 @@ impl GeneralMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "GENERAL COMMAND",
-                    "H X V I A S P M C R D O E <Q>",
+                    "? X V I A S P M C R D O E <Q>",
                     notice,
                 );
             }
@@ -88,7 +88,7 @@ impl GeneralMenuScreen {
             &TOP_ROW,
             &[&ROW_1, &ROW_2, &ROW_3, &ROW_4],
             "GENERAL COMMAND",
-            "H X V I A S P M C R D O E <Q>",
+            "? X V I A S P M C R D O E <Q>",
         );
         let autopilot_on = frame.game_data.player.records[frame.player.record_index_1_based - 1]
             .autopilot_flag()

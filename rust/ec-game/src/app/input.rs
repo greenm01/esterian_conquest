@@ -18,6 +18,25 @@ impl App {
         {
             return Action::Quit;
         }
+        if self.popup_help.is_some() {
+            if !key.modifiers.intersects(
+                crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
+            ) {
+                return Action::DismissPopupHelp;
+            }
+            return Action::Noop;
+        }
+        if matches!(
+            key,
+            crossterm::event::KeyEvent {
+                code: crossterm::event::KeyCode::Char('?'),
+                modifiers: crossterm::event::KeyModifiers::NONE
+                    | crossterm::event::KeyModifiers::SHIFT,
+                ..
+            }
+        ) {
+            return Action::OpenPopupHelp;
+        }
         if self.quit_confirm_open {
             return self.handle_quit_confirm_key(key);
         }

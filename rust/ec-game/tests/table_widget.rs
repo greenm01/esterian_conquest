@@ -673,7 +673,7 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
         .find(|row| {
             buffer
                 .plain_line(*row)
-                .contains("COMMAND <- J K ^U ^D D <Q>")
+                .contains("COMMAND <- ? J K ^U ^D D <Q>")
         })
         .expect("command row");
     let command_col = buffer
@@ -777,7 +777,11 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .expect("table row");
     let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
     let command_row = (0..buffer.height())
-        .find(|row| buffer.plain_line(*row).contains("COMMAND <- J K ^U ^D <Q>"))
+        .find(|row| {
+            buffer
+                .plain_line(*row)
+                .contains("COMMAND <- ? J K ^U ^D <Q>")
+        })
         .expect("command row");
     let command_col = buffer
         .plain_line(command_row)

@@ -302,13 +302,13 @@ fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
 #[test]
 fn draw_command_prompt_places_cursor_after_arrow_space() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt_at(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "H X <Q>");
+    draw_command_prompt_at(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "? X <Q>");
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
-    assert!(line.contains("GENERAL COMMAND <- H X <Q> -> "));
+    assert!(line.contains("GENERAL COMMAND <- ? X <Q> -> "));
 }
 
 #[test]

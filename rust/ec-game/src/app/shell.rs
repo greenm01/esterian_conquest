@@ -1,4 +1,5 @@
 use super::state::App;
+use crate::app::help::popup_for_screen;
 use crate::screen::{CommandMenu, PlanetListMode, ScreenId};
 
 impl App {
@@ -28,6 +29,14 @@ impl App {
         self.command_menu_notice = None;
     }
 
+    pub fn open_popup_help(&mut self) {
+        self.popup_help = popup_for_screen(self.current_screen, self.door_mode);
+    }
+
+    pub fn dismiss_popup_help(&mut self) {
+        self.popup_help = None;
+    }
+
     pub fn show_command_menu_notice(&mut self, menu: CommandMenu, message: impl Into<String>) {
         self.command_menu_notice = Some(message.into());
         self.command_return_menu = menu;
@@ -45,18 +54,21 @@ impl App {
     pub fn open_main_menu(&mut self) {
         self.clear_command_menu_notice();
         self.return_screen = None;
+        self.popup_help = None;
         self.current_screen = ScreenId::MainMenu;
     }
 
     pub fn open_main_help(&mut self) {
         self.clear_command_menu_notice();
         self.return_screen = None;
+        self.popup_help = None;
         self.current_screen = ScreenId::MainHelp;
     }
 
     pub fn open_general_menu(&mut self) {
         self.clear_command_menu_notice();
         self.return_screen = None;
+        self.popup_help = None;
         self.current_screen = ScreenId::GeneralMenu;
     }
 
@@ -66,9 +78,11 @@ impl App {
 
     pub fn return_to_command_menu(&mut self) {
         if let Some(screen) = self.return_screen.take() {
+            self.popup_help = None;
             self.current_screen = screen;
             return;
         }
+        self.popup_help = None;
         self.current_screen = match self.command_return_menu {
             CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,

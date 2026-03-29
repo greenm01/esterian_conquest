@@ -191,6 +191,10 @@ const RELAY_ROWS: &[HelpRow] = &[
         description: "show games on selected relay",
     },
     HelpRow {
+        command: "?",
+        description: "show/hide helper",
+    },
+    HelpRow {
         command: "Q",
         description: "return to main menu",
     },
@@ -208,6 +212,10 @@ const RELAY_GAMES_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "^U/^D",
         description: "page up/down",
+    },
+    HelpRow {
+        command: "?",
+        description: "show/hide helper",
     },
     HelpRow {
         command: "Q",

@@ -235,7 +235,7 @@ impl PlanetBuildScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "BUILD COMMAND",
-                    "H X V P R C N S A L I <Q>",
+                    "? X V P R C N S A L I <Q>",
                     status,
                 );
             }
@@ -334,7 +334,7 @@ impl PlanetBuildScreen {
                 &mut buffer,
                 command_row,
                 "BUILD COMMAND",
-                "H X V P R C N S A L I <Q>",
+                "? X V P R C N S A L I <Q>",
             );
             if let Some(status) = status {
                 draw_menu_notice(&mut buffer, command_row, status);
@@ -415,7 +415,7 @@ impl PlanetBuildScreen {
         } else {
             TableFooter::CommandPrompt {
                 label: COMMAND_LABEL,
-                prompt: "J K ^U ^D D <Q> -> ",
+                prompt: "? J K ^U ^D D <Q> -> ",
             }
         };
         let columns = fit_table_columns_for_widget(
@@ -592,7 +592,7 @@ impl PlanetBuildScreen {
         } else {
             TableFooter::CommandPrompt {
                 label: COMMAND_LABEL,
-                prompt: "J K ^U ^D <Q> -> ",
+                prompt: "? J K ^U ^D <Q> -> ",
             }
         };
         let columns = fit_table_columns_for_widget(

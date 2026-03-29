@@ -1,15 +1,14 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
+use ec_ui::modal::{ModalTheme, Rect};
 use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_command_line_prompt_text_at_col};
 use ec_ui::theme::classic;
 
 use super::connecting::cancel_active_connect;
 use super::connecting::render_connecting_popup;
-use super::event::{is_back_key, is_cancel_confirm_key, is_help_key, is_yes_key};
+use super::event::{is_back_key, is_cancel_confirm_key, is_yes_key};
 use super::help::HelpTopic;
-use super::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, Rect, centered_rect, draw_box, format_help_row, truncate,
-};
+use super::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, truncate};
 use super::refresh::render_refreshing_popup;
 use super::relay::{
     RelayPromptAction, handle_game_relay_key, handle_relay_editor_key, render_game_relay_popup,
@@ -98,9 +97,8 @@ pub fn handle_overlay_key(
         }
         PickerOverlay::RefreshingGame { .. } => {}
         PickerOverlay::Help(_) => {
-            if is_help_key(key)
-                || is_back_key(key)
-                || matches!(key.code, crossterm::event::KeyCode::Enter)
+            if !key.modifiers.contains(KeyModifiers::CONTROL)
+                && !key.modifiers.contains(KeyModifiers::ALT)
             {
                 state.overlay = None;
             }
@@ -349,7 +347,7 @@ fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
     let mut lines = spec
         .rows
         .iter()
-        .map(|row| format_help_row(row.command, row.description))
+        .map(|row| ec_ui::modal::format_help_row(row.command, row.description))
         .collect::<Vec<_>>();
     if let Some(note) = spec.note {
         lines.push(note.to_string());
@@ -593,46 +591,18 @@ pub(crate) fn draw_modal_frame(
     height: u16,
     body_style: CellStyle,
 ) -> Rect {
-    let popup = centered_rect(
-        ((preferred_width.min(PLAYFIELD_WIDTH.saturating_sub(8)) * 100) / PLAYFIELD_WIDTH).max(40)
-            as u16,
-        height,
-        Rect::new(0, 0, PLAYFIELD_WIDTH as u16, PLAYFIELD_HEIGHT as u16),
-    );
-    let popup = Rect::new(
-        popup.x,
-        popup.y,
-        popup.width.min(PLAYFIELD_WIDTH as u16 - popup.x),
-        popup.height.min(PLAYFIELD_HEIGHT as u16 - popup.y),
-    );
-    let pad = Rect::new(
-        popup.x.saturating_sub(1),
-        popup.y.saturating_sub(1),
-        (popup.width + 2).min(PLAYFIELD_WIDTH as u16 - popup.x.saturating_sub(1)),
-        (popup.height + 2).min(PLAYFIELD_HEIGHT as u16 - popup.y.saturating_sub(1)),
-    );
-    buffer.fill_rect(
-        pad.y as usize,
-        pad.x as usize,
-        pad.width as usize,
-        pad.height as usize,
-        classic::help_panel_style(),
-    );
-    draw_box(
+    ec_ui::modal::draw_modal_frame(
         buffer,
-        popup,
         title,
-        classic::table_chrome_style(),
-        classic::table_header_style(),
-    );
-    buffer.fill_rect(
-        popup.y as usize + 1,
-        popup.x as usize + 1,
-        popup.width.saturating_sub(2) as usize,
-        popup.height.saturating_sub(2) as usize,
-        body_style,
-    );
-    popup
+        ((preferred_width.min(PLAYFIELD_WIDTH.saturating_sub(8)) * 100) / PLAYFIELD_WIDTH).max(40),
+        height,
+        ModalTheme {
+            body_style,
+            pad_style: classic::help_panel_style(),
+            chrome_style: classic::table_chrome_style(),
+            title_style: classic::table_header_style(),
+        },
+    )
 }
 
 fn render_modal_box(
@@ -641,23 +611,17 @@ fn render_modal_box(
     lines: &[String],
     body_style: ec_ui::buffer::CellStyle,
 ) -> Rect {
-    let content_width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(0);
-    let width = (content_width + 4)
-        .max(title.chars().count() + 4)
-        .min(PLAYFIELD_WIDTH.saturating_sub(8));
-    let height = (lines.len() + 2) as u16;
-    let popup = draw_modal_frame(buffer, title, width, height, body_style);
-    let mut row = popup.y as usize + 1;
-    let col = popup.x as usize + 2;
-    for line in lines {
-        buffer.write_text_clipped(row, col, line, body_style);
-        row += 1;
-    }
-    popup
+    ec_ui::modal::render_modal_box(
+        buffer,
+        title,
+        lines,
+        ModalTheme {
+            body_style,
+            pad_style: classic::help_panel_style(),
+            chrome_style: classic::table_chrome_style(),
+            title_style: classic::table_header_style(),
+        },
+    )
 }
 
 fn popup_command_row(popup: Rect, fallback: usize) -> usize {

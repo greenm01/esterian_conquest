@@ -318,10 +318,38 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
     let state = make_state(vec![]);
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert_eq!(buffer.row(5)[1].ch, '└');
-    assert!(buffer.plain_line(6).contains("COMMANDS <-"));
-    assert!(buffer.plain_line(6).contains(" M D R L "));
-    assert!(!buffer.plain_line(25).contains("COMMANDS <-"));
+    let bottom_row = (0..buffer.height())
+        .find(|&row| buffer.row(row)[1].ch == '└')
+        .expect("table should have a bottom border");
+    let command_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("COMMAND <-"))
+        .expect("picker should render a command line");
+
+    assert_eq!(command_row, bottom_row + 1);
+    assert!(buffer.plain_line(command_row).contains(" M D R L "));
+    assert!(
+        !buffer
+            .plain_line(buffer.height() - 2)
+            .contains("COMMAND <-")
+    );
+}
+
+#[test]
+fn help_overlay_dismisses_on_any_plain_key() {
+    let mut state = make_state(vec![]);
+    state.overlay = Some(PickerOverlay::Help(HelpTopic::MainCommand));
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        std::path::Path::new("/tmp"),
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
 }
 
 #[test]

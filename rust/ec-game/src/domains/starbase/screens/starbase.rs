@@ -6,12 +6,13 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starbase::state::StarbaseMovePromptMode;
 use crate::domains::starmap::StarmapAction;
+use crate::screen::help::{MenuHelpTopic, draw_full_screen_help, menu_help_spec};
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_expert_menu, draw_help_panel, draw_inline_planet_info_prompt, draw_menu_entry,
-    draw_menu_notice, draw_prompt_error_after, draw_status_line, draw_title_bar, menu_prompt_row,
-    new_playfield, standard_table_visible_rows, standard_table_visible_rows_for,
+    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice,
+    draw_prompt_error_after, draw_status_line, draw_title_bar, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     TableColumn, TableFooter, draw_table_footer, draw_table_title, fit_table_columns_for_widget,
@@ -19,8 +20,8 @@ use crate::screen::table::{
     write_table_window_with_cursor,
 };
 use crate::screen::{
-    COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
-    format_sector_coords_padded, format_sector_coords_table,
+    PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry, format_sector_coords_padded,
+    format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -113,7 +114,7 @@ impl StarbaseMenuScreen {
                     notice,
                 );
             } else {
-                draw_expert_menu(&mut buffer, "STARBASE COMMAND", "H X S R V I M <Q>", notice);
+                draw_expert_menu(&mut buffer, "STARBASE COMMAND", "? X S R V I M <Q>", notice);
             }
             return Ok(buffer);
         }
@@ -161,7 +162,7 @@ impl StarbaseMenuScreen {
                 &mut buffer,
                 command_row,
                 "STARBASE COMMAND",
-                "H X S R V I M <Q>",
+                "? X S R V I M <Q>",
             );
         }
         Ok(buffer)
@@ -267,23 +268,7 @@ impl Screen for StarbaseHelpScreen {
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let lines = [
-            "<H> - describe Starbase Control commands",
-            "<I> - show Intelligence on what you know about any planet",
-            "<M> - order a starbase to move to a new location",
-            "<Q> - quit the Starbase Control menu & returns you to the Fleet Command Center",
-            "<R> - display all game information regarding a specified starbase",
-            "<S> - display all of your starbases with their locations, destinations etc.",
-            "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
-            "<X> - hide/show menus",
-        ];
-        draw_help_panel(
-            &mut buffer,
-            "STARBASE HELP:",
-            "Help - Starbase Control command descriptions:",
-            &lines,
-            COMMAND_LABEL,
-        );
+        draw_full_screen_help(&mut buffer, menu_help_spec(MenuHelpTopic::Starbase, false));
         Ok(buffer)
     }
 
@@ -323,7 +308,7 @@ impl StarbaseListScreen {
             })
             .collect::<Vec<_>>();
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? J K ^U ^D <Q>",
             default: None,
             input: "",
         };
@@ -410,13 +395,13 @@ impl StarbaseReviewScreen {
             .unwrap_or_else(|| "1".to_string());
         let footer = if rows.is_empty() {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
+                hotkeys_markup: "? J K ^U ^D <Q>",
                 default: None,
                 input: "",
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "J K ^U ^D <Q>",
+                hotkeys_markup: "? J K ^U ^D <Q>",
                 default: Some(&default_base),
                 input,
             }
@@ -425,7 +410,7 @@ impl StarbaseReviewScreen {
             .iter()
             .map(|row| {
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
+                    hotkeys_markup: "? J K ^U ^D <Q>",
                     default: Some(&row.base_id.to_string()),
                     input: "",
                 })

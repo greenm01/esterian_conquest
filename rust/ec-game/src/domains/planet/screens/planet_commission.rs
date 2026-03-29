@@ -145,7 +145,7 @@ impl PlanetCommissionScreen {
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| format!("{:02},{:02}", row.coords[0], row.coords[1]));
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? J K ^U ^D <Q>",
             default: default.as_deref(),
             input: "",
         };
@@ -154,7 +154,7 @@ impl PlanetCommissionScreen {
             .map(|row| {
                 let default = format!("{:02},{:02}", row.coords[0], row.coords[1]);
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "J K ^U ^D <Q>",
+                    hotkeys_markup: "? J K ^U ^D <Q>",
                     default: Some(default.as_str()),
                     input: "",
                 })
@@ -252,7 +252,7 @@ impl PlanetCommissionScreen {
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D SPACE <Q>",
+            hotkeys_markup: "? J K ^U ^D SPACE <Q>",
             default: None,
             input: "",
         };

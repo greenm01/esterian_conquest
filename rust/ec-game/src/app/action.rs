@@ -21,6 +21,8 @@ pub enum Action {
     OpenMainHelp,
     OpenGeneralMenu,
     OpenGeneralHelp,
+    OpenPopupHelp,
+    DismissPopupHelp,
     ToggleAnsiMode,
     ToggleExpertMode,
     ReturnToCommandMenu,

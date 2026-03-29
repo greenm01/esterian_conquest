@@ -1,4 +1,5 @@
 pub mod buffer;
+pub mod modal;
 pub mod paint;
 pub mod prompt;
 pub mod session;

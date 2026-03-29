@@ -138,7 +138,7 @@ impl PlanetListScreen {
             .map(|row| format_sector_coords_default(row.coords))
             .unwrap_or_else(|| "00,00".to_string());
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "J K S <Q>",
+            hotkeys_markup: "? J K S <Q>",
             default: Some(&default_coords),
             input,
         };

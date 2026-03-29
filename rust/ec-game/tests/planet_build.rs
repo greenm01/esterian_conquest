@@ -41,7 +41,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
 
     assert_eq!(
         buffer.plain_line(7),
-        "BUILD COMMAND <- H X V P R C N S A L I <Q> ->"
+        "BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
     );
     assert_eq!(
         buffer.plain_line(13),
@@ -133,7 +133,7 @@ fn build_list_renders_queue_columns_without_dock() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("COMMAND <- J K ^U ^D D <Q> ->")
+                .contains("COMMAND <- ? J K ^U ^D D <Q> ->")
         })
         .expect("build list command row should render");
     let _ = command_row;
@@ -391,6 +391,6 @@ fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
     assert!(
         buffer
             .plain_line(23)
-            .contains("COMMAND <- J K ^U ^D <Q> ->")
+            .contains("COMMAND <- ? J K ^U ^D <Q> ->")
     );
 }
