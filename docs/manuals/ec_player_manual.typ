@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 28),
+  date: datetime(year: 2026, month: 3, day: 29),
 )
 
 #set page(
@@ -89,7 +89,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 28, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: March 29, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -141,16 +141,21 @@ In profound respect and admiration to Bentley C. Griffith and his fellow pioneer
 
 = Connecting to a Game
 
-Your sysop will give you an invite code. Here is how you join:
+Your sysop will give you an invite code, usually in a command like
+`ec-connect --join amber-river@relay.example.com`. Here is the normal picker
+flow:
 
 1. Run `ec-connect`.
 2. Press `N` to join a new game.
 3. Paste your invite code and press Enter.
 
 That is all. `ec-connect` handles your identity and opens your `ec-game`
-session. Your seat is not claimed until you actually save your empire name in
-the game. After that completed first join, `ec-connect` downloads the campaign
-starmap and remembers the game locally.
+session. The invite already carries the relay host, and `ec-connect`
+discovers the rest from there. Your seat is not claimed until you actually
+save your empire name in the game. After that completed first join,
+`ec-connect` downloads the campaign starmap bundle and remembers the game
+locally. Later, press `M` in the picker to change the default maps folder
+and re-download the bundle for the currently selected game.
 
 == ec-connect Setup
 
@@ -190,12 +195,22 @@ The wallet is local client state. It is not the server's player list.
 
 == Relay Configuration
 
-Press `R` in the main `ec-connect` menu to edit your default relay. This
-applies when reconnecting to older cached games that do not carry a saved
-relay, or when manually editing relay settings for existing cached games.
+Press lowercase `r` in the main `ec-connect` menu to open the relay manager.
+That screen lets you add relays, edit saved relay entries, mark a default
+relay, and inspect which joined games use each relay.
+
+Press uppercase `R` in the main game list to edit the relay for the currently
+selected joined game only. That is mainly useful when fixing an older cached
+entry or moving one specific game to a different relay.
 
 After a successful join, `ec-connect` caches the exact relay for that game, so
 most reconnects do not need relay entry again.
+
+== Refreshing Game Info
+
+Press `Space` on a selected joined game to refresh its cached hosted metadata.
+This asks the hosted service for the latest game name, seat, player-name, and
+relay details for that one entry without opening a play session.
 
 #pagebreak()
 
