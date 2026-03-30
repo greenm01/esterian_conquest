@@ -17,5 +17,8 @@ ec-nostr = { path = "../ec-nostr" }
 nostr-sdk = { version = "0.44", features = ["nip44"] }
 tracing = "0.1"
 
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
 [dev-dependencies]
 ec-data = { path = "../ec-data" }

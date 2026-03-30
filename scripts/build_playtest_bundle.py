@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,6 +48,12 @@ SUPPORTED_TARGETS = {
         display_name="macOS Intel",
         issue_platform_label="macOS version",
     ),
+    "x86_64-pc-windows-gnu": TargetPlatform(
+        target_triple="x86_64-pc-windows-gnu",
+        slug="windows-x64",
+        display_name="Windows x64",
+        issue_platform_label="Windows version",
+    ),
 }
 
 
@@ -63,8 +70,13 @@ class BundleSpec:
         return f"esterian-conquest-v{self.version}-{self.platform.slug}"
 
     @property
+    def is_windows(self) -> bool:
+        return self.platform.target_triple.startswith("x86_64-pc-windows")
+
+    @property
     def archive_name(self) -> str:
-        return f"{self.bundle_root_name}.tar.gz"
+        ext = "zip" if self.is_windows else "tar.gz"
+        return f"{self.bundle_root_name}.{ext}"
 
 
 def parse_args(default_target: str | None) -> argparse.Namespace:
@@ -169,7 +181,8 @@ def build_binaries(spec: BundleSpec) -> dict[str, Path]:
     )
 
     target_dir = RUST_ROOT / "target" / spec.platform.target_triple / "release"
-    return {name: target_dir / name for name in binaries}
+    ext = ".exe" if spec.is_windows else ""
+    return {name: target_dir / f"{name}{ext}" for name in binaries}
 
 
 def build_info_text(spec: BundleSpec) -> str:
@@ -190,6 +203,17 @@ def build_info_text(spec: BundleSpec) -> str:
 
 
 def package_readme(spec: BundleSpec) -> str:
+    windows_note = ""
+    if spec.is_windows:
+        windows_note = """
+## Windows First Run Note
+
+These are command-line applications. Double-click the `.exe` to open a terminal window,
+or run them from PowerShell/Command Prompt for best results.
+
+If Windows Defender flags the binary, click "More info" → "Run anyway".
+""".rstrip()
+
     macos_quarantine_note = ""
     if spec.platform.target_triple.endswith("-apple-darwin"):
         binary_list = "./bin/ec-connect"
@@ -227,7 +251,7 @@ Join a hosted game with the invite code from your sysop:
 ```
 
 The player manual PDF in `docs/` is the companion manual for this binary.
-{macos_quarantine_note}
+{macos_quarantine_note}{windows_note}
 
 ## Bug Reports
 
@@ -346,8 +370,14 @@ def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root
 
 def write_archive(bundle_root: Path, archive_path: Path) -> None:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive_path, "w:gz") as tf:
-        tf.add(bundle_root, arcname=bundle_root.name)
+    if archive_path.suffix == ".zip":
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for file in bundle_root.rglob("*"):
+                if file.is_file():
+                    zf.write(file, file.relative_to(bundle_root.parent))
+    else:
+        with tarfile.open(archive_path, "w:gz") as tf:
+            tf.add(bundle_root, arcname=bundle_root.name)
 
 
 def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> None:
@@ -402,6 +432,13 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 raise SystemExit(f"{archive_path.name}: ec-sysop did not create ecgame.db")
 
 
+def gpg_sign(archive_path: Path) -> None:
+    sig_path = archive_path.with_suffix(archive_path.suffix + ".asc")
+    sig_path.unlink(missing_ok=True)
+    run(["gpg", "--armor", "--detach-sign", str(archive_path)])
+    print(f"signed: {sig_path}")
+
+
 def main(*, default_target: str | None = None) -> None:
     args = parse_args(default_target)
     platform = resolve_target(args.target)
@@ -415,6 +452,7 @@ def main(*, default_target: str | None = None) -> None:
         write_archive(bundle_root, archive_path)
         if args.verify:
             verify_archive(spec, archive_path, run_smoke=platform.target_triple == host_target)
+        gpg_sign(archive_path)
         print(archive_path)
 
 
