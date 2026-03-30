@@ -357,20 +357,23 @@ Unlocked-only example:
 Linux player archive example:
 
 ```bash
-./scripts/publish_release_packages.sh --ec-connect-target x86_64-unknown-linux-gnu
+./scripts/publish_release_packages.sh \
+  --ec-connect-target x86_64-unknown-linux-gnu \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
 Apple Silicon player archive example:
 
 ```bash
-./scripts/publish_release_packages.sh --ec-connect-target aarch64-apple-darwin
+./scripts/publish_release_packages.sh \
+  --ec-connect-target aarch64-apple-darwin \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
 Signed public player release example:
 
 ```bash
 ./scripts/publish_release_packages.sh \
-  --ec-connect-target x86_64-unknown-linux-gnu \
   --ec-connect-target aarch64-apple-darwin \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
@@ -384,9 +387,10 @@ Use this when you want:
   `ec-connect` archives
 
 When `--ec-connect-target` is used, `publish_release_packages.sh` now requires
-`--gpg-key` and signs a checksum manifest for the full public `ec-connect`
-target set in one run. It also updates the GitHub release-body verification
-notice automatically.
+`--gpg-key` and signs the shared `ec-connect` checksum manifest for the
+selected target(s). It keeps that manifest complete by reusing any other
+already-published public `ec-connect` archives from the release. It also
+updates the GitHub release-body verification notice automatically.
 
 ### `run_client.py`
 

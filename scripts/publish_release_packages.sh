@@ -8,8 +8,8 @@ Usage:
 
 Builds the selected release assets under releases/ and uploads them to an
 existing GitHub Release with `gh release upload --clobber`. When public
-`ec-connect` assets are included, the script also updates the release-body
-verification notice in place.
+`ec-connect` assets are included, the script also refreshes the shared signed
+checksum manifest and updates the release-body verification notice in place.
 
 If you do not pass any asset-selection flags, the default stays the historical
 DOS release flow: both `classic` and `unlocked`.
@@ -26,7 +26,10 @@ Options:
                               aarch64-apple-darwin
   --gpg-key KEYID           GPG key fingerprint or key ID used to sign the
                             public ec-connect checksum manifest. Required when
-                            any --ec-connect-target is passed.
+                            any --ec-connect-target is passed. The manifest
+                            includes the selected build(s) plus any other
+                            already-published public ec-connect archives on
+                            the release.
   -h, --help                Show this help text.
 EOF
 }
@@ -41,6 +44,7 @@ want_classic=0
 want_unlocked=0
 ec_connect_targets=()
 ec_connect_assets=()
+ec_connect_manifest_assets=()
 selection_made=0
 gpg_key=""
 
@@ -48,10 +52,33 @@ readonly ec_connect_release_note_url="https://github.com/greenm01/esterian_conqu
 readonly ec_connect_checksum_path="releases/SHA256SUMS.txt"
 readonly ec_connect_signature_path="releases/SHA256SUMS.txt.asc"
 readonly ec_connect_release_note_path="releases/ec-connect-release-note.md"
-readonly public_ec_connect_targets=(
-  "x86_64-unknown-linux-gnu"
-  "aarch64-apple-darwin"
-)
+
+is_selected_ec_connect_asset() {
+  local candidate="$1"
+  local selected
+  for selected in "${ec_connect_assets[@]}"; do
+    if [[ "$(basename "$selected")" == "$candidate" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+download_existing_ec_connect_assets() {
+  local download_dir="$1"
+  local asset_name=""
+  while IFS= read -r asset_name; do
+    [[ -n "$asset_name" ]] || continue
+    if is_selected_ec_connect_asset "$asset_name"; then
+      continue
+    fi
+    gh release download "$release_tag" --pattern "$asset_name" --dir "$download_dir"
+    ec_connect_manifest_assets+=("$download_dir/$asset_name")
+  done < <(
+    gh release view "$release_tag" --json assets --jq \
+      '.assets[].name | select(test("^ec-connect-v.*-(linux-x64|macos-arm64)\\.tar\\.gz$"))'
+  )
+}
 
 write_release_note() {
   local fingerprint="$1"
@@ -143,22 +170,9 @@ if [[ $want_classic -eq 1 || $want_unlocked -eq 1 ]]; then
   python3 scripts/build_release_packages.py "${build_args[@]}" --verify
 fi
 
-if [[ ${#ec_connect_targets[@]} -gt 0 ]]; then
-  if [[ -z "$gpg_key" ]]; then
-    echo "--gpg-key is required when publishing ec-connect release assets." >&2
-    exit 2
-  fi
-
-  IFS=$'\n' read -r -d '' -a sorted_targets < <(printf '%s\n' "${ec_connect_targets[@]}" | sort -u && printf '\0')
-  IFS=$'\n' read -r -d '' -a sorted_public_targets < <(printf '%s\n' "${public_ec_connect_targets[@]}" | sort -u && printf '\0')
-
-  if [[ "${sorted_targets[*]}" != "${sorted_public_targets[*]}" ]]; then
-    echo "Signed ec-connect publishing requires the full public player target set in one run:" >&2
-    for target in "${public_ec_connect_targets[@]}"; do
-      echo "  --ec-connect-target $target" >&2
-    done
-    exit 2
-  fi
+if [[ ${#ec_connect_targets[@]} -gt 0 && -z "$gpg_key" ]]; then
+  echo "--gpg-key is required when publishing ec-connect release assets." >&2
+  exit 2
 fi
 
 for target in "${ec_connect_targets[@]}"; do
@@ -167,6 +181,7 @@ for target in "${ec_connect_targets[@]}"; do
   )"
   assets+=("$archive_path")
   ec_connect_assets+=("$archive_path")
+  ec_connect_manifest_assets+=("$archive_path")
 done
 
 if [[ ${#assets[@]} -eq 0 ]]; then
@@ -176,9 +191,13 @@ if [[ ${#assets[@]} -eq 0 ]]; then
 fi
 
 if [[ ${#ec_connect_assets[@]} -gt 0 ]]; then
+  manifest_download_dir="$(mktemp -d)"
+  trap 'rm -rf "$manifest_download_dir"' EXIT
+  download_existing_ec_connect_assets "$manifest_download_dir"
+
   python3 scripts/write_release_checksums.py \
     --output "$ec_connect_checksum_path" \
-    "${ec_connect_assets[@]}"
+    "${ec_connect_manifest_assets[@]}"
   gpg --batch --yes --armor --local-user "$gpg_key" \
     --output "$ec_connect_signature_path" \
     --detach-sign "$ec_connect_checksum_path"
