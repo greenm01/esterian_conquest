@@ -79,7 +79,7 @@ pub fn setup_console() {
         MoveWindow(hwnd, x, y, w, h, TRUE);
     }
 
-    unsafe fn normalize_console_font(stdout: *mut core::ffi::c_void) {
+    unsafe fn normalize_console_font(stdout: *mut winapi::ctypes::c_void) {
         let mut font: CONSOLE_FONT_INFOEX = zeroed();
         font.cbSize = size_of::<CONSOLE_FONT_INFOEX>() as u32;
         if GetCurrentConsoleFontEx(stdout, FALSE, &mut font) == 0 {
@@ -92,7 +92,7 @@ pub fn setup_console() {
         }
 
         font.dwFontSize.Y = desired_height;
-        let _ = SetCurrentConsoleFontEx(stdout, FALSE, &font);
+        let _ = SetCurrentConsoleFontEx(stdout, FALSE, &mut font);
     }
 }
 
