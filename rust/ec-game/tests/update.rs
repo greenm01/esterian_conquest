@@ -7495,8 +7495,9 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
             .line(0)
             .contains("Type: All | Year: All | Focus: Inbox")
     );
-    assert!(terminal.line(24).contains("<M>"));
+    assert!(terminal.line(24).contains("COMMAND <- ? J K ^U ^D M"));
     assert!(terminal.line(24).contains("<TAB>"));
+    assert!(terminal.line(24).contains("<Q> [01] ->"));
     assert!(
         !terminal
             .lines
@@ -15418,6 +15419,38 @@ fn reports_inbox_rejects_no_match_year_filter_without_blanking_the_table() {
 }
 
 #[test]
+fn reports_inbox_question_mark_opens_popup_help_with_inbox_commands() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    let popup_action = app.handle_key(key(KeyCode::Char('?')));
+    assert_eq!(popup_action, Action::OpenPopupHelp);
+    assert_eq!(apply_action(&mut app, popup_action), AppOutcome::Continue);
+
+    let popup = app.popup_help.as_ref().expect("popup help should open");
+    assert_eq!(popup.title, "INBOX COMMANDS");
+    assert!(popup.lines.iter().any(|line| line.contains("M/R/A")));
+    assert!(popup.lines.iter().any(|line| line.contains("TAB")));
+    assert!(popup.lines.iter().any(|line| line.contains("Digits")));
+    assert!(popup.lines.iter().any(|line| line.contains("?")));
+}
+
+#[test]
 fn reports_inbox_enter_moves_focus_to_preview_when_id_input_is_empty() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
@@ -15511,7 +15544,7 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
             .contains("Type: All | Year: All | Focus: Inbox")
     );
     assert!(terminal.line(1).starts_with('┌'));
-    assert!(terminal.line(24).contains("<TAB> [03] -> 3"));
+    assert!(terminal.line(24).contains("<TAB> <Q> [03] -> 3"));
     assert!(terminal.lines.iter().any(|line| line.contains("Alpha")));
     assert!(
         terminal

@@ -150,6 +150,7 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
     let type_col = status_line.find("Type:").expect("type label");
     let year_col = status_line.find("Year:").expect("year label");
     let focus_col = status_line.find("Focus:").expect("focus label");
+    assert_eq!(type_col, 1);
     assert_eq!(
         inbox_buffer.row(0)[type_col].style,
         classic::status_label_style()
@@ -177,6 +178,13 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
     );
     assert!(inbox_buffer.plain_line(2).contains("Stardate"));
     assert!(inbox_buffer.plain_line(24).contains("<TAB>"));
+    assert!(
+        inbox_buffer
+            .plain_line(24)
+            .contains("COMMAND <- ? J K ^U ^D")
+    );
+    assert!(inbox_buffer.plain_line(24).contains("<Q> [01] ->"));
+    assert!(inbox_buffer.plain_line(24).starts_with(" COMMAND <-"));
     assert!(!inbox_buffer.plain_line(7).contains("PREVIEW:"));
 
     let preview_buffer = screen
@@ -209,6 +217,66 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
     assert_eq!(
         preview_buffer.row(preview_top_row)[0].style,
         classic::notice_style()
+    );
+}
+
+#[test]
+fn reports_screen_pads_year_and_delete_prompts_one_column_right() {
+    let game_data = fixture_game_data();
+    let items = with_display_ids(runtime_inbox_items(
+        &game_data,
+        1,
+        &[report_row(0, "Stardate: 03/3003\nFleet contact report")],
+        &[visible_mail(2, 1, 3003, "Diplomatic")],
+    ));
+    let mut screen = ReportsScreen::new();
+
+    let year_buffer = screen
+        .render_inbox(
+            ScreenGeometry::local_default(),
+            CommandMenu::General,
+            &items,
+            InboxTypeFilter::All,
+            None,
+            0,
+            0,
+            0,
+            InboxFocus::Inbox,
+            "",
+            "",
+            InboxPromptMode::YearInput,
+            None,
+            3003,
+        )
+        .expect("year prompt render");
+    assert!(
+        year_buffer
+            .plain_line(24)
+            .starts_with(" COMMAND <- Year [3003] <Q> ->")
+    );
+
+    let confirm_buffer = screen
+        .render_inbox(
+            ScreenGeometry::local_default(),
+            CommandMenu::General,
+            &items,
+            InboxTypeFilter::All,
+            None,
+            0,
+            0,
+            0,
+            InboxFocus::Inbox,
+            "",
+            "",
+            InboxPromptMode::DeleteConfirm,
+            None,
+            3003,
+        )
+        .expect("delete confirm render");
+    assert!(
+        confirm_buffer
+            .plain_line(24)
+            .starts_with(" COMMAND <- Delete item 01? [Y]/N ->")
     );
 }
 

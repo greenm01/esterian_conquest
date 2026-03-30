@@ -6,9 +6,9 @@ use crate::domains::messaging::state::{
 };
 use crate::reports::InboxDisplayItem;
 use crate::screen::layout::{
-    PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry, command_line_row_for,
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at, new_playfield_for,
-    wrap_text,
+    LEFT_WINDOW_PAD_COL, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry, command_line_row_for,
+    draw_command_line_default_input_padded, draw_command_line_prompt_text_padded,
+    new_playfield_for, wrap_text,
 };
 use crate::screen::table::{
     TableAlign, TableColumn, TableWidthMode, resolve_table_columns, table_column_start,
@@ -48,7 +48,7 @@ impl ReportsScreen {
         let mut buffer = new_playfield_for(geometry);
         buffer.write_spans(
             STATUS_ROW,
-            0,
+            LEFT_WINDOW_PAD_COL,
             &[
                 StyledSpan::new("Type: ", classic::status_label_style()),
                 StyledSpan::new(
@@ -167,10 +167,10 @@ impl ReportsScreen {
         match prompt_mode {
             InboxPromptMode::Normal => {
                 let prompt = format!(
-                    "<M> <R> <A> <Y> <D> <TAB> [{}] -> ",
+                    "? J K ^U ^D M R A Y D <TAB> <Q> [{}] -> ",
                     selected_id_label(items, cursor)
                 );
-                draw_command_line_prompt_text_at(
+                draw_command_line_prompt_text_padded(
                     &mut buffer,
                     command_line_row,
                     COMMAND_LABEL,
@@ -187,7 +187,7 @@ impl ReportsScreen {
                 }
             }
             InboxPromptMode::YearInput => {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_line_row,
                     COMMAND_LABEL,
@@ -197,7 +197,7 @@ impl ReportsScreen {
                 );
             }
             InboxPromptMode::DeleteConfirm => {
-                draw_command_line_prompt_text_at(
+                draw_command_line_prompt_text_padded(
                     &mut buffer,
                     command_line_row,
                     COMMAND_LABEL,
