@@ -19,6 +19,10 @@ RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_player_manual.pdf"
 SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_sysop_manual.pdf"
+EC_CONNECT_LICENSES = (
+    REPO_ROOT / "rust" / "ec-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
+    REPO_ROOT / "rust" / "ec-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
+)
 
 
 @dataclass(frozen=True)
@@ -249,6 +253,8 @@ It contains:
 - `bin/ec-connect`
 - `ec-connect-cli.exe` (Windows only)
 - `docs/ec_player_manual.pdf`
+- `licenses/OFL-0xProto.txt`
+- `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata
 
 ## Quick Start
@@ -287,6 +293,8 @@ It also includes:
 
 - `docs/ec_player_manual.pdf`
 - `docs/ec_sysop_manual.pdf`
+- `licenses/OFL-0xProto.txt`
+- `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata for bug reports
 
 This is not a public release package. Public GitHub Releases currently keep
@@ -362,6 +370,7 @@ def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
 
 def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root: Path) -> Path:
     bundle_root = workspace_root / spec.bundle_root_name
+    licenses_dir = bundle_root / "licenses"
 
     if spec.is_windows:
         for path in binary_paths.values():
@@ -377,6 +386,8 @@ def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root
         copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
         if spec.artifact == "public-beta":
             copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
+    for license_path in EC_CONNECT_LICENSES:
+        copy_file(license_path, licenses_dir / license_path.name)
 
     (bundle_root / "README.md").write_text(package_readme(spec), encoding="utf-8")
     (bundle_root / "BUILD-INFO.txt").write_text(build_info_text(spec), encoding="utf-8")
@@ -405,7 +416,13 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         if not bundle_root.exists():
             raise SystemExit(f"{archive_path.name}: missing bundle root {spec.bundle_root_name}")
 
-        required_files = ["README.md", "BUILD-INFO.txt", "docs/ec_player_manual.pdf"]
+        required_files = [
+            "README.md",
+            "BUILD-INFO.txt",
+            "docs/ec_player_manual.pdf",
+            "licenses/OFL-0xProto.txt",
+            "licenses/LICENSE-NotoSansMono.txt",
+        ]
         if spec.artifact == "public-beta":
             required_files.extend(
                 ("docs/ec_sysop_manual.pdf", "bin/ec-game", "bin/ec-sysop", "bin/ec-connect")
