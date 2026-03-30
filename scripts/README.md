@@ -364,11 +364,26 @@ Apple Silicon player archive example:
 ./scripts/publish_release_packages.sh --ec-connect-target aarch64-apple-darwin
 ```
 
+Signed public player release example:
+
+```bash
+./scripts/publish_release_packages.sh \
+  --ec-connect-target x86_64-unknown-linux-gnu \
+  --ec-connect-target aarch64-apple-darwin \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
+```
+
 Use this when you want:
 
 - the easiest release workflow for DOS bundles and public `ec-connect` archives
 - the generated release assets to stay untracked locally under `releases/`
 - the public downloadable copies to live on GitHub Releases instead of `main`
+- signed `SHA256SUMS.txt` / `SHA256SUMS.txt.asc` assets for the public
+  `ec-connect` archives
+
+When `--ec-connect-target` is used, `publish_release_packages.sh` now requires
+`--gpg-key` and signs a checksum manifest for the full public `ec-connect`
+target set in one run.
 
 ### `run_client.py`
 

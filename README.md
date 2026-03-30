@@ -61,7 +61,8 @@ policy is:
 | BBS sysop | Build from source, or use a direct/private beta build |
 
 Public GitHub Releases currently keep the DOS compatibility bundles plus the
-player-facing `ec-connect` archives.
+player-facing `ec-connect` archives. The public `ec-connect` downloads include
+a signed `SHA256SUMS.txt` manifest for verification.
 See [Release Policy](docs/release-policy.md).
 
 ## Background

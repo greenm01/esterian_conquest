@@ -15,7 +15,9 @@ games.
 | Windows BBS sysop | No public package | Best-effort source build only |
 
 Public GitHub Releases currently keep the DOS compatibility bundles plus the
-player-facing `ec-connect` archives.
+player-facing `ec-connect` archives. The public `ec-connect` downloads are
+covered by a signed `SHA256SUMS.txt` manifest; the DOS compatibility bundles
+on the same page are not.
 
 ## Target Stable Policy
 
