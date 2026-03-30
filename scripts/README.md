@@ -167,6 +167,29 @@ Use this when you want:
 - `INFO ABOUT A PLANET` to show both owned detail and varied foreign intel
 - starbase, transport, build, and stardock screens populated on first launch
 
+### `start_local_gui_hosted_test.sh`
+
+Starts a local `ec-sysop nostr serve` instance for a stress-test game so the
+standalone `ec-connect` GUI can join it through the real invite-code path.
+
+Example:
+
+```bash
+./scripts/start_local_gui_hosted_test.sh --dir /tmp/ec-player1-ui
+```
+
+It:
+
+- verifies `/tmp/ec-player1-ui/ecgame.db`
+- verifies pending hosted seats exist
+- requires a relay already listening at `ws://localhost:8080`
+- writes a temporary gate config and identity under `/tmp/ec-local-gate`
+- prints full invite lines like `ec-connect --join victim-sickness@localhost:8080`
+- runs `ec-sysop nostr serve` in the foreground
+
+Use this when you want to test the real localhost GUI invite flow instead of
+launching `ec-game` directly.
+
 ### `setup_classic_probe_game.py`
 
 Creates a fresh four-player Rust-backed campaign aimed at classic `ECGAME`

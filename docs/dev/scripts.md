@@ -122,6 +122,41 @@ python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --pl
 python3 scripts/run_client.py /tmp/ec-player1-ui --player 1
 ```
 
+## Local Hosted GUI Invite Test
+
+If you want to test the real `ec-connect` GUI invite flow locally against the
+stress game, keep the same `/tmp/ec-player1-ui` campaign but start a local gate
+publisher for it:
+
+```bash
+./scripts/start_local_gui_hosted_test.sh --dir /tmp/ec-player1-ui
+```
+
+This helper:
+
+- checks that `/tmp/ec-player1-ui/ecgame.db` exists
+- checks that pending hosted seats still exist
+- requires a relay already listening at `ws://localhost:8080`
+- writes a temporary gate config and identity under `/tmp/ec-local-gate`
+- starts `ec-sysop nostr serve` for that game
+- prints full invite lines such as `ec-connect --join victim-sickness@localhost:8080`
+
+Then, in another terminal, run the GUI and paste one of the printed invite
+codes:
+
+```bash
+cd rust
+cargo run -q -p ec-connect --bin ec-connect
+```
+
+Notes:
+
+- This is the real hosted Nostr discovery path, not a direct local-game shortcut.
+- The relay is still an external prerequisite; the helper does not install or
+  launch a relay binary for you.
+- If you want the full SSH-backed session after discovery, your local SSH setup
+  still needs to match the published localhost target.
+
 ## Notes
 
 - The script is intentionally optimized for player-1 UI coverage, not balanced gameplay.

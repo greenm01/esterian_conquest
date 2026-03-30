@@ -44,14 +44,20 @@ pub async fn discover_game_for_invite(
     client
         .add_relay(&target.relay_url)
         .await
-        .map_err(|e| format!("add relay: {e}"))?;
+        .map_err(|e| relay_transport_error(target, "could not add the relay", &e.to_string()))?;
     client.connect().await;
 
     let timeout = Duration::from_secs(GAME_DISCOVERY_TIMEOUT_SECS);
     let events = client
         .fetch_events(Filter::new().kinds([Kind::Custom(30500)]), timeout)
         .await
-        .map_err(|e| format!("fetch game definitions: {e}"))?;
+        .map_err(|e| {
+            relay_transport_error(
+                target,
+                "could not fetch hosted game definitions from the relay",
+                &e.to_string(),
+            )
+        })?;
 
     client.disconnect().await;
 
@@ -113,10 +119,7 @@ pub fn select_discovered_game_from_events<'a>(
                     .to_string(),
             );
         }
-        return Err(
-            "could not find this hosted game on the relay; check the invite code and relay, then try again"
-                .to_string(),
-        );
+        return Err(no_game_found_error(target));
     }
 
     // If exactly one game matches the invite hash, accept it even if the host/port
@@ -160,6 +163,35 @@ pub fn select_discovered_game_from_events<'a>(
                 .to_string(),
         ),
     }
+}
+
+fn no_game_found_error(target: &ResolvedTarget) -> String {
+    if is_local_dev_relay(&target.relay_url) {
+        format!(
+            "could not find this hosted game on the local relay at {}; make sure your local relay and ec-sysop nostr serve are running for this game, then try again",
+            target.relay_url
+        )
+    } else {
+        "could not find this hosted game on the relay; check the invite code and relay, then try again"
+            .to_string()
+    }
+}
+
+fn relay_transport_error(target: &ResolvedTarget, context: &str, detail: &str) -> String {
+    if is_local_dev_relay(&target.relay_url) {
+        format!(
+            "{context} at {}: make sure your local relay and ec-sysop nostr serve are running for this game ({detail})",
+            target.relay_url
+        )
+    } else {
+        format!("{context}: {detail}")
+    }
+}
+
+fn is_local_dev_relay(relay_url: &str) -> bool {
+    relay_url.starts_with("ws://localhost")
+        || relay_url.starts_with("ws://127.")
+        || relay_url.starts_with("ws://[::1]")
 }
 
 pub fn parse_game_definition(event: &Event) -> Option<PublishedGameDefinition> {

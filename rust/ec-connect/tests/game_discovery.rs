@@ -30,6 +30,17 @@ fn target() -> ResolvedTarget {
     }
 }
 
+fn local_target() -> ResolvedTarget {
+    ResolvedTarget {
+        server_host: String::new(),
+        server_port: 22,
+        relay_url: "ws://localhost:8080".to_string(),
+        invite_code: Some("amber-river".to_string()),
+        game_id: None,
+        gate_npub: None,
+    }
+}
+
 fn sha256_hex(input: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
@@ -79,6 +90,17 @@ fn discovery_falls_back_to_gate_override_message_when_no_match_exists() {
 
     assert!(err.contains("check the invite code and relay"));
     assert!(!err.contains("--gate"));
+}
+
+#[test]
+fn discovery_reports_local_hosted_stack_hint_when_local_relay_has_no_match() {
+    let err =
+        select_discovered_game_from_events(std::iter::empty::<&Event>(), &local_target(), "amber-river")
+            .expect_err("no matching event");
+
+    assert!(err.contains("local relay"));
+    assert!(err.contains("ec-sysop nostr serve"));
+    assert!(err.contains("ws://localhost:8080"));
 }
 
 #[test]
