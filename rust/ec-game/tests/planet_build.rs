@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use ec_game::app::Action;
 use ec_game::domains::planet::PlanetAction;
+use ec_game::screen::table::{TableColumn, table_render_width};
 use ec_game::screen::{
     PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen,
     ScreenGeometry,
@@ -392,5 +393,74 @@ fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
         buffer
             .plain_line(23)
             .contains("COMMAND <- ? J K ^U ^D <Q> ->")
+    );
+}
+
+#[test]
+fn build_specify_table_is_centered_and_footer_tracks_table_inset() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            coords: [6, 5],
+            planet_name: "Not Named Yet".to_string(),
+            present_production: 100,
+            potential_production: 100,
+            stored_production_points: 50,
+            yearly_tax_revenue: 50,
+            yearly_growth_delta: 0,
+            build_capacity: 100,
+            has_friendly_starbase: false,
+            armies: 10,
+            ground_batteries: 4,
+            is_homeworld_seed: true,
+        },
+        committed_points: 0,
+        available_points: 50,
+        points_left: 50,
+        queue_used: 0,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+
+    let buffer = screen
+        .render_specify(&view, &[], "", None, None)
+        .expect("render specify build orders");
+
+    let half_columns = [
+        TableColumn::left("NO.", 4),
+        TableColumn::left("UNIT TYPE", 19),
+        TableColumn::right("COST", 4),
+        TableColumn::right("QTY.", 5),
+    ];
+    let combined_columns = half_columns
+        .iter()
+        .chain(half_columns.iter())
+        .copied()
+        .collect::<Vec<_>>();
+    let expected_table_col = (buffer.width() - table_render_width(&combined_columns)) / 2;
+
+    let title_col = buffer
+        .plain_line(0)
+        .find("SPECIFY BUILD ORDERS:")
+        .expect("title col");
+    let border_col = buffer.plain_line(1).find('┌').expect("table col");
+    assert_eq!(border_col, expected_table_col);
+    assert_eq!(title_col, border_col + 1);
+
+    let command_row = (0..buffer.height())
+        .find(|&row| {
+            buffer
+                .plain_line(row)
+                .contains("COMMAND <- Unit number or 0 if done")
+        })
+        .expect("specify command row");
+    assert_eq!(
+        buffer
+            .plain_line(command_row)
+            .find("COMMAND")
+            .expect("command col"),
+        border_col + 1
     );
 }

@@ -14,8 +14,9 @@ use crate::screen::layout::{
     standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, draw_table_footer, draw_table_title,
-    fit_table_columns_for_widget, write_split_table, write_table_window_with_cursor,
+    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, centered_table_start_col,
+    draw_table_footer, draw_table_title, fit_table_columns_for_widget, table_render_width,
+    write_split_table_at, write_table_window_with_cursor,
 };
 use crate::screen::{
     COMMAND_LABEL, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
@@ -516,7 +517,7 @@ impl PlanetBuildScreen {
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let table_metrics = draw_specify_table(&mut buffer, view, orders);
+        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view, orders);
 
         let max_unit_num = BUILD_UNITS
             .iter()
@@ -527,7 +528,7 @@ impl PlanetBuildScreen {
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
-            TABLE_TEXT_INSET,
+            table_col + TABLE_TEXT_INSET,
             table_metrics.bottom_row,
             TableFooter::CommandInput {
                 label: COMMAND_LABEL,
@@ -550,7 +551,7 @@ impl PlanetBuildScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let table_metrics = draw_specify_table(&mut buffer, view, orders);
+        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view, orders);
 
         let prompt = format!(
             "How many new {} to build (0 - {}) ",
@@ -559,7 +560,7 @@ impl PlanetBuildScreen {
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
-            TABLE_TEXT_INSET,
+            table_col + TABLE_TEXT_INSET,
             table_metrics.bottom_row,
             TableFooter::CommandInput {
                 label: COMMAND_LABEL,
@@ -876,9 +877,7 @@ fn draw_specify_table(
     buffer: &mut PlayfieldBuffer,
     view: &PlanetBuildMenuView,
     orders: &[PlanetBuildOrder],
-) -> crate::screen::table::TableRenderMetrics {
-    draw_table_title(buffer, 1, 0, "SPECIFY BUILD ORDERS:");
-
+) -> (crate::screen::table::TableRenderMetrics, usize) {
     let style = classic::status_value_style();
 
     struct HalfEntry {
@@ -942,14 +941,33 @@ fn draw_specify_table(
         });
     }
 
-    write_split_table(
+    let table_columns = BUILD_HALF_COLUMNS
+        .iter()
+        .chain(BUILD_HALF_COLUMNS.iter())
+        .copied()
+        .collect::<Vec<_>>();
+    let table_col = centered_table_start_col(buffer.width(), &table_columns);
+    draw_table_title(buffer, 1, table_col, "SPECIFY BUILD ORDERS:");
+
+    let metrics = write_split_table_at(
         buffer,
         1,
+        table_col,
         &BUILD_HALF_COLUMNS,
         &BUILD_HALF_COLUMNS,
         &rows,
         style,
-    )
+    );
+
+    debug_assert_eq!(
+        table_col,
+        buffer
+            .width()
+            .saturating_sub(table_render_width(&table_columns))
+            / 2
+    );
+
+    (metrics, table_col)
 }
 
 fn format_build_cost(cost: u32) -> String {

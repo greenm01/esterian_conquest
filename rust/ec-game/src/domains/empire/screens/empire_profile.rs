@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use crate::app::Action;
 use crate::screen::layout::{
     DetailField, LEFT_WINDOW_PAD_COL, aligned_label_width, dismiss_prompt_row,
-    draw_aligned_detail_line, draw_aligned_detail_pair_at, draw_centered_text,
+    draw_aligned_detail_line_at, draw_aligned_detail_pair_at, draw_centered_text,
     draw_dismiss_prompt_padded, draw_title_bar_padded, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
@@ -182,17 +182,19 @@ impl EmpireProfileScreen {
             active.starbases,
             stardock.starbases,
         );
-        draw_aligned_detail_line(
+        draw_aligned_detail_line_at(
             &mut buffer,
             16,
+            0,
             unit_label_width,
             "Armies",
             " : ",
             &active.armies.to_string(),
         );
-        draw_aligned_detail_line(
+        draw_aligned_detail_line_at(
             &mut buffer,
             17,
+            0,
             unit_label_width,
             "Ground Batteries",
             " : ",

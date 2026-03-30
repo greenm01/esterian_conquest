@@ -861,6 +861,26 @@ pub fn write_split_table(
     rows: &[SplitTableRow],
     style: crate::screen::CellStyle,
 ) -> TableRenderMetrics {
+    write_split_table_at(
+        buffer,
+        start_row,
+        0,
+        left_columns,
+        right_columns,
+        rows,
+        style,
+    )
+}
+
+pub fn write_split_table_at(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    start_col: usize,
+    left_columns: &[TableColumn<'_>],
+    right_columns: &[TableColumn<'_>],
+    rows: &[SplitTableRow],
+    style: crate::screen::CellStyle,
+) -> TableRenderMetrics {
     let combined_columns = left_columns
         .iter()
         .chain(right_columns.iter())
@@ -877,9 +897,10 @@ pub fn write_split_table(
         })
         .collect::<Vec<_>>();
 
-    write_table_window_with_states(
+    write_table_window_with_states_at(
         buffer,
         start_row,
+        start_col,
         &combined_columns,
         &combined_rows,
         0,

@@ -13,9 +13,9 @@ use ec_game::screen::table::{
     write_table_window_with_cursor_at, write_table_window_with_states,
 };
 use ec_game::screen::{
-    EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
-    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen, PlanetListSort, PlayfieldBuffer,
-    RankingsScreen, ScreenFrame, ScreenGeometry,
+    CommandMenu, EmpireProfileScreen, EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView,
+    PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen,
+    PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use ec_game::theme::classic;
 
@@ -329,6 +329,37 @@ fn split_table_renders_both_halves() {
     assert!(header.contains("QTY."));
     assert!(buffer.plain_line(8).contains("DONE"));
     assert!(buffer.plain_line(8).contains("Scouts"));
+}
+
+#[test]
+fn empire_profile_aligns_armies_and_ground_batteries_with_active_duty_list() {
+    let mut screen = EmpireProfileScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        geometry: ScreenGeometry::local_default(),
+    };
+
+    let buffer = screen
+        .render_with_menu(&frame, CommandMenu::General)
+        .expect("render empire profile");
+
+    let destroyers_colon = buffer.plain_line(9).find(':').expect("destroyers colon");
+    let armies_colon = buffer.plain_line(16).find(':').expect("armies colon");
+    let batteries_colon = buffer
+        .plain_line(17)
+        .find(':')
+        .expect("ground batteries colon");
+
+    assert_eq!(armies_colon, destroyers_colon);
+    assert_eq!(batteries_colon, destroyers_colon);
 }
 
 #[test]
@@ -829,7 +860,8 @@ fn planet_build_specify_screen_uses_split_table() {
         .render_specify(&view, &orders, "", None, None)
         .expect("render specify");
 
-    assert!(buffer.plain_line(1).starts_with("┌"));
+    let table_col = buffer.plain_line(1).find('┌').expect("table col");
+    assert!(table_col > 0);
     assert_eq!(buffer.plain_line(2).matches("NO.").count(), 2);
     assert!(buffer.plain_line(2).contains("QTY."));
     assert!(buffer.plain_line(4).contains("<01>"));
