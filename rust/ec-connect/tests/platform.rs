@@ -8,7 +8,7 @@ fn preferred_console_size_matches_windows_launch_target() {
         preferred_console_size(),
         (WINDOWS_CONSOLE_COLS, WINDOWS_CONSOLE_ROWS)
     );
-    assert_eq!(preferred_console_size(), (100, 30));
+    assert_eq!(preferred_console_size(), (100, 29));
 }
 
 #[test]

@@ -347,7 +347,7 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
         .expect("picker should render a command line");
 
     assert_eq!(command_row, bottom_row + 1);
-    assert!(buffer.plain_line(command_row).contains(" M D R L "));
+    assert!(buffer.plain_line(command_row).contains(" <Space> L "));
     assert!(
         !buffer
             .plain_line(buffer.height() - 2)
@@ -1177,23 +1177,18 @@ fn maps_downloaded_popup_renders_saved_path() {
 }
 
 #[test]
-fn larger_terminal_renders_outside_border_space_hint() {
+fn larger_terminal_keeps_space_hint_in_command_line_not_outside_border() {
     let state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 100, 30);
 
     assert_eq!(buffer.row(1)[9].ch, '┌');
     assert_eq!(buffer.row(27)[9].ch, '└');
-    assert!(buffer.plain_line(28).trim().is_empty());
-    assert!(buffer.plain_line(29).contains("Press Space to refresh game info"));
-}
-
-#[test]
-fn minimum_terminal_does_not_render_outside_border_space_hint() {
-    let state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
-
     assert!(!(0..buffer.height())
         .any(|row| buffer.plain_line(row).contains("Press Space to refresh game info")));
+    let command_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("COMMAND <-"))
+        .expect("picker should render a command line");
+    assert!(buffer.plain_line(command_row).contains("<Space>"));
 }
 
 #[test]
@@ -1207,6 +1202,27 @@ fn overflowing_wallet_renders_themed_scrollbar_gutter() {
     assert_eq!(buffer.row(23)[80].ch, 'v');
     assert!((5..23).any(|row| buffer.row(row)[80].ch == '#'));
     assert_eq!(buffer.row(4)[80].style, classic::table_chrome_style());
+}
+
+#[test]
+fn locked_screen_matrix_cells_use_theme_background() {
+    let mut state = make_state(vec![]);
+    state.screen = Screen::Locked;
+    state.matrix.frame = 7;
+
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+    let matrix_cell = (0..buffer.height())
+        .flat_map(|row| {
+            buffer
+                .row(row)
+                .iter()
+                .enumerate()
+                .map(move |(col, cell)| (row, col, cell))
+        })
+        .find(|(_, _, cell)| cell.ch != ' ')
+        .expect("locked screen should draw matrix glyphs");
+
+    assert_eq!(matrix_cell.2.style.bg, classic::app_background());
 }
 
 // ── truncate ──────────────────────────────────────────────────────────────────

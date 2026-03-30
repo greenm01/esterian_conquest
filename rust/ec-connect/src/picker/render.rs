@@ -86,20 +86,12 @@ pub fn render_buffer(
     };
 
     render_overlay(&mut buffer, state, session, command_row);
-    let outside_hint = if matches!(state.screen, Screen::GameList)
-        && state.overlay.is_none()
-        && !state.cache.sorted().is_empty()
-    {
-        Some("Press Space to refresh game info")
-    } else {
-        None
-    };
     wrap_inner_buffer_in_terminal(
         &buffer,
         identity_label.as_deref(),
         usize::from(term_width.max(1)),
         usize::from(term_height.max(1)),
-        outside_hint,
+        None,
     )
 }
 
@@ -311,8 +303,9 @@ fn render_relay_games(buffer: &mut PlayfieldBuffer, state: &PickerState, relay_u
 }
 
 fn render_locked_screen(buffer: &mut PlayfieldBuffer, matrix: &MatrixState) {
-    let trail_style = CellStyle::new(GameColor::Green, GameColor::Black, false);
-    let head_style = CellStyle::new(GameColor::BrightGreen, GameColor::Black, true);
+    let background = classic::app_background();
+    let trail_style = CellStyle::new(GameColor::Green, background, false);
+    let head_style = CellStyle::new(GameColor::BrightGreen, background, true);
 
     for x in 0..PLAYFIELD_WIDTH {
         let speed = 1 + (x * 7 % 3);

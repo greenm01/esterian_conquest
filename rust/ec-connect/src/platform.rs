@@ -1,5 +1,5 @@
 pub const WINDOWS_CONSOLE_COLS: i16 = 100;
-pub const WINDOWS_CONSOLE_ROWS: i16 = 30;
+pub const WINDOWS_CONSOLE_ROWS: i16 = 29;
 
 pub fn preferred_console_size() -> (i16, i16) {
     (WINDOWS_CONSOLE_COLS, WINDOWS_CONSOLE_ROWS)
