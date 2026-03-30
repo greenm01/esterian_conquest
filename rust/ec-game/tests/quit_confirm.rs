@@ -146,7 +146,7 @@ fn first_time_menu_quit_confirm_reuses_the_menu_prompt_row() {
     app.render(&mut terminal).expect("render");
 
     assert!(
-        terminal.last_lines[4].contains("Are you sure Y/[N] ->"),
+        terminal.last_lines[5].contains("Are you sure Y/[N] ->"),
         "quit confirm should replace the first-time command row"
     );
     assert!(

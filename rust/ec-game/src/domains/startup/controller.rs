@@ -1,6 +1,7 @@
 use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
+use crate::domains::startup::state::FirstTimeOnboardingMode;
 use crate::model::{ClassicLoginState, MainMenuSummary, PlayerContext};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
@@ -10,13 +11,43 @@ use crate::screen::{
 use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
-    fn has_reserved_seat(&self) -> bool {
-        self.startup_state.reserved_seat_alias.is_some()
+    fn has_bbs_reserved_seat(&self) -> bool {
+        self.door_mode && self.startup_state.reserved_seat_alias.is_some()
     }
 
-    fn is_reserved_first_time_login(&self) -> bool {
+    fn has_hosted_invite_session(&self) -> bool {
+        self.startup_state.hosted_player_npub.is_some()
+    }
+
+    fn first_time_onboarding_mode(&self) -> FirstTimeOnboardingMode {
+        if self.has_hosted_invite_session() {
+            FirstTimeOnboardingMode::HostedInvite
+        } else if self.has_bbs_reserved_seat() {
+            FirstTimeOnboardingMode::BbsReserved
+        } else {
+            FirstTimeOnboardingMode::Generic
+        }
+    }
+
+    fn is_bbs_reserved_first_time_login(&self) -> bool {
         self.player.classic_login_state == ClassicLoginState::FirstTimeMenu
-            && self.has_reserved_seat()
+            && self.has_bbs_reserved_seat()
+    }
+
+    fn is_hosted_invite_first_time_login(&self) -> bool {
+        self.player.classic_login_state == ClassicLoginState::FirstTimeMenu
+            && self.has_hosted_invite_session()
+    }
+
+    fn first_time_join_uses_reserved_prompt(&self) -> bool {
+        self.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::BbsReserved
+    }
+
+    pub(crate) fn prepare_hosted_invite_quit_warning(&mut self) {
+        self.startup_state.first_time_status = Some(
+            "Your invite is not reserved until you name your empire and confirm with Y/[N]."
+                .to_string(),
+        );
     }
 
     fn theme_picker_visible_rows(&self) -> usize {
@@ -441,7 +472,7 @@ impl App {
     pub fn open_first_time_menu(&mut self) {
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
-        self.startup_state.first_time_reserved_player = false;
+        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
@@ -696,7 +727,7 @@ impl App {
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
         self.startup_state.first_time_rename_preloaded_empire = false;
-        self.startup_state.first_time_reserved_player = self.is_reserved_first_time_login();
+        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
@@ -779,7 +810,8 @@ impl App {
             ScreenId::FirstTimeReservedPrompt => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
-                self.startup_state.first_time_reserved_player = true;
+                self.startup_state.first_time_onboarding_mode =
+                    FirstTimeOnboardingMode::BbsReserved;
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
             }
             ScreenId::FirstTimePreloadedRenamePrompt => {
@@ -806,7 +838,8 @@ impl App {
                 } else {
                     match self.complete_first_time_join() {
                         Ok(()) => {
-                            self.startup_state.first_time_reserved_player = false;
+                            self.startup_state.first_time_onboarding_mode =
+                                FirstTimeOnboardingMode::Generic;
                             self.current_screen = ScreenId::FirstTimeJoinSummary;
                         }
                         Err(_) => {
@@ -864,7 +897,7 @@ impl App {
             ScreenId::FirstTimeReservedPrompt => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
-                self.startup_state.first_time_reserved_player = false;
+                self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
                 self.current_screen = ScreenId::FirstTimeMenu;
             }
             ScreenId::FirstTimePreloadedRenamePrompt => {
@@ -873,7 +906,7 @@ impl App {
                 self.startup_state.first_time_rename_preloaded_empire = false;
                 self.current_screen = ScreenId::FirstTimeJoinSummary;
             }
-            ScreenId::FirstTimeJoinEmpireName if self.startup_state.first_time_reserved_player => {
+            ScreenId::FirstTimeJoinEmpireName if self.first_time_join_uses_reserved_prompt() => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimeReservedPrompt;
@@ -1321,11 +1354,17 @@ impl App {
         }
     }
 
-    fn startup_target_screen(&self, phase: StartupPhase) -> ScreenId {
+    fn startup_target_screen(&mut self, phase: StartupPhase) -> ScreenId {
         match phase {
             StartupPhase::Complete => match self.player.classic_login_state {
                 crate::model::ClassicLoginState::FirstTimeMenu => {
-                    if self.is_reserved_first_time_login() {
+                    self.startup_state.first_time_onboarding_mode =
+                        self.first_time_onboarding_mode();
+                    if self.is_hosted_invite_first_time_login() {
+                        self.startup_state.first_time_status = None;
+                        self.startup_state.first_time_input.clear();
+                        ScreenId::FirstTimeJoinEmpireName
+                    } else if self.is_bbs_reserved_first_time_login() {
                         ScreenId::FirstTimeReservedPrompt
                     } else {
                         ScreenId::FirstTimeMenu

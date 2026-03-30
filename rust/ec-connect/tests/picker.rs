@@ -338,17 +338,23 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
 #[test]
 fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
     let state = make_state(vec![]);
-    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+    let buffer = ec_connect::picker::render::render_inner_buffer(&state, None);
 
     let bottom_row = (0..buffer.height())
-        .find(|&row| buffer.row(row)[1].ch == '└')
+        .find(|&row| buffer.plain_line(row).contains('└'))
         .expect("table should have a bottom border");
     let command_row = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("COMMAND <-"))
         .expect("picker should render a command line");
 
     assert_eq!(command_row, bottom_row + 1);
+    assert_eq!(buffer.plain_line(command_row).find("COMMAND"), Some(1));
     assert!(buffer.plain_line(command_row).contains(" <Space> L "));
+    assert!(
+        buffer
+            .plain_line(command_row)
+            .contains(concat!("EC ", env!("CARGO_PKG_VERSION")))
+    );
     assert!(
         !buffer
             .plain_line(buffer.height() - 2)

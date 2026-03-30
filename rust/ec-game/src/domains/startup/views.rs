@@ -1,4 +1,5 @@
 use crate::app::state::App;
+use crate::domains::startup::state::FirstTimeOnboardingMode;
 use crate::screen::{
     PlayfieldBuffer, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
     render_first_time_homeworld_name, render_first_time_join_name,
@@ -61,7 +62,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
             app.startup_state.first_time_rename_preloaded_empire,
-            app.startup_state.first_time_reserved_player,
+            app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::BbsReserved,
+            app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::HostedInvite,
             app.startup_state.reserved_seat_alias.as_deref(),
             &app.player.empire_name,
             &app.startup_state.first_time_input,
@@ -70,7 +72,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         ScreenId::FirstTimeJoinEmpireConfirm => render_first_time_join_name_confirm(
             app.startup_state.first_time_rename_preloaded_empire,
-            app.startup_state.first_time_reserved_player,
+            app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::BbsReserved,
             &app.startup_state.first_time_empire_name,
             app.door_mode,
         ),

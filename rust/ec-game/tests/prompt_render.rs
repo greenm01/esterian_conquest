@@ -546,11 +546,11 @@ fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
         )
         .expect("planet menu inline auto-commission renders");
 
-    assert!(row_text(&buffer, 5).contains("COMMAND <- Y/[N] -> "));
-    assert!(row_text(&buffer, 6).trim().is_empty());
-    assert!(row_text(&buffer, 7).contains("AUTO-COMMISSION SHIPS:"));
+    assert!(row_text(&buffer, 6).contains("COMMAND <- Y/[N] -> "));
+    assert!(row_text(&buffer, 7).trim().is_empty());
+    assert!(row_text(&buffer, 8).contains("AUTO-COMMISSION SHIPS:"));
     assert!(
-        row_text(&buffer, 8)
+        row_text(&buffer, 9)
             .contains("Automatically commission all ships and starbases in stardock?")
     );
 }

@@ -1,4 +1,5 @@
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
+pub use ec_ui::table_layout::TABLE_TEXT_INSET;
 use ec_ui::table_layout::{ColumnWidthSpec, TableWidthMode, distribute_column_widths};
 use ec_ui::theme::classic;
 
@@ -68,6 +69,10 @@ pub struct TableMetrics {
     pub bottom_row: usize,
     pub command_row: usize,
     pub command_col: usize,
+}
+
+pub const fn table_text_col(table_col: usize) -> usize {
+    table_col + TABLE_TEXT_INSET
 }
 
 pub fn draw_title(buffer: &mut PlayfieldBuffer, title: &str, right_label: Option<&str>) {
@@ -153,7 +158,7 @@ pub fn draw_table_frame(
         displayed_rows,
         bottom_row,
         command_row: table_command_row(bottom_row),
-        command_col: table_col,
+        command_col: table_text_col(table_col),
     }
 }
 

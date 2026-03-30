@@ -57,6 +57,8 @@ pub struct TableBlockLayout {
     pub scrollbar_col: Option<usize>,
 }
 
+pub const TABLE_TEXT_INSET: usize = 1;
+
 pub fn table_render_width_from_cells(widths: &[usize]) -> usize {
     widths.iter().sum::<usize>() + widths.len() + 1
 }
@@ -156,9 +158,9 @@ pub fn layout_table_block(
         table_height,
         bottom_row,
         title_row: title.then_some(row),
-        title_col: col,
+        title_col: col + TABLE_TEXT_INSET,
         command_row: command.then_some(bottom_row + 1),
-        command_col: col,
+        command_col: col + TABLE_TEXT_INSET,
         scrollbar_col: scrollbar_visible.then_some(col + table_width),
     }
 }

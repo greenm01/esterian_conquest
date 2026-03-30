@@ -3,6 +3,7 @@ use super::state::App;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::startup::StartupAction;
+use crate::domains::startup::state::FirstTimeOnboardingMode;
 use crate::screen::{
     FIRST_TIME_INTRO_PAGE_COUNT, PlanetListMode, STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId,
 };
@@ -128,8 +129,14 @@ impl App {
                     crossterm::event::KeyCode::Esc => {
                         if self.startup_state.first_time_rename_preloaded_empire {
                             Action::Startup(StartupAction::RejectFirstTimePrompt)
-                        } else if self.startup_state.first_time_reserved_player {
+                        } else if self.startup_state.first_time_onboarding_mode
+                            == FirstTimeOnboardingMode::BbsReserved
+                        {
                             Action::Startup(StartupAction::RejectFirstTimePrompt)
+                        } else if self.startup_state.first_time_onboarding_mode
+                            == FirstTimeOnboardingMode::HostedInvite
+                        {
+                            Action::RequestQuit
                         } else {
                             Action::Startup(StartupAction::OpenFirstTimeMenu)
                         }

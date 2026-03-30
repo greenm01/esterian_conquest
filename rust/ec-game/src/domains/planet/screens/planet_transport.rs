@@ -8,7 +8,7 @@ use crate::screen::layout::{
     standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    TableColumn, TableFooter, draw_table_footer, draw_table_title,
+    TABLE_TEXT_INSET, TableColumn, TableFooter, draw_table_footer, draw_table_title,
     fit_table_columns_for_widget_with_footer_floor, fleet_id_column_width, format_fleet_number,
     table_footer_scaffold_width, write_table_window_with_cursor,
 };
@@ -156,7 +156,13 @@ impl PlanetTransportScreen {
             selected,
             0,
         );
-        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            TABLE_TEXT_INSET,
+            metrics.bottom_row,
+            footer,
+        );
         let _ = status;
         Ok(buffer)
     }
@@ -241,7 +247,13 @@ impl PlanetTransportScreen {
             selected,
             0,
         );
-        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            TABLE_TEXT_INSET,
+            metrics.bottom_row,
+            footer,
+        );
         let _ = (planet, status);
         Ok(buffer)
     }

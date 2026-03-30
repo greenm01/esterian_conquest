@@ -10,6 +10,8 @@ pub const DOOR_FALLBACK_HEIGHT: usize = 24;
 pub const EXPERT_MENU_PROMPT_ROW: usize = 0;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
+pub const PRIMARY_MENU_ROW: usize = 1;
+pub const PRIMARY_MENU_TITLE_COL: usize = 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScreenGeometry {
@@ -244,16 +246,22 @@ pub fn draw_command_center(
     prompt_label: &str,
     prompt_keys: &str,
 ) {
-    draw_title_bar(buffer, 0, title);
+    draw_title_bar_at_col(buffer, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, title);
     for entry in top_row_entries {
-        draw_menu_entry(buffer, 0, entry.col, entry.hotkey, entry.label);
+        draw_menu_entry(
+            buffer,
+            PRIMARY_MENU_ROW,
+            entry.col,
+            entry.hotkey,
+            entry.label,
+        );
     }
     for (idx, row_entries) in rows.iter().enumerate() {
-        draw_menu_row(buffer, idx + 1, row_entries);
+        draw_menu_row(buffer, PRIMARY_MENU_ROW + idx + 1, row_entries);
     }
     draw_command_prompt_at(
         buffer,
-        menu_prompt_row(rows.len()),
+        menu_prompt_row(PRIMARY_MENU_ROW + rows.len()),
         prompt_label,
         prompt_keys,
     );

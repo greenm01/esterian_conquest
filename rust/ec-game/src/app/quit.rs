@@ -1,11 +1,19 @@
 use crossterm::event::KeyEvent;
 
 use super::{Action, state::App};
+use crate::domains::startup::state::FirstTimeOnboardingMode;
 use crate::screen::layout::{command_line_row_for, draw_command_line_prompt_text_at};
-use crate::screen::{COMMAND_LABEL, PlayfieldBuffer};
+use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, ScreenId};
 
 impl App {
     pub fn request_quit(&mut self) {
+        if self.current_screen == ScreenId::FirstTimeJoinEmpireName
+            && self.startup_state.first_time_onboarding_mode
+                == FirstTimeOnboardingMode::HostedInvite
+            && !self.startup_state.first_time_rename_preloaded_empire
+        {
+            self.prepare_hosted_invite_quit_warning();
+        }
         self.quit_confirm_open = true;
     }
 

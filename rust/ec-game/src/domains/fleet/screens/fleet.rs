@@ -9,16 +9,16 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, PromptFeedback, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice,
-    draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line, draw_title_bar,
-    draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, standard_table_visible_rows_for,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, PromptFeedback,
+    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry,
+    draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
+    draw_title_bar, draw_title_bar_at_col, draw_wrapped_message, last_body_row, menu_prompt_row,
+    new_playfield, standard_table_visible_rows, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableRowState, TableWidthMode,
-    VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns,
+    HorizontalAlign, LayoutRect, TABLE_TEXT_INSET, TableColumn, TableFooter, TableRowState,
+    TableWidthMode, VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns,
     fit_table_columns_for_widget, fleet_id_column_width, format_fleet_number,
     layout_standard_table_block, resolve_table_columns_for_widget,
     resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
@@ -225,9 +225,20 @@ impl FleetMenuScreen {
             return Ok(buffer);
         }
         buffer.fill_row(0, classic::menu_style());
-        draw_title_bar(&mut buffer, 0, "FLEET COMMAND CENTER:");
+        draw_title_bar_at_col(
+            &mut buffer,
+            PRIMARY_MENU_ROW,
+            PRIMARY_MENU_TITLE_COL,
+            "FLEET COMMAND CENTER:",
+        );
         for entry in TOP_ROW {
-            draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
+            draw_menu_entry(
+                &mut buffer,
+                PRIMARY_MENU_ROW,
+                entry.col,
+                entry.hotkey,
+                entry.label,
+            );
         }
         for (row_idx, row) in [
             ROW_1.as_slice(),
@@ -238,18 +249,18 @@ impl FleetMenuScreen {
         .into_iter()
         .enumerate()
         {
-            buffer.fill_row(row_idx + 1, classic::menu_style());
+            buffer.fill_row(PRIMARY_MENU_ROW + row_idx + 1, classic::menu_style());
             for entry in row {
                 draw_menu_entry(
                     &mut buffer,
-                    row_idx + 1,
+                    PRIMARY_MENU_ROW + row_idx + 1,
                     entry.col,
                     entry.hotkey,
                     entry.label,
                 );
             }
         }
-        let command_row = menu_prompt_row(4);
+        let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 4);
         if inline_planet_info {
             draw_inline_planet_info_prompt(
                 &mut buffer,
@@ -431,7 +442,13 @@ impl FleetListScreen {
             },
             0,
         );
-        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            TABLE_TEXT_INSET,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 

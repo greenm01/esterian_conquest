@@ -138,10 +138,10 @@ fn centered_table_block_expands_to_match_command_footer_width() {
     assert!(table_footer_width(footer) > table_width);
     assert_eq!(
         layout.table_col,
-        (PLAYFIELD_WIDTH - table_footer_scaffold_width(footer)) / 2
+        (PLAYFIELD_WIDTH - (table_footer_scaffold_width(footer) + 1)) / 2
     );
-    assert_eq!(layout.title_col, layout.table_col);
-    assert_eq!(layout.command_col, layout.table_col);
+    assert_eq!(layout.title_col, layout.table_col + 1);
+    assert_eq!(layout.command_col, layout.table_col + 1);
 }
 
 #[test]
@@ -369,7 +369,7 @@ fn planet_database_screen_uses_stacked_header_table() {
         .find("TOTAL PLANET DATABASE:")
         .expect("title col");
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
-    assert_eq!(title_col, border_col);
+    assert_eq!(title_col, border_col + 1);
     assert!(buffer.plain_line(2).contains("│Coord"));
     assert!(buffer.plain_line(2).contains("Max"));
     assert!(buffer.plain_line(2).contains("Year"));
@@ -388,7 +388,7 @@ fn planet_database_screen_uses_stacked_header_table() {
     assert!(buffer.plain_line(5).contains("Aurora"));
     assert_eq!(
         buffer.plain_line(7).find("COMMAND").expect("command col"),
-        border_col
+        border_col + 1
     );
 }
 
@@ -435,7 +435,7 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
             .plain_line(prompt_row)
             .find("COMMAND")
             .expect("prompt col"),
-        border_col
+        border_col + 1
     );
 }
 
@@ -527,7 +527,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
         .find("PLANET COMMAND:")
         .expect("title col");
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
-    assert_eq!(title_col, border_col);
+    assert_eq!(title_col, border_col + 1);
     assert!(border_col > 0);
     assert!(buffer.plain_line(2).contains("│Coord"));
     assert!(buffer.plain_line(2).contains("Max"));
@@ -547,7 +547,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(5).contains("0"));
     assert_eq!(
         buffer.plain_line(7).find("COMMAND").expect("command col"),
-        border_col
+        border_col + 1
     );
     assert_eq!(
         buffer.row(5)[border_col + 1].style,
@@ -681,8 +681,8 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
         .find("COMMAND")
         .expect("command col");
 
-    assert_eq!(title_col, table_col);
-    assert_eq!(command_col, table_col);
+    assert_eq!(title_col, table_col + 1);
+    assert_eq!(command_col, table_col + 1);
     assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("Available empires:")));
     assert!(
         (0..buffer.height())
@@ -737,8 +737,8 @@ fn rankings_screen_centers_block_and_pins_dismiss_prompt_to_table() {
         .find("(slap a key)")
         .expect("dismiss col");
 
-    assert_eq!(title_col, table_col);
-    assert_eq!(dismiss_col, table_col);
+    assert_eq!(title_col, table_col + 1);
+    assert_eq!(dismiss_col, table_col + 1);
 }
 
 #[test]
@@ -788,8 +788,8 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .find("COMMAND")
         .expect("command col");
 
-    assert_eq!(title_col, table_col);
-    assert_eq!(command_col, table_col);
+    assert_eq!(title_col, table_col + 1);
+    assert_eq!(command_col, table_col + 1);
     assert!(table_col > 0);
 }
 

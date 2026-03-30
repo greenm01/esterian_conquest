@@ -7,8 +7,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_center, draw_expert_menu,
-    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
+    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW, draw_command_center,
+    draw_expert_menu, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
     draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
@@ -93,20 +93,28 @@ impl GeneralMenuScreen {
         let autopilot_on = frame.game_data.player.records[frame.player.record_index_1_based - 1]
             .autopilot_flag()
             != 0;
-        draw_menu_entry_with_toggle(&mut buffer, 1, CMD_COL_2, "A", "utopilot ", autopilot_on);
+        draw_menu_entry_with_toggle(
+            &mut buffer,
+            PRIMARY_MENU_ROW + 1,
+            CMD_COL_2,
+            "A",
+            "utopilot ",
+            autopilot_on,
+        );
+        let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 4);
         if inline_delete_reviewables {
-            draw_inline_delete_reviewables_prompt(&mut buffer, menu_prompt_row(4), notice);
+            draw_inline_delete_reviewables_prompt(&mut buffer, command_row, notice);
         } else if inline_planet_info {
             draw_inline_planet_info_prompt(
                 &mut buffer,
-                menu_prompt_row(4),
+                command_row,
                 info_default_coords,
                 info_input,
                 info_notice,
                 notice,
             );
         } else if let Some(notice) = notice {
-            draw_menu_notice(&mut buffer, menu_prompt_row(4), notice);
+            draw_menu_notice(&mut buffer, command_row, notice);
         }
         Ok(buffer)
     }

@@ -7,17 +7,17 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_expert_menu,
-    draw_inline_planet_info_prompt, draw_menu_notice, draw_menu_row, draw_title_bar, last_body_row,
-    new_playfield, wrap_text,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, PLAYFIELD_WIDTH, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL,
+    draw_command_prompt_at, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_notice,
+    draw_menu_row, draw_title_bar_at_col, last_body_row, new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 use crate::util::Lcg;
 
-pub const MENU_PROMPT_ROW: usize = 6;
+pub const MENU_PROMPT_ROW: usize = 7;
 /// Rows available for the quote display below the command line.
-const QUOTE_FIRST_ROW: usize = 8;
+const QUOTE_FIRST_ROW: usize = 9;
 const QUOTE_LAST_ROW: usize = last_body_row();
 
 /// Compute how many rows a quote block occupies: wrapped text + blank + author.
@@ -26,7 +26,7 @@ fn quote_block_height(text_lines: usize) -> usize {
 }
 
 /// Left margin for quote text (one space from the edge).
-const QUOTE_LEFT_COL: usize = 1;
+const QUOTE_LEFT_COL: usize = 2;
 
 pub struct MainMenuScreen {
     quotes: Vec<Quote>,
@@ -70,10 +70,15 @@ impl MainMenuScreen {
             }
             return Ok(buffer);
         }
-        draw_title_bar(&mut buffer, 0, "MAIN MENU: ");
+        draw_title_bar_at_col(
+            &mut buffer,
+            PRIMARY_MENU_ROW,
+            PRIMARY_MENU_TITLE_COL,
+            "MAIN MENU: ",
+        );
         draw_menu_row(
             &mut buffer,
-            1,
+            PRIMARY_MENU_ROW + 1,
             &[
                 MenuEntry::new(2, "H", "elp with commands"),
                 main_menu_theme_entry(door_mode),
@@ -82,7 +87,7 @@ impl MainMenuScreen {
         );
         draw_menu_row(
             &mut buffer,
-            2,
+            PRIMARY_MENU_ROW + 2,
             &[
                 MenuEntry::new(2, "Q", "uit back to BBS"),
                 MenuEntry::new(24, "G", "ENERAL COMMAND MENU..."),
@@ -91,7 +96,7 @@ impl MainMenuScreen {
         );
         draw_menu_row(
             &mut buffer,
-            3,
+            PRIMARY_MENU_ROW + 3,
             &[
                 MenuEntry::new(2, "X", "pert mode ON/OFF"),
                 MenuEntry::new(24, "P", "LANET COMMAND MENU..."),
@@ -100,7 +105,7 @@ impl MainMenuScreen {
         );
         draw_menu_row(
             &mut buffer,
-            4,
+            PRIMARY_MENU_ROW + 4,
             &[
                 MenuEntry::new(2, "V", "iew Partial Map"),
                 MenuEntry::new(24, "F", "LEET COMMAND MENU..."),

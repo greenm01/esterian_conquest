@@ -1286,6 +1286,7 @@ fn reserved_first_time_player_skips_menu_and_sees_reserved_prompt() {
         game_config: reserved_game_config(1, "SYSOP"),
     })
     .expect("app should load");
+    app.door_mode = true;
 
     for _ in 0..16 {
         if app.current_screen() == ScreenId::FirstTimeReservedPrompt {
@@ -1304,6 +1305,29 @@ fn reserved_first_time_player_skips_menu_and_sees_reserved_prompt() {
             .contains("This player seat is reserved for you.")
     );
     assert!(terminal.line(6).contains("You may name your empire now"));
+}
+
+#[test]
+fn reserved_local_first_time_player_without_door_mode_still_sees_first_time_menu() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: reserved_game_config(1, "SYSOP"),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
 }
 
 #[test]
@@ -2394,13 +2418,14 @@ fn hosted_first_time_join_claims_seat_when_empire_name_is_saved() {
         HostedSeatStatus::Pending
     );
 
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Startup(StartupAction::OpenFirstTimeJoinName)
-        ),
-        AppOutcome::Continue
-    );
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeJoinEmpireName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
     for ch in "Codex Dominion".chars() {
         assert_eq!(
             apply_action(
@@ -2431,6 +2456,116 @@ fn hosted_first_time_join_claims_seat_when_empire_name_is_saved() {
     let claimed = store.hosted_seats().expect("reload hosted seats");
     assert_eq!(claimed[0].status, HostedSeatStatus::Claimed);
     assert_eq!(claimed[0].player_npub.as_deref(), Some("npub1hostedplayer"));
+}
+
+#[test]
+fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
+    let fixture_dir = temp_first_time_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    store
+        .replace_hosted_seats(&[
+            HostedSeat {
+                player_record_index_1_based: 1,
+                invite_code: "velvet-mountain".to_string(),
+                status: HostedSeatStatus::Pending,
+                player_npub: None,
+            },
+            HostedSeat {
+                player_record_index_1_based: 2,
+                invite_code: "copper-sunrise".to_string(),
+                status: HostedSeatStatus::Pending,
+                player_npub: None,
+            },
+        ])
+        .expect("seed hosted seats");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.hosted_player_npub = Some("npub1hostedplayer".to_string());
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeJoinEmpireName {
+            break;
+        }
+        assert_ne!(app.current_screen(), ScreenId::FirstTimeMenu);
+        assert_ne!(app.current_screen(), ScreenId::FirstTimeReservedPrompt);
+        app.advance_startup();
+    }
+
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+}
+
+#[test]
+fn hosted_first_time_escape_requests_quit_and_warns_invite_is_not_reserved() {
+    let fixture_dir = temp_first_time_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    store
+        .replace_hosted_seats(&[
+            HostedSeat {
+                player_record_index_1_based: 1,
+                invite_code: "velvet-mountain".to_string(),
+                status: HostedSeatStatus::Pending,
+                player_npub: None,
+            },
+            HostedSeat {
+                player_record_index_1_based: 2,
+                invite_code: "copper-sunrise".to_string(),
+                status: HostedSeatStatus::Pending,
+                player_npub: None,
+            },
+        ])
+        .expect("seed hosted seats");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.hosted_player_npub = Some("npub1hostedplayer".to_string());
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeJoinEmpireName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    assert_eq!(app.handle_key(key(KeyCode::Esc)), Action::RequestQuit);
+    assert_eq!(
+        apply_action(&mut app, Action::RequestQuit),
+        AppOutcome::Continue
+    );
+    assert!(app.quit_confirm_open);
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("Your invite is not reserved until you name your empire and confirm with Y/[N].")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::CancelQuitPrompt),
+        AppOutcome::Continue
+    );
+    assert!(!app.quit_confirm_open);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let pending = CampaignStore::open_default_in_dir(&fixture_dir)
+        .expect("reopen campaign store")
+        .hosted_seats()
+        .expect("load pending seats");
+    assert_eq!(pending[0].status, HostedSeatStatus::Pending);
+    assert!(pending[0].player_npub.is_none());
 }
 
 #[test]
@@ -2599,6 +2734,7 @@ fn reserved_first_time_join_flow_updates_player_and_homeworld_then_enters_main_m
         game_config: reserved_game_config(1, "SYSOP"),
     })
     .expect("app should load");
+    app.door_mode = true;
 
     for _ in 0..16 {
         if app.current_screen() == ScreenId::FirstTimeReservedPrompt {
@@ -3329,23 +3465,23 @@ fn fleet_menu_matches_verified_v15_command_layout() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("fleet menu should render");
     assert_eq!(
-        terminal.line(0).trim_end(),
-        "FLEET COMMAND CENTER:                                        O>rder a Fleet"
-    );
-    assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER"
+        " FLEET COMMAND CENTER:                                       O>rder a Fleet"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
-        "  Q>uit: Main Menu   E>TA Calc           I>nfo about Planet  M>erge a Fleet"
+        "  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER"
     );
     assert_eq!(
         terminal.line(3).trim_end(),
-        "  X>pert Mode        F>leet List         D>etach Ships       L>oad TTs w/Armies"
+        "  Q>uit: Main Menu   E>TA Calc           I>nfo about Planet  M>erge a Fleet"
     );
     assert_eq!(
         terminal.line(4).trim_end(),
+        "  X>pert Mode        F>leet List         D>etach Ships       L>oad TTs w/Armies"
+    );
+    assert_eq!(
+        terminal.line(5).trim_end(),
         "  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies"
     );
 }
@@ -3969,26 +4105,26 @@ fn main_menu_matches_verified_v15_command_layout() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("main menu should render");
-    assert_eq!(terminal.line(0).trim_end(), "MAIN MENU:");
+    assert_eq!(terminal.line(1).trim_end(), " MAIN MENU:");
     assert_eq!(
-        terminal.line(1).trim_end(),
+        terminal.line(2).trim_end(),
         "  H>elp with commands   C>olor Theme               T>otal Planet Database"
     );
     assert_eq!(
-        terminal.line(2).trim_end(),
+        terminal.line(3).trim_end(),
         "  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet"
     );
     assert_eq!(
-        terminal.line(3).trim_end(),
+        terminal.line(4).trim_end(),
         "  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report"
     );
     assert_eq!(
-        terminal.line(4).trim_end(),
+        terminal.line(5).trim_end(),
         "  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report"
     );
-    assert_eq!(terminal.line(5).trim_end(), "");
+    assert_eq!(terminal.line(6).trim_end(), "");
     assert_eq!(
-        terminal.line(6).trim_end(),
+        terminal.line(7).trim_end(),
         "MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
     );
     assert!(terminal.line(23).contains("-- "));
@@ -4016,23 +4152,23 @@ fn general_menu_matches_verified_v15_command_layout() {
     app.render(&mut terminal)
         .expect("general menu should render");
     assert_eq!(
-        terminal.line(0).trim_end(),
-        "GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)"
-    );
-    assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp with commands     A>utopilot [ON] [OFF]    R>eview Inbox"
+        " GENERAL COMMAND CENTER:  I>nfo about a Planet     C>ommunicate (send message)"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
-        "  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results"
+        "  H>elp with commands     A>utopilot [ON] [OFF]    R>eview Inbox"
     );
     assert_eq!(
         terminal.line(3).trim_end(),
-        "  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)"
+        "  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results"
     );
     assert_eq!(
         terminal.line(4).trim_end(),
+        "  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)"
+    );
+    assert_eq!(
+        terminal.line(5).trim_end(),
         "  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list"
     );
     assert_eq!(
@@ -4059,13 +4195,13 @@ fn main_menu_notice_renders_below_fixed_command_row() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("main menu should render");
     assert_eq!(
-        terminal.lines[6].trim_end(),
+        terminal.lines[7].trim_end(),
         "MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
     );
-    assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
-    assert!(terminal.lines[10].contains("Notice: No ships are waiting in stardock."));
+    assert_eq!(terminal.lines[10].trim_end(), "");
+    assert!(terminal.lines[11].contains("Notice: No ships are waiting in stardock."));
     assert!(!terminal.lines.iter().any(|line| line.contains("-- ")));
 }
 
@@ -4110,7 +4246,7 @@ fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
     assert!(!app.expert_mode);
     app.render(&mut terminal)
         .expect("normal main menu should render");
-    assert_eq!(terminal.lines[0].trim_end(), "MAIN MENU:");
+    assert_eq!(terminal.lines[1].trim_end(), " MAIN MENU:");
 }
 
 #[test]
@@ -4272,11 +4408,11 @@ fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
     app.render(&mut terminal)
         .expect("door main menu should render");
     assert_eq!(
-        terminal.line(1).trim_end(),
+        terminal.line(2).trim_end(),
         "  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database"
     );
     assert_eq!(
-        terminal.line(6).trim_end(),
+        terminal.line(7).trim_end(),
         "MAIN COMMAND <- ? X V A G P F T I B D <Q> ->"
     );
 
@@ -4304,11 +4440,11 @@ fn door_mode_first_time_menu_and_popup_help_use_ansi_toggle_text() {
     app.render(&mut terminal)
         .expect("door first-time menu should render");
     assert_eq!(
-        terminal.line(1).trim_end(),
+        terminal.line(2).trim_end(),
         "  H>elp with commands       L>ist current empires      A>nsi color ON/OFF"
     );
     assert_eq!(
-        terminal.line(4).trim_end(),
+        terminal.line(5).trim_end(),
         "FIRST TIME COMMAND <- ? L J A V <Q> ->"
     );
 
@@ -4359,13 +4495,13 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
     let border_col = terminal.lines[border_row]
         .find('┌')
         .expect("theme picker table col");
-    assert_eq!(title_col, border_col);
+    assert_eq!(title_col, border_col + 1);
     let command_line = line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q>");
     assert!(command_line.contains("COMMAND <- ? J K ^U ^D <Q>"));
     let command_col = command_line
         .find("COMMAND")
         .expect("theme picker command col");
-    assert_eq!(command_col, border_col);
+    assert_eq!(command_col, border_col + 1);
 
     theme_picker_select(&mut app, "tokyo_night");
     assert_eq!(
@@ -4870,13 +5006,13 @@ fn first_time_menu_status_renders_below_fixed_command_row() {
     app.render(&mut terminal)
         .expect("first-time menu should render");
     assert_eq!(
-        terminal.lines[4].trim_end(),
+        terminal.lines[5].trim_end(),
         "FIRST TIME COMMAND <- ? L J C V <Q> ->"
     );
-    assert_eq!(terminal.lines[5].trim_end(), "");
     assert_eq!(terminal.lines[6].trim_end(), "");
     assert_eq!(terminal.lines[7].trim_end(), "");
-    assert!(terminal.lines[8].contains("Notice: Only two empires remain open."));
+    assert_eq!(terminal.lines[8].trim_end(), "");
+    assert!(terminal.lines[9].contains("Notice: Only two empires remain open."));
 }
 
 #[test]
@@ -4901,22 +5037,22 @@ fn planet_menu_matches_verified_v15_command_layout() {
     app.render(&mut terminal)
         .expect("planet menu should render");
     assert_eq!(
-        terminal.line(0).trim_end(),
-        "PLANET COMMANDS:                                            T>ax rate: Empire"
-    );
-    assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp on Options  C>OMMISSION MENU   V>iew Partial Map    S>corch planets"
+        " PLANET COMMANDS:                                           T>ax rate: Empire"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
-        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet List         L>oad TTs w/Armies"
+        "  H>elp on Options  C>OMMISSION MENU   V>iew Partial Map    S>corch planets"
     );
     assert_eq!(
         terminal.line(3).trim_end(),
+        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet List         L>oad TTs w/Armies"
+    );
+    assert_eq!(
+        terminal.line(4).trim_end(),
         "  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies"
     );
-    assert_eq!(terminal.line(4).trim_end(), "");
+    assert_eq!(terminal.line(5).trim_end(), "");
 }
 
 #[test]
@@ -4942,13 +5078,13 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
     app.render(&mut terminal)
         .expect("planet menu should render");
     assert_eq!(
-        terminal.lines[5].trim_end(),
+        terminal.lines[6].trim_end(),
         "PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
     );
-    assert_eq!(terminal.lines[6].trim_end(), "");
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
-    assert!(terminal.lines[9].contains("Notice: No ships or starbases are waiting in stardock."));
+    assert_eq!(terminal.lines[9].trim_end(), "");
+    assert!(terminal.lines[10].contains("Notice: No ships or starbases are waiting in stardock."));
 }
 
 #[test]
@@ -8956,7 +9092,7 @@ fn planet_transport_load_prompt_rejects_non_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet transport prompt should render error hanger");
-    assert!(terminal.line(7).contains(&format!("Error: {expected}")));
+    assert!(terminal.line(8).contains(&format!("Error: {expected}")));
     assert!(!terminal.line(24).contains(expected.as_str()));
 }
 
@@ -9085,16 +9221,16 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
     app.render(&mut terminal)
         .expect("fleet menu should render wrapped notice");
     assert_eq!(
-        terminal.lines[6].trim_end(),
+        terminal.lines[7].trim_end(),
         "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
     );
-    assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
+    assert_eq!(terminal.lines[10].trim_end(), "");
     let wrapped_notice = [
-        &terminal.lines[10],
         &terminal.lines[11],
         &terminal.lines[12],
+        &terminal.lines[13],
     ]
     .into_iter()
     .flat_map(|line| line.split_whitespace())
@@ -9503,8 +9639,8 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         .chars()
         .position(|ch| ch == 'C')
         .expect("command line should start with COMMAND");
-    assert_eq!(table_left, title_left);
-    assert_eq!(table_left, command_left);
+    assert_eq!(table_left + 1, title_left);
+    assert_eq!(table_left + 1, command_left);
     assert!(header_line.contains("│ID│Sel│Location│Order"));
     assert!(header_line.contains("│Target"));
     assert!(header_line.contains("│Spd│"));
@@ -9639,12 +9775,12 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     assert!(border.trim_end().chars().count() < 80);
     assert_eq!(
         terminal.line(0).find("FLEET MISSION ORDERS:"),
-        Some(left_padding)
+        Some(left_padding + 1)
     );
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
     let prompt = line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [");
-    assert_eq!(prompt.find("COMMAND"), Some(left_padding));
+    assert_eq!(prompt.find("COMMAND"), Some(left_padding + 1));
     assert!(prompt.contains("COMMAND <- ? J K ^U ^D <Q> ["));
     assert!(prompt.contains("->"));
 
@@ -9707,10 +9843,10 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         .expect("mission picker border should render");
     assert_eq!(
         terminal.line(0).find("FLEET MISSION ORDERS:"),
-        Some(left_padding)
+        Some(left_padding + 1)
     );
     let prompt = line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [");
-    assert_eq!(prompt.find("COMMAND"), Some(left_padding));
+    assert_eq!(prompt.find("COMMAND"), Some(left_padding + 1));
     assert!(prompt.contains("COMMAND <- ? J K ^U ^D <Q> ["));
     assert!(prompt.contains("->"));
 
@@ -12882,7 +13018,7 @@ fn planet_database_render_uses_classic_stacked_headers() {
         .find("TOTAL PLANET DATABASE:")
         .expect("title col");
     let border_col = terminal.line(1).find('┌').expect("table col");
-    assert_eq!(title_col, border_col);
+    assert_eq!(title_col, border_col + 1);
     assert!(terminal.line(2).contains("│Coord"));
     assert!(terminal.line(2).contains("Max"));
     assert!(terminal.line(2).contains("Year"));
@@ -12900,7 +13036,10 @@ fn planet_database_render_uses_classic_stacked_headers() {
     assert!(!terminal.line(3).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     let prompt = line_containing(&terminal, "COMMAND <- ");
-    assert_eq!(prompt.find("COMMAND").expect("commands col"), border_col);
+    assert_eq!(
+        prompt.find("COMMAND").expect("commands col"),
+        border_col + 1
+    );
     assert!(prompt.contains("["));
     assert!(prompt.contains("->"));
 }
@@ -13399,7 +13538,7 @@ fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
         line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
         "COMMAND <- Planet coords [16,13] <Q> ->"
     );
-    assert_eq!(terminal.line(7).trim_end(), "");
+    assert_eq!(terminal.line(8).trim_end(), "");
     assert_eq!(
         line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
         "Enter coordinates of the planet to view."
@@ -13448,7 +13587,7 @@ fn main_menu_planet_info_prompt_renders_error_below_message() {
         line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
         "Enter coordinates of the planet to view."
     );
-    assert_eq!(terminal.line(9).trim_end(), "");
+    assert_eq!(terminal.line(10).trim_end(), "");
     assert!(
         line_containing(&terminal, "Error: ").contains("No world found at [99,99]"),
         "expected inline error below the general message"
@@ -13673,7 +13812,7 @@ fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
         line_containing(&terminal, "PLANET COMMAND <- Empire tax rate").trim_end(),
         format!("PLANET COMMAND <- Empire tax rate (0 - 100) [{current_tax}] <Q> ->")
     );
-    assert_eq!(terminal.line(6).trim_end(), "");
+    assert_eq!(terminal.line(7).trim_end(), "");
     assert_eq!(
         line_containing(&terminal, "PLANET TAX: ").trim_end(),
         "PLANET TAX: Set empire tax rate."
@@ -14139,7 +14278,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         )
         .expect("fleet list renders");
 
-    assert_eq!(buffer.plain_line(0), "FLEET LIST:");
+    assert_eq!(buffer.plain_line(0), " FLEET LIST:");
     assert!(!buffer.plain_line(1).contains("ENTER reviews a fleet."));
     assert!(buffer.plain_line(1).starts_with("┌"));
     assert!(buffer.plain_line(1).ends_with("┐"));
@@ -14155,7 +14294,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
-    assert_eq!(buffer.plain_line(6), "COMMAND <- ? J K ^U ^D <Q> [4] ->");
+    assert_eq!(buffer.plain_line(6), " COMMAND <- ? J K ^U ^D <Q> [4] ->");
 }
 
 #[test]
@@ -14285,7 +14424,7 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
         line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [").trim_end(),
-        "COMMAND <- ? J K ^U ^D <Q> [4] ->"
+        " COMMAND <- ? J K ^U ^D <Q> [4] ->"
     );
 
     assert_eq!(
@@ -14296,7 +14435,7 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
         .expect("fleet list should render typed fleet input");
     assert_eq!(
         line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [").trim_end(),
-        "COMMAND <- ? J K ^U ^D <Q> [1] -> 1"
+        " COMMAND <- ? J K ^U ^D <Q> [1] -> 1"
     );
 
     assert_eq!(

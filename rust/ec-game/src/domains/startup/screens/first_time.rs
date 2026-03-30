@@ -3,10 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    CommandMessage, MenuEntry, ScreenGeometry, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at,
+    CommandMessage, MenuEntry, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, ScreenGeometry,
+    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_prompt_text_at,
     draw_command_message_stack, draw_command_prompt_at, draw_dismiss_prompt, draw_menu_notice,
-    draw_plain_prompt, draw_title_bar, menu_prompt_row, new_playfield,
+    draw_plain_prompt, draw_title_bar, draw_title_bar_at_col, menu_prompt_row, new_playfield,
 };
 use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -32,10 +32,19 @@ impl FirstTimeMenuScreen {
         door_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "FIRST TIME MENU:");
-        crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
-        crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
-        let command_row = menu_prompt_row(2);
+        draw_title_bar_at_col(
+            &mut buffer,
+            PRIMARY_MENU_ROW,
+            PRIMARY_MENU_TITLE_COL,
+            "FIRST TIME MENU:",
+        );
+        crate::screen::layout::draw_menu_row(
+            &mut buffer,
+            PRIMARY_MENU_ROW + 1,
+            &first_time_row_1(door_mode),
+        );
+        crate::screen::layout::draw_menu_row(&mut buffer, PRIMARY_MENU_ROW + 2, &FIRST_TIME_ROW_2);
+        let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 2);
         if let Some(status) = status {
             draw_menu_notice(&mut buffer, command_row, status);
         }
@@ -120,6 +129,7 @@ pub fn render_first_time_reserved_prompt(
 pub fn render_first_time_join_name(
     rename_mode: bool,
     reserved_mode: bool,
+    hosted_invite_mode: bool,
     reserved_alias: Option<&str>,
     current_empire_name: &str,
     input: &str,
@@ -194,7 +204,11 @@ pub fn render_first_time_join_name(
         buffer.write_text(
             5,
             0,
-            "Press Esc to back out to the First Time Menu.",
+            if hosted_invite_mode {
+                "Press Esc to leave this session before joining."
+            } else {
+                "Press Esc to back out to the First Time Menu."
+            },
             classic::body_style(),
         );
     }

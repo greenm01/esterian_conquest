@@ -12,7 +12,7 @@ use crate::screen::layout::{
     menu_prompt_row, new_playfield, new_playfield_for, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
-    SplitTableRow, TableColumn, TableFooter, draw_table_footer, draw_table_title,
+    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, draw_table_footer, draw_table_title,
     fit_table_columns_for_widget, write_split_table, write_table_window_with_cursor,
 };
 use crate::screen::{
@@ -439,7 +439,13 @@ impl PlanetBuildScreen {
             0,
         );
 
-        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            TABLE_TEXT_INSET,
+            metrics.bottom_row,
+            footer,
+        );
         let _ = delete_qty_status;
         Ok(buffer)
     }
@@ -514,7 +520,7 @@ impl PlanetBuildScreen {
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
-            0,
+            TABLE_TEXT_INSET,
             table_metrics.bottom_row,
             TableFooter::CommandInput {
                 label: COMMAND_LABEL,
@@ -546,7 +552,7 @@ impl PlanetBuildScreen {
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
-            0,
+            TABLE_TEXT_INSET,
             table_metrics.bottom_row,
             TableFooter::CommandInput {
                 label: COMMAND_LABEL,
@@ -615,7 +621,13 @@ impl PlanetBuildScreen {
             selected,
             0,
         );
-        draw_table_footer(&mut buffer, geometry, 0, metrics.bottom_row, footer);
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            TABLE_TEXT_INSET,
+            metrics.bottom_row,
+            footer,
+        );
         Ok(buffer)
     }
 

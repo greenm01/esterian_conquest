@@ -26,12 +26,13 @@ fn door_serializer_renders_first_time_menu_rows_and_prompt_cursor() {
     );
     let frame_text = String::from_utf8_lossy(&frame);
 
-    assert!(frame_text.contains("\x1b[1;1H\x1b[0;94;40;1mFIRST TIME MENU:"));
     assert!(frame_text.contains("\x1b[2;1H"));
-    assert!(frame_text.contains("elp with commands"));
+    assert!(frame_text.contains("FIRST TIME MENU:"));
     assert!(frame_text.contains("\x1b[3;1H"));
+    assert!(frame_text.contains("elp with commands"));
+    assert!(frame_text.contains("\x1b[4;1H"));
     assert!(frame_text.contains("uit back to BBS"));
-    assert!(frame_text.contains("\x1b[5;1H"));
+    assert!(frame_text.contains("\x1b[6;1H"));
     assert!(frame_text.contains("FIRST TIME COMMAND"));
 
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");

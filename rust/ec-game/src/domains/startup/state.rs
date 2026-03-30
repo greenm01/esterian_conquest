@@ -2,6 +2,14 @@ use crate::domains::startup::screens::startup::StartupReviewMode;
 use crate::screen::ScreenId;
 use crate::theme::ThemeEntry;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FirstTimeOnboardingMode {
+    #[default]
+    Generic,
+    BbsReserved,
+    HostedInvite,
+}
+
 pub struct StartupState {
     pub startup_status: Option<String>,
     pub splash_page: usize,
@@ -32,7 +40,7 @@ pub struct StartupState {
     pub first_time_input: String,
     pub first_time_empire_name: String,
     pub first_time_homeworld_name: String,
-    pub first_time_reserved_player: bool,
+    pub first_time_onboarding_mode: FirstTimeOnboardingMode,
     pub colony_world_name: String,
     pub colony_world_planet_record_index_1_based: Option<usize>,
 }
@@ -69,7 +77,7 @@ impl Default for StartupState {
             first_time_input: String::new(),
             first_time_empire_name: String::new(),
             first_time_homeworld_name: String::new(),
-            first_time_reserved_player: false,
+            first_time_onboarding_mode: FirstTimeOnboardingMode::Generic,
             colony_world_name: String::new(),
             colony_world_planet_record_index_1_based: None,
         }

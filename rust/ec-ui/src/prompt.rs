@@ -351,6 +351,28 @@ pub fn draw_plain_prompt_at_col(
     cursor_col
 }
 
+pub fn draw_right_aligned_footer_text(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    occupied_until_col: usize,
+    text: &str,
+    style: crate::buffer::CellStyle,
+) -> Option<usize> {
+    if text.is_empty() || row >= buffer.height() {
+        return None;
+    }
+    let text_width = text.chars().count();
+    if text_width > buffer.width() {
+        return None;
+    }
+    let start_col = buffer.width().saturating_sub(text_width);
+    if start_col <= occupied_until_col {
+        return None;
+    }
+    buffer.write_text(row, start_col, text, style);
+    Some(start_col)
+}
+
 fn ensure_cursor_gap(prompt: &str) -> String {
     if prompt.ends_with("-> ") {
         prompt.to_string()
@@ -599,8 +621,8 @@ mod tests {
     use super::{
         command_line_default_input_scaffold_width, command_line_default_input_width,
         draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_plain_prompt,
-        draw_table_command_bar_at, table_command_bar_scaffold_width, table_command_bar_width,
-        table_command_prompt_width,
+        draw_right_aligned_footer_text, draw_table_command_bar_at,
+        table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
@@ -713,5 +735,39 @@ mod tests {
         assert_eq!(cursor_row, 24);
         assert_eq!(cursor_col as usize, 31);
         assert!(buffer.plain_line(24).starts_with("COMMAND <- Qty "));
+    }
+
+    #[test]
+    fn right_aligned_footer_text_draws_with_gap_after_existing_footer() {
+        let mut buffer = buffer();
+        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <Q>", None, "");
+
+        let drawn = draw_right_aligned_footer_text(
+            &mut buffer,
+            24,
+            end_col,
+            "EC 1.0.0",
+            classic::prompt_hotkey_style(),
+        );
+
+        assert!(drawn.is_some());
+        assert!(buffer.plain_line(24).contains("EC 1.0.0"));
+    }
+
+    #[test]
+    fn right_aligned_footer_text_skips_when_it_would_touch_existing_footer() {
+        let mut buffer = PlayfieldBuffer::new(24, 25, classic::body_style());
+        let end_col = draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <Q>", None, "");
+
+        let drawn = draw_right_aligned_footer_text(
+            &mut buffer,
+            24,
+            end_col,
+            "EC 1.0.0",
+            classic::prompt_hotkey_style(),
+        );
+
+        assert!(drawn.is_none());
+        assert!(!buffer.plain_line(24).contains("EC 1.0.0"));
     }
 }

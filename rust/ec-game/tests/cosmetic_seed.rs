@@ -57,12 +57,12 @@ fn main_menu_renders_a_quote() {
         .render_with_notice(None, false, false, false, [0, 0], "", None)
         .expect("render menu");
 
-    let quote_rows: Vec<_> = (8..=23)
+    let quote_rows: Vec<_> = (9..=23)
         .map(|row| buffer.plain_line(row))
         .filter(|line| !line.trim().is_empty())
         .collect();
     assert!(
-        quote_rows.iter().any(|line| line.starts_with(" --")),
+        quote_rows.iter().any(|line| line.starts_with("  --")),
         "main menu should display a quote with an author attribution"
     );
 }

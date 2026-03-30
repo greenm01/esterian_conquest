@@ -5,11 +5,11 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::planet::state::PlanetScorchPromptMode;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_expert_menu,
-    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
-    draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice, draw_prompt_error_after,
-    draw_title_bar, menu_prompt_row, new_playfield,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_command_prompt_at,
+    draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
+    draw_inline_planet_info_prompt, draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice,
+    draw_prompt_error_after, draw_title_bar, draw_title_bar_at_col, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -166,29 +166,40 @@ impl PlanetMenuScreen {
             }
             return Ok(buffer);
         }
-        draw_title_bar(&mut buffer, 0, "PLANET COMMANDS:");
+        draw_title_bar_at_col(
+            &mut buffer,
+            PRIMARY_MENU_ROW,
+            PRIMARY_MENU_TITLE_COL,
+            "PLANET COMMANDS:",
+        );
         for entry in TOP_ROW {
-            draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
+            draw_menu_entry(
+                &mut buffer,
+                PRIMARY_MENU_ROW,
+                entry.col,
+                entry.hotkey,
+                entry.label,
+            );
         }
         for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice()]
             .into_iter()
             .enumerate()
         {
-            buffer.fill_row(row_idx + 1, classic::menu_style());
+            buffer.fill_row(PRIMARY_MENU_ROW + row_idx + 1, classic::menu_style());
             for entry in row {
                 if entry.hotkey.trim().is_empty() {
                     continue;
                 }
                 draw_menu_entry(
                     &mut buffer,
-                    row_idx + 1,
+                    PRIMARY_MENU_ROW + row_idx + 1,
                     entry.col,
                     entry.hotkey,
                     entry.label,
                 );
             }
         }
-        let command_row = menu_prompt_row(3);
+        let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 3);
         if inline_planet_info {
             draw_inline_planet_info_prompt(
                 &mut buffer,

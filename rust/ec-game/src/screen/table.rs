@@ -8,7 +8,7 @@ use crate::theme::classic;
 use ec_ui::prompt as shared_prompt;
 use ec_ui::table_layout::{ColumnWidthSpec, distribute_column_widths, layout_table_block};
 pub use ec_ui::table_layout::{
-    HorizontalAlign, LayoutRect, TableBlockLayout, TableWidthMode, VerticalAlign,
+    HorizontalAlign, LayoutRect, TABLE_TEXT_INSET, TableBlockLayout, TableWidthMode, VerticalAlign,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -232,9 +232,11 @@ pub fn minimum_table_render_width_with_footer_floor(
     footer_scaffold_floor: usize,
 ) -> usize {
     title
-        .map_or(0, |title| title.chars().count())
-        .max(footer.map_or(0, table_footer_scaffold_width))
-        .max(footer_scaffold_floor)
+        .map_or(0, |title| title.chars().count() + TABLE_TEXT_INSET)
+        .max(footer.map_or(0, |footer| {
+            table_footer_scaffold_width(footer) + TABLE_TEXT_INSET
+        }))
+        .max(footer_scaffold_floor + TABLE_TEXT_INSET)
 }
 
 pub fn widen_table_columns_to_minimum_render_width<'a>(
@@ -728,7 +730,12 @@ pub fn draw_table_title_at(
     title: &str,
 ) -> usize {
     buffer.fill_row(title_row, classic::menu_style());
-    buffer.write_text(title_row, table_col, title, classic::title_style());
+    buffer.write_text(
+        title_row,
+        table_col + TABLE_TEXT_INSET,
+        title,
+        classic::title_style(),
+    );
     title_row
 }
 

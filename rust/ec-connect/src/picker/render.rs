@@ -1,5 +1,5 @@
 use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
-use ec_ui::prompt::draw_table_command_bar_at;
+use ec_ui::prompt::{draw_right_aligned_footer_text, draw_table_command_bar_at_col};
 use ec_ui::table_layout::{
     HorizontalAlign, LayoutRect, TableWidthMode, VerticalAlign, layout_table_block,
 };
@@ -12,6 +12,7 @@ use super::layout::{
     Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, TableMetrics,
     displayed_body_rows, draw_scroll_gutter, draw_table_frame, middle_ellipsis, pad_right,
     resolve_columns, scroll_start, table_cell_start, table_message_col_in, table_render_width,
+    table_text_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_date, short_npub, truncate};
 use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_popup};
@@ -55,6 +56,8 @@ const RELAY_GAME_COLUMNS: [Column<'_>; 5] = [
     Column::fixed("Joined", 10),
     Column::fixed("Last Conn", 12),
 ];
+
+const TABLE_FOOTER_VERSION_TAG: &str = concat!("EC ", env!("CARGO_PKG_VERSION"));
 
 pub fn render_buffer(
     state: &PickerState,
@@ -163,7 +166,15 @@ fn render_main_menu(
 
     match state.screen {
         Screen::GameList => {
-            draw_table_command_bar_at(buffer, metrics.command_row, MAIN_MENU_RAIL, None, "");
+            let end_col = draw_table_command_bar_at_col(
+                buffer,
+                metrics.command_row,
+                metrics.command_col,
+                MAIN_MENU_RAIL,
+                None,
+                "",
+            );
+            draw_table_footer_version(buffer, metrics.command_row, end_col);
         }
         _ => {}
     }
@@ -217,7 +228,15 @@ fn render_wallet_menu(
 
     match state.screen {
         Screen::WalletList | Screen::WalletAddPrompt => {
-            draw_table_command_bar_at(buffer, metrics.command_row, WALLET_MENU_RAIL, None, "");
+            let end_col = draw_table_command_bar_at_col(
+                buffer,
+                metrics.command_row,
+                metrics.command_col,
+                WALLET_MENU_RAIL,
+                None,
+                "",
+            );
+            draw_table_footer_version(buffer, metrics.command_row, end_col);
         }
         _ => {}
     }
@@ -242,7 +261,15 @@ fn render_game_select(buffer: &mut PlayfieldBuffer, games: &[GameEntry], selecte
         draw_select_row(buffer, row, metrics.table_col, &columns, game, is_selected);
     }
     draw_scroll_gutter(buffer, metrics, start, games.len());
-    draw_table_command_bar_at(buffer, metrics.command_row, GAME_SELECT_RAIL, None, "");
+    let end_col = draw_table_command_bar_at_col(
+        buffer,
+        metrics.command_row,
+        metrics.command_col,
+        GAME_SELECT_RAIL,
+        None,
+        "",
+    );
+    draw_table_footer_version(buffer, metrics.command_row, end_col);
     metrics.command_row
 }
 
@@ -269,7 +296,15 @@ fn render_relay_list(buffer: &mut PlayfieldBuffer, state: &PickerState) -> usize
         }
         draw_scroll_gutter(buffer, metrics, start, relays.len());
     }
-    draw_table_command_bar_at(buffer, metrics.command_row, RELAY_MENU_RAIL, None, "");
+    let end_col = draw_table_command_bar_at_col(
+        buffer,
+        metrics.command_row,
+        metrics.command_col,
+        RELAY_MENU_RAIL,
+        None,
+        "",
+    );
+    draw_table_footer_version(buffer, metrics.command_row, end_col);
     metrics.command_row
 }
 
@@ -284,7 +319,7 @@ fn render_relay_games(buffer: &mut PlayfieldBuffer, state: &PickerState, relay_u
     );
     buffer.write_text_clipped(
         0,
-        metrics.table_col,
+        table_text_col(metrics.table_col),
         &relay_label,
         classic::status_value_style(),
     );
@@ -306,8 +341,28 @@ fn render_relay_games(buffer: &mut PlayfieldBuffer, state: &PickerState, relay_u
         }
         draw_scroll_gutter(buffer, metrics, start, games.len());
     }
-    draw_table_command_bar_at(buffer, metrics.command_row, RELAY_GAMES_RAIL, None, "");
+    let end_col = draw_table_command_bar_at_col(
+        buffer,
+        metrics.command_row,
+        metrics.command_col,
+        RELAY_GAMES_RAIL,
+        None,
+        "",
+    );
+    draw_table_footer_version(buffer, metrics.command_row, end_col);
     metrics.command_row
+}
+
+fn draw_table_footer_version(buffer: &mut PlayfieldBuffer, row: usize, footer_end_col: usize) {
+    let prompt = classic::prompt_style();
+    let style = CellStyle::new(GameColor::BrightBlack, prompt.bg, false);
+    let _ = draw_right_aligned_footer_text(
+        buffer,
+        row,
+        footer_end_col,
+        TABLE_FOOTER_VERSION_TAG,
+        style,
+    );
 }
 
 fn render_locked_screen(buffer: &mut PlayfieldBuffer, matrix: &MatrixState) {
