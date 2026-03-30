@@ -114,7 +114,8 @@ pub fn select_discovered_game_from_events<'a>(
             );
         }
         return Err(
-            "could not discover this hosted game on the relay; supply --gate <npub>".to_string(),
+            "could not find this hosted game on the relay; check the invite code and relay, then try again"
+                .to_string(),
         );
     }
 
@@ -153,12 +154,9 @@ pub fn select_discovered_game_from_events<'a>(
                 seat,
             })
         }
-        0 => Err(
-            "multiple hosted games matched this invite hash, but none matched the server host/port; supply --gate <npub>"
-                .to_string(),
-        ),
+        0 => Err("multiple hosted games matched this invite code on the relay, but none matched this server address; open the game from the picker instead".to_string()),
         _ => Err(
-            "multiple hosted games matched this invite exactly on the relay; supply --gate <npub>"
+            "multiple hosted games matched this invite code on the relay; open the game from the picker and choose the right one"
                 .to_string(),
         ),
     }

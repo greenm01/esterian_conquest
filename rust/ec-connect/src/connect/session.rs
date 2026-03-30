@@ -476,8 +476,8 @@ fn touch_cache_entry(game_id: &str) {
 /// Resolve the gate's Nostr public key for a server.
 ///
 /// Checks the explicit override first, then falls back to the cache.
-/// Returns an error asking the user to supply `--gate <npub>` if neither
-/// source has the information.
+/// Returns an error telling the user to reconnect from the picker or join with
+/// an invite code if neither source has the information.
 pub fn resolve_gate_npub(
     server_host: &str,
     cache: &GameCache,
@@ -490,6 +490,6 @@ pub fn resolve_gate_npub(
         return Ok(npub.to_string());
     }
     Err(format!(
-        "gate npub not known for {server_host}; supply --gate <npub>"
+        "this server is not in your joined game list yet: {server_host}\njoin it with an invite code first, or reconnect from the picker"
     ))
 }

@@ -356,10 +356,15 @@ fn render_relay_games(buffer: &mut PlayfieldBuffer, state: &PickerState, relay_u
 fn draw_table_footer_version(buffer: &mut PlayfieldBuffer, row: usize, footer_end_col: usize) {
     let prompt = classic::prompt_style();
     let style = CellStyle::new(GameColor::BrightBlack, prompt.bg, false);
+    let screen_row = PLAYFIELD_HEIGHT.saturating_sub(1);
+    if row >= screen_row.saturating_sub(2) {
+        return;
+    }
+    let occupied_until_col = if row == screen_row { footer_end_col } else { 0 };
     let _ = draw_right_aligned_footer_text(
         buffer,
-        row,
-        footer_end_col,
+        screen_row,
+        occupied_until_col,
         TABLE_FOOTER_VERSION_TAG,
         style,
     );

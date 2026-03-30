@@ -351,8 +351,13 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
     assert_eq!(buffer.plain_line(command_row).find("COMMAND"), Some(1));
     assert!(buffer.plain_line(command_row).contains(" <Space> L "));
     assert!(
-        buffer
+        !buffer
             .plain_line(command_row)
+            .contains(concat!("EC ", env!("CARGO_PKG_VERSION")))
+    );
+    assert!(
+        buffer
+            .plain_line(buffer.height() - 1)
             .contains(concat!("EC ", env!("CARGO_PKG_VERSION")))
     );
     assert!(

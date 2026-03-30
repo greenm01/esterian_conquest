@@ -77,7 +77,8 @@ fn discovery_falls_back_to_gate_override_message_when_no_match_exists() {
     let err = select_discovered_game_from_events([&event], &target(), "amber-river")
         .expect_err("no matching event");
 
-    assert!(err.contains("--gate <npub>"));
+    assert!(err.contains("check the invite code and relay"));
+    assert!(!err.contains("--gate"));
 }
 
 #[test]
@@ -112,5 +113,6 @@ fn discovery_reports_ambiguous_matches() {
         .expect_err("ambiguous match");
 
     assert!(err.contains("multiple hosted games matched"));
-    assert!(err.contains("--gate <npub>"));
+    assert!(err.contains("open the game from the picker"));
+    assert!(!err.contains("--gate"));
 }
