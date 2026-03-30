@@ -24,6 +24,8 @@ use ec_ui::session::TerminalSession;
 // ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    crate::platform::setup_console();
+
     // Collect all args upfront so that flags like --gate can appear in any
     // position relative to the positional subcommand.
     let all_args: Vec<String> = env::args().skip(1).collect();

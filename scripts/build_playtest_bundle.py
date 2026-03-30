@@ -206,10 +206,10 @@ def package_readme(spec: BundleSpec) -> str:
     windows_note = ""
     if spec.is_windows:
         windows_note = """
-## Windows First Run Note
+## Windows
 
-These are command-line applications. Double-click the `.exe` to open a terminal window,
-or run them from PowerShell/Command Prompt for best results.
+Extract the `.zip` archive to a folder of your choice. Double-click `ec-connect.exe`
+to launch. No installation required.
 
 If Windows Defender flags the binary, click "More info" → "Run anyway".
 """.rstrip()
@@ -351,25 +351,12 @@ def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
         dest.chmod(mode | 0o755)
 
 
-def write_bat_launcher(bundle_root: Path) -> None:
-    bat = (
-        "@echo off\r\n"
-        "title Esterian Conquest\r\n"
-        "mode con: cols=120 lines=40\r\n"
-        '"%~dp0ec-connect.exe"\r\n'
-        "pause > nul\r\n"
-    )
-    (bundle_root / "ec-connect.bat").write_text(bat, encoding="utf-8")
-
-
 def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root: Path) -> Path:
     bundle_root = workspace_root / spec.bundle_root_name
 
     if spec.is_windows:
         for path in binary_paths.values():
             copy_file(path, bundle_root / path.name)
-        if "ec-connect" in binary_paths:
-            write_bat_launcher(bundle_root)
         copy_file(PLAYER_MANUAL, bundle_root / PLAYER_MANUAL.name)
         if spec.artifact == "public-beta":
             copy_file(SYSOP_MANUAL, bundle_root / SYSOP_MANUAL.name)

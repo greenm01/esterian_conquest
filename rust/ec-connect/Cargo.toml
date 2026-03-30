@@ -54,6 +54,9 @@ crossterm = "0.29"
 ec-ui = { path = "../ec-ui" }
 ec-log = { path = "../ec-log" }
 libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["wincon", "winuser", "windef", "winbase", "processenv"] }
 tracing = "0.1"
 
 # CLI argument parsing

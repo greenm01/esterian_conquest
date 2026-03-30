@@ -166,7 +166,7 @@ private test.
 === Windows
 
 Extract the `.zip` archive to a folder of your choice. Double-click
-`ec-connect.bat` to launch. A command window opens automatically. No
+`ec-connect.exe` to launch. A command window opens automatically. No
 installation required.
 
 On first use, `ec-connect` creates an encrypted wallet. You choose one wallet

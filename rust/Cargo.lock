@@ -761,6 +761,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "winapi",
  "winresource",
  "zstd",
 ]

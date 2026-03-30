@@ -1,4 +1,5 @@
 pub mod cache;
+pub mod platform;
 pub mod cli;
 pub mod config;
 pub mod connect;
