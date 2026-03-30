@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
-use ec_ui::modal::{ModalTheme, Rect};
+use ec_ui::modal::{ModalTheme, Rect, modal_content_rect};
 use ec_ui::prompt::{draw_command_line_prompt_text_at, draw_command_line_prompt_text_at_col};
 use ec_ui::theme::classic;
 
@@ -20,6 +20,7 @@ use super::relay::{
 use super::state::{PickerSession, PickerState};
 use crate::cache::save_cache;
 use crate::input_field::{draw_labeled_input_row, input_width};
+use crate::text_wrap::{wrapped_lines, write_wrapped_lines_clamped};
 use crate::wallet::{delete_identity, set_identity_alias};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -488,8 +489,10 @@ fn render_maps_downloaded_popup(buffer: &mut PlayfieldBuffer, path: &PathBuf) {
 }
 
 fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Option<&str>) {
-    let has_error = error.is_some();
-    let height: u16 = if has_error { 10 } else { 9 };
+    let error_lines = error
+        .map(|value| wrapped_lines(value, 72).len())
+        .unwrap_or(0);
+    let height = 9 + error_lines as u16;
     let popup = draw_modal_frame(
         buffer,
         "DOWNLOAD MAPS",
@@ -497,9 +500,10 @@ fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: 
         height,
         classic::table_body_style(),
     );
-    let left = popup.x as usize + 2;
+    let content = modal_content_rect(popup);
+    let left = content.x as usize;
     let inner_right = popup.x as usize + popup.width as usize - 2;
-    let inner_width = popup.width.saturating_sub(4) as usize;
+    let inner_width = content.width as usize;
 
     let instruction = "Set the default folder for downloaded maps. Game folders are created under it automatically.";
     for (idx, line) in wrapped_lines(instruction, inner_width)
@@ -529,20 +533,20 @@ fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: 
         classic::prompt_hotkey_style(),
     );
 
+    let error_row = popup.y as usize + 6;
+    let hint_row = content.y as usize + content.height.saturating_sub(1) as usize;
+    let max_error_rows = hint_row.saturating_sub(error_row);
     if let Some(err) = error {
-        buffer.write_text_clipped(
-            popup.y as usize + 6,
+        write_wrapped_lines_clamped(
+            buffer,
+            error_row,
             left,
-            &truncate(err, inner_width),
+            inner_width,
+            max_error_rows,
+            err,
             classic::error_style(),
         );
     }
-
-    let hint_row = if has_error {
-        popup.y as usize + 7
-    } else {
-        popup.y as usize + 6
-    };
     buffer.write_text_clipped(
         hint_row,
         left,
@@ -736,62 +740,6 @@ fn clamp_relay_selection(state: &mut PickerState) {
     }
 }
 
-fn wrapped_lines(text: &str, max_width: usize) -> Vec<String> {
-    if max_width <= 1 {
-        return vec![truncate(text, 1)];
-    }
-    let mut lines = Vec::new();
-    let mut current = String::new();
-
-    for word in text.split_whitespace() {
-        let word_len = word.chars().count();
-        if word_len > max_width {
-            if !current.is_empty() {
-                lines.push(current);
-                current = String::new();
-            }
-            let mut rest = word;
-            while rest.chars().count() > max_width {
-                let chunk = rest.chars().take(max_width).collect::<String>();
-                lines.push(chunk);
-                rest = &rest[rest
-                    .char_indices()
-                    .nth(max_width)
-                    .map(|(idx, _)| idx)
-                    .unwrap_or(rest.len())..];
-            }
-            if !rest.is_empty() {
-                current.push_str(rest);
-            }
-            continue;
-        }
-
-        let current_len = current.chars().count();
-        let needed = if current.is_empty() {
-            word_len
-        } else {
-            current_len + 1 + word_len
-        };
-        if needed > max_width && !current.is_empty() {
-            lines.push(current);
-            current = word.to_string();
-        } else {
-            if !current.is_empty() {
-                current.push(' ');
-            }
-            current.push_str(word);
-        }
-    }
-
-    if lines.is_empty() && current.is_empty() {
-        lines.push(String::new());
-    } else if !current.is_empty() {
-        lines.push(current);
-    }
-
-    lines
-}
-
 pub(crate) fn draw_modal_frame(
     buffer: &mut PlayfieldBuffer,
     title: &str,
@@ -841,13 +789,16 @@ fn popup_command_row(popup: Rect, fallback: usize) -> usize {
 }
 
 fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Option<&str>) {
-    let has_error = error.is_some();
-    let height: u16 = if has_error { 9 } else { 8 };
+    let error_lines = error
+        .map(|value| wrapped_lines(value, 72).len())
+        .unwrap_or(0);
+    let height = 8 + error_lines as u16;
     let popup = draw_modal_frame(buffer, "JOIN GAME", 76, height, classic::table_body_style());
 
-    let left = popup.x as usize + 2;
+    let content = modal_content_rect(popup);
+    let left = content.x as usize;
     let inner_right = popup.x as usize + popup.width as usize - 2;
-    let inner_width = popup.width.saturating_sub(4) as usize;
+    let inner_width = content.width as usize;
 
     let instruction = "Paste the invite code from your sysop, then press Enter.";
     for (idx, line) in wrapped_lines(instruction, inner_width)
@@ -888,20 +839,20 @@ fn render_join_code_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Opti
         buffer.set_cursor(cursor_col as u16, input_row as u16);
     }
 
+    let error_row = popup.y as usize + 6;
+    let hint_row = content.y as usize + content.height.saturating_sub(1) as usize;
+    let max_error_rows = hint_row.saturating_sub(error_row);
     if let Some(err) = error {
-        buffer.write_text_clipped(
-            popup.y as usize + 6,
+        write_wrapped_lines_clamped(
+            buffer,
+            error_row,
             left,
-            &truncate(err, inner_width),
+            inner_width,
+            max_error_rows,
+            err,
             classic::error_style(),
         );
     }
-
-    let hint_row = if has_error {
-        popup.y as usize + 7
-    } else {
-        popup.y as usize + 6
-    };
     buffer.write_text_clipped(
         hint_row,
         left,

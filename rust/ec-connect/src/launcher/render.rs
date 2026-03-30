@@ -5,15 +5,20 @@ use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::password::WALLET_WARNING_LINES;
 use crate::picker::layout::{Rect, centered_rect, draw_box};
 use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer_in_terminal};
+use crate::text_wrap::{wrapped_lines, write_wrapped_lines_clamped};
 
 use super::PasswordGateState;
 
 pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
     let mut buffer = PlayfieldBuffer::new(INNER_WIDTH, INNER_HEIGHT, classic::body_style());
     let outer = Rect::new(0, 2, INNER_WIDTH as u16, 21);
-    let content_rows = usize::from(state.error_msg.is_some())
-        + 2
-        + WALLET_WARNING_LINES.len() * usize::from(state.show_warning());
+    let error_lines = state
+        .error_msg
+        .as_deref()
+        .map(|msg| wrapped_lines(msg, 64).len())
+        .unwrap_or(0);
+    let content_rows =
+        error_lines + 2 + WALLET_WARNING_LINES.len() * usize::from(state.show_warning());
     let popup_height = (content_rows + 2) as u16;
     let popup = centered_rect(
         68,
@@ -41,10 +46,22 @@ pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
     );
 
     let left = popup.x as usize + 2;
+    let fixed_rows = 1 + WALLET_WARNING_LINES.len() * usize::from(state.show_warning()) + 1;
+    let max_error_rows = popup
+        .height
+        .saturating_sub(2)
+        .saturating_sub(fixed_rows as u16) as usize;
     let mut row = popup.y as usize + 1;
     if let Some(msg) = state.error_msg.as_deref() {
-        buffer.write_text_clipped(row, left, msg, classic::error_style());
-        row += 1;
+        row += write_wrapped_lines_clamped(
+            &mut buffer,
+            row,
+            left,
+            64,
+            max_error_rows,
+            msg,
+            classic::error_style(),
+        );
     }
 
     buffer.write_text_clipped(row, left, state.lead_line(), classic::table_body_style());

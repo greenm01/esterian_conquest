@@ -3,6 +3,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use ec_ui::buffer::PlayfieldBuffer;
+use ec_ui::modal::{modal_content_rect, write_modal_lines};
 use ec_ui::theme::classic;
 
 use crate::connect::game_discovery::discover_game_for_invite;
@@ -11,6 +12,7 @@ use crate::connect::session::{
     DisambigMode, PreparedSession, SessionOutcome, SessionPreparation, finish_prepared_session,
     prepare_session,
 };
+use crate::text_wrap::wrapped_lines;
 
 use super::flows::apply_session_outcome;
 use super::layout::{PLAYFIELD_WIDTH, truncate};
@@ -244,7 +246,11 @@ pub fn render_connecting_popup(buffer: &mut PlayfieldBuffer, lines: &[String]) {
 }
 
 pub fn render_status_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[String]) {
-    let content_width = lines
+    let wrapped: Vec<String> = lines
+        .iter()
+        .flat_map(|line| wrapped_lines(line, PLAYFIELD_WIDTH.saturating_sub(12)))
+        .collect();
+    let content_width = wrapped
         .iter()
         .map(|line| line.chars().count())
         .max()
@@ -252,20 +258,19 @@ pub fn render_status_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[S
     let width = (content_width + 4)
         .max(title.chars().count() + 4)
         .min(PLAYFIELD_WIDTH.saturating_sub(8));
-    let height = (lines.len() + 2) as u16;
+    let height = (wrapped.len() + 2) as u16;
     let popup =
         super::overlay::draw_modal_frame(buffer, title, width, height, classic::table_body_style());
-    let mut row = popup.y as usize + 1;
-    let col = popup.x as usize + 2;
-    for line in lines {
-        buffer.write_text_clipped(
-            row,
-            col,
-            &truncate(line, popup.width.saturating_sub(4) as usize),
-            classic::table_body_style(),
-        );
-        row += 1;
-    }
+    let content = modal_content_rect(popup);
+    let _ = write_modal_lines(
+        buffer,
+        popup,
+        &wrapped
+            .into_iter()
+            .map(|line| truncate(&line, content.width as usize))
+            .collect::<Vec<_>>(),
+        classic::table_body_style(),
+    );
     buffer.clear_cursor();
 }
 

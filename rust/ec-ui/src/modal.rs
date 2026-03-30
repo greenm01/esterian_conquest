@@ -27,6 +27,13 @@ pub fn centered_rect(width: u16, height: u16, parent: Rect) -> Rect {
     Rect::new(x, y, width, height)
 }
 
+pub fn modal_content_rect(popup: Rect) -> Rect {
+    if popup.width <= 4 || popup.height <= 2 {
+        return Rect::new(popup.x.saturating_add(2), popup.y.saturating_add(1), 0, 0);
+    }
+    Rect::new(popup.x + 2, popup.y + 1, popup.width - 4, popup.height - 2)
+}
+
 pub fn draw_box(
     buffer: &mut PlayfieldBuffer,
     rect: Rect,
@@ -126,13 +133,35 @@ pub fn render_modal_box(
         .min(buffer.width().saturating_sub(8));
     let height = (lines.len() + 2) as u16;
     let popup = draw_modal_frame(buffer, title, width, height, theme);
-    let mut row = popup.y as usize + 1;
-    let col = popup.x as usize + 2;
-    for line in lines {
-        buffer.write_text_clipped(row, col, line, theme.body_style);
-        row += 1;
-    }
+    write_modal_lines(buffer, popup, lines, theme.body_style);
     popup
+}
+
+pub fn write_modal_lines(
+    buffer: &mut PlayfieldBuffer,
+    popup: Rect,
+    lines: &[String],
+    style: CellStyle,
+) -> usize {
+    let content = modal_content_rect(popup);
+    let max_rows = content.height as usize;
+    let max_width = content.width as usize;
+    if max_rows == 0 || max_width == 0 {
+        return 0;
+    }
+
+    let visible_rows = lines.len().min(max_rows);
+    for idx in 0..visible_rows {
+        let is_last_visible = idx + 1 == max_rows;
+        let overflow_hidden = lines.len() > max_rows;
+        let line = if is_last_visible && overflow_hidden {
+            truncate_with_continuation(&lines[idx], max_width)
+        } else {
+            clip_to_width(&lines[idx], max_width)
+        };
+        buffer.write_text_clipped(content.y as usize + idx, content.x as usize, &line, style);
+    }
+    visible_rows
 }
 
 pub fn format_help_rows<'a, I>(rows: I) -> Vec<String>
@@ -148,4 +177,19 @@ where
     rows.into_iter()
         .map(|(command, description)| format!("{command:<command_width$} {description}"))
         .collect()
+}
+
+fn clip_to_width(text: &str, max_width: usize) -> String {
+    text.chars().take(max_width).collect()
+}
+
+fn truncate_with_continuation(text: &str, max_width: usize) -> String {
+    if max_width == 0 {
+        return String::new();
+    }
+    if max_width <= 3 {
+        return ".".repeat(max_width);
+    }
+    let clipped = clip_to_width(text, max_width.saturating_sub(3));
+    format!("{clipped}...")
 }

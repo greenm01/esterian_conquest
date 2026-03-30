@@ -16,4 +16,5 @@ pub mod password;
 pub mod picker;
 pub mod platform;
 mod shell;
+mod text_wrap;
 pub mod wallet;

@@ -16,6 +16,7 @@ use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::{derive_relay_url, resolve_server};
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::map_store::save_map_bundle;
+use crate::text_wrap::{wrapped_lines, write_wrapped_lines_clamped};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RelayPromptAction {
@@ -442,7 +443,7 @@ pub fn render_relay_editor_popup(
     input: &str,
     error: Option<&str>,
 ) {
-    let popup = draw_relay_popup_frame(buffer, title, error.is_some());
+    let popup = draw_relay_popup_frame(buffer, title, error.map_or(0, relay_error_lines));
     render_relay_popup_body(buffer, popup, instruction, input, error);
 }
 
@@ -561,7 +562,7 @@ pub fn render_game_relay_popup(
     error: Option<&str>,
     action: RelayPromptAction,
 ) {
-    let popup = draw_relay_popup_frame(buffer, "GAME RELAY", error.is_some());
+    let popup = draw_relay_popup_frame(buffer, "GAME RELAY", error.map_or(0, relay_error_lines));
     let instruction = match action {
         RelayPromptAction::Connect => {
             "This game has no saved relay yet. Enter the relay to reconnect."
@@ -708,8 +709,8 @@ fn submit_map_download_with_prompted_relay(
     Ok(())
 }
 
-fn draw_relay_popup_frame(buffer: &mut PlayfieldBuffer, title: &str, has_error: bool) -> Rect {
-    let height = if has_error { 8 } else { 7 };
+fn draw_relay_popup_frame(buffer: &mut PlayfieldBuffer, title: &str, error_lines: usize) -> Rect {
+    let height = 7 + error_lines as u16;
     let popup = centered_rect(
         ((72 * 100) / PLAYFIELD_WIDTH).max(40) as u16,
         height,
@@ -754,10 +755,11 @@ fn render_relay_popup_body(
 ) {
     let left = popup.x as usize + 2;
     let inner_right = popup.x as usize + popup.width as usize - 2;
+    let inner_width = popup.width.saturating_sub(4) as usize;
     buffer.write_text_clipped(
         popup.y as usize + 1,
         left,
-        &truncate(instruction, popup.width.saturating_sub(4) as usize),
+        &truncate(instruction, inner_width),
         classic::table_body_style(),
     );
     let field_row = popup.y as usize + 3;
@@ -774,11 +776,18 @@ fn render_relay_popup_body(
         classic::prompt_hotkey_style(),
     );
     if let Some(error) = error {
-        buffer.write_text_clipped(
+        write_wrapped_lines_clamped(
+            buffer,
             popup.y as usize + 5,
             left,
-            &truncate(error, popup.width.saturating_sub(4) as usize),
+            inner_width,
+            popup.height.saturating_sub(6) as usize,
+            error,
             classic::error_style(),
         );
     }
+}
+
+fn relay_error_lines(error: &str) -> usize {
+    wrapped_lines(error, 68).len()
 }

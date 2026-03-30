@@ -155,3 +155,25 @@ fn password_cursor_sits_one_space_after_label() {
         (0..buffer.height()).any(|row| { buffer.plain_line(row).contains("Password: ******") })
     );
 }
+
+#[test]
+fn launcher_wraps_long_error_messages() {
+    let state = PasswordGateState::new(
+        true,
+        Some(
+            "Error: this is a deliberately long launcher error message that should wrap across multiple rows."
+                .to_string(),
+        ),
+    );
+    let buffer = render_inner_buffer(&state);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Error: this is a deliberately long launcher error")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("message that should wrap across") || line.contains("multiple rows.")
+    }));
+}

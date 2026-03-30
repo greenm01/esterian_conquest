@@ -934,6 +934,115 @@ fn game_relay_prompt_renders_popup() {
 }
 
 #[test]
+fn join_popup_wraps_long_error_messages() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::JoinCodePopup {
+        error: Some(
+            "this is a deliberately long join error message that should wrap across multiple rows in the popup"
+                .to_string(),
+        ),
+    });
+
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("this is a deliberately long join error message")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("should wrap across")
+            || line.contains("multiple rows")
+            || line.contains("popup")
+    }));
+    let hint_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("Enter=join"))
+        .expect("join hint row");
+    let hint_line = buffer.plain_line(hint_row);
+    assert!(!hint_line.contains('└'));
+    assert!(!hint_line.contains('┘'));
+}
+
+#[test]
+fn relay_popup_wraps_long_error_messages() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.relay_input = "ws://localhost:7777".to_string();
+    state.overlay = Some(PickerOverlay::GameRelayPrompt {
+        index: 0,
+        action: RelayPromptAction::Connect,
+        error: Some(
+            "this relay lookup failed with a deliberately long error message that should wrap inside the popup"
+                .to_string(),
+        ),
+    });
+
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("this relay lookup failed with a deliberately long")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("error message that should wrap") || line.contains("inside the popup")
+    }));
+}
+
+#[test]
+fn maps_popup_wraps_long_errors_without_hitting_border() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "/tmp/ec/maps".to_string();
+    state.overlay = Some(PickerOverlay::MapsDownloadPrompt {
+        error: Some(
+            "this is a deliberately long maps error message that should wrap and keep the hint above the popup border"
+                .to_string(),
+        ),
+    });
+
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("this is a deliberately long maps error message")
+    }));
+    let hint_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("Enter=save+download"))
+        .expect("maps hint row");
+    let hint_line = buffer.plain_line(hint_row);
+    assert!(!hint_line.contains('└'));
+    assert!(!hint_line.contains('┘'));
+}
+
+#[test]
+fn connecting_popup_wraps_long_status_lines_without_hitting_border() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::Connecting {
+        lines: vec![String::from(
+            "Relay: wss://relay.example.com/this/is/a/deliberately/long/status/line/that/should/wrap/inside/the/popup",
+        )],
+    });
+
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| { buffer.plain_line(row).contains("Relay:") }));
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("long/status/line")
+            || line.contains("should/wrap/inside/the/popup")
+            || line.contains("Esc/Q: cancel")
+    }));
+    let cancel_row = (0..buffer.height())
+        .find(|&row| buffer.plain_line(row).contains("Esc/Q: cancel"))
+        .expect("cancel row");
+    let cancel_line = buffer.plain_line(cancel_row);
+    assert!(!cancel_line.contains('└'));
+    assert!(!cancel_line.contains('┘'));
+}
+
+#[test]
 fn relay_games_screen_keeps_table_header_intact() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.screen = Screen::RelayGames {
