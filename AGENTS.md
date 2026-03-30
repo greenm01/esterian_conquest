@@ -155,6 +155,11 @@ When extending Rust support:
 
 Prefer rule-shaped generators and validators over preserved-byte blob emission.
 
+## Shell Notes
+
+- the user runs **fish shell**; never give multi-line commands that rely on bash `\` continuation or assume bash syntax
+- for `git add`, `gh release upload`, and similar commands with multiple file arguments, put all args on a single line — fish treats each newline as a new command and will try to execute filenames as commands
+
 ## Commit / Doc Workflow
 
 - keep commits scoped to a real milestone or coherent gain
