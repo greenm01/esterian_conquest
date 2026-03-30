@@ -8,16 +8,7 @@ use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_bu
 
 use super::PasswordGateState;
 
-pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> PlayfieldBuffer {
-    let width = usize::from(width.max(1));
-    let height = usize::from(height.max(1));
-
-    if !terminal_fits_outer(width, height) {
-        let mut buffer = PlayfieldBuffer::new(width, height, classic::body_style());
-        render_tiny(&mut buffer, state);
-        return buffer;
-    }
-
+pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
     let mut buffer = PlayfieldBuffer::new(INNER_WIDTH, INNER_HEIGHT, classic::body_style());
     let outer = Rect::new(0, 2, INNER_WIDTH as u16, 21);
     let content_rows = usize::from(state.error_msg.is_some())
@@ -80,6 +71,20 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
         classic::prompt_hotkey_style(),
     );
 
+    buffer
+}
+
+pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> PlayfieldBuffer {
+    let width = usize::from(width.max(1));
+    let height = usize::from(height.max(1));
+
+    if !terminal_fits_outer(width, height) {
+        let mut buffer = PlayfieldBuffer::new(width, height, classic::body_style());
+        render_tiny(&mut buffer, state);
+        return buffer;
+    }
+
+    let buffer = render_inner_buffer(state);
     wrap_inner_buffer_in_terminal(&buffer, None, width, height, None)
 }
 

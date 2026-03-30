@@ -31,7 +31,7 @@ use crate::wallet::{Wallet, push_new_identity};
 use super::clipboard::Clipboard;
 use super::input::{is_key_press, is_paste_shortcut, pasteable_text, picker_key};
 use super::terminal::TerminalView;
-use super::{OUTER_COLS, OUTER_ROWS};
+use super::{TERM_COLS, TERM_ROWS};
 
 const LOCKED_FRAME_STEP: Duration = Duration::from_millis(80);
 
@@ -246,19 +246,14 @@ impl App {
 
     pub fn current_buffer(&self) -> PlayfieldBuffer {
         match &self.view {
-            AppView::Password(password) => {
-                launcher_render::render_buffer(&password.state, OUTER_COLS, OUTER_ROWS)
+            AppView::Password(password) => launcher_render::render_inner_buffer(&password.state),
+            AppView::Picker(picker) => {
+                picker_render::render_inner_buffer(&picker.state, picker.session.as_ref())
             }
-            AppView::Picker(picker) => picker_render::render_buffer(
-                &picker.state,
-                picker.session.as_ref(),
-                OUTER_COLS,
-                OUTER_ROWS,
-            ),
-            AppView::Live(live) => live.terminal.render_buffer(live.picker.identity_label()),
+            AppView::Live(live) => live.terminal.render_buffer(),
             AppView::Empty => PlayfieldBuffer::new(
-                OUTER_COLS as usize,
-                OUTER_ROWS as usize,
+                TERM_COLS as usize,
+                TERM_ROWS as usize,
                 ec_ui::theme::classic::body_style(),
             ),
         }
@@ -414,18 +409,6 @@ impl PickerView {
             join_with_code(&mut picker.state, &invite, &picker.gate_npub)?;
         }
         Ok(picker)
-    }
-
-    fn identity_label(&self) -> &str {
-        self.session
-            .as_ref()
-            .and_then(PickerSession::active_alias)
-            .unwrap_or_else(|| {
-                self.session
-                    .as_ref()
-                    .map(|session| session.npub.as_str())
-                    .unwrap_or("")
-            })
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> Result<(), Box<dyn std::error::Error>> {

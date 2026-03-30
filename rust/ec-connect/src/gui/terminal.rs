@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use crate::connect::bridge::BridgeError;
 use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
 use crate::connect::session::{PreparedLiveSession, PreparedSessionFinalizer};
-use crate::shell::wrap_inner_buffer_in_terminal;
 use alacritty_terminal::event::{Event as TermEvent, EventListener, WindowSize};
 use alacritty_terminal::index::{Column, Line, Point, Side};
 use alacritty_terminal::selection::{Selection, SelectionType};
@@ -17,7 +16,7 @@ use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
 
 use super::clipboard::Clipboard;
 use super::input::{encode_paste, terminal_key_bytes};
-use super::{CELL_HEIGHT, CELL_WIDTH, OUTER_COLS, OUTER_ROWS, TERM_COLS, TERM_ROWS};
+use super::{CELL_HEIGHT, CELL_WIDTH, TERM_COLS, TERM_ROWS};
 
 #[derive(Clone, Default)]
 struct EventQueue(Arc<Mutex<Vec<TermEvent>>>);
@@ -97,25 +96,19 @@ impl TerminalView {
         self.live.send_input(bytes);
     }
 
-    pub fn render_buffer(&self, identity_label: &str) -> PlayfieldBuffer {
-        let mut inner = PlayfieldBuffer::new(
+    pub fn render_buffer(&self) -> PlayfieldBuffer {
+        let mut buffer = PlayfieldBuffer::new(
             TERM_COLS as usize,
             TERM_ROWS as usize,
             CellStyle::new(GameColor::White, GameColor::Black, false),
         );
         let content = self.term.renderable_content();
         let cursor = content.cursor;
-        populate_terminal_buffer(&mut inner, content);
+        populate_terminal_buffer(&mut buffer, content);
         if cursor.shape != CursorShape::Hidden {
-            inner.set_cursor(cursor.point.column.0 as u16, cursor.point.line.0 as u16);
+            buffer.set_cursor(cursor.point.column.0 as u16, cursor.point.line.0 as u16);
         }
-        wrap_inner_buffer_in_terminal(
-            &inner,
-            Some(identity_label),
-            OUTER_COLS as usize,
-            OUTER_ROWS as usize,
-            None,
-        )
+        buffer
     }
 
     pub fn tick(&mut self, clipboard: &mut Clipboard) -> Result<(), Box<dyn std::error::Error>> {
@@ -292,10 +285,10 @@ fn pixel_to_terminal_point(position: winit::dpi::PhysicalPosition<f64>) -> Optio
     }
     let col = (position.x as usize) / CELL_WIDTH;
     let row = (position.y as usize) / CELL_HEIGHT;
-    if !(1..=TERM_COLS as usize).contains(&col) || !(1..=TERM_ROWS as usize).contains(&row) {
+    if col >= TERM_COLS as usize || row >= TERM_ROWS as usize {
         return None;
     }
-    Some(Point::new(Line((row - 1) as i32), Column(col - 1)))
+    Some(Point::new(Line(row as i32), Column(col)))
 }
 
 fn resolve_color(color: Color, colors: &alacritty_terminal::term::color::Colors) -> GameColor {

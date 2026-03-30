@@ -1,4 +1,4 @@
-use ec_connect::launcher::render::render_buffer;
+use ec_connect::launcher::render::{render_buffer, render_inner_buffer};
 use ec_connect::launcher::{GateSubmit, PasswordGateMode, PasswordGateState};
 use ec_connect::picker::layout::{Rect, centered_rect};
 use ec_ui::theme::classic;
@@ -124,6 +124,18 @@ fn render_buffer_uses_versioned_outer_title_in_shell_title_style() {
     assert_eq!(col, 3);
     assert_eq!(buffer.row(row)[col].style, classic::shell_title_style());
     assert_eq!(classic::shell_title_style().bg, classic::body_style().bg);
+}
+
+#[test]
+fn render_inner_buffer_uses_plain_80x25_canvas_without_outer_shell_title() {
+    let state = PasswordGateState::new(true, None);
+    let buffer = render_inner_buffer(&state);
+    let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
+
+    assert_eq!(buffer.width(), 80);
+    assert_eq!(buffer.height(), 25);
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains(&title)));
+    assert_ne!(buffer.row(0)[0].ch, '┌');
 }
 
 #[test]

@@ -16,8 +16,6 @@ use winit::window::WindowBuilder;
 use app::{App, LaunchIntent};
 use render::WindowRenderer;
 
-pub(crate) const OUTER_COLS: u16 = 82;
-pub(crate) const OUTER_ROWS: u16 = 27;
 pub(crate) const TERM_COLS: u16 = 80;
 pub(crate) const TERM_ROWS: u16 = 25;
 pub(crate) const CELL_WIDTH: usize = 10;
@@ -27,8 +25,8 @@ const WINDOW_TITLE: &str = "Esterian Conquest";
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let launch_intent = parse_launch_intent()?;
     let event_loop = EventLoop::new()?;
-    let logical_width = f64::from(OUTER_COLS) * CELL_WIDTH as f64;
-    let logical_height = f64::from(OUTER_ROWS) * CELL_HEIGHT as f64;
+    let logical_width = f64::from(TERM_COLS) * CELL_WIDTH as f64;
+    let logical_height = f64::from(TERM_ROWS) * CELL_HEIGHT as f64;
     let window = Box::new(
         WindowBuilder::new()
             .with_title(WINDOW_TITLE)

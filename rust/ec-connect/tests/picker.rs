@@ -1213,6 +1213,23 @@ fn larger_terminal_keeps_space_hint_in_command_line_not_outside_border() {
 }
 
 #[test]
+fn gui_inner_picker_buffer_uses_plain_80x25_canvas_without_outer_shell() {
+    let state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let session = make_session(Some("Desk Alias"));
+    let buffer = ec_connect::picker::render::render_inner_buffer(&state, Some(&session));
+    let outer_title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
+
+    assert_eq!(buffer.width(), 80);
+    assert_eq!(buffer.height(), 25);
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains(&outer_title)));
+    assert!(!(0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains(&format!(" {}", outer_title))
+    }));
+}
+
+#[test]
 fn overflowing_wallet_renders_themed_scrollbar_gutter() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.screen = Screen::WalletList;

@@ -66,8 +66,22 @@ pub fn render_buffer(
         return render_resize_blocker(term_width, term_height);
     }
 
-    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    let buffer = render_inner_buffer(state, session);
     let identity_label = session.map(PickerSession::header_identity_label);
+    wrap_inner_buffer_in_terminal(
+        &buffer,
+        identity_label.as_deref(),
+        usize::from(term_width.max(1)),
+        usize::from(term_height.max(1)),
+        None,
+    )
+}
+
+pub fn render_inner_buffer(
+    state: &PickerState,
+    session: Option<&PickerSession>,
+) -> PlayfieldBuffer {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
 
     let command_row = match &state.screen {
         Screen::GameList | Screen::IdentityOverlay => render_main_menu(&mut buffer, state, session),
@@ -86,13 +100,7 @@ pub fn render_buffer(
     };
 
     render_overlay(&mut buffer, state, session, command_row);
-    wrap_inner_buffer_in_terminal(
-        &buffer,
-        identity_label.as_deref(),
-        usize::from(term_width.max(1)),
-        usize::from(term_height.max(1)),
-        None,
-    )
+    buffer
 }
 
 fn render_resize_blocker(term_width: u16, term_height: u16) -> PlayfieldBuffer {
