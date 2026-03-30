@@ -332,7 +332,9 @@ python3 scripts/build_linux_playtest_bundle.py --verify
 
 Builds the selected DOS release bundles and/or `ec-connect` player archives,
 verifies them, then uploads the generated assets to an existing GitHub Release
-with `gh release upload --clobber`.
+with `gh release upload --clobber`. When public `ec-connect` assets are part of
+the run, it also refreshes the signed-download verification block at the top of
+the release body.
 
 Default example:
 
@@ -383,7 +385,8 @@ Use this when you want:
 
 When `--ec-connect-target` is used, `publish_release_packages.sh` now requires
 `--gpg-key` and signs a checksum manifest for the full public `ec-connect`
-target set in one run.
+target set in one run. It also updates the GitHub release-body verification
+notice automatically.
 
 ### `run_client.py`
 

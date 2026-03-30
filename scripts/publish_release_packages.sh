@@ -7,7 +7,9 @@ Usage:
   ./scripts/publish_release_packages.sh [--tag TAG] [--variant classic|unlocked] [--ec-connect-target TARGET] [--gpg-key KEYID]
 
 Builds the selected release assets under releases/ and uploads them to an
-existing GitHub Release with `gh release upload --clobber`.
+existing GitHub Release with `gh release upload --clobber`. When public
+`ec-connect` assets are included, the script also updates the release-body
+verification notice in place.
 
 If you do not pass any asset-selection flags, the default stays the historical
 DOS release flow: both `classic` and `unlocked`.
@@ -45,14 +47,16 @@ gpg_key=""
 readonly ec_connect_release_note_url="https://github.com/greenm01/esterian_conquest/blob/main/docs/release-signing.md"
 readonly ec_connect_checksum_path="releases/SHA256SUMS.txt"
 readonly ec_connect_signature_path="releases/SHA256SUMS.txt.asc"
+readonly ec_connect_release_note_path="releases/ec-connect-release-note.md"
 readonly public_ec_connect_targets=(
   "x86_64-unknown-linux-gnu"
   "aarch64-apple-darwin"
 )
 
-print_release_note() {
+write_release_note() {
   local fingerprint="$1"
-  cat <<EOF
+  cat >"$ec_connect_release_note_path" <<EOF
+<!-- EC-RUST-VERIFY:START -->
 ## Verify Rust downloads
 
 The Rust-built \`ec-connect\` downloads in this release can be verified with the signed \`SHA256SUMS.txt\` manifest.
@@ -62,6 +66,9 @@ The Rust-built \`ec-connect\` downloads in this release can be verified with the
 
 Full instructions and public key: $ec_connect_release_note_url
 Signing key fingerprint: \`$fingerprint\`
+
+The signed manifest covers the public \`ec-connect\` archives, not the DOS compatibility bundles on this page.
+<!-- EC-RUST-VERIFY:END -->
 EOF
 }
 
@@ -185,14 +192,25 @@ if [[ ${#ec_connect_assets[@]} -gt 0 ]]; then
     echo "Unable to resolve a full fingerprint for GPG key: $gpg_key" >&2
     exit 2
   fi
+
+  write_release_note "$resolved_fingerprint"
 fi
 
 gh release upload "$release_tag" "${assets[@]}" --clobber
 
+if [[ ${#ec_connect_assets[@]} -gt 0 ]]; then
+  existing_release_body="$(mktemp)"
+  merged_release_body="$(mktemp)"
+  gh release view "$release_tag" --json body --jq '.body' >"$existing_release_body"
+  python3 scripts/upsert_release_note.py \
+    --body-file "$existing_release_body" \
+    --note-file "$ec_connect_release_note_path" \
+    --output "$merged_release_body"
+  gh release edit "$release_tag" --notes-file "$merged_release_body"
+  rm -f "$existing_release_body" "$merged_release_body"
+fi
+
 echo "Updated release assets on tag: $release_tag"
 if [[ ${#ec_connect_assets[@]} -gt 0 ]]; then
-  echo
-  echo "Paste this at the top of the GitHub release body:"
-  echo
-  print_release_note "$resolved_fingerprint"
+  echo "Updated the release-body verification notice automatically."
 fi
