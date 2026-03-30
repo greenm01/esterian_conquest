@@ -333,10 +333,14 @@ fn render_locked_screen(buffer: &mut PlayfieldBuffer, matrix: &MatrixState) {
     }
 }
 
-fn matrix_glyph(x: usize, y: usize, frame: u64) -> char {
-    const GLYPHS: &[u8] = b"01{}[]<>*+#$%&";
+#[doc(hidden)]
+pub fn matrix_glyph(x: usize, y: usize, frame: u64) -> char {
+    const GLYPHS: &[char] = &[
+        'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ',
+        'Σ', 'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', '+', '#', '%', '*',
+    ];
     let index = ((frame as usize) + (x * 13) + (y * 7)) % GLYPHS.len();
-    GLYPHS[index] as char
+    GLYPHS[index]
 }
 
 fn draw_main_row(

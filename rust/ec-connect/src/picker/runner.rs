@@ -23,6 +23,13 @@ use crate::shell::terminal_fits_outer;
 
 const POST_BRIDGE_RECOVERY_WINDOW: Duration = Duration::from_millis(120);
 
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PickerReadResult {
+    Timeout,
+    Key(KeyEvent),
+}
+
 pub fn run_picker_in_session(
     picker_session: PickerSession,
     gate_npub: String,
@@ -94,15 +101,18 @@ fn run_loop(
         }
 
         let wait = next_wait_duration(state, lock_timeout_minutes, last_activity);
-        let Some(key) = read_picker_key(&mut replayed_key, wait)? else {
-            if matches!(state.screen, Screen::Locked) {
-                state.matrix.advance();
+        let key = match read_picker_key(&mut replayed_key, wait)? {
+            PickerReadResult::Timeout => {
+                if matches!(state.screen, Screen::Locked) {
+                    state.matrix.advance();
+                    continue;
+                }
+                if should_lock_for_idle(lock_timeout_minutes, last_activity) {
+                    lock_picker(state, picker_session);
+                }
                 continue;
             }
-            if should_lock_for_idle(lock_timeout_minutes, last_activity) {
-                lock_picker(state, picker_session);
-            }
-            continue;
+            PickerReadResult::Key(key) => key,
         };
         if is_hard_quit_key(key) {
             state.quit = true;
@@ -200,19 +210,24 @@ fn run_loop(
 fn read_picker_key(
     replayed_key: &mut Option<KeyEvent>,
     wait: Duration,
-) -> Result<Option<KeyEvent>, Box<dyn std::error::Error>> {
+) -> Result<PickerReadResult, Box<dyn std::error::Error>> {
     if let Some(key) = replayed_key.take() {
-        return Ok(Some(key));
+        return Ok(PickerReadResult::Key(key));
     }
 
-    if !poll(wait)? {
-        return Ok(None);
+    let deadline = Instant::now() + wait;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Ok(PickerReadResult::Timeout);
+        }
+        if !poll(remaining)? {
+            return Ok(PickerReadResult::Timeout);
+        }
+        if let Some(key) = classify_picker_event(read()?) {
+            return Ok(PickerReadResult::Key(key));
+        }
     }
-
-    let Some(key) = post_bridge_recovery_event(read()?) else {
-        return Ok(None);
-    };
-    Ok(Some(key))
 }
 
 fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSession>) {
@@ -246,11 +261,16 @@ fn capture_post_bridge_key() -> Result<Option<KeyEvent>, Box<dyn std::error::Err
 }
 
 #[doc(hidden)]
-pub fn post_bridge_recovery_event(event: Event) -> Option<KeyEvent> {
+pub fn classify_picker_event(event: Event) -> Option<KeyEvent> {
     match event {
         Event::Key(key) if key.kind == KeyEventKind::Press => Some(key),
         _ => None,
     }
+}
+
+#[doc(hidden)]
+pub fn post_bridge_recovery_event(event: Event) -> Option<KeyEvent> {
+    classify_picker_event(event)
 }
 
 fn next_wait_duration(

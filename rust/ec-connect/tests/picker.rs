@@ -3,7 +3,9 @@
 //! These tests exercise `PickerState` logic and the pure render helpers in
 //! `picker::render`.  No live terminal or Nostr connection is needed.
 
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
+};
 use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::connect::resolve::ResolvedTarget;
@@ -20,8 +22,8 @@ use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
 use ec_connect::picker::refresh::PendingRefreshRequest;
 use ec_connect::picker::relay::RelayPromptAction;
-use ec_connect::picker::render::{Rect, centered_rect, short_npub, truncate};
-use ec_connect::picker::runner::post_bridge_recovery_event;
+use ec_connect::picker::render::{Rect, centered_rect, matrix_glyph, short_npub, truncate};
+use ec_connect::picker::runner::{classify_picker_event, post_bridge_recovery_event};
 use ec_connect::picker::state::{ConnectDisplay, ConnectOrigin};
 use ec_connect::picker::{PickerSession, PickerState, Screen};
 use ec_connect::wallet::{Identity, IdentityType, Wallet};
@@ -1095,6 +1097,28 @@ fn post_bridge_recovery_discards_key_release_events() {
 #[test]
 fn post_bridge_recovery_discards_non_key_events() {
     assert_eq!(post_bridge_recovery_event(Event::Resize(82, 27)), None);
+}
+
+#[test]
+fn classify_picker_event_discards_mouse_events() {
+    let mouse = Event::Mouse(MouseEvent {
+        kind: MouseEventKind::Moved,
+        column: 12,
+        row: 7,
+        modifiers: KeyModifiers::NONE,
+    });
+
+    assert_eq!(classify_picker_event(mouse), None);
+}
+
+#[test]
+fn matrix_glyph_emits_greek_or_texture_symbols() {
+    let glyph = matrix_glyph(3, 5, 11);
+
+    assert!(
+        ('\u{0370}'..='\u{03FF}').contains(&glyph) || matches!(glyph, '+' | '#' | '%' | '*'),
+        "unexpected lock-screen glyph: {glyph:?}"
+    );
 }
 
 #[test]
