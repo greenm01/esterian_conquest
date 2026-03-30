@@ -2,8 +2,8 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    aligned_label_width, dismiss_prompt_row, draw_aligned_status_line, draw_dismiss_prompt,
-    draw_title_bar, new_playfield,
+    aligned_label_width, dismiss_prompt_row, draw_aligned_status_line, draw_dismiss_prompt_padded,
+    draw_title_bar_padded, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 pub struct EmpireStatusScreen;
@@ -34,7 +34,7 @@ impl EmpireStatusScreen {
         ]);
 
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "STATUS, YOUR EMPIRE: ");
+        draw_title_bar_padded(&mut buffer, 0, "STATUS, YOUR EMPIRE: ");
         draw_aligned_status_line(
             &mut buffer,
             2,
@@ -112,7 +112,7 @@ impl EmpireStatusScreen {
             },
         );
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(11));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(11));
         Ok(buffer)
     }
 }

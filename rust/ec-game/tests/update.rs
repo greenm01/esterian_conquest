@@ -3525,7 +3525,7 @@ fn starbase_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         line_containing(&terminal, "STARBASE COMMAND <-").trim_end(),
-        "STARBASE COMMAND <- ? X S R V I M <Q> ->"
+        " STARBASE COMMAND <- ? X S R V I M <Q> ->"
     );
 }
 
@@ -3566,24 +3566,24 @@ fn starbase_review_matches_verified_v15_review_content() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase review should render");
-    assert_eq!(terminal.line(3).trim_end(), "Starbase ID: Starbase 1");
+    assert_eq!(terminal.line(3).trim_end(), " Starbase ID: Starbase 1");
     assert_eq!(
         terminal.line(4).trim_end(),
-        "Location:    World in Solar System [ 6, 5]"
+        " Location:    World in Solar System [ 6, 5]"
     );
     assert_eq!(
         terminal.line(5).trim_end(),
-        "Destination: World in Solar System [ 6, 5]"
+        " Destination: World in Solar System [ 6, 5]"
     );
     assert_eq!(
         terminal.line(6).trim_end(),
-        "Operation:   Protection & Enhancement"
+        " Operation:   Protection & Enhancement"
     );
     assert_eq!(
         terminal.line(7).trim_end(),
-        "ETA:         Starbase 1 has already arrived and is in operation."
+        " ETA:         Starbase 1 has already arrived and is in operation."
     );
-    assert_eq!(terminal.line(8).trim_end(), "Escort:      The 1st Fleet");
+    assert_eq!(terminal.line(8).trim_end(), " Escort:      The 1st Fleet");
 }
 
 #[test]
@@ -3637,7 +3637,7 @@ fn starbase_list_and_review_show_numeric_transit_eta() {
         .expect("starbase review should render");
     assert_eq!(
         terminal.line(7).trim_end(),
-        "ETA:         Starbase 1 is in transit with ETA 16 years."
+        " ETA:         Starbase 1 is in transit with ETA 16 years."
     );
 }
 
@@ -4125,7 +4125,7 @@ fn main_menu_matches_verified_v15_command_layout() {
     assert_eq!(terminal.line(6).trim_end(), "");
     assert_eq!(
         terminal.line(7).trim_end(),
-        "MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
+        " MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
     );
     assert!(terminal.line(23).contains("-- "));
 }
@@ -4173,7 +4173,7 @@ fn general_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         line_containing(&terminal, "GENERAL COMMAND <-").trim_end(),
-        "GENERAL COMMAND <- ? X V I A S P M C R D O E <Q> ->"
+        " GENERAL COMMAND <- ? X V I A S P M C R D O E <Q> ->"
     );
 }
 
@@ -4196,7 +4196,7 @@ fn main_menu_notice_renders_below_fixed_command_row() {
     app.render(&mut terminal).expect("main menu should render");
     assert_eq!(
         terminal.lines[7].trim_end(),
-        "MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
+        " MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
     );
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
@@ -4234,7 +4234,7 @@ fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert main menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
+        " MAIN COMMAND <- ? X V C G P F T I B D <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
     assert_eq!(terminal.lines[23].trim_end(), "");
@@ -4281,7 +4281,7 @@ fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert general menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "GENERAL COMMAND <- ? X V I A S P M C R D O E <Q> ->"
+        " GENERAL COMMAND <- ? X V I A S P M C R D O E <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 }
@@ -4413,7 +4413,7 @@ fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
     );
     assert_eq!(
         terminal.line(7).trim_end(),
-        "MAIN COMMAND <- ? X V A G P F T I B D <Q> ->"
+        " MAIN COMMAND <- ? X V A G P F T I B D <Q> ->"
     );
 
     let toggle = app.handle_key(key(KeyCode::Char('a')));
@@ -4445,7 +4445,7 @@ fn door_mode_first_time_menu_and_popup_help_use_ansi_toggle_text() {
     );
     assert_eq!(
         terminal.line(5).trim_end(),
-        "FIRST TIME COMMAND <- ? L J A V <Q> ->"
+        " FIRST TIME COMMAND <- ? L J A V <Q> ->"
     );
 
     assert_eq!(
@@ -5007,7 +5007,7 @@ fn first_time_menu_status_renders_below_fixed_command_row() {
         .expect("first-time menu should render");
     assert_eq!(
         terminal.lines[5].trim_end(),
-        "FIRST TIME COMMAND <- ? L J C V <Q> ->"
+        " FIRST TIME COMMAND <- ? L J C V <Q> ->"
     );
     assert_eq!(terminal.lines[6].trim_end(), "");
     assert_eq!(terminal.lines[7].trim_end(), "");
@@ -5079,7 +5079,7 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
         .expect("planet menu should render");
     assert_eq!(
         terminal.lines[6].trim_end(),
-        "PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
+        " PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
     );
     assert_eq!(terminal.lines[7].trim_end(), "");
     assert_eq!(terminal.lines[8].trim_end(), "");
@@ -5112,7 +5112,7 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
+        " PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
     assert_eq!(terminal.lines[2].trim_end(), "");
@@ -5163,7 +5163,7 @@ fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("report should render");
-    assert_eq!(terminal.line(24).trim_end(), "(slap a key)");
+    assert_eq!(terminal.line(24).trim_end(), " (slap a key)");
     assert_eq!(terminal.line(23).trim_end(), "");
     assert!(line_containing(&terminal, "Fleet").contains("commissioned from \""));
     assert!(line_containing(&terminal, "Starbase").contains("commissioned to \""));
@@ -5933,7 +5933,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
         .expect("planet build menu should render");
     assert_eq!(
         terminal.line(0).trim_end(),
-        "BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
+        " BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
@@ -5953,23 +5953,23 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(7).trim_end(),
-        "BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
     );
     assert_eq!(
         terminal.line(13).trim_end(),
-        "There are no starbases orbiting planet \"Codex Prime\"."
+        " There are no starbases orbiting planet \"Codex Prime\"."
     );
     assert_eq!(
         terminal.line(14).trim_end(),
-        "Standard building restrictions apply."
+        " Standard building restrictions apply."
     );
     assert_eq!(
         terminal.line(15).trim_end(),
-        "You have spent 0 out of 50 points.  You have 50 points left to spend."
+        " You have spent 0 out of 50 points.  You have 50 points left to spend."
     );
     assert_eq!(
         terminal.lines[17].trim_end(),
-        "Build queue: [0/10]   Stardock: [0/10]"
+        " Build queue: [0/10]   Stardock: [0/10]"
     );
 }
 
@@ -6002,7 +6002,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
+        " PLANET COMMAND <- ? X V C A B I P T S L U <Q> ->"
     );
 
     assert_eq!(
@@ -6013,7 +6013,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert build menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 
@@ -6025,7 +6025,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("empty build list should leave expert build menu visible");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
+        " BUILD COMMAND <- ? X V P R C N S A L I <Q> ->"
     );
     assert!(
         terminal
@@ -6217,7 +6217,7 @@ fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
     let build_title = terminal.line(0).trim_end().to_string();
     assert_eq!(
         build_title,
-        "BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
+        " BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
     );
 
     assert_eq!(
@@ -9222,7 +9222,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         .expect("fleet menu should render wrapped notice");
     assert_eq!(
         terminal.lines[7].trim_end(),
-        "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
+        " FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
     );
     assert_eq!(terminal.lines[8].trim_end(), "");
     assert_eq!(terminal.lines[9].trim_end(), "");
@@ -9277,7 +9277,7 @@ fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
         .expect("expert fleet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
+        " FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
 }
@@ -13536,12 +13536,12 @@ fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
         line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
-        "COMMAND <- Planet coords [16,13] <Q> ->"
+        " COMMAND <- Planet coords [16,13] <Q> ->"
     );
     assert_eq!(terminal.line(8).trim_end(), "");
     assert_eq!(
         line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
-        "Enter coordinates of the planet to view."
+        " Enter coordinates of the planet to view."
     );
 }
 
@@ -13581,11 +13581,11 @@ fn main_menu_planet_info_prompt_renders_error_below_message() {
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
         line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
-        "COMMAND <- Planet coords [16,13] <Q> -> 99,99"
+        " COMMAND <- Planet coords [16,13] <Q> -> 99,99"
     );
     assert_eq!(
         line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
-        "Enter coordinates of the planet to view."
+        " Enter coordinates of the planet to view."
     );
     assert_eq!(terminal.line(10).trim_end(), "");
     assert!(
@@ -13626,11 +13626,11 @@ fn build_menu_planet_info_prompt_clears_stale_build_notice() {
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
         line_containing(&terminal, "COMMAND <- Planet coords [").trim_end(),
-        "COMMAND <- Planet coords [16,13] <Q> ->"
+        " COMMAND <- Planet coords [16,13] <Q> ->"
     );
     assert_eq!(
         line_containing(&terminal, "Enter coordinates of the planet to view.").trim_end(),
-        "Enter coordinates of the planet to view."
+        " Enter coordinates of the planet to view."
     );
     assert!(
         !terminal
@@ -13810,12 +13810,12 @@ fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
         line_containing(&terminal, "PLANET COMMAND <- Empire tax rate").trim_end(),
-        format!("PLANET COMMAND <- Empire tax rate (0 - 100) [{current_tax}] <Q> ->")
+        format!(" PLANET COMMAND <- Empire tax rate (0 - 100) [{current_tax}] <Q> ->")
     );
     assert_eq!(terminal.line(7).trim_end(), "");
     assert_eq!(
         line_containing(&terminal, "PLANET TAX: ").trim_end(),
-        "PLANET TAX: Set empire tax rate."
+        " PLANET TAX: Set empire tax rate."
     );
     assert!(
         line_containing(&terminal, "Warning: ")
@@ -13942,7 +13942,7 @@ fn planet_menu_scorch_prompt_defaults_to_lowest_owned_planet_and_validates_owner
     assert_eq!(
         line_containing(&terminal, "PLANET COMMAND <- Scorch Planet XX").trim_end(),
         format!(
-            "PLANET COMMAND <- Scorch Planet XX [{}] <Q> ->",
+            " PLANET COMMAND <- Scorch Planet XX [{}] <Q> ->",
             ec_game::screen::format_sector_coords_default(expected_default)
         )
     );
@@ -14132,11 +14132,11 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
     );
     assert_eq!(
         line_containing(&terminal, "Build Queue").trim_end(),
-        "Build Queue  Nothing"
+        " Build Queue  Nothing"
     );
     assert_eq!(
         line_containing(&terminal, "Stardock").trim_end(),
-        "Stardock     Nothing"
+        " Stardock     Nothing"
     );
     assert!(
         line_containing(&terminal, "Planet is scorched!").contains("Planet is scorched!"),
@@ -14482,10 +14482,10 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         )
         .expect("fleet eta screen renders");
 
-    assert_eq!(buffer.plain_line(0), "CALCULATE FLEET ETA:");
-    assert_eq!(buffer.plain_line(2).trim_end(), "Fleet ID: 7");
-    assert_eq!(buffer.plain_line(4).trim_end(), "Location: (16,13)");
-    assert_eq!(buffer.plain_line(8).trim_end(), "Target: (19,13)");
+    assert_eq!(buffer.plain_line(0), " CALCULATE FLEET ETA:");
+    assert_eq!(buffer.plain_line(2).trim_end(), " Fleet ID: 7");
+    assert_eq!(buffer.plain_line(4).trim_end(), " Location: (16,13)");
+    assert_eq!(buffer.plain_line(8).trim_end(), " Target: (19,13)");
     assert!(
         buffer
             .plain_line(12)
@@ -16249,13 +16249,13 @@ fn fleet_detach_uses_staged_class_prompt_and_creates_new_fleet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render class prompt");
     assert_eq!(terminal.line(1).trim_end(), "");
-    assert_eq!(terminal.line(2).trim_end(), "Fleet: Fleet #1");
+    assert_eq!(terminal.line(2).trim_end(), " Fleet: Fleet #1");
     assert_eq!(terminal.line(3).trim_end(), "");
-    assert_eq!(terminal.line(4).trim_end(), "Location: (08,09)");
-    assert!(terminal.line(5).starts_with("Orders: "));
-    assert!(terminal.line(6).starts_with("Target: "));
-    assert_eq!(terminal.line(7).trim_end(), "Speed: 0");
-    assert_eq!(terminal.line(8).trim_end(), "ROE: 0");
+    assert_eq!(terminal.line(4).trim_end(), " Location: (08,09)");
+    assert!(terminal.line(5).starts_with(" Orders: "));
+    assert!(terminal.line(6).starts_with(" Target: "));
+    assert_eq!(terminal.line(7).trim_end(), " Speed: 0");
+    assert_eq!(terminal.line(8).trim_end(), " ROE: 0");
     assert!(
         terminal
             .line(10)

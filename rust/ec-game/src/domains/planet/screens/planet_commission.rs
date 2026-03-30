@@ -4,9 +4,9 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    ScreenGeometry, command_line_row_for, dismiss_prompt_row, draw_bottom_aligned_transcript_rows,
-    draw_dismiss_prompt, draw_plain_prompt, draw_title_bar, new_playfield, new_playfield_for,
-    standard_table_visible_rows_for,
+    LEFT_WINDOW_PAD_COL, ScreenGeometry, command_line_row_for, dismiss_prompt_row,
+    draw_bottom_aligned_transcript_rows, draw_dismiss_prompt_padded, draw_plain_prompt_padded,
+    draw_title_bar_padded, new_playfield, new_playfield_for, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
@@ -434,16 +434,16 @@ impl PlanetCommissionScreen {
         notice: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, title);
+        draw_title_bar_padded(&mut buffer, 0, title);
         buffer.write_spans(
             2,
-            0,
+            LEFT_WINDOW_PAD_COL,
             &[
                 crate::screen::StyledSpan::new("Notice: ", classic::notice_style()),
                 crate::screen::StyledSpan::new(notice, classic::status_value_style()),
             ],
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(2));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(2));
         Ok(buffer)
     }
 
@@ -463,7 +463,7 @@ impl PlanetCommissionScreen {
             last_row,
             |buffer, row, line| write_auto_commission_report_line(buffer, row, line),
         );
-        draw_plain_prompt(&mut buffer, command_line_row_for(geometry), "(slap a key)");
+        draw_plain_prompt_padded(&mut buffer, command_line_row_for(geometry), "(slap a key)");
         Ok(buffer)
     }
 

@@ -14,9 +14,9 @@ use ec_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
     dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
-    draw_help_panel, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
-    draw_plain_prompt, draw_prompt_error_after, draw_prompt_feedback_after,
-    draw_table_command_prompt, table_dismiss_prompt_row,
+    draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
+    draw_inline_planet_info_prompt, draw_plain_prompt, draw_prompt_error_after,
+    draw_prompt_feedback_after, draw_table_command_prompt, table_dismiss_prompt_row,
 };
 use ec_game::theme::classic;
 
@@ -361,6 +361,16 @@ fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
 }
 
 #[test]
+fn draw_command_prompt_padded_leaves_leftmost_column_empty() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_prompt_padded(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "? X <Q>");
+
+    let line = row_text(&buffer, COMMAND_LINE_ROW);
+    assert_eq!(line.chars().next(), Some(' '));
+    assert!(line[1..].contains("GENERAL COMMAND"));
+}
+
+#[test]
 fn compose_subject_prompt_renders_below_recipient_with_single_blank_row() {
     let mut screen = MessageComposeScreen::new();
     let buffer = screen
@@ -369,7 +379,7 @@ fn compose_subject_prompt_renders_below_recipient_with_single_blank_row() {
 
     assert!(row_text(&buffer, 2).contains("To: Empire 9 (Viridian Chain)"));
     assert_eq!(row_text(&buffer, 3).trim_end(), "");
-    assert!(row_text(&buffer, 4).contains("COMMAND <- Message subject <Q> -> "));
+    assert!(row_text(&buffer, 4).starts_with("COMMAND <- Message subject <Q> -> "));
     assert_eq!(row_text(&buffer, COMMAND_LINE_ROW).trim_end(), "");
 }
 
@@ -415,7 +425,7 @@ fn compose_body_uses_full_80x25_vertical_editor_space() {
     assert!(row_text(&buffer, 21).trim().is_empty());
     assert!(row_text(&buffer, 22).contains("Chars:"));
     assert!(row_text(&buffer, 23).trim().is_empty());
-    assert!(row_text(&buffer, 24).contains("COMMAND <- CTRL-E CTRL-X ->"));
+    assert!(row_text(&buffer, 24).starts_with("COMMAND <- CTRL-E CTRL-X ->"));
 }
 
 #[test]
@@ -432,7 +442,7 @@ fn compose_discard_confirm_uses_default_no_prompt_markup() {
 
     assert!(!row_text(&buffer, 20).contains("Discard this unsent message draft?"));
     assert!(row_text(&buffer, 21).trim().is_empty());
-    assert!(row_text(&buffer, 24).contains("COMMAND <- Y/[N] ->"));
+    assert!(row_text(&buffer, 24).starts_with("COMMAND <- Y/[N] ->"));
     let row = buffer.row(24);
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());
@@ -462,7 +472,7 @@ fn compose_send_confirm_uses_default_no_prompt_markup() {
 
     assert!(!row_text(&buffer, 20).contains("Send this message after turn maintenance?"));
     assert!(row_text(&buffer, 21).trim().is_empty());
-    assert!(row_text(&buffer, 24).contains("COMMAND <- Y/[N] ->"));
+    assert!(row_text(&buffer, 24).starts_with("COMMAND <- Y/[N] ->"));
     let row = buffer.row(24);
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());
@@ -839,7 +849,7 @@ fn commission_result_renders_notice_with_dismiss_prompt() {
     assert!(row_text(&buffer, 0).contains("DRAFT COMMISSION FLEET:"));
     assert!(row_text(&buffer, 2).contains("Notice: Commissioned selected ships into Fleet 02."));
     assert!(row_text(&buffer, 3).trim().is_empty());
-    assert_eq!(row_text(&buffer, 4).trim_end(), "(slap a key)");
+    assert_eq!(row_text(&buffer, 4).trim_end(), " (slap a key)");
 }
 
 #[test]
@@ -856,7 +866,7 @@ fn auto_commission_report_bottom_aligns_text_and_leaves_blank_row_above_prompt()
 
     assert!(row_text(&buffer, 22).contains("Fleet 03 commissioned from"));
     assert!(row_text(&buffer, 23).trim().is_empty());
-    assert_eq!(row_text(&buffer, 24).trim_end(), "(slap a key)");
+    assert_eq!(row_text(&buffer, 24).trim_end(), " (slap a key)");
 
     let row = buffer.row(22);
     let fleet_digits = find_in_row(&buffer, 22, "03 commissioned");
@@ -886,7 +896,7 @@ fn auto_commission_report_24_row_door_keeps_prompt_on_last_visible_row() {
     assert_eq!(buffer.height(), 24);
     assert!(row_text(&buffer, 21).contains("Fleet 03 commissioned from"));
     assert!(row_text(&buffer, 22).trim().is_empty());
-    assert_eq!(row_text(&buffer, 23).trim_end(), "(slap a key)");
+    assert_eq!(row_text(&buffer, 23).trim_end(), " (slap a key)");
 }
 
 #[test]

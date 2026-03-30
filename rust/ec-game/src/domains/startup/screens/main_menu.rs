@@ -8,8 +8,9 @@ use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, PLAYFIELD_WIDTH, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL,
-    draw_command_prompt_at, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_notice,
-    draw_menu_row, draw_title_bar_at_col, last_body_row, new_playfield, wrap_text,
+    draw_command_prompt_padded, draw_expert_menu_padded, draw_inline_planet_info_prompt_padded,
+    draw_menu_notice_padded, draw_menu_row, draw_title_bar_at_col, last_body_row, new_playfield,
+    wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -52,7 +53,7 @@ impl MainMenuScreen {
         let mut buffer = new_playfield();
         if expert_mode {
             if inline_planet_info {
-                draw_inline_planet_info_prompt(
+                draw_inline_planet_info_prompt_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     info_default_coords,
@@ -61,7 +62,7 @@ impl MainMenuScreen {
                     notice,
                 );
             } else {
-                draw_expert_menu(
+                draw_expert_menu_padded(
                     &mut buffer,
                     "MAIN COMMAND",
                     main_menu_command_keys(door_mode),
@@ -113,7 +114,7 @@ impl MainMenuScreen {
             ],
         );
         if inline_planet_info {
-            draw_inline_planet_info_prompt(
+            draw_inline_planet_info_prompt_padded(
                 &mut buffer,
                 MENU_PROMPT_ROW,
                 info_default_coords,
@@ -122,15 +123,15 @@ impl MainMenuScreen {
                 notice,
             );
         } else if let Some(notice) = notice {
-            draw_command_prompt_at(
+            draw_command_prompt_padded(
                 &mut buffer,
                 MENU_PROMPT_ROW,
                 "MAIN COMMAND",
                 main_menu_command_keys(door_mode),
             );
-            draw_menu_notice(&mut buffer, MENU_PROMPT_ROW, notice);
+            draw_menu_notice_padded(&mut buffer, MENU_PROMPT_ROW, notice);
         } else {
-            draw_command_prompt_at(
+            draw_command_prompt_padded(
                 &mut buffer,
                 MENU_PROMPT_ROW,
                 "MAIN COMMAND",

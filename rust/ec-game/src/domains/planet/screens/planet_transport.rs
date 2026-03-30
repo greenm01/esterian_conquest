@@ -3,9 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_at, draw_dismiss_prompt,
-    draw_prompt_error_after, draw_title_bar, menu_prompt_row, new_playfield, new_playfield_for,
-    standard_table_visible_rows_for,
+    LEFT_WINDOW_PAD_COL, ScreenGeometry, dismiss_prompt_row,
+    draw_command_line_default_input_padded, draw_dismiss_prompt_padded,
+    draw_prompt_error_after_padded, draw_title_bar_padded, menu_prompt_row, new_playfield,
+    new_playfield_for, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     TABLE_TEXT_INSET, TableColumn, TableFooter, draw_table_footer, draw_table_title,
@@ -268,10 +269,10 @@ impl PlanetTransportScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, mode.title());
+        draw_title_bar_padded(&mut buffer, 0, mode.title());
         buffer.write_text(
             2,
-            0,
+            LEFT_WINDOW_PAD_COL,
             &format!(
                 "Planet: {} {}   Fleet {:02}",
                 planet.planet_name,
@@ -281,7 +282,7 @@ impl PlanetTransportScreen {
             classic::status_value_style(),
         );
         let command_row = menu_prompt_row(2);
-        draw_command_line_default_input_at(
+        draw_command_line_default_input_padded(
             &mut buffer,
             command_row,
             prompt_label,
@@ -290,7 +291,7 @@ impl PlanetTransportScreen {
             input,
         );
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, command_row, status);
+            draw_prompt_error_after_padded(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -302,10 +303,15 @@ impl PlanetTransportScreen {
         status: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, mode.title());
-        buffer.write_text(3, 0, status, classic::status_value_style());
+        draw_title_bar_padded(&mut buffer, 0, mode.title());
+        buffer.write_text(
+            3,
+            LEFT_WINDOW_PAD_COL,
+            status,
+            classic::status_value_style(),
+        );
         let _ = prompt_label;
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(3));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(3));
         Ok(buffer)
     }
 }

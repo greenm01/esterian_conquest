@@ -8,7 +8,7 @@ use ec_engine::yearly_tax_revenue;
 use crate::app::Action;
 use crate::screen::layout::{
     aligned_label_width, dismiss_prompt_row, draw_aligned_detail_line, draw_aligned_status_line,
-    draw_dismiss_prompt, draw_title_bar, new_playfield,
+    draw_dismiss_prompt_padded, draw_title_bar_padded, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetBuildOrder, PlayfieldBuffer, ScreenFrame, format_sector_coords_zero_padded,
@@ -68,7 +68,7 @@ impl PlanetInfoScreen {
         let bottom_label_width = aligned_label_width(["Build Queue", "Stardock"]);
 
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
+        draw_title_bar_padded(&mut buffer, 0, "INFO ABOUT A PLANET:");
         draw_aligned_status_line(
             &mut buffer,
             2,
@@ -164,7 +164,7 @@ impl PlanetInfoScreen {
             "  ",
             &format_stardock_summary(planet),
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(18));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(18));
         Ok(buffer)
     }
 
@@ -210,7 +210,7 @@ impl PlanetInfoScreen {
         let bottom_label_width = aligned_label_width(["Docked"]);
 
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
+        draw_title_bar_padded(&mut buffer, 0, "INFO ABOUT A PLANET:");
         draw_aligned_status_line(
             &mut buffer,
             2,
@@ -320,7 +320,7 @@ impl PlanetInfoScreen {
             "  ",
             world.known_docked_summary.as_deref().unwrap_or("?"),
         );
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(17));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(17));
         Ok(buffer)
     }
 

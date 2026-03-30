@@ -32,7 +32,7 @@ fn door_serializer_renders_first_time_menu_rows_and_prompt_cursor() {
     assert!(frame_text.contains("elp with commands"));
     assert!(frame_text.contains("\x1b[4;1H"));
     assert!(frame_text.contains("uit back to BBS"));
-    assert!(frame_text.contains("\x1b[6;1H"));
+    assert!(buffer.plain_line(5).starts_with(" FIRST TIME COMMAND"));
     assert!(frame_text.contains("FIRST TIME COMMAND"));
 
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");

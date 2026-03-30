@@ -2,7 +2,7 @@ use crossterm::event::KeyEvent;
 
 use super::{Action, state::App};
 use crate::domains::startup::state::FirstTimeOnboardingMode;
-use crate::screen::layout::{command_line_row_for, draw_command_line_prompt_text_at};
+use crate::screen::layout::{command_line_row_for, draw_command_line_prompt_text_padded};
 use crate::screen::{COMMAND_LABEL, PlayfieldBuffer, ScreenId};
 
 impl App {
@@ -40,7 +40,7 @@ impl App {
         let row = self
             .find_active_prompt_row(buffer)
             .unwrap_or_else(|| command_line_row_for(self.screen_geometry));
-        draw_command_line_prompt_text_at(buffer, row, COMMAND_LABEL, "Are you sure Y/[N] ->");
+        draw_command_line_prompt_text_padded(buffer, row, COMMAND_LABEL, "Are you sure Y/[N] ->");
         buffer.clear_cursor();
     }
 

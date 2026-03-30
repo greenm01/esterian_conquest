@@ -7,9 +7,10 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW, draw_command_center,
-    draw_expert_menu, draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
-    draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row, new_playfield,
+    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW,
+    draw_command_center_padded, draw_expert_menu_padded,
+    draw_inline_delete_reviewables_prompt_padded, draw_inline_planet_info_prompt_padded,
+    draw_menu_entry_with_toggle, draw_menu_notice_padded, menu_prompt_row, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -62,9 +63,13 @@ impl GeneralMenuScreen {
         let mut buffer = new_playfield();
         if expert_mode {
             if inline_delete_reviewables {
-                draw_inline_delete_reviewables_prompt(&mut buffer, EXPERT_MENU_PROMPT_ROW, notice);
+                draw_inline_delete_reviewables_prompt_padded(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    notice,
+                );
             } else if inline_planet_info {
-                draw_inline_planet_info_prompt(
+                draw_inline_planet_info_prompt_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     info_default_coords,
@@ -73,7 +78,7 @@ impl GeneralMenuScreen {
                     notice,
                 );
             } else {
-                draw_expert_menu(
+                draw_expert_menu_padded(
                     &mut buffer,
                     "GENERAL COMMAND",
                     "? X V I A S P M C R D O E <Q>",
@@ -82,7 +87,7 @@ impl GeneralMenuScreen {
             }
             return Ok(buffer);
         }
-        draw_command_center(
+        draw_command_center_padded(
             &mut buffer,
             "GENERAL COMMAND CENTER:",
             &TOP_ROW,
@@ -103,9 +108,9 @@ impl GeneralMenuScreen {
         );
         let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 4);
         if inline_delete_reviewables {
-            draw_inline_delete_reviewables_prompt(&mut buffer, command_row, notice);
+            draw_inline_delete_reviewables_prompt_padded(&mut buffer, command_row, notice);
         } else if inline_planet_info {
-            draw_inline_planet_info_prompt(
+            draw_inline_planet_info_prompt_padded(
                 &mut buffer,
                 command_row,
                 info_default_coords,
@@ -114,7 +119,7 @@ impl GeneralMenuScreen {
                 notice,
             );
         } else if let Some(notice) = notice {
-            draw_menu_notice(&mut buffer, command_row, notice);
+            draw_menu_notice_padded(&mut buffer, command_row, notice);
         }
         Ok(buffer)
     }

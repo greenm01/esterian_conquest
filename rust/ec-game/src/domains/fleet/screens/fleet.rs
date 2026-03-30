@@ -9,12 +9,14 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, PromptFeedback,
-    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry,
-    draw_menu_notice, draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
-    draw_title_bar, draw_title_bar_at_col, draw_wrapped_message, last_body_row, menu_prompt_row,
-    new_playfield, standard_table_visible_rows, standard_table_visible_rows_for,
+    EXPERT_MENU_PROMPT_ROW, LEFT_WINDOW_PAD_COL, MenuEntry, PRIMARY_MENU_ROW,
+    PRIMARY_MENU_TITLE_COL, PromptFeedback, dismiss_prompt_row,
+    draw_command_line_default_input_padded, draw_command_prompt_padded, draw_dismiss_prompt_padded,
+    draw_expert_menu_padded, draw_inline_planet_info_prompt_padded, draw_menu_entry,
+    draw_menu_notice_padded, draw_prompt_error_after_padded, draw_prompt_feedback_after_padded,
+    draw_status_line, draw_title_bar_at_col, draw_title_bar_padded, draw_wrapped_message,
+    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows,
+    standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TABLE_TEXT_INSET, TableColumn, TableFooter, TableRowState,
@@ -194,7 +196,7 @@ impl FleetMenuScreen {
         let mut buffer = new_playfield();
         if expert_mode {
             if inline_planet_info {
-                draw_inline_planet_info_prompt(
+                draw_inline_planet_info_prompt_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     info_default_coords,
@@ -203,7 +205,7 @@ impl FleetMenuScreen {
                     notice,
                 );
             } else if menu_prompt_mode.is_some() {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "FLEET COMMAND",
@@ -212,10 +214,10 @@ impl FleetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_prompt_feedback_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
+                    draw_prompt_feedback_after_padded(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
                 }
             } else {
-                draw_expert_menu(
+                draw_expert_menu_padded(
                     &mut buffer,
                     "FLEET COMMAND",
                     "? X V S F R E C I D T O G M L U <Q>",
@@ -262,7 +264,7 @@ impl FleetMenuScreen {
         }
         let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 4);
         if inline_planet_info {
-            draw_inline_planet_info_prompt(
+            draw_inline_planet_info_prompt_padded(
                 &mut buffer,
                 command_row,
                 info_default_coords,
@@ -271,12 +273,17 @@ impl FleetMenuScreen {
                 notice,
             );
         } else if let Some(mode) = inline_transport_mode {
-            draw_title_bar(&mut buffer, 6, mode.title());
+            draw_title_bar_padded(&mut buffer, 6, mode.title());
             if let Some(summary) = inline_transport_summary {
-                buffer.write_text(8, 0, summary, classic::status_value_style());
+                buffer.write_text(
+                    8,
+                    LEFT_WINDOW_PAD_COL,
+                    summary,
+                    classic::status_value_style(),
+                );
             }
             const TRANSPORT_COMMAND_ROW: usize = 10;
-            draw_command_line_default_input_at(
+            draw_command_line_default_input_padded(
                 &mut buffer,
                 TRANSPORT_COMMAND_ROW,
                 "FLEET COMMAND",
@@ -285,10 +292,10 @@ impl FleetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_feedback_after(&mut buffer, TRANSPORT_COMMAND_ROW, status);
+                draw_prompt_feedback_after_padded(&mut buffer, TRANSPORT_COMMAND_ROW, status);
             }
         } else if menu_prompt_mode.is_some() {
-            draw_command_line_default_input_at(
+            draw_command_line_default_input_padded(
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
@@ -297,13 +304,13 @@ impl FleetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_feedback_after(&mut buffer, command_row, status);
+                draw_prompt_feedback_after_padded(&mut buffer, command_row, status);
             }
         } else if let Some(notice) = notice {
-            draw_menu_notice(&mut buffer, command_row, notice);
+            draw_menu_notice_padded(&mut buffer, command_row, notice);
         }
         if !inline_planet_info && menu_prompt_mode.is_none() {
-            draw_command_prompt_at(
+            draw_command_prompt_padded(
                 &mut buffer,
                 command_row,
                 "FLEET COMMAND",
@@ -523,14 +530,14 @@ impl FleetReviewScreen {
             &row.fleet_record_index_1_based.to_string(),
         );
         if return_to_list {
-            draw_command_prompt_at(
+            draw_command_prompt_padded(
                 &mut buffer,
                 menu_prompt_row(12),
                 COMMAND_LABEL,
                 "? HJKL <Q>",
             );
         } else {
-            draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(12));
+            draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(12));
         }
         Ok(buffer)
     }
@@ -667,7 +674,7 @@ impl FleetSingleOrderScreen {
         let command_row = menu_prompt_row(9);
         let active_row = match mode {
             FleetSingleOrderMode::EnteringTargetX => {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -678,7 +685,7 @@ impl FleetSingleOrderScreen {
                 command_row
             }
             FleetSingleOrderMode::EnteringTargetY => {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -686,7 +693,7 @@ impl FleetSingleOrderScreen {
                     target_x_default,
                     target_x_input,
                 );
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row + 2,
                     COMMAND_LABEL,
@@ -699,7 +706,7 @@ impl FleetSingleOrderScreen {
             _ => command_row,
         };
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, active_row, status);
+            draw_prompt_error_after_padded(&mut buffer, active_row, status);
         }
         Ok(buffer)
     }
@@ -744,7 +751,7 @@ impl FleetSingleOrderScreen {
         draw_status_line(&mut buffer, 7, "Ships: ", &row.composition_label);
         draw_status_line(&mut buffer, 9, "", header_text);
         let command_row = menu_prompt_row(9);
-        draw_command_line_default_input_at(
+        draw_command_line_default_input_padded(
             &mut buffer,
             command_row,
             COMMAND_LABEL,
@@ -753,7 +760,7 @@ impl FleetSingleOrderScreen {
             input,
         );
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, command_row, status);
+            draw_prompt_error_after_padded(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -781,7 +788,7 @@ impl FleetSingleOrderScreen {
         let command_row = menu_prompt_row(6);
         draw_confirm_prompt_at(&mut buffer, command_row, COMMAND_LABEL, confirm_input);
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, command_row, status);
+            draw_prompt_error_after_padded(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -803,7 +810,12 @@ impl FleetEtaScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "CALCULATE FLEET ETA:", classic::title_style());
+        buffer.write_text(
+            0,
+            LEFT_WINDOW_PAD_COL,
+            "CALCULATE FLEET ETA:",
+            classic::title_style(),
+        );
         // row 1: blank
         draw_status_line(&mut buffer, 2, "Fleet ID: ", &row.fleet_number.to_string());
         // row 3: blank
@@ -828,7 +840,7 @@ impl FleetEtaScreen {
         match mode {
             FleetEtaMode::EnteringDestination => {
                 let command_row = menu_prompt_row(LAST_CONTENT_ROW);
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -837,12 +849,12 @@ impl FleetEtaScreen {
                     destination_input,
                 );
                 if let Some(err) = status {
-                    draw_prompt_error_after(&mut buffer, command_row, err);
+                    draw_prompt_error_after_padded(&mut buffer, command_row, err);
                 }
             }
             FleetEtaMode::ConfirmingSystemEntry => {
                 let command_row = menu_prompt_row(LAST_CONTENT_ROW);
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -851,13 +863,13 @@ impl FleetEtaScreen {
                     include_system_input,
                 );
                 if let Some(err) = status {
-                    draw_prompt_error_after(&mut buffer, command_row, err);
+                    draw_prompt_error_after_padded(&mut buffer, command_row, err);
                 }
             }
             FleetEtaMode::ShowingResult => {
                 let result_row = dismiss_prompt_row(LAST_CONTENT_ROW);
                 draw_status_line(&mut buffer, result_row, "", status.unwrap_or(""));
-                draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(result_row));
+                draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(result_row));
             }
         }
         Ok(buffer)
@@ -1045,7 +1057,12 @@ impl FleetGroupScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
+        buffer.write_text(
+            0,
+            LEFT_WINDOW_PAD_COL,
+            "GROUP FLEET ORDER:",
+            classic::title_style(),
+        );
         draw_status_line(&mut buffer, 2, "Selected fleets: ", selected_fleet_label);
         if mode == FleetGroupOrderMode::EnteringTarget {
             draw_status_line(&mut buffer, 4, "", header_text);
@@ -1060,7 +1077,7 @@ impl FleetGroupScreen {
         let command_row = menu_prompt_row(4);
         let active_row = match mode {
             FleetGroupOrderMode::EnteringTarget => {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -1071,7 +1088,7 @@ impl FleetGroupScreen {
                 command_row
             }
             FleetGroupOrderMode::EnteringTargetX => {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -1082,7 +1099,7 @@ impl FleetGroupScreen {
                 command_row
             }
             FleetGroupOrderMode::EnteringTargetY => {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row,
                     COMMAND_LABEL,
@@ -1090,7 +1107,7 @@ impl FleetGroupScreen {
                     target_x_default,
                     target_x_input,
                 );
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     command_row + 2,
                     COMMAND_LABEL,
@@ -1105,7 +1122,7 @@ impl FleetGroupScreen {
             }
         };
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, active_row, status);
+            draw_prompt_error_after_padded(&mut buffer, active_row, status);
         }
         Ok(buffer)
     }
@@ -1121,7 +1138,12 @@ impl FleetGroupScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
+        buffer.write_text(
+            0,
+            LEFT_WINDOW_PAD_COL,
+            "GROUP FLEET ORDER:",
+            classic::title_style(),
+        );
         draw_status_line(&mut buffer, 2, "Stardate: ", &current_year.to_string());
         draw_status_line(&mut buffer, 3, "Selected fleets: ", selected_fleet_label);
         draw_status_line(&mut buffer, 5, "", header_text);
@@ -1129,7 +1151,7 @@ impl FleetGroupScreen {
         let command_row = menu_prompt_row(7);
         draw_confirm_prompt_at(&mut buffer, command_row, COMMAND_LABEL, confirm_input);
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, command_row, status);
+            draw_prompt_error_after_padded(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -1259,7 +1281,7 @@ impl FleetTransferScreen {
                 StyledSpan::new("> Cancel", classic::prompt_style()),
             ],
         );
-        draw_command_line_default_input_at(
+        draw_command_line_default_input_padded(
             &mut buffer,
             COMMAND_ROW,
             COMMAND_LABEL,
@@ -1441,7 +1463,12 @@ impl FleetDetachScreen {
 
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
-        buffer.write_text(0, 0, "DETACH FLEET SHIPS:", classic::title_style());
+        buffer.write_text(
+            0,
+            LEFT_WINDOW_PAD_COL,
+            "DETACH FLEET SHIPS:",
+            classic::title_style(),
+        );
         draw_status_line(
             &mut buffer,
             FLEET_ROW,
@@ -1490,7 +1517,7 @@ impl FleetDetachScreen {
                 StyledSpan::new("> Cancel", classic::prompt_style()),
             ],
         );
-        draw_command_line_default_input_at(
+        draw_command_line_default_input_padded(
             &mut buffer,
             COMMAND_ROW,
             COMMAND_LABEL,

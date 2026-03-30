@@ -4,7 +4,7 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row_for, draw_dismiss_prompt, draw_status_line, draw_title_bar,
+    dismiss_prompt_row_for, draw_dismiss_prompt_padded, draw_status_line, draw_title_bar_padded,
     new_playfield_for, stacked_table_visible_rows_for,
 };
 use crate::screen::table::{
@@ -70,9 +70,9 @@ impl PlanetListScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if let PlanetListMode::Stub(message) = mode {
             let mut buffer = new_playfield_for(frame.geometry);
-            draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
+            draw_title_bar_padded(&mut buffer, 0, "PLANET COMMAND:");
             draw_status_line(&mut buffer, 3, "Notice: ", message);
-            draw_dismiss_prompt(&mut buffer, dismiss_prompt_row_for(frame.geometry, 3));
+            draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row_for(frame.geometry, 3));
             return Ok(buffer);
         }
 

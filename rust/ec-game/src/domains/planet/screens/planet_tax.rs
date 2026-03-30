@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::PlayfieldBuffer;
-use crate::screen::layout::draw_inline_tax_prompt;
+use crate::screen::layout::draw_inline_tax_prompt_padded;
 
 pub struct PlanetTaxScreen;
 
@@ -21,7 +21,7 @@ impl PlanetTaxScreen {
         error: Option<&str>,
         notice: Option<&str>,
     ) {
-        draw_inline_tax_prompt(buffer, command_row, current_tax, input, error, notice);
+        draw_inline_tax_prompt_padded(buffer, command_row, current_tax, input, error, notice);
     }
 
     pub fn handle_inline_key(&self, key: KeyEvent) -> Action {

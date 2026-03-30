@@ -5,11 +5,13 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::planet::state::PlanetScorchPromptMode;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL,
-    draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_command_prompt_at,
-    draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
-    draw_inline_planet_info_prompt, draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice,
-    draw_prompt_error_after, draw_title_bar, draw_title_bar_at_col, menu_prompt_row, new_playfield,
+    EXPERT_MENU_PROMPT_ROW, LEFT_WINDOW_PAD_COL, MenuEntry, PRIMARY_MENU_ROW,
+    PRIMARY_MENU_TITLE_COL, draw_command_line_default_input_padded,
+    draw_command_line_prompt_text_padded, draw_command_prompt_padded, draw_expert_menu_padded,
+    draw_inline_confirm_block_padded, draw_inline_confirm_prompt_padded,
+    draw_inline_planet_info_prompt_padded, draw_inline_tax_prompt_padded, draw_menu_entry,
+    draw_menu_notice_padded, draw_prompt_error_after_padded, draw_title_bar_at_col,
+    draw_title_bar_padded, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -78,7 +80,7 @@ impl PlanetMenuScreen {
         let mut buffer = new_playfield();
         if expert_mode {
             if inline_planet_info {
-                draw_inline_planet_info_prompt(
+                draw_inline_planet_info_prompt_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     info_default_coords,
@@ -87,7 +89,7 @@ impl PlanetMenuScreen {
                     notice,
                 );
             } else if inline_tax {
-                draw_inline_tax_prompt(
+                draw_inline_tax_prompt_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     current_tax,
@@ -96,8 +98,8 @@ impl PlanetMenuScreen {
                     tax_notice,
                 );
             } else if inline_auto_commission {
-                draw_inline_confirm_prompt(&mut buffer, EXPERT_MENU_PROMPT_ROW, "COMMAND");
-                draw_inline_confirm_block(
+                draw_inline_confirm_prompt_padded(&mut buffer, EXPERT_MENU_PROMPT_ROW, "COMMAND");
+                draw_inline_confirm_block_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "AUTO-COMMISSION SHIPS:",
@@ -114,13 +116,13 @@ impl PlanetMenuScreen {
                     .iter()
                     .map(String::as_str)
                     .collect::<Vec<_>>();
-                draw_command_line_prompt_text_at(
+                draw_command_line_prompt_text_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "PLANET COMMAND",
                     menu_prompt_label.unwrap_or("Y/[N] -> "),
                 );
-                draw_inline_confirm_block(
+                draw_inline_confirm_block_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "SETTING SCORCH-EARTH POLICY:",
@@ -128,12 +130,17 @@ impl PlanetMenuScreen {
                     notice,
                 );
             } else if let Some(mode) = inline_transport_mode {
-                draw_title_bar(&mut buffer, 6, mode.title());
+                draw_title_bar_padded(&mut buffer, 6, mode.title());
                 if let Some(summary) = inline_transport_summary {
-                    buffer.write_text(8, 0, summary, classic::status_value_style());
+                    buffer.write_text(
+                        8,
+                        LEFT_WINDOW_PAD_COL,
+                        summary,
+                        classic::status_value_style(),
+                    );
                 }
                 const EXPERT_TRANSPORT_COMMAND_ROW: usize = 10;
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     EXPERT_TRANSPORT_COMMAND_ROW,
                     "PLANET COMMAND",
@@ -142,10 +149,14 @@ impl PlanetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_prompt_error_after(&mut buffer, EXPERT_TRANSPORT_COMMAND_ROW, status);
+                    draw_prompt_error_after_padded(
+                        &mut buffer,
+                        EXPERT_TRANSPORT_COMMAND_ROW,
+                        status,
+                    );
                 }
             } else if menu_prompt_label.is_some() {
-                draw_command_line_default_input_at(
+                draw_command_line_default_input_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     "PLANET COMMAND",
@@ -154,10 +165,10 @@ impl PlanetMenuScreen {
                     menu_prompt_input,
                 );
                 if let Some(status) = menu_prompt_status {
-                    draw_prompt_error_after(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
+                    draw_prompt_error_after_padded(&mut buffer, EXPERT_MENU_PROMPT_ROW, status);
                 }
             } else {
-                draw_expert_menu(
+                draw_expert_menu_padded(
                     &mut buffer,
                     "PLANET COMMAND",
                     "? X V C A B I P T S L U <Q>",
@@ -201,7 +212,7 @@ impl PlanetMenuScreen {
         }
         let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 3);
         if inline_planet_info {
-            draw_inline_planet_info_prompt(
+            draw_inline_planet_info_prompt_padded(
                 &mut buffer,
                 command_row,
                 info_default_coords,
@@ -210,7 +221,7 @@ impl PlanetMenuScreen {
                 notice,
             );
         } else if inline_tax {
-            draw_inline_tax_prompt(
+            draw_inline_tax_prompt_padded(
                 &mut buffer,
                 command_row,
                 current_tax,
@@ -219,8 +230,8 @@ impl PlanetMenuScreen {
                 tax_notice,
             );
         } else if inline_auto_commission {
-            draw_inline_confirm_prompt(&mut buffer, command_row, "COMMAND");
-            draw_inline_confirm_block(
+            draw_inline_confirm_prompt_padded(&mut buffer, command_row, "COMMAND");
+            draw_inline_confirm_block_padded(
                 &mut buffer,
                 command_row,
                 "AUTO-COMMISSION SHIPS:",
@@ -237,13 +248,13 @@ impl PlanetMenuScreen {
                 .iter()
                 .map(String::as_str)
                 .collect::<Vec<_>>();
-            draw_command_line_prompt_text_at(
+            draw_command_line_prompt_text_padded(
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",
                 menu_prompt_label.unwrap_or("Y/[N] -> "),
             );
-            draw_inline_confirm_block(
+            draw_inline_confirm_block_padded(
                 &mut buffer,
                 command_row,
                 "SETTING SCORCH-EARTH POLICY:",
@@ -251,12 +262,17 @@ impl PlanetMenuScreen {
                 notice,
             );
         } else if let Some(mode) = inline_transport_mode {
-            draw_title_bar(&mut buffer, 5, mode.title());
+            draw_title_bar_padded(&mut buffer, 5, mode.title());
             if let Some(summary) = inline_transport_summary {
-                buffer.write_text(7, 0, summary, classic::status_value_style());
+                buffer.write_text(
+                    7,
+                    LEFT_WINDOW_PAD_COL,
+                    summary,
+                    classic::status_value_style(),
+                );
             }
             const MENU_TRANSPORT_COMMAND_ROW: usize = 9;
-            draw_command_line_default_input_at(
+            draw_command_line_default_input_padded(
                 &mut buffer,
                 MENU_TRANSPORT_COMMAND_ROW,
                 "PLANET COMMAND",
@@ -265,10 +281,10 @@ impl PlanetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, MENU_TRANSPORT_COMMAND_ROW, status);
+                draw_prompt_error_after_padded(&mut buffer, MENU_TRANSPORT_COMMAND_ROW, status);
             }
         } else if menu_prompt_label.is_some() {
-            draw_command_line_default_input_at(
+            draw_command_line_default_input_padded(
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",
@@ -277,10 +293,10 @@ impl PlanetMenuScreen {
                 menu_prompt_input,
             );
             if let Some(status) = menu_prompt_status {
-                draw_prompt_error_after(&mut buffer, command_row, status);
+                draw_prompt_error_after_padded(&mut buffer, command_row, status);
             }
         } else if let Some(notice) = notice {
-            draw_menu_notice(&mut buffer, command_row, notice);
+            draw_menu_notice_padded(&mut buffer, command_row, notice);
         }
         if !inline_planet_info
             && !inline_tax
@@ -289,7 +305,7 @@ impl PlanetMenuScreen {
             && menu_prompt_label.is_none()
             && inline_transport_mode.is_none()
         {
-            draw_command_prompt_at(
+            draw_command_prompt_padded(
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",

@@ -1,7 +1,8 @@
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    PLAYFIELD_WIDTH, ScreenGeometry, centered_row, command_line_row_for, dismiss_prompt_row_for,
-    draw_bottom_aligned_transcript_rows, draw_plain_prompt, last_body_row_for, new_playfield_for,
+    LEFT_WINDOW_PAD_COL, PLAYFIELD_WIDTH, ScreenGeometry, centered_row, command_line_row_for,
+    dismiss_prompt_row_for, draw_bottom_aligned_transcript_rows, draw_plain_prompt_at_col,
+    draw_plain_prompt_padded, last_body_row_for, new_playfield_for,
 };
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -238,10 +239,10 @@ impl StartupScreen {
                             .into_iter(),
                     );
                     render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
-                    draw_plain_prompt(&mut buffer, command_line_row, "(slap a key)");
+                    draw_plain_prompt_padded(&mut buffer, command_line_row, "(slap a key)");
                 } else {
                     render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
-                    draw_plain_prompt(&mut buffer, command_line_row, &view_prompt);
+                    draw_plain_prompt_padded(&mut buffer, command_line_row, &view_prompt);
                 }
             }
             StartupReviewMode::ItemBody | StartupReviewMode::DeletePrompt => {
@@ -280,11 +281,11 @@ impl StartupScreen {
 
                 let prompt_row = command_line_row;
                 if revealed_end < rows.len() {
-                    draw_plain_prompt(&mut buffer, prompt_row, "(Slap a key for more)");
+                    draw_plain_prompt_padded(&mut buffer, prompt_row, "(Slap a key for more)");
                 } else if !nonstop {
-                    draw_plain_prompt(&mut buffer, prompt_row, &delete_prompt);
+                    draw_plain_prompt_padded(&mut buffer, prompt_row, &delete_prompt);
                 } else {
-                    draw_plain_prompt(&mut buffer, prompt_row, "(slap a key)");
+                    draw_plain_prompt_padded(&mut buffer, prompt_row, "(slap a key)");
                 }
             }
             StartupReviewMode::ContinuePrompt => {
@@ -313,7 +314,7 @@ impl StartupScreen {
                     );
                 }
                 render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
-                draw_plain_prompt(&mut buffer, command_line_row, &continue_prompt);
+                draw_plain_prompt_padded(&mut buffer, command_line_row, &continue_prompt);
             }
             StartupReviewMode::EndStatus => {
                 let mut transcript_rows = startup_login_summary_rows(frame, game_year);
@@ -334,7 +335,7 @@ impl StartupScreen {
                     section_label,
                 ));
                 render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
-                draw_plain_prompt(
+                draw_plain_prompt_padded(
                     &mut buffer,
                     command_line_row,
                     &format!("All {plural} seen. (Slap a key)"),
@@ -355,7 +356,7 @@ impl StartupScreen {
         let rows = startup_login_summary_rows(frame, self.summary.game_year);
         render_review_transcript(frame.geometry, &mut buffer, &rows);
         draw_startup_status(&mut buffer, frame.geometry, status);
-        draw_plain_prompt(
+        draw_plain_prompt_padded(
             &mut buffer,
             command_line_row_for(frame.geometry),
             "(slap a key)",
@@ -373,7 +374,12 @@ fn draw_startup_status(
         return;
     };
     let row = command_line_row_for(geometry).saturating_sub(1);
-    buffer.write_text(row, 0, status, classic::status_value_style());
+    buffer.write_text(
+        row,
+        LEFT_WINDOW_PAD_COL,
+        status,
+        classic::status_value_style(),
+    );
 }
 
 pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
@@ -431,9 +437,10 @@ pub fn render_game_intro_page(
     } else {
         final_prompt
     };
-    draw_plain_prompt(
+    draw_plain_prompt_at_col(
         &mut buffer,
         dismiss_prompt_row_for(geometry, last_content_row),
+        0,
         prompt,
     );
     Ok(buffer)
@@ -484,9 +491,10 @@ fn render_splash(
             &version_title(),
             classic::bright_style(),
         );
-        draw_plain_prompt(
+        draw_plain_prompt_at_col(
             &mut buffer,
             command_line_row_for(geometry),
+            0,
             "View the game introduction? Y/[N] -> ",
         );
     } else {
@@ -518,7 +526,7 @@ fn render_splash(
         } else {
             "(slap a key)"
         };
-        draw_plain_prompt(&mut buffer, command_line_row_for(geometry), prompt);
+        draw_plain_prompt_at_col(&mut buffer, command_line_row_for(geometry), 0, prompt);
     }
 
     Ok(buffer)

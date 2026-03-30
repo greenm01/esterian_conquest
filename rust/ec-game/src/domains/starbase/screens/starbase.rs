@@ -7,11 +7,11 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starbase::state::StarbaseMovePromptMode;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_entry, draw_menu_notice,
-    draw_prompt_error_after, draw_status_line, draw_title_bar, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, standard_table_visible_rows_for,
+    EXPERT_MENU_PROMPT_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_padded,
+    draw_command_line_prompt_text_padded, draw_command_prompt_padded, draw_dismiss_prompt_padded,
+    draw_expert_menu_padded, draw_inline_planet_info_prompt_padded, draw_menu_entry,
+    draw_menu_notice_padded, draw_prompt_error_after_padded, draw_status_line, draw_title_bar,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     TABLE_TEXT_INSET, TableColumn, TableFooter, draw_table_footer, draw_table_title,
@@ -103,7 +103,7 @@ impl StarbaseMenuScreen {
                     move_prompt_status,
                 );
             } else if inline_planet_info {
-                draw_inline_planet_info_prompt(
+                draw_inline_planet_info_prompt_padded(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
                     info_default_coords,
@@ -112,7 +112,12 @@ impl StarbaseMenuScreen {
                     notice,
                 );
             } else {
-                draw_expert_menu(&mut buffer, "STARBASE COMMAND", "? X S R V I M <Q>", notice);
+                draw_expert_menu_padded(
+                    &mut buffer,
+                    "STARBASE COMMAND",
+                    "? X S R V I M <Q>",
+                    notice,
+                );
             }
             return Ok(buffer);
         }
@@ -144,7 +149,7 @@ impl StarbaseMenuScreen {
                 move_prompt_status,
             );
         } else if inline_planet_info {
-            draw_inline_planet_info_prompt(
+            draw_inline_planet_info_prompt_padded(
                 &mut buffer,
                 command_row,
                 info_default_coords,
@@ -153,10 +158,10 @@ impl StarbaseMenuScreen {
                 notice,
             );
         } else if let Some(notice) = notice {
-            draw_menu_notice(&mut buffer, command_row, notice);
+            draw_menu_notice_padded(&mut buffer, command_row, notice);
         }
         if !inline_planet_info && move_prompt_mode.is_none() {
-            draw_command_prompt_at(
+            draw_command_prompt_padded(
                 &mut buffer,
                 command_row,
                 "STARBASE COMMAND",
@@ -223,7 +228,7 @@ fn draw_starbase_move_prompt(
 ) {
     match mode {
         StarbaseMovePromptMode::HaltConfirm => {
-            draw_command_line_prompt_text_at(
+            draw_command_line_prompt_text_padded(
                 buffer,
                 command_row,
                 "STARBASE COMMAND",
@@ -231,7 +236,7 @@ fn draw_starbase_move_prompt(
             );
         }
         StarbaseMovePromptMode::Decision => {
-            draw_command_line_prompt_text_at(
+            draw_command_line_prompt_text_padded(
                 buffer,
                 command_row,
                 "STARBASE COMMAND",
@@ -239,7 +244,7 @@ fn draw_starbase_move_prompt(
             );
         }
         StarbaseMovePromptMode::Base | StarbaseMovePromptMode::Destination => {
-            draw_command_line_default_input_at(
+            draw_command_line_default_input_padded(
                 buffer,
                 command_row,
                 "STARBASE COMMAND",
@@ -250,7 +255,7 @@ fn draw_starbase_move_prompt(
         }
     }
     if let Some(status) = prompt_status {
-        draw_prompt_error_after(buffer, command_row, status);
+        draw_prompt_error_after_padded(buffer, command_row, status);
     }
 }
 
@@ -478,7 +483,7 @@ impl StarbaseReviewScreen {
         draw_status_line(&mut buffer, 7, "ETA:         ", &eta_text);
         draw_status_line(&mut buffer, 8, "Escort:      ", &row.escort_label);
         buffer.write_text(10, 0, &"-".repeat(79), classic::help_panel_style());
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(10));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(10));
         Ok(buffer)
     }
 }

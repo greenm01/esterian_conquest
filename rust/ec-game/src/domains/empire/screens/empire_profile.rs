@@ -2,9 +2,9 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    DetailField, aligned_label_width, dismiss_prompt_row, draw_aligned_detail_line,
-    draw_aligned_detail_pair_at, draw_centered_text, draw_dismiss_prompt, draw_title_bar,
-    new_playfield,
+    DetailField, LEFT_WINDOW_PAD_COL, aligned_label_width, dismiss_prompt_row,
+    draw_aligned_detail_line, draw_aligned_detail_pair_at, draw_centered_text,
+    draw_dismiss_prompt_padded, draw_title_bar_padded, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -53,7 +53,7 @@ impl EmpireProfileScreen {
         ]);
 
         let mut buffer = new_playfield();
-        draw_title_bar(
+        draw_title_bar_padded(
             &mut buffer,
             0,
             &format!(
@@ -115,7 +115,7 @@ impl EmpireProfileScreen {
 
         buffer.write_text(
             8,
-            0,
+            LEFT_WINDOW_PAD_COL,
             "SHIPS & OTHER UNITS ON ACTIVE DUTY",
             classic::menu_hotkey_style(),
         );
@@ -213,7 +213,7 @@ impl EmpireProfileScreen {
             classic::status_value_style(),
         );
         let _ = menu;
-        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(18));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(18));
         Ok(buffer)
     }
 }
@@ -244,7 +244,7 @@ fn write_stat_pair(
     draw_aligned_detail_pair_at(
         buffer,
         row,
-        0,
+        LEFT_WINDOW_PAD_COL,
         DetailField {
             label_width: left_label_width,
             label: left_label,

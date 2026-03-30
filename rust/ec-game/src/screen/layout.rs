@@ -12,6 +12,7 @@ pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
 pub const PRIMARY_MENU_ROW: usize = 1;
 pub const PRIMARY_MENU_TITLE_COL: usize = 1;
+pub const LEFT_WINDOW_PAD_COL: usize = 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScreenGeometry {
@@ -226,6 +227,10 @@ pub fn draw_title_bar(buffer: &mut PlayfieldBuffer, row: usize, title: &str) {
     draw_title_bar_at_col(buffer, row, 0, title);
 }
 
+pub fn draw_title_bar_padded(buffer: &mut PlayfieldBuffer, row: usize, title: &str) {
+    draw_title_bar_at_col(buffer, row, LEFT_WINDOW_PAD_COL, title);
+}
+
 pub fn draw_title_bar_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usize, title: &str) {
     buffer.fill_row(row, classic::menu_style());
     buffer.write_text(row, col, title, classic::title_style());
@@ -267,6 +272,35 @@ pub fn draw_command_center(
     );
 }
 
+pub fn draw_command_center_padded(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    top_row_entries: &[MenuEntry<'_>],
+    rows: &[&[MenuEntry<'_>]],
+    prompt_label: &str,
+    prompt_keys: &str,
+) {
+    draw_title_bar_at_col(buffer, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, title);
+    for entry in top_row_entries {
+        draw_menu_entry(
+            buffer,
+            PRIMARY_MENU_ROW,
+            entry.col,
+            entry.hotkey,
+            entry.label,
+        );
+    }
+    for (idx, row_entries) in rows.iter().enumerate() {
+        draw_menu_row(buffer, PRIMARY_MENU_ROW + idx + 1, row_entries);
+    }
+    draw_command_prompt_padded(
+        buffer,
+        menu_prompt_row(PRIMARY_MENU_ROW + rows.len()),
+        prompt_label,
+        prompt_keys,
+    );
+}
+
 pub fn draw_expert_menu(
     buffer: &mut PlayfieldBuffer,
     prompt_label: &str,
@@ -276,6 +310,18 @@ pub fn draw_expert_menu(
     draw_command_prompt_at(buffer, EXPERT_MENU_PROMPT_ROW, prompt_label, prompt_keys);
     if let Some(notice) = notice {
         draw_menu_notice(buffer, EXPERT_MENU_PROMPT_ROW, notice);
+    }
+}
+
+pub fn draw_expert_menu_padded(
+    buffer: &mut PlayfieldBuffer,
+    prompt_label: &str,
+    prompt_keys: &str,
+    notice: Option<&str>,
+) {
+    draw_command_prompt_padded(buffer, EXPERT_MENU_PROMPT_ROW, prompt_label, prompt_keys);
+    if let Some(notice) = notice {
+        draw_menu_notice_padded(buffer, EXPERT_MENU_PROMPT_ROW, notice);
     }
 }
 
@@ -338,9 +384,23 @@ pub fn draw_menu_entry_with_toggle(
 }
 
 pub fn draw_status_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    draw_status_line_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, value);
+}
+
+pub fn draw_status_line_padded(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    draw_status_line_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, value);
+}
+
+pub fn draw_status_line_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    value: &str,
+) {
     buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new(label, classic::status_label_style()),
             StyledSpan::new(value, classic::status_value_style()),
@@ -386,7 +446,17 @@ pub fn draw_aligned_status_line(
     label: &str,
     value: &str,
 ) {
-    draw_aligned_status_line_at(buffer, row, 0, label_width, label, value);
+    draw_aligned_status_line_at(buffer, row, LEFT_WINDOW_PAD_COL, label_width, label, value);
+}
+
+pub fn draw_aligned_status_line_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label_width: usize,
+    label: &str,
+    value: &str,
+) {
+    draw_aligned_status_line_at(buffer, row, LEFT_WINDOW_PAD_COL, label_width, label, value);
 }
 
 pub fn draw_aligned_detail_line_at(
@@ -418,7 +488,34 @@ pub fn draw_aligned_detail_line(
     separator: &str,
     value: &str,
 ) {
-    draw_aligned_detail_line_at(buffer, row, 0, label_width, label, separator, value);
+    draw_aligned_detail_line_at(
+        buffer,
+        row,
+        LEFT_WINDOW_PAD_COL,
+        label_width,
+        label,
+        separator,
+        value,
+    );
+}
+
+pub fn draw_aligned_detail_line_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label_width: usize,
+    label: &str,
+    separator: &str,
+    value: &str,
+) {
+    draw_aligned_detail_line_at(
+        buffer,
+        row,
+        LEFT_WINDOW_PAD_COL,
+        label_width,
+        label,
+        separator,
+        value,
+    );
 }
 
 pub struct DetailField<'a> {
@@ -457,9 +554,17 @@ pub fn draw_aligned_detail_pair_at(
 }
 
 pub fn draw_notice_line(buffer: &mut PlayfieldBuffer, row: usize, value: &str) {
+    draw_notice_line_at_col(buffer, row, 0, value);
+}
+
+pub fn draw_notice_line_padded(buffer: &mut PlayfieldBuffer, row: usize, value: &str) {
+    draw_notice_line_at_col(buffer, row, LEFT_WINDOW_PAD_COL, value);
+}
+
+pub fn draw_notice_line_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usize, value: &str) {
     buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new("Notice: ", classic::notice_style()),
             StyledSpan::new(value, classic::status_value_style()),
@@ -468,9 +573,23 @@ pub fn draw_notice_line(buffer: &mut PlayfieldBuffer, row: usize, value: &str) {
 }
 
 pub fn draw_alert_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    draw_alert_line_at_col(buffer, row, 0, label, value);
+}
+
+pub fn draw_alert_line_padded(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    draw_alert_line_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, value);
+}
+
+pub fn draw_alert_line_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    value: &str,
+) {
     buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new(label, classic::error_style()),
             StyledSpan::new(value, classic::status_value_style()),
@@ -479,9 +598,28 @@ pub fn draw_alert_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, va
 }
 
 pub fn draw_message_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
+    draw_message_line_at_col(buffer, row, 0, label, value);
+}
+
+pub fn draw_message_line_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    value: &str,
+) {
+    draw_message_line_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, value);
+}
+
+pub fn draw_message_line_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    value: &str,
+) {
     buffer.write_spans(
         row,
-        0,
+        col,
         &[
             StyledSpan::new(label, classic::status_label_style()),
             StyledSpan::new(value, classic::status_value_style()),
@@ -496,18 +634,46 @@ pub fn draw_wrapped_status(
     label: &str,
     value: &str,
 ) -> usize {
+    draw_wrapped_status_at_col(buffer, start_row, 0, max_rows, label, value)
+}
+
+pub fn draw_wrapped_status_padded(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    draw_wrapped_status_at_col(
+        buffer,
+        start_row,
+        LEFT_WINDOW_PAD_COL,
+        max_rows,
+        label,
+        value,
+    )
+}
+
+pub fn draw_wrapped_status_at_col(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
     if max_rows == 0 {
         return 0;
     }
     let label_width = label.chars().count();
     let continuation = " ".repeat(label_width);
-    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
-    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
     let lines = wrap_text(value, first_width, continuation_width);
     let rows_to_draw = lines.len().min(max_rows);
     for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
         let current_label = if idx == 0 { label } else { &continuation };
-        draw_status_line(buffer, start_row + idx, current_label, &line);
+        draw_status_line_at_col(buffer, start_row + idx, col, current_label, &line);
     }
     rows_to_draw
 }
@@ -518,23 +684,42 @@ pub fn draw_wrapped_notice(
     max_rows: usize,
     value: &str,
 ) -> usize {
+    draw_wrapped_notice_at_col(buffer, start_row, 0, max_rows, value)
+}
+
+pub fn draw_wrapped_notice_padded(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    value: &str,
+) -> usize {
+    draw_wrapped_notice_at_col(buffer, start_row, LEFT_WINDOW_PAD_COL, max_rows, value)
+}
+
+pub fn draw_wrapped_notice_at_col(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
+    max_rows: usize,
+    value: &str,
+) -> usize {
     if max_rows == 0 {
         return 0;
     }
     let label = "Notice: ";
     let label_width = label.chars().count();
     let continuation = " ".repeat(label_width);
-    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
-    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
     let lines = wrap_text(value, first_width, continuation_width);
     let rows_to_draw = lines.len().min(max_rows);
     for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
         if idx == 0 {
-            draw_notice_line(buffer, start_row + idx, &line);
+            draw_notice_line_at_col(buffer, start_row + idx, col, &line);
         } else {
             buffer.write_spans(
                 start_row + idx,
-                0,
+                col,
                 &[
                     StyledSpan::new(&continuation, classic::notice_style()),
                     StyledSpan::new(&line, classic::status_value_style()),
@@ -552,22 +737,50 @@ pub fn draw_wrapped_alert(
     label: &str,
     value: &str,
 ) -> usize {
+    draw_wrapped_alert_at_col(buffer, start_row, 0, max_rows, label, value)
+}
+
+pub fn draw_wrapped_alert_padded(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    draw_wrapped_alert_at_col(
+        buffer,
+        start_row,
+        LEFT_WINDOW_PAD_COL,
+        max_rows,
+        label,
+        value,
+    )
+}
+
+pub fn draw_wrapped_alert_at_col(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
     if max_rows == 0 {
         return 0;
     }
     let label_width = label.chars().count();
     let continuation = " ".repeat(label_width);
-    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
-    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
     let lines = wrap_text(value, first_width, continuation_width);
     let rows_to_draw = lines.len().min(max_rows);
     for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
         if idx == 0 {
-            draw_alert_line(buffer, start_row + idx, label, &line);
+            draw_alert_line_at_col(buffer, start_row + idx, col, label, &line);
         } else {
             buffer.write_spans(
                 start_row + idx,
-                0,
+                col,
                 &[
                     StyledSpan::new(&continuation, classic::error_style()),
                     StyledSpan::new(&line, classic::status_value_style()),
@@ -585,22 +798,50 @@ pub fn draw_wrapped_message(
     label: &str,
     value: &str,
 ) -> usize {
+    draw_wrapped_message_at_col(buffer, start_row, 0, max_rows, label, value)
+}
+
+pub fn draw_wrapped_message_padded(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    draw_wrapped_message_at_col(
+        buffer,
+        start_row,
+        LEFT_WINDOW_PAD_COL,
+        max_rows,
+        label,
+        value,
+    )
+}
+
+pub fn draw_wrapped_message_at_col(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
     if max_rows == 0 {
         return 0;
     }
     let label_width = label.chars().count();
     let continuation = " ".repeat(label_width);
-    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
-    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(col + label_width).max(1);
     let lines = wrap_text(value, first_width, continuation_width);
     let rows_to_draw = lines.len().min(max_rows);
     for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
         if idx == 0 {
-            draw_message_line(buffer, start_row + idx, label, &line);
+            draw_message_line_at_col(buffer, start_row + idx, col, label, &line);
         } else {
             buffer.write_spans(
                 start_row + idx,
-                0,
+                col,
                 &[
                     StyledSpan::new(&continuation, classic::status_label_style()),
                     StyledSpan::new(&line, classic::status_value_style()),
@@ -615,6 +856,19 @@ pub fn draw_menu_notice(buffer: &mut PlayfieldBuffer, command_row: usize, notice
     draw_command_message_stack_at(
         buffer,
         menu_notice_row(command_row),
+        &[CommandMessage::Notice(notice)],
+    )
+}
+
+pub fn draw_menu_notice_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    notice: &str,
+) -> usize {
+    draw_command_message_stack_at_col(
+        buffer,
+        menu_notice_row(command_row),
+        LEFT_WINDOW_PAD_COL,
         &[CommandMessage::Notice(notice)],
     )
 }
@@ -648,6 +902,19 @@ pub fn draw_prompt_notice_after(
     draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Notice(value)])
 }
 
+pub fn draw_prompt_notice_after_padded(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    value: &str,
+) -> usize {
+    draw_command_message_stack_after_at_col(
+        buffer,
+        previous_end_row,
+        LEFT_WINDOW_PAD_COL,
+        &[CommandMessage::Notice(value)],
+    )
+}
+
 pub fn draw_prompt_warning_after(
     buffer: &mut PlayfieldBuffer,
     previous_end_row: usize,
@@ -656,12 +923,38 @@ pub fn draw_prompt_warning_after(
     draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Warning(value)])
 }
 
+pub fn draw_prompt_warning_after_padded(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    value: &str,
+) -> usize {
+    draw_command_message_stack_after_at_col(
+        buffer,
+        previous_end_row,
+        LEFT_WINDOW_PAD_COL,
+        &[CommandMessage::Warning(value)],
+    )
+}
+
 pub fn draw_prompt_error_after(
     buffer: &mut PlayfieldBuffer,
     previous_end_row: usize,
     value: &str,
 ) -> usize {
     draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Error(value)])
+}
+
+pub fn draw_prompt_error_after_padded(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    value: &str,
+) -> usize {
+    draw_command_message_stack_after_at_col(
+        buffer,
+        previous_end_row,
+        LEFT_WINDOW_PAD_COL,
+        &[CommandMessage::Error(value)],
+    )
 }
 
 pub fn draw_prompt_feedback_after(
@@ -674,6 +967,24 @@ pub fn draw_prompt_feedback_after(
         PromptFeedback::Error(value) => draw_prompt_error_after(buffer, previous_end_row, value),
         PromptFeedback::Warning(value) => {
             draw_prompt_warning_after(buffer, previous_end_row, value)
+        }
+    }
+}
+
+pub fn draw_prompt_feedback_after_padded(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    feedback: &PromptFeedback,
+) -> usize {
+    match feedback {
+        PromptFeedback::Notice(value) => {
+            draw_prompt_notice_after_padded(buffer, previous_end_row, value)
+        }
+        PromptFeedback::Error(value) => {
+            draw_prompt_error_after_padded(buffer, previous_end_row, value)
+        }
+        PromptFeedback::Warning(value) => {
+            draw_prompt_warning_after_padded(buffer, previous_end_row, value)
         }
     }
 }
@@ -700,12 +1011,39 @@ pub fn draw_general_message_after_command(
     )
 }
 
+pub fn draw_general_message_after_command_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    draw_command_message_stack_at_col(
+        buffer,
+        menu_general_message_row(command_row),
+        LEFT_WINDOW_PAD_COL,
+        &[CommandMessage::General { label, value }],
+    )
+}
+
 pub fn draw_command_message_stack(
     buffer: &mut PlayfieldBuffer,
     command_row: usize,
     messages: &[CommandMessage<'_>],
 ) -> usize {
     draw_command_message_stack_at(buffer, menu_general_message_row(command_row), messages)
+}
+
+pub fn draw_command_message_stack_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    messages: &[CommandMessage<'_>],
+) -> usize {
+    draw_command_message_stack_at_col(
+        buffer,
+        menu_general_message_row(command_row),
+        LEFT_WINDOW_PAD_COL,
+        messages,
+    )
 }
 
 pub fn draw_command_message_stack_after(
@@ -720,9 +1058,32 @@ pub fn draw_command_message_stack_after(
     )
 }
 
+pub fn draw_command_message_stack_after_at_col(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    col: usize,
+    messages: &[CommandMessage<'_>],
+) -> usize {
+    draw_command_message_stack_at_col(
+        buffer,
+        (previous_end_row + 2).min(last_body_row()),
+        col,
+        messages,
+    )
+}
+
 fn draw_command_message_stack_at(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
+    messages: &[CommandMessage<'_>],
+) -> usize {
+    draw_command_message_stack_at_col(buffer, start_row, 0, messages)
+}
+
+fn draw_command_message_stack_at_col(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
     messages: &[CommandMessage<'_>],
 ) -> usize {
     if messages.is_empty() {
@@ -735,7 +1096,7 @@ fn draw_command_message_stack_at(
         } else {
             (end_row + 2).min(last_body_row())
         };
-        end_row = draw_command_message_block(buffer, row, *message);
+        end_row = draw_command_message_block(buffer, row, col, *message);
     }
     end_row
 }
@@ -743,27 +1104,28 @@ fn draw_command_message_stack_at(
 fn draw_command_message_block(
     buffer: &mut PlayfieldBuffer,
     row: usize,
+    col: usize,
     message: CommandMessage<'_>,
 ) -> usize {
     match message {
         CommandMessage::General { label, value } => {
             let max_rows = last_body_row().saturating_sub(row) + 1;
-            let drawn = draw_wrapped_message(buffer, row, max_rows, label, value);
+            let drawn = draw_wrapped_message_at_col(buffer, row, col, max_rows, label, value);
             row + drawn.saturating_sub(1)
         }
         CommandMessage::Notice(value) => {
             let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
-            let drawn = draw_wrapped_notice(buffer, row, max_rows, value);
+            let drawn = draw_wrapped_notice_at_col(buffer, row, col, max_rows, value);
             row + drawn.saturating_sub(1)
         }
         CommandMessage::Error(value) => {
             let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
-            let drawn = draw_wrapped_alert(buffer, row, max_rows, "Error: ", value);
+            let drawn = draw_wrapped_alert_at_col(buffer, row, col, max_rows, "Error: ", value);
             row + drawn.saturating_sub(1)
         }
         CommandMessage::Warning(value) => {
             let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
-            let drawn = draw_wrapped_alert(buffer, row, max_rows, "Warning: ", value);
+            let drawn = draw_wrapped_alert_at_col(buffer, row, col, max_rows, "Warning: ", value);
             row + drawn.saturating_sub(1)
         }
     }
@@ -798,6 +1160,36 @@ pub fn draw_inline_planet_info_prompt(
     draw_command_message_stack(buffer, command_row, &messages)
 }
 
+pub fn draw_inline_planet_info_prompt_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    default_coords: [u8; 2],
+    input: &str,
+    error: Option<&str>,
+    notice: Option<&str>,
+) -> usize {
+    draw_command_line_default_input_at_col(
+        buffer,
+        command_row,
+        LEFT_WINDOW_PAD_COL,
+        "COMMAND",
+        "Planet coords ",
+        &format_sector_coords_default(default_coords),
+        input,
+    );
+    let mut messages = vec![CommandMessage::General {
+        label: "",
+        value: "Enter coordinates of the planet to view.",
+    }];
+    if let Some(error) = error {
+        messages.push(CommandMessage::Error(error));
+    }
+    if let Some(notice) = notice {
+        messages.push(CommandMessage::Notice(notice));
+    }
+    draw_command_message_stack_padded(buffer, command_row, &messages)
+}
+
 pub fn draw_inline_delete_reviewables_prompt(
     buffer: &mut PlayfieldBuffer,
     command_row: usize,
@@ -813,8 +1205,37 @@ pub fn draw_inline_delete_reviewables_prompt(
     )
 }
 
+pub fn draw_inline_delete_reviewables_prompt_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    notice: Option<&str>,
+) -> usize {
+    draw_inline_confirm_prompt_padded(buffer, command_row, "COMMAND");
+    draw_inline_confirm_block_padded(
+        buffer,
+        command_row,
+        "DELETE ALL MESSAGES / RESULTS:",
+        &["This will clear all currently reviewable messages and results."],
+        notice,
+    )
+}
+
 pub fn draw_inline_confirm_prompt(buffer: &mut PlayfieldBuffer, command_row: usize, label: &str) {
     draw_command_line_prompt_text_at(buffer, command_row, label, "Y/[N] -> ");
+}
+
+pub fn draw_inline_confirm_prompt_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    label: &str,
+) {
+    draw_command_line_prompt_text_at_col(
+        buffer,
+        command_row,
+        LEFT_WINDOW_PAD_COL,
+        label,
+        "Y/[N] -> ",
+    );
 }
 
 pub fn draw_inline_confirm_block(
@@ -824,15 +1245,48 @@ pub fn draw_inline_confirm_block(
     lines: &[&str],
     notice: Option<&str>,
 ) -> usize {
+    draw_inline_confirm_block_at_col(buffer, command_row, 0, title, lines, notice)
+}
+
+pub fn draw_inline_confirm_block_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    title: &str,
+    lines: &[&str],
+    notice: Option<&str>,
+) -> usize {
+    draw_inline_confirm_block_at_col(
+        buffer,
+        command_row,
+        LEFT_WINDOW_PAD_COL,
+        title,
+        lines,
+        notice,
+    )
+}
+
+fn draw_inline_confirm_block_at_col(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    col: usize,
+    title: &str,
+    lines: &[&str],
+    notice: Option<&str>,
+) -> usize {
     let title_row = menu_general_message_row(command_row);
-    buffer.write_text(title_row, 0, title, classic::notice_style());
+    buffer.write_text(title_row, col, title, classic::notice_style());
     let mut end_row = title_row;
     for line in lines {
         end_row = (end_row + 1).min(last_body_row());
-        buffer.write_text(end_row, 0, line, classic::status_value_style());
+        buffer.write_text(end_row, col, line, classic::status_value_style());
     }
     if let Some(notice) = notice {
-        draw_command_message_stack_after(buffer, end_row, &[CommandMessage::Notice(notice)])
+        draw_command_message_stack_after_at_col(
+            buffer,
+            end_row,
+            col,
+            &[CommandMessage::Notice(notice)],
+        )
     } else {
         end_row
     }
@@ -872,6 +1326,41 @@ pub fn draw_inline_tax_prompt(
     draw_command_message_stack(buffer, command_row, &messages)
 }
 
+pub fn draw_inline_tax_prompt_padded(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    current_tax: &str,
+    input: &str,
+    error: Option<&str>,
+    notice: Option<&str>,
+) -> usize {
+    draw_command_line_default_input_at_col(
+        buffer,
+        command_row,
+        LEFT_WINDOW_PAD_COL,
+        "PLANET COMMAND",
+        "Empire tax rate (0 - 100) ",
+        current_tax,
+        input,
+    );
+    let mut messages = vec![
+        CommandMessage::General {
+            label: "PLANET TAX: ",
+            value: "Set empire tax rate.",
+        },
+        CommandMessage::Warning(
+            "Taxes in excess of 65% may actually REDUCE your planets' productivity!",
+        ),
+    ];
+    if let Some(error) = error {
+        messages.push(CommandMessage::Error(error));
+    }
+    if let Some(notice) = notice {
+        messages.push(CommandMessage::Notice(notice));
+    }
+    draw_command_message_stack_padded(buffer, command_row, &messages)
+}
+
 pub fn draw_centered_text(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -884,6 +1373,15 @@ pub fn draw_centered_text(
 
 pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
     draw_command_prompt_at_col(buffer, row, 0, label, keys);
+}
+
+pub fn draw_command_prompt_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    keys: &str,
+) {
+    draw_command_prompt_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, keys);
 }
 
 pub fn draw_command_prompt_at_col(
@@ -905,6 +1403,15 @@ pub fn draw_command_line_text_at(
     draw_command_line_text_at_col(buffer, row, 0, label, text);
 }
 
+pub fn draw_command_line_text_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    text: &str,
+) {
+    draw_command_line_text_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, text);
+}
+
 pub fn draw_command_line_text_at_col(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -922,6 +1429,15 @@ pub fn draw_command_line_prompt_text_at(
     prompt: &str,
 ) {
     draw_command_line_prompt_text_at_col(buffer, row, 0, label, prompt);
+}
+
+pub fn draw_command_line_prompt_text_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    prompt: &str,
+) {
+    draw_command_line_prompt_text_at_col(buffer, row, LEFT_WINDOW_PAD_COL, label, prompt);
 }
 
 pub fn draw_command_line_prompt_text_at_col(
@@ -943,6 +1459,25 @@ pub fn draw_command_line_default_input_at(
     input: &str,
 ) {
     draw_command_line_default_input_at_col(buffer, row, 0, label, prompt, default, input)
+}
+
+pub fn draw_command_line_default_input_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+) {
+    draw_command_line_default_input_at_col(
+        buffer,
+        row,
+        LEFT_WINDOW_PAD_COL,
+        label,
+        prompt,
+        default,
+        input,
+    )
 }
 
 pub fn draw_command_line_default_input_at_col(
@@ -1014,6 +1549,10 @@ pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str)
     draw_plain_prompt_at_col(buffer, row, 0, prompt)
 }
 
+pub fn draw_plain_prompt_padded(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
+    draw_plain_prompt_at_col(buffer, row, LEFT_WINDOW_PAD_COL, prompt)
+}
+
 pub fn draw_plain_prompt_at_col(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -1027,6 +1566,10 @@ pub fn draw_dismiss_prompt(buffer: &mut PlayfieldBuffer, row: usize) -> usize {
     draw_dismiss_prompt_at_col(buffer, row, 0)
 }
 
+pub fn draw_dismiss_prompt_padded(buffer: &mut PlayfieldBuffer, row: usize) -> usize {
+    draw_dismiss_prompt_at_col(buffer, row, LEFT_WINDOW_PAD_COL)
+}
+
 pub fn draw_dismiss_prompt_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
     draw_plain_prompt_at_col(buffer, row, col, "(slap a key)")
 }
@@ -1038,9 +1581,9 @@ pub fn draw_help_panel(
     lines: &[&str],
     prompt_label: &str,
 ) {
-    draw_title_bar(buffer, 0, title);
+    draw_title_bar_padded(buffer, 0, title);
     buffer.fill_row(2, classic::help_header_style());
-    buffer.write_text(2, 0, header, classic::help_header_style());
+    buffer.write_text(2, LEFT_WINDOW_PAD_COL, header, classic::help_header_style());
     for row in 3..COMMAND_LINE_ROW {
         buffer.fill_row(row, classic::help_panel_style());
     }
@@ -1050,11 +1593,11 @@ pub fn draw_help_panel(
         if row >= COMMAND_LINE_ROW - 1 {
             break;
         }
-        buffer.write_text(row, 0, line, classic::help_panel_style());
+        buffer.write_text(row, LEFT_WINDOW_PAD_COL, line, classic::help_panel_style());
         last_content_row = row;
     }
     let _ = prompt_label;
-    draw_dismiss_prompt(buffer, dismiss_prompt_row(last_content_row));
+    draw_dismiss_prompt_padded(buffer, dismiss_prompt_row(last_content_row));
 }
 
 pub fn draw_bottom_aligned_transcript_rows<F>(
