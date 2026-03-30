@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crate::cache::{GameCache, load_cache};
@@ -118,6 +119,7 @@ impl ConnectDisplay {
 
 pub struct PickerState {
     pub cache: GameCache,
+    pub maps_root: PathBuf,
     pub selected: usize,
     pub relay_selected: usize,
     pub relay_game_selected: usize,
@@ -128,6 +130,7 @@ pub struct PickerState {
     pub active_connect: Option<ActiveConnect>,
     pub pending_refresh: Option<PendingRefreshRequest>,
     pub join_input: String,
+    pub maps_input: String,
     pub alias_input: String,
     pub wallet_input: String,
     pub relay_input: String,
@@ -137,9 +140,10 @@ pub struct PickerState {
 }
 
 impl PickerState {
-    pub fn new(cache: GameCache) -> Self {
+    pub fn new(cache: GameCache, maps_root: PathBuf) -> Self {
         Self {
             cache,
+            maps_root,
             selected: 0,
             relay_selected: 0,
             relay_game_selected: 0,
@@ -150,6 +154,7 @@ impl PickerState {
             active_connect: None,
             pending_refresh: None,
             join_input: String::new(),
+            maps_input: String::new(),
             alias_input: String::new(),
             wallet_input: String::new(),
             relay_input: String::new(),

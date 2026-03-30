@@ -10,7 +10,10 @@ use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::SessionOutcome;
 use ec_connect::picker::connecting::PendingConnectRequest;
 use ec_connect::picker::event::is_manual_refresh_key;
-use ec_connect::picker::flows::apply_session_outcome;
+use ec_connect::config::ConnectConfig;
+use ec_connect::picker::flows::{
+    apply_session_outcome, persist_maps_root_at, redownload_selected_maps_with_config,
+};
 use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL};
 use ec_connect::picker::input::{handle_game_list_key, handle_relay_key};
 use ec_connect::picker::layout::MAX_BODY_ROWS;
@@ -25,6 +28,7 @@ use ec_connect::wallet::{Identity, IdentityType, Wallet};
 use ec_ui::theme::classic;
 use nostr_sdk::{Keys, ToBech32};
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -44,12 +48,18 @@ fn make_game(id: &str, last_connected: Option<&str>) -> CachedGame {
     }
 }
 
+fn make_game_without_relay(id: &str) -> CachedGame {
+    let mut game = make_game(id, Some("2026-03-26T00:00:00Z"));
+    game.relay_url = None;
+    game
+}
+
 fn make_state(games: Vec<CachedGame>) -> PickerState {
     let mut cache = GameCache::empty();
     for g in games {
         cache.upsert(g);
     }
-    PickerState::new(cache)
+    PickerState::new(cache, PathBuf::from("/tmp/ec/maps"))
 }
 
 fn make_pending_connect_request() -> PendingConnectRequest {
@@ -68,6 +78,14 @@ fn make_pending_connect_request() -> PendingConnectRequest {
             lines: vec!["Attempting to connect...".to_string()],
         },
     }
+}
+
+fn unique_temp_path(name: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("time")
+        .as_nanos();
+    std::env::temp_dir().join(format!("ec-connect-{name}-{nanos}.kdl"))
 }
 
 fn make_session(alias: Option<&str>) -> PickerSession {
@@ -113,6 +131,7 @@ fn picker_state_initial_values() {
     assert_eq!(state.screen, Screen::GameList);
     assert!(state.overlay.is_none());
     assert!(state.join_input.is_empty());
+    assert!(state.maps_input.is_empty());
     assert!(state.alias_input.is_empty());
     assert!(state.wallet_input.is_empty());
     assert!(state.relay_input.is_empty());
@@ -343,7 +362,6 @@ fn help_overlay_dismisses_on_any_plain_key() {
         &mut state,
         None,
         "",
-        std::path::Path::new("/tmp"),
         None,
     )
     .unwrap();
@@ -487,7 +505,6 @@ fn error_notice_dismisses_on_any_key() {
         &mut state,
         None,
         "",
-        std::path::Path::new("/tmp"),
         None,
     )
     .unwrap();
@@ -507,7 +524,6 @@ fn maps_downloaded_popup_dismisses_on_any_key() {
         &mut state,
         None,
         "",
-        std::path::Path::new("/tmp"),
         None,
     )
     .unwrap();
@@ -528,7 +544,6 @@ fn connecting_overlay_escape_cancels_pending_connect() {
         &mut state,
         None,
         "",
-        std::path::Path::new("/tmp"),
         None,
     )
     .unwrap();
@@ -551,7 +566,6 @@ fn claiming_invite_overlay_q_cancels_pending_connect() {
         &mut state,
         None,
         "",
-        std::path::Path::new("/tmp"),
         None,
     )
     .unwrap();
@@ -613,7 +627,6 @@ fn main_game_list_r_opens_relay_list() {
         &mut state,
         &mut session,
         "",
-        std::path::Path::new("/tmp"),
         &rt,
     )
     .expect("handle R");
@@ -632,7 +645,6 @@ fn main_game_list_uppercase_r_opens_selected_game_relay_prompt() {
         &mut state,
         &mut session,
         "",
-        std::path::Path::new("/tmp"),
         &rt,
     )
     .expect("handle shift-R");
@@ -657,7 +669,6 @@ fn main_game_list_n_opens_join_popup() {
         &mut state,
         &mut session,
         "",
-        std::path::Path::new("/tmp"),
         &rt,
     )
     .expect("handle N");
@@ -666,6 +677,118 @@ fn main_game_list_n_opens_join_popup() {
         state.overlay,
         Some(PickerOverlay::JoinCodePopup { .. })
     ));
+}
+
+#[test]
+fn main_game_list_m_opens_maps_download_popup_for_selected_game() {
+    let mut state = make_state(vec![
+        make_game_without_relay("a"),
+        make_game_without_relay("b"),
+        make_game_without_relay("c"),
+    ]);
+    state.selected = 2;
+    let mut session = make_session(Some("Desk Alias"));
+    let rt = tokio::runtime::Runtime::new().expect("runtime");
+
+    handle_game_list_key(
+        KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE),
+        &mut state,
+        &mut session,
+        "",
+        &rt,
+    )
+    .expect("handle M");
+
+    assert_eq!(
+        state.overlay,
+        Some(PickerOverlay::MapsDownloadPrompt { error: None })
+    );
+    assert_eq!(state.maps_input, "/tmp/ec/maps");
+    assert_eq!(state.selected, 2);
+}
+
+#[test]
+fn maps_download_popup_renders_input_and_hint() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "/very/long/maps/root/that/should/still/stay/inside/the/popup/window"
+        .to_string();
+    state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("DOWNLOAD MAPS")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Save to:")));
+    assert!(
+        (0..buffer.height())
+            .any(|row| buffer.plain_line(row).contains("Enter=save+download"))
+    );
+}
+
+#[test]
+fn maps_download_popup_escape_cancels_and_clears_input() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "/tmp/custom-maps".to_string();
+    state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
+    assert!(state.maps_input.is_empty());
+}
+
+#[test]
+fn persist_maps_root_updates_state_and_writes_config() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "/tmp/alt-maps-root".to_string();
+    let config_path = unique_temp_path("maps-root");
+
+    let saved = persist_maps_root_at(&mut state, &config_path).expect("persist maps root");
+    let config = ec_connect::config::load_config_from(&config_path).expect("load config");
+
+    assert_eq!(saved, PathBuf::from("/tmp/alt-maps-root"));
+    assert_eq!(state.maps_root, PathBuf::from("/tmp/alt-maps-root"));
+    assert_eq!(config.maps_dir, Some(PathBuf::from("/tmp/alt-maps-root")));
+    let _ = std::fs::remove_file(&config_path);
+}
+
+#[test]
+fn maps_download_popup_enter_uses_current_selection_not_first_game() {
+    let mut state = make_state(vec![
+        make_game_without_relay("a"),
+        make_game_without_relay("b"),
+        make_game_without_relay("c"),
+    ]);
+    state.selected = 2;
+    state.maps_input = "/tmp/selected-game-maps".to_string();
+    let config_path = unique_temp_path("maps-download");
+    let rt = tokio::runtime::Runtime::new().expect("runtime");
+
+    persist_maps_root_at(&mut state, &config_path).expect("persist maps root");
+    redownload_selected_maps_with_config(
+        &mut state,
+        &make_session(Some("Desk Alias")).keys,
+        "npub1gate",
+        &rt,
+        &ConnectConfig::empty(),
+    )
+    .expect("redownload selected maps");
+
+    assert_eq!(
+        state.overlay,
+        Some(PickerOverlay::GameRelayPrompt {
+            index: 2,
+            action: RelayPromptAction::DownloadMaps,
+            error: None,
+        })
+    );
+    assert_eq!(state.maps_root, PathBuf::from("/tmp/selected-game-maps"));
+    let _ = std::fs::remove_file(&config_path);
 }
 
 #[test]

@@ -10,6 +10,7 @@ use super::connecting::cancel_active_connect;
 use super::connecting::render_connecting_popup;
 use super::event::{is_back_key, is_cancel_confirm_key, is_yes_key};
 use super::help::HelpTopic;
+use super::input::handle_maps_download_popup_key;
 use super::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, truncate};
 use super::refresh::render_refreshing_popup;
 use super::relay::{
@@ -35,6 +36,9 @@ pub enum PickerOverlay {
     },
     MapsDownloaded {
         path: PathBuf,
+    },
+    MapsDownloadPrompt {
+        error: Option<String>,
     },
     ClaimingInvite {
         lines: Vec<String>,
@@ -83,7 +87,6 @@ pub fn handle_overlay_key(
     state: &mut PickerState,
     picker_session: Option<&mut PickerSession>,
     gate_npub: &str,
-    maps_root: &std::path::Path,
     rt: Option<&tokio::runtime::Runtime>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let Some(current) = state.overlay.clone() else {
@@ -101,6 +104,9 @@ pub fn handle_overlay_key(
         }
         PickerOverlay::MapsDownloaded { .. } => {
             state.overlay = None;
+        }
+        PickerOverlay::MapsDownloadPrompt { .. } => {
+            handle_maps_download_popup_key(key, state, picker_session.as_deref(), gate_npub, rt)?;
         }
         PickerOverlay::ClaimingInvite { .. } | PickerOverlay::Connecting { .. } => {
             if is_back_key(key) {
@@ -145,7 +151,6 @@ pub fn handle_overlay_key(
                 state,
                 &picker_session.keys,
                 gate_npub,
-                maps_root,
                 rt,
             )?;
         }
@@ -306,6 +311,9 @@ pub fn render_overlay(
         Some(PickerOverlay::MapsDownloaded { path }) => {
             render_maps_downloaded_popup(buffer, path);
             buffer.clear_cursor();
+        }
+        Some(PickerOverlay::MapsDownloadPrompt { error }) => {
+            render_maps_download_popup(buffer, &state.maps_input, error.as_deref());
         }
         Some(PickerOverlay::ClaimingInvite { lines }) => {
             super::connecting::render_status_popup(buffer, "CLAIMING INVITE", lines);
@@ -473,6 +481,65 @@ fn render_maps_downloaded_popup(buffer: &mut PlayfieldBuffer, path: &PathBuf) {
     lines.push(String::new());
     lines.push("Press any key to continue.".to_string());
     render_modal_box(buffer, "MAPS DOWNLOADED", &lines, classic::table_body_style());
+}
+
+fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Option<&str>) {
+    let has_error = error.is_some();
+    let height: u16 = if has_error { 10 } else { 9 };
+    let popup = draw_modal_frame(buffer, "DOWNLOAD MAPS", 76, height, classic::table_body_style());
+    let left = popup.x as usize + 2;
+    let inner_right = popup.x as usize + popup.width as usize - 2;
+    let inner_width = popup.width.saturating_sub(4) as usize;
+
+    let instruction =
+        "Set the default folder for downloaded maps. Game folders are created under it automatically.";
+    for (idx, line) in wrapped_lines(instruction, inner_width)
+        .into_iter()
+        .take(2)
+        .enumerate()
+    {
+        buffer.write_text_clipped(
+            popup.y as usize + 1 + idx,
+            left,
+            &line,
+            classic::table_body_style(),
+        );
+    }
+
+    let label = "Save to:";
+    let input_row = popup.y as usize + 4;
+    let input_col = left + label.chars().count() + 1;
+    draw_labeled_input_row(
+        buffer,
+        input_row,
+        left,
+        label,
+        input,
+        input_width(inner_right, input_col),
+        classic::status_label_style(),
+        classic::prompt_hotkey_style(),
+    );
+
+    if let Some(err) = error {
+        buffer.write_text_clipped(
+            popup.y as usize + 6,
+            left,
+            &truncate(err, inner_width),
+            classic::error_style(),
+        );
+    }
+
+    let hint_row = if has_error {
+        popup.y as usize + 7
+    } else {
+        popup.y as usize + 6
+    };
+    buffer.write_text_clipped(
+        hint_row,
+        left,
+        &truncate("Enter=save+download   Esc=cancel   Backspace=erase", inner_width),
+        classic::table_chrome_style(),
+    );
 }
 
 fn render_wallet_detail_popup(

@@ -1,8 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use nostr_sdk::Keys;
 
 use crate::cache::save_cache;
+use crate::config::{ConnectConfig, config_path, load_config, save_config_to};
 use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::SessionOutcome;
@@ -106,12 +107,20 @@ pub fn redownload_selected_maps(
     state: &mut PickerState,
     keys: &Keys,
     gate_npub: &str,
-    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::config::ConnectConfig;
-    use crate::config::load_config;
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    redownload_selected_maps_with_config(state, keys, gate_npub, rt, &config)
+}
 
+#[doc(hidden)]
+pub fn redownload_selected_maps_with_config(
+    state: &mut PickerState,
+    keys: &Keys,
+    gate_npub: &str,
+    rt: &tokio::runtime::Runtime,
+    config: &ConnectConfig,
+) -> Result<(), Box<dyn std::error::Error>> {
     let sorted = state.cache.sorted();
     let Some(game) = sorted.get(state.selected).copied().cloned() else {
         state.show_error("No joined games yet.");
@@ -131,7 +140,6 @@ pub fn redownload_selected_maps(
         return Ok(());
     };
 
-    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     if game
         .relay_url
         .as_ref()
@@ -149,7 +157,7 @@ pub fn redownload_selected_maps(
     }
 
     let server_str = format!("{}:{}", game_server, game_port);
-    let mut target = match resolve_server(&server_str, &config) {
+    let mut target = match resolve_server(&server_str, config) {
         Ok(target) => target,
         Err(err) => {
             state.show_error(format!("unable to resolve server: {err}"));
@@ -162,16 +170,52 @@ pub fn redownload_selected_maps(
     target.game_id = Some(game_id.clone());
 
     match rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game_id)) {
-        Ok(bundle) => {
-            match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root) {
-                Ok(path) => state.show_notice(format!("Maps saved to {}", path.display())),
-                Err(err) => state.show_error(format!("unable to save maps: {err}")),
-            }
-        }
+        Ok(bundle) => match save_map_bundle(
+            &bundle,
+            &target.server_host,
+            target.server_port,
+            state.maps_root.as_path(),
+        ) {
+            Ok(path) => state.show_notice(format!("Maps saved to {}", path.display())),
+            Err(err) => state.show_error(format!("unable to save maps: {err}")),
+        },
         Err(err) => state.show_error(format!("unable to download maps: {err}")),
     }
 
     Ok(())
+}
+
+pub fn open_maps_download_popup(state: &mut PickerState) {
+    state.maps_input = state.maps_root.display().to_string();
+    state.overlay = Some(super::overlay::PickerOverlay::MapsDownloadPrompt { error: None });
+}
+
+#[doc(hidden)]
+pub fn persist_maps_root_at(
+    state: &mut PickerState,
+    path: &Path,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let maps_input = state.maps_input.trim();
+    if maps_input.is_empty() {
+        return Err("save location must not be empty".into());
+    }
+
+    let maps_root = PathBuf::from(maps_input);
+    let mut config = load_config_from_or_empty(path)?;
+    config.maps_dir = Some(maps_root.clone());
+    save_config_to(&config, path)?;
+    state.maps_root = maps_root.clone();
+    Ok(maps_root)
+}
+
+pub fn persist_maps_root(
+    state: &mut PickerState,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    persist_maps_root_at(state, config_path().as_path())
+}
+
+fn load_config_from_or_empty(path: &Path) -> Result<ConnectConfig, Box<dyn std::error::Error>> {
+    Ok(crate::config::load_config_from(path).unwrap_or_else(|_| ConnectConfig::empty()))
 }
 
 pub fn queue_selected_game_refresh(

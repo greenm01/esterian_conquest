@@ -52,7 +52,7 @@ const MAIN_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "M",
-        description: "download maps for selected game",
+        description: "download maps / set save location",
     },
     HelpRow {
         command: "D",

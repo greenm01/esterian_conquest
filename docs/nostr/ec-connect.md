@@ -360,7 +360,7 @@ The no-argument shell is a fixed `80x25` crossterm screen aligned with the
    Saturday Showdown   war.example.com     Seat 5    (2 days ago)
 
  ─────────────────────────────────────────────────────────────────
- [J] Join new game   [M] Download maps   [I] Identity info   [Q] Quit
+ [J] Join new game   [M] Maps   [I] Identity info   [Q] Quit
 ```
 
 Columns: empire name, game name, server address, shortened gate `npub`,
@@ -375,7 +375,7 @@ prompting the player to join a game.
 | Up/Down | Move selection |
 | Enter | Connect to selected game |
 | `J` | Enter invite code to join a new game |
-| `M` | Re-download the selected game's static starmap bundle |
+| `M` | Open the maps popup to change the default save location and re-download the selected game's static starmap bundle |
 | `R` | Edit the default relay URL used for joins and legacy cache rows |
 | `I` | Show active identity (npub, number of identities in wallet) |
 | `Q` / Esc | Quit |
@@ -412,10 +412,11 @@ subcommands rather than TUI screens.
 
 ### Manual Map Re-Download
 
-Pressing `M` in the picker downloads the selected game's current static
-map bundle again and overwrites the local copy atomically. This is meant
-for recovering the files on a new machine, after moving the save path,
-or after manually deleting the local bundle.
+Pressing `M` in the picker opens a popup with the current maps root.
+The player can change that default save location and then press `Enter`
+to download the selected game's current static map bundle again. The
+bundle is still written atomically under the usual per-server and
+per-game subdirectory beneath the chosen maps root.
 
 The static star layout does not change during the campaign, so
 `ec-connect` does not refresh maps automatically on normal reconnects.
@@ -619,6 +620,10 @@ Path resolution priority for the maps root is:
 1. `--maps-dir <PATH>` on the current `ec-connect` invocation
 2. `maps-dir` in `config.kdl`
 3. Platform default local app-data directory
+
+In picker mode, if the player changes the maps root from the `M` popup,
+that choice is written back to `maps-dir` and becomes the active maps
+root for the rest of the current picker session.
 
 ## Crate Dependencies
 

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
@@ -499,7 +497,6 @@ pub fn handle_game_relay_key(
     state: &mut PickerState,
     player_keys: &nostr_sdk::Keys,
     gate_npub: &str,
-    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match key.code {
@@ -531,7 +528,6 @@ pub fn handle_game_relay_key(
                     state,
                     player_keys,
                     gate_npub,
-                    maps_root,
                     rt,
                     index,
                     relay_url,
@@ -631,7 +627,6 @@ fn submit_map_download_with_prompted_relay(
     state: &mut PickerState,
     keys: &nostr_sdk::Keys,
     gate_npub: &str,
-    maps_root: &Path,
     rt: &tokio::runtime::Runtime,
     index: usize,
     relay_url: String,
@@ -679,7 +674,12 @@ fn submit_map_download_with_prompted_relay(
 
     match rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game.id)) {
         Ok(bundle) => {
-            match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root) {
+            match save_map_bundle(
+                &bundle,
+                &target.server_host,
+                target.server_port,
+                state.maps_root.as_path(),
+            ) {
                 Ok(path) => {
                     persist_cached_game_relay(state, index, &relay_url)?;
                     remember_relay_success(&relay_url);

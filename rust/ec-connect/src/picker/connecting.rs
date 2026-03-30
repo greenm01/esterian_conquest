@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
@@ -61,7 +61,6 @@ pub fn queue_connect_request(state: &mut PickerState, request: PendingConnectReq
 pub fn start_pending_connect(
     state: &mut PickerState,
     picker_session: &mut PickerSession,
-    maps_root: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if state.active_connect.is_some() {
         return Ok(());
@@ -71,7 +70,7 @@ pub fn start_pending_connect(
     };
     let keys = picker_session.keys.clone();
     let npub = picker_session.npub.clone();
-    let maps_root = maps_root.to_path_buf();
+    let maps_root = state.maps_root.clone();
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {

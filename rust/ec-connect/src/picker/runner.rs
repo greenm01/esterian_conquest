@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, poll, read};
@@ -31,14 +31,13 @@ pub fn run_picker_in_session(
     mut session: TerminalSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cache = load_cache().unwrap_or_else(|_| GameCache::empty());
-    let mut state = PickerState::new(cache);
+    let mut state = PickerState::new(cache, maps_root);
     let rt = tokio::runtime::Runtime::new()?;
     let mut picker_session = Some(picker_session);
     let result = run_loop(
         &mut state,
         &mut picker_session,
         &gate_npub,
-        &maps_root,
         lock_timeout_minutes,
         &rt,
         &mut session,
@@ -51,7 +50,6 @@ fn run_loop(
     state: &mut PickerState,
     picker_session: &mut Option<PickerSession>,
     gate_npub: &str,
-    maps_root: &Path,
     lock_timeout_minutes: u16,
     rt: &tokio::runtime::Runtime,
     session: &mut TerminalSession,
@@ -79,7 +77,7 @@ fn run_loop(
                     }
                 }
                 if state.pending_connect.is_some() {
-                    start_pending_connect(state, session_state, maps_root)?;
+                    start_pending_connect(state, session_state)?;
                 }
                 if state.active_connect.is_some() {
                     let bridged = poll_active_connect(state, session, rt, session_state)?;
@@ -145,6 +143,7 @@ fn run_loop(
                     | Some(super::overlay::PickerOverlay::RelayEditor { .. })
                     | Some(super::overlay::PickerOverlay::GameRelayPrompt { .. })
                     | Some(super::overlay::PickerOverlay::JoinCodePopup { .. })
+                    | Some(super::overlay::PickerOverlay::MapsDownloadPrompt { .. })
             );
         if is_manual_lock_key(key, text_entry) {
             lock_picker(state, picker_session);
@@ -159,7 +158,6 @@ fn run_loop(
                 state,
                 picker_session.as_mut(),
                 gate_npub,
-                maps_root,
                 Some(rt),
             )?;
             if state.quit {
@@ -173,7 +171,7 @@ fn run_loop(
                 let session_state = picker_session
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
-                handle_game_list_key(key, state, session_state, gate_npub, maps_root, rt)?;
+                handle_game_list_key(key, state, session_state, gate_npub, rt)?;
             }
             Screen::RelayList | Screen::RelayGames { .. } => {
                 handle_relay_key(key, state)?;
@@ -222,6 +220,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.overlay = None;
     state.screen = Screen::Locked;
     state.join_input.clear();
+    state.maps_input.clear();
     state.alias_input.clear();
     state.wallet_input.clear();
     state.relay_input.clear();

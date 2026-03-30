@@ -6,7 +6,8 @@ use crate::wallet::push_identity_from_input;
 
 use super::event::{is_back_key, is_escape_key, is_help_key, is_manual_refresh_key};
 use super::flows::{
-    connect_selected, move_selection, queue_selected_game_refresh, redownload_selected_maps,
+    connect_selected, move_selection, open_maps_download_popup, persist_maps_root,
+    queue_selected_game_refresh, redownload_selected_maps,
 };
 use super::overlay::PickerOverlay;
 use super::relay::{
@@ -17,10 +18,9 @@ use super::state::{BODY_PAGE, ConnectDisplay, ConnectOrigin, PickerSession, Pick
 pub fn handle_game_list_key(
     key: KeyEvent,
     state: &mut PickerState,
-    picker_session: &mut PickerSession,
+    _picker_session: &mut PickerSession,
     gate_npub: &str,
-    maps_root: &std::path::Path,
-    rt: &tokio::runtime::Runtime,
+    _rt: &tokio::runtime::Runtime,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let game_count = state.cache.sorted().len();
     if is_help_key(key) {
@@ -56,7 +56,13 @@ pub fn handle_game_list_key(
             code: KeyCode::Char('m' | 'M'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
-        } => redownload_selected_maps(state, &picker_session.keys, gate_npub, maps_root, rt)?,
+        } => {
+            if game_count == 0 {
+                state.show_error("No joined games yet.");
+            } else {
+                open_maps_download_popup(state);
+            }
+        }
         KeyEvent {
             code: KeyCode::Char('r'),
             modifiers: KeyModifiers::NONE,
@@ -168,6 +174,61 @@ pub fn handle_join_code_popup_key(
             state.join_input.push(ch);
             // Clear any stale error on new input.
             state.overlay = Some(super::overlay::PickerOverlay::JoinCodePopup { error: None });
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+pub fn handle_maps_download_popup_key(
+    key: KeyEvent,
+    state: &mut PickerState,
+    picker_session: Option<&PickerSession>,
+    gate_npub: &str,
+    rt: Option<&tokio::runtime::Runtime>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match key {
+        key if is_escape_key(key) => {
+            state.overlay = None;
+            state.maps_input.clear();
+        }
+        KeyEvent {
+            code: KeyCode::Backspace,
+            ..
+        } => {
+            state.maps_input.pop();
+            state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
+        }
+        KeyEvent {
+            code: KeyCode::Enter,
+            ..
+        } => {
+            let Some(picker_session) = picker_session else {
+                return Ok(());
+            };
+            let Some(rt) = rt else {
+                return Ok(());
+            };
+            match persist_maps_root(state) {
+                Ok(_) => {
+                    state.overlay = None;
+                    state.maps_input.clear();
+                    redownload_selected_maps(state, &picker_session.keys, gate_npub, rt)?;
+                }
+                Err(err) => {
+                    state.overlay = Some(PickerOverlay::MapsDownloadPrompt {
+                        error: Some(err.to_string()),
+                    });
+                }
+            }
+        }
+        KeyEvent {
+            code: KeyCode::Char(ch),
+            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
+            ..
+        } => {
+            state.maps_input.push(ch);
+            state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
         }
         _ => {}
     }
