@@ -205,9 +205,7 @@ pub fn persist_maps_root_at(
     Ok(maps_root)
 }
 
-pub fn persist_maps_root(
-    state: &mut PickerState,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn persist_maps_root(state: &mut PickerState) -> Result<PathBuf, Box<dyn std::error::Error>> {
     persist_maps_root_at(state, config_path().as_path())
 }
 
@@ -243,8 +241,7 @@ fn validate_maps_root_input(input: &str) -> Result<PathBuf, Box<dyn std::error::
     if maps_root.exists() && !maps_root.is_dir() {
         return Err("save location points to a file, not a folder".into());
     }
-    fs::create_dir_all(&maps_root)
-        .map_err(|err| format!("unable to create save folder: {err}"))?;
+    fs::create_dir_all(&maps_root).map_err(|err| format!("unable to create save folder: {err}"))?;
     Ok(maps_root)
 }
 

@@ -271,8 +271,14 @@ impl PreparedSession {
 }
 
 impl PreparedSessionFinalizer {
-    pub async fn finish(self, bridge_result: Result<u32, crate::connect::bridge::BridgeError>) -> SessionOutcome {
-        let PreparedSessionFinalizer { payload, post_bridge } = self;
+    pub async fn finish(
+        self,
+        bridge_result: Result<u32, crate::connect::bridge::BridgeError>,
+    ) -> SessionOutcome {
+        let PreparedSessionFinalizer {
+            payload,
+            post_bridge,
+        } = self;
         match bridge_result {
             Ok(exit_code) => {
                 let completion = match post_bridge {
@@ -343,17 +349,18 @@ async fn finalize_first_join_after_session(
     ));
     touch_cache_entry(&state.game_id);
     match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
-        Ok(bundle) => match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root)
-        {
-            Ok(path) => FirstJoinCompletion {
-                notice: None,
-                maps_saved_to: Some(path),
-            },
-            Err(err) => FirstJoinCompletion {
-                notice: Some(format!("Warning: unable to save starmaps: {err}")),
-                maps_saved_to: None,
-            },
-        },
+        Ok(bundle) => {
+            match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root) {
+                Ok(path) => FirstJoinCompletion {
+                    notice: None,
+                    maps_saved_to: Some(path),
+                },
+                Err(err) => FirstJoinCompletion {
+                    notice: Some(format!("Warning: unable to save starmaps: {err}")),
+                    maps_saved_to: None,
+                },
+            }
+        }
         Err(err) => FirstJoinCompletion {
             notice: Some(format!("Warning: unable to download starmaps: {err}")),
             maps_saved_to: None,

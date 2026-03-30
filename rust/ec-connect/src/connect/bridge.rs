@@ -175,11 +175,7 @@ pub async fn run_bridge(
         payload.clone(),
         EphemeralKeypair::from_signing_key_bytes(keypair.signing_key_bytes()),
         username.to_string(),
-        TerminalSpec {
-            term,
-            cols,
-            rows,
-        },
+        TerminalSpec { term, cols, rows },
     );
 
     // Enter raw mode for the duration of the session.
@@ -223,10 +219,7 @@ pub async fn run_bridge(
 // ── I/O loop ─────────────────────────────────────────────────────────────────
 
 /// Drive stdin → channel and channel → stdout until the remote side closes.
-async fn io_loop(
-    live: &mut LiveSession,
-    bridge_started: Instant,
-) -> Result<u32, BridgeError> {
+async fn io_loop(live: &mut LiveSession, bridge_started: Instant) -> Result<u32, BridgeError> {
     let mut stdin_pump = StdinPump::spawn();
     let mut stdout = tokio::io::stdout();
     let mut stdin_closed = false;
@@ -336,9 +329,7 @@ fn write_bridge_cleanup_sequence(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        write_bridge_cleanup_sequence,
-    };
+    use super::write_bridge_cleanup_sequence;
 
     #[test]
     fn bridge_cleanup_restores_cursor_and_ends_on_new_line() {
@@ -353,5 +344,4 @@ mod tests {
             "cleanup should emit terminal reset/show escapes before the newline: {actual:?}"
         );
     }
-
 }

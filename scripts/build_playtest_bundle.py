@@ -172,8 +172,6 @@ def resolve_target(target_triple: str | None) -> TargetPlatform:
 
 def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
     if spec.artifact == "ec-connect":
-        if spec.is_windows:
-            return ("ec-connect", "ec-connect-cli")
         return ("ec-connect",)
     return ("ec-game", "ec-sysop", "ec-connect")
 
@@ -215,6 +213,8 @@ def build_info_text(spec: BundleSpec) -> str:
 
 
 def package_readme(spec: BundleSpec) -> str:
+    connect_binary = "ec-connect.exe" if spec.is_windows else "./bin/ec-connect"
+    player_manual_path = "ec_player_manual.pdf" if spec.is_windows else "docs/ec_player_manual.pdf"
     windows_note = ""
     if spec.is_windows:
         windows_note = """
@@ -228,13 +228,16 @@ If Windows Defender flags the binary, click "More info" → "Run anyway".
 
     macos_quarantine_note = ""
     if spec.platform.target_triple.endswith("-apple-darwin"):
-        binary_list = "./bin/ec-connect"
-        if spec.artifact == "public-beta":
+        if spec.artifact == "ec-connect":
+            binary_list = "./bin/ec-connect"
+            descriptor = "a standalone GUI binary"
+        else:
             binary_list = "./bin/ec-game ./bin/ec-sysop ./bin/ec-connect"
+            descriptor = "command-line binaries"
         macos_quarantine_note = f"""
 ## macOS First Run Note
 
-These are command-line binaries, not bundled `.app` applications. If macOS
+These are {descriptor}, not bundled `.app` applications. If macOS
 blocks them after download, remove the quarantine attribute from the unpacked
 bundle root:
 
@@ -250,9 +253,8 @@ This archive contains the public player client for {spec.platform.display_name}.
 
 It contains:
 
-- `bin/ec-connect`
-- `ec-connect-cli.exe` (Windows only)
-- `docs/ec_player_manual.pdf`
+- `{connect_binary}`
+- `{player_manual_path}`
 - `licenses/OFL-0xProto.txt`
 - `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata
@@ -262,10 +264,10 @@ It contains:
 Join a hosted game with the invite code from your sysop:
 
 ```bash
-./bin/ec-connect --join amber-river@relay.example.com
+{connect_binary} --join amber-river@relay.example.com
 ```
 
-The player manual PDF in `docs/` is the companion manual for this binary.
+The player manual PDF in `{player_manual_path}` is the companion manual for this binary.
 {macos_quarantine_note}{windows_note}
 
 ## Bug Reports
@@ -273,8 +275,9 @@ The player manual PDF in `docs/` is the companion manual for this binary.
 When reporting a player-client issue, include:
 
 - the version and commit from `BUILD-INFO.txt`
-- your {spec.platform.issue_platform_label} and terminal emulator
-- the exact command you ran
+- your {spec.platform.issue_platform_label}
+- whether you were on X11, Wayland, Finder, Explorer, or a terminal launch
+- the exact launch action you used
 - any stderr output
 - a screenshot if the issue is visual
 """
@@ -409,28 +412,38 @@ def write_archive(bundle_root: Path, archive_path: Path) -> None:
 def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> None:
     with tempfile.TemporaryDirectory(prefix="ec-playtest-verify-") as temp_dir:
         temp_root = Path(temp_dir)
-        with tarfile.open(archive_path, "r:gz") as tf:
-            tf.extractall(temp_root)
+        if spec.is_windows:
+            with zipfile.ZipFile(archive_path, "r") as zf:
+                zf.extractall(temp_root)
+        else:
+            with tarfile.open(archive_path, "r:gz") as tf:
+                tf.extractall(temp_root)
 
         bundle_root = temp_root / spec.bundle_root_name
         if not bundle_root.exists():
             raise SystemExit(f"{archive_path.name}: missing bundle root {spec.bundle_root_name}")
 
+        docs_prefix = "" if spec.is_windows else "docs/"
+        binary_prefix = "" if spec.is_windows else "bin/"
+        binary_ext = ".exe" if spec.is_windows else ""
         required_files = [
             "README.md",
             "BUILD-INFO.txt",
-            "docs/ec_player_manual.pdf",
+            f"{docs_prefix}ec_player_manual.pdf",
             "licenses/OFL-0xProto.txt",
             "licenses/LICENSE-NotoSansMono.txt",
         ]
         if spec.artifact == "public-beta":
             required_files.extend(
-                ("docs/ec_sysop_manual.pdf", "bin/ec-game", "bin/ec-sysop", "bin/ec-connect")
+                (
+                    f"{docs_prefix}ec_sysop_manual.pdf",
+                    f"{binary_prefix}ec-game{binary_ext}",
+                    f"{binary_prefix}ec-sysop{binary_ext}",
+                    f"{binary_prefix}ec-connect{binary_ext}",
+                )
             )
         else:
-            required_files.append("bin/ec-connect")
-        if spec.is_windows and spec.artifact == "ec-connect":
-            required_files.append("ec-connect-cli.exe")
+            required_files.append(f"{binary_prefix}ec-connect{binary_ext}")
 
         for relative in required_files:
             path = bundle_root / relative
@@ -444,15 +457,15 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             )
             return
 
-        run([str(bundle_root / "bin" / "ec-connect"), "--help"], cwd=bundle_root)
+        run([str(bundle_root / f"{binary_prefix}ec-connect{binary_ext}"), "--help"], cwd=bundle_root)
         if spec.artifact == "public-beta":
-            run([str(bundle_root / "bin" / "ec-game"), "--help"], cwd=bundle_root)
-            run([str(bundle_root / "bin" / "ec-sysop"), "--help"], cwd=bundle_root)
+            run([str(bundle_root / f"{binary_prefix}ec-game{binary_ext}"), "--help"], cwd=bundle_root)
+            run([str(bundle_root / f"{binary_prefix}ec-sysop{binary_ext}"), "--help"], cwd=bundle_root)
 
             campaign_dir = temp_root / "playtest-campaign"
             run(
                 [
-                    str(bundle_root / "bin" / "ec-sysop"),
+                    str(bundle_root / f"{binary_prefix}ec-sysop{binary_ext}"),
                     "new-game",
                     str(campaign_dir),
                     "--players",

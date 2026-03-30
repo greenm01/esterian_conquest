@@ -1,17 +1,19 @@
 use std::sync::{Arc, Mutex};
 
+use crate::connect::bridge::BridgeError;
+use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
+use crate::connect::session::{PreparedLiveSession, PreparedSessionFinalizer};
+use crate::shell::wrap_inner_buffer_in_terminal;
 use alacritty_terminal::event::{Event as TermEvent, EventListener, WindowSize};
 use alacritty_terminal::index::{Column, Line, Point, Side};
 use alacritty_terminal::selection::{Selection, SelectionType};
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::test::TermSize;
 use alacritty_terminal::term::{Config, RenderableContent, Term, TermMode};
-use alacritty_terminal::vte::ansi::{Color, CursorShape, NamedColor, Processor as AnsiProcessor, Rgb};
+use alacritty_terminal::vte::ansi::{
+    Color, CursorShape, NamedColor, Processor as AnsiProcessor, Rgb,
+};
 use ec_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
-use crate::connect::bridge::BridgeError;
-use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
-use crate::connect::session::{PreparedLiveSession, PreparedSessionFinalizer};
-use crate::shell::wrap_inner_buffer_in_terminal;
 
 use super::clipboard::Clipboard;
 use super::input::{encode_paste, terminal_key_bytes};
@@ -116,10 +118,7 @@ impl TerminalView {
         )
     }
 
-    pub fn tick(
-        &mut self,
-        clipboard: &mut Clipboard,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn tick(&mut self, clipboard: &mut Clipboard) -> Result<(), Box<dyn std::error::Error>> {
         while let Ok(event) = self.live.try_recv() {
             match event {
                 LiveEvent::Output(data) => {
@@ -154,7 +153,8 @@ impl TerminalView {
         }
         if super::input::is_paste_shortcut(event, modifiers) {
             if let Some(text) = clipboard.get_text()? {
-                let bytes = encode_paste(&text, self.term.mode().contains(TermMode::BRACKETED_PASTE));
+                let bytes =
+                    encode_paste(&text, self.term.mode().contains(TermMode::BRACKETED_PASTE));
                 self.live.send_input(bytes);
             }
             return Ok(true);
@@ -262,7 +262,9 @@ fn populate_terminal_buffer(buffer: &mut PlayfieldBuffer, content: RenderableCon
         let selected = content
             .selection
             .as_ref()
-            .map(|selection| selection.contains_cell(&indexed, content.cursor.point, content.cursor.shape))
+            .map(|selection| {
+                selection.contains_cell(&indexed, content.cursor.point, content.cursor.shape)
+            })
             .unwrap_or(false);
         if selected {
             std::mem::swap(&mut fg, &mut bg);
@@ -293,10 +295,7 @@ fn pixel_to_terminal_point(position: winit::dpi::PhysicalPosition<f64>) -> Optio
     if !(1..=TERM_COLS as usize).contains(&col) || !(1..=TERM_ROWS as usize).contains(&row) {
         return None;
     }
-    Some(Point::new(
-        Line((row - 1) as i32),
-        Column(col - 1),
-    ))
+    Some(Point::new(Line((row - 1) as i32), Column(col - 1)))
 }
 
 fn resolve_color(color: Color, colors: &alacritty_terminal::term::color::Colors) -> GameColor {

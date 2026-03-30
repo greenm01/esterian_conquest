@@ -1,7 +1,7 @@
 use super::state::Screen;
 
 pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D R <Space> L <Q>";
-pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N A D L <Q>";
+pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N <Enter> A D L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
 pub const RELAY_MENU_RAIL: &str = "? J K ^U ^D A E D S <Enter> <Q>";
 pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D R <Q>";
@@ -100,6 +100,10 @@ const WALLET_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "N",
         description: "new or import identity",
+    },
+    HelpRow {
+        command: "Enter",
+        description: "open selected identity details",
     },
     HelpRow {
         command: "A",

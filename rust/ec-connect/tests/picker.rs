@@ -7,12 +7,12 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
 };
 use ec_connect::cache::{CachedGame, GameCache};
+use ec_connect::config::ConnectConfig;
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::SessionOutcome;
 use ec_connect::picker::connecting::PendingConnectRequest;
 use ec_connect::picker::event::is_manual_refresh_key;
-use ec_connect::config::ConnectConfig;
 use ec_connect::picker::flows::{
     apply_session_outcome, persist_maps_root_at, redownload_selected_maps_with_config,
 };
@@ -26,6 +26,7 @@ use ec_connect::picker::render::{Rect, centered_rect, matrix_glyph, short_npub, 
 use ec_connect::picker::runner::{classify_picker_event, post_bridge_recovery_event};
 use ec_connect::picker::state::{ConnectDisplay, ConnectOrigin};
 use ec_connect::picker::{PickerSession, PickerState, Screen};
+use ec_connect::wallet::identity_npub;
 use ec_connect::wallet::{Identity, IdentityType, Wallet};
 use ec_ui::theme::classic;
 use nostr_sdk::{Keys, ToBech32};
@@ -472,6 +473,25 @@ fn wallet_detail_popup_cursor_sits_one_space_after_label() {
 }
 
 #[test]
+fn wallet_detail_popup_renders_full_backup_material_and_copy_hints() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
+    state.alias_input = "Desk Alias".to_string();
+    let session = make_session(Some("Desk Alias"));
+    let identity = session.selected_identity(0).expect("wallet identity");
+    let npub = identity_npub(identity).expect("npub");
+    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains(&npub)));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains(&identity.nsec)));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Ctrl-P=copy npub   Ctrl-S=copy nsec")
+    }));
+}
+
+#[test]
 fn wallet_delete_confirm_prompt_renders_under_popup_box() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.screen = Screen::WalletList;
@@ -734,17 +754,14 @@ fn main_game_list_m_opens_maps_download_popup_for_selected_game() {
 #[test]
 fn maps_download_popup_renders_input_and_hint() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.maps_input = "/very/long/maps/root/that/should/still/stay/inside/the/popup/window"
-        .to_string();
+    state.maps_input =
+        "/very/long/maps/root/that/should/still/stay/inside/the/popup/window".to_string();
     state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("DOWNLOAD MAPS")));
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Save to:")));
-    assert!(
-        (0..buffer.height())
-            .any(|row| buffer.plain_line(row).contains("Enter=save+download"))
-    );
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Enter=save+download")));
 }
 
 #[test]
@@ -1170,10 +1187,11 @@ fn maps_downloaded_popup_renders_saved_path() {
         (0..buffer.height())
             .any(|row| buffer.plain_line(row).contains("/tmp/ec/maps/friday-night"))
     );
-    assert!(
-        (0..buffer.height())
-            .any(|row| buffer.plain_line(row).contains("Press any key to continue."))
-    );
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Press any key to continue.")
+    }));
 }
 
 #[test]
@@ -1183,8 +1201,11 @@ fn larger_terminal_keeps_space_hint_in_command_line_not_outside_border() {
 
     assert_eq!(buffer.row(1)[9].ch, '┌');
     assert_eq!(buffer.row(27)[9].ch, '└');
-    assert!(!(0..buffer.height())
-        .any(|row| buffer.plain_line(row).contains("Press Space to refresh game info")));
+    assert!(!(0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Press Space to refresh game info")
+    }));
     let command_row = (0..buffer.height())
         .find(|&row| buffer.plain_line(row).contains("COMMAND <-"))
         .expect("picker should render a command line");

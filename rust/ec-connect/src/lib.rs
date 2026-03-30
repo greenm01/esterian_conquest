@@ -5,7 +5,7 @@ pub mod config;
 pub mod connect;
 #[cfg(debug_assertions)]
 pub mod dev_seed;
-#[cfg(windows)]
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod gui;
 mod hard_quit;
 pub mod identity;

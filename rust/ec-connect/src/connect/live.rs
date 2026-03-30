@@ -53,7 +53,8 @@ impl LiveSession {
             let rt = match tokio::runtime::Runtime::new() {
                 Ok(rt) => rt,
                 Err(err) => {
-                    let _ = event_tx.send(LiveEvent::Error(format!("unable to start runtime: {err}")));
+                    let _ =
+                        event_tx.send(LiveEvent::Error(format!("unable to start runtime: {err}")));
                     return;
                 }
             };

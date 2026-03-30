@@ -120,34 +120,46 @@ fn parse_launch_intent() -> Result<LaunchIntent, Box<dyn std::error::Error>> {
             let invite = args.next().ok_or("--join requires an invite code")?;
             if let Some(extra) = args.next() {
                 return Err(format!(
-                    "unexpected extra argument after --join: {extra}\nuse ec-connect-cli.exe for advanced console commands"
+                    "unexpected extra argument after --join: {extra}"
                 )
                 .into());
             }
             Ok(LaunchIntent::Join(invite))
         }
         Some(other) => Err(format!(
-            "ec-connect.exe supports only no arguments or --join <invite>.\nuse ec-connect-cli.exe for advanced console commands.\nunrecognized argument: {other}"
+            "ec-connect supports only no arguments or --join <invite>.\nunrecognized argument: {other}"
         )
         .into()),
     }
 }
 
 pub fn show_fatal_error(message: &str) {
+    #[cfg(not(target_os = "windows"))]
+    {
+        eprintln!("error: {message}");
+    }
+
+    #[cfg(target_os = "windows")]
     use std::ffi::OsStr;
+    #[cfg(target_os = "windows")]
     use std::iter;
+    #[cfg(target_os = "windows")]
     use std::os::windows::ffi::OsStrExt;
 
+    #[cfg(target_os = "windows")]
     use winapi::um::winuser::{MB_ICONERROR, MB_OK, MessageBoxW};
 
+    #[cfg(target_os = "windows")]
     let title: Vec<u16> = OsStr::new("ec-connect")
         .encode_wide()
         .chain(iter::once(0))
         .collect();
+    #[cfg(target_os = "windows")]
     let body: Vec<u16> = OsStr::new(message)
         .encode_wide()
         .chain(iter::once(0))
         .collect();
+    #[cfg(target_os = "windows")]
     unsafe {
         MessageBoxW(
             std::ptr::null_mut(),

@@ -479,19 +479,29 @@ fn render_maps_downloaded_popup(buffer: &mut PlayfieldBuffer, path: &PathBuf) {
     ));
     lines.push(String::new());
     lines.push("Press any key to continue.".to_string());
-    render_modal_box(buffer, "MAPS DOWNLOADED", &lines, classic::table_body_style());
+    render_modal_box(
+        buffer,
+        "MAPS DOWNLOADED",
+        &lines,
+        classic::table_body_style(),
+    );
 }
 
 fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: Option<&str>) {
     let has_error = error.is_some();
     let height: u16 = if has_error { 10 } else { 9 };
-    let popup = draw_modal_frame(buffer, "DOWNLOAD MAPS", 76, height, classic::table_body_style());
+    let popup = draw_modal_frame(
+        buffer,
+        "DOWNLOAD MAPS",
+        76,
+        height,
+        classic::table_body_style(),
+    );
     let left = popup.x as usize + 2;
     let inner_right = popup.x as usize + popup.width as usize - 2;
     let inner_width = popup.width.saturating_sub(4) as usize;
 
-    let instruction =
-        "Set the default folder for downloaded maps. Game folders are created under it automatically.";
+    let instruction = "Set the default folder for downloaded maps. Game folders are created under it automatically.";
     for (idx, line) in wrapped_lines(instruction, inner_width)
         .into_iter()
         .take(2)
@@ -536,7 +546,10 @@ fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: 
     buffer.write_text_clipped(
         hint_row,
         left,
-        &truncate("Enter=save+download   Esc=cancel   Backspace=erase", inner_width),
+        &truncate(
+            "Enter=save+download   Esc=cancel   Backspace=erase",
+            inner_width,
+        ),
         classic::table_chrome_style(),
     );
 }
@@ -551,14 +564,18 @@ fn render_wallet_detail_popup(
         return;
     };
     let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
+    let npub_lines = wrapped_lines(&npub, 66);
+    let nsec_lines = wrapped_lines(&identity.nsec, 66);
+    let popup_height = (11 + npub_lines.len() + nsec_lines.len()).min(20) as u16;
     let popup = draw_modal_frame(
         buffer,
         "WALLET IDENTITY",
         72,
-        11,
+        popup_height,
         classic::table_body_style(),
     );
     let left = popup.x as usize + 2;
+    let inner_width = popup.width.saturating_sub(6) as usize;
     let mut row = popup.y as usize + 1;
     let label = "Alias:";
     let input_col = left + label.chars().count() + 1;
@@ -592,14 +609,25 @@ fn render_wallet_detail_popup(
     row += 2;
     buffer.write_text_clipped(row, left, "Npub:", classic::status_label_style());
     row += 1;
-    for line in wrapped_lines(&npub, popup.width.saturating_sub(6) as usize) {
+    for line in &npub_lines {
         buffer.write_text_clipped(row, left, &line, classic::table_body_style());
         row += 1;
     }
     buffer.write_text_clipped(row, left, "Nsec:", classic::status_label_style());
     row += 1;
-    let nsec_line = truncate(&identity.nsec, popup.width.saturating_sub(6) as usize);
-    buffer.write_text_clipped(row, left, &nsec_line, classic::table_body_style());
+    for line in &nsec_lines {
+        buffer.write_text_clipped(row, left, line, classic::table_body_style());
+        row += 1;
+    }
+    buffer.write_text_clipped(
+        row,
+        left,
+        &truncate(
+            "Enter=save alias   Ctrl-P=copy npub   Ctrl-S=copy nsec   Esc=close",
+            inner_width,
+        ),
+        classic::table_chrome_style(),
+    );
 }
 
 fn render_wallet_delete_popup(

@@ -163,13 +163,7 @@ fn run_loop(
         last_activity = Instant::now();
 
         if state.overlay.is_some() {
-            handle_overlay_key(
-                key,
-                state,
-                picker_session.as_mut(),
-                gate_npub,
-                Some(rt),
-            )?;
+            handle_overlay_key(key, state, picker_session.as_mut(), gate_npub, Some(rt))?;
             if state.quit {
                 break;
             }

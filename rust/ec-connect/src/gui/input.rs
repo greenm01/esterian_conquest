@@ -125,7 +125,8 @@ pub fn terminal_key_bytes(
                 }?;
                 vec![control_byte(ch)?]
             } else {
-                event.text
+                event
+                    .text
                     .as_ref()
                     .map(|text| text.as_bytes().to_vec())
                     .or_else(|| match &event.logical_key {
@@ -155,7 +156,8 @@ pub fn encode_paste(text: &str, bracketed: bool) -> Vec<u8> {
 }
 
 pub fn pasteable_text(text: &str) -> impl Iterator<Item = char> + '_ {
-    text.chars().filter(|ch| !matches!(ch, '\r' | '\n' | '\u{7f}'))
+    text.chars()
+        .filter(|ch| !matches!(ch, '\r' | '\n' | '\u{7f}'))
 }
 
 fn modifiers_to_crossterm(modifiers: ModifiersState) -> KeyModifiers {

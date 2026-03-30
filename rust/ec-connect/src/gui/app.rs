@@ -20,7 +20,7 @@ use crate::picker::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_relay_key,
     handle_wallet_key,
 };
-use crate::picker::overlay::handle_overlay_key;
+use crate::picker::overlay::{PickerOverlay, handle_overlay_key};
 use crate::picker::refresh::execute_pending_refresh;
 use crate::picker::render as picker_render;
 use crate::picker::session::load_picker_session;
@@ -136,7 +136,10 @@ impl App {
         modifiers: ModifiersState,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let AppView::Live(live) = &mut self.view {
-            if live.terminal.handle_key(event, modifiers, &mut self.clipboard)? {
+            if live
+                .terminal
+                .handle_key(event, modifiers, &mut self.clipboard)?
+            {
                 self.needs_redraw = true;
                 return Ok(());
             }
@@ -157,6 +160,10 @@ impl App {
                 launch_join: None,
             });
             self.needs_redraw = true;
+            return Ok(());
+        }
+
+        if self.handle_wallet_detail_copy_shortcut(event, modifiers)? {
             return Ok(());
         }
 
@@ -230,9 +237,9 @@ impl App {
     pub fn control_flow(&self) -> winit::event_loop::ControlFlow {
         match &self.view {
             AppView::Picker(picker) => picker.control_flow(),
-            AppView::Live(_) => {
-                winit::event_loop::ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16))
-            }
+            AppView::Live(_) => winit::event_loop::ControlFlow::WaitUntil(
+                Instant::now() + Duration::from_millis(16),
+            ),
             AppView::Password(_) | AppView::Empty => winit::event_loop::ControlFlow::Wait,
         }
     }
@@ -280,6 +287,40 @@ impl App {
         self.resolve_transitions()?;
         self.needs_redraw = true;
         Ok(())
+    }
+
+    fn handle_wallet_detail_copy_shortcut(
+        &mut self,
+        event: &winit::event::KeyEvent,
+        modifiers: ModifiersState,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        if !is_key_press(event) || !modifiers.control_key() {
+            return Ok(false);
+        }
+
+        let AppView::Picker(picker) = &mut self.view else {
+            return Ok(false);
+        };
+        let Some(PickerOverlay::WalletDetail { index }) = picker.state.overlay.as_ref() else {
+            return Ok(false);
+        };
+        let Some(session) = picker.session.as_ref() else {
+            return Ok(false);
+        };
+        let Some(identity) = session.selected_identity(*index) else {
+            return Ok(false);
+        };
+
+        let Some((label, value)) = wallet_detail_copy_value(event, identity) else {
+            return Ok(false);
+        };
+
+        self.clipboard.set_text(value)?;
+        picker
+            .state
+            .show_notice(format!("{label} copied to the clipboard."));
+        self.needs_redraw = true;
+        Ok(true)
     }
 
     fn resolve_transitions(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -331,6 +372,22 @@ impl App {
                 panic!("attempted to take live view while not in live session");
             }
         }
+    }
+}
+
+fn wallet_detail_copy_value(
+    event: &winit::event::KeyEvent,
+    identity: &crate::wallet::Identity,
+) -> Option<(&'static str, String)> {
+    match &event.logical_key {
+        winit::keyboard::Key::Character(text) if text.eq_ignore_ascii_case("p") => Some((
+            "Public identity",
+            crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string()),
+        )),
+        winit::keyboard::Key::Character(text) if text.eq_ignore_ascii_case("s") => {
+            Some(("Secret key", identity.nsec.clone()))
+        }
+        _ => None,
     }
 }
 
@@ -466,7 +523,9 @@ impl PickerView {
         }
         let timeout = Duration::from_secs(u64::from(self.lock_timeout_minutes) * 60);
         let deadline = self.last_activity + timeout;
-        winit::event_loop::ControlFlow::WaitUntil(deadline.min(Instant::now() + Duration::from_millis(250)))
+        winit::event_loop::ControlFlow::WaitUntil(
+            deadline.min(Instant::now() + Duration::from_millis(250)),
+        )
     }
 
     fn take_prepared_connect(
@@ -555,7 +614,10 @@ impl LiveView {
     }
 }
 
-fn handle_password_key(state: &mut PasswordGateState, event: &winit::event::KeyEvent) -> PasswordAction {
+fn handle_password_key(
+    state: &mut PasswordGateState,
+    event: &winit::event::KeyEvent,
+) -> PasswordAction {
     if !is_key_press(event) {
         return PasswordAction::None;
     }

@@ -11,9 +11,7 @@ pub struct WindowRenderer {
 }
 
 impl WindowRenderer {
-    pub fn new(
-        window: &'static winit::window::Window,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(window: &'static winit::window::Window) -> Result<Self, Box<dyn std::error::Error>> {
         let context = softbuffer::Context::new(window)?;
         let surface = softbuffer::Surface::new(&context, window)?;
         Ok(Self {
@@ -22,10 +20,7 @@ impl WindowRenderer {
         })
     }
 
-    pub fn render(
-        &mut self,
-        buffer: &PlayfieldBuffer,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn render(&mut self, buffer: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>> {
         let pixel_width = buffer.width() * CELL_WIDTH;
         let pixel_height = buffer.height() * CELL_HEIGHT;
         self.surface.resize(

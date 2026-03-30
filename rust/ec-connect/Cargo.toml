@@ -59,13 +59,13 @@ ec-ui = { path = "../ec-ui" }
 ec-log = { path = "../ec-log" }
 libc = "0.2"
 tracing = "0.1"
-
-[target.'cfg(windows)'.dependencies]
 alacritty_terminal = "0.25"
-arboard = "3"
+arboard = { version = "3", features = ["wayland-data-control"] }
 fontdue = "0.9"
 softbuffer = "0.4"
 winit = "0.29"
+
+[target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["wincon", "winuser", "windef", "winbase", "processenv"] }
 
 # CLI argument parsing
