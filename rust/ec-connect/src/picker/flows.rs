@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use nostr_sdk::Keys;
@@ -187,6 +188,7 @@ pub fn redownload_selected_maps_with_config(
 
 pub fn open_maps_download_popup(state: &mut PickerState) {
     state.maps_input = state.maps_root.display().to_string();
+    state.maps_input_prefilled = true;
     state.overlay = Some(super::overlay::PickerOverlay::MapsDownloadPrompt { error: None });
 }
 
@@ -195,12 +197,7 @@ pub fn persist_maps_root_at(
     state: &mut PickerState,
     path: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let maps_input = state.maps_input.trim();
-    if maps_input.is_empty() {
-        return Err("save location must not be empty".into());
-    }
-
-    let maps_root = PathBuf::from(maps_input);
+    let maps_root = validate_maps_root_input(&state.maps_input)?;
     let mut config = load_config_from_or_empty(path)?;
     config.maps_dir = Some(maps_root.clone());
     save_config_to(&config, path)?;
@@ -216,6 +213,39 @@ pub fn persist_maps_root(
 
 fn load_config_from_or_empty(path: &Path) -> Result<ConnectConfig, Box<dyn std::error::Error>> {
     Ok(crate::config::load_config_from(path).unwrap_or_else(|_| ConnectConfig::empty()))
+}
+
+fn validate_maps_root_input(input: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err("save location must not be empty".into());
+    }
+
+    let maps_root = if trimmed == "~" || trimmed.starts_with("~/") {
+        let Some(home) = dirs::home_dir() else {
+            return Err("unable to resolve home directory for ~ path".into());
+        };
+        let suffix = trimmed
+            .strip_prefix("~/")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        match suffix {
+            Some(suffix) => home.join(suffix),
+            None => home,
+        }
+    } else {
+        PathBuf::from(trimmed)
+    };
+
+    if !maps_root.is_absolute() {
+        return Err("save location must be an absolute path".into());
+    }
+    if maps_root.exists() && !maps_root.is_dir() {
+        return Err("save location points to a file, not a folder".into());
+    }
+    fs::create_dir_all(&maps_root)
+        .map_err(|err| format!("unable to create save folder: {err}"))?;
+    Ok(maps_root)
 }
 
 pub fn queue_selected_game_refresh(

@@ -94,10 +94,9 @@ pub fn handle_overlay_key(
     };
 
     match current {
-        PickerOverlay::Notice { level, .. } => {
-            if level == NoticeLevel::Error
-                || is_back_key(key)
-                || matches!(key.code, crossterm::event::KeyCode::Enter)
+        PickerOverlay::Notice { .. } => {
+            if !key.modifiers.contains(KeyModifiers::CONTROL)
+                && !key.modifiers.contains(KeyModifiers::ALT)
             {
                 state.overlay = None;
             }

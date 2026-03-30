@@ -191,12 +191,18 @@ pub fn handle_maps_download_popup_key(
         key if is_escape_key(key) => {
             state.overlay = None;
             state.maps_input.clear();
+            state.maps_input_prefilled = false;
         }
         KeyEvent {
             code: KeyCode::Backspace,
             ..
         } => {
-            state.maps_input.pop();
+            if state.maps_input_prefilled {
+                state.maps_input.clear();
+                state.maps_input_prefilled = false;
+            } else {
+                state.maps_input.pop();
+            }
             state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
         }
         KeyEvent {
@@ -213,9 +219,11 @@ pub fn handle_maps_download_popup_key(
                 Ok(_) => {
                     state.overlay = None;
                     state.maps_input.clear();
+                    state.maps_input_prefilled = false;
                     redownload_selected_maps(state, &picker_session.keys, gate_npub, rt)?;
                 }
                 Err(err) => {
+                    state.maps_input_prefilled = false;
                     state.overlay = Some(PickerOverlay::MapsDownloadPrompt {
                         error: Some(err.to_string()),
                     });
@@ -227,6 +235,10 @@ pub fn handle_maps_download_popup_key(
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
+            if state.maps_input_prefilled {
+                state.maps_input.clear();
+                state.maps_input_prefilled = false;
+            }
             state.maps_input.push(ch);
             state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
         }

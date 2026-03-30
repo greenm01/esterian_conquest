@@ -221,6 +221,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.screen = Screen::Locked;
     state.join_input.clear();
     state.maps_input.clear();
+    state.maps_input_prefilled = false;
     state.alias_input.clear();
     state.wallet_input.clear();
     state.relay_input.clear();

@@ -132,6 +132,7 @@ fn picker_state_initial_values() {
     assert!(state.overlay.is_none());
     assert!(state.join_input.is_empty());
     assert!(state.maps_input.is_empty());
+    assert!(!state.maps_input_prefilled);
     assert!(state.alias_input.is_empty());
     assert!(state.wallet_input.is_empty());
     assert!(state.relay_input.is_empty());
@@ -513,6 +514,26 @@ fn error_notice_dismisses_on_any_key() {
 }
 
 #[test]
+fn notice_dismisses_on_arrow_key() {
+    let mut state = make_state(vec![]);
+    state.overlay = Some(PickerOverlay::Notice {
+        level: NoticeLevel::Notice,
+        message: "saved".to_string(),
+    });
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
+}
+
+#[test]
 fn maps_downloaded_popup_dismisses_on_any_key() {
     let mut state = make_state(vec![]);
     state.overlay = Some(PickerOverlay::MapsDownloaded {
@@ -704,6 +725,7 @@ fn main_game_list_m_opens_maps_download_popup_for_selected_game() {
         Some(PickerOverlay::MapsDownloadPrompt { error: None })
     );
     assert_eq!(state.maps_input, "/tmp/ec/maps");
+    assert!(state.maps_input_prefilled);
     assert_eq!(state.selected, 2);
 }
 
@@ -740,6 +762,47 @@ fn maps_download_popup_escape_cancels_and_clears_input() {
 
     assert!(state.overlay.is_none());
     assert!(state.maps_input.is_empty());
+    assert!(!state.maps_input_prefilled);
+}
+
+#[test]
+fn maps_download_popup_first_char_replaces_prefilled_path() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "/tmp/ec/maps".to_string();
+    state.maps_input_prefilled = true;
+    state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(state.maps_input, "/");
+    assert!(!state.maps_input_prefilled);
+}
+
+#[test]
+fn maps_download_popup_first_backspace_clears_prefilled_path() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "/tmp/ec/maps".to_string();
+    state.maps_input_prefilled = true;
+    state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        None,
+    )
+    .unwrap();
+
+    assert!(state.maps_input.is_empty());
+    assert!(!state.maps_input_prefilled);
 }
 
 #[test]
@@ -755,6 +818,33 @@ fn persist_maps_root_updates_state_and_writes_config() {
     assert_eq!(state.maps_root, PathBuf::from("/tmp/alt-maps-root"));
     assert_eq!(config.maps_dir, Some(PathBuf::from("/tmp/alt-maps-root")));
     let _ = std::fs::remove_file(&config_path);
+}
+
+#[test]
+fn persist_maps_root_rejects_relative_path() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.maps_input = "maps-folder".to_string();
+    let config_path = unique_temp_path("maps-relative");
+
+    let err = persist_maps_root_at(&mut state, &config_path).expect_err("relative path rejected");
+
+    assert!(err.to_string().contains("absolute path"));
+    assert_eq!(state.maps_root, PathBuf::from("/tmp/ec/maps"));
+}
+
+#[test]
+fn persist_maps_root_rejects_existing_file() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let file_path = unique_temp_path("maps-file");
+    std::fs::write(&file_path, "not a directory").expect("seed file");
+    state.maps_input = file_path.display().to_string();
+    let config_path = unique_temp_path("maps-file-config");
+
+    let err = persist_maps_root_at(&mut state, &config_path).expect_err("file path rejected");
+
+    assert!(err.to_string().contains("file, not a folder"));
+    assert_eq!(state.maps_root, PathBuf::from("/tmp/ec/maps"));
+    let _ = std::fs::remove_file(&file_path);
 }
 
 #[test]
