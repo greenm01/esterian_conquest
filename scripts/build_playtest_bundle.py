@@ -173,12 +173,18 @@ def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
         return ("ec-connect",)
     return ("ec-game", "ec-sysop", "ec-connect")
 
+def artifact_packages(spec: BundleSpec) -> tuple[str, ...]:
+    if spec.artifact == "ec-connect":
+        return ("ec-connect",)
+    return ("ec-game", "ec-sysop", "ec-connect")
+
 
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
     binaries = artifact_binaries(spec)
+    packages = artifact_packages(spec)
     run(
         ["cargo", "build", "--release", "--target", spec.platform.target_triple]
-        + [arg for name in binaries for arg in ("-p", name)],
+        + [arg for name in packages for arg in ("-p", name)],
         cwd=RUST_ROOT,
     )
 
