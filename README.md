@@ -29,7 +29,7 @@ Joining is straightforward:
 
 - A sysop gives you an invite code. You join the campaign with a single command.
 - The `ec-connect` tool creates and manages your encrypted Nostr identity, then opens a secure SSH-backed session.
-- On Windows, the public archive now ships both `ec-connect.exe` for the normal GUI-first player flow and `ec-connect-cli.exe` for direct terminal workflows.
+- On Windows, the public archive now ships a standalone `ec-connect.exe` GUI for the normal picker and in-window play flow, plus `ec-connect-cli.exe` for direct terminal workflows.
 - On your first connection, the client automatically downloads the campaign starmap and CSV sheets to your local machine. From then on, your assets stay on your own system.
 
 This keeps the classic EC rhythm — connect, read reports, issue orders, log out — while cutting away most of the old friction. Just you, your empire, and the stars.

@@ -61,7 +61,9 @@ libc = "0.2"
 tracing = "0.1"
 
 [target.'cfg(windows)'.dependencies]
-font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }
+alacritty_terminal = "0.25"
+arboard = "3"
+fontdue = "0.9"
 softbuffer = "0.4"
 winit = "0.29"
 winapi = { version = "0.3", features = ["wincon", "winuser", "windef", "winbase", "processenv"] }

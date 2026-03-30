@@ -64,6 +64,16 @@ pub struct PreparedSession {
     post_bridge: PostBridgeAction,
 }
 
+pub struct PreparedLiveSession {
+    pub payload: SessionReadyPayload,
+    pub keypair: EphemeralKeypair,
+}
+
+pub struct PreparedSessionFinalizer {
+    payload: SessionReadyPayload,
+    post_bridge: PostBridgeAction,
+}
+
 /// Result of the pre-bridge session phase.
 pub enum SessionPreparation {
     Ready(PreparedSession),
@@ -240,48 +250,67 @@ async fn prepare_session_with_keypair(
 }
 
 pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) -> SessionOutcome {
-    let PreparedSession {
-        payload,
-        keypair,
-        post_bridge,
-    } = prepared;
-    match run_bridge(&payload, &keypair, username).await {
-        Ok(exit_code) => {
-            let completion = match post_bridge {
-                PostBridgeAction::TouchCache => {
-                    touch_cache_entry(&payload.game_id);
-                    FirstJoinCompletion::default()
+    let (live, finalizer) = prepared.split();
+    let outcome = run_bridge(&live.payload, &live.keypair, username).await;
+    finalizer.finish(outcome).await
+}
+
+impl PreparedSession {
+    pub fn split(self) -> (PreparedLiveSession, PreparedSessionFinalizer) {
+        (
+            PreparedLiveSession {
+                payload: self.payload.clone(),
+                keypair: self.keypair,
+            },
+            PreparedSessionFinalizer {
+                payload: self.payload,
+                post_bridge: self.post_bridge,
+            },
+        )
+    }
+}
+
+impl PreparedSessionFinalizer {
+    pub async fn finish(self, bridge_result: Result<u32, crate::connect::bridge::BridgeError>) -> SessionOutcome {
+        let PreparedSessionFinalizer { payload, post_bridge } = self;
+        match bridge_result {
+            Ok(exit_code) => {
+                let completion = match post_bridge {
+                    PostBridgeAction::TouchCache => {
+                        touch_cache_entry(&payload.game_id);
+                        FirstJoinCompletion::default()
+                    }
+                    PostBridgeAction::FinalizeFirstJoin {
+                        player_keys,
+                        target,
+                        gate_npub,
+                        maps_root,
+                        npub,
+                    } => {
+                        finalize_first_join_after_session(
+                            &payload,
+                            &player_keys,
+                            &target,
+                            &gate_npub,
+                            &maps_root,
+                            &npub,
+                        )
+                        .await
+                    }
+                };
+                SessionOutcome::Done {
+                    exit_code,
+                    notice: completion.notice,
+                    maps_saved_to: completion.maps_saved_to,
                 }
-                PostBridgeAction::FinalizeFirstJoin {
-                    player_keys,
-                    target,
-                    gate_npub,
-                    maps_root,
-                    npub,
-                } => {
-                    finalize_first_join_after_session(
-                        &payload,
-                        &player_keys,
-                        &target,
-                        &gate_npub,
-                        &maps_root,
-                        &npub,
-                    )
-                    .await
-                }
-            };
-            SessionOutcome::Done {
-                exit_code,
-                notice: completion.notice,
-                maps_saved_to: completion.maps_saved_to,
             }
+            Err(err) => SessionOutcome::Error(format!(
+                "Connection to game server was lost.\n\
+                 Contact your sysop if this persists.\n\
+                 \n\
+                 Technical: bridge error: {err}"
+            )),
         }
-        Err(e) => SessionOutcome::Error(format!(
-            "Connection to game server was lost.\n\
-             Contact your sysop if this persists.\n\
-             \n\
-             Technical: bridge error: {e}"
-        )),
     }
 }
 

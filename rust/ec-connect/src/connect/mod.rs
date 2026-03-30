@@ -1,6 +1,7 @@
 pub mod bridge;
 pub mod game_discovery;
 pub mod handshake;
+pub mod live;
 pub mod live_response;
 pub mod map_fetch;
 pub mod public_join;

@@ -29,7 +29,7 @@ pub struct ActiveConnect {
     rx: Receiver<ConnectTaskResult>,
 }
 
-enum ConnectTaskResult {
+pub(crate) enum ConnectTaskResult {
     Outcome {
         request: PendingConnectRequest,
         outcome: SessionOutcome,
@@ -97,20 +97,9 @@ pub fn poll_active_connect(
     rt: &tokio::runtime::Runtime,
     picker_session: &PickerSession,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let Some(active) = state.active_connect.as_ref() else {
+    let Some(result) = poll_active_connect_result(state)? else {
         return Ok(false);
     };
-    let result = match active.rx.try_recv() {
-        Ok(result) => result,
-        Err(TryRecvError::Empty) => return Ok(false),
-        Err(TryRecvError::Disconnected) => {
-            state.active_connect = None;
-            state.overlay = None;
-            state.show_error("connection attempt ended unexpectedly");
-            return Ok(false);
-        }
-    };
-    state.active_connect = None;
 
     match result {
         ConnectTaskResult::Prepared { request, prepared } => {
@@ -127,13 +116,32 @@ pub fn poll_active_connect(
     }
 }
 
+pub(crate) fn poll_active_connect_result(
+    state: &mut PickerState,
+) -> Result<Option<ConnectTaskResult>, Box<dyn std::error::Error>> {
+    let Some(active) = state.active_connect.as_ref() else {
+        return Ok(None);
+    };
+    let result = match active.rx.try_recv() {
+        Ok(result) => result,
+        Err(TryRecvError::Empty) => return Ok(None),
+        Err(TryRecvError::Disconnected) => {
+            state.active_connect = None;
+            state.overlay = None;
+            return Err("connection attempt ended unexpectedly".into());
+        }
+    };
+    state.active_connect = None;
+    Ok(Some(result))
+}
+
 pub fn cancel_active_connect(state: &mut PickerState) {
     state.pending_connect = None;
     state.active_connect = None;
     state.overlay = None;
 }
 
-fn apply_connect_outcome(
+pub(crate) fn apply_connect_outcome(
     state: &mut PickerState,
     request: PendingConnectRequest,
     outcome: SessionOutcome,

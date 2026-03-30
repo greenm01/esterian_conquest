@@ -29,6 +29,12 @@ impl EphemeralKeypair {
         EphemeralKeypair { signing_key }
     }
 
+    pub fn from_signing_key_bytes(bytes: [u8; 32]) -> Self {
+        EphemeralKeypair {
+            signing_key: SigningKey::from_bytes(&bytes),
+        }
+    }
+
     /// Return the raw 32-byte seed (private scalar) of the signing key.
     ///
     /// Used by the bridge to convert the keypair into a `russh::keys::PrivateKey`

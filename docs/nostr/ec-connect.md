@@ -2,11 +2,12 @@
 
 `ec-connect` is the player-side client binary. It manages Nostr identity,
 authenticates with game servers, and launches SSH-backed `ec-game` sessions.
-On Windows, the public archive now ships a GUI-first `ec-connect.exe` plus an
-`ec-connect-cli.exe` console companion for direct terminal workflows. On
-non-Windows platforms, the current player path remains terminal-first. Like
-`ec-game` and `ec-sysop`, it should currently be treated as beta-quality
-software and playtested accordingly.
+On Windows, the public archive now ships a standalone GUI-first
+`ec-connect.exe` that owns the picker and live in-window session, plus an
+`ec-connect-cli.exe` binary for direct terminal workflows. On non-Windows
+platforms, the current player path remains terminal-first. Like `ec-game` and
+`ec-sysop`, it should currently be treated as beta-quality software and
+playtested accordingly.
 
 ## Player Experience
 
