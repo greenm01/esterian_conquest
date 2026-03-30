@@ -17,7 +17,7 @@ ec-log = { path = "../ec-log" }
 kdl = "6"
 tracing = "0.1"
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
 winresource = "0.1"
 
 [dev-dependencies]

@@ -82,15 +82,15 @@ class BundleSpec:
 def parse_args(default_target: str | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a private beta ec-game/ec-sysop/ec-connect bundle for Linux or macOS."
+            "Build a public beta ec-game/ec-sysop/ec-connect bundle for Linux or macOS."
         )
     )
     parser.add_argument(
         "--artifact",
-        choices=("private-beta", "ec-connect"),
-        default="private-beta",
+        choices=("public-beta", "ec-connect"),
+        default="public-beta",
         help=(
-            "Artifact type to package. `private-beta` keeps the internal combined "
+            "Artifact type to package. `public-beta` keeps the internal combined "
             "bundle; `ec-connect` builds the public player archive."
         ),
     )
@@ -112,7 +112,7 @@ def parse_args(default_target: str | None) -> argparse.Namespace:
     parser.add_argument(
         "--verify",
         action="store_true",
-        help="Unpack and verify the generated private beta bundle after building it.",
+        help="Unpack and verify the generated public beta bundle after building it.",
     )
     return parser.parse_args()
 
@@ -217,7 +217,7 @@ If Windows Defender flags the binary, click "More info" → "Run anyway".
     macos_quarantine_note = ""
     if spec.platform.target_triple.endswith("-apple-darwin"):
         binary_list = "./bin/ec-connect"
-        if spec.artifact == "private-beta":
+        if spec.artifact == "public-beta":
             binary_list = "./bin/ec-game ./bin/ec-sysop ./bin/ec-connect"
         macos_quarantine_note = f"""
 ## macOS First Run Note
@@ -264,9 +264,9 @@ When reporting a player-client issue, include:
 - a screenshot if the issue is visual
 """
 
-    return f"""# Esterian Conquest {spec.platform.display_name} Private Beta Bundle
+    return f"""# Esterian Conquest {spec.platform.display_name} Public Beta Bundle
 
-This bundle is for private beta testing on {spec.platform.display_name}.
+This bundle is for public beta testing on {spec.platform.display_name}.
 
 It contains:
 
@@ -351,17 +351,36 @@ def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
         dest.chmod(mode | 0o755)
 
 
+def write_bat_launcher(bundle_root: Path) -> None:
+    bat = (
+        "@echo off\r\n"
+        "title Esterian Conquest\r\n"
+        "mode con: cols=120 lines=40\r\n"
+        '"%~dp0ec-connect.exe"\r\n'
+        "pause > nul\r\n"
+    )
+    (bundle_root / "ec-connect.bat").write_text(bat, encoding="utf-8")
+
+
 def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root: Path) -> Path:
     bundle_root = workspace_root / spec.bundle_root_name
-    docs_dir = bundle_root / "docs"
-    bin_dir = bundle_root / "bin"
 
-    for name, path in binary_paths.items():
-        copy_file(path, bin_dir / name, executable=True)
-
-    copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
-    if spec.artifact == "private-beta":
-        copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
+    if spec.is_windows:
+        for path in binary_paths.values():
+            copy_file(path, bundle_root / path.name)
+        if "ec-connect" in binary_paths:
+            write_bat_launcher(bundle_root)
+        copy_file(PLAYER_MANUAL, bundle_root / PLAYER_MANUAL.name)
+        if spec.artifact == "public-beta":
+            copy_file(SYSOP_MANUAL, bundle_root / SYSOP_MANUAL.name)
+    else:
+        docs_dir = bundle_root / "docs"
+        bin_dir = bundle_root / "bin"
+        for name, path in binary_paths.items():
+            copy_file(path, bin_dir / name, executable=True)
+        copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
+        if spec.artifact == "public-beta":
+            copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
 
     (bundle_root / "README.md").write_text(package_readme(spec), encoding="utf-8")
     (bundle_root / "BUILD-INFO.txt").write_text(build_info_text(spec), encoding="utf-8")
@@ -391,7 +410,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             raise SystemExit(f"{archive_path.name}: missing bundle root {spec.bundle_root_name}")
 
         required_files = ["README.md", "BUILD-INFO.txt", "docs/ec_player_manual.pdf"]
-        if spec.artifact == "private-beta":
+        if spec.artifact == "public-beta":
             required_files.extend(
                 ("docs/ec_sysop_manual.pdf", "bin/ec-game", "bin/ec-sysop", "bin/ec-connect")
             )
@@ -411,7 +430,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             return
 
         run([str(bundle_root / "bin" / "ec-connect"), "--help"], cwd=bundle_root)
-        if spec.artifact == "private-beta":
+        if spec.artifact == "public-beta":
             run([str(bundle_root / "bin" / "ec-game"), "--help"], cwd=bundle_root)
             run([str(bundle_root / "bin" / "ec-sysop"), "--help"], cwd=bundle_root)
 
@@ -432,11 +451,27 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 raise SystemExit(f"{archive_path.name}: ec-sysop did not create ecgame.db")
 
 
-def gpg_sign(archive_path: Path) -> None:
-    sig_path = archive_path.with_suffix(archive_path.suffix + ".asc")
+def update_sha256sums(archive_path: Path) -> None:
+    sums_path = archive_path.parent / "SHA256SUMS.txt"
+    sig_path = archive_path.parent / "SHA256SUMS.txt.asc"
+
+    # Compute sha256 of new archive
+    import hashlib
+    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    new_line = f"{digest}  {archive_path.name}\n"
+
+    # Read existing entries, replace or append this archive's line
+    existing = sums_path.read_text(encoding="utf-8") if sums_path.exists() else ""
+    lines = [l for l in existing.splitlines(keepends=True) if not l.endswith(f"  {archive_path.name}\n")]
+    lines.append(new_line)
+    lines.sort(key=lambda l: l.split("  ", 1)[-1])
+    sums_path.write_text("".join(lines), encoding="utf-8")
+
+    # Re-sign the manifest
     sig_path.unlink(missing_ok=True)
-    run(["gpg", "--armor", "--detach-sign", str(archive_path)])
-    print(f"signed: {sig_path}")
+    run(["gpg", "--armor", "--detach-sign", str(sums_path)])
+    print(f"updated: {sums_path}")
+    print(f"signed:  {sig_path}")
 
 
 def main(*, default_target: str | None = None) -> None:
@@ -452,7 +487,7 @@ def main(*, default_target: str | None = None) -> None:
         write_archive(bundle_root, archive_path)
         if args.verify:
             verify_archive(spec, archive_path, run_smoke=platform.target_triple == host_target)
-        gpg_sign(archive_path)
+        update_sha256sums(archive_path)
         print(archive_path)
 
 

@@ -15,5 +15,5 @@ ec-engine = { path = "../ec-engine" }
 ec-harness = { path = "../ec-harness" }
 kdl = "6"
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
 winresource = "0.1"

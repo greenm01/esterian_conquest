@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 29),
+  date: datetime(year: 2026, month: 3, day: 30),
 )
 
 #set page(
@@ -89,7 +89,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 29, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: March 30, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -162,6 +162,12 @@ and re-download the bundle for the currently selected game.
 Download the public `ec-connect` archive that matches your machine. Keep this
 manual with it. Your sysop may still hand you the archive directly for a
 private test.
+
+=== Windows
+
+Extract the `.zip` archive to a folder of your choice. Double-click
+`ec-connect.bat` to launch. A command window opens automatically. No
+installation required.
 
 On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you
