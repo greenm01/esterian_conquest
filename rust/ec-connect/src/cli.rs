@@ -479,10 +479,14 @@ pub fn successful_session_handoff_lines(outcome: &SessionOutcome) -> Option<Vec<
         SessionOutcome::Done {
             exit_code: 0,
             notice,
+            maps_saved_to,
         } => {
             let mut lines = Vec::new();
             if let Some(msg) = notice.as_deref().filter(|msg| !msg.trim().is_empty()) {
                 lines.push(msg.to_string());
+            }
+            if let Some(path) = maps_saved_to {
+                lines.push(format!("Maps downloaded to {}", path.display()));
             }
             lines.push("For Griffith and glory.".to_string());
             Some(lines)
@@ -512,9 +516,16 @@ fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Err
     }
 
     match outcome {
-        SessionOutcome::Done { exit_code, notice } => {
+        SessionOutcome::Done {
+            exit_code,
+            notice,
+            maps_saved_to,
+        } => {
             if let Some(msg) = notice {
                 eprintln!("{msg}");
+            }
+            if let Some(path) = maps_saved_to {
+                eprintln!("Maps downloaded to {}", path.display());
             }
             Err(format!("session exited with code {exit_code}").into())
         }
@@ -692,12 +703,14 @@ mod tests {
             &SessionOutcome::Done {
                 exit_code: 0,
                 notice: None,
+                maps_saved_to: None,
             }
         ));
         assert!(should_seed_default_relay_after_join(
             &SessionOutcome::Done {
                 exit_code: 7,
                 notice: Some("warning".to_string()),
+                maps_saved_to: None,
             }
         ));
     }

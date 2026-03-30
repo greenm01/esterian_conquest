@@ -45,6 +45,7 @@ pub enum SessionOutcome {
     Done {
         exit_code: u32,
         notice: Option<String>,
+        maps_saved_to: Option<PathBuf>,
     },
     /// A non-recoverable error (auth failure, network error, etc.).
     Error(String),
@@ -246,10 +247,10 @@ pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) 
     } = prepared;
     match run_bridge(&payload, &keypair, username).await {
         Ok(exit_code) => {
-            let notice = match post_bridge {
+            let completion = match post_bridge {
                 PostBridgeAction::TouchCache => {
                     touch_cache_entry(&payload.game_id);
-                    None
+                    FirstJoinCompletion::default()
                 }
                 PostBridgeAction::FinalizeFirstJoin {
                     player_keys,
@@ -269,7 +270,11 @@ pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) 
                     .await
                 }
             };
-            SessionOutcome::Done { exit_code, notice }
+            SessionOutcome::Done {
+                exit_code,
+                notice: completion.notice,
+                maps_saved_to: completion.maps_saved_to,
+            }
         }
         Err(e) => SessionOutcome::Error(format!(
             "Connection to game server was lost.\n\
@@ -280,6 +285,12 @@ pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) 
     }
 }
 
+#[derive(Debug, Default)]
+struct FirstJoinCompletion {
+    notice: Option<String>,
+    maps_saved_to: Option<PathBuf>,
+}
+
 async fn finalize_first_join_after_session(
     payload: &SessionReadyPayload,
     player_keys: &Keys,
@@ -287,10 +298,10 @@ async fn finalize_first_join_after_session(
     gate_npub: &str,
     maps_root: &std::path::Path,
     npub: &str,
-) -> Option<String> {
+) -> FirstJoinCompletion {
     let state = match fetch_session_state(player_keys, target, gate_npub, &payload.game_id).await {
         Ok(state) => state,
-        Err(_) => return None,
+        Err(_) => return FirstJoinCompletion::default(),
     };
     cache_joined_game(build_cached_game(
         &state.game_id,
@@ -303,10 +314,21 @@ async fn finalize_first_join_after_session(
     ));
     touch_cache_entry(&state.game_id);
     match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
-        Ok(bundle) => save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root)
-            .err()
-            .map(|err| format!("Warning: unable to save starmaps: {err}")),
-        Err(err) => Some(format!("Warning: unable to download starmaps: {err}")),
+        Ok(bundle) => match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root)
+        {
+            Ok(path) => FirstJoinCompletion {
+                notice: None,
+                maps_saved_to: Some(path),
+            },
+            Err(err) => FirstJoinCompletion {
+                notice: Some(format!("Warning: unable to save starmaps: {err}")),
+                maps_saved_to: None,
+            },
+        },
+        Err(err) => FirstJoinCompletion {
+            notice: Some(format!("Warning: unable to download starmaps: {err}")),
+            maps_saved_to: None,
+        },
     }
 }
 

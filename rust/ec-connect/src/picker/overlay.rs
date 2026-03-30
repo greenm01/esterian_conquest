@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
 use ec_ui::modal::{ModalTheme, Rect};
@@ -30,6 +32,9 @@ pub enum PickerOverlay {
     Notice {
         level: NoticeLevel,
         message: String,
+    },
+    MapsDownloaded {
+        path: PathBuf,
     },
     ClaimingInvite {
         lines: Vec<String>,
@@ -93,6 +98,9 @@ pub fn handle_overlay_key(
             {
                 state.overlay = None;
             }
+        }
+        PickerOverlay::MapsDownloaded { .. } => {
+            state.overlay = None;
         }
         PickerOverlay::ClaimingInvite { .. } | PickerOverlay::Connecting { .. } => {
             if is_back_key(key) {
@@ -295,6 +303,10 @@ pub fn render_overlay(
             render_notice_popup(buffer, *level, message);
             buffer.clear_cursor();
         }
+        Some(PickerOverlay::MapsDownloaded { path }) => {
+            render_maps_downloaded_popup(buffer, path);
+            buffer.clear_cursor();
+        }
         Some(PickerOverlay::ClaimingInvite { lines }) => {
             super::connecting::render_status_popup(buffer, "CLAIMING INVITE", lines);
         }
@@ -446,6 +458,21 @@ fn render_notice_popup(buffer: &mut PlayfieldBuffer, level: NoticeLevel, message
     };
     let lines = wrapped_lines(message, PLAYFIELD_WIDTH.saturating_sub(14));
     render_modal_box(buffer, title, &lines, style);
+}
+
+fn render_maps_downloaded_popup(buffer: &mut PlayfieldBuffer, path: &PathBuf) {
+    let mut lines = vec![
+        "The starmap bundle for this game was downloaded.".to_string(),
+        String::new(),
+        "Saved to:".to_string(),
+    ];
+    lines.extend(wrapped_lines(
+        &path.display().to_string(),
+        PLAYFIELD_WIDTH.saturating_sub(18),
+    ));
+    lines.push(String::new());
+    lines.push("Press any key to continue.".to_string());
+    render_modal_box(buffer, "MAPS DOWNLOADED", &lines, classic::table_body_style());
 }
 
 fn render_wallet_detail_popup(

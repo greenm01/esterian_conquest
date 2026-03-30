@@ -157,7 +157,7 @@ async fn fetch_game_metadata_via_handshake(
             player_name: payload.player_name,
         }),
         Ok(HandshakeResult::Error(err)) => Err(format!("{}: {}", err.error, err.message)),
-        Ok(HandshakeResult::Timeout) => Err("metadata refresh timed out.".to_string()),
-        Err(err) => Err(format!("metadata refresh failed: {err}")),
+        Ok(HandshakeResult::Timeout) => Err("game info refresh timed out.".to_string()),
+        Err(err) => Err(format!("game info refresh failed: {err}")),
     }
 }

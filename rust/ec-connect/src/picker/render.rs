@@ -18,7 +18,7 @@ use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_po
 use super::relay::{relay_games, relay_status_label, relay_summaries};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
-use crate::shell::{terminal_fits_outer, wrap_inner_buffer};
+use crate::shell::{terminal_fits_outer, wrap_inner_buffer_in_terminal};
 
 const MAIN_COLUMNS: [Column<'_>; 6] = [
     Column::flex("Empire", 13, 1),
@@ -86,7 +86,21 @@ pub fn render_buffer(
     };
 
     render_overlay(&mut buffer, state, session, command_row);
-    wrap_inner_buffer(&buffer, identity_label.as_deref())
+    let outside_hint = if matches!(state.screen, Screen::GameList)
+        && state.overlay.is_none()
+        && !state.cache.sorted().is_empty()
+    {
+        Some("Press Space to refresh game info")
+    } else {
+        None
+    };
+    wrap_inner_buffer_in_terminal(
+        &buffer,
+        identity_label.as_deref(),
+        usize::from(term_width.max(1)),
+        usize::from(term_height.max(1)),
+        outside_hint,
+    )
 }
 
 fn render_resize_blocker(term_width: u16, term_height: u16) -> PlayfieldBuffer {

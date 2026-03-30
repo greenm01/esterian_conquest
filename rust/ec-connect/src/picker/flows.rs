@@ -262,8 +262,14 @@ pub fn apply_session_outcome(
     retry_context: Option<(crate::connect::resolve::ResolvedTarget, String)>,
 ) {
     match outcome {
-        SessionOutcome::Done { notice, .. } => {
-            if let Some(notice) = notice
+        SessionOutcome::Done {
+            notice,
+            maps_saved_to,
+            ..
+        } => {
+            if let Some(path) = maps_saved_to {
+                state.overlay = Some(super::overlay::PickerOverlay::MapsDownloaded { path });
+            } else if let Some(notice) = notice
                 .filter(|message| !message.trim().is_empty())
                 .filter(|message| message != "For Griffith and glory.")
             {

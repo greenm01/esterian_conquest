@@ -68,7 +68,7 @@ const MAIN_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "Space",
-        description: "refresh selected game metadata",
+        description: "refresh selected game info",
     },
     HelpRow {
         command: "L",

@@ -24,6 +24,7 @@ use ec_connect::picker::{PickerSession, PickerState, Screen};
 use ec_connect::wallet::{Identity, IdentityType, Wallet};
 use ec_ui::theme::classic;
 use nostr_sdk::{Keys, ToBech32};
+use std::path::PathBuf;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -303,7 +304,7 @@ fn help_overlay_renders_left_aligned_title_and_commands() {
     }));
     assert!((0..buffer.height()).any(|row| {
         let line = buffer.plain_line(row);
-        line.contains("Space") && line.contains("refresh selected game metadata")
+        line.contains("Space") && line.contains("refresh selected game info")
     }));
     assert!((0..buffer.height()).any(|row| {
         let line = buffer.plain_line(row);
@@ -479,6 +480,26 @@ fn error_notice_dismisses_on_any_key() {
     state.overlay = Some(PickerOverlay::Notice {
         level: NoticeLevel::Error,
         message: "boom".to_string(),
+    });
+
+    handle_overlay_key(
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+        &mut state,
+        None,
+        "",
+        std::path::Path::new("/tmp"),
+        None,
+    )
+    .unwrap();
+
+    assert!(state.overlay.is_none());
+}
+
+#[test]
+fn maps_downloaded_popup_dismisses_on_any_key() {
+    let mut state = make_state(vec![]);
+    state.overlay = Some(PickerOverlay::MapsDownloaded {
+        path: PathBuf::from("/tmp/ec/maps/friday-night"),
     });
 
     handle_overlay_key(
@@ -766,7 +787,7 @@ fn refreshing_popup_renders_context_lines() {
             "Game: Friday Night EC".to_string(),
             "Server: play.example.com:22".to_string(),
             "Relay: wss://relay.example.com".to_string(),
-            "Refreshing metadata...".to_string(),
+            "Refreshing game info...".to_string(),
         ],
     });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
@@ -774,7 +795,7 @@ fn refreshing_popup_renders_context_lines() {
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("REFRESHING GAME")));
     assert!(
         (0..buffer.height())
-            .any(|row| { buffer.plain_line(row).contains("Refreshing metadata...") })
+            .any(|row| { buffer.plain_line(row).contains("Refreshing game info...") })
     );
 }
 
@@ -787,6 +808,7 @@ fn picker_session_suppresses_default_griffith_notice() {
         SessionOutcome::Done {
             exit_code: 0,
             notice: Some("For Griffith and glory.".to_string()),
+            maps_saved_to: None,
         },
         None,
     );
@@ -803,6 +825,7 @@ fn picker_session_keeps_nondefault_notice_in_tui() {
         SessionOutcome::Done {
             exit_code: 0,
             notice: Some("Warning: unable to save starmaps.".to_string()),
+            maps_saved_to: None,
         },
         None,
     );
@@ -828,6 +851,7 @@ fn picker_session_default_return_allows_immediate_quit_confirm() {
         SessionOutcome::Done {
             exit_code: 0,
             notice: Some("For Griffith and glory.".to_string()),
+            maps_saved_to: None,
         },
         None,
     );
@@ -872,6 +896,67 @@ fn overflowing_picker_renders_themed_scrollbar_gutter() {
     assert_eq!(buffer.row(23)[80].ch, 'v');
     assert!((5..23).any(|row| buffer.row(row)[80].ch == '#'));
     assert_eq!(buffer.row(4)[80].style, classic::table_chrome_style());
+}
+
+#[test]
+fn successful_session_maps_path_opens_maps_downloaded_popup() {
+    let mut state = make_state(vec![]);
+
+    apply_session_outcome(
+        &mut state,
+        SessionOutcome::Done {
+            exit_code: 0,
+            notice: None,
+            maps_saved_to: Some(PathBuf::from("/tmp/ec/maps/friday-night")),
+        },
+        None,
+    );
+
+    assert_eq!(
+        state.overlay,
+        Some(PickerOverlay::MapsDownloaded {
+            path: PathBuf::from("/tmp/ec/maps/friday-night"),
+        })
+    );
+}
+
+#[test]
+fn maps_downloaded_popup_renders_saved_path() {
+    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    state.overlay = Some(PickerOverlay::MapsDownloaded {
+        path: PathBuf::from("/tmp/ec/maps/friday-night"),
+    });
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("MAPS DOWNLOADED")));
+    assert!(
+        (0..buffer.height())
+            .any(|row| buffer.plain_line(row).contains("/tmp/ec/maps/friday-night"))
+    );
+    assert!(
+        (0..buffer.height())
+            .any(|row| buffer.plain_line(row).contains("Press any key to continue."))
+    );
+}
+
+#[test]
+fn larger_terminal_renders_outside_border_space_hint() {
+    let state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 100, 30);
+
+    assert_eq!(buffer.row(1)[9].ch, '┌');
+    assert_eq!(buffer.row(27)[9].ch, '└');
+    assert!(buffer.plain_line(28).trim().is_empty());
+    assert!(buffer.plain_line(29).contains("Press Space to refresh game info"));
+}
+
+#[test]
+fn minimum_terminal_does_not_render_outside_border_space_hint() {
+    let state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
+    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+
+    assert!(!(0..buffer.height())
+        .any(|row| buffer.plain_line(row).contains("Press Space to refresh game info")));
 }
 
 #[test]

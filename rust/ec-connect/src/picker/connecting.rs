@@ -146,13 +146,19 @@ fn apply_connect_outcome(
             apply_session_outcome(state, outcome, Some((request.target, request.gate_npub)));
         }
         ConnectOrigin::JoinPrompt => match outcome {
-            SessionOutcome::Done { notice, .. } => {
+            SessionOutcome::Done {
+                notice,
+                maps_saved_to,
+                ..
+            } => {
                 state.overlay = None;
                 state.refresh_cache();
                 state.join_input.clear();
                 state.screen = Screen::GameList;
                 state.selected = 0;
-                if let Some(notice) = notice
+                if let Some(path) = maps_saved_to {
+                    state.overlay = Some(PickerOverlay::MapsDownloaded { path });
+                } else if let Some(notice) = notice
                     .filter(|message| !message.trim().is_empty())
                     .filter(|message| message != "For Griffith and glory.")
                 {

@@ -4,7 +4,7 @@ use ec_ui::theme::classic;
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::password::WALLET_WARNING_LINES;
 use crate::picker::layout::{Rect, centered_rect, draw_box};
-use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer};
+use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer_in_terminal};
 
 use super::PasswordGateState;
 
@@ -80,7 +80,7 @@ pub fn render_buffer(state: &PasswordGateState, width: u16, height: u16) -> Play
         classic::prompt_hotkey_style(),
     );
 
-    wrap_inner_buffer(&buffer, None)
+    wrap_inner_buffer_in_terminal(&buffer, None, width, height, None)
 }
 
 fn render_tiny(buffer: &mut PlayfieldBuffer, state: &PasswordGateState) {

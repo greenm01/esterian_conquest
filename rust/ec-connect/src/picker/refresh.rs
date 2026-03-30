@@ -34,7 +34,7 @@ impl PendingRefreshRequest {
                 format!("Game: {name}"),
                 format!("Server: {}:{}", target.server_host, target.server_port),
                 format!("Relay: {}", target.relay_url),
-                "Refreshing metadata...".to_string(),
+                "Refreshing game info...".to_string(),
             ],
             target,
             gate_npub,
@@ -98,7 +98,7 @@ pub fn execute_pending_refresh(
             state.refresh_cache();
         }
         Err(err) => {
-            state.show_error(format!("unable to refresh game metadata: {err}"));
+            state.show_error(format!("unable to refresh game info: {err}"));
         }
     }
 
