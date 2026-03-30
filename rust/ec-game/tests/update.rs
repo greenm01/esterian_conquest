@@ -14130,13 +14130,14 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
         line_containing(&terminal, "Stored Production Points").contains('0'),
         "stored points line should show zero"
     );
+    let build_queue_line = line_containing(&terminal, "Build Queue");
+    let stardock_line = line_containing(&terminal, "Stardock");
+    assert!(build_queue_line.contains("Nothing"));
+    assert!(stardock_line.contains("Nothing"));
     assert_eq!(
-        line_containing(&terminal, "Build Queue").trim_end(),
-        " Build Queue  Nothing"
-    );
-    assert_eq!(
-        line_containing(&terminal, "Stardock").trim_end(),
-        " Stardock     Nothing"
+        build_queue_line.find(':'),
+        stardock_line.find(':'),
+        "build queue and stardock separators should line up"
     );
     assert!(
         line_containing(&terminal, "Planet is scorched!").contains("Planet is scorched!"),
@@ -15967,6 +15968,31 @@ fn compose_body_allows_typing_hjkl_without_moving_cursor() {
     assert_eq!(app.messaging.compose_body, "hjkl");
     assert_eq!(app.messaging.compose_body_cursor_row, 0);
     assert_eq!(app.messaging.compose_body_cursor_col, 4);
+}
+
+#[test]
+fn compose_body_popup_help_lists_send_and_cancel_shortcuts() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+
+    let popup_action = app.handle_key(key(KeyCode::Char('?')));
+    assert_eq!(popup_action, Action::OpenPopupHelp);
+    assert_eq!(apply_action(&mut app, popup_action), AppOutcome::Continue);
+
+    let popup = app.popup_help.as_ref().expect("popup help should open");
+    assert_eq!(popup.title, "MESSAGE EDITOR HELP");
+    assert!(popup.lines.iter().any(|line| line.contains("^E")));
+    assert!(popup.lines.iter().any(|line| line.contains("^X")));
 }
 
 #[test]

@@ -377,9 +377,9 @@ fn compose_subject_prompt_renders_below_recipient_with_single_blank_row() {
         .render_subject("Empire 9 (Viridian Chain)", "", None)
         .expect("subject prompt renders");
 
-    assert!(row_text(&buffer, 2).contains("To: Empire 9 (Viridian Chain)"));
+    assert!(row_text(&buffer, 2).starts_with(" To: Empire 9 (Viridian Chain)"));
     assert_eq!(row_text(&buffer, 3).trim_end(), "");
-    assert!(row_text(&buffer, 4).starts_with("COMMAND <- Message subject <Q> -> "));
+    assert!(row_text(&buffer, 4).starts_with(" COMMAND <- Message subject <Q> -> "));
     assert_eq!(row_text(&buffer, COMMAND_LINE_ROW).trim_end(), "");
 }
 
@@ -399,8 +399,8 @@ fn compose_body_soft_wraps_at_spaces_instead_of_splitting_words() {
         )
         .expect("body prompt renders");
 
-    assert_eq!(row_text(&buffer, 5).trim_end(), "a".repeat(70));
-    assert!(row_text(&buffer, 6).starts_with("splitword"));
+    assert_eq!(row_text(&buffer, 4).trim_end(), "a".repeat(70));
+    assert!(row_text(&buffer, 5).starts_with("splitword"));
 }
 
 #[test]
@@ -421,11 +421,10 @@ fn compose_body_uses_full_80x25_vertical_editor_space() {
             None,
         )
         .expect("body prompt renders");
-    assert!(row_text(&buffer, 20).contains("line 16"));
-    assert!(row_text(&buffer, 21).trim().is_empty());
-    assert!(row_text(&buffer, 22).contains("Chars:"));
-    assert!(row_text(&buffer, 23).trim().is_empty());
-    assert!(row_text(&buffer, 24).starts_with("COMMAND <- CTRL-E CTRL-X ->"));
+    assert!(row_text(&buffer, 19).contains("line 16"));
+    assert!(row_text(&buffer, 22).trim().is_empty());
+    assert!(row_text(&buffer, 23).contains("Chars:"));
+    assert!(row_text(&buffer, 24).starts_with("COMMAND <- ? ^E ^X ->"));
 }
 
 #[test]
@@ -441,8 +440,8 @@ fn compose_discard_confirm_uses_default_no_prompt_markup() {
         .expect("discard confirm renders");
 
     assert!(!row_text(&buffer, 20).contains("Discard this unsent message draft?"));
-    assert!(row_text(&buffer, 21).trim().is_empty());
-    assert!(row_text(&buffer, 24).starts_with("COMMAND <- Y/[N] ->"));
+    assert!(row_text(&buffer, 22).trim().is_empty());
+    assert!(row_text(&buffer, 24).starts_with("COMMAND <- Cancel message? Y/[N] ->"));
     let row = buffer.row(24);
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());
@@ -471,8 +470,8 @@ fn compose_send_confirm_uses_default_no_prompt_markup() {
         .expect("send confirm renders");
 
     assert!(!row_text(&buffer, 20).contains("Send this message after turn maintenance?"));
-    assert!(row_text(&buffer, 21).trim().is_empty());
-    assert!(row_text(&buffer, 24).starts_with("COMMAND <- Y/[N] ->"));
+    assert!(row_text(&buffer, 22).trim().is_empty());
+    assert!(row_text(&buffer, 24).starts_with("COMMAND <- Send message? Y/[N] ->"));
     let row = buffer.row(24);
     let choice = find_in_row(&buffer, 24, "Y/[N]");
     assert_eq!(row[choice].style, classic::prompt_hotkey_style());

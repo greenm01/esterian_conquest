@@ -4,10 +4,10 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    ScreenGeometry, command_line_row_for, dismiss_prompt_row, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_prompt_error_after, draw_title_bar, new_playfield, new_playfield_for,
-    standard_table_visible_rows_for,
+    LEFT_WINDOW_PAD_COL, ScreenGeometry, command_line_row_for, dismiss_prompt_row,
+    draw_command_line_default_input_at_col, draw_command_line_prompt_text_at,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_prompt_error_after_padded, draw_title_bar,
+    draw_title_bar_padded, new_playfield, new_playfield_for, standard_table_visible_rows_for,
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
@@ -21,11 +21,10 @@ pub struct MessageComposeScreen;
 pub(crate) const COMPOSE_SUBJECT_LIMIT: usize = 60;
 pub(crate) const COMPOSE_BODY_LIMIT: usize = 1000;
 pub(crate) const COMPOSE_BODY_WRAP_WIDTH: usize = 79;
-const COMPOSE_BODY_FIRST_ROW: usize = 5;
-const COMPOSE_BODY_LAST_ROW: usize = 20;
-const COMPOSE_BODY_STATUS_ROW: usize = 20;
-const COMPOSE_BODY_SPACER_ROW: usize = 21;
-const COMPOSE_BODY_CHARS_ROW: usize = 22;
+const COMPOSE_BODY_FIRST_ROW: usize = 4;
+const COMPOSE_BODY_LAST_ROW: usize = 21;
+const COMPOSE_BODY_STATUS_ROW: usize = 22;
+const COMPOSE_BODY_CHARS_ROW: usize = 23;
 
 const RECIPIENT_COLUMNS: [TableColumn<'static>; 2] =
     [TableColumn::right("ID", 3), TableColumn::left("Empire", 28)];
@@ -143,24 +142,25 @@ impl MessageComposeScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
+        draw_title_bar_padded(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
         buffer.write_text(
             2,
-            0,
+            LEFT_WINDOW_PAD_COL,
             &format!("To: {recipient_label}"),
             classic::status_value_style(),
         );
         let command_row = 4;
-        draw_command_line_default_input_at(
+        draw_command_line_default_input_at_col(
             &mut buffer,
             command_row,
+            LEFT_WINDOW_PAD_COL,
             "COMMAND",
             "Message subject ",
             "",
             subject,
         );
         if let Some(status) = status {
-            draw_prompt_error_after(&mut buffer, command_row, status);
+            draw_prompt_error_after_padded(&mut buffer, command_row, status);
         }
         Ok(buffer)
     }
@@ -189,9 +189,8 @@ impl MessageComposeScreen {
             &format!("Subject: {subject}"),
             classic::status_value_style(),
         );
-        buffer.write_text(3, 0, "Ctrl-E send  Ctrl-X cancel", classic::body_style());
         buffer.write_text(
-            4,
+            3,
             0,
             "-------------------------------------------------------------------------------",
             classic::menu_style(),
@@ -220,7 +219,6 @@ impl MessageComposeScreen {
         if let Some(status) = status {
             buffer.write_text(status_row, 0, status, classic::status_value_style());
         }
-        buffer.write_text(COMPOSE_BODY_SPACER_ROW, 0, "", classic::body_style());
         buffer.write_text(
             chars_row,
             0,
@@ -231,7 +229,7 @@ impl MessageComposeScreen {
             &mut buffer,
             command_line_row_for(geometry),
             COMMAND_LABEL,
-            "CTRL-E CTRL-X",
+            "? ^E ^X",
         );
         let render_row = first_body_row + cursor_row.saturating_sub(start);
         buffer.set_cursor(cursor_col as u16, render_row as u16);
@@ -250,7 +248,7 @@ impl MessageComposeScreen {
             &mut buffer,
             command_line_row_for(geometry),
             COMMAND_LABEL,
-            "Y/[N] ->",
+            "Send message? Y/[N] ->",
         );
         buffer.clear_cursor();
         Ok(buffer)
@@ -268,7 +266,7 @@ impl MessageComposeScreen {
             &mut buffer,
             command_line_row_for(geometry),
             COMMAND_LABEL,
-            "Y/[N] ->",
+            "Cancel message? Y/[N] ->",
         );
         buffer.clear_cursor();
         Ok(buffer)

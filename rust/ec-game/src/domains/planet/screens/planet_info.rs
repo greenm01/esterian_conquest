@@ -52,7 +52,7 @@ impl PlanetInfoScreen {
         let tax_rate =
             frame.game_data.player.records[frame.player.record_index_1_based - 1].tax_rate();
         let expected_revenue = yearly_tax_revenue(present, tax_rate);
-        let top_label_width = aligned_label_width([
+        let info_label_width = aligned_label_width([
             "Coordinates",
             "Planet",
             "Owner",
@@ -62,9 +62,11 @@ impl PlanetInfoScreen {
             "Stored Production Points",
             "Efficiency",
             "Expected Revenue",
+            "Armies",
+            "Ground Batteries",
+            "Space Forces",
+            "Status",
         ]);
-        let detail_label_width =
-            aligned_label_width(["Armies", "Ground Batteries", "Space Forces", "Status"]);
         let bottom_label_width = aligned_label_width(["Build Queue", "Stardock"]);
 
         let mut buffer = new_playfield();
@@ -72,79 +74,79 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             2,
-            top_label_width,
+            info_label_width,
             "Coordinates",
             &format_sector_coords_zero_padded([x, y]),
         );
         draw_aligned_status_line(
             &mut buffer,
             3,
-            top_label_width,
+            info_label_width,
             "Planet",
             &planet.status_or_name_summary(),
         );
-        draw_aligned_status_line(&mut buffer, 4, top_label_width, "Owner", &owner_label);
-        draw_aligned_status_line(&mut buffer, 5, top_label_width, "State", &state_label);
+        draw_aligned_status_line(&mut buffer, 4, info_label_width, "Owner", &owner_label);
+        draw_aligned_status_line(&mut buffer, 5, info_label_width, "State", &state_label);
         draw_aligned_status_line(
             &mut buffer,
             6,
-            top_label_width,
+            info_label_width,
             "Present Production",
             &present.to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
             7,
-            top_label_width,
+            info_label_width,
             "Potential Production",
             &potential.to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
             8,
-            top_label_width,
+            info_label_width,
             "Stored Production Points",
             &planet.stored_production_points().to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
             9,
-            top_label_width,
+            info_label_width,
             "Efficiency",
             &format!("{efficiency:.1}%"),
         );
         draw_aligned_status_line(
             &mut buffer,
             10,
-            top_label_width,
+            info_label_width,
             "Expected Revenue",
             &format!("{expected_revenue} points"),
         );
         draw_aligned_status_line(
             &mut buffer,
             12,
-            detail_label_width,
+            info_label_width,
             "Armies",
             &planet.army_count_raw().to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
             13,
-            detail_label_width,
+            info_label_width,
             "Ground Batteries",
             &planet.ground_batteries_raw().to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
             14,
-            detail_label_width,
+            info_label_width,
             "Space Forces",
             &format_owned_orbit_summary(frame, [x, y]),
         );
         draw_aligned_status_line(
             &mut buffer,
             15,
-            detail_label_width,
+            info_label_width,
             "Status",
             &owned_status_summary(frame, planet_idx, [x, y], planet_scorch_orders),
         );
@@ -153,7 +155,7 @@ impl PlanetInfoScreen {
             17,
             bottom_label_width,
             "Build Queue",
-            "  ",
+            ": ",
             &format_build_queue_summary(planet),
         );
         draw_aligned_detail_line(
@@ -161,7 +163,7 @@ impl PlanetInfoScreen {
             18,
             bottom_label_width,
             "Stardock",
-            "  ",
+            ": ",
             &format_stardock_summary(planet),
         );
         draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(18));
@@ -192,7 +194,7 @@ impl PlanetInfoScreen {
                     .map(|id| format!("Empire #{id}"))
             })
             .unwrap_or_else(|| "?".to_string());
-        let top_label_width = aligned_label_width([
+        let info_label_width = aligned_label_width([
             "Coordinates",
             "Planet",
             "Owner",
@@ -206,32 +208,32 @@ impl PlanetInfoScreen {
             "Ground Batteries",
             "Space Forces",
             "Intel Tier",
+            "Docked",
         ]);
-        let bottom_label_width = aligned_label_width(["Docked"]);
 
         let mut buffer = new_playfield();
         draw_title_bar_padded(&mut buffer, 0, "INFO ABOUT A PLANET:");
         draw_aligned_status_line(
             &mut buffer,
             2,
-            top_label_width,
+            info_label_width,
             "Coordinates",
             &format_sector_coords_zero_padded(world.coords),
         );
         draw_aligned_status_line(
             &mut buffer,
             3,
-            top_label_width,
+            info_label_width,
             "Planet",
             world.known_name.as_deref().unwrap_or("?"),
         );
-        draw_aligned_status_line(&mut buffer, 4, top_label_width, "Owner", &owner_label);
-        draw_aligned_status_line(&mut buffer, 5, top_label_width, "State", "?");
+        draw_aligned_status_line(&mut buffer, 4, info_label_width, "Owner", &owner_label);
+        draw_aligned_status_line(&mut buffer, 5, info_label_width, "State", "?");
         let intel_snapshot = frame.planet_intel_snapshots.get(&(planet_idx + 1));
         draw_aligned_status_line(
             &mut buffer,
             6,
-            top_label_width,
+            info_label_width,
             "Last Viewed/Scouted",
             &intel_snapshot
                 .and_then(|snapshot| snapshot.last_intel_year)
@@ -241,7 +243,7 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             7,
-            top_label_width,
+            info_label_width,
             "Present Production",
             &world
                 .known_current_production
@@ -251,7 +253,7 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             8,
-            top_label_width,
+            info_label_width,
             "Potential Production",
             &world
                 .known_potential_production
@@ -261,7 +263,7 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             9,
-            top_label_width,
+            info_label_width,
             "Efficiency",
             &intel_efficiency_label(
                 world.known_current_production,
@@ -271,7 +273,7 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             10,
-            top_label_width,
+            info_label_width,
             "Stored Production Points",
             &world
                 .known_stored_points
@@ -281,7 +283,7 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             12,
-            top_label_width,
+            info_label_width,
             "Armies",
             &world
                 .known_armies
@@ -291,7 +293,7 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             13,
-            top_label_width,
+            info_label_width,
             "Ground Batteries",
             &world
                 .known_ground_batteries
@@ -301,23 +303,23 @@ impl PlanetInfoScreen {
         draw_aligned_status_line(
             &mut buffer,
             14,
-            top_label_width,
+            info_label_width,
             "Space Forces",
             world.known_orbit_summary.as_deref().unwrap_or("?"),
         );
         draw_aligned_status_line(
             &mut buffer,
             15,
-            top_label_width,
+            info_label_width,
             "Intel Tier",
             intel_tier_label(intel_snapshot, &world),
         );
         draw_aligned_detail_line(
             &mut buffer,
             17,
-            bottom_label_width,
+            info_label_width,
             "Docked",
-            "  ",
+            ": ",
             world.known_docked_summary.as_deref().unwrap_or("?"),
         );
         draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(17));
