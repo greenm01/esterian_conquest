@@ -26,15 +26,13 @@ pub fn setup_console() {
     use winapi::shared::minwindef::{FALSE, TRUE};
     use winapi::shared::ntdef::NULL;
     use winapi::shared::windef::RECT;
+    use winapi::um::processenv::GetStdHandle;
     use winapi::um::winbase::STD_OUTPUT_HANDLE;
     use winapi::um::wincon::{
-        CONSOLE_FONT_INFOEX, COORD, GetConsoleWindow, GetCurrentConsoleFontEx,
-        SMALL_RECT, SetConsoleScreenBufferSize, SetConsoleWindowInfo, SetCurrentConsoleFontEx,
+        CONSOLE_FONT_INFOEX, COORD, GetConsoleWindow, GetCurrentConsoleFontEx, SMALL_RECT,
+        SetConsoleScreenBufferSize, SetConsoleWindowInfo, SetCurrentConsoleFontEx,
     };
-    use winapi::um::winuser::{
-        GetWindowRect, MoveWindow, SystemParametersInfoW, SPI_GETWORKAREA,
-    };
-    use winapi::um::processenv::GetStdHandle;
+    use winapi::um::winuser::{GetWindowRect, MoveWindow, SPI_GETWORKAREA, SystemParametersInfoW};
 
     unsafe {
         let stdout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -80,9 +78,9 @@ pub fn setup_console() {
     }
 
     unsafe fn normalize_console_font(stdout: *mut winapi::ctypes::c_void) {
-        let mut font: CONSOLE_FONT_INFOEX = zeroed();
+        let mut font: CONSOLE_FONT_INFOEX = unsafe { zeroed() };
         font.cbSize = size_of::<CONSOLE_FONT_INFOEX>() as u32;
-        if GetCurrentConsoleFontEx(stdout, FALSE, &mut font) == 0 {
+        if unsafe { GetCurrentConsoleFontEx(stdout, FALSE, &mut font) } == 0 {
             return;
         }
 
@@ -92,7 +90,7 @@ pub fn setup_console() {
         }
 
         font.dwFontSize.Y = desired_height;
-        let _ = SetCurrentConsoleFontEx(stdout, FALSE, &mut font);
+        let _ = unsafe { SetCurrentConsoleFontEx(stdout, FALSE, &mut font) };
     }
 }
 

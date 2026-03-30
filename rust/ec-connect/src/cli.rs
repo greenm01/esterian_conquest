@@ -1,8 +1,9 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use nostr_sdk::Keys;
 
+use crate::companion::{GAME_ID_FLAG, NO_CONSOLE_SETUP_FLAG, PASSWORD_FILE_FLAG};
 use crate::config::{ConnectConfig, load_config, seed_default_relay};
 use crate::connect::game_discovery::discover_game_for_invite;
 use crate::connect::public_join::run_public_join;
@@ -24,11 +25,13 @@ use ec_ui::session::TerminalSession;
 // ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-    crate::platform::setup_console();
-
     // Collect all args upfront so that flags like --gate can appear in any
     // position relative to the positional subcommand.
     let all_args: Vec<String> = env::args().skip(1).collect();
+    let suppress_console_setup = all_args.iter().any(|arg| arg == NO_CONSOLE_SETUP_FLAG);
+    if !suppress_console_setup {
+        crate::platform::setup_console();
+    }
 
     // Determine the subcommand by scanning for the first non-flag token,
     // while treating `--join` as a named subcommand (not a plain flag).
@@ -118,12 +121,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut i = 0;
     while i < all_args.len() {
         match all_args[i].as_str() {
-            "--gate" | "--relay" | "--maps-dir" | "--log-file" | "--log-level" => {
+            "--gate" | "--relay" | "--maps-dir" | "--log-file" | "--log-level" | GAME_ID_FLAG
+            | PASSWORD_FILE_FLAG => {
                 flag_args.push(all_args[i].clone());
                 i += 1;
                 if i < all_args.len() {
                     flag_args.push(all_args[i].clone());
                 }
+            }
+            NO_CONSOLE_SETUP_FLAG => {
+                flag_args.push(all_args[i].clone());
             }
             arg if arg.starts_with("--") => {
                 return Err(format!("unknown option: {arg}").into());
@@ -157,6 +164,8 @@ struct ConnectOpts {
     maps_dir: Option<PathBuf>,
     log_file: Option<PathBuf>,
     log_level: ec_log::LogLevel,
+    game_id_hint: Option<String>,
+    password_file: Option<PathBuf>,
 }
 
 fn parse_connect_opts(
@@ -168,6 +177,8 @@ fn parse_connect_opts(
     let mut log_file = None;
     let mut log_level = ec_log::LogLevel::Info;
     let mut saw_log_level = false;
+    let mut game_id_hint = None;
+    let mut password_file = None;
 
     let remaining: Vec<String> = args.collect();
     let mut i = 0;
@@ -218,6 +229,25 @@ fn parse_connect_opts(
                 log_level = ec_log::LogLevel::parse(&value)?;
                 saw_log_level = true;
             }
+            GAME_ID_FLAG => {
+                i += 1;
+                game_id_hint = Some(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--game-id requires a value")?,
+                );
+            }
+            PASSWORD_FILE_FLAG => {
+                i += 1;
+                password_file = Some(PathBuf::from(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--password-file requires a path")?,
+                ));
+            }
+            NO_CONSOLE_SETUP_FLAG => {}
             other => return Err(format!("unexpected argument: {other}").into()),
         }
         i += 1;
@@ -234,6 +264,8 @@ fn parse_connect_opts(
         maps_dir,
         log_file,
         log_level,
+        game_id_hint,
+        password_file,
     })
 }
 
@@ -245,7 +277,8 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
     // Load wallet — auto-create identity if wallet is missing.
-    let Some((wallet, keys, npub)) = prompt_and_load_identity()? else {
+    let Some((wallet, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
+    else {
         return Ok(());
     };
     drop(wallet);
@@ -299,7 +332,8 @@ fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error:
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
     // Load wallet — auto-create identity if the wallet is missing.
-    let Some((_wallet, keys, npub)) = prompt_and_load_identity()? else {
+    let Some((_wallet, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
+    else {
         return Ok(());
     };
 
@@ -310,6 +344,9 @@ fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error:
     // Apply relay override.
     if let Some(relay) = opts.relay_override {
         target.relay_url = relay;
+    }
+    if let Some(game_id) = opts.game_id_hint {
+        target.game_id = Some(game_id);
     }
 
     // Inject cached game_id hint if we have exactly one game for this server.
@@ -390,8 +427,13 @@ fn maybe_seed_default_relay_after_join(outcome: &SessionOutcome, relay_url: &str
     }
 }
 
-fn prompt_and_load_identity() -> Result<Option<(Wallet, Keys, String)>, Box<dyn std::error::Error>>
-{
+fn prompt_and_load_identity(
+    password_file: Option<&Path>,
+) -> Result<Option<(Wallet, Keys, String)>, Box<dyn std::error::Error>> {
+    if let Some(path) = password_file {
+        let password = load_password_from_file_once(path)?;
+        return load_or_create_identity(&password).map(Some);
+    }
     let mut error_msg = None;
     loop {
         let Some(password) = run_password_gate(error_msg.take())? else {
@@ -404,6 +446,16 @@ fn prompt_and_load_identity() -> Result<Option<(Wallet, Keys, String)>, Box<dyn 
             }
         }
     }
+}
+
+fn load_password_from_file_once(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let password = std::fs::read_to_string(path)?;
+    let _ = std::fs::remove_file(path);
+    let trimmed = password.trim_end_matches(['\r', '\n']);
+    if trimmed.is_empty() {
+        return Err("password file was empty".into());
+    }
+    Ok(trimmed.to_string())
 }
 
 fn prompt_for_picker_password(
@@ -682,6 +734,11 @@ mod tests {
             "/tmp/ec-connect.log".to_string(),
             "--log-level".to_string(),
             "debug".to_string(),
+            "--game-id".to_string(),
+            "friday-night".to_string(),
+            "--password-file".to_string(),
+            "/tmp/pass.txt".to_string(),
+            "--no-console-setup".to_string(),
         ];
         let opts = parse_connect_opts(&mut args.into_iter()).expect("opts should parse");
         assert_eq!(opts.gate_npub.as_deref(), Some("npub1example"));
@@ -690,6 +747,11 @@ mod tests {
             Some(PathBuf::from("/tmp/ec-connect.log").as_path())
         );
         assert_eq!(opts.log_level, ec_log::LogLevel::Debug);
+        assert_eq!(opts.game_id_hint.as_deref(), Some("friday-night"));
+        assert_eq!(
+            opts.password_file.as_deref(),
+            Some(PathBuf::from("/tmp/pass.txt").as_path())
+        );
     }
 
     #[test]

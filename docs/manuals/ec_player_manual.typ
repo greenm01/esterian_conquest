@@ -166,8 +166,9 @@ private test.
 === Windows
 
 Extract the `.zip` archive to a folder of your choice. Double-click
-`ec-connect.exe` to launch. A command window opens automatically. No
-installation required.
+`ec-connect.exe` to launch the normal player window. No installation
+required. The same archive also includes `ec-connect-cli.exe` for direct
+terminal workflows and scripted troubleshooting.
 
 On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you

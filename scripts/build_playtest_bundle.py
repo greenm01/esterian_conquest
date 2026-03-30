@@ -168,6 +168,8 @@ def resolve_target(target_triple: str | None) -> TargetPlatform:
 
 def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
     if spec.artifact == "ec-connect":
+        if spec.is_windows:
+            return ("ec-connect", "ec-connect-cli")
         return ("ec-connect",)
     return ("ec-game", "ec-sysop", "ec-connect")
 
@@ -239,6 +241,7 @@ This archive contains the public player client for {spec.platform.display_name}.
 It contains:
 
 - `bin/ec-connect`
+- `ec-connect-cli.exe` (Windows only)
 - `docs/ec_player_manual.pdf`
 - `BUILD-INFO.txt` with version/build metadata
 
@@ -403,6 +406,8 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             )
         else:
             required_files.append("bin/ec-connect")
+        if spec.is_windows and spec.artifact == "ec-connect":
+            required_files.append("ec-connect-cli.exe")
 
         for relative in required_files:
             path = bundle_root / relative

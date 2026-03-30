@@ -49,6 +49,7 @@ use ec_ui::session::write_terminal_cleanup_sequence;
 /// Error type for bridge operations.
 pub type BridgeError = Box<dyn std::error::Error + Send + Sync>;
 const POST_EXIT_DRAIN_GRACE: Duration = Duration::from_millis(10);
+#[cfg(unix)]
 const STDIN_POLL_GRACE: Duration = Duration::from_millis(20);
 
 fn terminal_channel_event(msg: &ChannelMsg) -> bool {
