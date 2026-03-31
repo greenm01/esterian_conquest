@@ -1,6 +1,7 @@
 pub mod config;
 pub mod identity;
 pub mod invite;
+pub mod publish;
 pub mod roster;
 pub mod serve;
 

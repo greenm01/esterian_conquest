@@ -28,10 +28,16 @@ pub fn print_usage() {
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
     );
     println!(
-        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N>"
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--config <path>] [--identity <path>]"
     );
     println!(
-        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX>"
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
     );
 }
 
@@ -90,10 +96,16 @@ pub fn print_nostr_usage() {
         "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
     );
     println!(
-        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N>"
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--config <path>] [--identity <path>]"
     );
     println!(
-        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX>"
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
+    );
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
     );
 }
 
@@ -144,13 +156,27 @@ pub fn print_nostr_seats_usage() {
 pub fn print_nostr_reissue_usage() {
     println!("Usage:");
     println!(
-        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N>"
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--config <path>] [--identity <path>]"
     );
 }
 
 pub fn print_nostr_claim_usage() {
     println!("Usage:");
     println!(
-        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX>"
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
+    );
+}
+
+pub fn print_nostr_publish_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
+    );
+}
+
+pub fn print_nostr_verify_usage() {
+    println!("Usage:");
+    println!(
+        "  ec-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
     );
 }

@@ -15,6 +15,7 @@ ec-gate = { path = "../ec-gate" }
 ec-log = { path = "../ec-log" }
 ec-nostr = { path = "../ec-nostr" }
 nostr-sdk = { version = "0.44", features = ["nip44"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"
 
 [build-dependencies]

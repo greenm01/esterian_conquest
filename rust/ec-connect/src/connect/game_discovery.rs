@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use ec_nostr::hash::sha256_hex;
-use nostr_sdk::{Client, Event, Filter, Keys, Kind, ToBech32};
+use ec_nostr::hosted::PublishedGameDefinition;
+use nostr_sdk::{Client, Event, Filter, Keys, Kind};
 
 use crate::connect::resolve::{ResolvedTarget, parse_invite_code};
 
@@ -15,24 +16,6 @@ pub struct DiscoveredGame {
     pub ssh_host: String,
     pub ssh_port: u16,
     pub seat: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PublishedGameDefinition {
-    pub gate_npub: String,
-    pub game_id: String,
-    pub game_name: String,
-    pub ssh_host: String,
-    pub ssh_port: u16,
-    pub slots: Vec<PublishedSeatSlot>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PublishedSeatSlot {
-    pub seat: u32,
-    pub invite_code_hash: String,
-    pub player_npub: Option<String>,
-    pub status: String,
 }
 
 pub async fn discover_game_for_invite(
@@ -112,6 +95,12 @@ pub fn select_discovered_game_from_events<'a>(
     if hash_matches.is_empty() {
         // Check whether this code was already claimed — gives a more useful message
         // than the generic "not found" when a player retries after a failed first attempt.
+        let claimed_match_count = events_collected
+            .iter()
+            .filter_map(|event| parse_game_definition(event))
+            .flat_map(|game| game.slots.into_iter())
+            .filter(|slot| slot.status == "claimed" && slot.invite_code_hash == invite_hash)
+            .count();
         let claimed_slot = events_collected.iter().find_map(|event| {
             parse_game_definition(event).and_then(|game| {
                 game.slots
@@ -134,7 +123,14 @@ pub fn select_discovered_game_from_events<'a>(
                     .to_string(),
             );
         }
-        return Err(no_game_found_error(target));
+        tracing::debug!(
+            relay = %target.relay_url,
+            invite_hash = %short_hash(&invite_hash),
+            fetched_definitions = events_collected.iter().filter(|event| parse_game_definition(event).is_some()).count(),
+            claimed_matches = claimed_match_count,
+            "relay fetch succeeded but no pending invite hash matched"
+        );
+        return Err(no_game_found_error(target, events_collected.len()));
     }
 
     // If exactly one game matches the invite hash, accept it even if the host/port
@@ -180,15 +176,18 @@ pub fn select_discovered_game_from_events<'a>(
     }
 }
 
-fn no_game_found_error(target: &ResolvedTarget) -> String {
+fn no_game_found_error(target: &ResolvedTarget, event_count: usize) -> String {
     if is_local_dev_relay(&target.relay_url) {
         format!(
             "could not find this hosted game on the local relay at {}; make sure your local relay and ec-sysop nostr serve are running for this game, then try again",
             target.relay_url
         )
     } else {
-        "could not find this hosted game on the relay; check the invite code and relay, then try again"
-            .to_string()
+        format!(
+            "the relay was reachable, but no pending hosted seat matched this invite ({} public game definition{} checked); check the invite code and relay, and if your sysop recently created or reissued this seat, ask them to republish hosted metadata",
+            event_count,
+            if event_count == 1 { "" } else { "s" },
+        )
     }
 }
 
@@ -210,41 +209,9 @@ fn is_local_dev_relay(relay_url: &str) -> bool {
 }
 
 pub fn parse_game_definition(event: &Event) -> Option<PublishedGameDefinition> {
-    let gate_npub = event.pubkey.to_bech32().ok()?;
-    let mut game_id = None;
-    let mut game_name = None;
-    let mut ssh_host = None;
-    let mut ssh_port = None;
-    let mut slots = Vec::new();
+    ec_nostr::hosted::parse_game_definition(event)
+}
 
-    for tag in event.tags.iter() {
-        let values = tag.clone().to_vec();
-        let Some(kind) = values.first().map(String::as_str) else {
-            continue;
-        };
-        match kind {
-            "d" if values.len() >= 2 => game_id = Some(values[1].clone()),
-            "name" if values.len() >= 2 => game_name = Some(values[1].clone()),
-            "ssh-host" if values.len() >= 2 => ssh_host = Some(values[1].clone()),
-            "ssh-port" if values.len() >= 2 => {
-                ssh_port = values[1].parse::<u16>().ok();
-            }
-            "slot" if values.len() >= 5 => slots.push(PublishedSeatSlot {
-                seat: values[1].parse::<u32>().ok()?,
-                invite_code_hash: values[2].clone(),
-                player_npub: Some(values[3].clone()).filter(|value| !value.trim().is_empty()),
-                status: values[4].clone(),
-            }),
-            _ => {}
-        }
-    }
-
-    Some(PublishedGameDefinition {
-        gate_npub,
-        game_id: game_id?,
-        game_name: game_name?,
-        ssh_host: ssh_host?,
-        ssh_port: ssh_port?,
-        slots,
-    })
+fn short_hash(value: &str) -> &str {
+    &value[..value.len().min(12)]
 }

@@ -7,7 +7,17 @@ use ec_gate::config::io::{config_path, load_config};
 use ec_gate::invite::generate_invite_code;
 use ec_gate::roster::io::load_roster;
 use ec_nostr::hosted::invite_address_from_relay;
-use nostr_sdk::{PublicKey, ToBech32};
+use nostr_sdk::PublicKey;
+
+pub struct ReissuedHostedSeat {
+    pub player_record_index_1_based: usize,
+    pub invite_code: String,
+}
+
+pub struct ClaimedHostedSeat {
+    pub player_record_index_1_based: usize,
+    pub player_pubkey_hex: String,
+}
 
 pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let roster_path = dir.join("roster.kdl");
@@ -100,11 +110,7 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
                     "Seat {}  [claimed]\n",
                     seat.player_record_index_1_based
                 ));
-                let display_npub = nostr_sdk::PublicKey::from_hex(npub)
-                    .ok()
-                    .and_then(|pk| pk.to_bech32().ok())
-                    .unwrap_or_else(|| npub.to_string());
-                out.push_str(&format!("  {display_npub}\n"));
+                out.push_str(&format!("  {npub}\n"));
             }
         }
         out.push('\n');
@@ -112,10 +118,10 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
     Ok(out)
 }
 
-pub fn reissue_hosted_seat(
+pub fn reissue_hosted_seat_record(
     dir: &Path,
     player_record_index_1_based: usize,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<ReissuedHostedSeat, Box<dyn std::error::Error>> {
     let store = CampaignStore::open_default_in_dir(dir)?;
     let invite_code = generate_unique_invite_code(&store.hosted_seats()?);
     let Some(seat) = store.reissue_hosted_seat(player_record_index_1_based, &invite_code)? else {
@@ -125,17 +131,17 @@ pub fn reissue_hosted_seat(
         )
         .into());
     };
-    Ok(format!(
-        "Reissued invite for seat {}: {}",
-        seat.player_record_index_1_based, seat.invite_code
-    ))
+    Ok(ReissuedHostedSeat {
+        player_record_index_1_based: seat.player_record_index_1_based,
+        invite_code: seat.invite_code,
+    })
 }
 
-pub fn claim_hosted_seat(
+pub fn claim_hosted_seat_record(
     dir: &Path,
     player_record_index_1_based: usize,
     player_npub: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<ClaimedHostedSeat, Box<dyn std::error::Error>> {
     let normalized = PublicKey::parse(player_npub.trim())
         .map_err(|err| format!("invalid npub/pubkey: {err}"))?
         .to_hex();
@@ -149,14 +155,10 @@ pub fn claim_hosted_seat(
         )
         .into());
     };
-    let display_npub = PublicKey::from_hex(&normalized)
-        .ok()
-        .and_then(|pubkey| pubkey.to_bech32().ok())
-        .unwrap_or(normalized.clone());
-    Ok(format!(
-        "Claimed seat {} for {}",
-        seat.player_record_index_1_based, display_npub
-    ))
+    Ok(ClaimedHostedSeat {
+        player_record_index_1_based: seat.player_record_index_1_based,
+        player_pubkey_hex: normalized,
+    })
 }
 
 pub(crate) fn build_pending_seats(player_count: usize) -> Vec<HostedSeat> {
@@ -213,84 +215,4 @@ pub fn parse_path_flag(
         i += 1;
     }
     Ok(value)
-}
-
-pub fn parse_dir_and_player_flags(
-    args: &[String],
-) -> Result<(PathBuf, usize), Box<dyn std::error::Error>> {
-    let mut dir = None;
-    let mut player = None;
-    let mut i = 0;
-    while i < args.len() {
-        let arg = &args[i];
-        if arg == "--dir" {
-            i += 1;
-            let Some(next) = args.get(i) else {
-                return Err("missing value for --dir".into());
-            };
-            dir = Some(PathBuf::from(next));
-        } else if let Some(next) = arg.strip_prefix("--dir=") {
-            dir = Some(PathBuf::from(next));
-        } else if arg == "--player" {
-            i += 1;
-            let Some(next) = args.get(i) else {
-                return Err("missing value for --player".into());
-            };
-            player = Some(next.parse::<usize>()?);
-        } else if let Some(next) = arg.strip_prefix("--player=") {
-            player = Some(next.parse::<usize>()?);
-        } else {
-            return Err(format!("unexpected argument: {arg}").into());
-        }
-        i += 1;
-    }
-    Ok((
-        dir.ok_or_else(|| "missing value for --dir")?,
-        player.ok_or_else(|| "missing value for --player")?,
-    ))
-}
-
-pub fn parse_dir_player_npub_flags(
-    args: &[String],
-) -> Result<(PathBuf, usize, String), Box<dyn std::error::Error>> {
-    let mut dir = None;
-    let mut player = None;
-    let mut npub = None;
-    let mut i = 0;
-    while i < args.len() {
-        let arg = &args[i];
-        if arg == "--dir" {
-            i += 1;
-            let Some(next) = args.get(i) else {
-                return Err("missing value for --dir".into());
-            };
-            dir = Some(PathBuf::from(next));
-        } else if let Some(next) = arg.strip_prefix("--dir=") {
-            dir = Some(PathBuf::from(next));
-        } else if arg == "--player" {
-            i += 1;
-            let Some(next) = args.get(i) else {
-                return Err("missing value for --player".into());
-            };
-            player = Some(next.parse::<usize>()?);
-        } else if let Some(next) = arg.strip_prefix("--player=") {
-            player = Some(next.parse::<usize>()?);
-        } else if arg == "--npub" {
-            i += 1;
-            let Some(next) = args.get(i) else {
-                return Err("missing value for --npub".into());
-            };
-            npub = Some(next.to_string());
-        } else if let Some(next) = arg.strip_prefix("--npub=") {
-            npub = Some(next.to_string());
-        } else {
-            return Err(format!("unexpected argument: {arg}").into());
-        }
-        i += 1;
-    }
-    Ok((
-        dir.ok_or_else(|| "missing value for --dir")?,
-        player.ok_or_else(|| "missing value for --player")?,
-        npub.ok_or_else(|| "missing value for --npub")?,
-    ))
 }

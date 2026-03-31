@@ -1,4 +1,5 @@
 mod nostr;
+mod nostr_relay;
 mod usage;
 
 use std::collections::BTreeSet;
@@ -965,9 +966,30 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                 return Ok(());
             }
             init_logging(parsed, false)?;
-            let (dir, player) = nostr::parse_dir_and_player_flags(&rest)?;
+            let flags = parse_path_flags(&rest, &["--dir", "--player", "--config", "--identity"])?;
+            let dir = flags
+                .get("--dir")
+                .cloned()
+                .flatten()
+                .ok_or_else(|| "missing value for --dir".to_string())?;
+            let player = flags
+                .get("--player")
+                .and_then(|value| value.as_ref())
+                .ok_or_else(|| "missing value for --player".to_string())?
+                .to_string_lossy()
+                .parse::<usize>()?;
+            let config_path = flags.get("--config").cloned().flatten();
+            let identity_path = flags.get("--identity").cloned().flatten();
             tracing::info!(dir = %dir.display(), player, "running ec-sysop nostr reissue");
-            println!("{}", nostr::reissue_hosted_seat(&dir, player)?);
+            println!(
+                "{}",
+                nostr_relay::reissue_hosted_seat_with_publish(
+                    &dir,
+                    player,
+                    config_path,
+                    identity_path,
+                )?
+            );
             Ok(())
         }
         "claim" => {
@@ -976,14 +998,130 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                 return Ok(());
             }
             init_logging(parsed, false)?;
-            let (dir, player, npub) = nostr::parse_dir_player_npub_flags(&rest)?;
+            let mut dir = None;
+            let mut player = None;
+            let mut npub = None;
+            let mut config_path = None;
+            let mut identity_path = None;
+            let mut i = 0;
+            while i < rest.len() {
+                match rest[i].as_str() {
+                    "--dir" => {
+                        i += 1;
+                        let Some(next) = rest.get(i) else {
+                            return Err("missing value for --dir".into());
+                        };
+                        dir = Some(PathBuf::from(next));
+                    }
+                    arg if arg.starts_with("--dir=") => {
+                        dir = Some(PathBuf::from(arg.trim_start_matches("--dir=")));
+                    }
+                    "--player" => {
+                        i += 1;
+                        let Some(next) = rest.get(i) else {
+                            return Err("missing value for --player".into());
+                        };
+                        player = Some(next.parse::<usize>()?);
+                    }
+                    arg if arg.starts_with("--player=") => {
+                        player = Some(arg.trim_start_matches("--player=").parse::<usize>()?);
+                    }
+                    "--npub" => {
+                        i += 1;
+                        let Some(next) = rest.get(i) else {
+                            return Err("missing value for --npub".into());
+                        };
+                        npub = Some(next.to_string());
+                    }
+                    arg if arg.starts_with("--npub=") => {
+                        npub = Some(arg.trim_start_matches("--npub=").to_string());
+                    }
+                    "--config" => {
+                        i += 1;
+                        let Some(next) = rest.get(i) else {
+                            return Err("missing value for --config".into());
+                        };
+                        config_path = Some(PathBuf::from(next));
+                    }
+                    arg if arg.starts_with("--config=") => {
+                        config_path = Some(PathBuf::from(arg.trim_start_matches("--config=")));
+                    }
+                    "--identity" => {
+                        i += 1;
+                        let Some(next) = rest.get(i) else {
+                            return Err("missing value for --identity".into());
+                        };
+                        identity_path = Some(PathBuf::from(next));
+                    }
+                    arg if arg.starts_with("--identity=") => {
+                        identity_path =
+                            Some(PathBuf::from(arg.trim_start_matches("--identity=")));
+                    }
+                    arg => return Err(format!("unexpected argument: {arg}").into()),
+                }
+                i += 1;
+            }
+            let dir = dir.ok_or_else(|| "missing value for --dir".to_string())?;
+            let player = player.ok_or_else(|| "missing value for --player".to_string())?;
+            let npub = npub.ok_or_else(|| "missing value for --npub".to_string())?;
             tracing::info!(
                 dir = %dir.display(),
                 player,
                 npub = %npub,
                 "running ec-sysop nostr claim"
             );
-            println!("{}", nostr::claim_hosted_seat(&dir, player, &npub)?);
+            println!(
+                "{}",
+                nostr_relay::claim_hosted_seat_with_publish(
+                    &dir,
+                    player,
+                    &npub,
+                    config_path,
+                    identity_path,
+                )?
+            );
+            Ok(())
+        }
+        "publish" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_publish_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let flags = parse_path_flags(&rest, &["--dir", "--config", "--identity"])?;
+            let dir = flags
+                .get("--dir")
+                .cloned()
+                .flatten()
+                .ok_or_else(|| "missing value for --dir".to_string())?;
+            let config_path = flags.get("--config").cloned().flatten();
+            let identity_path = flags.get("--identity").cloned().flatten();
+            tracing::info!(dir = %dir.display(), "running ec-sysop nostr publish");
+            println!(
+                "{}",
+                nostr_relay::publish_hosted_game(&dir, config_path, identity_path)?
+            );
+            Ok(())
+        }
+        "verify" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_verify_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let flags = parse_path_flags(&rest, &["--dir", "--config", "--identity"])?;
+            let dir = flags
+                .get("--dir")
+                .cloned()
+                .flatten()
+                .ok_or_else(|| "missing value for --dir".to_string())?;
+            let config_path = flags.get("--config").cloned().flatten();
+            let identity_path = flags.get("--identity").cloned().flatten();
+            tracing::info!(dir = %dir.display(), "running ec-sysop nostr verify");
+            println!(
+                "{}",
+                nostr_relay::verify_hosted_game(&dir, config_path, identity_path)?
+            );
             Ok(())
         }
         _ => {

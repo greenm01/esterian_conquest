@@ -1,30 +1,44 @@
-use ec_nostr::hosted::{invite_address_from_relay, relay_url_to_invite_host};
+use ec_nostr::hosted::{invite_address_from_relay, parse_game_definition};
+use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
 
-#[test]
-fn relay_url_to_invite_host_uses_domain_without_port_when_unspecified() {
-    assert_eq!(
-        relay_url_to_invite_host("wss://relay.example.com").unwrap(),
-        "relay.example.com"
-    );
+fn build_game_definition_event() -> nostr_sdk::Event {
+    let keys = Keys::generate();
+    let tags = vec![
+        Tag::parse(["d", "beta-2"]).unwrap(),
+        Tag::parse(["name", "Beta 2"]).unwrap(),
+        Tag::parse(["status", "active"]).unwrap(),
+        Tag::parse(["ssh-host", "play.example.com"]).unwrap(),
+        Tag::parse(["ssh-port", "22"]).unwrap(),
+        Tag::parse(["slot", "2", "abc123", "", "pending"]).unwrap(),
+        Tag::parse(["slot", "3", "def456", "0123deadbeef", "claimed"]).unwrap(),
+    ];
+    EventBuilder::new(Kind::Custom(30500), "")
+        .tags(tags)
+        .sign_with_keys(&keys)
+        .unwrap()
 }
 
 #[test]
-fn relay_url_to_invite_host_preserves_explicit_port() {
-    assert_eq!(
-        relay_url_to_invite_host("wss://relay.example.com:7447").unwrap(),
-        "relay.example.com:7447"
-    );
+fn invite_address_uses_relay_host() {
+    let invite =
+        invite_address_from_relay("amber-river", "wss://relay.example.com:7447").unwrap();
+    assert_eq!(invite, "amber-river@relay.example.com:7447");
 }
 
 #[test]
-fn relay_url_to_invite_host_rejects_paths() {
-    assert!(relay_url_to_invite_host("wss://relay.example.com/socket").is_err());
-}
+fn parse_game_definition_extracts_slots_and_ssh_target() {
+    let event = build_game_definition_event();
 
-#[test]
-fn invite_address_from_relay_formats_token_with_host() {
-    assert_eq!(
-        invite_address_from_relay("amber-river", "wss://relay.example.com").unwrap(),
-        "amber-river@relay.example.com"
-    );
+    let game = parse_game_definition(&event).expect("parse game definition");
+
+    assert_eq!(game.game_id, "beta-2");
+    assert_eq!(game.game_name, "Beta 2");
+    assert_eq!(game.ssh_host, "play.example.com");
+    assert_eq!(game.ssh_port, 22);
+    assert_eq!(game.slots.len(), 2);
+    assert_eq!(game.slots[0].seat, 2);
+    assert_eq!(game.slots[0].invite_code_hash, "abc123");
+    assert_eq!(game.slots[0].player_npub, None);
+    assert_eq!(game.slots[0].status, "pending");
+    assert_eq!(game.slots[1].player_npub.as_deref(), Some("0123deadbeef"));
 }

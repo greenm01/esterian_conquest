@@ -1232,6 +1232,7 @@ dependencies = [
  "ec-log",
  "ec-nostr",
  "nostr-sdk",
+ "tokio",
  "tracing",
  "winresource",
 ]

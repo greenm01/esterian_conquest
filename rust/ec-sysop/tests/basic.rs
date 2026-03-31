@@ -173,7 +173,15 @@ fn ec_sysop_help_lists_public_subcommands() {
     assert!(stdout.contains("host <games|status>"));
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
-    assert!(stdout.contains("nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX>"));
+    assert!(stdout.contains(
+        "nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
+    ));
+    assert!(stdout.contains(
+        "nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
+    ));
+    assert!(stdout.contains(
+        "nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
+    ));
 }
 
 #[test]
@@ -368,6 +376,8 @@ fn ec_sysop_nostr_help_prints_usage() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
+    assert!(stdout.contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"));
+    assert!(stdout.contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"));
 }
 
 #[test]
@@ -463,6 +473,40 @@ fn ec_sysop_nostr_reissue_rotates_one_hosted_seat() {
 }
 
 #[test]
+fn ec_sysop_nostr_reissue_reports_partial_success_when_republish_paths_are_missing() {
+    let root = unique_temp_dir("ec-sysop-nostr-reissue-republish-fail");
+    let target = root.join("game");
+    let missing_config = root.join("missing-config.kdl");
+    let missing_identity = root.join("missing-identity.kdl");
+
+    run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    let before = store.hosted_seats().expect("load seats");
+    let original_code = before[0].invite_code.clone();
+
+    let stderr = run_ec_sysop_failure(&[
+        "nostr",
+        "reissue",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "1",
+        "--config",
+        missing_config.to_str().expect("utf-8 path"),
+        "--identity",
+        missing_identity.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stderr.contains("Reissued invite for seat 1:"));
+    assert!(stderr.contains("Relay publish failed:"));
+    assert!(stderr.contains("Local seat change succeeded"));
+
+    let after = store.hosted_seats().expect("reload seats");
+    assert_ne!(after[0].invite_code, original_code);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn ec_sysop_nostr_claim_marks_requested_hosted_seat_claimed() {
     let target = unique_temp_dir("ec-sysop-nostr-claim");
     run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
@@ -488,6 +532,61 @@ fn ec_sysop_nostr_claim_marks_requested_hosted_seat_claimed() {
     assert_eq!(seats[1].player_npub.as_deref(), Some(player_hex.as_str()));
 
     let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn ec_sysop_nostr_claim_reports_partial_success_when_republish_paths_are_missing() {
+    let root = unique_temp_dir("ec-sysop-nostr-claim-republish-fail");
+    let target = root.join("game");
+    let missing_config = root.join("missing-config.kdl");
+    let missing_identity = root.join("missing-identity.kdl");
+
+    run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+    let player_keys = Keys::generate();
+    let player_npub = player_keys.public_key().to_bech32().expect("npub");
+    let player_hex = player_keys.public_key().to_hex();
+
+    let stderr = run_ec_sysop_failure(&[
+        "nostr",
+        "claim",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "2",
+        "--npub",
+        &player_npub,
+        "--config",
+        missing_config.to_str().expect("utf-8 path"),
+        "--identity",
+        missing_identity.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stderr.contains("Claimed seat 2 for"));
+    assert!(stderr.contains("Relay publish failed:"));
+    assert!(stderr.contains("Local seat change succeeded"));
+
+    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    let seats = store.hosted_seats().expect("load seats");
+    assert_eq!(seats[1].status, HostedSeatStatus::Claimed);
+    assert_eq!(seats[1].player_npub.as_deref(), Some(player_hex.as_str()));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn ec_sysop_nostr_publish_and_verify_help_print_usage() {
+    let publish = run_ec_sysop_output(&["nostr", "publish", "--help"], None);
+    assert!(publish.status.success(), "nostr publish help should succeed");
+    let publish_stdout = String::from_utf8(publish.stdout).expect("stdout should be utf-8");
+    assert!(publish_stdout.contains(
+        "nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
+    ));
+
+    let verify = run_ec_sysop_output(&["nostr", "verify", "--help"], None);
+    assert!(verify.status.success(), "nostr verify help should succeed");
+    let verify_stdout = String::from_utf8(verify.stdout).expect("stdout should be utf-8");
+    assert!(verify_stdout.contains(
+        "nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
+    ));
 }
 
 #[test]

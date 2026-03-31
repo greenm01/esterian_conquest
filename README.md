@@ -165,6 +165,14 @@ Players join with `ec-connect`:
 ec-connect --join amber-river@relay.example.com
 ```
 
+If a hosted invite was reissued or a player reports that the relay cannot find
+an invite that should be pending, verify and republish that game's public
+metadata:
+```bash
+sudo /usr/local/bin/ec-sysop nostr verify --dir /srv/ec/games/friday-night
+sudo /usr/local/bin/ec-sysop nostr publish --dir /srv/ec/games/friday-night
+```
+
 ### 3. Run `ec-game` As A BBS Door
 Create the game and reserve caller aliases:
 ```bash

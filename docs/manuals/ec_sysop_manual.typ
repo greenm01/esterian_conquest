@@ -371,7 +371,18 @@ ec-sysop nostr reissue --dir /path/to/mygame --player 2
 ```
 
 This generates a fresh code for that seat, clears the old claim, and lets the
-player join again with the new code.
+player join again with the new code. On a normal host with the daemon config
+and identity present, `ec-sysop` now also republishes that game's public
+`30500` metadata immediately so the relay sees the new invite hash without
+waiting for a daemon restart.
+
+If a player reports that a pending invite cannot be found on the relay, check
+and repair the published hosted metadata directly:
+
+```
+ec-sysop nostr verify --dir /path/to/mygame
+ec-sysop nostr publish --dir /path/to/mygame
+```
 
 == Hosted Player Identity Management
 
@@ -809,7 +820,9 @@ ec-sysop <subcommand> [options]
   [`nostr init`], [Initialize the Nostr-hosting identity and config for the recommended public multiplayer path.],
   [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `ec-game` sessions.],
   [`nostr seats`], [List the hosted seat state stored in `ecgame.db` for one game directory.],
-  [`nostr reissue`], [Generate a fresh invite code for one hosted seat and clear its old `npub` claim.],
+  [`nostr reissue`], [Generate a fresh invite code for one hosted seat, clear its old player binding, and republish that game's public `30500` metadata when possible.],
+  [`nostr publish`], [Republish one game's public `30500` metadata to the configured relay immediately.],
+  [`nostr verify`], [Compare one game's local hosted-seat state against the latest published `30500` on the configured relay.],
   [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ecgame.db`, copy its display name into the campaign settings rows, and archive the old roster file.],
   [`maint`], [Run one or more maintenance turns against `ecgame.db`.],
   [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions.],

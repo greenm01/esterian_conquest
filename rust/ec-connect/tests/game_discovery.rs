@@ -123,7 +123,9 @@ fn discovery_falls_back_to_gate_override_message_when_no_match_exists() {
     let err = select_discovered_game_from_events([&event], &target(), "amber-river", None)
         .expect_err("no matching event");
 
-    assert!(err.contains("check the invite code and relay"));
+    assert!(err.contains("relay was reachable"));
+    assert!(err.contains("no pending hosted seat matched"));
+    assert!(err.contains("republish hosted metadata"));
     assert!(!err.contains("--gate"));
 }
 
