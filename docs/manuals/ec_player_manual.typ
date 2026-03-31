@@ -141,6 +141,22 @@ In profound respect and admiration to Bentley C. Griffith and his fellow pioneer
 
 = Connecting to a Game
 
+== Finding New Games
+
+If you do not already have an invite code, start at
+#link("https://esterianconquest.com")[esterianconquest.com]. That landing page
+points to the current public meeting places for live campaigns and player
+announcements.
+
+Right now, the main public meeting place is the Discord channel at
+#link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa]. The landing page
+also points to the `EC Sysop` Nostr/Primal presence for direct contact.
+
+Once a sysop has a seat ready for you, he gives you an invite code in the
+normal `amber-river@relay.example.com` form.
+
+== Joining a Game
+
 Your sysop will give you an invite code, usually in a command like
 `ec-connect --join amber-river@relay.example.com`. Here is the normal picker
 flow:

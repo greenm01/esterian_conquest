@@ -285,6 +285,12 @@ live game still runs inside `ec-game` over SSH. This keeps the original
 asynchronous EC rhythm without requiring per-player Unix account management or
 BBS door middleware.
 
+If you are recruiting players for a live public game, point them first to
+#link("https://esterianconquest.com")[esterianconquest.com]. That landing page
+can carry the current public contact points and community links before you
+issue seat-specific invites. At the moment, it should direct them to the
+Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
+
 A minimal hosted setup looks like:
 
 ```

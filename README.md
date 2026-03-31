@@ -23,6 +23,12 @@ EC is a faithful reconstruction. We kept the campaign feel, the menus, the repor
 
 Esterian Conquest is best played today over **Nostr**.
 
+If you are looking for a live game, start at
+[esterianconquest.com](https://esterianconquest.com). That landing page points
+to the current public meeting places for game announcements and player
+recruitment, including the Discord invite:
+[discord.gg/FMr8sfBa](https://discord.gg/FMr8sfBa).
+
 Nostr is the protocol that powers multiplayer in EC. It delivers a clean, secure, and decentralized experience — no traditional BBS middleware, no manual Unix accounts, and far less middleman friction than the old days.
 
 Joining is straightforward:
