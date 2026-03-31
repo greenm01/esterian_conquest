@@ -40,7 +40,9 @@ rpassword = "7"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "signal", "sync"] }
 
 # SSH client: ephemeral keypair auth, PTY channel I/O
-russh = "0.58.1"
+# Use `ring` instead of russh's default `aws-lc-rs` backend so Windows GNU
+# builds do not require NASM.
+russh = { version = "0.58.1", default-features = false, features = ["flate2", "ring", "rsa"] }
 
 # SSH keypair generation using russh's key type
 # (ed25519-dalek is transitively provided by russh)

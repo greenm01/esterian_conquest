@@ -4,6 +4,7 @@ mod usage;
 
 use std::collections::BTreeSet;
 use std::env;
+#[cfg(unix)]
 use std::fs;
 use std::path::{Path, PathBuf};
 
