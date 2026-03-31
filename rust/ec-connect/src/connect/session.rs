@@ -391,7 +391,7 @@ async fn finalize_first_join_after_session(
     touch_cache_entry(&state.game_id);
     match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
         Ok(bundle) => {
-            match save_map_bundle(&bundle, &target.server_host, target.server_port, maps_root) {
+            match save_map_bundle(&bundle, &target.relay_url, maps_root) {
                 Ok(path) => FirstJoinCompletion {
                     notice: None,
                     maps_saved_to: Some(path),

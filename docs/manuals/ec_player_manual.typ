@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 30),
+  date: datetime(year: 2026, month: 3, day: 31),
 )
 
 #set page(
@@ -89,7 +89,7 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 30, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: March 31, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -173,8 +173,9 @@ session. The invite already carries the relay host, and `ec-connect`
 discovers the rest from there. Your seat is not claimed until you actually
 save your empire name in the game. After that completed first join,
 `ec-connect` downloads the campaign starmap bundle and remembers the game
-locally. Later, press `M` in the picker to change the default maps folder
-and re-download the bundle for the currently selected game.
+locally in your Documents `ec/maps` folder. Later, press `M` in the picker
+to change the default maps folder and re-download the bundle for the
+currently selected game.
 
 One EC wallet identity can hold only one seat in a hosted game. If you have
 already completed the first join for that game, reconnect with that same

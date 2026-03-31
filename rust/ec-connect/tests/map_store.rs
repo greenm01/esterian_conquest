@@ -36,10 +36,10 @@ fn encoded_file(name: &str, contents: &str) -> MapFilePayload {
 }
 
 #[test]
-fn default_maps_root_ends_with_ec_maps() {
+fn default_maps_root_ends_with_documents_ec_maps() {
     let root = default_maps_root();
     let rendered = root.to_string_lossy();
-    assert!(rendered.ends_with("ec/maps") || rendered.ends_with("ec\\maps"));
+    assert!(rendered.ends_with("Documents/ec/maps") || rendered.ends_with("Documents\\ec\\maps"));
 }
 
 #[test]
@@ -53,12 +53,19 @@ fn resolve_maps_root_prefers_cli_over_config() {
 }
 
 #[test]
-fn map_bundle_dir_uses_server_port_and_game_id() {
+fn map_bundle_dir_uses_relay_host_and_game_id() {
     let root = PathBuf::from("/tmp/maps");
-    let dir = map_bundle_dir(&root, "play.example.com", 2222, "friday-night");
+    let dir = map_bundle_dir(&root, "wss://relay.example.com", "friday-night");
+    assert_eq!(dir, PathBuf::from("/tmp/maps/relay.example.com/friday-night"));
+}
+
+#[test]
+fn map_bundle_dir_keeps_custom_relay_port_suffix() {
+    let root = PathBuf::from("/tmp/maps");
+    let dir = map_bundle_dir(&root, "wss://relay.example.com:7447", "friday-night");
     assert_eq!(
         dir,
-        PathBuf::from("/tmp/maps/play.example.com_2222/friday-night")
+        PathBuf::from("/tmp/maps/relay.example.com_7447/friday-night")
     );
 }
 
@@ -76,9 +83,9 @@ fn save_map_bundle_decodes_and_writes_all_files() {
         ],
     };
 
-    let saved =
-        save_map_bundle(&bundle, "play.example.com", 22, &root).expect("bundle should save");
-    assert_eq!(saved, root.join("play.example.com_22").join("friday-night"));
+    let saved = save_map_bundle(&bundle, "wss://relay.example.com", &root)
+        .expect("bundle should save");
+    assert_eq!(saved, root.join("relay.example.com").join("friday-night"));
     assert_eq!(
         fs::read_to_string(saved.join("starmap.txt")).unwrap(),
         "STAR MAP"

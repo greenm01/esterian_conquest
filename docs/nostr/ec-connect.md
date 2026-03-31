@@ -610,22 +610,21 @@ hosts use `wss://`.
 
 ## File Locations
 
-By default, `ec-connect` stores its files under the platform's local app
-data directory. On Linux this is typically XDG-style under
-`~/.local/share`. On macOS and Windows, `ec-connect` uses the equivalent
-local application-data location provided by the `dirs` crate.
+By default, `ec-connect` stores maps under the platform's real Documents
+folder and keeps its wallet/cache files in the platform-appropriate
+config/data locations.
 
 | File | Default Linux-style path | Purpose |
 |------|------|---------|
 | Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay, optional `maps-dir` override |
 | Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
-| Maps root | `~/.local/share/ec/maps/` | Downloaded static map bundles |
+| Maps root | `~/Documents/ec/maps/` | Downloaded static map bundles |
 
 Within the maps root, bundles are stored as:
 
 ```text
-<maps-root>/<server_host>_<port>/<game_id>/
+<maps-root>/<relay_host>[_port]/<game_id>/
   starmap.txt
   starmap.csv
   starmap-DETAILS.csv
@@ -635,7 +634,7 @@ Path resolution priority for the maps root is:
 
 1. `--maps-dir <PATH>` on the current `ec-connect` invocation
 2. `maps-dir` in `config.kdl`
-3. Platform default local app-data directory
+3. Platform default Documents directory (`~/Documents/ec/maps` or `%USERPROFILE%\Documents\ec\maps`)
 
 In picker mode, if the player changes the maps root from the `M` popup,
 that choice is written back to `maps-dir` and becomes the active maps

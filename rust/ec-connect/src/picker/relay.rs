@@ -677,8 +677,7 @@ fn submit_map_download_with_prompted_relay(
         Ok(bundle) => {
             match save_map_bundle(
                 &bundle,
-                &target.server_host,
-                target.server_port,
+                &target.relay_url,
                 state.maps_root.as_path(),
             ) {
                 Ok(path) => {

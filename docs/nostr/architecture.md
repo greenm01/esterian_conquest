@@ -255,15 +255,16 @@ not on every reconnect.
 
 ## Player-Side File Layout
 
-`ec-connect` stores its files according to XDG conventions (with
-platform-appropriate equivalents on Windows and macOS):
+`ec-connect` stores downloaded maps under the user's Documents folder and
+keeps its other local files in the platform-appropriate config/data
+locations:
 
 | File | Path | Purpose |
 |------|------|---------|
 | Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay |
 | Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
-| Maps | `~/.local/share/ec/maps/` | Downloaded static starmap bundles |
+| Maps | `~/Documents/ec/maps/` | Downloaded static starmap bundles |
 
 Config is user-edited (server bookmarks, relay preference). Wallet and
 cache are managed by `ec-connect` and should not be hand-edited. They are

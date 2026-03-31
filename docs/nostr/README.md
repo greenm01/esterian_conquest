@@ -76,18 +76,19 @@ the hosted Nostr path and still uses the normal SSH-backed session transport.
 
 ## Player-Side Files
 
-`ec-connect` follows XDG conventions for file placement:
+`ec-connect` stores maps under the user's Documents folder and keeps other
+player state in the platform-appropriate config/data locations:
 
 | File | Path | Purpose |
 |------|------|---------|
 | Config | `~/.config/ec/config.kdl` | Server bookmarks, default Nostr relay |
 | Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
 | Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
-| Maps | `~/.local/share/ec/maps/` | Downloaded static starmap bundles |
+| Maps | `~/Documents/ec/maps/` | Downloaded static starmap bundles |
 
-On Windows and macOS, platform-appropriate equivalents are used via the
-`dirs` crate. Players can override the maps root with `maps-dir` in the
-config file or `--maps-dir` on the command line.
+On Windows, the maps root resolves to `%USERPROFILE%\Documents\ec\maps`.
+Players can override the maps root with `maps-dir` in the config file or
+`--maps-dir` on the command line.
 
 ## Reading Order
 

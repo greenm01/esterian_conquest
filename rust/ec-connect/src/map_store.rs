@@ -5,13 +5,14 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use sha2::{Digest, Sha256};
+use url::Url;
 
 use crate::connect::map_fetch::MapBundlePayload;
 
 pub fn default_maps_root() -> PathBuf {
-    let base = dirs::data_local_dir().unwrap_or_else(|| {
+    let base = dirs::document_dir().unwrap_or_else(|| {
         dirs::home_dir()
-            .map(|h| h.join(".local").join("share"))
+            .map(|h| h.join("Documents"))
             .unwrap_or_else(|| PathBuf::from("."))
     });
     base.join("ec").join("maps")
@@ -26,26 +27,20 @@ pub fn resolve_maps_root(config_override: Option<&Path>, cli_override: Option<&P
 
 pub fn map_bundle_dir(
     maps_root: &Path,
-    server_host: &str,
-    server_port: u16,
+    relay_url: &str,
     game_id: &str,
 ) -> PathBuf {
     maps_root
-        .join(format!(
-            "{}_{}",
-            sanitize_component(server_host),
-            server_port
-        ))
+        .join(relay_bucket_name(relay_url))
         .join(sanitize_component(game_id))
 }
 
 pub fn save_map_bundle(
     bundle: &MapBundlePayload,
-    server_host: &str,
-    server_port: u16,
+    relay_url: &str,
     maps_root: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let final_dir = map_bundle_dir(maps_root, server_host, server_port, &bundle.game_id);
+    let final_dir = map_bundle_dir(maps_root, relay_url, &bundle.game_id);
     let parent = final_dir
         .parent()
         .ok_or("map bundle directory has no parent")?;
@@ -94,6 +89,34 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hasher.update(bytes);
     let digest = hasher.finalize();
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn relay_bucket_name(relay_url: &str) -> String {
+    let Ok(url) = Url::parse(relay_url) else {
+        return sanitize_component(relay_url);
+    };
+
+    let host = url
+        .host_str()
+        .map(sanitize_component)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "unknown".to_string());
+    let Some(port) = url.port() else {
+        return host;
+    };
+    if Some(port) == default_port_for_scheme(url.scheme()) {
+        host
+    } else {
+        format!("{host}_{port}")
+    }
+}
+
+fn default_port_for_scheme(scheme: &str) -> Option<u16> {
+    match scheme {
+        "wss" | "https" => Some(443),
+        "ws" | "http" => Some(80),
+        _ => None,
+    }
 }
 
 fn sanitize_component(value: &str) -> String {

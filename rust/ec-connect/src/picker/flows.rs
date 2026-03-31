@@ -190,8 +190,7 @@ pub fn redownload_selected_maps_with_config(
     match rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game_id)) {
         Ok(bundle) => match save_map_bundle(
             &bundle,
-            &target.server_host,
-            target.server_port,
+            &target.relay_url,
             state.maps_root.as_path(),
         ) {
             Ok(path) => state.show_notice(format!("Maps saved to {}", path.display())),
