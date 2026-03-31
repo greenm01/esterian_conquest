@@ -195,12 +195,12 @@ pub fn render_first_time_join_name(
         let mut last_content_row = 2;
         if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
             buffer.write_text(
-                5,
+                4,
                 LEFT_WINDOW_PAD_COL,
                 &format!("Invite code: {invite_code}"),
                 classic::notice_style(),
             );
-            last_content_row = 5;
+            last_content_row = 4;
         }
         last_content_row
     } else {

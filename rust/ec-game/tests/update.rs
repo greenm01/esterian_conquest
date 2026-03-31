@@ -2702,6 +2702,17 @@ fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
             .plain_line(row)
             .contains("Invite code: velvet-mountain")
     }));
+    assert!(
+        screen
+            .plain_line(2)
+            .contains("Enter the name of your empire (up to 20 characters).")
+    );
+    assert_eq!(screen.plain_line(3), "");
+    assert!(
+        screen
+            .plain_line(4)
+            .contains("Invite code: velvet-mountain")
+    );
     assert!(!(0..screen.height()).any(|row| screen.plain_line(row).contains("npub1hostedplayer")));
     // The FTM menu rows must not appear on the hosted empire naming screen.
     assert!(!(0..screen.height()).any(|row| screen.plain_line(row).contains("uit back to BBS")));
