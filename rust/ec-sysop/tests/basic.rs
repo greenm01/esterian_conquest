@@ -25,6 +25,10 @@ fn unique_temp_dir(prefix: &str) -> PathBuf {
     root
 }
 
+fn current_username() -> String {
+    std::env::var("USER").expect("USER should be set for ec-sysop tests")
+}
+
 fn run_ec_sysop(args: &[&str]) -> String {
     let output = run_ec_sysop_output(args, None);
 
@@ -232,15 +236,18 @@ fn ec_sysop_host_games_add_list_remove_and_status_use_gate_config() {
     let game_two = root.join("saturday-showdown");
 
     let cfg = parse_config_str(
-        r#"
+        &format!(
+            r#"
 relay "wss://relay.example.com"
 ssh-host "play.example.com"
 ssh-port 22
-ssh-user "ecgame"
+ssh-user "{}"
 auth-keys-method "command"
 auth-keys-path "/var/lib/ec-gate/keys"
 key-ttl 60
 "#,
+            current_username()
+        ),
     )
     .expect("parse config");
     save_config(&config_path, &cfg).expect("save config");
@@ -291,6 +298,7 @@ key-ttl 60
     assert!(status.contains("slug=friday-night"));
     assert!(status.contains("name=Friday Night"));
     assert!(status.contains("slug=saturday-showdown"));
+    assert!(status.contains("service_writable=true"));
 
     let remove = run_ec_sysop(&[
         "host",
@@ -312,6 +320,43 @@ key-ttl 60
     ]);
     assert!(!list_after.contains(game_one.to_str().expect("utf-8 path")));
     assert!(list_after.contains(game_two.to_str().expect("utf-8 path")));
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn ec_sysop_host_games_add_rejects_game_not_writable_by_service_user() {
+    let root = unique_temp_dir("ec-sysop-host-games-perms");
+    let config_path = root.join("config.kdl");
+    let game_dir = root.join("beta-2");
+
+    let cfg = parse_config_str(
+        r#"
+relay "wss://relay.example.com"
+ssh-host "play.example.com"
+ssh-port 22
+ssh-user "root"
+auth-keys-method "command"
+auth-keys-path "/var/lib/ec-gate/keys"
+key-ttl 60
+"#,
+    )
+    .expect("parse config");
+    save_config(&config_path, &cfg).expect("save config");
+
+    run_ec_sysop(&["new-game", game_dir.to_str().expect("utf-8 path")]);
+
+    let stderr = run_ec_sysop_failure(&[
+        "host",
+        "games",
+        "add",
+        "--config",
+        config_path.to_str().expect("utf-8 path"),
+        "--dir",
+        game_dir.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stderr.contains("is not writable by service user 'root'"));
+    assert!(stderr.contains("sudo -u root ec-sysop new-game"));
 
     let _ = fs::remove_dir_all(&root);
 }

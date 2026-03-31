@@ -140,10 +140,13 @@ to `127.0.0.1:8080` with Caddy or another reverse proxy serving
 
 Create and register games:
 ```bash
-cargo run -q -p ec-sysop -- new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
+sudo -u ecgame /usr/local/bin/ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 sudo /usr/local/bin/ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
 sudo systemctl restart ec-nostr.service
 ```
+
+Create hosted games as the `ecgame` service user so `ec-nostr.service` can
+write session leases into `ecgame.db`.
 
 Run the daemon:
 ```bash

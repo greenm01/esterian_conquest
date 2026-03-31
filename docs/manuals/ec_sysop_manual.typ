@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 30),
+  date: datetime(year: 2026, month: 3, day: 31),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(0.5em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: March 30, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: March 31, 2026]
 ]
 
 #pagebreak()
@@ -189,7 +189,7 @@ Use this when one operator wants to run many games for many players on one
 server.
 
 1. Run `scripts/install_vps.sh` as root.
-2. Put each game under `/srv/ec/games/<slug>/`.
+2. Create each game under `/srv/ec/games/<slug>/` as the `ecgame` service user.
 3. Register each game with `ec-sysop host games add` as root.
 4. Run one `ec-sysop nostr serve` daemon for all games.
 5. Run one `ec-sysop maint-all` timer for all games.
@@ -252,10 +252,17 @@ All tools take `--dir /path/to/mygame` to locate the game.
 Create a new game with `ec-sysop new-game`:
 
 ```
-ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
+sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 ```
 
 This creates one runtime file: `ecgame.db`.
+
+#admonition("IMPORTANT")[
+  On a VPS host installed with `scripts/install_vps.sh`, create hosted games as
+  the `ecgame` service user. If you create `/srv/ec/games/<slug>` as `root`,
+  the `ec-nostr.service` daemon may fail to write session leases and hosted
+  joins can time out.
+]
 
 The supported public creation flags are:
 
@@ -294,7 +301,7 @@ Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
 A minimal hosted setup looks like:
 
 ```
-ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
+sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
 sudo ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
 sudo systemctl restart ec-nostr.service
 ec-sysop nostr init

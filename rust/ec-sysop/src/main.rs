@@ -3,6 +3,7 @@ mod usage;
 
 use std::collections::BTreeSet;
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use ec_data::{CampaignSettings, CampaignStore, SeatReservation, generate_campaign_seed};
@@ -441,6 +442,7 @@ fn run_host_games(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 .flatten()
                 .ok_or_else(|| "missing value for --dir".to_string())?;
             let mut config = ec_gate::config::load_config(&config_path)?;
+            validate_hosted_game_service_access(&dir, &config.ssh_user)?;
             if config.games.iter().any(|game| game == &dir) {
                 println!("Game already registered: {}", dir.display());
                 return Ok(());
@@ -525,16 +527,21 @@ fn run_host_status(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             .count();
         let busy = store.has_live_session_leases(now)?;
         let due = settings.maintenance_due_at(now);
+        let service_access_issue = hosted_game_service_access_issue(dir, &config.ssh_user)?;
         println!(
-            "game={} slug={} name={} seats={} claimed={} busy={} maintenance_due={}",
+            "game={} slug={} name={} seats={} claimed={} busy={} maintenance_due={} service_writable={}",
             dir.display(),
             settings.slug,
             settings.game_name,
             seats.len(),
             claimed,
             busy,
-            due
+            due,
+            service_access_issue.is_none()
         );
+        if let Some(issue) = service_access_issue {
+            println!("warning={issue}");
+        }
     }
 
     Ok(())
@@ -600,6 +607,153 @@ fn validate_reservations_against_runtime(
     settings
         .validate_reservations_for_player_count(runtime_state.game_data.player.records.len())?;
     Ok(())
+}
+
+fn validate_hosted_game_service_access(
+    dir: &Path,
+    ssh_user: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(issue) = hosted_game_service_access_issue(dir, ssh_user)? {
+        return Err(issue.into());
+    }
+    Ok(())
+}
+
+fn hosted_game_service_access_issue(
+    dir: &Path,
+    ssh_user: &str,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    #[cfg(unix)]
+    {
+        let account = unix_account_for_user(ssh_user)?;
+        let db_path = dir.join("ecgame.db");
+        let dir_meta =
+            fs::metadata(dir).map_err(|err| format!("cannot stat {}: {err}", dir.display()))?;
+        if !unix_account_can_read_write_execute(&dir_meta, &account) {
+            return Ok(Some(format!(
+                "{} is not writable by service user '{}'; create hosted games with 'sudo -u {} ec-sysop new-game {} --name \"<Game Name>\" --players 4' or repair ownership with 'sudo chown -R {}:{} {}'",
+                dir.display(),
+                ssh_user,
+                ssh_user,
+                dir.display(),
+                ssh_user,
+                ssh_user,
+                dir.display()
+            )));
+        }
+        let db_meta = fs::metadata(&db_path)
+            .map_err(|err| format!("cannot stat {}: {err}", db_path.display()))?;
+        if !unix_account_can_read_write(&db_meta, &account) {
+            return Ok(Some(format!(
+                "{} is not writable by service user '{}'; create hosted games with 'sudo -u {} ec-sysop new-game {} --name \"<Game Name>\" --players 4' or repair ownership with 'sudo chown -R {}:{} {}'",
+                db_path.display(),
+                ssh_user,
+                ssh_user,
+                dir.display(),
+                ssh_user,
+                ssh_user,
+                dir.display()
+            )));
+        }
+        Ok(None)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (dir, ssh_user);
+        Ok(None)
+    }
+}
+
+#[cfg(unix)]
+#[derive(Debug)]
+struct UnixAccount {
+    uid: u32,
+    gids: BTreeSet<u32>,
+}
+
+#[cfg(unix)]
+fn unix_account_for_user(username: &str) -> Result<UnixAccount, Box<dyn std::error::Error>> {
+    let passwd = fs::read_to_string("/etc/passwd")
+        .map_err(|err| format!("cannot read /etc/passwd: {err}"))?;
+    let mut uid = None;
+    let mut primary_gid = None;
+    for line in passwd.lines() {
+        let mut fields = line.split(':');
+        let Some(name) = fields.next() else {
+            continue;
+        };
+        if name != username {
+            continue;
+        }
+        let _password = fields.next();
+        uid = Some(
+            fields
+                .next()
+                .ok_or_else(|| format!("invalid /etc/passwd entry for {username}"))?
+                .parse::<u32>()?,
+        );
+        primary_gid = Some(
+            fields
+                .next()
+                .ok_or_else(|| format!("invalid /etc/passwd entry for {username}"))?
+                .parse::<u32>()?,
+        );
+        break;
+    }
+    let uid = uid.ok_or_else(|| format!("service user '{}' not found in /etc/passwd", username))?;
+    let primary_gid =
+        primary_gid.ok_or_else(|| format!("service user '{}' has no primary group", username))?;
+    let mut gids = BTreeSet::from([primary_gid]);
+    if let Ok(group_text) = fs::read_to_string("/etc/group") {
+        for line in group_text.lines() {
+            let mut fields = line.split(':');
+            let _group_name = fields.next();
+            let _password = fields.next();
+            let Some(gid_raw) = fields.next() else {
+                continue;
+            };
+            let Some(members_raw) = fields.next() else {
+                continue;
+            };
+            if !members_raw
+                .split(',')
+                .filter(|member| !member.is_empty())
+                .any(|member| member == username)
+            {
+                continue;
+            }
+            gids.insert(gid_raw.parse::<u32>()?);
+        }
+    }
+    Ok(UnixAccount { uid, gids })
+}
+
+#[cfg(unix)]
+fn unix_account_can_read_write(meta: &fs::Metadata, account: &UnixAccount) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    let mode = meta.mode();
+    if meta.uid() == account.uid {
+        return (mode & 0o600) == 0o600;
+    }
+    if account.gids.contains(&meta.gid()) {
+        return (mode & 0o060) == 0o060;
+    }
+    (mode & 0o006) == 0o006
+}
+
+#[cfg(unix)]
+fn unix_account_can_read_write_execute(meta: &fs::Metadata, account: &UnixAccount) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    let mode = meta.mode();
+    if meta.uid() == account.uid {
+        return (mode & 0o700) == 0o700;
+    }
+    if account.gids.contains(&meta.gid()) {
+        return (mode & 0o070) == 0o070;
+    }
+    (mode & 0o007) == 0o007
 }
 
 fn slug_from_dir(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {

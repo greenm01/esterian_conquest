@@ -74,6 +74,9 @@ Host game-registry edits still happen as `root` because `/etc/ec-gate/config.kdl
 is host-owned. After `host games add/remove`, restart `ec-nostr.service` so the
 daemon reloads the updated game list.
 
+Create hosted games under `/srv/ec/games` as the `ecgame` service user, not as
+plain `root`, so the daemon can write session leases into `ecgame.db`.
+
 ### `new_test_game.py`
 
 Creates a fresh joinable game directory using the normal Rust sysop flow.
