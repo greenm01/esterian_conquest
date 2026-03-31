@@ -1,12 +1,11 @@
 # Release Signing
 
-Public Rust player downloads are published with a signed checksum manifest.
+Public GitHub Releases do not currently publish Rust player archives during the
+beta, so there is no active public `SHA256SUMS.txt` manifest on the release
+page right now.
 
-Current scope:
-
-- the signed files cover the public `ec-connect` archives on GitHub Releases
-- the preserved DOS compatibility bundles on the same release page are not part
-  of the signed checksum set
+This page keeps the signing key and verification flow documented for direct
+test handoffs and for the future point when public Rust archives return.
 
 ## Public Key
 
@@ -21,7 +20,8 @@ C350 4EE1 EE38 410C E1C4 33BC 372B 8AAA CB86 7F13
 
 ## Verify A Release
 
-Download the release assets you want plus:
+When a signed Rust player build is distributed, download the archive you want
+plus:
 
 - `SHA256SUMS.txt`
 - `SHA256SUMS.txt.asc`

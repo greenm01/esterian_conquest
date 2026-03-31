@@ -35,7 +35,7 @@ Joining is straightforward:
 
 - A sysop gives you an invite code. You join the campaign with a single command.
 - The `ec-connect` tool creates and manages your encrypted Nostr identity, then opens a secure SSH-backed session.
-- The public `ec-connect` archive now ships a standalone GUI player on Windows, Linux, and macOS. The Linux build supports both X11 and Wayland from the same package. `ec-connect-cli` remains a Cargo-only power-user binary and is not part of the public player archive.
+- During the current beta, players should get `ec-connect` directly from their sysop or a private test handoff, along with the player manual PDF. The packaged desktop client supports Windows, Linux, and macOS, and the Linux build supports both X11 and Wayland from the same package. `ec-connect-cli` remains a Cargo-only power-user binary and is not part of the normal player handoff.
 - On your first connection, the client automatically downloads the campaign starmap and CSV sheets to your local machine. From then on, your assets stay on your own system.
 
 This keeps the classic EC rhythm — connect, read reports, issue orders, log out — while cutting away most of the old friction. Just you, your empire, and the stars.
@@ -62,14 +62,14 @@ policy is:
 
 | Audience | Current Path |
 |---|---|
-| Normal player | Download the public `ec-connect` archive and use the bundled player manual PDF |
+| Normal player | Get a direct/private beta `ec-connect` build from your sysop and use the bundled player manual PDF |
 | Rust self-host sysop | Build from tagged source with Cargo |
 | Rust VPS sysop | Build from tagged source with Cargo and use `scripts/install_vps.sh` |
 | BBS sysop | Build from source, or use a direct/private beta build |
 
-Public GitHub Releases currently keep the DOS compatibility bundles plus the
-player-facing `ec-connect` archives. The public `ec-connect` downloads include
-a signed `SHA256SUMS.txt` manifest for verification.
+Public GitHub Releases currently keep only the DOS compatibility bundles.
+Rust player builds are still direct/private beta handoffs rather than public
+release-page downloads.
 See [Release Policy](docs/release-policy.md).
 
 ## Background

@@ -8,16 +8,15 @@ games.
 
 | Audience | Public Download Today | Expected Install Path |
 |---|---|---|
-| Normal player | Public `ec-connect` archive plus the player manual PDF | Download the matching `ec-connect` archive from GitHub Releases |
+| Normal player | Direct/private beta `ec-connect` build plus the player manual PDF | Receive the current test build directly from the sysop or project team |
 | Rust self-host sysop | Tagged source release | `cargo build --release` |
 | Rust VPS sysop | Tagged source release | `cargo build --release` plus `scripts/install_vps.sh` |
 | BBS sysop | No public Rust door package yet | Build from source, or use a direct/private beta build |
 | Windows BBS sysop | No public package | Best-effort source build only |
 
-Public GitHub Releases currently keep the DOS compatibility bundles plus the
-player-facing `ec-connect` archives. The public `ec-connect` downloads are
-covered by a signed `SHA256SUMS.txt` manifest; the DOS compatibility bundles
-on the same page are not.
+Public GitHub Releases currently keep only the DOS compatibility bundles.
+Public `ec-connect` archives and their signed `SHA256SUMS.txt` manifest are
+not published there during the current beta.
 
 ## Target Stable Policy
 

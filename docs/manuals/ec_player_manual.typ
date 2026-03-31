@@ -175,16 +175,17 @@ and re-download the bundle for the currently selected game.
 
 == ec-connect Setup
 
-Download the public `ec-connect` archive that matches your machine. Keep this
-manual with it. Your sysop may still hand you the archive directly for a
-private test.
+Get the current `ec-connect` build from your sysop or another direct beta
+handoff. Keep this manual with it. Public GitHub Releases do not publish
+player archives during the current beta.
 
 === Windows
 
-Extract the `.zip` archive to a folder of your choice. Double-click
-`ec-connect.exe` to launch the normal player window. No installation
-required. The same archive also includes `ec-connect-cli.exe` for direct
-terminal workflows and scripted troubleshooting.
+If your sysop gives you the Windows `.zip` build, extract it to a folder of
+your choice. Double-click `ec-connect.exe` to launch the normal player
+window. No installation required. The same archive also includes
+`ec-connect-cli.exe` for direct terminal workflows and scripted
+troubleshooting.
 
 On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you

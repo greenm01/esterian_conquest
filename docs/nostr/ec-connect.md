@@ -2,12 +2,14 @@
 
 `ec-connect` is the player-side client binary. It manages Nostr identity,
 authenticates with game servers, and launches SSH-backed `ec-game` sessions.
-The public desktop archive now ships `ec-connect` as a standalone GUI-first
-player on Windows, Linux, and macOS. The Linux build supports both X11 and
-Wayland from the same package. `ec-connect-cli` remains available from Cargo
-or source builds for advanced manual workflows, but it is not part of the
-public player archive. Like `ec-game` and `ec-sysop`, it should currently be
-treated as beta-quality software and playtested accordingly.
+During the current beta, players normally receive `ec-connect` through a
+direct/private test handoff rather than a public GitHub release archive. The
+packaged desktop client supports Windows, Linux, and macOS, and the Linux
+build supports both X11 and Wayland from the same package. `ec-connect-cli`
+remains available from Cargo or source builds for advanced manual workflows,
+but it is not part of the normal player handoff. Like `ec-game` and
+`ec-sysop`, it should currently be treated as beta-quality software and
+playtested accordingly.
 
 ## Player Experience
 
@@ -579,10 +581,10 @@ This is transparent to the player. The experience is still the classic
 
 ### GUI and CLI Paths
 
-The public Windows, Linux, and macOS archives use the native GUI frontend for
-both the picker and the live session. The Cargo/source-only `ec-connect-cli`
-companion keeps the older raw-terminal bridge path for manual troubleshooting
-or terminal-first workflows.
+Packaged desktop builds use the native GUI frontend for both the picker and the
+live session. The Cargo/source-only `ec-connect-cli` companion keeps the older
+raw-terminal bridge path for manual troubleshooting or terminal-first
+workflows.
 
 `russh` (the SSH client library) is pure Rust and works on Windows,
 macOS, and Linux without platform-specific dependencies.
