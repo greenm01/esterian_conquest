@@ -173,6 +173,10 @@ save your empire name in the game. After that completed first join,
 locally. Later, press `M` in the picker to change the default maps folder
 and re-download the bundle for the currently selected game.
 
+One EC wallet identity can hold only one seat in a hosted game. If you have
+already completed the first join for that game, reconnect with that same
+identity instead of trying to redeem a second invite from it.
+
 == ec-connect Setup
 
 Get the current `ec-connect` build from your sysop or another direct beta
@@ -214,6 +218,9 @@ The packaged GUI keeps one active identity at a time.
 - `Enter` shows the full `npub` and `nsec`
 
 The wallet is local client state. It is not the server's player list.
+Replacing your current identity does not move any already-claimed hosted
+seat. Those stay bound to the original identity until your sysop reissues the
+seat with a new invite.
 
 == Relay Configuration
 

@@ -35,6 +35,7 @@ Joining is straightforward:
 
 - A sysop gives you an invite code. You join the campaign with a single command.
 - The `ec-connect` tool creates and manages your encrypted Nostr identity, then opens a secure SSH-backed session.
+- One hosted identity can claim only one seat in a given game. If you already joined that game, reconnect with the same wallet identity instead of redeeming another invite from it.
 - During the current beta, players should get `ec-connect` directly from their sysop or a private test handoff, along with the player manual PDF. The packaged desktop client supports Windows, Linux, and macOS, and the Linux build supports both X11 and Wayland from the same package. `ec-connect-cli` remains a Cargo-only power-user binary and is not part of the normal player handoff.
 - On your first connection, the client automatically downloads the campaign starmap and CSV sheets to your local machine. From then on, your assets stay on your own system.
 

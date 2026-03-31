@@ -4,7 +4,7 @@
 #set document(
   title: "Esterian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 29),
+  date: datetime(year: 2026, month: 3, day: 30),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(0.5em)
   #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: March 29, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: March 30, 2026]
 ]
 
 #pagebreak()
@@ -346,6 +346,10 @@ again. After a completed first join, `ec-connect` caches the game locally,
 downloads the static starmap bundle, and returning players reconnect without
 re-entering any flags.
 
+One hosted identity can claim only one seat in a given game. If the same
+wallet identity tries to redeem a second invite for that game, the daemon now
+rejects it and expects the player to reconnect with the already-claimed seat.
+
 *Power users and scripted workflows* may also join directly from the command
 line:
 
@@ -373,6 +377,10 @@ that first join.
 Players should not expect to paste the same invite into a brand-new wallet and
 take over an already-claimed seat. `ec-gate` treats that as a different player
 identity and rejects the join.
+
+Players also should not expect one wallet identity to hold two seats in the
+same hosted game. Seat 1 and seat 2 in one campaign must be claimed by
+different identities, even if the same human is testing both paths.
 
 If a player loses or forgets the original local identity, the supported
 recovery path is:

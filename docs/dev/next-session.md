@@ -60,6 +60,10 @@ Keep this file short. Historical detail belongs in
   per-game settings now live in SQLite, `maint-all` sweeps registered games
   from the gate config, and host `games add/remove/list` plus `status` now
   manage and inspect the daemon-facing game registry.
+- **Hosted first-join routing and seat-claim guardrails tightened** (fixed):
+  hosted players now stay on the dedicated empire-naming flow instead of
+  falling through generic first-time screens, and one hosted identity can no
+  longer claim multiple seats in the same game.
 
 ## Biggest Blockers
 
