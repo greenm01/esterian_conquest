@@ -148,14 +148,15 @@ The release binaries will be in `target/release/`.
 
 == Current Beta Distribution
 
-During the current beta, public GitHub Releases keep only the old DOS
-compatibility packages.
+During the current beta, public GitHub Releases include the Windows x64
+`ec-connect` player `.zip` alongside the old DOS compatibility packages.
 
 For the Rust edition:
 
 1. Rust self-host and VPS sysops should build from tagged source with Cargo.
-2. Hosted test players should be given `ec-connect` directly, along with the
-   player manual.
+2. Windows hosted players can use the public GitHub Release `ec-connect` `.zip`
+   with the player manual. Linux and macOS hosted players should still be given
+   `ec-connect` directly, along with the player manual.
 3. BBS sysops should build from source or use a direct/private beta build.
 
 A public Linux x64 BBS door package is planned later. When it ships, it should

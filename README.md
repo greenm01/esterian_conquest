@@ -36,7 +36,7 @@ Joining is straightforward:
 - A sysop gives you an invite code. You join the campaign with a single command.
 - The `ec-connect` tool creates and manages your encrypted Nostr identity, then opens a secure SSH-backed session.
 - One hosted identity can claim only one seat in a given game. If you already joined that game, reconnect with the same wallet identity instead of redeeming another invite from it.
-- During the current beta, players should get `ec-connect` directly from their sysop or a private test handoff, along with the player manual PDF. The packaged desktop client supports Windows, Linux, and macOS, and the Linux build supports both X11 and Wayland from the same package. `ec-connect-cli` remains a Cargo-only power-user binary and is not part of the normal player handoff.
+- During the current beta, the public GitHub player download is the Windows x64 `ec-connect` `.zip`, bundled with the player manual PDF. Linux and macOS builds are still direct/private beta handoffs. The packaged desktop client supports Windows, Linux, and macOS, and the Linux build supports both X11 and Wayland from the same package. `ec-connect-cli` remains a Cargo-only power-user binary and is not part of the normal player handoff.
 - On your first connection, the client automatically downloads the campaign starmap and CSV sheets to your local machine. From then on, your assets stay on your own system.
 
 This keeps the classic EC rhythm — connect, read reports, issue orders, log out — while cutting away most of the old friction. Just you, your empire, and the stars.
@@ -63,14 +63,14 @@ policy is:
 
 | Audience | Current Path |
 |---|---|
-| Normal player | Get a direct/private beta `ec-connect` build from your sysop and use the bundled player manual PDF |
+| Normal player | On Windows, download the public `ec-connect` GitHub Release `.zip`; on Linux/macOS, get a direct/private beta build from your sysop |
 | Rust self-host sysop | Build from tagged source with Cargo |
 | Rust VPS sysop | Build from tagged source with Cargo and use `scripts/install_vps.sh` |
 | BBS sysop | Build from source, or use a direct/private beta build |
 
-Public GitHub Releases currently keep only the DOS compatibility bundles.
-Rust player builds are still direct/private beta handoffs rather than public
-release-page downloads.
+Public GitHub Releases now include the Windows x64 `ec-connect` player `.zip`
+alongside the DOS compatibility bundles. Linux and macOS player builds remain
+direct/private beta handoffs for now.
 See [Release Policy](docs/release-policy.md).
 
 ## Background

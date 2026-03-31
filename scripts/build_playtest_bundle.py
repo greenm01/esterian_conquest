@@ -52,8 +52,8 @@ SUPPORTED_TARGETS = {
         display_name="macOS Intel",
         issue_platform_label="macOS version",
     ),
-    "x86_64-pc-windows-gnu": TargetPlatform(
-        target_triple="x86_64-pc-windows-gnu",
+    "x86_64-pc-windows-msvc": TargetPlatform(
+        target_triple="x86_64-pc-windows-msvc",
         slug="windows-x64",
         display_name="Windows x64",
         issue_platform_label="Windows version",
@@ -86,7 +86,7 @@ class BundleSpec:
 def parse_args(default_target: str | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a public beta ec-game/ec-sysop/ec-connect bundle for Linux or macOS."
+            "Build a beta ec-game/ec-sysop/ec-connect release bundle."
         )
     )
     parser.add_argument(
@@ -184,6 +184,13 @@ def artifact_packages(spec: BundleSpec) -> tuple[str, ...]:
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
     binaries = artifact_binaries(spec)
     packages = artifact_packages(spec)
+    host_target = detect_host_target()
+    if spec.platform.target_triple == "x86_64-pc-windows-msvc" and host_target != spec.platform.target_triple:
+        raise SystemExit(
+            "Windows ec-connect release bundles must be built on a native "
+            "x86_64-pc-windows-msvc host. GNU and non-Windows cross-builds are "
+            "not supported for release packaging."
+        )
     run(
         ["cargo", "build", "--release", "--target", spec.platform.target_triple]
         + [arg for name in packages for arg in ("-p", name)],
@@ -300,9 +307,9 @@ It also includes:
 - `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata for bug reports
 
-This is not a public release package. Public GitHub Releases currently keep
-only the DOS compatibility bundles while the hosted Rust path is still under
-live playtest.
+This is not a public release package. Public GitHub Releases currently publish
+the Windows x64 `ec-connect` player archive plus the DOS compatibility bundles
+while the hosted Rust path is still under live playtest.
 
 ## Quick Start
 
@@ -433,6 +440,9 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             "licenses/OFL-0xProto.txt",
             "licenses/LICENSE-NotoSansMono.txt",
         ]
+        forbidden_files = [
+            f"{binary_prefix}ec-connect-cli{binary_ext}",
+        ]
         if spec.artifact == "public-beta":
             required_files.extend(
                 (
@@ -450,14 +460,18 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             if not path.exists():
                 raise SystemExit(f"{archive_path.name}: missing {relative}")
 
-        if not run_smoke:
+        for relative in forbidden_files:
+            path = bundle_root / relative
+            if path.exists():
+                raise SystemExit(f"{archive_path.name}: unexpected {relative}")
+
+        if not run_smoke or spec.artifact == "ec-connect":
             print(
                 f"{archive_path.name}: verified archive contents; skipped binary smoke run "
-                f"because target {spec.platform.target_triple} is not the current host."
+                f"because {'the target is not the current host' if not run_smoke else 'ec-connect is an interactive GUI archive'}."
             )
             return
 
-        run([str(bundle_root / f"{binary_prefix}ec-connect{binary_ext}"), "--help"], cwd=bundle_root)
         if spec.artifact == "public-beta":
             run([str(bundle_root / f"{binary_prefix}ec-game{binary_ext}"), "--help"], cwd=bundle_root)
             run([str(bundle_root / f"{binary_prefix}ec-sysop{binary_ext}"), "--help"], cwd=bundle_root)
@@ -479,29 +493,6 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 raise SystemExit(f"{archive_path.name}: ec-sysop did not create ecgame.db")
 
 
-def update_sha256sums(archive_path: Path) -> None:
-    sums_path = archive_path.parent / "SHA256SUMS.txt"
-    sig_path = archive_path.parent / "SHA256SUMS.txt.asc"
-
-    # Compute sha256 of new archive
-    import hashlib
-    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
-    new_line = f"{digest}  {archive_path.name}\n"
-
-    # Read existing entries, replace or append this archive's line
-    existing = sums_path.read_text(encoding="utf-8") if sums_path.exists() else ""
-    lines = [l for l in existing.splitlines(keepends=True) if not l.endswith(f"  {archive_path.name}\n")]
-    lines.append(new_line)
-    lines.sort(key=lambda l: l.split("  ", 1)[-1])
-    sums_path.write_text("".join(lines), encoding="utf-8")
-
-    # Re-sign the manifest
-    sig_path.unlink(missing_ok=True)
-    run(["gpg", "--armor", "--detach-sign", str(sums_path)])
-    print(f"updated: {sums_path}")
-    print(f"signed:  {sig_path}")
-
-
 def main(*, default_target: str | None = None) -> None:
     args = parse_args(default_target)
     platform = resolve_target(args.target)
@@ -515,7 +506,6 @@ def main(*, default_target: str | None = None) -> None:
         write_archive(bundle_root, archive_path)
         if args.verify:
             verify_archive(spec, archive_path, run_smoke=platform.target_triple == host_target)
-        update_sha256sums(archive_path)
         print(archive_path)
 
 

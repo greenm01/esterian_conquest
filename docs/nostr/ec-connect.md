@@ -2,14 +2,14 @@
 
 `ec-connect` is the player-side client binary. It manages Nostr identity,
 authenticates with game servers, and launches SSH-backed `ec-game` sessions.
-During the current beta, players normally receive `ec-connect` through a
-direct/private test handoff rather than a public GitHub release archive. The
-packaged desktop client supports Windows, Linux, and macOS, and the Linux
-build supports both X11 and Wayland from the same package. `ec-connect-cli`
-remains available from Cargo or source builds for advanced manual workflows,
-but it is not part of the normal player handoff. Like `ec-game` and
-`ec-sysop`, it should currently be treated as beta-quality software and
-playtested accordingly.
+During the current beta, the public GitHub player download is the Windows x64
+GUI `.zip`. Linux and macOS builds are still distributed through direct/private
+test handoffs. The packaged desktop client supports Windows, Linux, and macOS,
+and the Linux build supports both X11 and Wayland from the same package.
+`ec-connect-cli` remains available from Cargo or source builds for advanced
+manual workflows, but it is not part of the normal player handoff or the GUI
+release archive. Like `ec-game` and `ec-sysop`, it should currently be treated
+as beta-quality software and playtested accordingly.
 
 ## Player Experience
 

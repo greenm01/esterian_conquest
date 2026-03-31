@@ -183,17 +183,15 @@ identity instead of trying to redeem a second invite from it.
 
 == ec-connect Setup
 
-Get the current `ec-connect` build from your sysop or another direct beta
-handoff. Keep this manual with it. Public GitHub Releases do not publish
-player archives during the current beta.
+On Windows, get the current `ec-connect` build from the public GitHub Release
+`.zip`. On Linux or macOS, get it from your sysop or another direct beta
+handoff. Keep this manual with it.
 
 === Windows
 
 If your sysop gives you the Windows `.zip` build, extract it to a folder of
 your choice. Double-click `ec-connect.exe` to launch the normal player
-window. No installation required. The same archive also includes
-`ec-connect-cli.exe` for direct terminal workflows and scripted
-troubleshooting.
+window. No installation required.
 
 On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you

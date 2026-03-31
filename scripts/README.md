@@ -320,7 +320,7 @@ Use this when you want:
 
 ### `build_playtest_bundle.py`
 
-Builds a standalone Linux or macOS `tar.gz` playtest bundle under `releases/`.
+Builds a standalone release bundle under `releases/`.
 
 It currently:
 
@@ -334,6 +334,7 @@ It currently:
   - `x86_64-unknown-linux-gnu`
   - `aarch64-apple-darwin`
   - `x86_64-apple-darwin`
+  - `x86_64-pc-windows-msvc`
 
 Example:
 
@@ -355,17 +356,19 @@ python3 scripts/build_playtest_bundle.py --artifact ec-connect --target aarch64-
 
 Use this when you want:
 
-- a native Linux or macOS archive without requiring a Rust toolchain
+- a native archive without requiring a Rust toolchain
 - either a public `ec-connect` player package or the internal combined bundle
 - a quick way to hand players or testers the right manual with the binary
 
 The combined bundle is an internal/private-beta helper. The `ec-connect`
 artifact is the public player-facing archive.
 
-The public `ec-connect` release flow currently publishes:
+The release tooling supports public `ec-connect` archives for:
 
+- `x86_64-pc-windows-msvc`
 - `x86_64-unknown-linux-gnu`
 - `aarch64-apple-darwin`
+- `x86_64-apple-darwin`
 
 ### `build_linux_playtest_bundle.py`
 
@@ -376,7 +379,7 @@ Linux x64 command working:
 python3 scripts/build_linux_playtest_bundle.py --verify
 ```
 
-### `publish_release_packages.sh`
+### `publish_release_packages.py`
 
 Builds the selected DOS release bundles and/or `ec-connect` player archives,
 verifies them, then uploads the generated assets to an existing GitHub Release
@@ -387,25 +390,33 @@ the release body.
 Default example:
 
 ```bash
-./scripts/publish_release_packages.sh
+python3 scripts/publish_release_packages.py
 ```
 
 Custom tag example:
 
 ```bash
-./scripts/publish_release_packages.sh --tag release-artifacts
+python3 scripts/publish_release_packages.py --tag release-artifacts
 ```
 
 Unlocked-only example:
 
 ```bash
-./scripts/publish_release_packages.sh --variant unlocked
+python3 scripts/publish_release_packages.py --variant unlocked
+```
+
+Windows player archive example:
+
+```bash
+python3 scripts/publish_release_packages.py \
+  --ec-connect-target x86_64-pc-windows-msvc \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
 Linux player archive example:
 
 ```bash
-./scripts/publish_release_packages.sh \
+python3 scripts/publish_release_packages.py \
   --ec-connect-target x86_64-unknown-linux-gnu \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
@@ -413,7 +424,7 @@ Linux player archive example:
 Apple Silicon player archive example:
 
 ```bash
-./scripts/publish_release_packages.sh \
+python3 scripts/publish_release_packages.py \
   --ec-connect-target aarch64-apple-darwin \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
@@ -421,7 +432,7 @@ Apple Silicon player archive example:
 Signed public player release example:
 
 ```bash
-./scripts/publish_release_packages.sh \
+python3 scripts/publish_release_packages.py \
   --ec-connect-target aarch64-apple-darwin \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
@@ -434,11 +445,14 @@ Use this when you want:
 - signed `SHA256SUMS.txt` / `SHA256SUMS.txt.asc` assets for the public
   `ec-connect` archives
 
-When `--ec-connect-target` is used, `publish_release_packages.sh` now requires
+When `--ec-connect-target` is used, `publish_release_packages.py` now requires
 `--gpg-key` and signs the shared `ec-connect` checksum manifest for the
 selected target(s). It keeps that manifest complete by reusing any other
 already-published public `ec-connect` archives from the release. It also
 updates the GitHub release-body verification notice automatically.
+
+`publish_release_packages.sh` remains as a thin compatibility wrapper around
+the Python entrypoint.
 
 ### `run_client.py`
 
