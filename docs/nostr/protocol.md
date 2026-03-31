@@ -229,7 +229,7 @@ Fields:
 
 | Field | Description |
 |-------|-------------|
-| `game_id` | Game identifier slug. Used by `ec-connect` to populate the local game cache and disambiguate future connections. |
+| `game_id` | Game identifier slug. Used by `ec-connect` to disambiguate future connections and to populate the local cache once a seat is confirmed claimed. |
 | `ssh_host` | Hostname or IP to SSH into |
 | `ssh_port` | SSH port number |
 | `host_fingerprint` | SSH server host key fingerprint for verification |
@@ -272,6 +272,7 @@ Error codes:
 | `code_claimed` | The invite code has already been claimed by another player |
 | `unknown_player` | The player's npub is not in any game roster (and no invite code was provided) |
 | `multiple_games` | The player's npub is in multiple games and no `game-id` tag was provided (see below) |
+| `identity_busy` | That identity already has another live hosted session on this server |
 | `game_full` | All seats are claimed |
 | `game_not_active` | The game is not currently accepting connections |
 | `rate_limited` | Too many session requests from this npub |
@@ -461,9 +462,9 @@ can present a selection:
 ```
 
 `ec-connect` displays the game list to the player, lets them select one,
-and retries the SessionRequest with the chosen `game-id` tag. Both games
-are added to the local cache so future connections can include the
-`game-id` directly.
+and retries the SessionRequest with the chosen `game-id` tag. Claimed
+games that the player actually reconnects to are kept in the local cache
+so future connections can include the `game-id` directly.
 
 ## Message Flows
 

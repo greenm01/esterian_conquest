@@ -78,6 +78,10 @@ pub enum PickerOverlay {
         index: usize,
         step: u8,
     },
+    StaleGameRow {
+        game_id: String,
+        message: String,
+    },
     JoinCodePopup {
         error: Option<String>,
     },
@@ -290,6 +294,24 @@ pub fn handle_overlay_key(
                 state.overlay = None;
             }
         }
+        PickerOverlay::StaleGameRow { game_id, .. } => {
+            if is_yes_key(key) {
+                let result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                    if !state.cache.remove(&game_id) {
+                        return Err("selected game no longer exists".into());
+                    }
+                    save_cache(&state.cache)?;
+                    Ok(())
+                })();
+                state.overlay = None;
+                clamp_game_selection(state);
+                if let Err(err) = result {
+                    state.show_error(err.to_string());
+                }
+            } else if is_cancel_confirm_key(key) {
+                state.overlay = None;
+            }
+        }
         PickerOverlay::JoinCodePopup { .. } => {
             super::input::handle_join_code_popup_key(key, state, gate_npub)?;
         }
@@ -390,6 +412,17 @@ pub fn render_overlay(
                 popup.x as usize,
                 "COMMAND",
                 delete_prompt(*step),
+            );
+            buffer.clear_cursor();
+        }
+        Some(PickerOverlay::StaleGameRow { game_id, message }) => {
+            let popup = render_stale_game_row_popup(buffer, state, game_id, message);
+            draw_command_line_prompt_text_at_col(
+                buffer,
+                popup_command_row(popup, command_row),
+                popup.x as usize,
+                "COMMAND",
+                "Remove stale row? Y/[N] ->",
             );
             buffer.clear_cursor();
         }
@@ -712,6 +745,31 @@ fn render_game_delete_popup(
         "It does not delete the wallet identity or the remote seat.".to_string(),
     ];
     render_modal_box(buffer, "DELETE GAME", &lines, classic::table_body_style())
+}
+
+fn render_stale_game_row_popup(
+    buffer: &mut PlayfieldBuffer,
+    state: &PickerState,
+    game_id: &str,
+    message: &str,
+) -> Rect {
+    let game_label = state
+        .cache
+        .games
+        .iter()
+        .find(|game| game.id == game_id)
+        .map(|game| game.name.as_str())
+        .unwrap_or(game_id);
+    let mut lines = vec![format!("Game: {}", truncate(game_label, 50)), String::new()];
+    lines.extend(wrapped_lines(message, 54));
+    lines.push(String::new());
+    lines.push("Choose Y to remove this stale picker row.".to_string());
+    render_modal_box(
+        buffer,
+        "JOIN NOT COMPLETED",
+        &lines,
+        classic::table_body_style(),
+    )
 }
 
 fn delete_prompt(step: u8) -> &'static str {

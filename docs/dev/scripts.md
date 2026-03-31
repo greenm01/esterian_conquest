@@ -138,6 +138,8 @@ This helper:
 - checks that pending hosted seats still exist
 - requires a relay already listening at `ws://localhost:8080`
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
+- defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
+- still supports explicit `--ssh-user` / `--auth-keys-*` overrides
 - starts `ec-sysop nostr serve` for that game
 - prints full invite lines such as `ec-connect --join victim-sickness@localhost:8080`
 
@@ -154,8 +156,11 @@ Notes:
 - This is the real hosted Nostr discovery path, not a direct local-game shortcut.
 - The relay is still an external prerequisite; the helper does not install or
   launch a relay binary for you.
-- If you want the full SSH-backed session after discovery, your local SSH setup
-  still needs to match the published localhost target.
+- For same-machine hosted play, the normal path is to run this helper without
+  `sudo`; it publishes your current login plus `~/.ssh/authorized_keys` unless
+  you override it.
+- This is distinct from direct localhost `ec-game` play. Through `ec-connect`,
+  localhost-hosted sessions still use the normal hosted SSH transport.
 
 ## Notes
 

@@ -118,9 +118,21 @@ fn session_leases_enforce_one_live_seat_per_player_and_expire() {
             .expect("check active lease")
     );
     assert!(
+        store
+            .live_session_for_npub("npub-player-1", 151)
+            .expect("lookup live lease")
+            .is_some()
+    );
+    assert!(
         !store
             .has_live_session_leases(211)
             .expect("expired lease should be pruned")
+    );
+    assert!(
+        store
+            .live_session_for_npub("npub-player-1", 211)
+            .expect("expired lease should disappear")
+            .is_none()
     );
 
     let _ = fs::remove_dir_all(root);

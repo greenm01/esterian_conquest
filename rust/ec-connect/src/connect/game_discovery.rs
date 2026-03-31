@@ -61,13 +61,20 @@ pub async fn discover_game_for_invite(
 
     client.disconnect().await;
 
-    select_discovered_game_from_events(events.iter(), target, invite_code)
+    let player_pubkey_hex = player_keys.public_key().to_hex();
+    select_discovered_game_from_events(
+        events.iter(),
+        target,
+        invite_code,
+        Some(player_pubkey_hex.as_str()),
+    )
 }
 
 pub fn select_discovered_game_from_events<'a>(
     events: impl IntoIterator<Item = &'a Event>,
     target: &ResolvedTarget,
     invite_code: &str,
+    player_pubkey_hex: Option<&str>,
 ) -> Result<DiscoveredGame, String> {
     let invite_words = parse_invite_code(invite_code)
         .map(|parsed| parsed.words)
@@ -105,17 +112,25 @@ pub fn select_discovered_game_from_events<'a>(
     if hash_matches.is_empty() {
         // Check whether this code was already claimed — gives a more useful message
         // than the generic "not found" when a player retries after a failed first attempt.
-        let already_claimed = events_collected.iter().any(|event| {
-            parse_game_definition(event).is_some_and(|game| {
+        let claimed_slot = events_collected.iter().find_map(|event| {
+            parse_game_definition(event).and_then(|game| {
                 game.slots
-                    .iter()
-                    .any(|slot| slot.status == "claimed" && slot.invite_code_hash == invite_hash)
+                    .into_iter()
+                    .find(|slot| slot.status == "claimed" && slot.invite_code_hash == invite_hash)
             })
         });
-        if already_claimed {
+        if let Some(slot) = claimed_slot {
+            if player_pubkey_hex
+                .zip(slot.player_npub.as_deref())
+                .is_some_and(|(player, claimed)| player == claimed)
+            {
+                return Err(
+                    "this invite code is already bound to your identity; reconnect from the picker or use ec-connect <server>"
+                        .to_string(),
+                );
+            }
             return Err(
-                "this invite code has already been claimed — your seat is reserved; \
-                 connect with: ec-connect <server>"
+                "this invite code has already been claimed by another player; ask your sysop to reissue the seat"
                     .to_string(),
             );
         }

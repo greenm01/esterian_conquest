@@ -175,17 +175,23 @@ are not brute-forced.
 ### Code Lifecycle
 
 ```
-PENDING ──── player claims with npub ────► CLAIMED
-   │                                          │
-   │ admin deletes slot                       │ admin reissues
-   ▼                                          ▼
-DELETED                                    PENDING (new code)
+PENDING ──── invite used, session starts ────► PENDING
+   │                                              │
+   │ admin deletes slot                           │ in-game empire save claims seat
+   ▼                                              ▼
+DELETED                                       CLAIMED
+                                                  │
+                                                  │ admin reissues
+                                                  ▼
+                                               PENDING (new code)
 ```
 
-Invite codes are bearer tokens. Whoever presents one first claims the
-seat. Once claimed, the code is permanently bound to the player's npub.
-If a player loses their identity, the admin reissues a new code for that
-seat.
+Invite codes are bearer tokens. Whoever uses one can start the first join
+flow, but the seat is not officially claimed until the in-game empire-naming
+save binds that seat to the player's `npub`. If the player leaves before that,
+the code remains pending and reusable. Once claim completes, the code is
+permanently bound to the player's `npub`. If a player loses their identity,
+the admin reissues a new code for that seat.
 
 ### Admin Workflow
 
@@ -236,13 +242,16 @@ cleared cache, etc.).
 ### First Join
 
 On first join, the invite code uniquely identifies the game (codes are
-unique across all games on the server). No game ID is needed. After the
-join succeeds, `ec-connect` caches the game ID, empire name, gate key,
-and relay URL from the successful session so future picker reconnects do
-not need to rediscover them. It also performs a second, short Nostr
-request to fetch the game's static player-safe starmap bundle. That map
-download is best-effort and happens only on first invite-code join, not
-on every reconnect.
+unique across all games on the server). No game ID is needed. The first
+session is provisional until the player finishes the in-game empire-naming
+save that claims the hosted seat for that `npub`. Only after that confirmed
+claim does `ec-connect` cache the game ID, empire name, gate key, and relay
+URL so future picker reconnects do not need to rediscover them. If the player
+backs out before claim, the invite stays reusable and no durable picker row is
+written. After a completed first join, `ec-connect` also performs a second,
+short Nostr request to fetch the game's static player-safe starmap bundle.
+That map download is best-effort and happens only on first invite-code join,
+not on every reconnect.
 
 ## Player-Side File Layout
 

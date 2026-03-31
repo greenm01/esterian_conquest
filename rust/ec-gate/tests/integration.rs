@@ -8,6 +8,7 @@ use ec_data::{CampaignSettings, CampaignStore, HostedSeat, HostedSeatStatus};
 use ec_gate::config::{AuthKeysMethod, DEFAULT_EC_GAME_PATH, GateConfig};
 use ec_gate::serve::catalog::{HostedGame, HostedGameEntry};
 use ec_gate::serve::game_def::build_game_def_tags;
+use ec_gate::serve::lease::find_active_identity_session;
 use ec_gate::serve::provision::{provision_key, reap_expired_keys, remove_key};
 use ec_gate::serve::request::parse_session_request;
 use ec_gate::serve::response::{SessionReadyPayload, session_error_payload};
@@ -386,6 +387,46 @@ fn full_pipeline_reaper_cleans_expired_while_leaving_live() {
     assert!(!expired_path.exists());
     let live_path = keys_dir.join(format!("{}.key", key_live.key_id));
     assert!(live_path.exists());
+}
+
+#[test]
+fn full_pipeline_finds_live_identity_session_across_hosted_games() {
+    let dir = temp_dir("identity_busy");
+    let game_a_dir = dir.join("game-a");
+    let game_b_dir = dir.join("game-b");
+    fs::create_dir_all(&game_a_dir).unwrap();
+    fs::create_dir_all(&game_b_dir).unwrap();
+
+    let entry_a = hosted_game_entry(
+        &game_a_dir,
+        "game-a",
+        "Game A",
+        vec![claimed_seat(1, "alpha-beta", "npub1player000")],
+    );
+    let entry_b = hosted_game_entry(
+        &game_b_dir,
+        "game-b",
+        "Game B",
+        vec![claimed_seat(2, "gamma-delta", "npub1player000")],
+    );
+
+    let store_a = CampaignStore::open_default_in_dir(&game_a_dir).unwrap();
+    store_a
+        .create_pending_session_lease("session-a", 1, "npub1player000", 100, 60)
+        .unwrap();
+
+    let live =
+        find_active_identity_session(&[entry_a.clone(), entry_b.clone()], "npub1player000", 100)
+            .expect("scan active identity session")
+            .expect("expected live identity session");
+    assert_eq!(live.game_id, "game-a");
+    assert_eq!(live.player_record_index_1_based, 1);
+
+    assert!(
+        find_active_identity_session(&[entry_a, entry_b], "npub1player000", 161)
+            .expect("expired session should be pruned")
+            .is_none()
+    );
 }
 
 #[test]

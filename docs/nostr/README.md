@@ -63,12 +63,16 @@ Three hosting paths, one game binary, but one recommended public default:
 | BBS door | Dropfile (caller alias) | Telnet/SSH via BBS | Legacy compatibility hosting |
 
 The Nostr path is the focus of this spec and the recommended way to host a
-shared game today. Players join by redeeming an invite code, which binds
-their Nostr public key to a player seat. On subsequent connections, the
-server recognizes their key and routes them to the correct game and seat
-automatically. Players can be in multiple games on the same server;
-`ec-connect` caches joined games locally and includes a game ID in
-reconnection requests for disambiguation.
+shared game today. Players join by redeeming an invite code, then complete the
+in-game empire-naming save to bind their Nostr public key to a player seat.
+On subsequent connections, the server recognizes their key and routes them to
+the correct game and seat automatically. Players can be in multiple games on
+the same server; `ec-connect` caches claimed joined games locally and includes
+a game ID in reconnection requests for disambiguation.
+
+The `Localhost` row above describes direct local `ec-game` play. If a player
+chooses to run a same-machine hosted game through `ec-connect`, that is still
+the hosted Nostr path and still uses the normal SSH-backed session transport.
 
 ## Player-Side Files
 

@@ -22,7 +22,7 @@ use crate::connect::bridge::run_bridge;
 use crate::connect::handshake::{GameEntry, HandshakeResult, SessionReadyPayload, run_handshake};
 use crate::connect::map_fetch::fetch_map_bundle;
 use crate::connect::resolve::ResolvedTarget;
-use crate::connect::session_state::fetch_session_state;
+use crate::connect::session_state::{SessionStatePayload, fetch_game_metadata};
 use crate::connect::ssh_key::EphemeralKeypair;
 use crate::map_store::save_map_bundle;
 use crate::wallet::io::now_iso8601;
@@ -219,6 +219,13 @@ async fn prepare_session_with_keypair(
                         })
                     }
                 }
+            } else if err.error == "unknown_player"
+                && target.invite_code.is_none()
+                && target.game_id.is_some()
+            {
+                SessionPreparation::Outcome(SessionOutcome::Error(
+                    unfinished_first_join_error_message().to_string(),
+                ))
             } else {
                 SessionPreparation::Outcome(SessionOutcome::Error(format!(
                     "{}: {}",
@@ -310,14 +317,44 @@ impl PreparedSessionFinalizer {
                     maps_saved_to: completion.maps_saved_to,
                 }
             }
-            Err(err) => SessionOutcome::Error(format!(
-                "Connection to game server was lost.\n\
-                 Contact your sysop if this persists.\n\
-                 \n\
-                 Technical: bridge error: {err}"
+            Err(err) => SessionOutcome::Error(format_bridge_error_message(
+                &payload.ssh_host,
+                &err.to_string(),
             )),
         }
     }
+}
+
+pub fn format_bridge_error_message(ssh_host: &str, err: &str) -> String {
+    if is_local_ssh_target(ssh_host) && err.contains("SSH public-key authentication failed") {
+        return format!(
+            "Could not authenticate to the local game server over SSH.\n\
+             For localhost testing, your local hosted helper may be using the wrong SSH user or auth-keys path.\n\
+             \n\
+             Technical: bridge error: {err}"
+        );
+    }
+
+    format!(
+        "Connection to game server was lost.\n\
+         Contact your sysop if this persists.\n\
+         \n\
+         Technical: bridge error: {err}"
+    )
+}
+
+pub fn unfinished_first_join_error_message() -> &'static str {
+    "This identity is not enrolled in that game yet.\n\
+     If this was a first-time join, you left before naming your empire.\n\
+     Use the invite code again to finish joining."
+}
+
+pub fn is_unfinished_first_join_error(message: &str) -> bool {
+    message.trim() == unfinished_first_join_error_message()
+}
+
+fn is_local_ssh_target(ssh_host: &str) -> bool {
+    matches!(ssh_host.trim(), "localhost" | "127.0.0.1" | "::1" | "[::1]")
 }
 
 #[derive(Debug, Default)]
@@ -334,19 +371,14 @@ async fn finalize_first_join_after_session(
     maps_root: &std::path::Path,
     npub: &str,
 ) -> FirstJoinCompletion {
-    let state = match fetch_session_state(player_keys, target, gate_npub, &payload.game_id).await {
-        Ok(state) => state,
-        Err(_) => return FirstJoinCompletion::default(),
+    let refreshed_state = fetch_game_metadata(player_keys, target, gate_npub, &payload.game_id)
+        .await
+        .ok();
+    let Some(state) = refreshed_state.as_ref() else {
+        return FirstJoinCompletion::default();
     };
-    cache_joined_game(build_cached_game(
-        &state.game_id,
-        &state.game_name,
-        Some(&state.player_name),
-        target,
-        npub,
-        gate_npub,
-        state.seat,
-    ));
+
+    merge_session_state_into_cache(state, target, npub, gate_npub);
     touch_cache_entry(&state.game_id);
     match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
         Ok(bundle) => {
@@ -416,25 +448,80 @@ fn upsert_cache_entry(
     gate_npub: &str,
     target: &ResolvedTarget,
 ) {
-    cache_joined_game(CachedGame {
-        id: payload.game_id.clone(),
-        name: payload.game_name.clone(),
-        player_name: (!payload.player_name.is_empty()).then(|| payload.player_name.clone()),
-        server: target.server_host.clone(),
-        port: target.server_port,
-        relay_url: Some(target.relay_url.clone()),
-        seat: payload.seat,
-        npub: npub.to_string(),
-        gate_npub: gate_npub.to_string(),
-        joined: now_iso8601(),
-        last_connected: None,
-    });
+    cache_joined_game(build_cached_game_from_ready_payload(
+        payload,
+        target,
+        npub,
+        gate_npub,
+        &now_iso8601(),
+    ));
 }
 
 pub fn cache_joined_game(entry: CachedGame) {
     let Ok(mut cache) = load_cache() else { return };
     cache.upsert(entry);
     let _ = save_cache(&cache);
+}
+
+fn merge_session_state_into_cache(
+    state: &SessionStatePayload,
+    target: &ResolvedTarget,
+    npub: &str,
+    gate_npub: &str,
+) {
+    let Ok(mut cache) = load_cache() else { return };
+    merge_session_state(&mut cache, state, target, npub, gate_npub, &now_iso8601());
+    let _ = save_cache(&cache);
+}
+
+#[doc(hidden)]
+pub fn merge_session_state(
+    cache: &mut GameCache,
+    state: &SessionStatePayload,
+    target: &ResolvedTarget,
+    npub: &str,
+    gate_npub: &str,
+    joined_if_missing: &str,
+) {
+    if cache.update_metadata(
+        &state.game_id,
+        &state.game_name,
+        Some(&state.player_name),
+        state.seat,
+    ) {
+        return;
+    }
+
+    cache.upsert(build_cached_game_with_joined(
+        &state.game_id,
+        &state.game_name,
+        Some(&state.player_name),
+        target,
+        npub,
+        gate_npub,
+        state.seat,
+        joined_if_missing,
+    ));
+}
+
+#[doc(hidden)]
+pub fn build_cached_game_from_ready_payload(
+    payload: &SessionReadyPayload,
+    target: &ResolvedTarget,
+    npub: &str,
+    gate_npub: &str,
+    joined: &str,
+) -> CachedGame {
+    build_cached_game_with_joined(
+        &payload.game_id,
+        &payload.game_name,
+        Some(&payload.player_name),
+        target,
+        npub,
+        gate_npub,
+        payload.seat,
+        joined,
+    )
 }
 
 pub fn build_cached_game(
@@ -445,6 +532,28 @@ pub fn build_cached_game(
     npub: &str,
     gate_npub: &str,
     seat: u32,
+) -> CachedGame {
+    build_cached_game_with_joined(
+        game_id,
+        game_name,
+        player_name,
+        target,
+        npub,
+        gate_npub,
+        seat,
+        &now_iso8601(),
+    )
+}
+
+fn build_cached_game_with_joined(
+    game_id: &str,
+    game_name: &str,
+    player_name: Option<&str>,
+    target: &ResolvedTarget,
+    npub: &str,
+    gate_npub: &str,
+    seat: u32,
+    joined: &str,
 ) -> CachedGame {
     CachedGame {
         id: game_id.to_string(),
@@ -459,7 +568,7 @@ pub fn build_cached_game(
         seat,
         npub: npub.to_string(),
         gate_npub: gate_npub.to_string(),
-        joined: now_iso8601(),
+        joined: joined.to_string(),
         last_connected: None,
     }
 }

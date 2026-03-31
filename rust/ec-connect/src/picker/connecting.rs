@@ -10,7 +10,7 @@ use crate::connect::game_discovery::discover_game_for_invite;
 use crate::connect::public_join::prepare_public_join;
 use crate::connect::session::{
     DisambigMode, PreparedSession, SessionOutcome, SessionPreparation, finish_prepared_session,
-    prepare_session,
+    is_unfinished_first_join_error, prepare_session,
 };
 use crate::text_wrap::wrapped_lines;
 
@@ -150,6 +150,19 @@ pub(crate) fn apply_connect_outcome(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match request.origin {
         ConnectOrigin::GameList => {
+            if let SessionOutcome::Error(msg) = &outcome {
+                if is_unfinished_first_join_error(msg) {
+                    if let Some(game_id) = request.target.game_id.clone() {
+                        state.overlay = Some(PickerOverlay::StaleGameRow {
+                            game_id,
+                            message: msg.clone(),
+                        });
+                    } else {
+                        state.show_error(msg.clone());
+                    }
+                    return Ok(());
+                }
+            }
             state.overlay = None;
             state.refresh_cache();
             apply_session_outcome(state, outcome, Some((request.target, request.gate_npub)));

@@ -487,6 +487,54 @@ impl CampaignStore {
         Ok(exists.is_some())
     }
 
+    pub fn live_session_for_npub(
+        &self,
+        player_npub: &str,
+        now_unix_seconds: u64,
+    ) -> Result<Option<SessionLease>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        let tx = conn.transaction()?;
+        prune_expired_session_leases_tx(&tx, now_unix_seconds)?;
+        let lease = tx
+            .query_row(
+                "SELECT session_token,
+                        player_record_index,
+                        player_npub,
+                        state,
+                        started_at,
+                        last_heartbeat_at,
+                        expires_at
+                 FROM active_sessions
+                 WHERE player_npub = ?1
+                 LIMIT 1",
+                [player_npub],
+                |row| {
+                    let state_raw: String = row.get(3)?;
+                    let state = SessionLeaseState::parse(&state_raw).ok_or_else(|| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Text,
+                            Box::new(CampaignStoreError::InvalidState(format!(
+                                "unknown session lease state: {state_raw}",
+                            ))),
+                        )
+                    })?;
+                    Ok(SessionLease {
+                        session_token: row.get(0)?,
+                        player_record_index_1_based: row.get::<_, i64>(1)? as usize,
+                        player_npub: row.get(2)?,
+                        state,
+                        started_at_unix_seconds: row.get::<_, i64>(4)? as u64,
+                        last_heartbeat_at_unix_seconds: row.get::<_, i64>(5)? as u64,
+                        expires_at_unix_seconds: row.get::<_, i64>(6)? as u64,
+                    })
+                },
+            )
+            .optional()?;
+        tx.commit()?;
+        Ok(lease)
+    }
+
     fn touch_session_lease(
         &self,
         session_token: &str,

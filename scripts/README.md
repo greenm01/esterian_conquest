@@ -184,11 +184,16 @@ It:
 - verifies pending hosted seats exist
 - requires a relay already listening at `ws://localhost:8080`
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
+- defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
+- still supports explicit `--ssh-user` / `--auth-keys-*` overrides
 - prints full invite lines like `ec-connect --join victim-sickness@localhost:8080`
 - runs `ec-sysop nostr serve` in the foreground
 
 Use this when you want to test the real localhost GUI invite flow instead of
 launching `ec-game` directly.
+
+For same-machine hosted play, the intended normal command is the plain example
+above; `sudo` should not be necessary unless your SSH setup is unusual.
 
 ### `setup_classic_probe_game.py`
 

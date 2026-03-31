@@ -14,8 +14,8 @@ treated as beta-quality software and playtested accordingly.
 In the recommended public flow, the sysop gives the player one invite string in
 the form `token@relay-host[:port]`. The player joins once with `--join`.
 `ec-connect` discovers the gate key from the relay's public 30500 game
-definition, claims the seat, and then launches the normal session handshake
-and terminal bridge.
+definition, launches the normal session handshake and terminal bridge, and
+then persists the game locally once the in-game claim is confirmed.
 
 ### First Launch
 
@@ -260,8 +260,9 @@ hosts use `wss://`.
 
 ## Local Game Cache
 
-After a successful join or reconnection, `ec-connect` writes a cache
-entry so the picker can display joined games without querying relays.
+After a successful reconnection, or after a first join has been confirmed by
+the in-game claim/save path, `ec-connect` writes a cache entry so the picker
+can display joined games without querying relays.
 
 Cache file at:
 
@@ -289,21 +290,26 @@ Fields:
 | `seat` | Player seat number (1-based) |
 | `npub` | The identity that joined this game |
 | `gate-npub` | The Nostr public key for the daemon that served this game. Used for reconnects and manual map downloads. |
-| `joined` | Timestamp of first join |
+| `joined` | Timestamp when this identity first completed the hosted join claim |
 | `last-connected` | Timestamp of most recent connection (updated each session) |
 
-The cache is populated from the 30502 SessionReady payload, which
-includes `game_id`, `game_name`, `seat`, and `player_name`. After a
-successful hosted session ends, `ec-connect` performs one lightweight
+The cache uses the 30502 SessionReady payload as the initial source of
+`game_id`, `game_name`, `seat`, and `player_name`, but first invite joins are
+only written durably after the post-session 30507 refresh confirms that this
+identity actually claimed the seat. If the player leaves before naming the
+empire, no durable row is written and the invite must be reused. Returning
+reconnects for already-claimed seats can still refresh the cache immediately.
+After a successful hosted session ends, `ec-connect` performs one lightweight
 30507 state refresh so the cached `player-name` can pick up changes made
-inside `ec-game`, such as first-time empire naming. The `npub` comes from
-the active wallet identity. `relay-url` is copied from the resolved
-target used for the successful handshake so picker reconnects can reuse
-the same relay even when it is not the derived default. If an older
-cached row still has no saved `relay-url` and the player's config also
-has no default relay, the picker prompts for one before the handshake
-starts and saves it back onto that row after a successful reconnect.
-`last-connected` is updated on each successful SSH connection.
+inside `ec-game`, such as first-time empire naming. If that refresh fails on a
+returning reconnect, the existing cache row is kept as-is. The `npub` comes
+from the active wallet identity. `relay-url` is copied from the resolved
+target used for the successful handshake so picker reconnects can reuse the
+same relay even when it is not the derived default. If an older cached row
+still has no saved `relay-url` and the player's config also has no default
+relay, the picker prompts for one before the handshake starts and saves it
+back onto that row after a successful reconnect. `last-connected` is updated
+on each successful SSH connection for games that are already in the cache.
 
 This cache is local convenience state only. The server-side hosted seat
 binding remains the source of truth.
@@ -514,12 +520,12 @@ Connecting...
 9. On receiving 30502 SessionReady: decrypt the NIP-44 payload to get
    the SSH host, port, server host key fingerprint, game ID, game name,
    and seat number.
-10. If this is a returning session, update the local game cache with the
-    connection details immediately.
-11. If this was a first-time invite-code join, wait until the SSH session
-    exits, refresh the hosted seat state, cache the game only if the seat
-    is now claimed, and then issue a 30504 MapRequest. If the player left
-    before saving the empire name, no cache row or maps are written.
+10. If this is a returning reconnect to an already-claimed seat, refresh
+    the local cache immediately from the SessionReady payload.
+11. After the SSH session exits, refresh hosted seat metadata. For a
+    first-time invite join, only write the durable picker row if that
+    refresh confirms this identity claimed the seat in game. Then issue
+    a 30504 MapRequest.
 12. Disconnect from the Nostr relay. The relay is no longer needed.
 13. Tear down the picker screen. In the packaged desktop GUI, switch into
     the embedded terminal view. In the CLI companion, put the local

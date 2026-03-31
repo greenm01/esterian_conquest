@@ -11,6 +11,7 @@
 pub mod catalog;
 pub mod claim;
 pub mod game_def;
+pub mod lease;
 pub mod map;
 pub mod provision;
 pub mod request;
@@ -599,6 +600,36 @@ async fn handle_request(
 
     match decision {
         routing::RoutingDecision::Provisioned(seat) => {
+            match lease::find_active_identity_session(&loaded_games, &req.player_pubkey, unix_now())
+            {
+                Ok(Some(existing))
+                    if existing.game_id != seat.game_id
+                        || existing.player_record_index_1_based != seat.player =>
+                {
+                    if let Err(err) = response::publish_session_error_message(
+                        &client,
+                        &shared_keys,
+                        &player_pubkey,
+                        &req.nonce,
+                        "identity_busy",
+                        "That identity already has an active session on this server.",
+                    )
+                    .await
+                    {
+                        error!(error = %err, "failed to publish 30503 SessionError");
+                    }
+                    return;
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    error!(
+                        player_npub = %req.player_pubkey,
+                        error = %err,
+                        "cannot scan hosted games for active identity sessions"
+                    );
+                    return;
+                }
+            }
             let game_dir = match loaded_games
                 .iter()
                 .find(|entry| entry.game.game_id == seat.game_id)
