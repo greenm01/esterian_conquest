@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use nostr_sdk::{Keys, PublicKey, ToBech32};
 
 use crate::cache::io::{cache_path, save_cache_to};
-use crate::cache::{CachedGame, GameCache};
+use crate::cache::{CachedGame, CachedGameStatus, GameCache};
 use crate::config::io::config_path;
 use crate::config::{ConnectConfig, save_config_to};
 use crate::wallet::io::{format_iso8601, save_wallet_to, wallet_path};
@@ -145,6 +145,8 @@ pub fn seed_localhost_fixture_to_paths(
             seat: options.seat,
             npub: player_npub.clone(),
             gate_npub: gate_npub.clone(),
+            status: CachedGameStatus::Joined,
+            invite_code: None,
             joined: created,
             last_connected: None,
         }],
@@ -237,6 +239,8 @@ fn build_cache(games: usize, wallet: &Wallet) -> Result<GameCache, Box<dyn std::
             seat: ((index % 25) + 1) as u32,
             npub: npub.clone(),
             gate_npub: gate_keys.public_key().to_bech32()?,
+            status: CachedGameStatus::Joined,
+            invite_code: None,
             joined: format_iso8601(1_775_400_000 + (index as u64 * 777)),
             last_connected: if index % 6 == 0 {
                 None

@@ -75,7 +75,7 @@ mod tests {
         GAME_ID_FLAG, NO_CONSOLE_SETUP_FLAG, PASSWORD_FILE_FLAG, command_for_cached_game,
         command_for_invite, companion_binary_name, companion_binary_path,
     };
-    use crate::cache::CachedGame;
+    use crate::cache::{CachedGame, CachedGameStatus};
     use std::path::Path;
 
     fn sample_game() -> CachedGame {
@@ -89,6 +89,8 @@ mod tests {
             seat: 2,
             npub: "npub1sample".to_string(),
             gate_npub: "npub1gate".to_string(),
+            status: CachedGameStatus::Joined,
+            invite_code: None,
             joined: "2026-03-30T12:00:00Z".to_string(),
             last_connected: None,
         }

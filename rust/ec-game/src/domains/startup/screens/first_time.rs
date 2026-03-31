@@ -132,6 +132,7 @@ pub fn render_first_time_join_name(
     rename_mode: bool,
     reserved_mode: bool,
     hosted_invite_mode: bool,
+    hosted_invite_code: Option<&str>,
     reserved_alias: Option<&str>,
     current_empire_name: &str,
     input: &str,
@@ -213,8 +214,24 @@ pub fn render_first_time_join_name(
             },
             classic::body_style(),
         );
+        if hosted_invite_mode {
+            if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
+                buffer.write_text(
+                    7,
+                    LEFT_WINDOW_PAD_COL,
+                    &format!("Invite code: {invite_code}"),
+                    classic::notice_style(),
+                );
+            }
+        }
     }
-    let last_content_row = if rename_mode || reserved_mode { 6 } else { 5 };
+    let last_content_row = if rename_mode || reserved_mode {
+        6
+    } else if hosted_invite_mode {
+        7
+    } else {
+        5
+    };
     let command_row = menu_prompt_row(last_content_row);
     draw_command_line_default_input_padded(
         &mut buffer,
@@ -241,6 +258,7 @@ pub fn render_first_time_join_name(
 pub fn render_first_time_join_name_confirm(
     rename_mode: bool,
     reserved_mode: bool,
+    hosted_invite_code: Option<&str>,
     empire_name: &str,
     door_mode: bool,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -289,10 +307,27 @@ pub fn render_first_time_join_name_confirm(
             "Press N or Esc to go back and edit it before joining.",
             classic::body_style(),
         );
+        if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
+            buffer.write_text(
+                7,
+                LEFT_WINDOW_PAD_COL,
+                &format!("Invite code: {invite_code}"),
+                classic::notice_style(),
+            );
+        }
     }
     draw_command_line_prompt_text_padded(
         &mut buffer,
-        menu_prompt_row(if rename_mode { 4 } else { 5 }),
+        menu_prompt_row(if rename_mode {
+            4
+        } else if hosted_invite_code
+            .filter(|value| !value.trim().is_empty())
+            .is_some()
+        {
+            7
+        } else {
+            5
+        }),
         "EMPIRE NAME",
         &format!(
             "\"{empire_name}\" <- Is this correct? {}/N ->",

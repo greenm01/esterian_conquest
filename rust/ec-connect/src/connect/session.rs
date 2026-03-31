@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use nostr_sdk::Keys;
 
-use crate::cache::{CachedGame, GameCache, load_cache, save_cache};
+use crate::cache::{CachedGame, CachedGameStatus, GameCache, load_cache, save_cache};
 use crate::connect::bridge::run_bridge;
 use crate::connect::handshake::{GameEntry, HandshakeResult, SessionReadyPayload, run_handshake};
 use crate::connect::map_fetch::fetch_map_bundle;
@@ -26,6 +26,8 @@ use crate::connect::session_state::{SessionStatePayload, fetch_game_metadata};
 use crate::connect::ssh_key::EphemeralKeypair;
 use crate::map_store::save_map_bundle;
 use crate::wallet::io::now_iso8601;
+
+const HOSTED_ONBOARDING_INVARIANT_EXIT_CODE: u32 = 72;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -233,6 +235,7 @@ async fn prepare_session_with_keypair(
 
         HandshakeResult::Ready(payload) => {
             let post_bridge = if first_join {
+                upsert_pending_cache_entry(&payload, username, gate_npub, &target);
                 PostBridgeAction::FinalizeFirstJoin {
                     player_keys: player_keys.clone(),
                     target: target.clone(),
@@ -285,6 +288,11 @@ impl PreparedSessionFinalizer {
         } = self;
         match bridge_result {
             Ok(exit_code) => {
+                if exit_code == HOSTED_ONBOARDING_INVARIANT_EXIT_CODE {
+                    return SessionOutcome::Error(
+                        hosted_onboarding_invariant_message().to_string(),
+                    );
+                }
                 let completion = match post_bridge {
                     PostBridgeAction::TouchCache => {
                         touch_cache_entry(&payload.game_id);
@@ -336,6 +344,10 @@ pub fn format_bridge_error_message(ssh_host: &str, err: &str) -> String {
 
 pub fn unfinished_first_join_error_message() -> &'static str {
     "This identity is not enrolled in that game yet. If this was a first-time join, you left before naming your empire. Use the invite code again to finish joining."
+}
+
+pub fn hosted_onboarding_invariant_message() -> &'static str {
+    "Hosted join failed before empire naming. The game server sent this player to the wrong first-time screen. Retry the invite. If this keeps happening, contact your sysop."
 }
 
 pub fn is_unfinished_first_join_error(message: &str) -> bool {
@@ -437,7 +449,7 @@ fn upsert_cache_entry(
     gate_npub: &str,
     target: &ResolvedTarget,
 ) {
-    cache_joined_game(build_cached_game_from_ready_payload(
+    cache_game(build_cached_game_from_ready_payload(
         payload,
         target,
         npub,
@@ -446,7 +458,22 @@ fn upsert_cache_entry(
     ));
 }
 
-pub fn cache_joined_game(entry: CachedGame) {
+fn upsert_pending_cache_entry(
+    payload: &SessionReadyPayload,
+    npub: &str,
+    gate_npub: &str,
+    target: &ResolvedTarget,
+) {
+    cache_game(build_pending_cached_game_from_ready_payload(
+        payload,
+        target,
+        npub,
+        gate_npub,
+        &now_iso8601(),
+    ));
+}
+
+pub fn cache_game(entry: CachedGame) {
     let Ok(mut cache) = load_cache() else { return };
     cache.upsert(entry);
     let _ = save_cache(&cache);
@@ -481,7 +508,7 @@ pub fn merge_session_state(
         return;
     }
 
-    cache.upsert(build_cached_game_with_joined(
+    cache.upsert(build_cached_game_with_joined_status(
         &state.game_id,
         &state.game_name,
         Some(&state.player_name),
@@ -489,6 +516,8 @@ pub fn merge_session_state(
         npub,
         gate_npub,
         state.seat,
+        CachedGameStatus::Joined,
+        None,
         joined_if_missing,
     ));
 }
@@ -501,7 +530,7 @@ pub fn build_cached_game_from_ready_payload(
     gate_npub: &str,
     joined: &str,
 ) -> CachedGame {
-    build_cached_game_with_joined(
+    build_cached_game_with_joined_status(
         &payload.game_id,
         &payload.game_name,
         Some(&payload.player_name),
@@ -509,6 +538,29 @@ pub fn build_cached_game_from_ready_payload(
         npub,
         gate_npub,
         payload.seat,
+        CachedGameStatus::Joined,
+        None,
+        joined,
+    )
+}
+
+pub fn build_pending_cached_game_from_ready_payload(
+    payload: &SessionReadyPayload,
+    target: &ResolvedTarget,
+    npub: &str,
+    gate_npub: &str,
+    joined: &str,
+) -> CachedGame {
+    build_cached_game_with_joined_status(
+        &payload.game_id,
+        &payload.game_name,
+        Some(&payload.player_name),
+        target,
+        npub,
+        gate_npub,
+        payload.seat,
+        CachedGameStatus::Pending,
+        target.invite_code.as_deref(),
         joined,
     )
 }
@@ -522,7 +574,7 @@ pub fn build_cached_game(
     gate_npub: &str,
     seat: u32,
 ) -> CachedGame {
-    build_cached_game_with_joined(
+    build_cached_game_with_joined_status(
         game_id,
         game_name,
         player_name,
@@ -530,11 +582,13 @@ pub fn build_cached_game(
         npub,
         gate_npub,
         seat,
+        CachedGameStatus::Joined,
+        None,
         &now_iso8601(),
     )
 }
 
-fn build_cached_game_with_joined(
+fn build_cached_game_with_joined_status(
     game_id: &str,
     game_name: &str,
     player_name: Option<&str>,
@@ -542,6 +596,8 @@ fn build_cached_game_with_joined(
     npub: &str,
     gate_npub: &str,
     seat: u32,
+    status: CachedGameStatus,
+    invite_code: Option<&str>,
     joined: &str,
 ) -> CachedGame {
     CachedGame {
@@ -557,6 +613,11 @@ fn build_cached_game_with_joined(
         seat,
         npub: npub.to_string(),
         gate_npub: gate_npub.to_string(),
+        status,
+        invite_code: invite_code
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
         joined: joined.to_string(),
         last_connected: None,
     }

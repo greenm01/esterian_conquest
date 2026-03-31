@@ -76,7 +76,7 @@ fn provision(
     ssh_pubkey: &str,
     game_dir: &PathBuf,
 ) -> ec_gate::serve::provision::ProvisionedKey {
-    provision_key(config, seat, ssh_pubkey, game_dir, TEST_SESSION_TOKEN)
+    provision_key(config, seat, ssh_pubkey, game_dir, TEST_SESSION_TOKEN, None)
         .expect("provision_key should succeed")
 }
 
@@ -175,6 +175,29 @@ fn command_key_entry_has_command_restriction() {
     assert!(
         provisioned.entry.contains("no-port-forwarding"),
         "entry should contain no-port-forwarding"
+    );
+}
+
+#[test]
+fn command_key_entry_includes_hosted_invite_code_when_present() {
+    let dir = temp_dir();
+    let config = config_command(dir.join("keys"));
+    let game_dir = PathBuf::from(GAME_DIR);
+
+    let provisioned = provision_key(
+        &config,
+        &seat("friday-night", 2),
+        TEST_SSH_PUBKEY,
+        &game_dir,
+        TEST_SESSION_TOKEN,
+        Some("velvet-mountain"),
+    )
+    .expect("provision_key should succeed");
+
+    assert!(
+        provisioned
+            .entry
+            .contains("--hosted-invite-code velvet-mountain")
     );
 }
 

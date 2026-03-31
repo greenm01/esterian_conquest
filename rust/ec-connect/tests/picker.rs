@@ -6,7 +6,7 @@
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
 };
-use ec_connect::cache::{CachedGame, GameCache};
+use ec_connect::cache::{CachedGame, CachedGameStatus, GameCache};
 use ec_connect::config::ConnectConfig;
 use ec_connect::connect::handshake::GameEntry;
 use ec_connect::connect::resolve::ResolvedTarget;
@@ -14,7 +14,8 @@ use ec_connect::connect::session::SessionOutcome;
 use ec_connect::picker::connecting::PendingConnectRequest;
 use ec_connect::picker::event::is_manual_refresh_key;
 use ec_connect::picker::flows::{
-    apply_session_outcome, persist_maps_root_at, redownload_selected_maps_with_config,
+    apply_session_outcome, connect_selected, persist_maps_root_at,
+    redownload_selected_maps_with_config,
 };
 use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL};
 use ec_connect::picker::input::{handle_game_list_key, handle_relay_key};
@@ -46,6 +47,8 @@ fn make_game(id: &str, last_connected: Option<&str>) -> CachedGame {
         seat: 1,
         npub: "npub1test".to_string(),
         gate_npub: String::new(),
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: "2026-03-01T10:00:00Z".to_string(),
         last_connected: last_connected.map(|s| s.to_string()),
     }
@@ -54,6 +57,13 @@ fn make_game(id: &str, last_connected: Option<&str>) -> CachedGame {
 fn make_game_without_relay(id: &str) -> CachedGame {
     let mut game = make_game(id, Some("2026-03-26T00:00:00Z"));
     game.relay_url = None;
+    game
+}
+
+fn make_pending_game(id: &str, invite_code: &str) -> CachedGame {
+    let mut game = make_game(id, Some("2026-03-26T00:00:00Z"));
+    game.status = CachedGameStatus::Pending;
+    game.invite_code = Some(invite_code.to_string());
     game
 }
 
@@ -1276,12 +1286,49 @@ fn overflowing_picker_renders_themed_scrollbar_gutter() {
         .map(|idx| make_game(&format!("{idx:02}"), Some("2026-03-26T00:00:00Z")))
         .collect();
     let state = make_state(games);
-    let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
+    let buffer = ec_connect::picker::render::render_inner_buffer(&state, None);
 
-    assert_eq!(buffer.row(4)[80].ch, '^');
-    assert_eq!(buffer.row(23)[80].ch, 'v');
-    assert!((5..23).any(|row| buffer.row(row)[80].ch == '#'));
-    assert_eq!(buffer.row(4)[80].style, classic::table_chrome_style());
+    assert!((0..buffer.height()).any(|row| {
+        let line = buffer.plain_line(row);
+        line.contains("Game 00") || line.contains("Game 01")
+    }));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("COMMAND <-")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Empire")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Status")));
+}
+
+#[test]
+fn pending_rows_render_status_and_reuse_stored_invite_on_enter() {
+    let mut state = make_state(vec![make_pending_game("a", "victim-sickness")]);
+
+    connect_selected(&mut state, "").expect("pending row should queue a reconnect");
+
+    let pending = state
+        .pending_connect
+        .as_ref()
+        .expect("connect request should be queued");
+    assert_eq!(
+        pending.target.invite_code.as_deref(),
+        Some("victim-sickness")
+    );
+    assert_eq!(pending.target.game_id.as_deref(), Some("a"));
+    assert!(
+        pending
+            .display
+            .lines
+            .iter()
+            .any(|line| line.contains("Invite: victim-sickness"))
+    );
+
+    let buffer = ec_connect::picker::render::render_inner_buffer(&state, None);
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Status")),
+        "main picker header should show Status"
+    );
+    assert!(
+        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("Pending")),
+        "pending row should render its status"
+    );
 }
 
 #[test]

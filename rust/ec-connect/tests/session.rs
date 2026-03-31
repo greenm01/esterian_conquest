@@ -2,7 +2,8 @@ use ec_connect::cache::{CachedGame, GameCache};
 use ec_connect::connect::handshake::SessionReadyPayload;
 use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::{
-    build_cached_game_from_ready_payload, format_bridge_error_message,
+    build_cached_game_from_ready_payload, build_pending_cached_game_from_ready_payload,
+    format_bridge_error_message, hosted_onboarding_invariant_message,
     is_unfinished_first_join_error, merge_session_state, resolve_gate_npub,
     unfinished_first_join_error_message,
 };
@@ -86,6 +87,20 @@ fn ready_payload_can_build_cache_row_for_claimed_reconnects() {
 }
 
 #[test]
+fn ready_payload_can_build_pending_cache_row_for_incomplete_first_join() {
+    let entry = build_pending_cached_game_from_ready_payload(
+        &ready_payload(),
+        &local_target(),
+        "npub1player",
+        "npub1gate",
+        "2026-03-30T20:00:00Z",
+    );
+
+    assert_eq!(entry.status, ec_connect::cache::CachedGameStatus::Pending);
+    assert_eq!(entry.invite_code.as_deref(), Some("victim-sickness"));
+}
+
+#[test]
 fn unfinished_first_join_error_is_stable_for_stale_row_recovery() {
     let err = unfinished_first_join_error_message();
 
@@ -96,6 +111,16 @@ fn unfinished_first_join_error_is_stable_for_stale_row_recovery() {
     assert!(!is_unfinished_first_join_error(
         "unknown_player: player not found"
     ));
+}
+
+#[test]
+fn hosted_onboarding_invariant_message_is_clean_single_paragraph() {
+    let err = hosted_onboarding_invariant_message();
+
+    assert!(err.contains("Hosted join failed before empire naming."));
+    assert!(err.contains("wrong first-time screen"));
+    assert!(err.contains("Retry the invite."));
+    assert!(!err.contains('\n'));
 }
 
 #[test]

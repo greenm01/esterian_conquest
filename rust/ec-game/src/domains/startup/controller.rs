@@ -11,6 +11,14 @@ use crate::screen::{
 use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
+    pub fn set_hosted_invite_session(&mut self, player_npub: String, invite_code: Option<String>) {
+        self.startup_state.hosted_player_npub = Some(player_npub);
+        self.startup_state.hosted_invite_code = invite_code;
+        if self.player.classic_login_state == ClassicLoginState::FirstTimeMenu {
+            self.startup_sequence.enable_intro_path();
+        }
+    }
+
     fn has_bbs_reserved_seat(&self) -> bool {
         self.door_mode && self.startup_state.reserved_seat_alias.is_some()
     }

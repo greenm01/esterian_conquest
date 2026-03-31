@@ -24,6 +24,7 @@ pub struct StartupSummary {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StartupSequence {
     current: StartupPhase,
+    show_intro: bool,
     show_login_review: bool,
     show_results: bool,
     show_messages: bool,
@@ -56,10 +57,15 @@ impl StartupSequence {
         );
         Self {
             current: StartupPhase::Splash,
+            show_intro: false,
             show_login_review,
             show_results: show_login_review && summary.pending_results,
             show_messages: show_login_review && summary.pending_messages,
         }
+    }
+
+    pub fn enable_intro_path(&mut self) {
+        self.show_intro = true;
     }
 
     pub fn current(&self) -> StartupPhase {
@@ -69,7 +75,9 @@ impl StartupSequence {
     pub fn advance(&mut self) -> StartupPhase {
         self.current = match self.current {
             StartupPhase::Splash => {
-                if self.show_login_review {
+                if self.show_intro {
+                    StartupPhase::Intro
+                } else if self.show_login_review {
                     StartupPhase::LoginSummary
                 } else {
                     StartupPhase::Complete

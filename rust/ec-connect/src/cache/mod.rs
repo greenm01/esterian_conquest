@@ -6,8 +6,8 @@
 //!
 //! Format:
 //! ```kdl
-//! game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 relay-url="wss://relay.example.com" seat=2 npub="npub1aaa..." gate-npub="npub1gate..." joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
-//! game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." joined="2026-03-27T10:00:00Z"
+//! game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 relay-url="wss://relay.example.com" seat=2 npub="npub1aaa..." gate-npub="npub1gate..." status="joined" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+//! game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." status="pending" invite-code="velvet-mountain" joined="2026-03-27T10:00:00Z"
 //! ```
 //!
 //! The picker sorts games by `last-connected` descending (most recently
@@ -17,6 +17,28 @@
 pub mod io;
 
 pub use io::{cache_path, load_cache, load_cache_from, save_cache, save_cache_to};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CachedGameStatus {
+    Pending,
+    Joined,
+}
+
+impl CachedGameStatus {
+    pub fn as_kdl_value(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Joined => "joined",
+        }
+    }
+
+    pub fn parse(value: &str) -> Self {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "pending" => Self::Pending,
+            _ => Self::Joined,
+        }
+    }
+}
 
 /// One joined-game entry in the local cache.
 #[derive(Debug, Clone)]
@@ -40,6 +62,10 @@ pub struct CachedGame {
     /// The gate's Nostr public key (bech32).  Empty string if not known
     /// (e.g. entries written by older versions of ec-connect).
     pub gate_npub: String,
+    /// Local picker state for this game row.
+    pub status: CachedGameStatus,
+    /// Original invite code for incomplete hosted first joins.
+    pub invite_code: Option<String>,
     /// ISO-8601 timestamp of first join.
     pub joined: String,
     /// ISO-8601 timestamp of most recent connection, if any.
@@ -95,6 +121,8 @@ impl GameCache {
             .filter(|value| !value.is_empty())
             .map(str::to_string);
         game.seat = seat;
+        game.status = CachedGameStatus::Joined;
+        game.invite_code = None;
         true
     }
 

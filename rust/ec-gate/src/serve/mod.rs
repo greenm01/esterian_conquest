@@ -688,6 +688,7 @@ async fn handle_request(
                 &req.ssh_pubkey,
                 &game_dir,
                 &session_token,
+                req.invite_code.as_deref().filter(|_| seat.first_claim),
             ) {
                 Ok(provisioned) => {
                     let player_name = match player_name_for_seat(&game_dir, seat.player) {

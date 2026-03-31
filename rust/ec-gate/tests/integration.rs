@@ -155,8 +155,15 @@ fn full_pipeline_first_time_join_with_invite_code() {
     assert_eq!(claimed.player_npub.as_deref(), Some(player_hex.as_str()));
 
     let config = gate_config_command(keys_dir);
-    let provisioned =
-        provision_key(&config, &seat, ssh_pubkey, &game_dir, "session-test-token").unwrap();
+    let provisioned = provision_key(
+        &config,
+        &seat,
+        ssh_pubkey,
+        &game_dir,
+        "session-test-token",
+        Some("velvet-mountain"),
+    )
+    .unwrap();
     let key_file = config
         .auth_keys_path
         .join(format!("{}.key", provisioned.key_id));
@@ -364,8 +371,15 @@ fn full_pipeline_reaper_cleans_expired_while_leaving_live() {
     let ssh_b = "ssh-ed25519 AAAA666666666666666666666666666666666666666666666666666 expired";
 
     let config_live = gate_config_command(keys_dir.clone());
-    let key_live =
-        provision_key(&config_live, &seat_live, ssh_a, &game_dir, "session-live").unwrap();
+    let key_live = provision_key(
+        &config_live,
+        &seat_live,
+        ssh_a,
+        &game_dir,
+        "session-live",
+        None,
+    )
+    .unwrap();
 
     let mut config_expired = gate_config_command(keys_dir.clone());
     config_expired.key_ttl = 0;
@@ -375,6 +389,7 @@ fn full_pipeline_reaper_cleans_expired_while_leaving_live() {
         ssh_b,
         &game_dir,
         "session-expired",
+        None,
     )
     .unwrap();
 

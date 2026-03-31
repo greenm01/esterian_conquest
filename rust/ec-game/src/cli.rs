@@ -26,6 +26,7 @@ struct ParsedLaunchArgs {
     dropfile_alias: Option<String>,
     session_timeout_secs: Option<u32>,
     session_token: Option<String>,
+    hosted_invite_code: Option<String>,
     use_door_terminal: bool,
 }
 
@@ -131,9 +132,12 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     );
     app.screen_geometry = parsed.screen_geometry;
     app.door_mode = parsed.use_door_terminal;
-    app.startup_state.hosted_player_npub = session_lease
+    if let Some(player_npub) = session_lease
         .as_ref()
-        .map(|lease| lease.player_npub.clone());
+        .map(|lease| lease.player_npub.clone())
+    {
+        app.set_hosted_invite_session(player_npub, parsed.hosted_invite_code.clone());
+    }
     if app.door_mode {
         crate::theme::apply_default_theme();
     }
@@ -240,6 +244,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut dropfile_path: Option<PathBuf> = None;
     let mut explicit_timeout_minutes: Option<u32> = None;
     let mut session_token = None;
+    let mut hosted_invite_code = None;
     let mut idx = 1;
     while idx < args.len() {
         match args[idx].as_str() {
@@ -351,6 +356,13 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
                 session_token = Some(value.to_string());
                 idx += 2;
             }
+            "--hosted-invite-code" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --hosted-invite-code".into());
+                };
+                hosted_invite_code = Some(value.trim().to_string());
+                idx += 2;
+            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -416,6 +428,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         dropfile_alias,
         session_timeout_secs,
         session_token,
+        hosted_invite_code,
         use_door_terminal,
     })
 }
@@ -471,6 +484,7 @@ fn print_usage() {
         "  ec-game --dir <game_dir> [--player <1-based empire index>] \
          [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
          [--dropfile <path>] [--timeout <minutes>] [--session-token <token>] \
+         [--hosted-invite-code <code>] \
          [--export-root <dir>] [--queue-dir <dir>] \
          [--log-file <path>] [--log-level <error|warn|info|debug|trace>]"
     );
@@ -644,6 +658,9 @@ mod tests {
         ParsedLaunchArgs, local_exit_lines, session_lease_ttl_seconds,
         should_emit_local_exit_attribution,
     };
+    use crate::error::{
+        HOSTED_ONBOARDING_INVARIANT_EXIT_CODE, HostedOnboardingInvariantError, exit_code_for,
+    };
     use crate::screen::ScreenGeometry;
     use crate::terminal::{ColorMode, OutputEncoding};
     use ec_data::GameConfig;
@@ -663,6 +680,7 @@ mod tests {
             dropfile_alias: None,
             session_timeout_secs: None,
             session_token: None,
+            hosted_invite_code: None,
             use_door_terminal,
         }
     }
@@ -729,5 +747,15 @@ mod tests {
             true,
             false
         ));
+    }
+
+    #[test]
+    fn hosted_onboarding_invariant_maps_to_dedicated_exit_code() {
+        let err = HostedOnboardingInvariantError::new("FirstTimeMenu");
+
+        assert_eq!(
+            exit_code_for(&err),
+            Some(HOSTED_ONBOARDING_INVARIANT_EXIT_CODE)
+        );
     }
 }

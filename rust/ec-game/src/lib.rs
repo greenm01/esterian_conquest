@@ -2,6 +2,7 @@ pub mod app;
 pub mod cli;
 pub mod domains;
 pub mod dropfile;
+pub mod error;
 pub mod model;
 pub mod quotes;
 pub mod reports;

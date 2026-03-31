@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use ec_connect::cache::io::{load_cache_from, parse_cache_str, render_cache, save_cache_to};
-use ec_connect::cache::{CachedGame, GameCache};
+use ec_connect::cache::{CachedGame, CachedGameStatus, GameCache};
 
 // ---------------------------------------------------------------------------
 // parse_cache_str
@@ -116,6 +116,8 @@ fn render_includes_gate_npub_when_set() {
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: "npub1gate".to_string(),
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: "2026-01-01T00:00:00Z".to_string(),
         last_connected: None,
     });
@@ -136,6 +138,8 @@ fn render_includes_relay_url_when_set() {
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: String::new(),
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: "2026-01-01T00:00:00Z".to_string(),
         last_connected: None,
     });
@@ -156,6 +160,8 @@ fn render_omits_gate_npub_when_empty() {
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: String::new(),
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: "2026-01-01T00:00:00Z".to_string(),
         last_connected: None,
     });
@@ -172,6 +178,28 @@ fn gate_npub_round_trip() {
     let rendered = render_cache(&cache);
     let cache2 = parse_cache_str(&rendered).unwrap();
     assert_eq!(cache2.games[0].gate_npub, "npub1gate");
+}
+
+#[test]
+fn pending_status_and_invite_code_round_trip() {
+    let kdl = r#"game id="g" name="G" server="s.example.com" port=22 seat=1 npub="npub1p" status="pending" invite-code="velvet-mountain" joined="2026-01-01T00:00:00Z"
+"#;
+    let cache = parse_cache_str(kdl).unwrap();
+    assert_eq!(cache.games[0].status, CachedGameStatus::Pending);
+    assert_eq!(
+        cache.games[0].invite_code.as_deref(),
+        Some("velvet-mountain")
+    );
+
+    let rendered = render_cache(&cache);
+    assert!(rendered.contains("status=\"pending\""));
+    assert!(rendered.contains("invite-code=\"velvet-mountain\""));
+    let cache2 = parse_cache_str(&rendered).unwrap();
+    assert_eq!(cache2.games[0].status, CachedGameStatus::Pending);
+    assert_eq!(
+        cache2.games[0].invite_code.as_deref(),
+        Some("velvet-mountain")
+    );
 }
 
 #[test]
@@ -204,6 +232,8 @@ fn gate_npub_for_server_returns_known_npub() {
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: "npub1gate".to_string(),
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: "2026-01-01T00:00:00Z".to_string(),
         last_connected: None,
     });
@@ -227,6 +257,8 @@ fn gate_npub_for_server_ignores_empty_gate_npub() {
         seat: 1,
         npub: "npub1p".to_string(),
         gate_npub: String::new(), // old-format entry
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: "2026-01-01T00:00:00Z".to_string(),
         last_connected: None,
     });
@@ -249,6 +281,8 @@ fn make_game(id: &str, joined: &str, last: Option<&str>) -> CachedGame {
         seat: 1,
         npub: "npub1test".to_string(),
         gate_npub: String::new(),
+        status: CachedGameStatus::Joined,
+        invite_code: None,
         joined: joined.to_string(),
         last_connected: last.map(str::to_string),
     }

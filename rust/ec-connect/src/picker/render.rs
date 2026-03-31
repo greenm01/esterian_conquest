@@ -5,14 +5,15 @@ use ec_ui::table_layout::{
 };
 use ec_ui::theme::classic;
 
+use crate::cache::CachedGameStatus;
+
 use super::help::{
     GAME_SELECT_RAIL, MAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, WALLET_MENU_RAIL,
 };
 use super::layout::{
     Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, TableMetrics,
-    displayed_body_rows, draw_scroll_gutter, draw_table_frame, middle_ellipsis, pad_right,
-    resolve_columns, scroll_start, table_cell_start, table_message_col_in, table_render_width,
-    table_text_col,
+    displayed_body_rows, draw_scroll_gutter, draw_table_frame, pad_right, resolve_columns,
+    scroll_start, table_cell_start, table_message_col_in, table_render_width, table_text_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_date, short_npub, truncate};
 use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_popup};
@@ -24,8 +25,8 @@ use crate::shell::{terminal_fits_outer, wrap_inner_buffer_in_terminal};
 const MAIN_COLUMNS: [Column<'_>; 6] = [
     Column::flex("Empire", 13, 1),
     Column::flex("Game", 17, 2),
-    Column::flex("Server", 16, 1),
-    Column::flex("Gate", 12, 1),
+    Column::flex("Server", 22, 1),
+    Column::fixed("Status", 8),
     Column::fixed("Seat", 4),
     Column::fixed("Joined", 10),
 ];
@@ -425,14 +426,18 @@ fn draw_main_row(
             &truncate(&format!("{}:{}", game.server, game.port), columns[2].width),
             columns[2].width,
         ),
-        pad_right(
-            &middle_ellipsis(game.gate_npub.as_str(), columns[3].width, 5, 4),
-            columns[3].width,
-        ),
+        pad_right(cached_game_status_label(game.status), columns[3].width),
         format!("{:>width$}", game.seat, width = columns[4].width),
         pad_right(&short_date(&game.joined), columns[5].width),
     ];
     draw_row_cells(buffer, row, table_col, columns, &values, selected, false);
+}
+
+fn cached_game_status_label(status: CachedGameStatus) -> &'static str {
+    match status {
+        CachedGameStatus::Pending => "Pending",
+        CachedGameStatus::Joined => "Joined",
+    }
 }
 
 fn draw_wallet_row(

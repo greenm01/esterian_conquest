@@ -151,6 +151,25 @@ pub(crate) fn apply_connect_outcome(
     match request.origin {
         ConnectOrigin::GameList => {
             if let SessionOutcome::Error(msg) = &outcome {
+                if request.target.invite_code.is_some()
+                    && (msg.starts_with("code_claimed:")
+                        || msg.starts_with("invalid_code:")
+                        || msg.starts_with("game_not_found:"))
+                {
+                    if let Some(game_id) = request.target.game_id.clone() {
+                        state.overlay = Some(PickerOverlay::StaleGameRow {
+                            game_id,
+                            message: if msg.starts_with("code_claimed:") {
+                                "This pending invite is no longer available. Another player may have finished the join first. Remove this stale picker row if you no longer need it.".to_string()
+                            } else {
+                                "This pending invite is no longer available on the relay. Remove this stale picker row if you no longer need it.".to_string()
+                            },
+                        });
+                    } else {
+                        state.show_error(msg.clone());
+                    }
+                    return Ok(());
+                }
                 if is_unfinished_first_join_error(msg) {
                     if let Some(game_id) = request.target.game_id.clone() {
                         state.overlay = Some(PickerOverlay::StaleGameRow {

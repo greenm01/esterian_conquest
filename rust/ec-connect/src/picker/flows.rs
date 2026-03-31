@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use nostr_sdk::Keys;
 
+use crate::cache::CachedGameStatus;
 use crate::cache::save_cache;
 use crate::config::{ConnectConfig, config_path, load_config, save_config_to};
 use crate::connect::map_fetch::fetch_map_bundle;
@@ -51,6 +52,15 @@ pub fn connect_selected(
         target.relay_url = relay_url.clone();
     }
     target.game_id = Some(game.id.clone());
+    if game.status == CachedGameStatus::Pending {
+        let Some(invite_code) = game.invite_code.as_ref().filter(|value| !value.is_empty()) else {
+            state.show_error(
+                "This pending join no longer has its invite code. Remove the row and rejoin with a fresh invite.",
+            );
+            return Ok(());
+        };
+        target.invite_code = Some(invite_code.clone());
+    }
     let effective_gate = if !game.gate_npub.is_empty() {
         game.gate_npub.clone()
     } else {
@@ -61,7 +71,14 @@ pub fn connect_selected(
         state,
         PendingConnectRequest {
             origin: ConnectOrigin::GameList,
-            display: ConnectDisplay::from_game(&game.name, &target),
+            display: if game.status == CachedGameStatus::Pending {
+                ConnectDisplay::from_invite(
+                    game.invite_code.as_deref().unwrap_or_default(),
+                    &target,
+                )
+            } else {
+                ConnectDisplay::from_game(&game.name, &target)
+            },
             target,
             gate_npub: effective_gate,
         },

@@ -64,6 +64,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.startup_state.first_time_rename_preloaded_empire,
             app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::BbsReserved,
             app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::HostedInvite,
+            app.startup_state.hosted_invite_code.as_deref(),
             app.startup_state.reserved_seat_alias.as_deref(),
             &app.player.empire_name,
             &app.startup_state.first_time_input,
@@ -73,6 +74,12 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FirstTimeJoinEmpireConfirm => render_first_time_join_name_confirm(
             app.startup_state.first_time_rename_preloaded_empire,
             app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::BbsReserved,
+            if app.startup_state.first_time_onboarding_mode == FirstTimeOnboardingMode::HostedInvite
+            {
+                app.startup_state.hosted_invite_code.as_deref()
+            } else {
+                None
+            },
             &app.startup_state.first_time_empire_name,
             app.door_mode,
         ),

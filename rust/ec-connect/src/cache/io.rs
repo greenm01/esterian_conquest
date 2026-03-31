@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use kdl::KdlDocument;
 
-use super::{CachedGame, GameCache};
+use super::{CachedGame, CachedGameStatus, GameCache};
 
 // ---------------------------------------------------------------------------
 // Path resolution
@@ -119,6 +119,16 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
             .and_then(|v| v.as_string())
             .map(str::to_string)
             .unwrap_or_default();
+        let status = node
+            .get("status")
+            .and_then(|v| v.as_string())
+            .map(CachedGameStatus::parse)
+            .unwrap_or(CachedGameStatus::Joined);
+        let invite_code = node
+            .get("invite-code")
+            .and_then(|v| v.as_string())
+            .map(str::to_string)
+            .filter(|value| !value.is_empty());
         let joined = req_str(node, "joined", "game")?;
         let last_connected = node
             .get("last-connected")
@@ -135,6 +145,8 @@ pub fn parse_cache_str(kdl: &str) -> Result<GameCache, Box<dyn std::error::Error
             seat,
             npub,
             gate_npub,
+            status,
+            invite_code,
             joined,
             last_connected,
         });
@@ -164,13 +176,17 @@ pub fn render_cache(cache: &GameCache) -> String {
             out.push_str(&format!(" relay-url=\"{}\"", kdl_escape(relay_url)));
         }
         out.push_str(&format!(
-            " seat={} npub=\"{}\" joined=\"{}\"",
+            " seat={} npub=\"{}\" status=\"{}\" joined=\"{}\"",
             g.seat,
             kdl_escape(&g.npub),
+            g.status.as_kdl_value(),
             kdl_escape(&g.joined),
         ));
         if !g.gate_npub.is_empty() {
             out.push_str(&format!(" gate-npub=\"{}\"", kdl_escape(&g.gate_npub)));
+        }
+        if let Some(invite_code) = g.invite_code.as_deref().filter(|value| !value.is_empty()) {
+            out.push_str(&format!(" invite-code=\"{}\"", kdl_escape(invite_code)));
         }
         if let Some(lc) = &g.last_connected {
             out.push_str(&format!(" last-connected=\"{}\"", kdl_escape(lc)));

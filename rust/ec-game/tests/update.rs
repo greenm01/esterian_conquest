@@ -2411,7 +2411,10 @@ fn hosted_first_time_join_claims_seat_when_empire_name_is_saved() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    app.startup_state.hosted_player_npub = Some("npub1hostedplayer".to_string());
+    app.set_hosted_invite_session(
+        "npub1hostedplayer".to_string(),
+        Some("velvet-mountain".to_string()),
+    );
 
     assert_eq!(
         store.hosted_seats().expect("load pending seats")[0].status,
@@ -2443,6 +2446,13 @@ fn hosted_first_time_join_claims_seat_when_empire_name_is_saved() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+    let confirm_screen =
+        ec_game::domains::startup::views::render(&mut app).expect("render hosted join confirm");
+    assert!((0..confirm_screen.height()).any(|row| {
+        confirm_screen
+            .plain_line(row)
+            .contains("Invite code: velvet-mountain")
+    }));
 
     assert_eq!(
         apply_action(
@@ -2488,9 +2498,16 @@ fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    app.startup_state.hosted_player_npub = Some("npub1hostedplayer".to_string());
+    app.set_hosted_invite_session(
+        "npub1hostedplayer".to_string(),
+        Some("velvet-mountain".to_string()),
+    );
 
+    let mut saw_intro = false;
     for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Intro) {
+            saw_intro = true;
+        }
         if app.current_screen() == ScreenId::FirstTimeJoinEmpireName {
             break;
         }
@@ -2499,7 +2516,47 @@ fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
         app.advance_startup();
     }
 
+    assert!(
+        saw_intro,
+        "hosted first-time join should pass through intro"
+    );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let screen =
+        ec_game::domains::startup::views::render(&mut app).expect("render hosted join name");
+    assert!((0..screen.height()).any(|row| {
+        screen
+            .plain_line(row)
+            .contains("Invite code: velvet-mountain")
+    }));
+    assert!(!(0..screen.height()).any(|row| screen.plain_line(row).contains("npub1hostedplayer")));
+}
+
+#[test]
+fn hosted_sessions_error_if_first_time_menu_renders() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.set_hosted_invite_session(
+        "npub1hostedplayer".to_string(),
+        Some("velvet-mountain".to_string()),
+    );
+    *app.current_screen_mut() = ScreenId::FirstTimeMenu;
+
+    let mut terminal = CaptureTerminal::new();
+    let err = app
+        .render(&mut terminal)
+        .expect_err("hosted session should reject first time menu");
+
+    assert!(err.to_string().contains("Hosted join invariant failed"));
+    assert!(err.to_string().contains("FirstTimeMenu"));
 }
 
 #[test]
@@ -2532,7 +2589,10 @@ fn hosted_first_time_escape_requests_quit_and_warns_invite_is_not_reserved() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    app.startup_state.hosted_player_npub = Some("npub1hostedplayer".to_string());
+    app.set_hosted_invite_session(
+        "npub1hostedplayer".to_string(),
+        Some("velvet-mountain".to_string()),
+    );
 
     for _ in 0..16 {
         if app.current_screen() == ScreenId::FirstTimeJoinEmpireName {

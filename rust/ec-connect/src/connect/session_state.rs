@@ -108,8 +108,22 @@ pub async fn fetch_game_metadata(
 ) -> Result<SessionStatePayload, String> {
     match fetch_session_state(player_keys, target, gate_npub, game_id).await {
         Ok(payload) => Ok(payload),
-        Err(_) => fetch_game_metadata_via_handshake(player_keys, target, gate_npub, game_id).await,
+        Err(err) => {
+            if should_retry_game_metadata_via_handshake(target) {
+                fetch_game_metadata_via_handshake(player_keys, target, gate_npub, game_id).await
+            } else {
+                Err(err)
+            }
+        }
     }
+}
+
+pub fn should_retry_game_metadata_via_handshake(target: &ResolvedTarget) -> bool {
+    target
+        .invite_code
+        .as_ref()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
 }
 
 async fn publish_session_state_request(

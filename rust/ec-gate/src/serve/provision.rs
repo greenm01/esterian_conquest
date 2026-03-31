@@ -83,6 +83,7 @@ pub fn provision_key(
     ssh_pubkey: &str,
     game_dir: &std::path::Path,
     session_token: &str,
+    hosted_invite_code: Option<&str>,
 ) -> Result<ProvisionedKey, ProvisionError> {
     let key_id = new_key_id();
     let now = unix_now();
@@ -92,13 +93,17 @@ pub fn provision_key(
     // installer. Use `exec` so the shell is replaced by ec-game; when the
     // hosted session ends, sshd closes the connection cleanly instead of
     // dropping the player to an interactive shell prompt.
-    let command = format!(
+    let mut command = format!(
         "exec {} --dir {} --player {} --session-token {}",
         config.ec_game_path.display(),
         game_dir.display(),
         seat.player,
         session_token
     );
+    if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
+        command.push_str(" --hosted-invite-code ");
+        command.push_str(invite_code.trim());
+    }
     let restrictions = "no-port-forwarding,no-X11-forwarding,no-agent-forwarding";
     let key_line = format!(r#"command="{command}",{restrictions} {ssh_pubkey}"#);
 
