@@ -308,8 +308,9 @@ It also includes:
 - `BUILD-INFO.txt` with version/build metadata for bug reports
 
 This is not a public release package. Public GitHub Releases currently publish
-the Windows x64 `ec-connect` player archive plus the DOS compatibility bundles
-while the hosted Rust path is still under live playtest.
+Windows x64, Linux x64, and macOS Apple Silicon `ec-connect` player archives
+plus the DOS compatibility bundles while the hosted Rust path is still under
+live playtest.
 
 ## Quick Start
 

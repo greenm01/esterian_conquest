@@ -1,7 +1,7 @@
 # Release Signing
 
-Public GitHub Releases currently publish the Windows x64 `ec-connect` player
-archive during the beta, together with a signed `SHA256SUMS.txt` manifest.
+Public GitHub Releases currently publish the public `ec-connect` player
+archives during the beta, together with a signed `SHA256SUMS.txt` manifest.
 
 This page documents the signing key and verification flow for those public Rust
 archives and for any later public player archives added to the release page.

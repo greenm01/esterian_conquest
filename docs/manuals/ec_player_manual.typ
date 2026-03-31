@@ -183,9 +183,9 @@ identity instead of trying to redeem a second invite from it.
 
 == ec-connect Setup
 
-On Windows, get the current `ec-connect` build from the public GitHub Release
-`.zip`. On Linux or macOS, get it from your sysop or another direct beta
-handoff. Keep this manual with it.
+Get the current `ec-connect` build from the repo's GitHub Releases page.
+Public player packages are available for Windows x64, Linux x64, and macOS
+Apple Silicon. Keep this manual with it.
 
 === Windows
 

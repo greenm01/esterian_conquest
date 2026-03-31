@@ -8,16 +8,15 @@ games.
 
 | Audience | Public Download Today | Expected Install Path |
 |---|---|---|
-| Normal player | Windows x64 `ec-connect` GitHub Release `.zip` plus the player manual PDF | Download the public Windows archive from GitHub Releases; Linux/macOS players still receive a direct/private beta build from the sysop or project team |
+| Normal player | Windows x64, Linux x64, or macOS Apple Silicon `ec-connect` archive plus the player manual PDF | Download the matching public player archive from GitHub Releases |
 | Rust self-host sysop | Tagged source release | `cargo build --release` |
 | Rust VPS sysop | Tagged source release | `cargo build --release` plus `scripts/install_vps.sh` |
 | BBS sysop | No public Rust door package yet | Build from source, or use a direct/private beta build |
 | Windows BBS sysop | No public package | Best-effort source build only |
 
-Public GitHub Releases currently publish the Windows x64 `ec-connect` archive
-plus the signed `SHA256SUMS.txt` manifest for public player verification.
-Linux and macOS `ec-connect` archives are not published there during the
-current beta.
+Public GitHub Releases currently publish the Windows x64, Linux x64, and macOS
+Apple Silicon `ec-connect` archives, plus the signed `SHA256SUMS.txt` manifest
+for public player verification.
 
 ## Target Stable Policy
 
