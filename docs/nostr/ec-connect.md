@@ -76,8 +76,8 @@ ESTERIAN CONQUEST CONNECT                              alice-main
 COMMANDS <- J K ^U ^D <N> <W> <I> <M> <L> <Q> ->
 ```
 
-`J` and `K` move the selection, with arrows accepted as aliases. `Enter`
-connects. `W` opens the wallet manager. `L` locks immediately, and `Alt-L`
+`J` and `K` move the selection, and the arrow keys also work. `Enter`
+connects. `W` opens the wallet screen. `L` locks immediately, and `Alt-L`
 also works from text-entry prompts. `Q` now asks for confirmation before
 exiting the local shell, `Esc` mirrors `Q` implicitly, and `?` opens a
 screen-specific help popup that explains the visible command-line buttons.
@@ -94,12 +94,12 @@ CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@relay.example.com
 After a successful join, the new game appears in the list and the player
 is connected immediately. Public first joins no longer claim the seat until
 the player actually saves the in-game empire name. If the player disconnects
-before that save, the invite remains reusable and the game is not cached yet.
-After a completed first join, `ec-connect` refreshes the seat state, caches
-the game locally, and then requests the static starmap bundle. The download is
-best-effort: if it fails, the player still enters the game and can retry later
-from the picker. Invalid invite codes stay in the prompt and show an error
-notice instead of dropping out of the shell.
+before that save, the game stays in the picker as `Pending` and `Enter` retries
+the original invite code. After a completed first join, `ec-connect` promotes
+that row to `Joined`, refreshes the seat state, and then requests the static
+starmap bundle. The download is best-effort: if it fails, the player still
+enters the game and can retry later from the picker. Invalid invite codes stay
+in the prompt and show an error notice instead of dropping out of the shell.
 
 ### Nostr User
 
@@ -121,12 +121,13 @@ Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
 ## Identity Management
 
-The `W` wallet screen is the normal in-client way to switch identities,
-create local keys, import `nsec` keys, assign a local alias, and copy the full
-backup material for the selected identity. In the wallet detail popup, `Ctrl-P`
-copies the full `npub` and `Ctrl-S` copies the full `nsec`. The CLI companion
-remains available from Cargo/source builds for one-shot and automation-heavy
-workflows.
+The `W` wallet screen in the packaged GUI is intentionally single-identity.
+On first launch it creates one local identity automatically. Later, `R`
+replaces that current identity: paste an `nsec` to import one you already
+saved elsewhere, or leave the field blank to generate a fresh local identity.
+In the wallet detail popup, `Ctrl-P` copies the full `npub` and `Ctrl-S`
+copies the full `nsec`. The CLI companion remains available from Cargo/source
+builds for advanced multi-identity and automation-heavy workflows.
 
 On first wallet creation from `ec-connect id new` or `ec-connect id import`,
 the CLI prints the same left-justified wallet-loss warning before asking for
@@ -140,9 +141,9 @@ Player identities are stored in an encrypted wallet at:
 ~/.local/share/ec/wallet.kdl
 ```
 
-The wallet can hold multiple identities (up to 10). One identity is
-active at a time. The wallet is encrypted with ChaCha20-Poly1305 using a
-key derived from the player's password via PBKDF2-HMAC-SHA256.
+The packaged GUI keeps exactly one identity active at a time and treats
+imports as replacement. The wallet is encrypted with ChaCha20-Poly1305 using
+a key derived from the player's password via PBKDF2-HMAC-SHA256.
 
 This wallet is local player state, not authoritative hosted game state.
 
@@ -151,7 +152,6 @@ Decrypted wallet format:
 ```kdl
 wallet active="0"
 identity nsec="nsec1..." type="local" created="2026-03-26T12:00:00Z"
-identity nsec="nsec1..." type="imported" created="2026-03-28T09:35:00Z" alias="Desk Key"
 ```
 
 Identity types:
@@ -417,9 +417,10 @@ Pressing `I` shows a brief overlay or status line:
  Identity: npub1aaa...xyz (local)   [1 of 2 identities]
 ```
 
-Full identity management lives under the `W` wallet manager. The identity
-detail popup shows the complete `npub` and `nsec`, allows alias editing, and
-supports clipboard copy for backup.
+Full packaged-player identity management lives under the `W` wallet screen.
+The detail popup shows the complete `npub` and `nsec` and supports clipboard
+copy for backup. Importing a different identity replaces the current one and
+clears cached picker rows for the old `npub`.
 
 ### Manual Map Re-Download
 

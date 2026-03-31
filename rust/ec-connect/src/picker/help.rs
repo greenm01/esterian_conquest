@@ -1,7 +1,7 @@
 use super::state::Screen;
 
 pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D R <Space> L <Q>";
-pub const WALLET_MENU_RAIL: &str = "? J K ^U ^D N <Enter> A D L <Q>";
+pub const WALLET_MENU_RAIL: &str = "? R <Enter> L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
 pub const RELAY_MENU_RAIL: &str = "? J K ^U ^D A E D S <Enter> <Q>";
 pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D R <Q>";
@@ -44,7 +44,7 @@ const MAIN_ROWS: &[HelpRow] = &[
     },
     HelpRow {
         command: "W",
-        description: "open wallet manager",
+        description: "open identity screen",
     },
     HelpRow {
         command: "I",
@@ -90,28 +90,12 @@ const MAIN_ROWS: &[HelpRow] = &[
 
 const WALLET_ROWS: &[HelpRow] = &[
     HelpRow {
-        command: "J/K",
-        description: "move selection",
-    },
-    HelpRow {
-        command: "^U/^D",
-        description: "page up/down",
-    },
-    HelpRow {
-        command: "N",
-        description: "new or import identity",
+        command: "R",
+        description: "replace current identity or import an nsec",
     },
     HelpRow {
         command: "Enter",
-        description: "open selected identity details",
-    },
-    HelpRow {
-        command: "A",
-        description: "activate selected identity",
-    },
-    HelpRow {
-        command: "D",
-        description: "delete selected identity",
+        description: "show current identity backup details",
     },
     HelpRow {
         command: "L",

@@ -207,13 +207,11 @@ If you join from the picker later and a cached game is missing its relay,
 
 == Wallet Management
 
-Press `W` in `ec-connect` to manage identities. The wallet can hold multiple
-identities, but only one is active at a time.
+Press `W` in `ec-connect` to view your current identity and backup material.
+The packaged GUI keeps one active identity at a time.
 
-- `N` creates a new identity or imports an existing `nsec`
-- `A` makes the selected identity active
-- `Enter` shows the full `npub` and `nsec`, and lets you edit the local alias
-- `D` deletes an identity after confirmation
+- `R` replaces the current identity: paste an existing `nsec`, or leave the field blank to generate a fresh one
+- `Enter` shows the full `npub` and `nsec`
 
 The wallet is local client state. It is not the server's player list.
 

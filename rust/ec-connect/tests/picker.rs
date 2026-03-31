@@ -17,7 +17,7 @@ use ec_connect::picker::flows::{
     apply_session_outcome, connect_selected, persist_maps_root_at,
     redownload_selected_maps_with_config,
 };
-use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL};
+use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, WALLET_MENU_RAIL};
 use ec_connect::picker::input::{handle_game_list_key, handle_relay_key};
 use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
@@ -106,8 +106,6 @@ fn make_session(alias: Option<&str>) -> PickerSession {
 }
 
 fn make_session_with_identities(count: usize, alias: Option<&str>) -> PickerSession {
-    let keys = Keys::generate();
-    let npub = keys.public_key().to_bech32().expect("npub");
     let mut identities = Vec::with_capacity(count);
     for index in 0..count {
         let pair = Keys::generate();
@@ -126,6 +124,9 @@ fn make_session_with_identities(count: usize, alias: Option<&str>) -> PickerSess
         active: count.saturating_sub(1).min(2),
         identities,
     };
+    let active_identity = wallet.active_identity().expect("active identity");
+    let keys = Keys::parse(&active_identity.nsec).expect("keys");
+    let npub = keys.public_key().to_bech32().expect("npub");
 
     PickerSession {
         password: "testing".to_string(),
@@ -146,7 +147,6 @@ fn picker_state_initial_values() {
     assert!(state.join_input.is_empty());
     assert!(state.maps_input.is_empty());
     assert!(!state.maps_input_prefilled);
-    assert!(state.alias_input.is_empty());
     assert!(state.wallet_input.is_empty());
     assert!(state.relay_input.is_empty());
     assert!(!state.quit);
@@ -164,6 +164,36 @@ fn picker_error_notices_normalize_manual_line_breaks_into_clean_paragraphs() {
     };
 
     assert_eq!(message, "Line one line two\n\nTechnical: bad thing");
+}
+
+#[test]
+fn picker_header_uses_shortened_npub_not_alias() {
+    let session = make_session(Some("Desk Alias"));
+
+    assert_eq!(session.header_identity_label(), short_npub(&session.npub),);
+}
+
+#[test]
+fn replacing_gui_identity_purges_old_identity_games_from_cache() {
+    let mut session = make_session(Some("Desk Alias"));
+    let old_npub = session.npub.clone();
+    let mut cache = GameCache::empty();
+    let mut old_game = make_game("old", Some("2026-03-26T00:00:00Z"));
+    old_game.npub = old_npub.clone();
+    cache.upsert(old_game);
+    cache.upsert(make_game("other", Some("2026-03-26T00:00:00Z")));
+
+    let replacement = Keys::generate().secret_key().to_bech32().expect("nsec");
+
+    let cache_changed = session
+        .replace_active_identity(&replacement, &mut cache)
+        .expect("replace identity");
+
+    assert!(cache_changed);
+    assert_eq!(session.wallet.identities.len(), 1);
+    assert_ne!(session.npub, old_npub);
+    assert!(!cache.games.iter().any(|game| game.npub == old_npub));
+    assert_eq!(cache.games.len(), 1);
 }
 
 #[test]
@@ -422,14 +452,25 @@ fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
     state.screen = Screen::WalletAddPrompt;
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
-    assert!(
-        (0..buffer.height()).any(|row| buffer.plain_line(row).contains("ADD OR IMPORT IDENTITY"))
-    );
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("REPLACE IDENTITY")));
     assert!(!(0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
             .contains("Paste nsec or leave blank for new <Q>")
     }));
+    assert!((0..buffer.height()).any(|row| {
+        buffer
+            .plain_line(row)
+            .contains("Paste an nsec to replace")
+    }));
+    assert!((0..buffer.height()).any(|row| {
+        buffer.plain_line(row).contains("fresh one.")
+    }));
+}
+
+#[test]
+fn wallet_menu_rail_exposes_replace_only_flow() {
+    assert_eq!(WALLET_MENU_RAIL, "? R <Enter> L <Q>");
 }
 
 #[test]
@@ -491,25 +532,9 @@ fn wallet_add_popup_cursor_sits_one_space_after_label() {
 }
 
 #[test]
-fn wallet_detail_popup_cursor_sits_one_space_after_label() {
-    let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
-    state.alias_input = "Desk Alias".to_string();
-    let session = make_session(Some("Desk Alias"));
-    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
-
-    assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains(&format!("Alias: {}", state.alias_input))
-    }));
-}
-
-#[test]
 fn wallet_detail_popup_renders_full_backup_material_and_copy_hints() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
-    state.alias_input = "Desk Alias".to_string();
     let session = make_session(Some("Desk Alias"));
     let identity = session.selected_identity(0).expect("wallet identity");
     let npub = identity_npub(identity).expect("npub");
@@ -520,32 +545,19 @@ fn wallet_detail_popup_renders_full_backup_material_and_copy_hints() {
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains("Ctrl-P=copy npub   Ctrl-S=copy nsec")
+            .contains("Ctrl-P=copy npub   Ctrl-S=copy nsec   Enter/Esc=close")
     }));
 }
 
 #[test]
-fn wallet_delete_confirm_prompt_renders_under_popup_box() {
+fn wallet_detail_popup_has_no_alias_editor() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.screen = Screen::WalletList;
-    state.overlay = Some(PickerOverlay::WalletDeleteConfirm { index: 0, step: 1 });
+    state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
     let session = make_session(Some("Desk Alias"));
     let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
 
-    let title_row = (0..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("DELETE IDENTITY"))
-        .expect("delete popup");
-    let prompt_row = (title_row + 1..buffer.height())
-        .find(|&row| buffer.plain_line(row).contains("WALLET COMMAND <-"))
-        .expect("wallet confirm prompt");
-
-    assert!(prompt_row > title_row);
-    assert!(
-        buffer
-            .plain_line(prompt_row)
-            .contains("Are you sure? Y/[N] ->")
-    );
-    assert!(!buffer.plain_line(6).contains("WALLET COMMAND <-"));
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("Alias:")));
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("save alias")));
 }
 
 #[test]
@@ -1112,27 +1124,6 @@ fn relay_games_uppercase_r_opens_selected_game_relay_prompt() {
 }
 
 #[test]
-fn wallet_delete_popup_previews_removed_games() {
-    let session = make_session(Some("Desk Alias"));
-    let selected_identity = session
-        .selected_identity(session.wallet.active)
-        .expect("identity");
-    let selected_npub = ec_connect::wallet::identity_npub(selected_identity).expect("npub");
-    let mut game = make_game("a", Some("2026-03-26T00:00:00Z"));
-    game.npub = selected_npub;
-    let mut state = make_state(vec![game]);
-    state.screen = Screen::WalletList;
-    state.overlay = Some(PickerOverlay::WalletDeleteConfirm { index: 0, step: 1 });
-    let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
-
-    assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("Joined games removed from picker: 1")
-    }));
-}
-
-#[test]
 fn connecting_popup_renders_context_lines() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::Connecting {
@@ -1409,16 +1400,15 @@ fn gui_inner_picker_buffer_uses_plain_80x25_canvas_without_outer_shell() {
 }
 
 #[test]
-fn overflowing_wallet_renders_themed_scrollbar_gutter() {
+fn wallet_table_has_no_alias_column() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.screen = Screen::WalletList;
     let session = make_session_with_identities(MAX_BODY_ROWS + 6, Some("Desk Alias"));
     let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
 
-    assert_eq!(buffer.row(4)[80].ch, '^');
-    assert_eq!(buffer.row(23)[80].ch, 'v');
-    assert!((5..23).any(|row| buffer.row(row)[80].ch == '#'));
-    assert_eq!(buffer.row(4)[80].style, classic::table_chrome_style());
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("Npub")));
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("Alias")));
+    assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("Desk Alias")));
 }
 
 #[test]

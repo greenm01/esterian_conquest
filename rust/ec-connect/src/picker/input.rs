@@ -1,8 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::connecting::{PendingConnectRequest, queue_connect_request};
-use crate::wallet::io::now_iso8601;
-use crate::wallet::push_identity_from_input;
+use crate::cache::save_cache;
 
 use super::event::{is_back_key, is_escape_key, is_help_key, is_manual_refresh_key};
 use super::flows::{
@@ -298,16 +297,16 @@ fn handle_wallet_list_key(
         | KeyEvent {
             code: KeyCode::Down,
             ..
-        } => move_selection(&mut state.wallet_selected, 1, wallet_len),
-        KeyEvent {
+        }
+        | KeyEvent {
             code: KeyCode::Char('k'),
             modifiers: KeyModifiers::NONE,
             ..
         }
         | KeyEvent {
             code: KeyCode::Up, ..
-        } => move_selection(&mut state.wallet_selected, -1, wallet_len),
-        KeyEvent {
+        }
+        | KeyEvent {
             code: KeyCode::Char('d'),
             modifiers: KeyModifiers::CONTROL,
             ..
@@ -315,8 +314,8 @@ fn handle_wallet_list_key(
         | KeyEvent {
             code: KeyCode::PageDown,
             ..
-        } => move_selection(&mut state.wallet_selected, BODY_PAGE, wallet_len),
-        KeyEvent {
+        }
+        | KeyEvent {
             code: KeyCode::Char('u'),
             modifiers: KeyModifiers::CONTROL,
             ..
@@ -324,7 +323,7 @@ fn handle_wallet_list_key(
         | KeyEvent {
             code: KeyCode::PageUp,
             ..
-        } => move_selection(&mut state.wallet_selected, -BODY_PAGE, wallet_len),
+        } => move_selection(&mut state.wallet_selected, 0, wallet_len),
         KeyEvent {
             code: KeyCode::Enter,
             ..
@@ -332,56 +331,18 @@ fn handle_wallet_list_key(
             if wallet_len == 0 {
                 state.show_error("Wallet has no identities.");
             } else {
-                state.alias_input = picker_session
-                    .wallet
-                    .identities
-                    .get(state.wallet_selected)
-                    .and_then(|identity| identity.alias.clone())
-                    .unwrap_or_default();
                 state.overlay = Some(PickerOverlay::WalletDetail {
                     index: state.wallet_selected,
                 });
             }
         }
         KeyEvent {
-            code: KeyCode::Char('n' | 'N'),
+            code: KeyCode::Char('r' | 'R'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
             state.wallet_input.clear();
             state.screen = Screen::WalletAddPrompt;
-        }
-        KeyEvent {
-            code: KeyCode::Char('a' | 'A'),
-            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
-            ..
-        } => {
-            if wallet_len == 0 {
-                state.show_error("Wallet has no identities.");
-            } else {
-                let result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                    picker_session.switch_active(state.wallet_selected)?;
-                    picker_session.save()?;
-                    Ok(())
-                })();
-                if let Err(err) = result {
-                    state.show_error(err.to_string());
-                }
-            }
-        }
-        KeyEvent {
-            code: KeyCode::Char('d' | 'D'),
-            modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
-            ..
-        } => {
-            if wallet_len <= 1 {
-                state.show_error("wallet must keep at least one identity");
-            } else {
-                state.overlay = Some(PickerOverlay::WalletDeleteConfirm {
-                    index: state.wallet_selected,
-                    step: 1,
-                });
-            }
         }
         _ => {}
     }
@@ -411,35 +372,31 @@ fn handle_wallet_add_key(
         KeyEvent {
             code: KeyCode::Enter,
             ..
-        } => {
-            match push_identity_from_input(
-                &mut picker_session.wallet,
-                &state.wallet_input,
-                now_iso8601(),
-            ) {
-                Ok(_) => {
-                    if let Err(err) = picker_session.save() {
-                        state.wallet_input.clear();
-                        state.screen = Screen::WalletList;
-                        state.show_error(err.to_string());
-                        return Ok(());
-                    }
-                    state.wallet_selected =
-                        picker_session.wallet.identities.len().saturating_sub(1);
-                    state.wallet_input.clear();
-                    state.alias_input.clear();
-                    state.screen = Screen::WalletList;
-                    state.overlay = Some(PickerOverlay::WalletDetail {
-                        index: state.wallet_selected,
-                    });
-                }
-                Err(err) => {
+        } => match picker_session.replace_active_identity(&state.wallet_input, &mut state.cache) {
+            Ok(cache_changed) => {
+                if let Err(err) = picker_session.save() {
                     state.wallet_input.clear();
                     state.screen = Screen::WalletList;
                     state.show_error(err.to_string());
+                    return Ok(());
                 }
+                if cache_changed && let Err(err) = save_cache(&state.cache) {
+                    state.wallet_input.clear();
+                    state.screen = Screen::WalletList;
+                    state.show_error(err.to_string());
+                    return Ok(());
+                }
+                state.wallet_selected = 0;
+                state.wallet_input.clear();
+                state.screen = Screen::WalletList;
+                state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
             }
-        }
+            Err(err) => {
+                state.wallet_input.clear();
+                state.screen = Screen::WalletList;
+                state.show_error(err.to_string());
+            }
+        },
         KeyEvent {
             code: KeyCode::Char(ch),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,

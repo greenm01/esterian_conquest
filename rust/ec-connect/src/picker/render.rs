@@ -31,10 +31,8 @@ const MAIN_COLUMNS: [Column<'_>; 6] = [
     Column::fixed("Joined", 10),
 ];
 
-const WALLET_COLUMNS: [Column<'_>; 5] = [
-    Column::fixed("#", 2),
-    Column::flex("Alias", 14, 1),
-    Column::flex("Npub", 29, 2),
+const WALLET_COLUMNS: [Column<'_>; 3] = [
+    Column::flex("Npub", 46, 2),
     Column::fixed("Type", 8),
     Column::flex("Created", 20, 1),
 ];
@@ -188,7 +186,7 @@ fn render_wallet_menu(
     session: Option<&PickerSession>,
 ) -> usize {
     let wallet_len = session
-        .map(|session| session.wallet.identities.len())
+        .map(|session| usize::from(session.wallet.active_identity().is_some()))
         .unwrap_or(0);
     let start = scroll_start(state.wallet_selected, MAX_BODY_ROWS, wallet_len);
     let columns = layout_columns(&WALLET_COLUMNS, wallet_len, start);
@@ -199,31 +197,17 @@ fn render_wallet_menu(
             let row = metrics.body_start_row + metrics.displayed_rows / 2;
             let col = table_message_col_in(metrics, message);
             buffer.write_text_clipped(row, col, message, classic::notice_style());
-        } else {
-            for (idx, identity) in session
-                .wallet
-                .identities
-                .iter()
-                .skip(start)
-                .take(metrics.displayed_rows)
-                .enumerate()
-            {
-                let row = metrics.body_start_row + idx;
-                let absolute = start + idx;
-                let is_selected = absolute == state.wallet_selected;
-                let is_active = absolute == session.wallet.active;
-                draw_wallet_row(
-                    buffer,
-                    row,
-                    metrics.table_col,
-                    &columns,
-                    identity,
-                    absolute,
-                    is_selected,
-                    is_active,
-                );
-            }
-            draw_scroll_gutter(buffer, metrics, start, session.wallet.identities.len());
+        } else if let Some(identity) = session.wallet.active_identity() {
+            let row = metrics.body_start_row;
+            draw_wallet_row(
+                buffer,
+                row,
+                metrics.table_col,
+                &columns,
+                identity,
+                true,
+                true,
+            );
         }
     }
 
@@ -446,22 +430,16 @@ fn draw_wallet_row(
     table_col: usize,
     columns: &[Column<'_>],
     identity: &crate::wallet::Identity,
-    index: usize,
     selected: bool,
     active: bool,
 ) {
     let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
     let values = [
-        format!("{:>width$}", index + 1, width = columns[0].width),
+        pad_right(&truncate(&npub, columns[0].width), columns[0].width),
+        pad_right(identity.identity_type.as_str(), columns[1].width),
         pad_right(
-            &truncate(identity.alias.as_deref().unwrap_or(""), columns[1].width),
-            columns[1].width,
-        ),
-        pad_right(&truncate(&npub, columns[2].width), columns[2].width),
-        pad_right(identity.identity_type.as_str(), columns[3].width),
-        pad_right(
-            &truncate(&identity.created, columns[4].width),
-            columns[4].width,
+            &truncate(&identity.created, columns[2].width),
+            columns[2].width,
         ),
     ];
     draw_row_cells(buffer, row, table_col, columns, &values, selected, active);

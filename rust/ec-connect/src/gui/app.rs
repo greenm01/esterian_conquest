@@ -550,7 +550,6 @@ impl PickerView {
         self.state.join_input.clear();
         self.state.maps_input.clear();
         self.state.maps_input_prefilled = false;
-        self.state.alias_input.clear();
         self.state.wallet_input.clear();
         self.state.relay_input.clear();
         self.state.pending_connect = None;
@@ -564,8 +563,7 @@ impl PickerView {
         matches!(self.state.screen, Screen::WalletAddPrompt)
             || matches!(
                 self.state.overlay,
-                Some(crate::picker::overlay::PickerOverlay::WalletDetail { .. })
-                    | Some(crate::picker::overlay::PickerOverlay::RelayEditor { .. })
+                Some(crate::picker::overlay::PickerOverlay::RelayEditor { .. })
                     | Some(crate::picker::overlay::PickerOverlay::GameRelayPrompt { .. })
                     | Some(crate::picker::overlay::PickerOverlay::JoinCodePopup { .. })
                     | Some(crate::picker::overlay::PickerOverlay::MapsDownloadPrompt { .. })

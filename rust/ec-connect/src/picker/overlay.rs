@@ -21,7 +21,6 @@ use super::state::{PickerSession, PickerState};
 use crate::cache::save_cache;
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::text_wrap::{wrapped_lines, write_wrapped_lines_clamped};
-use crate::wallet::{delete_identity, set_identity_alias};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NoticeLevel {
@@ -65,10 +64,6 @@ pub enum PickerOverlay {
     },
     WalletDetail {
         index: usize,
-    },
-    WalletDeleteConfirm {
-        index: usize,
-        step: u8,
     },
     RelayDeleteConfirm {
         url: String,
@@ -162,69 +157,8 @@ pub fn handle_overlay_key(
             let Some(picker_session) = picker_session else {
                 return Ok(());
             };
-            match key.code {
-                KeyCode::Enter => {
-                    let result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                        set_identity_alias(
-                            &mut picker_session.wallet,
-                            index,
-                            Some(state.alias_input.clone()),
-                        )?;
-                        picker_session.save()?;
-                        Ok(())
-                    })();
-                    state.alias_input.clear();
-                    state.overlay = None;
-                    if let Err(err) = result {
-                        state.show_error(err.to_string());
-                    }
-                }
-                KeyCode::Backspace => {
-                    state.alias_input.pop();
-                }
-                KeyCode::Char(ch)
-                    if matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT) =>
-                {
-                    if state.alias_input.chars().count() < 20 {
-                        state.alias_input.push(ch);
-                    }
-                }
-                _ if is_back_key(key) => {
-                    state.alias_input.clear();
-                    state.overlay = None;
-                }
-                _ => {}
-            }
-        }
-        PickerOverlay::WalletDeleteConfirm { index, step } => {
-            let Some(picker_session) = picker_session else {
-                return Ok(());
-            };
-            if is_yes_key(key) {
-                if step < 3 {
-                    state.overlay = Some(PickerOverlay::WalletDeleteConfirm {
-                        index,
-                        step: step + 1,
-                    });
-                } else {
-                    let result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                        let npub = delete_identity(&mut picker_session.wallet, index)?;
-                        let _ = state.cache.remove_by_npub(&npub);
-                        save_cache(&state.cache)?;
-                        picker_session.refresh_active_identity()?;
-                        picker_session.save()?;
-                        Ok(())
-                    })();
-                    state.overlay = None;
-                    state.wallet_selected = state
-                        .wallet_selected
-                        .min(picker_session.wallet.identities.len().saturating_sub(1));
-                    clamp_game_selection(state);
-                    if let Err(err) = result {
-                        state.show_error(err.to_string());
-                    }
-                }
-            } else if is_cancel_confirm_key(key) {
+            let _ = picker_session.selected_identity(index);
+            if matches!(key.code, KeyCode::Enter) || is_back_key(key) {
                 state.overlay = None;
             }
         }
@@ -377,20 +311,7 @@ pub fn render_overlay(
         }
         Some(PickerOverlay::WalletDetail { index }) => {
             if let Some(session) = session {
-                render_wallet_detail_popup(buffer, session, *index, &state.alias_input);
-            }
-        }
-        Some(PickerOverlay::WalletDeleteConfirm { index, step }) => {
-            if let Some(session) = session {
-                let popup = render_wallet_delete_popup(buffer, state, session, *index);
-                draw_command_line_prompt_text_at_col(
-                    buffer,
-                    popup_command_row(popup, command_row),
-                    popup.x as usize,
-                    "WALLET COMMAND",
-                    delete_prompt(*step),
-                );
-                buffer.clear_cursor();
+                render_wallet_detail_popup(buffer, session, *index);
             }
         }
         Some(PickerOverlay::RelayDeleteConfirm { url, step }) => {
@@ -435,10 +356,9 @@ pub fn render_overlay(
 
 pub fn render_identity_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession) {
     let lines = [
-        format!("Alias: {}", session.active_alias().unwrap_or("(none)")),
         format!("Npub: {}", super::render::short_npub(&session.npub)),
         format!("Type: {}", session.active_identity_type()),
-        format!("Wallet identities: {}", session.wallet.identities.len()),
+        "Wallet mode: single identity".to_string(),
         format!(
             "Wallet: {}",
             super::render::truncate(&crate::wallet::io::wallet_path().display().to_string(), 46,)
@@ -459,21 +379,27 @@ fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
 }
 
 pub fn render_wallet_add_popup(buffer: &mut PlayfieldBuffer, input: &str) {
+    let instruction =
+        "Paste an nsec to replace the current identity, or leave blank to generate a fresh one.";
+    let instruction_lines = wrapped_lines(instruction, 66);
     let popup = draw_modal_frame(
         buffer,
-        "ADD OR IMPORT IDENTITY",
+        "REPLACE IDENTITY",
         72,
-        7,
+        6 + instruction_lines.len() as u16,
         classic::table_body_style(),
     );
-    let left = popup.x as usize + 2;
-    let field_row = popup.y as usize + 4;
-    buffer.write_text_clipped(
-        popup.y as usize + 1,
-        left,
-        "Paste an nsec or leave blank to create a new keypair.",
-        classic::table_body_style(),
-    );
+    let content = modal_content_rect(popup);
+    let left = content.x as usize;
+    let field_row = content.y as usize + instruction_lines.len() + 1;
+    for (idx, line) in instruction_lines.iter().enumerate() {
+        buffer.write_text_clipped(
+            content.y as usize + idx,
+            left,
+            line,
+            classic::table_body_style(),
+        );
+    }
     let label = "Nsec:";
     let input_col = left + label.chars().count() + 1;
     draw_labeled_input_row(
@@ -482,7 +408,10 @@ pub fn render_wallet_add_popup(buffer: &mut PlayfieldBuffer, input: &str) {
         left,
         label,
         input,
-        input_width(popup.x as usize + popup.width as usize - 2, input_col),
+        input_width(
+            content.x as usize + content.width.saturating_sub(1) as usize,
+            input_col,
+        ),
         classic::status_label_style(),
         classic::prompt_hotkey_style(),
     );
@@ -591,19 +520,14 @@ fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: 
     );
 }
 
-fn render_wallet_detail_popup(
-    buffer: &mut PlayfieldBuffer,
-    session: &PickerSession,
-    index: usize,
-    alias_input: &str,
-) {
+fn render_wallet_detail_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession, index: usize) {
     let Some(identity) = session.selected_identity(index) else {
         return;
     };
     let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
     let npub_lines = wrapped_lines(&npub, 66);
     let nsec_lines = wrapped_lines(&identity.nsec, 66);
-    let popup_height = (11 + npub_lines.len() + nsec_lines.len()).min(20) as u16;
+    let popup_height = (9 + npub_lines.len() + nsec_lines.len()).min(18) as u16;
     let popup = draw_modal_frame(
         buffer,
         "WALLET IDENTITY",
@@ -614,19 +538,6 @@ fn render_wallet_detail_popup(
     let left = popup.x as usize + 2;
     let inner_width = popup.width.saturating_sub(6) as usize;
     let mut row = popup.y as usize + 1;
-    let label = "Alias:";
-    let input_col = left + label.chars().count() + 1;
-    draw_labeled_input_row(
-        buffer,
-        row,
-        left,
-        label,
-        alias_input,
-        input_width(popup.x as usize + popup.width as usize - 2, input_col),
-        classic::status_label_style(),
-        classic::prompt_hotkey_style(),
-    );
-    row += 2;
     buffer.write_text_clipped(
         row,
         left,
@@ -660,43 +571,11 @@ fn render_wallet_detail_popup(
         row,
         left,
         &truncate(
-            "Enter=save alias   Ctrl-P=copy npub   Ctrl-S=copy nsec   Esc=close",
+            "Ctrl-P=copy npub   Ctrl-S=copy nsec   Enter/Esc=close",
             inner_width,
         ),
         classic::table_chrome_style(),
     );
-}
-
-fn render_wallet_delete_popup(
-    buffer: &mut PlayfieldBuffer,
-    state: &PickerState,
-    session: &PickerSession,
-    index: usize,
-) -> Rect {
-    let Some(identity) = session.selected_identity(index) else {
-        return Rect::new(0, 0, 0, 0);
-    };
-    let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
-    let affected_games = state
-        .cache
-        .games
-        .iter()
-        .filter(|game| game.npub == npub)
-        .count();
-    let lines = [
-        format!("Alias: {}", identity.alias.as_deref().unwrap_or("(none)")),
-        format!("Npub: {}", super::render::short_npub(&npub)),
-        String::new(),
-        "Deleting this identity removes its keypair from this wallet.".to_string(),
-        format!("Joined games removed from picker: {}", affected_games),
-        "Make sure you have copied the full nsec somewhere safe first.".to_string(),
-    ];
-    render_modal_box(
-        buffer,
-        "DELETE IDENTITY",
-        &lines,
-        classic::table_body_style(),
-    )
 }
 
 fn render_relay_delete_popup(buffer: &mut PlayfieldBuffer, state: &PickerState, url: &str) -> Rect {

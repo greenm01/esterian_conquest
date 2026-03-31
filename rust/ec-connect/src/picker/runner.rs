@@ -149,8 +149,7 @@ fn run_loop(
         let text_entry = matches!(state.screen, Screen::WalletAddPrompt)
             || matches!(
                 state.overlay,
-                Some(super::overlay::PickerOverlay::WalletDetail { .. })
-                    | Some(super::overlay::PickerOverlay::RelayEditor { .. })
+                Some(super::overlay::PickerOverlay::RelayEditor { .. })
                     | Some(super::overlay::PickerOverlay::GameRelayPrompt { .. })
                     | Some(super::overlay::PickerOverlay::JoinCodePopup { .. })
                     | Some(super::overlay::PickerOverlay::MapsDownloadPrompt { .. })
@@ -231,7 +230,6 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.join_input.clear();
     state.maps_input.clear();
     state.maps_input_prefilled = false;
-    state.alias_input.clear();
     state.wallet_input.clear();
     state.relay_input.clear();
     state.pending_connect = None;
