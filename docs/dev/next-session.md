@@ -15,6 +15,9 @@ Keep this file short. Historical detail belongs in
   `ec-compat` / `ec-classic`.
 - `ec-gate` now reads game names and seat/session metadata from `ecgame.db`
   and issues per-seat session leases to block duplicate logins.
+- `ec-sysop nostr` now has one-shot `publish` / `verify` repair commands for
+  hosted `30500` relay metadata, and `nostr reissue` / `nostr claim` now try
+  to republish the affected game immediately.
 - `ec-game` is broadly feature-complete and the player TUI is in good shape.
 - `ec-sysop` is also in good enough shape for normal campaign operation.
 - The total planet database now supports both `F` filters and `S` sorting.
@@ -64,6 +67,10 @@ Keep this file short. Historical detail belongs in
   hosted players now stay on the dedicated empire-naming flow instead of
   falling through generic first-time screens, and one hosted identity can no
   longer claim multiple seats in the same game.
+- **Hosted relay drift repair path added** (fixed):
+  sysops can now run `ec-sysop nostr publish --dir ...` and
+  `ec-sysop nostr verify --dir ...`, and seat reissue/claim now attempt to
+  republish the game's public `30500` metadata automatically.
 
 ## Biggest Blockers
 
@@ -74,6 +81,15 @@ Keep this file short. Historical detail belongs in
 - `ec-connect`'s post-`ec-game` first-key fix is currently Unix-only; Windows
   still needs a bridge-side stdin shutdown path so the first returned keypress
   cannot be stolen after the SSH session exits.
+- The current live Windows/QEMU hosted-join blocker is earlier than SSH:
+  the GUI hangs on `CLAIMING INVITE...`, the VM browser can reach
+  `https://relay.esterianconquest.com`, but no new VPS relay or `ec-nostr`
+  logs appear during the hang. Treat this as a Windows `ec-connect`
+  relay/websocket/discovery-path issue first, not a game-daemon issue.
+- `ec-sysop nostr verify` still fails against the live VPS relay with
+  `could not fetch 30500 ...: no relays`; the one-shot `publish` path works,
+  but the `verify` fetch path needs a follow-up fix before relying on it in
+  ops docs.
 - `ec-connect` is still single-relay; multi-relay join/handshake redundancy is
   a future resilience improvement, not part of the current player fix stream.
 - `ec-connect` cache rows are still not modeled for the legitimate edge case of
@@ -86,16 +102,20 @@ Keep this file short. Historical detail belongs in
 
 ## Immediate Next Steps
 
-1. Run VPS and live multi-game playtests against the new DB-only hosted layout.
-2. Fix reported bugs and UX issues in small, well-tested increments.
-3. Preserve the storage roundtrip tests and source-policy guardrails so runtime
+1. Reproduce the Windows/QEMU `CLAIMING INVITE...` hang with better client-side
+   signal, ideally from a Windows build that can emit relay/discovery logs.
+2. Fix the `ec-sysop nostr verify` live-relay fetch bug (`no relays`) so the
+   new repair command is actually usable on VPS hosts.
+3. Run more VPS and live multi-game playtests against the DB-only hosted
+   layout once the Windows hosted join path is unblocked.
+4. Preserve the storage roundtrip tests and source-policy guardrails so runtime
    code does not drift back toward raw-offset dependence.
-4. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
+5. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
    so screen-local key discoverability can move out of crowded command rails.
-5. Add the Windows half of the `ec-connect` bridge stdin shutdown fix so
+6. Add the Windows half of the `ec-connect` bridge stdin shutdown fix so
    post-game return behavior matches Linux/macOS and the first keypress works
    immediately after leaving `ec-game`.
-6. Revisit multi-relay support for `ec-connect` join/handshake flows if relay
+7. Revisit multi-relay support for `ec-connect` join/handshake flows if relay
    reliability remains a recurring playtest problem.
-7. Only do deeper semantic cleanup when it materially helps a real gameplay,
+8. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.
