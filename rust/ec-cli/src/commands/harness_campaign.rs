@@ -307,8 +307,12 @@ fn initialize_campaign(
 ) -> Result<CampaignManifest, Box<dyn std::error::Error>> {
     let spec = ScenarioSpec::load_kdl(scenario_path)?;
     let built = build_scenario(&spec)?;
-    save_built_scenario(&built, campaign_dir, export_classic)
-        .map_err(|err| format!("unable to save built campaign into {}: {err}", campaign_dir.display()))?;
+    save_built_scenario(&built, campaign_dir, export_classic).map_err(|err| {
+        format!(
+            "unable to save built campaign into {}: {err}",
+            campaign_dir.display()
+        )
+    })?;
 
     let players = default_player_assignments(&built.game_data, spec.metadata.seed, game_id);
     let manifest = CampaignManifest {
@@ -703,9 +707,7 @@ fn mixed_doctrine_seed(scenario_seed: u64, game_id: &str) -> u64 {
 }
 
 fn default_workspace_root(game_id: &str) -> PathBuf {
-    std::env::temp_dir()
-        .join("ec-llm-turns")
-        .join(game_id)
+    std::env::temp_dir().join("ec-llm-turns").join(game_id)
 }
 
 fn campaign_manifest_path_in_dir(campaign_dir: &Path) -> PathBuf {
@@ -812,7 +814,10 @@ fn save_status(
         status.turn_index_1_based,
     );
     fs::write(&status_path, render_status(status)).map_err(|err| {
-        format!("unable to write status file {}: {err}", status_path.display())
+        format!(
+            "unable to write status file {}: {err}",
+            status_path.display()
+        )
     })?;
     Ok(())
 }

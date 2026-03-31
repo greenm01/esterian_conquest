@@ -225,14 +225,7 @@ pub fn draw_command_line_default_input_at_col(
     input: &str,
 ) {
     draw_command_line_default_input_with_cancel_at_col(
-        buffer,
-        row,
-        col,
-        label,
-        prompt,
-        default,
-        input,
-        "<Q> -> ",
+        buffer, row, col, label, prompt, default, input, "<Q> -> ",
     );
 }
 
@@ -686,10 +679,11 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
 #[cfg(test)]
 mod tests {
     use super::{
-        command_line_default_input_scaffold_width, command_line_default_input_scaffold_width_with_cancel,
-        command_line_default_input_width, command_line_default_input_width_with_cancel,
-        draw_command_line_default_input_at, draw_command_line_default_input_with_cancel_at,
-        draw_command_line_prompt_text_at, draw_plain_prompt, draw_right_aligned_footer_text, draw_table_command_bar_at,
+        command_line_default_input_scaffold_width,
+        command_line_default_input_scaffold_width_with_cancel, command_line_default_input_width,
+        command_line_default_input_width_with_cancel, draw_command_line_default_input_at,
+        draw_command_line_default_input_with_cancel_at, draw_command_line_prompt_text_at,
+        draw_plain_prompt, draw_right_aligned_footer_text, draw_table_command_bar_at,
         table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
@@ -755,8 +749,13 @@ mod tests {
 
     #[test]
     fn prompt_width_helpers_support_custom_cancel_markup() {
-        let width =
-            command_line_default_input_width_with_cancel("COMMAND", "Qty ", "12", "345", "<ESC> -> ");
+        let width = command_line_default_input_width_with_cancel(
+            "COMMAND",
+            "Qty ",
+            "12",
+            "345",
+            "<ESC> -> ",
+        );
         assert_eq!(width, "COMMAND <- Qty [12] <ESC> -> 345".chars().count());
     }
 
@@ -777,7 +776,12 @@ mod tests {
                 - "345".chars().count()
         );
         assert_eq!(
-            command_line_default_input_scaffold_width_with_cancel("COMMAND", "Qty ", "12", "<ESC> -> "),
+            command_line_default_input_scaffold_width_with_cancel(
+                "COMMAND",
+                "Qty ",
+                "12",
+                "<ESC> -> "
+            ),
             command_line_default_input_width_with_cancel(
                 "COMMAND",
                 "Qty ",
@@ -834,7 +838,11 @@ mod tests {
             "",
             "<ESC> -> ",
         );
-        assert!(buffer.plain_line(24).contains("COMMAND <- Qty [12] <ESC> ->"));
+        assert!(
+            buffer
+                .plain_line(24)
+                .contains("COMMAND <- Qty [12] <ESC> ->")
+        );
     }
 
     #[test]

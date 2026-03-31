@@ -178,12 +178,10 @@ fn ec_sysop_help_lists_public_subcommands() {
     assert!(stdout.contains(
         "nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
     ));
-    assert!(stdout.contains(
-        "nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
-    ));
-    assert!(stdout.contains(
-        "nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
-    ));
+    assert!(
+        stdout.contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]")
+    );
+    assert!(stdout.contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"));
 }
 
 #[test]
@@ -245,9 +243,8 @@ fn ec_sysop_host_games_add_list_remove_and_status_use_gate_config() {
     let game_one = root.join("friday-night");
     let game_two = root.join("saturday-showdown");
 
-    let cfg = parse_config_str(
-        &format!(
-            r#"
+    let cfg = parse_config_str(&format!(
+        r#"
 relay "wss://relay.example.com"
 ssh-host "play.example.com"
 ssh-port 22
@@ -256,9 +253,8 @@ auth-keys-method "command"
 auth-keys-path "/var/lib/ec-gate/keys"
 key-ttl 60
 "#,
-            current_username()
-        ),
-    )
+        current_username()
+    ))
     .expect("parse config");
     save_config(&config_path, &cfg).expect("save config");
 
@@ -379,7 +375,9 @@ fn ec_sysop_nostr_help_prints_usage() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
-    assert!(stdout.contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"));
+    assert!(
+        stdout.contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]")
+    );
     assert!(stdout.contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"));
 }
 
@@ -578,18 +576,23 @@ fn ec_sysop_nostr_claim_reports_partial_success_when_republish_paths_are_missing
 #[test]
 fn ec_sysop_nostr_publish_and_verify_help_print_usage() {
     let publish = run_ec_sysop_output(&["nostr", "publish", "--help"], None);
-    assert!(publish.status.success(), "nostr publish help should succeed");
+    assert!(
+        publish.status.success(),
+        "nostr publish help should succeed"
+    );
     let publish_stdout = String::from_utf8(publish.stdout).expect("stdout should be utf-8");
-    assert!(publish_stdout.contains(
-        "nostr publish --dir <game_dir> [--config <path>] [--identity <path>]"
-    ));
+    assert!(
+        publish_stdout
+            .contains("nostr publish --dir <game_dir> [--config <path>] [--identity <path>]")
+    );
 
     let verify = run_ec_sysop_output(&["nostr", "verify", "--help"], None);
     assert!(verify.status.success(), "nostr verify help should succeed");
     let verify_stdout = String::from_utf8(verify.stdout).expect("stdout should be utf-8");
-    assert!(verify_stdout.contains(
-        "nostr verify --dir <game_dir> [--config <path>] [--identity <path>]"
-    ));
+    assert!(
+        verify_stdout
+            .contains("nostr verify --dir <game_dir> [--config <path>] [--identity <path>]")
+    );
 }
 
 #[test]

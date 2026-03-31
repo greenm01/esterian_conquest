@@ -390,18 +390,16 @@ async fn finalize_first_join_after_session(
     merge_session_state_into_cache(state, target, npub, gate_npub);
     touch_cache_entry(&state.game_id);
     match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
-        Ok(bundle) => {
-            match save_map_bundle(&bundle, &target.relay_url, maps_root) {
-                Ok(path) => FirstJoinCompletion {
-                    notice: None,
-                    maps_saved_to: Some(path),
-                },
-                Err(err) => FirstJoinCompletion {
-                    notice: Some(format!("Warning: unable to save starmaps: {err}")),
-                    maps_saved_to: None,
-                },
-            }
-        }
+        Ok(bundle) => match save_map_bundle(&bundle, &target.relay_url, maps_root) {
+            Ok(path) => FirstJoinCompletion {
+                notice: None,
+                maps_saved_to: Some(path),
+            },
+            Err(err) => FirstJoinCompletion {
+                notice: Some(format!("Warning: unable to save starmaps: {err}")),
+                maps_saved_to: None,
+            },
+        },
         Err(err) => FirstJoinCompletion {
             notice: Some(format!("Warning: unable to download starmaps: {err}")),
             maps_saved_to: None,

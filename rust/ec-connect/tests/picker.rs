@@ -466,14 +466,11 @@ fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
             .plain_line(row)
             .contains("Paste nsec or leave blank for new <Q>")
     }));
-    assert!((0..buffer.height()).any(|row| {
-        buffer
-            .plain_line(row)
-            .contains("Paste an nsec to replace")
-    }));
-    assert!((0..buffer.height()).any(|row| {
-        buffer.plain_line(row).contains("fresh one.")
-    }));
+    assert!(
+        (0..buffer.height())
+            .any(|row| { buffer.plain_line(row).contains("Paste an nsec to replace") })
+    );
+    assert!((0..buffer.height()).any(|row| { buffer.plain_line(row).contains("fresh one.") }));
 }
 
 #[test]

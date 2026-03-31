@@ -25,11 +25,7 @@ pub fn resolve_maps_root(config_override: Option<&Path>, cli_override: Option<&P
         .unwrap_or_else(default_maps_root)
 }
 
-pub fn map_bundle_dir(
-    maps_root: &Path,
-    relay_url: &str,
-    game_id: &str,
-) -> PathBuf {
+pub fn map_bundle_dir(maps_root: &Path, relay_url: &str, game_id: &str) -> PathBuf {
     maps_root
         .join(relay_bucket_name(relay_url))
         .join(sanitize_component(game_id))

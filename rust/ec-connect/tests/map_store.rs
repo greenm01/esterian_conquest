@@ -56,7 +56,10 @@ fn resolve_maps_root_prefers_cli_over_config() {
 fn map_bundle_dir_uses_relay_host_and_game_id() {
     let root = PathBuf::from("/tmp/maps");
     let dir = map_bundle_dir(&root, "wss://relay.example.com", "friday-night");
-    assert_eq!(dir, PathBuf::from("/tmp/maps/relay.example.com/friday-night"));
+    assert_eq!(
+        dir,
+        PathBuf::from("/tmp/maps/relay.example.com/friday-night")
+    );
 }
 
 #[test]
@@ -83,8 +86,8 @@ fn save_map_bundle_decodes_and_writes_all_files() {
         ],
     };
 
-    let saved = save_map_bundle(&bundle, "wss://relay.example.com", &root)
-        .expect("bundle should save");
+    let saved =
+        save_map_bundle(&bundle, "wss://relay.example.com", &root).expect("bundle should save");
     assert_eq!(saved, root.join("relay.example.com").join("friday-night"));
     assert_eq!(
         fs::read_to_string(saved.join("starmap.txt")).unwrap(),

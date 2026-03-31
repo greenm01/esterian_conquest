@@ -213,10 +213,11 @@ fn is_paste_shortcut_key(
     if modifiers.shift_key() && matches!(logical_key, Key::Named(NamedKey::Insert)) {
         return true;
     }
-    let control_paste =
-        modifiers.control_key() && !modifiers.alt_key() && !modifiers.super_key();
-    let command_paste =
-        macos_command_paste && modifiers.super_key() && !modifiers.alt_key() && !modifiers.control_key();
+    let control_paste = modifiers.control_key() && !modifiers.alt_key() && !modifiers.super_key();
+    let command_paste = macos_command_paste
+        && modifiers.super_key()
+        && !modifiers.alt_key()
+        && !modifiers.control_key();
     (control_paste || command_paste)
         && matches!(logical_key, Key::Character(text) if text.eq_ignore_ascii_case("v"))
 }
@@ -299,6 +300,9 @@ mod tests {
 
     #[test]
     fn encode_paste_normalizes_newlines_without_bracketed_mode() {
-        assert_eq!(encode_paste("line1\r\nline2\n", false), b"line1\rline2\r".to_vec());
+        assert_eq!(
+            encode_paste("line1\r\nline2\n", false),
+            b"line1\rline2\r".to_vec()
+        );
     }
 }

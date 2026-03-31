@@ -1055,8 +1055,7 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                         identity_path = Some(PathBuf::from(next));
                     }
                     arg if arg.starts_with("--identity=") => {
-                        identity_path =
-                            Some(PathBuf::from(arg.trim_start_matches("--identity=")));
+                        identity_path = Some(PathBuf::from(arg.trim_start_matches("--identity=")));
                     }
                     arg => return Err(format!("unexpected argument: {arg}").into()),
                 }

@@ -20,8 +20,7 @@ fn build_game_definition_event() -> nostr_sdk::Event {
 
 #[test]
 fn invite_address_uses_relay_host() {
-    let invite =
-        invite_address_from_relay("amber-river", "wss://relay.example.com:7447").unwrap();
+    let invite = invite_address_from_relay("amber-river", "wss://relay.example.com:7447").unwrap();
     assert_eq!(invite, "amber-river@relay.example.com:7447");
 }
 

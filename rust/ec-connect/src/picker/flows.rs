@@ -188,14 +188,12 @@ pub fn redownload_selected_maps_with_config(
     target.game_id = Some(game_id.clone());
 
     match rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game_id)) {
-        Ok(bundle) => match save_map_bundle(
-            &bundle,
-            &target.relay_url,
-            state.maps_root.as_path(),
-        ) {
-            Ok(path) => state.show_notice(format!("Maps saved to {}", path.display())),
-            Err(err) => state.show_error(format!("unable to save maps: {err}")),
-        },
+        Ok(bundle) => {
+            match save_map_bundle(&bundle, &target.relay_url, state.maps_root.as_path()) {
+                Ok(path) => state.show_notice(format!("Maps saved to {}", path.display())),
+                Err(err) => state.show_error(format!("unable to save maps: {err}")),
+            }
+        }
         Err(err) => state.show_error(format!("unable to download maps: {err}")),
     }
 

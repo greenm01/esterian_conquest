@@ -30,7 +30,9 @@ pub fn publish_game_definition_for_dir(
 
     let dir = dir.to_path_buf();
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async move { publish_game_definition_for_dir_async(&config, &identity.keys, dir).await })
+    rt.block_on(
+        async move { publish_game_definition_for_dir_async(&config, &identity.keys, dir).await },
+    )
 }
 
 async fn publish_game_definition_for_dir_async(

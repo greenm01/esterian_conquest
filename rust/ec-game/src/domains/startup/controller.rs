@@ -64,10 +64,8 @@ impl App {
     }
 
     pub(crate) fn prepare_hosted_invite_quit_warning(&mut self) {
-        self.startup_state.first_time_status = Some(
-            "Your seat is unreserved until you name an empire."
-                .to_string(),
-        );
+        self.startup_state.first_time_status =
+            Some("Your seat is unreserved until you name an empire.".to_string());
     }
 
     fn hosted_first_time_entry_screen(&self) -> ScreenId {

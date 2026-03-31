@@ -644,12 +644,7 @@ mod tests {
         app.clipboard
             .set_text("ab\r\ncd\n".to_string())
             .expect("clipboard write");
-        if app
-            .clipboard
-            .get_text()
-            .expect("clipboard read")
-            .is_none()
-        {
+        if app.clipboard.get_text().expect("clipboard read").is_none() {
             return;
         }
         app.handle_mouse_button(winit::event::MouseButton::Right, true)

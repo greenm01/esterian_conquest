@@ -675,11 +675,7 @@ fn submit_map_download_with_prompted_relay(
 
     match rt.block_on(fetch_map_bundle(keys, &target, &effective_gate, &game.id)) {
         Ok(bundle) => {
-            match save_map_bundle(
-                &bundle,
-                &target.relay_url,
-                state.maps_root.as_path(),
-            ) {
+            match save_map_bundle(&bundle, &target.relay_url, state.maps_root.as_path()) {
                 Ok(path) => {
                     persist_cached_game_relay(state, index, &relay_url)?;
                     remember_relay_success(&relay_url);

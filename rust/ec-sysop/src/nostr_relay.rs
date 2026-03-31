@@ -164,8 +164,7 @@ fn maybe_republish_hosted_game(
     config_path: Option<PathBuf>,
     identity_path: Option<PathBuf>,
 ) -> Result<RepublishOutcome, Box<dyn std::error::Error>> {
-    let Some((config_path, identity_path)) =
-        optional_publish_paths(config_path, identity_path)?
+    let Some((config_path, identity_path)) = optional_publish_paths(config_path, identity_path)?
     else {
         return Ok(RepublishOutcome::Skipped(
             "gate config or daemon identity was not found locally".to_string(),
@@ -233,7 +232,11 @@ fn fetch_published_game_definition(
             .kind(Kind::Custom(30500))
             .identifier(game_id.clone());
         let events = client
-            .fetch_events_from([relay_url.as_str()], filter, Duration::from_secs(VERIFY_TIMEOUT_SECS))
+            .fetch_events_from(
+                [relay_url.as_str()],
+                filter,
+                Duration::from_secs(VERIFY_TIMEOUT_SECS),
+            )
             .await
             .map_err(|err| format!("could not fetch 30500 from {}: {err}", relay_url))?;
         let published = events
