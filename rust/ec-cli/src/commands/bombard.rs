@@ -6,6 +6,7 @@ use ec_data::{CoreGameData, Order};
 use crate::commands::runtime::{
     export_runtime_snapshot_in_place, with_runtime_game_mut_and_export,
 };
+use crate::support::paths::display_repo_path;
 use crate::workspace::copy_init_files;
 
 /// Apply the bombard scenario to an already-initialized game directory.
@@ -109,7 +110,7 @@ pub(crate) fn init_bombard_batch(
     fs::create_dir_all(target_root)?;
     let mut manifest = String::new();
     manifest.push_str("Bombard batch\n");
-    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("source={}\n", display_repo_path(source)));
     manifest.push_str(&format!("target_root={}\n", target_root.display()));
     manifest.push('\n');
 

@@ -18,7 +18,7 @@ fn theme_test_guard() -> MutexGuard<'static, ()> {
     THEME_TEST_LOCK
         .get_or_init(|| Mutex::new(()))
         .lock()
-        .expect("theme test lock")
+        .unwrap_or_else(|poison| poison.into_inner())
 }
 
 fn temp_game_dir(label: &str) -> PathBuf {
@@ -33,6 +33,23 @@ fn temp_game_dir(label: &str) -> PathBuf {
     ));
     fs::create_dir_all(&dir).expect("create temp game dir");
     dir
+}
+
+fn replace_style_fg(theme_kdl: &str, style_name: &str, from: &str, to: &str) -> String {
+    let style_header = format!("style \"{style_name}\" {{");
+    let fg_line = format!("fg \"{from}\"");
+    let replacement = format!("fg \"{to}\"");
+    let Some(style_start) = theme_kdl.find(&style_header) else {
+        return theme_kdl.to_string();
+    };
+    let Some(relative_fg_start) = theme_kdl[style_start..].find(&fg_line) else {
+        return theme_kdl.to_string();
+    };
+    let fg_start = style_start + relative_fg_start;
+    let fg_end = fg_start + fg_line.len();
+    let mut updated = theme_kdl.to_string();
+    updated.replace_range(fg_start..fg_end, &replacement);
+    updated
 }
 
 // ─── Bundled discovery ────────────────────────────────────────────────────────
@@ -73,10 +90,7 @@ fn config_kdl_theme_directive_is_followed() {
     let game_dir = temp_game_dir("ec-theme-config-directive");
 
     // Write a custom theme file
-    let custom = bundled_theme_kdl().replace(
-        "style \"logo\" {\n    fg \"#7aa2f7\"",
-        "style \"logo\" {\n    fg \"bright_magenta\"",
-    );
+    let custom = replace_style_fg(bundled_theme_kdl(), "logo", "#7aa2f7", "bright_magenta");
     fs::write(game_dir.join("my-theme.kdl"), &custom).expect("write custom theme");
 
     // Caller (cli.rs) would have parsed config.kdl and resolved the theme path;
@@ -103,10 +117,7 @@ fn invalid_theme_falls_back_to_bundled_default() {
     let game_dir = temp_game_dir("ec-theme-invalid");
 
     // First load a known custom color so we can see it get reset
-    let custom = bundled_theme_kdl().replace(
-        "style \"logo\" {\n    fg \"#7aa2f7\"",
-        "style \"logo\" {\n    fg \"bright_cyan\"",
-    );
+    let custom = replace_style_fg(bundled_theme_kdl(), "logo", "#7aa2f7", "bright_cyan");
     let custom_path = game_dir.join("custom.kdl");
     fs::write(&custom_path, custom).expect("write custom theme");
     load_theme_from_path(&custom_path).expect("load custom theme");

@@ -2,7 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::support::paths::{
-    init_fixture_dir, post_maint_fixture_dir, pre_maint_replay_context_fixture_dir,
+    display_repo_path, init_fixture_dir, post_maint_fixture_dir,
+    pre_maint_replay_context_fixture_dir,
 };
 use ec_compat::{
     ensure_classic_auxiliary_files, import_directory_snapshot,
@@ -70,8 +71,8 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
     refresh_runtime_store(target)?;
 
     println!("Initialized game directory: {}", target.display());
-    println!("  source snapshot: {}", source.display());
-    println!("  init fixture set: {}", init_dir.display());
+    println!("  source snapshot: {}", display_repo_path(source));
+    println!("  init fixture set: {}", display_repo_path(&init_dir));
     println!("  overlaid files:");
     for name in INIT_FILES {
         println!("    {name}");
@@ -127,9 +128,10 @@ pub fn overlay_classic_runtime_files(
 ) -> Result<(), Box<dyn std::error::Error>> {
     for name in CLASSIC_RUNTIME_SUPPORT_FILES {
         let source_path = source.join(name);
-        if source_path.exists() {
+        let target_path = target.join(name);
+        if source_path.exists() && source_path != target_path {
             fs::create_dir_all(target)?;
-            fs::copy(&source_path, target.join(name))?;
+            fs::copy(&source_path, &target_path)?;
         }
     }
     Ok(())

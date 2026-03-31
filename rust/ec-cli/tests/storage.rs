@@ -4,7 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    cleanup_dir, run_classic_ecgame_smoke_with_alias, run_ec_cli, run_ecmaint_oracle,
+    cleanup_dir, ecmaint_oracle_available, run_classic_ecgame_smoke_with_alias, run_ec_cli,
+    run_ecmaint_oracle,
     unique_temp_dir,
 };
 use ec_compat::{DatabaseDat, export_latest_snapshot_to_dir};
@@ -230,6 +231,11 @@ fn db_import_and_export_round_trip_fixture() {
 
 #[test]
 fn sqlite_maint_exported_directory_is_accepted_by_ecmaint_oracle() {
+    if !ecmaint_oracle_available() {
+        eprintln!("skipping ecmaint oracle regression: external python3/dosbox-x unavailable");
+        return;
+    }
+
     let source = unique_temp_dir("ec-cli-db-maint-source");
     let exported = unique_temp_dir("ec-cli-db-maint-export");
     common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &source);

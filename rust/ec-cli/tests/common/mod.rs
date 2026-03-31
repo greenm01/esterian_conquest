@@ -106,6 +106,19 @@ pub fn run_ecmaint_oracle(dir: &Path) -> String {
     String::from_utf8(output.stdout).expect("oracle stdout should be utf-8")
 }
 
+pub fn ecmaint_oracle_available() -> bool {
+    command_runs("python3", &["--version"]) && command_runs("dosbox-x", &["-version"])
+}
+
+fn command_runs(program: &str, args: &[&str]) -> bool {
+    Command::new(program)
+        .current_dir(repo_root())
+        .args(args)
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
 pub fn unique_temp_dir(prefix: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

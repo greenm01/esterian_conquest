@@ -7,7 +7,7 @@ use ec_data::{CoreGameData, FLEET_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD
 use crate::commands::runtime::{
     load_runtime_game_data, with_runtime_game_mut_and_export, with_runtime_game_mut_and_export_core,
 };
-use crate::support::paths::post_maint_fixture_dir;
+use crate::support::paths::{display_repo_path, post_maint_fixture_dir};
 use crate::workspace::{
     copy_current_known_core_files, copy_top_level_files, generate_database_dat,
 };
@@ -747,7 +747,7 @@ pub(crate) fn init_current_known_baseline(
         "Current-known baseline directory initialized at {}",
         target.display()
     );
-    println!("  source snapshot: {}", source.display());
+    println!("  source snapshot: {}", display_repo_path(source));
     println!(
         "  initialized_fleet_blocks = {}",
         data.looks_like_initialized_fleet_blocks_current_known()
@@ -809,7 +809,7 @@ pub(crate) fn init_canonical_current_known_baseline(
         "Canonical current-known baseline directory initialized at {}",
         target.display()
     );
-    println!("  source snapshot: {}", source.display());
+    println!("  source snapshot: {}", display_repo_path(source));
     println!(
         "  exact_canonical_current_known_baseline = {}",
         data.exact_match_errors_against(&baseline, "canonical current-known post-maint baseline",)

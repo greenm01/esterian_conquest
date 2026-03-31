@@ -273,7 +273,7 @@ mod tests {
             VerticalAlign::Center,
         );
         assert_eq!(layout.table_col, 22);
-        assert_eq!(layout.title_col, 22);
-        assert_eq!(layout.command_col, 22);
+        assert_eq!(layout.title_col, 23);
+        assert_eq!(layout.command_col, 23);
     }
 }

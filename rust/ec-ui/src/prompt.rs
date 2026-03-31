@@ -349,13 +349,17 @@ pub fn draw_table_command_bar_at_col(
             classic::prompt_hotkey_style(),
         )
     } else {
-        let written = buffer.write_text(
+        let written = buffer.write_text_clipped(
             row,
             cursor_col,
             COMMAND_ARROW_SUFFIX,
             classic::prompt_style(),
         );
-        let final_cursor_col = cursor_col + written;
+        let final_cursor_col = if COMMAND_ARROW_SUFFIX.chars().count() > written {
+            buffer.width().saturating_sub(1)
+        } else {
+            cursor_col + written
+        };
         if final_cursor_col < buffer.width() {
             buffer.set_cursor(final_cursor_col as u16, row as u16);
         }

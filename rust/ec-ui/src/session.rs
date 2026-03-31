@@ -1,9 +1,7 @@
 use std::io::{self, Write};
 
-use crossterm::cursor::Show;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
-use crossterm::style::{Attribute, ResetColor, SetAttribute};
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
@@ -74,14 +72,12 @@ impl TerminalSession {
 }
 
 pub fn write_terminal_cleanup_sequence(out: &mut impl Write) -> io::Result<()> {
-    execute!(
-        out,
-        DisableMouseCapture,
-        Show,
-        SetAttribute(Attribute::Reset),
-        ResetColor
+    // Keep the bridge/picker cleanup deterministic and serializable even when
+    // tests run without an initialized Windows console. This matches the ANSI
+    // sequences crossterm would emit for mouse disable, cursor show, and reset.
+    out.write_all(
+        b"\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[?25h\x1b[0m\x1b[39m\x1b[49m\x1b(B\x1b]110\x07\x1b]111\x07\x1b]112\x07",
     )?;
-    out.write_all(b"\x1b[0m\x1b[39m\x1b[49m\x1b(B\x1b]110\x07\x1b]111\x07\x1b]112\x07")?;
     Ok(())
 }
 

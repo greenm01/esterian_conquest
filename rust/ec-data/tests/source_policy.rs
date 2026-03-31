@@ -14,7 +14,7 @@ fn source_files(root: &Path, files: &mut Vec<PathBuf>) {
 }
 
 fn is_allowed_raw_path(path: &Path) -> bool {
-    let path = path.to_string_lossy();
+    let path = path.to_string_lossy().replace('\\', "/");
     path.contains("/src/records/") || path.ends_with("/src/storage/snapshot_core.rs")
 }
 

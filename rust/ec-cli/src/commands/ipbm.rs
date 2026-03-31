@@ -5,6 +5,7 @@ use ec_data::{CoreGameData, IPBM_RECORD_SIZE};
 use crate::commands::runtime::{
     export_runtime_snapshot_in_place, load_runtime_game_data, with_runtime_game_mut,
 };
+use crate::support::paths::display_repo_path;
 use crate::workspace::copy_init_files;
 
 pub(crate) fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -135,7 +136,7 @@ pub(crate) fn init_ipbm_batch(
     std::fs::create_dir_all(target_root)?;
     let mut manifest = String::new();
     manifest.push_str("IPBM batch\n");
-    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("source={}\n", display_repo_path(source)));
     manifest.push_str(&format!("target_root={}\n", target_root.display()));
     manifest.push('\n');
 

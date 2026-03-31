@@ -101,6 +101,14 @@ fn unique_temp_path(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("ec-connect-{name}-{nanos}.kdl"))
 }
 
+fn unique_temp_dir(name: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("time")
+        .as_nanos();
+    std::env::temp_dir().join(format!("ec-connect-{name}-{nanos}"))
+}
+
 fn make_session(alias: Option<&str>) -> PickerSession {
     make_session_with_identities(1, alias)
 }
@@ -872,16 +880,18 @@ fn maps_download_popup_first_backspace_clears_prefilled_path() {
 #[test]
 fn persist_maps_root_updates_state_and_writes_config() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.maps_input = "/tmp/alt-maps-root".to_string();
+    let maps_root = unique_temp_dir("alt-maps-root");
+    state.maps_input = maps_root.display().to_string();
     let config_path = unique_temp_path("maps-root");
 
     let saved = persist_maps_root_at(&mut state, &config_path).expect("persist maps root");
     let config = ec_connect::config::load_config_from(&config_path).expect("load config");
 
-    assert_eq!(saved, PathBuf::from("/tmp/alt-maps-root"));
-    assert_eq!(state.maps_root, PathBuf::from("/tmp/alt-maps-root"));
-    assert_eq!(config.maps_dir, Some(PathBuf::from("/tmp/alt-maps-root")));
+    assert_eq!(saved, maps_root);
+    assert_eq!(state.maps_root, maps_root);
+    assert_eq!(config.maps_dir, Some(maps_root.clone()));
     let _ = std::fs::remove_file(&config_path);
+    let _ = std::fs::remove_dir_all(&maps_root);
 }
 
 #[test]
@@ -919,7 +929,8 @@ fn maps_download_popup_enter_uses_current_selection_not_first_game() {
         make_game_without_relay("c"),
     ]);
     state.selected = 2;
-    state.maps_input = "/tmp/selected-game-maps".to_string();
+    let maps_root = unique_temp_dir("selected-game-maps");
+    state.maps_input = maps_root.display().to_string();
     let config_path = unique_temp_path("maps-download");
     let rt = tokio::runtime::Runtime::new().expect("runtime");
 
@@ -941,8 +952,9 @@ fn maps_download_popup_enter_uses_current_selection_not_first_game() {
             error: None,
         })
     );
-    assert_eq!(state.maps_root, PathBuf::from("/tmp/selected-game-maps"));
+    assert_eq!(state.maps_root, maps_root);
     let _ = std::fs::remove_file(&config_path);
+    let _ = std::fs::remove_dir_all(&maps_root);
 }
 
 #[test]

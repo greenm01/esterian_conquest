@@ -12,11 +12,9 @@ use ec_harness::{ScenarioSpec, build_scenario, save_built_scenario};
 
 use crate::commands::maint::run_rust_maintenance;
 use crate::commands::runtime::load_runtime_state_preferring_live_directory;
-use crate::support::paths::{repo_root, resolve_repo_path};
+use crate::support::paths::resolve_repo_path;
 
 const CAMPAIGN_MANIFEST_FILE_NAME: &str = "ec-bot-campaign.kdl";
-const WORKSPACE_MANIFEST_RELATIVE: &str = "campaign/manifest.kdl";
-
 const DOCTRINES: &[&str] = &[
     "landgrabber",
     "surveyor",
@@ -309,7 +307,8 @@ fn initialize_campaign(
 ) -> Result<CampaignManifest, Box<dyn std::error::Error>> {
     let spec = ScenarioSpec::load_kdl(scenario_path)?;
     let built = build_scenario(&spec)?;
-    save_built_scenario(&built, campaign_dir, export_classic)?;
+    save_built_scenario(&built, campaign_dir, export_classic)
+        .map_err(|err| format!("unable to save built campaign into {}: {err}", campaign_dir.display()))?;
 
     let players = default_player_assignments(&built.game_data, spec.metadata.seed, game_id);
     let manifest = CampaignManifest {
@@ -334,7 +333,12 @@ fn open_turn_internal(
     let year = state.game_data.conquest.game_year();
     let turn = turn_index_for_year(manifest.initial_year, year)?;
 
-    fs::create_dir_all(manifest.workspace_root.join("campaign"))?;
+    fs::create_dir_all(manifest.workspace_root.join("campaign")).map_err(|err| {
+        format!(
+            "unable to create campaign workspace dir {}: {err}",
+            manifest.workspace_root.join("campaign").display()
+        )
+    })?;
     for assignment in &manifest.players {
         let mut status = load_status_if_present(manifest, assignment.record_index_1_based, turn)?
             .unwrap_or_else(|| default_status(assignment, turn, year));
@@ -699,7 +703,9 @@ fn mixed_doctrine_seed(scenario_seed: u64, game_id: &str) -> u64 {
 }
 
 fn default_workspace_root(game_id: &str) -> PathBuf {
-    repo_root().join(".tmp/llm-turns").join(game_id)
+    std::env::temp_dir()
+        .join("ec-llm-turns")
+        .join(game_id)
 }
 
 fn campaign_manifest_path_in_dir(campaign_dir: &Path) -> PathBuf {
@@ -707,7 +713,7 @@ fn campaign_manifest_path_in_dir(campaign_dir: &Path) -> PathBuf {
 }
 
 fn workspace_manifest_path(workspace_root: &Path) -> PathBuf {
-    workspace_root.join(WORKSPACE_MANIFEST_RELATIVE)
+    workspace_root.join("campaign").join("manifest.kdl")
 }
 
 fn player_workspace_dir(manifest: &CampaignManifest, player: usize) -> PathBuf {
@@ -750,9 +756,24 @@ fn default_status(
 
 fn save_manifest(manifest: &CampaignManifest) -> Result<(), Box<dyn std::error::Error>> {
     let text = render_manifest(manifest);
-    fs::create_dir_all(manifest.workspace_root.join("campaign"))?;
-    fs::write(campaign_manifest_path_in_dir(&manifest.campaign_dir), &text)?;
-    fs::write(workspace_manifest_path(&manifest.workspace_root), text)?;
+    fs::create_dir_all(manifest.workspace_root.join("campaign")).map_err(|err| {
+        format!(
+            "unable to create workspace dir {}: {err}",
+            manifest.workspace_root.join("campaign").display()
+        )
+    })?;
+    fs::write(campaign_manifest_path_in_dir(&manifest.campaign_dir), &text).map_err(|err| {
+        format!(
+            "unable to write campaign manifest {}: {err}",
+            campaign_manifest_path_in_dir(&manifest.campaign_dir).display()
+        )
+    })?;
+    fs::write(workspace_manifest_path(&manifest.workspace_root), text).map_err(|err| {
+        format!(
+            "unable to write workspace manifest {}: {err}",
+            workspace_manifest_path(&manifest.workspace_root).display()
+        )
+    })?;
     Ok(())
 }
 
@@ -778,18 +799,21 @@ fn save_status(
     manifest: &CampaignManifest,
     status: &PlayerTurnStatus,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(player_workspace_dir(
+    let player_dir = player_workspace_dir(manifest, status.player_record_index_1_based);
+    fs::create_dir_all(&player_dir).map_err(|err| {
+        format!(
+            "unable to create player workspace dir {}: {err}",
+            player_dir.display()
+        )
+    })?;
+    let status_path = player_status_path(
         manifest,
         status.player_record_index_1_based,
-    ))?;
-    fs::write(
-        player_status_path(
-            manifest,
-            status.player_record_index_1_based,
-            status.turn_index_1_based,
-        ),
-        render_status(status),
-    )?;
+        status.turn_index_1_based,
+    );
+    fs::write(&status_path, render_status(status)).map_err(|err| {
+        format!("unable to write status file {}: {err}", status_path.display())
+    })?;
     Ok(())
 }
 

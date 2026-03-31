@@ -15,7 +15,7 @@ use crate::commands::runtime::{
     export_runtime_core_projection_in_place, export_runtime_snapshot_in_place,
     load_runtime_game_data,
 };
-use crate::support::paths::repo_root;
+use crate::support::paths::{display_repo_path, repo_root};
 use crate::workspace::{copy_init_files, copy_pre_maint_replay_context_files};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -229,7 +229,7 @@ pub(crate) fn validate_preserved_scenario(
 
     if errors.is_empty() {
         println!("Exact preserved match: {}", scenario.name());
-        println!("  fixture: {}", fixture_dir.display());
+        println!("  fixture: {}", display_repo_path(&fixture_dir));
         for name in scenario.exact_match_files() {
             println!("  {name}");
         }
@@ -296,7 +296,7 @@ pub(crate) fn init_all_known_scenarios(
     fs::create_dir_all(target_root)?;
     let mut manifest = String::new();
     manifest.push_str("Known scenarios\n");
-    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("source={}\n", display_repo_path(source)));
     manifest.push_str(&format!("target_root={}\n", target_root.display()));
     manifest.push('\n');
     for scenario in KnownScenario::all() {
@@ -346,7 +346,7 @@ pub(crate) fn print_known_scenario_details(scenario: KnownScenario) {
     println!("Description: {}", scenario.description());
     println!(
         "Preserved fixture: {}",
-        scenario.preserved_fixture_dir().display()
+        display_repo_path(&scenario.preserved_fixture_dir())
     );
     println!("Exact-match files:");
     for name in scenario.exact_match_files() {

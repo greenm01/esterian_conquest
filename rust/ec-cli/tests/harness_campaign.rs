@@ -4,10 +4,14 @@ use std::fs;
 
 use ec_data::{CampaignStore, DiplomaticRelation};
 
-use common::{cleanup_dir, repo_root, run_ec_cli, unique_temp_dir};
+use common::{cleanup_dir, run_ec_cli, unique_temp_dir};
 
 fn write_file(path: &std::path::Path, text: &str) {
     fs::write(path, text).unwrap();
+}
+
+fn workspace_root(game_id: &str) -> std::path::PathBuf {
+    std::env::temp_dir().join("ec-llm-turns").join(game_id)
 }
 
 fn scenario_text() -> &'static str {
@@ -31,7 +35,7 @@ fn harness_init_campaign_creates_ready_bundles_and_status_files() {
             .unwrap()
             .as_nanos()
     );
-    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let workspace_root = workspace_root(&game_id);
     let scenario_path = scenario_root.join("scenario.kdl");
     write_file(&scenario_path, scenario_text());
 
@@ -92,7 +96,7 @@ fn harness_llm_bundle_profile_emits_hidden_spatial_map() {
             .unwrap()
             .as_nanos()
     );
-    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let workspace_root = workspace_root(&game_id);
     let scenario_path = scenario_root.join("scenario.kdl");
     write_file(&scenario_path, scenario_text());
 
@@ -143,7 +147,7 @@ fn harness_scan_and_apply_turn_batch_advance_year_and_surface_player_mail() {
             .unwrap()
             .as_nanos()
     );
-    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let workspace_root = workspace_root(&game_id);
     let scenario_path = scenario_root.join("scenario.kdl");
     write_file(&scenario_path, scenario_text());
 
@@ -235,8 +239,8 @@ fn harness_campaign_doctrine_assignments_vary_by_game_id() {
     let game_b = "ec-cli-doctrine-beta";
     let campaign_a = unique_temp_dir("ec-cli-harness-campaign-doctrine-a");
     let campaign_b = unique_temp_dir("ec-cli-harness-campaign-doctrine-b");
-    let workspace_a = repo_root().join(".tmp/llm-turns").join(game_a);
-    let workspace_b = repo_root().join(".tmp/llm-turns").join(game_b);
+    let workspace_a = workspace_root(game_a);
+    let workspace_b = workspace_root(game_b);
 
     run_ec_cli(&[
         "harness",
@@ -281,7 +285,7 @@ fn harness_claim_turn_marks_player_as_claimed_until_submission() {
             .unwrap()
             .as_nanos()
     );
-    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let workspace_root = workspace_root(&game_id);
     let scenario_path = scenario_root.join("scenario.kdl");
     write_file(&scenario_path, scenario_text());
 
@@ -334,7 +338,7 @@ fn harness_rejected_turn_refreshes_bundle_with_validation_error() {
             .unwrap()
             .as_nanos()
     );
-    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let workspace_root = workspace_root(&game_id);
     let scenario_path = scenario_root.join("scenario.kdl");
     write_file(&scenario_path, scenario_text());
 
@@ -390,7 +394,7 @@ fn harness_play_until_initializes_then_blocks_when_turns_are_missing() {
             .unwrap()
             .as_nanos()
     );
-    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let workspace_root = workspace_root(&game_id);
     let scenario_path = scenario_root.join("scenario.kdl");
     write_file(&scenario_path, scenario_text());
 

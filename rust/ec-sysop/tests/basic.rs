@@ -26,7 +26,9 @@ fn unique_temp_dir(prefix: &str) -> PathBuf {
 }
 
 fn current_username() -> String {
-    std::env::var("USER").expect("USER should be set for ec-sysop tests")
+    std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .expect("USER or USERNAME should be set for ec-sysop tests")
 }
 
 fn run_ec_sysop(args: &[&str]) -> String {
@@ -333,6 +335,7 @@ key-ttl 60
 }
 
 #[test]
+#[cfg(unix)]
 fn ec_sysop_host_games_add_rejects_game_not_writable_by_service_user() {
     let root = unique_temp_dir("ec-sysop-host-games-perms");
     let config_path = root.join("config.kdl");
