@@ -5,6 +5,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -12,6 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_DIR = REPO_ROOT / "rust"
 DEFAULT_SEED = 1515
 DEFAULT_YEAR = 3000
+DEFAULT_RELAY_URL = "ws://localhost:8080"
+DEFAULT_SERVER_HOST = "localhost"
+DEFAULT_SERVER_PORT = 22
+DEFAULT_GATE_STATE_DIR = Path("/tmp/ec-local-gate")
+DEFAULT_EC_CONNECT_PASSWORD = "testing"
 
 PLAYER_SPECS = [
     ("p1", "Aurora", 55),
@@ -40,15 +46,32 @@ def run_ec_cli(*args: str) -> None:
     )
 
 
-def run_ec_sysop(*args: str) -> None:
+def run_ec_sysop(*args: str) -> str:
     env = os.environ.copy()
     env["RUSTC_WRAPPER"] = ""
-    subprocess.run(
+    result = subprocess.run(
         ["cargo", "run", "-q", "-p", "ec-sysop", "--", *args],
         cwd=RUST_DIR,
         check=True,
         env=env,
+        text=True,
+        capture_output=True,
     )
+    return result.stdout
+
+
+def run_ec_connect(*args: str) -> str:
+    env = os.environ.copy()
+    env["RUSTC_WRAPPER"] = ""
+    result = subprocess.run(
+        ["cargo", "run", "-q", "-p", "ec-connect", "--bin", "ec-connect", "--", *args],
+        cwd=RUST_DIR,
+        check=True,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout
 
 
 def set_player(target: Path, record: int, handle: str, empire: str, tax: int) -> None:
@@ -64,6 +87,22 @@ def map_size_for_player_count(player_count: int) -> int:
     if player_count <= 16:
         return 36
     return 45
+
+
+def parse_npub(stdout: str) -> str:
+    for line in stdout.splitlines():
+        if line.startswith("Public key (npub): "):
+            return line.split(": ", 1)[1].strip()
+        if line.startswith("player npub: "):
+            return line.split(": ", 1)[1].strip()
+    raise SystemExit(f"unable to parse npub from command output:\n{stdout}")
+
+
+def fixture_paths(root: Path) -> tuple[Path, Path, Path]:
+    wallet = root / "data" / "ec" / "wallet.kdl"
+    cache = root / "data" / "ec" / "cache.kdl"
+    config = root / "config" / "ec" / "config.kdl"
+    return wallet, cache, config
 
 
 def main() -> None:
@@ -100,6 +139,29 @@ def main() -> None:
         action="store_true",
         help="Remove the target directory first if it already exists.",
     )
+    parser.add_argument(
+        "--hosted-claim-player",
+        type=int,
+        help="Pre-claim one hosted seat for a returning-player localhost fixture.",
+    )
+    parser.add_argument(
+        "--hosted-nsec-file",
+        help="Path to the nsec file used for the returning-player localhost fixture.",
+    )
+    parser.add_argument(
+        "--ec-connect-data-root",
+        help="Isolated XDG-like root for the seeded localhost ec-connect fixture.",
+    )
+    parser.add_argument(
+        "--ec-connect-password",
+        default=DEFAULT_EC_CONNECT_PASSWORD,
+        help=f"Password for the isolated localhost ec-connect wallet. Default: {DEFAULT_EC_CONNECT_PASSWORD}.",
+    )
+    parser.add_argument(
+        "--localhost-gate-state-dir",
+        default=str(DEFAULT_GATE_STATE_DIR),
+        help=f"State dir used for the localhost gate identity. Default: {DEFAULT_GATE_STATE_DIR}.",
+    )
     args = parser.parse_args()
 
     if args.turn < 1:
@@ -110,6 +172,13 @@ def main() -> None:
         raise SystemExit("--year must be between 0 and 65535")
     if args.seed < 0:
         raise SystemExit("--seed must be >= 0")
+    if args.hosted_claim_player is not None:
+        if not 1 <= args.hosted_claim_player <= args.players:
+            raise SystemExit("--hosted-claim-player must be within the seeded player range")
+        if not args.hosted_nsec_file:
+            raise SystemExit("--hosted-nsec-file is required with --hosted-claim-player")
+    elif args.hosted_nsec_file:
+        raise SystemExit("--hosted-nsec-file requires --hosted-claim-player")
 
     target = Path(args.target_dir).resolve()
     if target.exists():
@@ -146,6 +215,87 @@ def main() -> None:
     print("Player 1 extras: active starbases, messages, reports, mixed foreign intel")
     print("Launch with:")
     print(f"  python3 scripts/run_client.py {target} --player 1")
+
+    if args.hosted_claim_player is not None:
+        gate_state_dir = Path(args.localhost_gate_state_dir).resolve()
+        gate_state_dir.mkdir(parents=True, exist_ok=True)
+        gate_identity = gate_state_dir / "identity.kdl"
+        gate_stdout = run_ec_sysop(
+            "nostr",
+            "init",
+            "--identity",
+            str(gate_identity),
+        )
+        gate_npub = parse_npub(gate_stdout)
+
+        data_root = (
+            Path(args.ec_connect_data_root).resolve()
+            if args.ec_connect_data_root
+            else Path(tempfile.gettempdir()) / f"ec-connect-localhost-{target.name}"
+        )
+        wallet_out, cache_out, config_out = fixture_paths(data_root)
+        seed_args = [
+            "dev",
+            "seed-localhost-fixture",
+            "--nsec-file",
+            str(Path(args.hosted_nsec_file).resolve()),
+            "--wallet-out",
+            str(wallet_out),
+            "--cache-out",
+            str(cache_out),
+            "--config-out",
+            str(config_out),
+            "--relay",
+            DEFAULT_RELAY_URL,
+            "--game-id",
+            target.name,
+            "--game-name",
+            "Player 1 TUI Stress",
+            "--player-name",
+            PLAYER_SPECS[args.hosted_claim_player - 1][1],
+            "--server",
+            DEFAULT_SERVER_HOST,
+            "--port",
+            str(DEFAULT_SERVER_PORT),
+            "--seat",
+            str(args.hosted_claim_player),
+            "--gate-npub",
+            gate_npub,
+            "--password",
+            args.ec_connect_password,
+        ]
+        if args.force:
+            seed_args.append("--force")
+        fixture_stdout = run_ec_connect(*seed_args)
+        player_npub = parse_npub(fixture_stdout)
+        run_ec_sysop(
+            "nostr",
+            "claim",
+            "--dir",
+            str(target),
+            "--player",
+            str(args.hosted_claim_player),
+            "--npub",
+            player_npub,
+        )
+
+        print()
+        print("Returning-player localhost fixture:")
+        print(f"Claimed seat: {args.hosted_claim_player}")
+        print(f"Player npub: {player_npub}")
+        print(f"Gate npub: {gate_npub}")
+        print(f"ec-connect data root: {data_root}")
+        print(f"ec-connect password: {args.ec_connect_password}")
+        print("Start localhost hosting with:")
+        print(f"  ./scripts/start_local_gui_hosted_test.sh --dir {target}")
+        print("Then launch ec-connect against the isolated fixture state with:")
+        print(
+            "  "
+            f"XDG_CONFIG_HOME={data_root / 'config'} "
+            f"XDG_DATA_HOME={data_root / 'data'} "
+            "cargo run -q -p ec-connect --bin ec-connect"
+        )
+        print("This fixture opens as a returning player from the picker; it does not exercise the pending-seat first-join flow.")
 
 
 if __name__ == "__main__":

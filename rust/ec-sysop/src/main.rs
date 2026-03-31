@@ -816,6 +816,22 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
             println!("{}", nostr::reissue_hosted_seat(&dir, player)?);
             Ok(())
         }
+        "claim" => {
+            if rest.iter().any(|arg| arg == "--help" || arg == "-h") {
+                usage::print_nostr_claim_usage();
+                return Ok(());
+            }
+            init_logging(parsed, false)?;
+            let (dir, player, npub) = nostr::parse_dir_player_npub_flags(&rest)?;
+            tracing::info!(
+                dir = %dir.display(),
+                player,
+                npub = %npub,
+                "running ec-sysop nostr claim"
+            );
+            println!("{}", nostr::claim_hosted_seat(&dir, player, &npub)?);
+            Ok(())
+        }
         _ => {
             usage::print_nostr_usage();
             Err(format!("unknown nostr subcommand: {cmd}").into())

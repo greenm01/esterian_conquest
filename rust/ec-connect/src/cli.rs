@@ -10,7 +10,9 @@ use crate::connect::public_join::run_public_join;
 use crate::connect::resolve::{resolve_invite, resolve_server};
 use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
 #[cfg(debug_assertions)]
-use crate::dev_seed::{SeedUiOptions, seed_ui};
+use crate::dev_seed::{
+    SeedLocalhostFixtureOptions, SeedUiOptions, seed_localhost_fixture_to_paths, seed_ui,
+};
 use crate::identity::{
     cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_reset, cmd_id_secret, cmd_id_show, cmd_id_switch,
 };
@@ -102,9 +104,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let sub = dev_args.next();
         return match sub.as_deref() {
             Some("seed-ui") => cmd_dev_seed_ui(dev_args),
+            Some("seed-localhost-fixture") => cmd_dev_seed_localhost_fixture(dev_args),
             Some(other) => Err(format!("unknown dev subcommand: {other}").into()),
             None => Err(
-                "usage: ec-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]"
+                "usage: ec-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]\n       ec-connect dev seed-localhost-fixture --nsec-file <path> --wallet-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]"
                     .into(),
             ),
         };
@@ -600,6 +603,16 @@ struct DevSeedCommand {
 }
 
 #[cfg(debug_assertions)]
+#[derive(Debug, Clone)]
+struct DevSeedLocalhostCommand {
+    options: SeedLocalhostFixtureOptions,
+    nsec_file: PathBuf,
+    wallet_out: PathBuf,
+    cache_out: PathBuf,
+    config_out: PathBuf,
+}
+
+#[cfg(debug_assertions)]
 fn cmd_dev_seed_ui(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let command = parse_seed_ui_opts(args)?;
     let summary = seed_ui(&command.options)?;
@@ -627,6 +640,31 @@ fn cmd_dev_seed_ui(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std
     println!("games: {}", summary.games);
     println!("password: {}", summary.password);
     println!("Run ec-connect normally to open the seeded picker.");
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn cmd_dev_seed_localhost_fixture(
+    args: impl Iterator<Item = String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let command = parse_seed_localhost_fixture_opts(args)?;
+    let nsec = std::fs::read_to_string(&command.nsec_file)?;
+    let summary = seed_localhost_fixture_to_paths(
+        &SeedLocalhostFixtureOptions {
+            nsec: nsec.trim().to_string(),
+            ..command.options
+        },
+        &command.wallet_out,
+        &command.cache_out,
+        &command.config_out,
+    )?;
+    println!("Seeded localhost returning-player fixture.");
+    println!("wallet: {}", summary.wallet_path.display());
+    println!("cache: {}", summary.cache_path.display());
+    println!("config: {}", summary.config_path.display());
+    println!("player npub: {}", summary.player_npub);
+    println!("gate npub: {}", summary.gate_npub);
+    println!("password: {}", summary.password);
     Ok(())
 }
 
@@ -682,11 +720,158 @@ fn parse_seed_ui_opts(
     Ok(DevSeedCommand { options, launch })
 }
 
+#[cfg(debug_assertions)]
+fn parse_seed_localhost_fixture_opts(
+    args: impl Iterator<Item = String>,
+) -> Result<DevSeedLocalhostCommand, Box<dyn std::error::Error>> {
+    let values: Vec<String> = args.collect();
+    let mut nsec_file = None;
+    let mut wallet_out = None;
+    let mut cache_out = None;
+    let mut config_out = None;
+    let mut relay_url = None;
+    let mut game_id = None;
+    let mut game_name = None;
+    let mut player_name = None;
+    let mut server = None;
+    let mut port = 22u16;
+    let mut seat = None;
+    let mut gate_npub = None;
+    let mut joined = None;
+    let mut password = "testing".to_string();
+    let mut force = false;
+    let mut i = 0;
+    while i < values.len() {
+        match values[i].as_str() {
+            "--nsec-file" => {
+                i += 1;
+                nsec_file = Some(PathBuf::from(
+                    values.get(i).ok_or("--nsec-file requires a value")?,
+                ));
+            }
+            "--wallet-out" => {
+                i += 1;
+                wallet_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--wallet-out requires a value")?,
+                ));
+            }
+            "--cache-out" => {
+                i += 1;
+                cache_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--cache-out requires a value")?,
+                ));
+            }
+            "--config-out" => {
+                i += 1;
+                config_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--config-out requires a value")?,
+                ));
+            }
+            "--relay" => {
+                i += 1;
+                relay_url = Some(values.get(i).cloned().ok_or("--relay requires a value")?);
+            }
+            "--game-id" => {
+                i += 1;
+                game_id = Some(values.get(i).cloned().ok_or("--game-id requires a value")?);
+            }
+            "--game-name" => {
+                i += 1;
+                game_name = Some(
+                    values
+                        .get(i)
+                        .cloned()
+                        .ok_or("--game-name requires a value")?,
+                );
+            }
+            "--player-name" => {
+                i += 1;
+                player_name = Some(
+                    values
+                        .get(i)
+                        .cloned()
+                        .ok_or("--player-name requires a value")?,
+                );
+            }
+            "--server" => {
+                i += 1;
+                server = Some(values.get(i).cloned().ok_or("--server requires a value")?);
+            }
+            "--port" => {
+                i += 1;
+                port = values
+                    .get(i)
+                    .ok_or("--port requires a value")?
+                    .parse::<u16>()
+                    .map_err(|_| "invalid --port value")?;
+            }
+            "--seat" => {
+                i += 1;
+                seat = Some(
+                    values
+                        .get(i)
+                        .ok_or("--seat requires a value")?
+                        .parse::<u32>()
+                        .map_err(|_| "invalid --seat value")?,
+                );
+            }
+            "--gate-npub" => {
+                i += 1;
+                gate_npub = Some(
+                    values
+                        .get(i)
+                        .cloned()
+                        .ok_or("--gate-npub requires a value")?,
+                );
+            }
+            "--password" => {
+                i += 1;
+                password = values
+                    .get(i)
+                    .cloned()
+                    .ok_or("--password requires a value")?;
+            }
+            "--joined" => {
+                i += 1;
+                joined = Some(values.get(i).cloned().ok_or("--joined requires a value")?);
+            }
+            "--force" => force = true,
+            "--help" | "-h" | "help" => {
+                return Err("usage: ec-connect dev seed-localhost-fixture --nsec-file <path> --wallet-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]".into());
+            }
+            other => return Err(format!("unexpected argument: {other}").into()),
+        }
+        i += 1;
+    }
+
+    let nsec_file = nsec_file.ok_or("--nsec-file is required")?;
+    Ok(DevSeedLocalhostCommand {
+        options: SeedLocalhostFixtureOptions {
+            nsec: String::new(),
+            password,
+            relay_url: relay_url.ok_or("--relay is required")?,
+            game_id: game_id.ok_or("--game-id is required")?,
+            game_name: game_name.ok_or("--game-name is required")?,
+            player_name,
+            server: server.ok_or("--server is required")?,
+            port,
+            seat: seat.ok_or("--seat is required")?,
+            gate_npub: gate_npub.ok_or("--gate-npub is required")?,
+            joined,
+            force,
+        },
+        nsec_file,
+        wallet_out: wallet_out.ok_or("--wallet-out is required")?,
+        cache_out: cache_out.ok_or("--cache-out is required")?,
+        config_out: config_out.ok_or("--config-out is required")?,
+    })
+}
+
 // ── Usage ─────────────────────────────────────────────────────────────────────
 
 fn print_usage() {
     #[cfg(debug_assertions)]
-    let developer = "\nDeveloper:\n  ec-connect dev seed-ui               Seed fake wallet/cache data for UI testing\n  ec-connect dev seed-ui --launch      Seed fake data and open the picker immediately\n";
+    let developer = "\nDeveloper:\n  ec-connect dev seed-ui                           Seed fake wallet/cache data for UI testing\n  ec-connect dev seed-ui --launch                  Seed fake data and open the picker immediately\n  ec-connect dev seed-localhost-fixture ...        Seed one isolated localhost returning-player wallet/cache/config fixture\n";
     #[cfg(not(debug_assertions))]
     let developer = "";
     println!(

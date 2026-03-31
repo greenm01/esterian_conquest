@@ -145,6 +145,18 @@ fn picker_state_initial_values() {
 }
 
 #[test]
+fn picker_error_notices_normalize_manual_line_breaks_into_clean_paragraphs() {
+    let mut state = make_state(vec![make_game("a", None)]);
+    state.show_error("Line one\nline two\n\nTechnical: bad thing");
+
+    let Some(PickerOverlay::Notice { message, .. }) = state.overlay else {
+        panic!("expected notice overlay");
+    };
+
+    assert_eq!(message, "Line one line two\n\nTechnical: bad thing");
+}
+
+#[test]
 fn manual_refresh_enters_short_cooldown() {
     let mut state = make_state(vec![]);
 

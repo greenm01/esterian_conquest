@@ -2726,7 +2726,7 @@ Practical implication:
 
 Preserved DOSBox-X screenshot:
 
-- `/home/niltempus/Pictures/ecv1.5/ecutil_000.raw1.png`
+- `captures/v1.5-dosboxx/ecutil_000.raw1.png`
 
 Versioned screenshot/archive policy:
 
@@ -3028,7 +3028,7 @@ Rust preservation impact:
 
 External reference set:
 
-- `/home/niltempus/Documents/esterian-conquest/ec-logs-2022/`
+- `/path/to/private-logs/ec-logs-2022/`
 
 These are not yet copied into the repo snapshot, but they are useful as
 reference evidence for `ECMAINT` combat behavior because they preserve

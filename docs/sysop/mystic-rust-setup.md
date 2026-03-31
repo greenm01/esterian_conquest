@@ -84,7 +84,7 @@ DC
 Door data:
 
 ```text
-/home/niltempus/dev/esterian_conquest/tools/bbs/run_ec_rust.sh /path/to/ec-campaign %PCHAIN.TXT
+/path/to/esterian_conquest/tools/bbs/run_ec_rust.sh /path/to/ec-campaign %PCHAIN.TXT
 ```
 
 Why `DC`:

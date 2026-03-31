@@ -27,7 +27,7 @@ So these scripts call `ec-cli` to build or mutate campaigns, then launch
 Run all examples from the repo root:
 
 ```bash
-cd /home/mag/dev/esterian_conquest
+cd /path/to/esterian_conquest
 ```
 
 The scripts expect:
@@ -135,6 +135,8 @@ It currently:
 - seeds player 1 with active starbases, rich unread report blocks, and queued mail
 - injects mixed foreign-world intel for player 1 so database/detail screens show
   unknown, partial, and full scout-quality rows
+- can also seed an isolated localhost `ec-connect` returning-player fixture
+  with a pre-claimed hosted seat
 
 Example:
 
@@ -167,6 +169,19 @@ Use this when you want:
 - `INFO ABOUT A PLANET` to show both owned detail and varied foreign intel
 - starbase, transport, build, and stardock screens populated on first launch
 
+Returning-player localhost fixture example:
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --hosted-claim-player 1 --hosted-nsec-file /path/to/player.nsec
+```
+
+That mode:
+
+- keeps the normal stress game seeding
+- claims one hosted seat for the supplied identity
+- creates an isolated `ec-connect` wallet/cache/config tree under `/tmp`
+- prints exact launch commands for the localhost host helper and GUI reconnect
+
 ### `start_local_gui_hosted_test.sh`
 
 Starts a local `ec-sysop nostr serve` instance for a stress-test game so the
@@ -181,12 +196,14 @@ Example:
 It:
 
 - verifies `/tmp/ec-player1-ui/ecgame.db`
-- verifies pending hosted seats exist
+- reports pending invite codes when the game still has unclaimed seats
+- reports claimed seats when the game is already seeded for returning-player reconnects
 - requires a relay already listening at `ws://localhost:8080`
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
 - defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
 - still supports explicit `--ssh-user` / `--auth-keys-*` overrides
 - prints full invite lines like `ec-connect --join victim-sickness@localhost:8080`
+- prints claimed seat identities for returning-player fixture checks
 - runs `ec-sysop nostr serve` in the foreground
 
 Use this when you want to test the real localhost GUI invite flow instead of

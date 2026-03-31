@@ -1,12 +1,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use nostr_sdk::{Keys, ToBech32};
+use nostr_sdk::{Keys, PublicKey, ToBech32};
 
 use crate::cache::io::{cache_path, save_cache_to};
 use crate::cache::{CachedGame, GameCache};
+use crate::config::io::config_path;
+use crate::config::{ConnectConfig, save_config_to};
 use crate::wallet::io::{format_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Identity, IdentityType, Wallet};
+use crate::wallet::{Identity, IdentityType, Wallet, identity_npub};
 
 const DEFAULT_IDENTITIES: usize = 32;
 const DEFAULT_GAMES: usize = 64;
@@ -26,6 +28,32 @@ pub struct SeedUiSummary {
     pub cache_path: PathBuf,
     pub identities: usize,
     pub games: usize,
+    pub password: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SeedLocalhostFixtureOptions {
+    pub nsec: String,
+    pub password: String,
+    pub relay_url: String,
+    pub game_id: String,
+    pub game_name: String,
+    pub player_name: Option<String>,
+    pub server: String,
+    pub port: u16,
+    pub seat: u32,
+    pub gate_npub: String,
+    pub joined: Option<String>,
+    pub force: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct SeedLocalhostFixtureSummary {
+    pub wallet_path: PathBuf,
+    pub cache_path: PathBuf,
+    pub config_path: PathBuf,
+    pub player_npub: String,
+    pub gate_npub: String,
     pub password: String,
 }
 
@@ -74,6 +102,71 @@ pub fn seed_ui_to_paths(
     })
 }
 
+pub fn seed_localhost_fixture(
+    options: &SeedLocalhostFixtureOptions,
+) -> Result<SeedLocalhostFixtureSummary, Box<dyn std::error::Error>> {
+    seed_localhost_fixture_to_paths(options, &wallet_path(), &cache_path(), &config_path())
+}
+
+pub fn seed_localhost_fixture_to_paths(
+    options: &SeedLocalhostFixtureOptions,
+    wallet_out: &Path,
+    cache_out: &Path,
+    config_out: &Path,
+) -> Result<SeedLocalhostFixtureSummary, Box<dyn std::error::Error>> {
+    if !options.force {
+        refuse_existing(wallet_out, "wallet")?;
+        refuse_existing(cache_out, "cache")?;
+        refuse_existing(config_out, "config")?;
+    }
+
+    let created = options
+        .joined
+        .clone()
+        .unwrap_or_else(nowish_fixture_timestamp);
+    let mut wallet = Wallet::empty();
+    wallet.identities.push(Identity {
+        nsec: normalize_nsec(&options.nsec)?,
+        identity_type: IdentityType::Imported,
+        created: created.clone(),
+        alias: Some("Localhost Fixture".to_string()),
+    });
+    let player_npub = identity_npub(wallet.active_identity().ok_or("wallet missing identity")?)?;
+    let gate_npub = normalize_pubkey(&options.gate_npub)?;
+
+    let cache = GameCache {
+        games: vec![CachedGame {
+            id: options.game_id.clone(),
+            name: options.game_name.clone(),
+            player_name: options.player_name.clone(),
+            server: options.server.clone(),
+            port: options.port,
+            relay_url: Some(options.relay_url.clone()),
+            seat: options.seat,
+            npub: player_npub.clone(),
+            gate_npub: gate_npub.clone(),
+            joined: created,
+            last_connected: None,
+        }],
+    };
+
+    let mut config = ConnectConfig::empty();
+    config.set_default_relay(&options.relay_url);
+
+    save_wallet_to(&wallet, &options.password, wallet_out)?;
+    save_cache_to(&cache, cache_out)?;
+    save_config_to(&config, config_out)?;
+
+    Ok(SeedLocalhostFixtureSummary {
+        wallet_path: wallet_out.to_path_buf(),
+        cache_path: cache_out.to_path_buf(),
+        config_path: config_out.to_path_buf(),
+        player_npub,
+        gate_npub,
+        password: options.password.clone(),
+    })
+}
+
 fn refuse_existing(path: &Path, label: &str) -> Result<(), Box<dyn std::error::Error>> {
     match fs::metadata(path) {
         Ok(_) => Err(format!(
@@ -106,6 +199,21 @@ fn build_wallet(count: usize) -> Result<Wallet, Box<dyn std::error::Error>> {
         active: count.saturating_sub(1).min(2),
         identities,
     })
+}
+
+fn normalize_nsec(nsec: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let keys = Keys::parse(nsec.trim()).map_err(|err| format!("invalid nsec: {err}"))?;
+    Ok(keys.secret_key().to_bech32()?)
+}
+
+fn normalize_pubkey(input: &str) -> Result<String, Box<dyn std::error::Error>> {
+    Ok(PublicKey::parse(input.trim())
+        .map_err(|err| format!("invalid pubkey/npub: {err}"))?
+        .to_bech32()?)
+}
+
+fn nowish_fixture_timestamp() -> String {
+    format_iso8601(1_775_950_000)
 }
 
 fn build_cache(games: usize, wallet: &Wallet) -> Result<GameCache, Box<dyn std::error::Error>> {

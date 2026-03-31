@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
 use crate::connect::resolve::ResolvedTarget;
+use crate::text_wrap::normalize_message_text;
 use crate::wallet::Wallet;
 use nostr_sdk::Keys;
 
@@ -175,14 +176,14 @@ impl PickerState {
     pub fn show_notice(&mut self, message: impl Into<String>) {
         self.overlay = Some(PickerOverlay::Notice {
             level: NoticeLevel::Notice,
-            message: message.into(),
+            message: normalize_message_text(&message.into()),
         });
     }
 
     pub fn show_error(&mut self, message: impl Into<String>) {
         self.overlay = Some(PickerOverlay::Notice {
             level: NoticeLevel::Error,
-            message: message.into(),
+            message: normalize_message_text(&message.into()),
         });
     }
 

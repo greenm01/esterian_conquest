@@ -174,10 +174,7 @@ async fn prepare_session_with_keypair(
         Ok(r) => r,
         Err(e) => {
             return SessionPreparation::Outcome(SessionOutcome::Error(format!(
-                "Could not reach the game server.\n\
-             Contact your sysop if this persists.\n\
-             \n\
-             Technical: handshake failed: {e}"
+                "Could not reach the game server. Contact your sysop if this persists.\n\nTechnical: handshake failed: {e}"
             )));
         }
     };
@@ -328,25 +325,17 @@ impl PreparedSessionFinalizer {
 pub fn format_bridge_error_message(ssh_host: &str, err: &str) -> String {
     if is_local_ssh_target(ssh_host) && err.contains("SSH public-key authentication failed") {
         return format!(
-            "Could not authenticate to the local game server over SSH.\n\
-             For localhost testing, your local hosted helper may be using the wrong SSH user or auth-keys path.\n\
-             \n\
-             Technical: bridge error: {err}"
+            "Could not authenticate to the local game server over SSH. For localhost testing, your local hosted helper may be using the wrong SSH user or auth-keys path.\n\nTechnical: bridge error: {err}"
         );
     }
 
     format!(
-        "Connection to game server was lost.\n\
-         Contact your sysop if this persists.\n\
-         \n\
-         Technical: bridge error: {err}"
+        "Connection to game server was lost. Contact your sysop if this persists.\n\nTechnical: bridge error: {err}"
     )
 }
 
 pub fn unfinished_first_join_error_message() -> &'static str {
-    "This identity is not enrolled in that game yet.\n\
-     If this was a first-time join, you left before naming your empire.\n\
-     Use the invite code again to finish joining."
+    "This identity is not enrolled in that game yet. If this was a first-time join, you left before naming your empire. Use the invite code again to finish joining."
 }
 
 pub fn is_unfinished_first_join_error(message: &str) -> bool {
@@ -599,6 +588,6 @@ pub fn resolve_gate_npub(
         return Ok(npub.to_string());
     }
     Err(format!(
-        "this server is not in your joined game list yet: {server_host}\njoin it with an invite code first, or reconnect from the picker"
+        "This server is not in your joined game list yet: {server_host}. Join it with an invite code first, or reconnect from the picker."
     ))
 }

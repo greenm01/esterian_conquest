@@ -1,11 +1,39 @@
 use ec_ui::buffer::{CellStyle, PlayfieldBuffer};
 
+pub(crate) fn normalize_message_text(text: &str) -> String {
+    let normalized = text.replace("\r\n", "\n");
+    let mut paragraphs = Vec::new();
+    let mut current = Vec::new();
+
+    for line in normalized.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            if !current.is_empty() {
+                paragraphs.push(current.join(" "));
+                current.clear();
+            }
+            continue;
+        }
+        current.push(trimmed.to_string());
+    }
+
+    if !current.is_empty() {
+        paragraphs.push(current.join(" "));
+    }
+
+    if paragraphs.is_empty() {
+        String::new()
+    } else {
+        paragraphs.join("\n\n")
+    }
+}
+
 pub(crate) fn wrapped_lines(text: &str, max_width: usize) -> Vec<String> {
     if max_width == 0 {
         return Vec::new();
     }
 
-    let normalized = text.replace("\r\n", "\n");
+    let normalized = normalize_message_text(text);
     let mut lines = Vec::new();
 
     for raw_line in normalized.split('\n') {

@@ -86,7 +86,7 @@ doorEsterianConquestRust: {
     config: {
         name: Esterian Conquest
         dropFileType: DOOR32
-        cmd: /home/niltempus/dev/esterian_conquest/tools/bbs/run_ec_rust.sh
+        cmd: /path/to/esterian_conquest/tools/bbs/run_ec_rust.sh
         args: [
             "/path/to/ec-campaign"
             "{dropFilePath}"
@@ -129,7 +129,7 @@ doorEsterianConquestRust: {
     config: {
         name: Esterian Conquest
         dropFileType: DOOR32
-        cmd: /home/niltempus/dev/esterian_conquest/tools/bbs/run_ec_rust.sh
+        cmd: /path/to/esterian_conquest/tools/bbs/run_ec_rust.sh
         args: [
             "/path/to/ec-campaign"
             "{dropFilePath}"
@@ -163,7 +163,7 @@ is:
 
 ```hjson
 dropFileType: DOOR32
-cmd: /home/niltempus/dev/esterian_conquest/tools/bbs/run_ec_rust.sh
+cmd: /path/to/esterian_conquest/tools/bbs/run_ec_rust.sh
 args: [
     "/path/to/ec-campaign"
     "{dropFilePath}"

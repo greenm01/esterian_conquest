@@ -31,6 +31,7 @@ The script creates a Rust-backed campaign and seeds:
 - active player-1 starbases
 - player-1-only queued mail and report backlog
 - mixed foreign intel for player 1, including partial and full scout-style data
+- optional localhost hosted returning-player fixture data for `ec-connect`
 
 ## Usage
 
@@ -135,7 +136,8 @@ publisher for it:
 This helper:
 
 - checks that `/tmp/ec-player1-ui/ecgame.db` exists
-- checks that pending hosted seats still exist
+- prints pending invite codes when the game still has unclaimed seats
+- prints claimed-seat identities when the game has already been seeded for returning-player reconnect tests
 - requires a relay already listening at `ws://localhost:8080`
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
 - defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
@@ -161,6 +163,23 @@ Notes:
   you override it.
 - This is distinct from direct localhost `ec-game` play. Through `ec-connect`,
   localhost-hosted sessions still use the normal hosted SSH transport.
+
+## Localhost Returning-Player Fixture
+
+If you want `ec-connect` to show a localhost stress game in the picker
+immediately, seed a claimed hosted seat plus an isolated `ec-connect` state
+root:
+
+```bash
+python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --hosted-claim-player 1 --hosted-nsec-file /path/to/player.nsec
+```
+
+That flow:
+
+- claims one hosted seat for the supplied identity
+- seeds an isolated wallet/cache/config tree under `/tmp`
+- prints the exact `XDG_CONFIG_HOME=... XDG_DATA_HOME=... cargo run ...` command
+- is meant for returning-player reconnect testing, not first-join testing
 
 ## Notes
 

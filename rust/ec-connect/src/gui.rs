@@ -125,7 +125,7 @@ fn parse_launch_intent() -> Result<LaunchIntent, Box<dyn std::error::Error>> {
             Ok(LaunchIntent::Join(invite))
         }
         Some(other) => Err(format!(
-            "ec-connect supports only no arguments or --join <invite>.\nunrecognized argument: {other}"
+            "ec-connect supports only no arguments or --join <invite>.\n\nUnrecognized argument: {other}"
         )
         .into()),
     }

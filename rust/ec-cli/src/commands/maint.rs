@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use crate::support::paths::{default_fixture_dir, resolve_repo_path};
+use crate::support::paths::{default_fixture_dir, repo_root, resolve_repo_path};
 use crate::usage::print_maintenance_usage;
 use ec_compat::import_directory_snapshot;
 use ec_data::{
@@ -270,12 +270,12 @@ pub fn run_rust_maintenance_with_options(
 /// Run original ECMAINT oracle on a directory
 pub fn run_original_ecmaint(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Running original ECMAINT oracle on: {}", dir.display());
+    let repo_root = repo_root();
 
     // Ensure ECMAINT.EXE is present — without it DOSBox opens an interactive window.
     let engine_path = dir.join("ECMAINT.EXE");
     if !engine_path.exists() {
-        let source_engine = std::path::Path::new("/home/mag/dev/esterian_conquest")
-            .join("original/v1.5/ECMAINT.EXE");
+        let source_engine = repo_root.join("original/v1.5/ECMAINT.EXE");
         if source_engine.exists() {
             fs::copy(&source_engine, &engine_path)?;
         } else {
@@ -290,7 +290,7 @@ pub fn run_original_ecmaint(dir: &Path) -> Result<(), Box<dyn std::error::Error>
         .arg("tools/ecmaint_oracle.py")
         .arg("run")
         .arg(dir)
-        .current_dir("/home/mag/dev/esterian_conquest")
+        .current_dir(&repo_root)
         .env("SDL_VIDEODRIVER", "dummy")
         .env("SDL_AUDIODRIVER", "dummy")
         .output()?;

@@ -35,7 +35,10 @@ Options:
   --help               Show this help
 
 This helper starts a local ec-sysop nostr serve instance for a stress-test
-game and prints full invite codes like:
+game. It prints pending-seat invite codes when available and reports already
+claimed seats for returning-player fixture testing.
+
+Pending invite output looks like:
 
   ec-connect --join victim-sickness@localhost:8080
 
@@ -266,9 +269,13 @@ PENDING_SEATS="$(
   sqlite3 "$GAME_DB" \
     "select player_record_index || '|' || invite_code from hosted_player_seats where claim_status = 'pending' order by player_record_index;"
 )"
+CLAIMED_SEATS="$(
+  sqlite3 "$GAME_DB" \
+    "select player_record_index || '|' || ifnull(player_npub, '') from hosted_player_seats where claim_status = 'claimed' order by player_record_index;"
+)"
 
-if [[ -z "$PENDING_SEATS" ]]; then
-  echo "error: no pending hosted seats found in $GAME_DB" >&2
+if [[ -z "$PENDING_SEATS" && -z "$CLAIMED_SEATS" ]]; then
+  echo "error: no pending or claimed hosted seats found in $GAME_DB" >&2
   exit 1
 fi
 
@@ -338,12 +345,26 @@ PY
 )"
 
 echo
-echo "Pending invite commands:"
-while IFS='|' read -r seat invite; do
-  [[ -n "$seat" ]] || continue
-  echo "  Seat $seat"
-  echo "    ec-connect --join ${invite}@${INVITE_SUFFIX}"
-done <<< "$PENDING_SEATS"
+if [[ -n "$PENDING_SEATS" ]]; then
+  echo "Pending invite commands:"
+  while IFS='|' read -r seat invite; do
+    [[ -n "$seat" ]] || continue
+    echo "  Seat $seat"
+    echo "    ec-connect --join ${invite}@${INVITE_SUFFIX}"
+  done <<< "$PENDING_SEATS"
+  echo
+fi
+
+if [[ -n "$CLAIMED_SEATS" ]]; then
+  echo "Claimed seats:"
+  while IFS='|' read -r seat npub; do
+    [[ -n "$seat" ]] || continue
+    echo "  Seat $seat"
+    echo "    $npub"
+  done <<< "$CLAIMED_SEATS"
+  echo "Returning-player reconnects are available for the identities above."
+  echo
+fi
 
 echo
 echo "Starting local hosted daemon with:"

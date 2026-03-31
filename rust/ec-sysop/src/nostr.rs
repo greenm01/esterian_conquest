@@ -7,7 +7,7 @@ use ec_gate::config::io::{config_path, load_config};
 use ec_gate::invite::generate_invite_code;
 use ec_gate::roster::io::load_roster;
 use ec_nostr::hosted::invite_address_from_relay;
-use nostr_sdk::ToBech32;
+use nostr_sdk::{PublicKey, ToBech32};
 
 pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let roster_path = dir.join("roster.kdl");
@@ -131,6 +131,34 @@ pub fn reissue_hosted_seat(
     ))
 }
 
+pub fn claim_hosted_seat(
+    dir: &Path,
+    player_record_index_1_based: usize,
+    player_npub: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let normalized = PublicKey::parse(player_npub.trim())
+        .map_err(|err| format!("invalid npub/pubkey: {err}"))?
+        .to_hex();
+    let store = CampaignStore::open_default_in_dir(dir)?;
+    let Some(seat) =
+        store.claim_hosted_seat_for_player(player_record_index_1_based, &normalized)?
+    else {
+        return Err(format!(
+            "player {} not found in hosted seats",
+            player_record_index_1_based
+        )
+        .into());
+    };
+    let display_npub = PublicKey::from_hex(&normalized)
+        .ok()
+        .and_then(|pubkey| pubkey.to_bech32().ok())
+        .unwrap_or(normalized.clone());
+    Ok(format!(
+        "Claimed seat {} for {}",
+        seat.player_record_index_1_based, display_npub
+    ))
+}
+
 pub(crate) fn build_pending_seats(player_count: usize) -> Vec<HostedSeat> {
     let mut seen_codes = BTreeSet::new();
     (1..=player_count)
@@ -219,5 +247,50 @@ pub fn parse_dir_and_player_flags(
     Ok((
         dir.ok_or_else(|| "missing value for --dir")?,
         player.ok_or_else(|| "missing value for --player")?,
+    ))
+}
+
+pub fn parse_dir_player_npub_flags(
+    args: &[String],
+) -> Result<(PathBuf, usize, String), Box<dyn std::error::Error>> {
+    let mut dir = None;
+    let mut player = None;
+    let mut npub = None;
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if arg == "--dir" {
+            i += 1;
+            let Some(next) = args.get(i) else {
+                return Err("missing value for --dir".into());
+            };
+            dir = Some(PathBuf::from(next));
+        } else if let Some(next) = arg.strip_prefix("--dir=") {
+            dir = Some(PathBuf::from(next));
+        } else if arg == "--player" {
+            i += 1;
+            let Some(next) = args.get(i) else {
+                return Err("missing value for --player".into());
+            };
+            player = Some(next.parse::<usize>()?);
+        } else if let Some(next) = arg.strip_prefix("--player=") {
+            player = Some(next.parse::<usize>()?);
+        } else if arg == "--npub" {
+            i += 1;
+            let Some(next) = args.get(i) else {
+                return Err("missing value for --npub".into());
+            };
+            npub = Some(next.to_string());
+        } else if let Some(next) = arg.strip_prefix("--npub=") {
+            npub = Some(next.to_string());
+        } else {
+            return Err(format!("unexpected argument: {arg}").into());
+        }
+        i += 1;
+    }
+    Ok((
+        dir.ok_or_else(|| "missing value for --dir")?,
+        player.ok_or_else(|| "missing value for --player")?,
+        npub.ok_or_else(|| "missing value for --npub")?,
     ))
 }

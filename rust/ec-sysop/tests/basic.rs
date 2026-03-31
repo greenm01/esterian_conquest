@@ -4,9 +4,10 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_data::CampaignStore;
+use ec_data::{CampaignStore, HostedSeatStatus};
 use ec_gate::config::parse_config_str;
 use ec_gate::config::save_config;
+use nostr_sdk::{Keys, ToBech32};
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -168,6 +169,7 @@ fn ec_sysop_help_lists_public_subcommands() {
     assert!(stdout.contains("host <games|status>"));
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));
+    assert!(stdout.contains("nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX>"));
 }
 
 #[test]
@@ -411,6 +413,34 @@ fn ec_sysop_nostr_reissue_rotates_one_hosted_seat() {
     assert_ne!(after[0].invite_code, original_code);
     assert_eq!(after[0].status, ec_data::HostedSeatStatus::Pending);
     assert!(after[0].player_npub.is_none());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn ec_sysop_nostr_claim_marks_requested_hosted_seat_claimed() {
+    let target = unique_temp_dir("ec-sysop-nostr-claim");
+    run_ec_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+    let player_keys = Keys::generate();
+    let player_npub = player_keys.public_key().to_bech32().expect("npub");
+    let player_hex = player_keys.public_key().to_hex();
+
+    let stdout = run_ec_sysop(&[
+        "nostr",
+        "claim",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "2",
+        "--npub",
+        &player_npub,
+    ]);
+    assert!(stdout.contains("Claimed seat 2 for"));
+
+    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    let seats = store.hosted_seats().expect("load seats");
+    assert_eq!(seats[1].status, HostedSeatStatus::Claimed);
+    assert_eq!(seats[1].player_npub.as_deref(), Some(player_hex.as_str()));
 
     let _ = fs::remove_dir_all(&target);
 }

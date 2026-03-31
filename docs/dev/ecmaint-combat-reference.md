@@ -18,7 +18,7 @@ Status:
 
 Primary external reference:
 
-- `/home/niltempus/Documents/esterian-conquest/ec-logs-2022/`
+- `/path/to/private-logs/ec-logs-2022/`
 
 These files are not part of the repo snapshot, but they provide optional
 high-value evidence for:
