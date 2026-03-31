@@ -30,6 +30,11 @@ use tokio::time::{Duration, interval};
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::config::GateConfig;
+
+/// Truncate an npub to a short prefix for log output.
+fn short_npub(npub: &str) -> &str {
+    &npub[..npub.len().min(15)]
+}
 /// Run the `ec-gate serve` event loop.
 ///
 /// Connects to `config.relay`, loads all configured game rosters into memory,
@@ -140,7 +145,7 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "claim_request",
-                                    player_npub = %req.player_pubkey,
+                                    player_npub = short_npub(&req.player_pubkey),
                                     nonce = %req.nonce,
                                 );
                                 handle_claim_request(req, shared_keys, client_clone)
@@ -155,7 +160,7 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "request",
-                                    player_npub = %req.player_pubkey,
+                                    player_npub = short_npub(&req.player_pubkey),
                                     nonce = %req.nonce,
                                 );
                                 handle_request(
@@ -176,7 +181,7 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "map_request",
-                                    player_npub = %req.player_pubkey,
+                                    player_npub = short_npub(&req.player_pubkey),
                                     nonce = %req.nonce,
                                     game_id = %req.game_id,
                                 );
@@ -192,7 +197,7 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "state_request",
-                                    player_npub = %req.player_pubkey,
+                                    player_npub = short_npub(&req.player_pubkey),
                                     nonce = %req.nonce,
                                     game_id = %req.game_id,
                                 );
@@ -554,7 +559,7 @@ async fn handle_claim_request(
 
     warn!(
         invite_code = %req.invite_code,
-        player_npub = %req.player_pubkey,
+        player_npub = short_npub(&req.player_pubkey),
         game_id = req.game_id.as_deref().unwrap_or(""),
         "received deprecated 30510 SeatClaimRequest"
     );
@@ -623,7 +628,7 @@ async fn handle_request(
                 Ok(_) => {}
                 Err(err) => {
                     error!(
-                        player_npub = %req.player_pubkey,
+                        player_npub = short_npub(&req.player_pubkey),
                         error = %err,
                         "cannot scan hosted games for active identity sessions"
                     );

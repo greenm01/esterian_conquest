@@ -148,6 +148,23 @@ fn route_by_code_same_player_reconnect_succeeds_without_first_claim() {
 }
 
 #[test]
+fn route_by_code_rejects_same_identity_claiming_second_seat_in_game() {
+    let games = vec![make_game(
+        "game1",
+        "Game 1",
+        vec![
+            claimed_seat(1, "velvet-azure", PLAYER_A),
+            pending_seat(2, "abbey-zoom"),
+        ],
+    )];
+    let req = make_request(Some("abbey-zoom"), None, PLAYER_A);
+    assert_eq!(
+        route(&req, &games),
+        RoutingDecision::Error(RouteError::IdentityAlreadyInGame { player: 1 })
+    );
+}
+
+#[test]
 fn route_by_game_id_finds_known_player() {
     let games = vec![make_game(
         "friday-night",

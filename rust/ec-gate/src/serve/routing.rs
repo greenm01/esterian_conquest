@@ -33,6 +33,7 @@ pub enum RoutingDecision {
 pub enum RouteError {
     InvalidCode,
     CodeClaimed,
+    IdentityAlreadyInGame { player: usize },
     UnknownPlayer,
     MultipleGames(Vec<GameEntry>),
     GameNotFound,
@@ -44,6 +45,7 @@ impl RouteError {
         match self {
             RouteError::InvalidCode => "invalid_code",
             RouteError::CodeClaimed => "code_claimed",
+            RouteError::IdentityAlreadyInGame { .. } => "identity_already_in_game",
             RouteError::UnknownPlayer => "unknown_player",
             RouteError::MultipleGames(_) => "multiple_games",
             RouteError::GameNotFound => "game_not_found",
@@ -57,6 +59,9 @@ impl std::fmt::Display for RouteError {
         match self {
             Self::InvalidCode => write!(f, "invite code not found"),
             Self::CodeClaimed => write!(f, "invite code already claimed"),
+            Self::IdentityAlreadyInGame { player } => {
+                write!(f, "identity already claimed seat {player} in this game")
+            }
             Self::UnknownPlayer => write!(f, "player not found in any hosted seat"),
             Self::MultipleGames(games) => {
                 write!(f, "player is in {} games; game-id required", games.len())
@@ -132,13 +137,24 @@ fn route_by_code(
             }
             RoutingDecision::Error(RouteError::CodeClaimed)
         }
-        HostedSeatStatus::Pending => RoutingDecision::Provisioned(ResolvedSeat {
-            game_id: game.game.game_id.clone(),
-            game_name: game.game.game_name.clone(),
-            player: seat.player_record_index_1_based,
-            player_npub: request.player_pubkey.clone(),
-            first_claim: true,
-        }),
+        HostedSeatStatus::Pending => {
+            if let Some(existing) = game.game.seats.iter().find(|other| {
+                other.status == HostedSeatStatus::Claimed
+                    && other.player_record_index_1_based != seat.player_record_index_1_based
+                    && other.player_npub.as_deref() == Some(request.player_pubkey.as_str())
+            }) {
+                return RoutingDecision::Error(RouteError::IdentityAlreadyInGame {
+                    player: existing.player_record_index_1_based,
+                });
+            }
+            RoutingDecision::Provisioned(ResolvedSeat {
+                game_id: game.game.game_id.clone(),
+                game_name: game.game.game_name.clone(),
+                player: seat.player_record_index_1_based,
+                player_npub: request.player_pubkey.clone(),
+                first_claim: true,
+            })
+        }
     }
 }
 

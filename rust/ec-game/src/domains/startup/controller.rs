@@ -14,9 +14,21 @@ impl App {
     pub fn set_hosted_invite_session(&mut self, player_npub: String, invite_code: Option<String>) {
         self.startup_state.hosted_player_npub = Some(player_npub);
         self.startup_state.hosted_invite_code = invite_code;
-        if self.player.classic_login_state == ClassicLoginState::FirstTimeMenu {
-            self.startup_sequence.enable_intro_path();
-        }
+        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::HostedInvite;
+        tracing::info!(
+            screen = ?self.current_screen,
+            login_state = ?self.player.classic_login_state,
+            has_invite_code = self
+                .startup_state
+                .hosted_invite_code
+                .as_ref()
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false),
+            "applied hosted invite session context"
+        );
+        // The splash transcript pages (Y at the splash) serve as the intro
+        // for hosted sessions.  Do not enable the separate Startup(Intro)
+        // phase, which duplicates the intro with accent-coloured rendering.
     }
 
     fn has_bbs_reserved_seat(&self) -> bool {
@@ -53,9 +65,36 @@ impl App {
 
     pub(crate) fn prepare_hosted_invite_quit_warning(&mut self) {
         self.startup_state.first_time_status = Some(
-            "Your invite is not reserved until you name your empire and confirm with Y/[N]."
+            "Your seat is unreserved until you name an empire."
                 .to_string(),
         );
+    }
+
+    fn hosted_first_time_entry_screen(&self) -> ScreenId {
+        if self
+            .game_data
+            .player
+            .records
+            .iter()
+            .any(|player| player.occupied_flag() == 0)
+        {
+            ScreenId::FirstTimeJoinEmpireName
+        } else {
+            ScreenId::FirstTimeJoinNoPending
+        }
+    }
+
+    fn redirect_hosted_first_time_flow(&mut self, source: &'static str) {
+        tracing::error!(
+            source,
+            screen = ?self.current_screen,
+            login_state = ?self.player.classic_login_state,
+            "hosted session reached a generic first-time screen; redirecting back to hosted onboarding"
+        );
+        self.startup_state.first_time_status = None;
+        self.startup_state.first_time_input.clear();
+        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::HostedInvite;
+        self.current_screen = self.hosted_first_time_entry_screen();
     }
 
     fn theme_picker_visible_rows(&self) -> usize {
@@ -213,7 +252,13 @@ impl App {
             if self.startup_state.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT {
                 self.startup_state.first_time_intro_page += 1;
             } else {
-                self.current_screen = ScreenId::FirstTimeMenu;
+                if self.has_hosted_invite_session() {
+                    self.redirect_hosted_first_time_flow(
+                        "advance_startup_first_time_intro_complete",
+                    );
+                } else {
+                    self.current_screen = ScreenId::FirstTimeMenu;
+                }
             }
             return;
         }
@@ -478,6 +523,10 @@ impl App {
     }
 
     pub fn open_first_time_menu(&mut self) {
+        if self.has_hosted_invite_session() {
+            self.redirect_hosted_first_time_flow("open_first_time_menu");
+            return;
+        }
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
         self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
@@ -485,11 +534,19 @@ impl App {
     }
 
     pub fn open_first_time_empires(&mut self) {
+        if self.has_hosted_invite_session() {
+            self.redirect_hosted_first_time_flow("open_first_time_empires");
+            return;
+        }
         self.startup_state.first_time_status = None;
         self.current_screen = ScreenId::FirstTimeEmpires;
     }
 
     pub fn open_first_time_intro(&mut self) {
+        if self.has_hosted_invite_session() {
+            self.redirect_hosted_first_time_flow("open_first_time_intro");
+            return;
+        }
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_intro_page = 0;
         self.current_screen = ScreenId::FirstTimeIntro;
@@ -729,13 +786,17 @@ impl App {
         {
             self.startup_state.first_time_status =
                 Some("This game is already full. No open empires remain.".to_string());
-            self.current_screen = ScreenId::FirstTimeMenu;
+            self.current_screen = if self.has_hosted_invite_session() {
+                ScreenId::FirstTimeJoinNoPending
+            } else {
+                ScreenId::FirstTimeMenu
+            };
             return;
         }
         self.startup_state.first_time_status = None;
         self.startup_state.first_time_input.clear();
         self.startup_state.first_time_rename_preloaded_empire = false;
-        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
+        self.startup_state.first_time_onboarding_mode = self.first_time_onboarding_mode();
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
@@ -905,8 +966,13 @@ impl App {
             ScreenId::FirstTimeReservedPrompt => {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
-                self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
-                self.current_screen = ScreenId::FirstTimeMenu;
+                if self.has_hosted_invite_session() {
+                    self.redirect_hosted_first_time_flow("reject_first_time_prompt_reserved");
+                } else {
+                    self.startup_state.first_time_onboarding_mode =
+                        FirstTimeOnboardingMode::Generic;
+                    self.current_screen = ScreenId::FirstTimeMenu;
+                }
             }
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 self.startup_state.first_time_status = None;
@@ -1371,7 +1437,7 @@ impl App {
                     if self.is_hosted_invite_first_time_login() {
                         self.startup_state.first_time_status = None;
                         self.startup_state.first_time_input.clear();
-                        ScreenId::FirstTimeJoinEmpireName
+                        self.hosted_first_time_entry_screen()
                     } else if self.is_bbs_reserved_first_time_login() {
                         ScreenId::FirstTimeReservedPrompt
                     } else {

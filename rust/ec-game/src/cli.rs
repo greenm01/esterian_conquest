@@ -37,6 +37,12 @@ struct SessionLeaseGuard {
     ttl_seconds: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HostedLaunchContext {
+    player_npub: String,
+    invite_code: Option<String>,
+}
+
 impl SessionLeaseGuard {
     fn activate(
         store: CampaignStore,
@@ -130,18 +136,17 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         dropfile_alias = parsed.dropfile_alias.as_deref().unwrap_or(""),
         "loaded ec-game app"
     );
-    app.screen_geometry = parsed.screen_geometry;
-    app.door_mode = parsed.use_door_terminal;
-    if let Some(player_npub) = session_lease
-        .as_ref()
-        .map(|lease| lease.player_npub.clone())
-    {
-        app.set_hosted_invite_session(player_npub, parsed.hosted_invite_code.clone());
-    }
+    apply_launch_context(
+        &mut app,
+        &parsed,
+        session_lease.as_ref().map(|lease| HostedLaunchContext {
+            player_npub: lease.player_npub.clone(),
+            invite_code: parsed.hosted_invite_code.clone(),
+        }),
+    );
     if app.door_mode {
         crate::theme::apply_default_theme();
     }
-    app.startup_state.caller_alias = parsed.dropfile_alias.clone();
     let mut terminal: Box<dyn Terminal> = if parsed.use_door_terminal {
         Box::new(DoorTerminal::with_encoding_and_color_mode(
             parsed.encoding,
@@ -164,7 +169,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         if let Some(session_lease) = session_lease.as_ref() {
             session_lease.heartbeat()?;
         }
-        app.render(terminal.as_mut())
+        render_with_logging(&mut app, terminal.as_mut())
     };
     if let Some(session_lease) = session_lease.as_ref() {
         session_lease.release()?;
@@ -218,7 +223,7 @@ fn run_interactive_inner(
         if let Some(session_lease) = session_lease {
             session_lease.heartbeat()?;
         }
-        app.render(terminal)?;
+        render_with_logging(app, terminal)?;
         let key = terminal.read_key()?;
         let action = app.handle_key(key);
         let outcome = apply_action(app, action);
@@ -226,6 +231,35 @@ fn run_interactive_inner(
             return Ok(());
         }
     }
+}
+
+fn render_with_logging(
+    app: &mut App,
+    terminal: &mut dyn Terminal,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Err(err) = app.render(terminal) {
+        tracing::error!(
+            player = app.player.record_index_1_based,
+            screen = ?app.current_screen(),
+            error = %err,
+            "ec-game render failed"
+        );
+        return Err(err);
+    }
+    Ok(())
+}
+
+fn apply_launch_context(
+    app: &mut App,
+    parsed: &ParsedLaunchArgs,
+    hosted_context: Option<HostedLaunchContext>,
+) {
+    app.screen_geometry = parsed.screen_geometry;
+    app.door_mode = parsed.use_door_terminal;
+    if let Some(hosted_context) = hosted_context {
+        app.set_hosted_invite_session(hosted_context.player_npub, hosted_context.invite_code);
+    }
+    app.startup_state.caller_alias = parsed.dropfile_alias.clone();
 }
 
 fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::Error>> {
@@ -655,16 +689,58 @@ fn unix_now() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        ParsedLaunchArgs, local_exit_lines, session_lease_ttl_seconds,
-        should_emit_local_exit_attribution,
+        HostedLaunchContext, ParsedLaunchArgs, apply_launch_context, local_exit_lines,
+        session_lease_ttl_seconds, should_emit_local_exit_attribution,
     };
+    use crate::app::{App, AppConfig};
+    use crate::domains::startup::state::FirstTimeOnboardingMode;
     use crate::error::{
         HOSTED_ONBOARDING_INVARIANT_EXIT_CODE, HostedOnboardingInvariantError, exit_code_for,
     };
     use crate::screen::ScreenGeometry;
     use crate::terminal::{ColorMode, OutputEncoding};
-    use ec_data::GameConfig;
+    use ec_compat::import_directory_snapshot;
+    use ec_data::{CampaignStore, GameConfig};
+    use std::fs;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) {
+        fs::create_dir_all(dst).expect("create temp dir");
+        for entry in fs::read_dir(src).expect("read src dir") {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            let target = dst.join(entry.file_name());
+            if path.is_dir() {
+                copy_dir_all(&path, &target);
+            } else {
+                fs::copy(&path, &target).expect("copy file");
+            }
+        }
+    }
+
+    fn temp_first_time_game_copy() -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "ec-game-cli-test-{}-{}-{}",
+            std::process::id(),
+            TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("time ok")
+                .as_nanos()
+        ));
+        copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
+        let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
+        import_directory_snapshot(&store, &root).expect("seed sqlite snapshot");
+        root
+    }
 
     fn parsed_args(use_door_terminal: bool) -> ParsedLaunchArgs {
         ParsedLaunchArgs {
@@ -757,5 +833,44 @@ mod tests {
             exit_code_for(&err),
             Some(HOSTED_ONBOARDING_INVARIANT_EXIT_CODE)
         );
+    }
+
+    #[test]
+    fn apply_launch_context_marks_hosted_first_join_state() {
+        let game_dir = temp_first_time_game_copy();
+        let config = AppConfig {
+            game_dir: game_dir.clone(),
+            player_record_index_1_based: 1,
+            export_root: None,
+            queue_dir: None,
+            session_timeout_secs: None,
+            game_config: GameConfig::default(),
+        };
+        let mut app = App::load(config).expect("app should load");
+        let parsed = parsed_args(false);
+
+        apply_launch_context(
+            &mut app,
+            &parsed,
+            Some(HostedLaunchContext {
+                player_npub: "npub1hostedplayer".to_string(),
+                invite_code: Some("velvet-mountain".to_string()),
+            }),
+        );
+
+        assert_eq!(
+            app.startup_state.hosted_player_npub.as_deref(),
+            Some("npub1hostedplayer")
+        );
+        assert_eq!(
+            app.startup_state.hosted_invite_code.as_deref(),
+            Some("velvet-mountain")
+        );
+        assert_eq!(
+            app.startup_state.first_time_onboarding_mode,
+            FirstTimeOnboardingMode::HostedInvite
+        );
+
+        let _ = fs::remove_dir_all(&game_dir);
     }
 }

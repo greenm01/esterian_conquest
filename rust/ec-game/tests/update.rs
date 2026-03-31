@@ -25,6 +25,7 @@ use ec_game::domains::starbase::StarbaseAction;
 use ec_game::domains::starmap::StarmapAction;
 use ec_game::domains::startup::StartupAction;
 use ec_game::model::ClassicLoginState;
+use ec_game::screen::first_time::FIRST_TIME_INTRO_PAGE_COUNT;
 use ec_game::screen::help::{MenuHelpTopic, help_lines, menu_help_spec};
 use ec_game::screen::layout::COMMAND_LINE_ROW;
 use ec_game::screen::table::{TableColumn, fit_table_columns};
@@ -2503,11 +2504,10 @@ fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
         Some("velvet-mountain".to_string()),
     );
 
-    let mut saw_intro = false;
+    // The intro is shown via splash transcript pages (pressing Y at page 0).
+    // The separate Startup(Intro) accent-coloured phase is not used for
+    // hosted sessions.
     for _ in 0..16 {
-        if app.current_screen() == ScreenId::Startup(StartupPhase::Intro) {
-            saw_intro = true;
-        }
         if app.current_screen() == ScreenId::FirstTimeJoinEmpireName {
             break;
         }
@@ -2515,11 +2515,6 @@ fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
         assert_ne!(app.current_screen(), ScreenId::FirstTimeReservedPrompt);
         app.advance_startup();
     }
-
-    assert!(
-        saw_intro,
-        "hosted first-time join should pass through intro"
-    );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
 
     let screen =
@@ -2530,6 +2525,9 @@ fn hosted_first_time_player_skips_menu_and_reserved_prompt() {
             .contains("Invite code: velvet-mountain")
     }));
     assert!(!(0..screen.height()).any(|row| screen.plain_line(row).contains("npub1hostedplayer")));
+    // The FTM menu rows must not appear on the hosted empire naming screen.
+    assert!(!(0..screen.height()).any(|row| screen.plain_line(row).contains("uit back to BBS")));
+    assert!(!(0..screen.height()).any(|row| screen.plain_line(row).contains("oin this game")));
 }
 
 #[test]
@@ -2557,6 +2555,52 @@ fn hosted_sessions_error_if_first_time_menu_renders() {
 
     assert!(err.to_string().contains("Hosted join invariant failed"));
     assert!(err.to_string().contains("FirstTimeMenu"));
+}
+
+#[test]
+fn hosted_first_time_intro_completion_redirects_to_empire_naming() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.set_hosted_invite_session(
+        "npub1hostedplayer".to_string(),
+        Some("velvet-mountain".to_string()),
+    );
+    *app.current_screen_mut() = ScreenId::FirstTimeIntro;
+    app.startup_state.first_time_intro_page = FIRST_TIME_INTRO_PAGE_COUNT - 1;
+
+    app.advance_startup();
+
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+}
+
+#[test]
+fn hosted_open_first_time_menu_redirects_back_to_empire_naming() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.set_hosted_invite_session(
+        "npub1hostedplayer".to_string(),
+        Some("velvet-mountain".to_string()),
+    );
+
+    app.open_first_time_menu();
+
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
 }
 
 #[test]
@@ -2610,7 +2654,7 @@ fn hosted_first_time_escape_requests_quit_and_warns_invite_is_not_reserved() {
     assert!(app.quit_confirm_open);
     assert_eq!(
         app.startup_state.first_time_status.as_deref(),
-        Some("Your invite is not reserved until you name your empire and confirm with Y/[N].")
+        Some("Your seat is unreserved until you name an empire.")
     );
 
     assert_eq!(

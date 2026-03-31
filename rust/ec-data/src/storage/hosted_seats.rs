@@ -20,6 +20,7 @@ pub struct HostedSeat {
 pub enum ClaimHostedSeatError {
     InvalidCode,
     CodeClaimed,
+    IdentityAlreadyClaimedDifferentSeat { player_record_index_1_based: usize },
     Store(CampaignStoreError),
 }
 
@@ -45,6 +46,12 @@ impl std::fmt::Display for ClaimHostedSeatError {
         match self {
             Self::InvalidCode => write!(f, "invite code not found"),
             Self::CodeClaimed => write!(f, "invite code already claimed"),
+            Self::IdentityAlreadyClaimedDifferentSeat {
+                player_record_index_1_based,
+            } => write!(
+                f,
+                "identity already claimed hosted seat {player_record_index_1_based} in this game"
+            ),
             Self::Store(source) => write!(f, "{source}"),
         }
     }
@@ -136,6 +143,13 @@ impl CampaignStore {
                 return Err(ClaimHostedSeatError::CodeClaimed);
             }
             HostedSeatStatus::Pending => {}
+        }
+        if let Some(existing_seat) =
+            find_claimed_seat_for_npub_tx(&tx, player_npub, Some(seat.player_record_index_1_based))?
+        {
+            return Err(ClaimHostedSeatError::IdentityAlreadyClaimedDifferentSeat {
+                player_record_index_1_based: existing_seat.player_record_index_1_based,
+            });
         }
         tx.execute(
             "UPDATE hosted_player_seats
@@ -372,6 +386,14 @@ pub(super) fn claim_hosted_seat_for_player_tx(
         }
         HostedSeatStatus::Pending => {}
     }
+    if let Some(existing_seat) =
+        find_claimed_seat_for_npub_tx(tx, player_npub, Some(player_record_index_1_based))?
+    {
+        return Err(CampaignStoreError::InvalidState(format!(
+            "player identity already claimed hosted seat {} in this game",
+            existing_seat.player_record_index_1_based
+        )));
+    }
     tx.execute(
         "UPDATE hosted_player_seats
          SET claim_status = 'claimed', player_npub = ?2
@@ -381,4 +403,44 @@ pub(super) fn claim_hosted_seat_for_player_tx(
     seat.status = HostedSeatStatus::Claimed;
     seat.player_npub = Some(player_npub.to_string());
     Ok(Some(seat))
+}
+
+fn find_claimed_seat_for_npub_tx(
+    tx: &rusqlite::Transaction<'_>,
+    player_npub: &str,
+    exclude_player_record_index_1_based: Option<usize>,
+) -> Result<Option<HostedSeat>, CampaignStoreError> {
+    let mut stmt = tx.prepare(
+        "SELECT player_record_index, invite_code, claim_status, player_npub
+         FROM hosted_player_seats
+         WHERE claim_status = 'claimed'
+           AND player_npub = ?1
+         ORDER BY player_record_index ASC",
+    )?;
+    let rows = stmt.query_map([player_npub], |row| {
+        let status_raw: String = row.get(2)?;
+        let status = HostedSeatStatus::parse(&status_raw).ok_or_else(|| {
+            rusqlite::Error::FromSqlConversionFailure(
+                2,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("unknown hosted seat status: {status_raw}"),
+                )),
+            )
+        })?;
+        Ok(HostedSeat {
+            player_record_index_1_based: row.get::<_, i64>(0)? as usize,
+            invite_code: row.get(1)?,
+            status,
+            player_npub: row.get(3)?,
+        })
+    })?;
+    for row in rows {
+        let seat = row?;
+        if exclude_player_record_index_1_based != Some(seat.player_record_index_1_based) {
+            return Ok(Some(seat));
+        }
+    }
+    Ok(None)
 }

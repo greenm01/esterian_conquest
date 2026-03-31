@@ -225,6 +225,10 @@ async fn prepare_session_with_keypair(
                 SessionPreparation::Outcome(SessionOutcome::Error(
                     unfinished_first_join_error_message().to_string(),
                 ))
+            } else if err.error == "identity_already_in_game" {
+                SessionPreparation::Outcome(SessionOutcome::Error(
+                    duplicate_identity_seat_message().to_string(),
+                ))
             } else {
                 SessionPreparation::Outcome(SessionOutcome::Error(format!(
                     "{}: {}",
@@ -348,6 +352,10 @@ pub fn unfinished_first_join_error_message() -> &'static str {
 
 pub fn hosted_onboarding_invariant_message() -> &'static str {
     "Hosted join failed before empire naming. The game server sent this player to the wrong first-time screen. Retry the invite. If this keeps happening, contact your sysop."
+}
+
+pub fn duplicate_identity_seat_message() -> &'static str {
+    "This identity already claimed another seat in that game. Reconnect with the claimed seat instead of using a second invite."
 }
 
 pub fn is_unfinished_first_join_error(message: &str) -> bool {

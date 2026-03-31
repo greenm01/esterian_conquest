@@ -194,6 +194,28 @@ pub fn render_first_time_join_name(
             "Press Esc to return to the reserved player notice.",
             classic::body_style(),
         );
+    } else if hosted_invite_mode {
+        draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
+        buffer.write_text(
+            2,
+            LEFT_WINDOW_PAD_COL,
+            "Enter the name of your empire (up to 20 characters).",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            3,
+            LEFT_WINDOW_PAD_COL,
+            "Press Esc to leave this session before joining.",
+            classic::body_style(),
+        );
+        if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
+            buffer.write_text(
+                5,
+                LEFT_WINDOW_PAD_COL,
+                &format!("Invite code: {invite_code}"),
+                classic::notice_style(),
+            );
+        }
     } else {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
@@ -207,28 +229,14 @@ pub fn render_first_time_join_name(
         buffer.write_text(
             5,
             LEFT_WINDOW_PAD_COL,
-            if hosted_invite_mode {
-                "Press Esc to leave this session before joining."
-            } else {
-                "Press Esc to back out to the First Time Menu."
-            },
+            "Press Esc to back out to the First Time Menu.",
             classic::body_style(),
         );
-        if hosted_invite_mode {
-            if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
-                buffer.write_text(
-                    7,
-                    LEFT_WINDOW_PAD_COL,
-                    &format!("Invite code: {invite_code}"),
-                    classic::notice_style(),
-                );
-            }
-        }
     }
     let last_content_row = if rename_mode || reserved_mode {
         6
     } else if hosted_invite_mode {
-        7
+        5
     } else {
         5
     };
@@ -291,6 +299,25 @@ pub fn render_first_time_join_name_confirm(
             "Press N or Esc to go back and edit it before joining.",
             classic::body_style(),
         );
+    } else if hosted_invite_code
+        .filter(|value| !value.trim().is_empty())
+        .is_some()
+    {
+        draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
+        buffer.write_text(
+            2,
+            LEFT_WINDOW_PAD_COL,
+            "Press N or Esc to go back and edit it before joining.",
+            classic::body_style(),
+        );
+        if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
+            buffer.write_text(
+                4,
+                LEFT_WINDOW_PAD_COL,
+                &format!("Invite code: {invite_code}"),
+                classic::notice_style(),
+            );
+        }
     } else {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
@@ -307,14 +334,6 @@ pub fn render_first_time_join_name_confirm(
             "Press N or Esc to go back and edit it before joining.",
             classic::body_style(),
         );
-        if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
-            buffer.write_text(
-                7,
-                LEFT_WINDOW_PAD_COL,
-                &format!("Invite code: {invite_code}"),
-                classic::notice_style(),
-            );
-        }
     }
     draw_command_line_prompt_text_padded(
         &mut buffer,
@@ -324,7 +343,7 @@ pub fn render_first_time_join_name_confirm(
             .filter(|value| !value.trim().is_empty())
             .is_some()
         {
-            7
+            4
         } else {
             5
         }),

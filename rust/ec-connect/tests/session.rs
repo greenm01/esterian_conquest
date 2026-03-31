@@ -3,9 +3,9 @@ use ec_connect::connect::handshake::SessionReadyPayload;
 use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::{
     build_cached_game_from_ready_payload, build_pending_cached_game_from_ready_payload,
-    format_bridge_error_message, hosted_onboarding_invariant_message,
-    is_unfinished_first_join_error, merge_session_state, resolve_gate_npub,
-    unfinished_first_join_error_message,
+    duplicate_identity_seat_message, format_bridge_error_message,
+    hosted_onboarding_invariant_message, is_unfinished_first_join_error, merge_session_state,
+    resolve_gate_npub, unfinished_first_join_error_message,
 };
 use ec_connect::connect::session_state::SessionStatePayload;
 
@@ -120,6 +120,15 @@ fn hosted_onboarding_invariant_message_is_clean_single_paragraph() {
     assert!(err.contains("Hosted join failed before empire naming."));
     assert!(err.contains("wrong first-time screen"));
     assert!(err.contains("Retry the invite."));
+    assert!(!err.contains('\n'));
+}
+
+#[test]
+fn duplicate_identity_seat_message_is_clean_single_paragraph() {
+    let err = duplicate_identity_seat_message();
+
+    assert!(err.contains("already claimed another seat"));
+    assert!(err.contains("Reconnect with the claimed seat"));
     assert!(!err.contains('\n'));
 }
 

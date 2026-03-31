@@ -121,3 +121,54 @@ fn claim_hosted_seat_for_player_claims_pending_seat_without_invite_lookup() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn claim_hosted_seat_rejects_same_identity_on_second_seat() {
+    let dir = unique_temp_dir("ec-data-hosted-duplicate-npub");
+    let store = CampaignStore::open_default_in_dir(&dir).expect("open store");
+    store
+        .replace_hosted_seats(&[
+            HostedSeat {
+                player_record_index_1_based: 1,
+                invite_code: "velvet-mountain".to_string(),
+                status: HostedSeatStatus::Claimed,
+                player_npub: Some("npub1player000".to_string()),
+            },
+            pending(2, "copper-sunrise"),
+        ])
+        .expect("seed hosted seats");
+
+    let duplicate = store.claim_hosted_seat("copper-sunrise", "npub1player000");
+    assert!(matches!(
+        duplicate,
+        Err(ClaimHostedSeatError::IdentityAlreadyClaimedDifferentSeat {
+            player_record_index_1_based: 1
+        })
+    ));
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn claim_hosted_seat_for_player_rejects_same_identity_on_second_seat() {
+    let dir = unique_temp_dir("ec-data-hosted-duplicate-npub-player");
+    let store = CampaignStore::open_default_in_dir(&dir).expect("open store");
+    store
+        .replace_hosted_seats(&[
+            HostedSeat {
+                player_record_index_1_based: 1,
+                invite_code: "velvet-mountain".to_string(),
+                status: HostedSeatStatus::Claimed,
+                player_npub: Some("npub1player000".to_string()),
+            },
+            pending(2, "copper-sunrise"),
+        ])
+        .expect("seed hosted seats");
+
+    let duplicate = store
+        .claim_hosted_seat_for_player(2, "npub1player000")
+        .expect_err("same identity should not claim a second seat");
+    assert!(format!("{duplicate}").contains("already claimed hosted seat 1"));
+
+    let _ = fs::remove_dir_all(&dir);
+}

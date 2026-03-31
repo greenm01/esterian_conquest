@@ -527,7 +527,7 @@ fn render_wallet_detail_popup(buffer: &mut PlayfieldBuffer, session: &PickerSess
     let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
     let npub_lines = wrapped_lines(&npub, 66);
     let nsec_lines = wrapped_lines(&identity.nsec, 66);
-    let popup_height = (9 + npub_lines.len() + nsec_lines.len()).min(18) as u16;
+    let popup_height = (10 + npub_lines.len() + nsec_lines.len()).min(19) as u16;
     let popup = draw_modal_frame(
         buffer,
         "WALLET IDENTITY",
@@ -567,8 +567,9 @@ fn render_wallet_detail_popup(buffer: &mut PlayfieldBuffer, session: &PickerSess
         buffer.write_text_clipped(row, left, line, classic::table_body_style());
         row += 1;
     }
+    let _ = row;
     buffer.write_text_clipped(
-        row,
+        popup.y as usize + popup.height as usize - 2,
         left,
         &truncate(
             "Ctrl-P=copy npub   Ctrl-S=copy nsec   Enter/Esc=close",

@@ -20,6 +20,11 @@ impl App {
                 _ => None,
             };
             if let Some(screen_name) = invalid_screen {
+                tracing::error!(
+                    screen = screen_name,
+                    login_state = ?self.player.classic_login_state,
+                    "hosted session reached a forbidden generic first-time screen"
+                );
                 return Err(Box::new(HostedOnboardingInvariantError::new(screen_name)));
             }
         }
