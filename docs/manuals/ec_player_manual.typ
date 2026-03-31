@@ -165,8 +165,8 @@ flow:
 2. Press `N` to join a new game.
 3. Paste your invite code and press Enter.
 
-In the packaged GUI, paste works with `Ctrl-V`, `Ctrl-Shift-V`,
-`Shift-Insert`, or right-click.
+In the packaged GUI, paste works with `Command-V` on macOS, `Ctrl-V`,
+`Ctrl-Shift-V`, `Shift-Insert`, or right-click.
 
 That is all. `ec-connect` handles your identity and opens your `ec-game`
 session. The invite already carries the relay host, and `ec-connect`
@@ -178,8 +178,10 @@ to change the default maps folder and re-download the bundle for the
 currently selected game.
 
 One EC wallet identity can hold only one seat in a hosted game. If you have
-already completed the first join for that game, reconnect with that same
-identity instead of trying to redeem a second invite from it.
+already completed the first join for that game and later delete the local
+picker row, press `N`, paste the same invite again, and reconnect with that
+same identity. The original invite still belongs only to that identity; a
+different identity cannot use it to take over the seat.
 
 == ec-connect Setup
 

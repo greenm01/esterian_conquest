@@ -92,8 +92,8 @@ Pressing `N` in the picker opens an inline invite prompt:
 CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@relay.example.com
 ```
 
-In the packaged GUI, paste works with `Ctrl-V`, `Ctrl-Shift-V`,
-`Shift-Insert`, or right-click.
+In the packaged GUI, paste works with `Command-V` on macOS, `Ctrl-V`,
+`Ctrl-Shift-V`, `Shift-Insert`, or right-click.
 
 After a successful join, the new game appears in the list and the player
 is connected immediately. Public first joins no longer claim the seat until
@@ -104,6 +104,9 @@ that row to `Joined`, refreshes the seat state, and then requests the static
 starmap bundle. The download is best-effort: if it fails, the player still
 enters the game and can retry later from the picker. Invalid invite codes stay
 in the prompt and show an error notice instead of dropping out of the shell.
+If the player later deletes the local picker row but still has the same wallet
+identity active, pressing `N` and reusing the original invite code restores the
+joined game entry and reconnects to that already-claimed seat.
 
 ### Nostr User
 

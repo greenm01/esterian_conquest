@@ -1,4 +1,4 @@
-use ec_connect::connect::game_discovery::select_discovered_game_from_events;
+use ec_connect::connect::game_discovery::{InviteResolution, select_discovered_game_from_events};
 use ec_connect::connect::resolve::ResolvedTarget;
 use nostr_sdk::{Event, EventBuilder, Keys, Kind, Tag};
 use sha2::{Digest, Sha256};
@@ -87,6 +87,7 @@ fn discovery_matches_invite_hash_and_ssh_target() {
     assert_eq!(discovered.ssh_host, "play.example.com");
     assert_eq!(discovered.ssh_port, 2222);
     assert_eq!(discovered.seat, 1);
+    assert_eq!(discovered.resolution, InviteResolution::FirstJoin);
     assert!(discovered.gate_npub.starts_with("npub1"));
 }
 
@@ -201,7 +202,7 @@ fn discovery_reports_ambiguous_matches() {
 }
 
 #[test]
-fn discovery_reports_claimed_invite_bound_to_same_identity() {
+fn discovery_accepts_claimed_invite_bound_to_same_identity() {
     let player_keys = Keys::generate();
     let player_hex = player_keys.public_key().to_hex();
     let event = build_game_definition_event(
@@ -210,16 +211,17 @@ fn discovery_reports_claimed_invite_bound_to_same_identity() {
         vec![claimed_slot(1, &sha256_hex("amber-river"), &player_hex)],
     );
 
-    let err = select_discovered_game_from_events(
+    let discovered = select_discovered_game_from_events(
         [&event],
         &target(),
         "amber-river",
         Some(player_hex.as_str()),
     )
-    .expect_err("claimed invite should not be treated as pending");
+    .expect("claimed invite should reconnect for the same identity");
 
-    assert!(err.contains("already bound to your identity"));
-    assert!(err.contains("reconnect from the picker"));
+    assert_eq!(discovered.game_id, "friday-night");
+    assert_eq!(discovered.seat, 1);
+    assert_eq!(discovered.resolution, InviteResolution::SameIdentityRejoin);
 }
 
 #[test]

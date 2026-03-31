@@ -1,5 +1,7 @@
 use ec_connect::cache::{CachedGame, GameCache};
+use ec_connect::connect::game_discovery::{DiscoveredGame, InviteResolution};
 use ec_connect::connect::handshake::SessionReadyPayload;
+use ec_connect::connect::public_join::build_session_target_for_discovered_join;
 use ec_connect::connect::resolve::ResolvedTarget;
 use ec_connect::connect::session::{
     build_cached_game_from_ready_payload, build_pending_cached_game_from_ready_payload,
@@ -98,6 +100,51 @@ fn ready_payload_can_build_pending_cache_row_for_incomplete_first_join() {
 
     assert_eq!(entry.status, ec_connect::cache::CachedGameStatus::Pending);
     assert_eq!(entry.invite_code.as_deref(), Some("victim-sickness"));
+}
+
+#[test]
+fn public_join_recovery_clears_invite_code_before_session_prep() {
+    let target = local_target();
+    let session_target = build_session_target_for_discovered_join(
+        target,
+        &DiscoveredGame {
+            gate_npub: "npub1gate".to_string(),
+            game_id: "stress-campaign".to_string(),
+            game_name: "Stress Campaign".to_string(),
+            ssh_host: "play.example.com".to_string(),
+            ssh_port: 2222,
+            seat: 2,
+            resolution: InviteResolution::SameIdentityRejoin,
+        },
+    );
+
+    assert_eq!(session_target.invite_code, None);
+    assert_eq!(session_target.game_id.as_deref(), Some("stress-campaign"));
+    assert_eq!(session_target.server_host, "play.example.com");
+    assert_eq!(session_target.server_port, 2222);
+}
+
+#[test]
+fn public_join_first_join_keeps_invite_code_for_session_prep() {
+    let target = local_target();
+    let session_target = build_session_target_for_discovered_join(
+        target,
+        &DiscoveredGame {
+            gate_npub: "npub1gate".to_string(),
+            game_id: "stress-campaign".to_string(),
+            game_name: "Stress Campaign".to_string(),
+            ssh_host: "play.example.com".to_string(),
+            ssh_port: 2222,
+            seat: 2,
+            resolution: InviteResolution::FirstJoin,
+        },
+    );
+
+    assert_eq!(
+        session_target.invite_code.as_deref(),
+        Some("victim-sickness")
+    );
+    assert_eq!(session_target.game_id.as_deref(), Some("stress-campaign"));
 }
 
 #[test]

@@ -8,6 +8,12 @@ use crate::connect::resolve::{ResolvedTarget, parse_invite_code};
 
 pub const GAME_DISCOVERY_TIMEOUT_SECS: u64 = 10;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InviteResolution {
+    FirstJoin,
+    SameIdentityRejoin,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiscoveredGame {
     pub gate_npub: String,
@@ -16,6 +22,7 @@ pub struct DiscoveredGame {
     pub ssh_host: String,
     pub ssh_port: u16,
     pub seat: u32,
+    pub resolution: InviteResolution,
 }
 
 pub async fn discover_game_for_invite(
@@ -74,50 +81,39 @@ pub fn select_discovered_game_from_events<'a>(
         let Some(game) = parse_game_definition(event) else {
             continue;
         };
-        if !game
-            .slots
-            .iter()
-            .any(|slot| slot.status == "pending" && slot.invite_code_hash == invite_hash)
-        {
-            continue;
-        }
-
-        let seat = game
+        let pending_seat = game
             .slots
             .iter()
             .find(|slot| slot.status == "pending" && slot.invite_code_hash == invite_hash)
-            .map(|slot| slot.seat)
-            .unwrap_or(0);
+            .map(|slot| slot.seat);
+        if let Some(seat) = pending_seat {
+            hash_matches.push((game, seat, InviteResolution::FirstJoin));
+            continue;
+        }
 
-        hash_matches.push((game, seat));
+        let claimed_same_identity_seat = player_pubkey_hex
+            .and_then(|player| {
+                game.slots.iter().find(|slot| {
+                    slot.status == "claimed"
+                        && slot.invite_code_hash == invite_hash
+                        && slot.player_npub.as_deref() == Some(player)
+                })
+            })
+            .map(|slot| slot.seat);
+        if let Some(seat) = claimed_same_identity_seat {
+            hash_matches.push((game, seat, InviteResolution::SameIdentityRejoin));
+        }
     }
 
     if hash_matches.is_empty() {
-        // Check whether this code was already claimed — gives a more useful message
-        // than the generic "not found" when a player retries after a failed first attempt.
+        // Check whether this code was already claimed by another player.
         let claimed_match_count = events_collected
             .iter()
             .filter_map(|event| parse_game_definition(event))
             .flat_map(|game| game.slots.into_iter())
             .filter(|slot| slot.status == "claimed" && slot.invite_code_hash == invite_hash)
             .count();
-        let claimed_slot = events_collected.iter().find_map(|event| {
-            parse_game_definition(event).and_then(|game| {
-                game.slots
-                    .into_iter()
-                    .find(|slot| slot.status == "claimed" && slot.invite_code_hash == invite_hash)
-            })
-        });
-        if let Some(slot) = claimed_slot {
-            if player_pubkey_hex
-                .zip(slot.player_npub.as_deref())
-                .is_some_and(|(player, claimed)| player == claimed)
-            {
-                return Err(
-                    "this invite code is already bound to your identity; reconnect from the picker or use ec-connect <server>"
-                        .to_string(),
-                );
-            }
+        if claimed_match_count > 0 {
             return Err(
                 "this invite code has already been claimed by another player; ask your sysop to reissue the seat"
                     .to_string(),
@@ -136,7 +132,7 @@ pub fn select_discovered_game_from_events<'a>(
     // If exactly one game matches the invite hash, accept it even if the host/port
     // don't match (this fixes localhost/LAN testing and NAT port-forwarding mismatches).
     if hash_matches.len() == 1 {
-        let (game, seat) = hash_matches.remove(0);
+        let (game, seat, resolution) = hash_matches.remove(0);
         return Ok(DiscoveredGame {
             gate_npub: game.gate_npub,
             game_id: game.game_id,
@@ -144,6 +140,7 @@ pub fn select_discovered_game_from_events<'a>(
             ssh_host: game.ssh_host,
             ssh_port: game.ssh_port,
             seat,
+            resolution,
         });
     }
 
@@ -151,14 +148,14 @@ pub fn select_discovered_game_from_events<'a>(
     // Attempt to disambiguate by checking which one matches the target host and port.
     let exact_matches: Vec<_> = hash_matches
         .into_iter()
-        .filter(|(game, _)| {
+        .filter(|(game, _, _)| {
             game.ssh_host.to_ascii_lowercase() == target_host && game.ssh_port == target.server_port
         })
         .collect();
 
     match exact_matches.len() {
         1 => {
-            let (game, seat) = exact_matches.into_iter().next().unwrap();
+            let (game, seat, resolution) = exact_matches.into_iter().next().unwrap();
             Ok(DiscoveredGame {
                 gate_npub: game.gate_npub,
                 game_id: game.game_id,
@@ -166,6 +163,7 @@ pub fn select_discovered_game_from_events<'a>(
                 ssh_host: game.ssh_host,
                 ssh_port: game.ssh_port,
                 seat,
+                resolution,
             })
         }
         0 => Err("multiple hosted games matched this invite code on the relay, but none matched this server address; open the game from the picker instead".to_string()),
