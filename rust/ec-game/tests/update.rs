@@ -1634,6 +1634,130 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
 }
 
 #[test]
+fn first_time_join_empire_name_prompt_shows_esc_without_redundant_instruction() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("first-time empire naming prompt should render");
+
+    assert!(line_containing(&terminal, "EMPIRE NAME <-").contains("<ESC> ->"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Press Esc")));
+}
+
+#[test]
+fn preloaded_first_login_empire_name_prompt_shows_esc_without_redundant_instruction() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("preloaded empire naming prompt should render");
+
+    assert!(line_containing(&terminal, "EMPIRE NAME <-").contains("<ESC> ->"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Press Esc")));
+}
+
+#[test]
+fn first_time_homeworld_name_prompt_shows_esc_without_redundant_instruction() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::RejectFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("homeworld naming prompt should render");
+
+    assert!(line_containing(&terminal, "HOMEWORLD <-").contains("<ESC> ->"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Press Esc")));
+}
+
+#[test]
 fn preloaded_empire_rename_failure_returns_to_name_entry_with_status() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
@@ -1941,6 +2065,60 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
             .iter()
             .any(|line| line.contains("must name this newly colonized world before continuing"))
     );
+}
+
+#[test]
+fn colony_world_name_prompt_shows_esc_without_redundant_instruction() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() != 1)
+        .expect("need a non-homeworld planet for colony naming test")
+        .1
+        .set_owner_empire_slot_raw(1);
+    state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() == 1)
+        .expect("need owned unnamed colony")
+        .1
+        .set_planet_name("Not Named Yet");
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::ColonyWorldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("colony world naming prompt should render");
+
+    assert!(line_containing(&terminal, "WORLD NAME <-").contains("<ESC> ->"));
+    assert!(!terminal.lines.iter().any(|line| line.contains("Press Esc")));
 }
 
 #[test]

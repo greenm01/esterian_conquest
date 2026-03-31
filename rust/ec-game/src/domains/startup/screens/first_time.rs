@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
     CommandMessage, LEFT_WINDOW_PAD_COL, MenuEntry, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL,
-    ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_padded,
+    ScreenGeometry, dismiss_prompt_row, draw_command_line_default_input_with_cancel_padded,
     draw_command_line_prompt_text_padded, draw_command_message_stack_padded,
     draw_command_prompt_padded, draw_dismiss_prompt_padded, draw_menu_notice_padded,
     draw_plain_prompt_padded, draw_title_bar_at_col, draw_title_bar_padded, menu_prompt_row,
@@ -140,7 +140,7 @@ pub fn render_first_time_join_name(
     door_mode: bool,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
-    if rename_mode {
+    let last_content_row = if rename_mode {
         draw_title_bar_padded(&mut buffer, 0, "FIRST LOGIN:");
         buffer.write_text(
             2,
@@ -160,12 +160,7 @@ pub fn render_first_time_join_name(
             "Enter a new empire name (up to 20 characters).",
             classic::body_style(),
         );
-        buffer.write_text(
-            6,
-            LEFT_WINDOW_PAD_COL,
-            "Press Esc to keep the current empire name.",
-            classic::body_style(),
-        );
+        5
     } else if reserved_mode {
         draw_title_bar_padded(&mut buffer, 0, "RESERVED PLAYER:");
         buffer.write_text(
@@ -188,12 +183,7 @@ pub fn render_first_time_join_name(
             "Enter the name of your empire (up to 20 characters).",
             classic::body_style(),
         );
-        buffer.write_text(
-            6,
-            LEFT_WINDOW_PAD_COL,
-            "Press Esc to return to the reserved player notice.",
-            classic::body_style(),
-        );
+        5
     } else if hosted_invite_mode {
         draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
         buffer.write_text(
@@ -202,12 +192,7 @@ pub fn render_first_time_join_name(
             "Enter the name of your empire (up to 20 characters).",
             classic::body_style(),
         );
-        buffer.write_text(
-            3,
-            LEFT_WINDOW_PAD_COL,
-            "Press Esc to leave this session before joining.",
-            classic::body_style(),
-        );
+        let mut last_content_row = 2;
         if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
             buffer.write_text(
                 5,
@@ -215,7 +200,9 @@ pub fn render_first_time_join_name(
                 &format!("Invite code: {invite_code}"),
                 classic::notice_style(),
             );
+            last_content_row = 5;
         }
+        last_content_row
     } else {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
@@ -226,22 +213,10 @@ pub fn render_first_time_join_name(
             "Enter the name of your empire (up to 20 characters).",
             classic::body_style(),
         );
-        buffer.write_text(
-            5,
-            LEFT_WINDOW_PAD_COL,
-            "Press Esc to back out to the First Time Menu.",
-            classic::body_style(),
-        );
-    }
-    let last_content_row = if rename_mode || reserved_mode {
-        6
-    } else if hosted_invite_mode {
-        5
-    } else {
-        5
+        4
     };
     let command_row = menu_prompt_row(last_content_row);
-    draw_command_line_default_input_padded(
+    draw_command_line_default_input_with_cancel_padded(
         &mut buffer,
         command_row,
         "EMPIRE NAME",
@@ -252,6 +227,7 @@ pub fn render_first_time_join_name(
         },
         "",
         input,
+        "<ESC> -> ",
     );
     if let Some(status) = status {
         draw_command_message_stack_padded(
@@ -500,13 +476,14 @@ pub fn render_first_time_homeworld_name(
     }
     let last_content_row = if is_preloaded_first_login { 5 } else { 3 };
     let command_row = menu_prompt_row(last_content_row);
-    draw_command_line_default_input_padded(
+    draw_command_line_default_input_with_cancel_padded(
         &mut buffer,
         command_row,
         "HOMEWORLD",
         "Name this world (20 chars or less) ",
         "",
         input,
+        "<ESC> -> ",
     );
     if let Some(status) = status {
         draw_command_message_stack_padded(
@@ -596,13 +573,14 @@ pub fn render_colony_world_name(
         classic::body_style(),
     );
     let command_row = menu_prompt_row(3);
-    draw_command_line_default_input_padded(
+    draw_command_line_default_input_with_cancel_padded(
         &mut buffer,
         command_row,
         "WORLD NAME",
         "Name this world (20 chars or less) ",
         "",
         input,
+        "<ESC> -> ",
     );
     if let Some(status) = status {
         draw_command_message_stack_padded(

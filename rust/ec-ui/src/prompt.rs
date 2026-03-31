@@ -31,13 +31,33 @@ pub fn command_line_default_input_width(
     default: &str,
     input: &str,
 ) -> usize {
-    command_line_default_input_scaffold_width(label, prompt, default) + input.chars().count()
+    command_line_default_input_width_with_cancel(label, prompt, default, input, "<Q> -> ")
 }
 
 pub fn command_line_default_input_scaffold_width(
     label: &str,
     prompt: &str,
     default: &str,
+) -> usize {
+    command_line_default_input_scaffold_width_with_cancel(label, prompt, default, "<Q> -> ")
+}
+
+pub fn command_line_default_input_width_with_cancel(
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+    cancel_markup: &str,
+) -> usize {
+    command_line_default_input_scaffold_width_with_cancel(label, prompt, default, cancel_markup)
+        + input.chars().count()
+}
+
+pub fn command_line_default_input_scaffold_width_with_cancel(
+    label: &str,
+    prompt: &str,
+    default: &str,
+    cancel_markup: &str,
 ) -> usize {
     let mut width =
         label.chars().count() + COMMAND_ARROW_PREFIX.chars().count() + plain_prompt_width(prompt);
@@ -46,7 +66,7 @@ pub fn command_line_default_input_scaffold_width(
             + default.chars().count()
             + DEFAULT_CLOSE_WITH_SPACE.chars().count();
     }
-    width + "<Q> -> ".chars().count()
+    width + plain_prompt_width(cancel_markup)
 }
 
 pub fn table_command_bar_width(hotkeys_markup: &str, default: Option<&str>, input: &str) -> usize {
@@ -204,6 +224,49 @@ pub fn draw_command_line_default_input_at_col(
     default: &str,
     input: &str,
 ) {
+    draw_command_line_default_input_with_cancel_at_col(
+        buffer,
+        row,
+        col,
+        label,
+        prompt,
+        default,
+        input,
+        "<Q> -> ",
+    );
+}
+
+pub fn draw_command_line_default_input_with_cancel_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+    cancel_markup: &str,
+) {
+    draw_command_line_default_input_with_cancel_at_col(
+        buffer,
+        row,
+        0,
+        label,
+        prompt,
+        default,
+        input,
+        cancel_markup,
+    );
+}
+
+pub fn draw_command_line_default_input_with_cancel_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+    cancel_markup: &str,
+) {
     buffer.fill_row(row, classic::prompt_style());
     let mut cursor_col = col
         + buffer.write_spans(
@@ -227,7 +290,7 @@ pub fn draw_command_line_default_input_at_col(
             ],
         );
     }
-    cursor_col = write_prompt_markup(buffer, row, cursor_col, "<Q> -> ");
+    cursor_col = write_prompt_markup(buffer, row, cursor_col, cancel_markup);
     let _ = write_live_input_clipped(
         buffer,
         row,
@@ -619,9 +682,10 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
 #[cfg(test)]
 mod tests {
     use super::{
-        command_line_default_input_scaffold_width, command_line_default_input_width,
-        draw_command_line_default_input_at, draw_command_line_prompt_text_at, draw_plain_prompt,
-        draw_right_aligned_footer_text, draw_table_command_bar_at,
+        command_line_default_input_scaffold_width, command_line_default_input_scaffold_width_with_cancel,
+        command_line_default_input_width, command_line_default_input_width_with_cancel,
+        draw_command_line_default_input_at, draw_command_line_default_input_with_cancel_at,
+        draw_command_line_prompt_text_at, draw_plain_prompt, draw_right_aligned_footer_text, draw_table_command_bar_at,
         table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
@@ -686,6 +750,13 @@ mod tests {
     }
 
     #[test]
+    fn prompt_width_helpers_support_custom_cancel_markup() {
+        let width =
+            command_line_default_input_width_with_cancel("COMMAND", "Qty ", "12", "345", "<ESC> -> ");
+        assert_eq!(width, "COMMAND <- Qty [12] <ESC> -> 345".chars().count());
+    }
+
+    #[test]
     fn scaffold_width_helpers_ignore_live_input_text() {
         assert_eq!(
             table_command_bar_scaffold_width("J K ^U ^D <Q>", Some("Matrix")),
@@ -700,6 +771,16 @@ mod tests {
             command_line_default_input_scaffold_width("COMMAND", "Qty ", "12"),
             command_line_default_input_width("COMMAND", "Qty ", "12", "345")
                 - "345".chars().count()
+        );
+        assert_eq!(
+            command_line_default_input_scaffold_width_with_cancel("COMMAND", "Qty ", "12", "<ESC> -> "),
+            command_line_default_input_width_with_cancel(
+                "COMMAND",
+                "Qty ",
+                "12",
+                "345",
+                "<ESC> -> "
+            ) - "345".chars().count()
         );
     }
 
@@ -735,6 +816,21 @@ mod tests {
         assert_eq!(cursor_row, 24);
         assert_eq!(cursor_col as usize, 31);
         assert!(buffer.plain_line(24).starts_with("COMMAND <- Qty "));
+    }
+
+    #[test]
+    fn command_input_can_render_custom_cancel_markup() {
+        let mut buffer = buffer();
+        draw_command_line_default_input_with_cancel_at(
+            &mut buffer,
+            24,
+            "COMMAND",
+            "Qty ",
+            "12",
+            "",
+            "<ESC> -> ",
+        );
+        assert!(buffer.plain_line(24).contains("COMMAND <- Qty [12] <ESC> ->"));
     }
 
     #[test]

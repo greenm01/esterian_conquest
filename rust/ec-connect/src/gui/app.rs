@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_ui::buffer::PlayfieldBuffer;
 use winit::dpi::PhysicalPosition;
+use winit::event::MouseButton;
 use winit::keyboard::ModifiersState;
 
 use crate::cache::{GameCache, load_cache};
@@ -121,11 +122,23 @@ impl App {
         Ok(())
     }
 
-    pub fn handle_mouse_button(&mut self, pressed: bool) -> Result<(), Box<dyn std::error::Error>> {
-        if let AppView::Live(live) = &mut self.view {
-            if live.terminal.handle_mouse_button(pressed, self.mouse_pos)? {
-                self.needs_redraw = true;
+    pub fn handle_mouse_button(
+        &mut self,
+        button: MouseButton,
+        pressed: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        match button {
+            MouseButton::Left => {
+                if let AppView::Live(live) = &mut self.view {
+                    if live.terminal.handle_mouse_button(pressed, self.mouse_pos)? {
+                        self.needs_redraw = true;
+                    }
+                }
             }
+            MouseButton::Right if pressed => {
+                self.handle_paste()?;
+            }
+            _ => {}
         }
         Ok(())
     }
@@ -135,6 +148,11 @@ impl App {
         event: &winit::event::KeyEvent,
         modifiers: ModifiersState,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        if is_paste_shortcut(event, modifiers) {
+            self.handle_paste()?;
+            return Ok(());
+        }
+
         if let AppView::Live(live) = &mut self.view {
             if live
                 .terminal
@@ -143,11 +161,6 @@ impl App {
                 self.needs_redraw = true;
                 return Ok(());
             }
-        }
-
-        if is_paste_shortcut(event, modifiers) {
-            self.handle_paste()?;
-            return Ok(());
         }
 
         if matches!(&self.view, AppView::Picker(picker) if matches!(picker.state.screen, Screen::Locked))
@@ -263,19 +276,23 @@ impl App {
         let Some(text) = self.clipboard.get_text()? else {
             return Ok(());
         };
+        self.apply_pasted_text(&text)
+    }
+
+    fn apply_pasted_text(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
         match &mut self.view {
             AppView::Password(password) => {
-                for ch in pasteable_text(&text) {
+                for ch in pasteable_text(text) {
                     password.state.push_char(ch);
                 }
             }
             AppView::Picker(picker) => {
-                for ch in pasteable_text(&text) {
+                for ch in pasteable_text(text) {
                     picker.handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE))?;
                 }
             }
             AppView::Live(live) => {
-                live.terminal.paste_text(&text);
+                live.terminal.paste_text(text);
             }
             AppView::Empty => {}
         }
@@ -568,6 +585,80 @@ impl PickerView {
                     | Some(crate::picker::overlay::PickerOverlay::JoinCodePopup { .. })
                     | Some(crate::picker::overlay::PickerOverlay::MapsDownloadPrompt { .. })
             )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{App, AppView, LaunchIntent, PickerView};
+    use crate::cache::GameCache;
+    use crate::picker::overlay::PickerOverlay;
+    use crate::picker::state::{PickerState, Screen};
+    use std::path::PathBuf;
+    use std::time::{Duration, Instant};
+
+    fn picker_for_join_popup() -> PickerView {
+        let mut state = PickerState::new(GameCache::empty(), PathBuf::from("/tmp/ec/maps"));
+        state.screen = Screen::GameList;
+        state.overlay = Some(PickerOverlay::JoinCodePopup { error: None });
+        PickerView {
+            session: None,
+            state,
+            rt: tokio::runtime::Runtime::new().expect("runtime"),
+            gate_npub: String::new(),
+            lock_timeout_minutes: 5,
+            last_activity: Instant::now(),
+            next_locked_frame: Instant::now() + Duration::from_millis(80),
+        }
+    }
+
+    #[test]
+    fn apply_pasted_text_filters_line_breaks_for_password_prompt() {
+        let mut app = App::new(LaunchIntent::Normal).expect("app");
+
+        app.apply_pasted_text("ab\r\ncd\n").expect("paste");
+
+        let AppView::Password(password) = &app.view else {
+            panic!("expected password view");
+        };
+        assert_eq!(password.state.input, "abcd");
+    }
+
+    #[test]
+    fn apply_pasted_text_feeds_join_popup_input() {
+        let mut app = App::new(LaunchIntent::Normal).expect("app");
+        app.view = AppView::Picker(picker_for_join_popup());
+
+        app.apply_pasted_text("amber-river@relay.example.com\r\n")
+            .expect("paste");
+
+        let AppView::Picker(picker) = &app.view else {
+            panic!("expected picker view");
+        };
+        assert_eq!(picker.state.join_input, "amber-river@relay.example.com");
+    }
+
+    #[test]
+    fn right_click_pastes_into_password_prompt_when_clipboard_is_available() {
+        let mut app = App::new(LaunchIntent::Normal).expect("app");
+        app.clipboard
+            .set_text("ab\r\ncd\n".to_string())
+            .expect("clipboard write");
+        if app
+            .clipboard
+            .get_text()
+            .expect("clipboard read")
+            .is_none()
+        {
+            return;
+        }
+        app.handle_mouse_button(winit::event::MouseButton::Right, true)
+            .expect("right click paste");
+
+        let AppView::Password(password) = &app.view else {
+            panic!("expected password view");
+        };
+        assert_eq!(password.state.input, "abcd");
     }
 }
 

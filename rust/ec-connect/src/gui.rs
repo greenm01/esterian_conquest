@@ -8,7 +8,7 @@ mod terminal;
 use std::env;
 
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, Event, MouseButton, WindowEvent};
+use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::ModifiersState;
 use winit::window::WindowBuilder;
@@ -58,14 +58,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
-                    if button == MouseButton::Left {
-                        let pressed = state == ElementState::Pressed;
-                        if let Err(err) = app.handle_mouse_button(pressed) {
-                            show_fatal_error(&err.to_string());
-                            elwt.exit();
-                        } else if app.needs_redraw {
-                            window.request_redraw();
-                        }
+                    let pressed = state == ElementState::Pressed;
+                    if let Err(err) = app.handle_mouse_button(button, pressed) {
+                        show_fatal_error(&err.to_string());
+                        elwt.exit();
+                    } else if app.needs_redraw {
+                        window.request_redraw();
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. } => {

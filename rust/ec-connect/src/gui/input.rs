@@ -16,15 +16,7 @@ pub fn is_copy_shortcut(event: &WinitKeyEvent, modifiers: ModifiersState) -> boo
 }
 
 pub fn is_paste_shortcut(event: &WinitKeyEvent, modifiers: ModifiersState) -> bool {
-    if !is_key_press(event) {
-        return false;
-    }
-    if modifiers.shift_key() && matches!(&event.logical_key, Key::Named(NamedKey::Insert)) {
-        return true;
-    }
-    modifiers.control_key()
-        && modifiers.shift_key()
-        && matches!(&event.logical_key, Key::Character(text) if text.eq_ignore_ascii_case("v"))
+    is_paste_shortcut_key(&event.logical_key, event.state, modifiers)
 }
 
 pub fn picker_key(event: &WinitKeyEvent, modifiers: ModifiersState) -> Option<KeyEvent> {
@@ -202,4 +194,68 @@ fn control_byte(ch: char) -> Option<u8> {
         '8' | '?' => 0x7f,
         _ => return None,
     })
+}
+
+fn is_paste_shortcut_key(
+    logical_key: &Key,
+    state: ElementState,
+    modifiers: ModifiersState,
+) -> bool {
+    if state != ElementState::Pressed {
+        return false;
+    }
+    if modifiers.shift_key() && matches!(logical_key, Key::Named(NamedKey::Insert)) {
+        return true;
+    }
+    modifiers.control_key()
+        && !modifiers.alt_key()
+        && matches!(logical_key, Key::Character(text) if text.eq_ignore_ascii_case("v"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{encode_paste, is_paste_shortcut_key};
+    use winit::event::ElementState;
+    use winit::keyboard::{Key, ModifiersState, NamedKey};
+
+    #[test]
+    fn paste_shortcut_accepts_ctrl_v() {
+        assert!(is_paste_shortcut_key(
+            &Key::Character("v".into()),
+            ElementState::Pressed,
+            ModifiersState::CONTROL,
+        ));
+    }
+
+    #[test]
+    fn paste_shortcut_accepts_ctrl_shift_v() {
+        assert!(is_paste_shortcut_key(
+            &Key::Character("V".into()),
+            ElementState::Pressed,
+            ModifiersState::CONTROL | ModifiersState::SHIFT,
+        ));
+    }
+
+    #[test]
+    fn paste_shortcut_accepts_shift_insert() {
+        assert!(is_paste_shortcut_key(
+            &Key::Named(NamedKey::Insert),
+            ElementState::Pressed,
+            ModifiersState::SHIFT,
+        ));
+    }
+
+    #[test]
+    fn paste_shortcut_rejects_ctrl_alt_v() {
+        assert!(!is_paste_shortcut_key(
+            &Key::Character("v".into()),
+            ElementState::Pressed,
+            ModifiersState::CONTROL | ModifiersState::ALT,
+        ));
+    }
+
+    #[test]
+    fn encode_paste_normalizes_newlines_without_bracketed_mode() {
+        assert_eq!(encode_paste("line1\r\nline2\n", false), b"line1\rline2\r".to_vec());
+    }
 }

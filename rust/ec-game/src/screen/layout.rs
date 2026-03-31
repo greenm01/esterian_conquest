@@ -1480,6 +1480,27 @@ pub fn draw_command_line_default_input_padded(
     )
 }
 
+pub fn draw_command_line_default_input_with_cancel_padded(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+    cancel_markup: &str,
+) {
+    draw_command_line_default_input_with_cancel_at_col(
+        buffer,
+        row,
+        LEFT_WINDOW_PAD_COL,
+        label,
+        prompt,
+        default,
+        input,
+        cancel_markup,
+    )
+}
+
 pub fn draw_command_line_default_input_at_col(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -1491,6 +1512,28 @@ pub fn draw_command_line_default_input_at_col(
 ) {
     shared_prompt::draw_command_line_default_input_at_col(
         buffer, row, col, label, prompt, default, input,
+    );
+}
+
+pub fn draw_command_line_default_input_with_cancel_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+    cancel_markup: &str,
+) {
+    shared_prompt::draw_command_line_default_input_with_cancel_at_col(
+        buffer,
+        row,
+        col,
+        label,
+        prompt,
+        default,
+        input,
+        cancel_markup,
     );
 }
 

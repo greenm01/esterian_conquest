@@ -165,6 +165,9 @@ flow:
 2. Press `N` to join a new game.
 3. Paste your invite code and press Enter.
 
+In the packaged GUI, paste works with `Ctrl-V`, `Ctrl-Shift-V`,
+`Shift-Insert`, or right-click.
+
 That is all. `ec-connect` handles your identity and opens your `ec-game`
 session. The invite already carries the relay host, and `ec-connect`
 discovers the rest from there. Your seat is not claimed until you actually

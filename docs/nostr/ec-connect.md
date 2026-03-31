@@ -91,6 +91,9 @@ Pressing `N` in the picker opens an inline invite prompt:
 CONNECT COMMAND <- Invite code <Q> <?> -> velvet-mountain@relay.example.com
 ```
 
+In the packaged GUI, paste works with `Ctrl-V`, `Ctrl-Shift-V`,
+`Shift-Insert`, or right-click.
+
 After a successful join, the new game appears in the list and the player
 is connected immediately. Public first joins no longer claim the seat until
 the player actually saves the in-game empire name. If the player disconnects

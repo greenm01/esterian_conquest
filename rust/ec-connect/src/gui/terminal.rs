@@ -144,14 +144,6 @@ impl TerminalView {
             }
             return Ok(true);
         }
-        if super::input::is_paste_shortcut(event, modifiers) {
-            if let Some(text) = clipboard.get_text()? {
-                let bytes =
-                    encode_paste(&text, self.term.mode().contains(TermMode::BRACKETED_PASTE));
-                self.live.send_input(bytes);
-            }
-            return Ok(true);
-        }
         if let Some(bytes) = terminal_key_bytes(event, modifiers, *self.term.mode()) {
             self.live.send_input(bytes);
             return Ok(true);
