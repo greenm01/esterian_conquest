@@ -31,9 +31,9 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::config::GateConfig;
 
-/// Truncate an npub to a short prefix for log output.
-fn short_npub(npub: &str) -> &str {
-    &npub[..npub.len().min(15)]
+/// Truncate long public IDs and nonces to a short prefix for log output.
+fn short_log_id(value: &str) -> String {
+    value[..value.len().min(15)].to_string()
 }
 /// Run the `ec-gate serve` event loop.
 ///
@@ -99,7 +99,7 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
             {
                 Ok(event_id) => info!(
                     game_id = %entry.game.game_id,
-                    event_id = %event_id,
+                    event_id = short_log_id(&event_id.to_string()),
                     "published 30500 GameDefinition"
                 ),
                 Err(e) => warn!(
@@ -145,8 +145,8 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "claim_request",
-                                    player_npub = short_npub(&req.player_pubkey),
-                                    nonce = %req.nonce,
+                                    player_npub = short_log_id(&req.player_pubkey),
+                                    nonce = short_log_id(&req.nonce),
                                 );
                                 handle_claim_request(req, shared_keys, client_clone)
                                     .instrument(span)
@@ -160,8 +160,8 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "request",
-                                    player_npub = short_npub(&req.player_pubkey),
-                                    nonce = %req.nonce,
+                                    player_npub = short_log_id(&req.player_pubkey),
+                                    nonce = short_log_id(&req.nonce),
                                 );
                                 handle_request(
                                     req,
@@ -181,8 +181,8 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "map_request",
-                                    player_npub = short_npub(&req.player_pubkey),
-                                    nonce = %req.nonce,
+                                    player_npub = short_log_id(&req.player_pubkey),
+                                    nonce = short_log_id(&req.nonce),
                                     game_id = %req.game_id,
                                 );
                                 handle_map_request(req, shared_dirs, shared_keys, client_clone)
@@ -197,8 +197,8 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
                             Ok(req) => {
                                 let span = info_span!(
                                     "state_request",
-                                    player_npub = short_npub(&req.player_pubkey),
-                                    nonce = %req.nonce,
+                                    player_npub = short_log_id(&req.player_pubkey),
+                                    nonce = short_log_id(&req.nonce),
                                     game_id = %req.game_id,
                                 );
                                 handle_session_state_request(
@@ -378,7 +378,11 @@ async fn handle_map_request(
     .await
     {
         Ok(event_id) => {
-            info!(game_id = %seat.game_id, event_id = %event_id, "published 30505 MapBundle");
+            info!(
+                game_id = %seat.game_id,
+                event_id = short_log_id(&event_id.to_string()),
+                "published 30505 MapBundle"
+            );
         }
         Err(map::PublishMapBundleError::PayloadTooLarge) => {
             if let Err(err) = map::publish_map_error(
@@ -534,7 +538,7 @@ async fn handle_session_state_request(
             info!(
                 game_id = %payload.game_id,
                 seat = payload.seat,
-                event_id = %event_id,
+                event_id = short_log_id(&event_id.to_string()),
                 "published 30508 SessionStateReady"
             );
         }
@@ -559,7 +563,7 @@ async fn handle_claim_request(
 
     warn!(
         invite_code = %req.invite_code,
-        player_npub = short_npub(&req.player_pubkey),
+        player_npub = short_log_id(&req.player_pubkey),
         game_id = req.game_id.as_deref().unwrap_or(""),
         "received deprecated 30510 SeatClaimRequest"
     );
@@ -628,7 +632,7 @@ async fn handle_request(
                 Ok(_) => {}
                 Err(err) => {
                     error!(
-                        player_npub = short_npub(&req.player_pubkey),
+                        player_npub = short_log_id(&req.player_pubkey),
                         error = %err,
                         "cannot scan hosted games for active identity sessions"
                     );
