@@ -16,7 +16,12 @@ pub fn is_copy_shortcut(event: &WinitKeyEvent, modifiers: ModifiersState) -> boo
 }
 
 pub fn is_paste_shortcut(event: &WinitKeyEvent, modifiers: ModifiersState) -> bool {
-    is_paste_shortcut_key(&event.logical_key, event.state, modifiers)
+    is_paste_shortcut_key(
+        &event.logical_key,
+        event.state,
+        modifiers,
+        cfg!(target_os = "macos"),
+    )
 }
 
 pub fn picker_key(event: &WinitKeyEvent, modifiers: ModifiersState) -> Option<KeyEvent> {
@@ -200,6 +205,7 @@ fn is_paste_shortcut_key(
     logical_key: &Key,
     state: ElementState,
     modifiers: ModifiersState,
+    macos_command_paste: bool,
 ) -> bool {
     if state != ElementState::Pressed {
         return false;
@@ -207,8 +213,11 @@ fn is_paste_shortcut_key(
     if modifiers.shift_key() && matches!(logical_key, Key::Named(NamedKey::Insert)) {
         return true;
     }
-    modifiers.control_key()
-        && !modifiers.alt_key()
+    let control_paste =
+        modifiers.control_key() && !modifiers.alt_key() && !modifiers.super_key();
+    let command_paste =
+        macos_command_paste && modifiers.super_key() && !modifiers.alt_key() && !modifiers.control_key();
+    (control_paste || command_paste)
         && matches!(logical_key, Key::Character(text) if text.eq_ignore_ascii_case("v"))
 }
 
@@ -224,6 +233,7 @@ mod tests {
             &Key::Character("v".into()),
             ElementState::Pressed,
             ModifiersState::CONTROL,
+            false,
         ));
     }
 
@@ -233,6 +243,7 @@ mod tests {
             &Key::Character("V".into()),
             ElementState::Pressed,
             ModifiersState::CONTROL | ModifiersState::SHIFT,
+            false,
         ));
     }
 
@@ -242,6 +253,7 @@ mod tests {
             &Key::Named(NamedKey::Insert),
             ElementState::Pressed,
             ModifiersState::SHIFT,
+            false,
         ));
     }
 
@@ -251,6 +263,37 @@ mod tests {
             &Key::Character("v".into()),
             ElementState::Pressed,
             ModifiersState::CONTROL | ModifiersState::ALT,
+            false,
+        ));
+    }
+
+    #[test]
+    fn paste_shortcut_accepts_command_v_when_enabled() {
+        assert!(is_paste_shortcut_key(
+            &Key::Character("v".into()),
+            ElementState::Pressed,
+            ModifiersState::SUPER,
+            true,
+        ));
+    }
+
+    #[test]
+    fn paste_shortcut_rejects_command_v_when_disabled() {
+        assert!(!is_paste_shortcut_key(
+            &Key::Character("v".into()),
+            ElementState::Pressed,
+            ModifiersState::SUPER,
+            false,
+        ));
+    }
+
+    #[test]
+    fn paste_shortcut_rejects_non_v_command_shortcut() {
+        assert!(!is_paste_shortcut_key(
+            &Key::Character("c".into()),
+            ElementState::Pressed,
+            ModifiersState::SUPER,
+            true,
         ));
     }
 
