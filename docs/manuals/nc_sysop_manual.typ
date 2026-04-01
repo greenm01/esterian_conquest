@@ -330,13 +330,13 @@ The output lists every seat. Pending seats show the canonical join line:
 
 ```
 Seat 1  [pending]
-  nc-connect --join amber-river@relay.example.com
+  amber-river@relay.example.com
 
 Seat 2  [claimed]
   npub1...
 ```
 
-Send each player his `nc-connect --join ...` line. The player:
+Send each player the raw invite code. The player:
 
 1. Runs `nc-connect`.
 2. Presses `N`.
@@ -357,13 +357,6 @@ re-entering any flags.
 One hosted identity can claim only one seat in a given game. If the same
 keychain identity tries to redeem a second invite for that game, the daemon now
 rejects it and expects the player to reconnect with the already-claimed seat.
-
-*Power users and scripted workflows* may also join directly from the command
-line:
-
-```
-nc-connect --join amber-river@relay.example.com
-```
 
 If an invite code is lost or compromised, reissue it:
 

@@ -40,7 +40,7 @@ claimed seats for returning-player fixture testing.
 
 Pending invite output looks like:
 
-  nc-connect --join victim-sickness@localhost:8080
+  victim-sickness@localhost:8080
 
 Prerequisite:
   A relay must already be listening at the chosen --relay URL.
@@ -346,11 +346,11 @@ PY
 
 echo
 if [[ -n "$PENDING_SEATS" ]]; then
-  echo "Pending invite commands:"
+  echo "Pending invite codes:"
   while IFS='|' read -r seat invite; do
     [[ -n "$seat" ]] || continue
     echo "  Seat $seat"
-    echo "    nc-connect --join ${invite}@${INVITE_SUFFIX}"
+    echo "    ${invite}@${INVITE_SUFFIX}"
   done <<< "$PENDING_SEATS"
   echo
 fi

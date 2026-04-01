@@ -41,11 +41,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // appear before or after the positional argument.
     //
     // Special cases handled:
-    //   nc-connect                       → picker (no positional)
-    //   nc-connect --gate <npub>         → picker with explicit gate
-    //   nc-connect --join <code> ...     → join flow
-    //   nc-connect id [sub] ...          → identity management
-    //   nc-connect <server> ...          → direct mode
+    //   nc-connect-cli                   → picker (no positional)
+    //   nc-connect-cli --gate <npub>     → picker with explicit gate
+    //   nc-connect-cli --join <code> ... → join flow
+    //   nc-connect-cli id [sub] ...      → identity management
+    //   nc-connect-cli <server> ...      → direct mode
     //   nc-connect --help / --version    → meta
 
     // First check for the meta flags that take no value.
@@ -876,21 +876,21 @@ fn print_usage() {
     let developer = "";
     println!(
         "{}\
-nc-connect — Nostrian Conquest multiplayer client
+nc-connect-cli — Nostrian Conquest multiplayer companion CLI
 
 Usage:
-  nc-connect                                       Picker mode (game list)
-  nc-connect <SERVER> --gate <NPUB>                Direct mode (connect to server)
-  nc-connect --join <INVITE-CODE>                  Join a new game
+  nc-connect-cli                                   Picker mode (game list)
+  nc-connect-cli <SERVER> --gate <NPUB>            Direct mode (connect to server)
+  nc-connect-cli --join <INVITE-CODE>              Join a new game
 
 Identity:
-  nc-connect id                        Show active identity (npub)
-  nc-connect id --secret               Show npub + nsec (for backup)
-  nc-connect id list                   List all keychain identities
-  nc-connect id new                    Generate a new Nostr keypair
-  nc-connect id import                 Import an existing Nostr nsec
-  nc-connect id switch <N>             Switch active identity
-  nc-connect id reset                  Wipe keychain and cache (triple confirmation)
+  nc-connect-cli id                    Show active identity (npub)
+  nc-connect-cli id --secret           Show npub + nsec (for backup)
+  nc-connect-cli id list               List all keychain identities
+  nc-connect-cli id new                Generate a new Nostr keypair
+  nc-connect-cli id import             Import an existing Nostr nsec
+  nc-connect-cli id switch <N>         Switch active identity
+  nc-connect-cli id reset              Wipe keychain and cache (triple confirmation)
 
 Options:
   --gate <NPUB>    Gate server Nostr public key (optional override / fallback)

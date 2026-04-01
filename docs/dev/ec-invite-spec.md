@@ -53,11 +53,11 @@ The configured relay URL must be convertible to an invite host[:port]:
 - query/fragment are not allowed
 - path is not allowed
 
-`nc-sysop nostr seats` renders the public player join line from that relay
+`nc-sysop nostr seats` renders the public player invite string from that relay
 configuration:
 
 ```text
-nc-connect --join amber-river@relay.example.com
+amber-river@relay.example.com
 ```
 
 ## Client Join Flow

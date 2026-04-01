@@ -13,7 +13,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::ModifiersState;
 use winit::window::WindowBuilder;
 
-use app::{App, LaunchIntent};
+use app::App;
 use render::WindowRenderer;
 
 pub(crate) const TERM_COLS: u16 = 80;
@@ -23,7 +23,7 @@ pub(crate) const CELL_HEIGHT: usize = 18;
 const WINDOW_TITLE: &str = "Nostrian Conquest";
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let launch_intent = parse_launch_intent()?;
+    parse_launch_args(env::args().skip(1))?;
     let event_loop = EventLoop::new()?;
     let logical_width = f64::from(TERM_COLS) * CELL_WIDTH as f64;
     let logical_height = f64::from(TERM_ROWS) * CELL_HEIGHT as f64;
@@ -36,7 +36,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     );
     let window: &'static winit::window::Window = Box::leak(window);
     let mut renderer = WindowRenderer::new(window)?;
-    let mut app = App::new(launch_intent)?;
+    let mut app = App::new()?;
     let mut modifiers = ModifiersState::empty();
 
     event_loop.run(move |event, elwt| {
@@ -108,24 +108,37 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn parse_launch_intent() -> Result<LaunchIntent, Box<dyn std::error::Error>> {
-    let mut args = env::args().skip(1);
+fn parse_launch_args(
+    mut args: impl Iterator<Item = String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     match args.next() {
-        None => Ok(LaunchIntent::Normal),
-        Some(flag) if flag == "--join" => {
-            let invite = args.next().ok_or("--join requires an invite code")?;
-            if let Some(extra) = args.next() {
-                return Err(format!(
-                    "unexpected extra argument after --join: {extra}"
-                )
-                .into());
-            }
-            Ok(LaunchIntent::Join(invite))
-        }
+        None => Ok(()),
         Some(other) => Err(format!(
-            "nc-connect supports only no arguments or --join <invite>.\n\nUnrecognized argument: {other}"
+            "nc-connect does not accept command-line arguments.\n\nOpen the app, press N, and paste your invite code.\n\nUnrecognized argument: {other}"
         )
         .into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_launch_args;
+
+    #[test]
+    fn parse_launch_args_accepts_no_arguments() {
+        assert!(parse_launch_args(Vec::<String>::new().into_iter()).is_ok());
+    }
+
+    #[test]
+    fn parse_launch_args_rejects_join_argument() {
+        let err = parse_launch_args(
+            vec!["--join".to_string(), "amber-river@relay.example.com".to_string()].into_iter(),
+        )
+        .expect_err("desktop nc-connect should reject command-line args");
+        assert!(
+            err.to_string()
+                .contains("nc-connect does not accept command-line arguments")
+        );
     }
 }
 

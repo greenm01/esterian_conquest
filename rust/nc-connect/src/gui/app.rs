@@ -18,7 +18,6 @@ use crate::picker::connecting::{
     ConnectTaskResult, PendingConnectRequest, apply_connect_outcome, poll_active_connect_result,
     start_pending_connect,
 };
-use crate::picker::flows::join_with_code;
 use crate::picker::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_keychain_key,
     handle_relay_key,
@@ -35,11 +34,6 @@ use super::terminal::TerminalView;
 use super::{TERM_COLS, TERM_ROWS};
 
 const LOCKED_FRAME_STEP: Duration = Duration::from_millis(80);
-
-pub enum LaunchIntent {
-    Normal,
-    Join(String),
-}
 
 pub struct App {
     view: AppView,
@@ -59,7 +53,6 @@ enum AppView {
 struct PasswordView {
     state: PasswordGateState,
     resume_picker: Option<PickerView>,
-    launch_join: Option<String>,
 }
 
 struct PickerView {
@@ -85,15 +78,11 @@ enum PasswordAction {
 }
 
 impl App {
-    pub fn new(intent: LaunchIntent) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             view: AppView::Password(PasswordView {
                 state: PasswordGateState::new(keychain_exists(&keychain_path()), None),
                 resume_picker: None,
-                launch_join: match intent {
-                    LaunchIntent::Normal => None,
-                    LaunchIntent::Join(invite) => Some(invite),
-                },
             }),
             clipboard: Clipboard::new(),
             mouse_pos: PhysicalPosition::new(0.0, 0.0),
@@ -170,7 +159,6 @@ impl App {
             self.view = AppView::Password(PasswordView {
                 state: PasswordGateState::new(true, None),
                 resume_picker: Some(picker),
-                launch_join: None,
             });
             self.needs_redraw = true;
             return Ok(());
@@ -191,7 +179,6 @@ impl App {
                     }
                 }
                 PasswordAction::Submit(password_text) => {
-                    let launch_join = password.launch_join.take();
                     if let Some(mut picker) = password.resume_picker.take() {
                         match load_picker_session(password_text) {
                             Ok(session) => {
@@ -210,7 +197,7 @@ impl App {
                             push_new_identity(&mut keychain, now_iso8601())?;
                             save_keychain_to(&keychain, &password_text, &keychain_path())?;
                         }
-                        match PickerView::load(password_text, launch_join) {
+                        match PickerView::load(password_text) {
                             Ok(picker) => self.view = AppView::Picker(picker),
                             Err(err) => {
                                 password.state.error_msg = Some(format!("Error: {err}"));
@@ -404,13 +391,10 @@ fn keychain_detail_copy_value(
 }
 
 impl PickerView {
-    fn load(
-        password: String,
-        launch_join: Option<String>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    fn load(password: String) -> Result<Self, Box<dyn std::error::Error>> {
         let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
         let maps_root = resolve_maps_root(config.maps_dir.as_deref(), None);
-        let mut picker = Self {
+        Ok(Self {
             session: Some(load_picker_session(password)?),
             state: PickerState::new(
                 load_cache().unwrap_or_else(|_| GameCache::empty()),
@@ -421,11 +405,7 @@ impl PickerView {
             lock_timeout_minutes: config.effective_lock_timeout_minutes(),
             last_activity: Instant::now(),
             next_locked_frame: Instant::now() + LOCKED_FRAME_STEP,
-        };
-        if let Some(invite) = launch_join {
-            join_with_code(&mut picker.state, &invite, &picker.gate_npub)?;
-        }
-        Ok(picker)
+        })
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> Result<(), Box<dyn std::error::Error>> {
@@ -590,7 +570,7 @@ impl PickerView {
 
 #[cfg(test)]
 mod tests {
-    use super::{App, AppView, LaunchIntent, PickerView};
+    use super::{App, AppView, PickerView};
     use crate::cache::GameCache;
     use crate::picker::overlay::PickerOverlay;
     use crate::picker::state::{PickerState, Screen};
@@ -614,7 +594,7 @@ mod tests {
 
     #[test]
     fn apply_pasted_text_filters_line_breaks_for_password_prompt() {
-        let mut app = App::new(LaunchIntent::Normal).expect("app");
+        let mut app = App::new().expect("app");
 
         app.apply_pasted_text("ab\r\ncd\n").expect("paste");
 
@@ -626,7 +606,7 @@ mod tests {
 
     #[test]
     fn apply_pasted_text_feeds_join_popup_input() {
-        let mut app = App::new(LaunchIntent::Normal).expect("app");
+        let mut app = App::new().expect("app");
         app.view = AppView::Picker(picker_for_join_popup());
 
         app.apply_pasted_text("amber-river@relay.example.com\r\n")
@@ -640,7 +620,7 @@ mod tests {
 
     #[test]
     fn right_click_pastes_into_password_prompt_when_clipboard_is_available() {
-        let mut app = App::new(LaunchIntent::Normal).expect("app");
+        let mut app = App::new().expect("app");
         app.clipboard
             .set_text("ab\r\ncd\n".to_string())
             .expect("clipboard write");

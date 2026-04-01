@@ -118,10 +118,10 @@ Game: Friday Night EC
 Dir:  /srv/ec/games/friday-night
 
 Seat 1  [pending]
-  nc-connect --join velvet-mountain@relay.example.com
+  velvet-mountain@relay.example.com
 ```
 
-The sysop shares that single join line with each player. The relay host is
+The sysop shares that invite code with each player. The relay host is
 baked into the invite, and `nc-connect` discovers the rest from the relay's
 published game definitions.
 

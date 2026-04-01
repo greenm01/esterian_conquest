@@ -205,7 +205,7 @@ It:
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
 - defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
 - still supports explicit `--ssh-user` / `--auth-keys-*` overrides
-- prints full invite lines like `nc-connect --join victim-sickness@localhost:8080`
+- prints raw invite codes like `victim-sickness@localhost:8080`
 - prints claimed seat identities for returning-player fixture checks
 - runs `nc-sysop nostr serve` in the foreground
 

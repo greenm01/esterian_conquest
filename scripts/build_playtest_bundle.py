@@ -330,8 +330,9 @@ Initialize and run the Nostr hosting daemon:
 The hosted-player join path is `nc-connect`:
 
 ```bash
-./bin/nc-connect --join amber-river@relay.example.com
+./bin/nc-connect
 ```
+Then press `N` in the app and paste `amber-river@relay.example.com`.
 
 Run maintenance:
 

@@ -15,15 +15,15 @@ playtested accordingly.
 ## Player Experience
 
 In the recommended public flow, the sysop gives the player one invite string in
-the form `token@relay-host[:port]`. The player joins once with `--join`.
-`nc-connect` discovers the gate key from the relay's public 30500 game
+the form `token@relay-host[:port]`. The player opens `nc-connect`, presses `N`,
+and pastes that invite code. `nc-connect` discovers the gate key from the relay's public 30500 game
 definition, launches the normal session handshake and terminal bridge, and
 then persists the game locally once the in-game claim is confirmed.
 
 ### First Launch
 
 ```
-$ nc-connect --join velvet-mountain@relay.example.com
+$ nc-connect
 [centered password window]
 This password encrypts your wallet.
 If you lose it, you will be locked out.
@@ -31,6 +31,9 @@ No IT support.
 New password: ********
 Confirm password: ********
 Identity created.
+
+[picker opens]
+Press N and paste velvet-mountain@relay.example.com
 
 Joining game... Welcome! You are Player 2 in "Friday Night EC."
 
@@ -113,17 +116,19 @@ joined game entry and reconnects to that already-claimed seat.
 
 ### Nostr User
 
-A player who already has a Nostr identity can import their key before
-joining:
+A player who already has a Nostr identity can import it in the packaged GUI
+with `W` then `R`, or from the Cargo/source companion CLI before joining:
 
 ```
-$ nc-connect id import
+$ nc-connect-cli id import
 Enter your nsec: nsec1...
 Identity imported.
 
-$ nc-connect --join copper-sunrise@relay.example.com
+$ nc-connect
 [centered password window]
 Password: ********
+[picker opens]
+Press N and paste copper-sunrise@relay.example.com
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
 [nc-game launches]
@@ -216,7 +221,7 @@ Config file at:
 ```
 
 This file is optional. Without it, `nc-connect` works using invite code
-suffixes and command-line arguments. The config adds convenience for
+suffixes and saved picker state. The config adds convenience for
 players who connect to the same servers regularly.
 
 Format:
@@ -335,10 +340,8 @@ recently played game appears first.
 
 ```
 nc-connect                           Open the picker
-nc-connect --join <INVITE-CODE>      Open the GUI and prefill a public join
 ```
-
-`INVITE-CODE` is the public invite string:
+The player then presses `N` and pastes the invite string:
 `velvet-mountain@relay.example.com` or
 `velvet-mountain@relay.example.com:7447`.
 

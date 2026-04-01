@@ -96,13 +96,11 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
                 match relay.as_deref() {
                     Some(relay_url) => {
                         match invite_address_from_relay(&seat.invite_code, relay_url) {
-                            Ok(invite) => out.push_str(&format!("  nc-connect --join {invite}\n")),
-                            Err(_) => {
-                                out.push_str(&format!("  nc-connect --join {}\n", seat.invite_code))
-                            }
+                            Ok(invite) => out.push_str(&format!("  {invite}\n")),
+                            Err(_) => out.push_str(&format!("  {}\n", seat.invite_code)),
                         }
                     }
-                    None => out.push_str(&format!("  nc-connect --join {}\n", seat.invite_code)),
+                    None => out.push_str(&format!("  {}\n", seat.invite_code)),
                 }
             }
             HostedSeatStatus::Claimed => {

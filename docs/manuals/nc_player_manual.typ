@@ -143,9 +143,8 @@ normal `amber-river@relay.example.com` form.
 
 == Joining a Game
 
-Your sysop will give you an invite code, usually in a command like
-`nc-connect --join amber-river@relay.example.com`. Here is the normal picker
-flow:
+Your sysop will give you an invite code like
+`amber-river@relay.example.com`. Here is the normal picker flow:
 
 1. Run `nc-connect`.
 2. Press `N` to join a new game.
@@ -188,17 +187,6 @@ identities. If you lose it, the client cannot recover your keychain for you.
 Your sysop gives you one invite code in the form
 `amber-river@relay.example.com`. Paste it when prompted.
 
-== Power Users
-
-You can also join from the command line directly:
-
-``` 
-nc-connect --join amber-river@relay.example.com
-```
-
-If you join from the picker later and a cached game is missing its relay,
-`nc-connect` will ask for it once and save it.
-
 == Keychain Management
 
 Press `W` in `nc-connect` to view your current identity and backup material.
@@ -214,16 +202,8 @@ seat with a new invite.
 
 === Clearing Local Keychain Data
 
-Use the built-in reset command to clear your keychain and picker cache in
-one step:
-
-```
-nc-connect id reset
-```
-
-That command asks for your current password, confirms three times, then
-removes both `keychain.kdl` and `cache.kdl`. To locate or delete the files
-manually instead:
+To clear your local keychain and picker cache, close `nc-connect` and delete
+the files manually:
 
 - *Windows:* `%LOCALAPPDATA%\nc\` (e.g. `C:\Users\<you>\AppData\Local\nc\`)
 - *macOS:* `~/Library/Application Support/nc/`

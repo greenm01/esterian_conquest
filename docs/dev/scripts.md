@@ -143,7 +143,7 @@ This helper:
 - defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
 - still supports explicit `--ssh-user` / `--auth-keys-*` overrides
 - starts `nc-sysop nostr serve` for that game
-- prints full invite lines such as `nc-connect --join victim-sickness@localhost:8080`
+- prints raw invite codes such as `victim-sickness@localhost:8080`
 
 Then, in another terminal, run the GUI and paste one of the printed invite
 codes:

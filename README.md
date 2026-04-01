@@ -154,9 +154,9 @@ Schedule the fleet-wide sweep with `systemd` or `cron`:
 cargo run -q -p nc-sysop -- maint-all --config /etc/nc-gate/config.kdl
 ```
 
-Players join with `nc-connect`:
+Players join by opening `nc-connect`, pressing `N`, and pasting the raw invite code:
 ```bash
-nc-connect --join amber-river@relay.example.com
+amber-river@relay.example.com
 ```
 
 If a hosted invite was reissued or a player reports that the relay cannot find
