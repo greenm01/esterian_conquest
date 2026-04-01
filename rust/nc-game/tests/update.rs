@@ -10301,11 +10301,89 @@ fn fleet_order_confirm_uses_stopped_eta_when_selected_fleet_speed_is_zero() {
 
     app.render(&mut terminal)
         .expect("fleet order confirm should render");
-    let message = line_containing(&terminal, "Fleet 1 is stopped and cannot reach");
+    let message = line_containing(&terminal, "Fleet 1 reaches");
     assert!(message.contains(&format!(
-        "Fleet 1 is stopped and cannot reach ({:02},{:02}).",
+        "Fleet 1 reaches ({:02},{:02}) in",
         target[0], target[1]
     )));
+    assert!(!message.contains("is stopped"));
+}
+
+#[test]
+fn fleet_group_order_confirm_uses_eta_when_selected_fleet_speed_is_zero() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let current_coords = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .current_location_coords_raw();
+    let target = first_other_planet_coords(&state.game_data, current_coords);
+    state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist")
+        .set_current_speed(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_group_order_target(&mut app, target);
+
+    app.render(&mut terminal)
+        .expect("fleet group order confirm should render");
+    let message = line_containing(&terminal, "reaches");
+    assert!(message.contains(&format!(
+        "reaches ({:02},{:02}) in",
+        target[0], target[1],
+    )));
+    assert!(!message.contains("is stopped"));
 }
 
 #[test]
@@ -11034,7 +11112,7 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
     assert!(selected.chars().all(|ch| ch.is_ascii_digit()));
     assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
     assert!(terminal.lines.iter().any(|line| line.contains(&format!(
-        "cannot reach ({:02},{:02})",
+        "reaches ({:02},{:02}) in",
         bombard_target[0], bombard_target[1]
     ))));
     assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
