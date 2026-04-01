@@ -1399,8 +1399,8 @@ impl App {
                 .closest_owned_starbase_target_from(anchor)
                 .into_iter()
                 .collect(),
-            2 | 5 | 15 => self.owned_planet_targets_from(anchor),
-            6 | 7 | 8 => self.known_enemy_planet_targets_from(anchor),
+            2 | 5 | 15 => self.database_owned_planet_targets_from(anchor),
+            6 | 7 | 8 => self.database_known_enemy_planet_targets_from(anchor),
             9 => self.under_scouted_world_targets_from(anchor),
             10 => self.scout_sector_target_candidates_from(anchor, &selected_records),
             11 => self.scout_system_target_candidates_from(anchor, &selected_records),
@@ -1504,68 +1504,39 @@ impl App {
         })
     }
 
-    fn owned_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        let mut coords = self
-            .game_data
-            .planets
-            .records
-            .iter()
-            .filter(|planet| {
-                planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
-            })
-            .map(|planet| planet.coords_raw())
-            .collect::<Vec<_>>();
-        self.sort_unique_coords_by_distance(anchor, &mut coords);
-        coords
+    fn database_owned_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        self.filtered_planet_database_targets_from(anchor, |world| {
+            world.known_owner_empire_id == Some(self.player.record_index_1_based as u8)
+        })
     }
 
-    fn known_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        self.filtered_known_world_targets_from(anchor, |_| true)
+    fn planet_database_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        self.filtered_planet_database_targets_from(anchor, |_| true)
     }
 
-    fn enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        let mut coords = self
-            .game_data
-            .planets
-            .records
-            .iter()
-            .filter(|planet| {
-                let owner = planet.owner_empire_slot_raw() as usize;
-                owner > 0 && owner != self.player.record_index_1_based
-            })
-            .map(|planet| planet.coords_raw())
-            .collect::<Vec<_>>();
-        self.sort_unique_coords_by_distance(anchor, &mut coords);
-        coords
-    }
-
-    /// Enemy-owned planets only (owner > 0 and owner != self).
-    /// Excludes unowned (owner 0) worlds since they are never valid hostile targets.
-    fn known_enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        let known = self.filtered_known_world_targets_from(anchor, |world| {
-            let owner = world.known_owner_empire_id;
-            owner.is_some()
-                && owner != Some(0)
-                && owner != Some(self.player.record_index_1_based as u8)
-        });
-        if known.is_empty() {
-            self.enemy_planet_targets_from(anchor)
-        } else {
-            known
-        }
+    /// Hostile targets only from the player's fog-of-war planet database.
+    /// No raw runtime ownership fallback is used here.
+    fn database_known_enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        self.filtered_planet_database_targets_from(anchor, |world| {
+            matches!(
+                world.known_owner_empire_id,
+                Some(owner)
+                    if owner > 0 && owner != self.player.record_index_1_based as u8
+            )
+        })
     }
 
     /// Under-scouted worlds: Partial or Unknown intel tier, falling back to all known.
     /// View is typically used to scan worlds the player knows little about.
     fn under_scouted_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        let under_scouted = self.filtered_known_world_targets_from(anchor, |world| {
+        let under_scouted = self.filtered_planet_database_targets_from(anchor, |world| {
             matches!(
                 world.intel_tier,
                 nc_data::IntelTier::Partial | nc_data::IntelTier::Unknown
             )
         });
         if under_scouted.is_empty() {
-            self.known_world_targets_from(anchor)
+            self.planet_database_world_targets_from(anchor)
         } else {
             under_scouted
         }
@@ -1576,8 +1547,8 @@ impl App {
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
     ) -> Vec<[u8; 2]> {
-        self.filtered_known_world_targets_from(anchor, |world| {
-            world.known_owner_empire_id == Some(0)
+        self.filtered_planet_database_targets_from(anchor, |world| {
+            matches!(world.known_owner_empire_id, None | Some(0))
                 && !self.friendly_colonize_target_claimed_elsewhere(world.coords, selected_records)
         })
     }
@@ -1587,10 +1558,9 @@ impl App {
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
     ) -> Vec<[u8; 2]> {
-        let mut coords = self.filtered_known_world_targets_from(anchor, |world| {
-            world.known_owner_empire_id == Some(0)
+        let mut coords = self.filtered_planet_database_targets_from(anchor, |world| {
+            world.known_owner_empire_id != Some(self.player.record_index_1_based as u8)
                 && !self.friendly_scout_target_claimed_elsewhere(world.coords, selected_records)
-                && !self.coords_are_owned_system(world.coords)
         });
         if coords.is_empty() && !self.coords_are_owned_system(anchor) {
             coords.push(anchor);
@@ -1603,9 +1573,8 @@ impl App {
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
     ) -> Vec<[u8; 2]> {
-        self.filtered_known_world_targets_from(anchor, |world| {
-            world.known_owner_empire_id.is_some()
-                && world.known_owner_empire_id != Some(self.player.record_index_1_based as u8)
+        self.filtered_planet_database_targets_from(anchor, |world| {
+            world.known_owner_empire_id != Some(self.player.record_index_1_based as u8)
                 && !self.friendly_scout_target_claimed_elsewhere(world.coords, selected_records)
         })
     }
@@ -1635,14 +1604,17 @@ impl App {
         coords
     }
 
-    fn filtered_known_world_targets_from<F>(&self, anchor: [u8; 2], predicate: F) -> Vec<[u8; 2]>
+    fn filtered_planet_database_targets_from<F>(
+        &self,
+        anchor: [u8; 2],
+        predicate: F,
+    ) -> Vec<[u8; 2]>
     where
         F: Fn(&PlayerStarmapWorld) -> bool,
     {
         let mut coords = self
-            .player_starmap_worlds()
+            .player_planet_database_worlds()
             .into_iter()
-            .filter(|world| self.world_is_known_for_targeting(world))
             .filter(predicate)
             .map(|world| world.coords)
             .collect::<Vec<_>>();
@@ -1650,22 +1622,13 @@ impl App {
         coords
     }
 
-    fn player_starmap_worlds(&self) -> Vec<PlayerStarmapWorld> {
+    fn player_planet_database_worlds(&self) -> Vec<PlayerStarmapWorld> {
         build_player_starmap_projection_from_snapshots(
             &self.game_data,
             &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
         )
         .worlds
-    }
-
-    fn world_is_known_for_targeting(&self, world: &PlayerStarmapWorld) -> bool {
-        world.known_name.is_some()
-            || world.known_owner_empire_id.is_some()
-            || world.known_owner_empire_name.is_some()
-            || world.known_potential_production.is_some()
-            || world.known_armies.is_some()
-            || world.known_ground_batteries.is_some()
     }
 
     fn coords_are_owned_system(&self, coords: [u8; 2]) -> bool {
