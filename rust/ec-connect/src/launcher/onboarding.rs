@@ -1,7 +1,7 @@
 //! Deprecated: TUI identity setup onboarding screen.
 //!
 //! This module is retained for potential future use but is no longer called
-//! from the main launcher flow. New wallet creation now silently generates a
+//! from the main launcher flow. New keychain creation now silently generates a
 //! Nostr keypair without prompting the user. Power-user identity management
 //! (import, alias, additional keys) is handled via the `ec-connect id` CLI
 //! subcommands.
@@ -20,8 +20,8 @@ use crate::hard_quit::is_hard_quit_key;
 use crate::input_field::{draw_labeled_input_row, input_width};
 use crate::picker::layout::{Rect, centered_rect, draw_box};
 use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer_in_terminal};
-use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_identity_from_input, set_identity_alias};
+use crate::keychain::io::{now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{Keychain, push_identity_from_input, set_identity_alias};
 
 enum SetupMode {
     AddOrImport,
@@ -48,9 +48,9 @@ pub fn run_first_identity_setup_in_session(
     _session: &mut TerminalSession,
     password: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut wallet = Wallet::empty();
+    let mut keychain = Keychain::empty();
     let mut state = SetupState::new();
-    let path = wallet_path();
+    let path = keychain_path();
     let mut renderer = StdoutRenderer::new();
 
     loop {
@@ -89,11 +89,11 @@ pub fn run_first_identity_setup_in_session(
                 state.input.pop();
             }
             (SetupMode::AddOrImport, KeyCode::Enter) => {
-                match push_identity_from_input(&mut wallet, &state.input, now_iso8601()) {
+                match push_identity_from_input(&mut keychain, &state.input, now_iso8601()) {
                     Ok(npub) => {
-                        let index = wallet.identities.len().saturating_sub(1);
-                        wallet.active = index;
-                        save_wallet_to(&wallet, password, &path)?;
+                        let index = keychain.identities.len().saturating_sub(1);
+                        keychain.active = index;
+                        save_keychain_to(&keychain, password, &path)?;
                         state.mode = SetupMode::Alias { index, npub };
                         state.input.clear();
                         state.error_msg = None;
@@ -102,8 +102,8 @@ pub fn run_first_identity_setup_in_session(
                 }
             }
             (SetupMode::Alias { index, .. }, KeyCode::Enter) => {
-                set_identity_alias(&mut wallet, *index, Some(state.input.clone()))?;
-                save_wallet_to(&wallet, password, &path)?;
+                set_identity_alias(&mut keychain, *index, Some(state.input.clone()))?;
+                save_keychain_to(&keychain, password, &path)?;
                 return Ok(true);
             }
             (_, KeyCode::Char(ch))

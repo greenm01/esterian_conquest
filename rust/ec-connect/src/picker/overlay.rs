@@ -62,7 +62,7 @@ pub enum PickerOverlay {
         action: RelayPromptAction,
         error: Option<String>,
     },
-    WalletDetail {
+    KeychainDetail {
         index: usize,
     },
     RelayDeleteConfirm {
@@ -153,7 +153,7 @@ pub fn handle_overlay_key(
                 rt,
             )?;
         }
-        PickerOverlay::WalletDetail { index } => {
+        PickerOverlay::KeychainDetail { index } => {
             let Some(picker_session) = picker_session else {
                 return Ok(());
             };
@@ -309,9 +309,9 @@ pub fn render_overlay(
         Some(PickerOverlay::GameRelayPrompt { action, error, .. }) => {
             render_game_relay_popup(buffer, &state.relay_input, error.as_deref(), *action);
         }
-        Some(PickerOverlay::WalletDetail { index }) => {
+        Some(PickerOverlay::KeychainDetail { index }) => {
             if let Some(session) = session {
-                render_wallet_detail_popup(buffer, session, *index);
+                render_keychain_detail_popup(buffer, session, *index);
             }
         }
         Some(PickerOverlay::RelayDeleteConfirm { url, step }) => {
@@ -358,10 +358,10 @@ pub fn render_identity_popup(buffer: &mut PlayfieldBuffer, session: &PickerSessi
     let lines = [
         format!("Npub: {}", super::render::short_npub(&session.npub)),
         format!("Type: {}", session.active_identity_type()),
-        "Wallet mode: single identity".to_string(),
+        "Keychain mode: single identity".to_string(),
         format!(
-            "Wallet: {}",
-            super::render::truncate(&crate::wallet::io::wallet_path().display().to_string(), 46,)
+            "Keychain: {}",
+            super::render::truncate(&crate::keychain::io::keychain_path().display().to_string(), 44,)
         ),
     ];
     render_modal_box(buffer, "IDENTITY INFO", &lines, classic::table_body_style());
@@ -378,7 +378,7 @@ fn render_help_overlay(buffer: &mut PlayfieldBuffer, topic: HelpTopic) {
     buffer.clear_cursor();
 }
 
-pub fn render_wallet_add_popup(buffer: &mut PlayfieldBuffer, input: &str) {
+pub fn render_keychain_add_popup(buffer: &mut PlayfieldBuffer, input: &str) {
     let instruction =
         "Paste an nsec to replace the current identity, or leave blank to generate a fresh one.";
     let instruction_lines = wrapped_lines(instruction, 66);
@@ -520,17 +520,17 @@ fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: 
     );
 }
 
-fn render_wallet_detail_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession, index: usize) {
+fn render_keychain_detail_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession, index: usize) {
     let Some(identity) = session.selected_identity(index) else {
         return;
     };
-    let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
+    let npub = crate::keychain::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
     let npub_lines = wrapped_lines(&npub, 66);
     let nsec_lines = wrapped_lines(&identity.nsec, 66);
     let popup_height = (10 + npub_lines.len() + nsec_lines.len()).min(19) as u16;
     let popup = draw_modal_frame(
         buffer,
-        "WALLET IDENTITY",
+        "KEYCHAIN IDENTITY",
         72,
         popup_height,
         classic::table_body_style(),
@@ -622,7 +622,7 @@ fn render_game_delete_popup(
         format!("Seat: {}", game.seat),
         String::new(),
         "This removes the game from your local picker only.".to_string(),
-        "It does not delete the wallet identity or the remote seat.".to_string(),
+        "It does not delete the keychain identity or the remote seat.".to_string(),
     ];
     render_modal_box(buffer, "DELETE GAME", &lines, classic::table_body_style())
 }

@@ -11,7 +11,7 @@ use crate::config::{ConnectConfig, load_config};
 use crate::launcher::render as launcher_render;
 use crate::launcher::{GateSubmit, PasswordGateState};
 use crate::map_store::resolve_maps_root;
-use crate::password::wallet_exists;
+use crate::password::keychain_exists;
 use crate::picker::connecting::{
     ConnectTaskResult, PendingConnectRequest, apply_connect_outcome, poll_active_connect_result,
     start_pending_connect,
@@ -19,15 +19,15 @@ use crate::picker::connecting::{
 use crate::picker::flows::join_with_code;
 use crate::picker::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_relay_key,
-    handle_wallet_key,
+    handle_keychain_key,
 };
 use crate::picker::overlay::{PickerOverlay, handle_overlay_key};
 use crate::picker::refresh::execute_pending_refresh;
 use crate::picker::render as picker_render;
 use crate::picker::session::load_picker_session;
 use crate::picker::state::{PickerSession, PickerState, Screen};
-use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_new_identity};
+use crate::keychain::io::{now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{Keychain, push_new_identity};
 
 use super::clipboard::Clipboard;
 use super::input::{is_key_press, is_paste_shortcut, pasteable_text, picker_key};
@@ -88,7 +88,7 @@ impl App {
     pub fn new(intent: LaunchIntent) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             view: AppView::Password(PasswordView {
-                state: PasswordGateState::new(wallet_exists(&wallet_path()), None),
+                state: PasswordGateState::new(keychain_exists(&keychain_path()), None),
                 resume_picker: None,
                 launch_join: match intent {
                     LaunchIntent::Normal => None,
@@ -176,7 +176,7 @@ impl App {
             return Ok(());
         }
 
-        if self.handle_wallet_detail_copy_shortcut(event, modifiers)? {
+        if self.handle_keychain_detail_copy_shortcut(event, modifiers)? {
             return Ok(());
         }
 
@@ -205,10 +205,10 @@ impl App {
                             }
                         }
                     } else {
-                        if !wallet_exists(&wallet_path()) {
-                            let mut wallet = Wallet::empty();
-                            push_new_identity(&mut wallet, now_iso8601())?;
-                            save_wallet_to(&wallet, &password_text, &wallet_path())?;
+                        if !keychain_exists(&keychain_path()) {
+                            let mut keychain = Keychain::empty();
+                            push_new_identity(&mut keychain, now_iso8601())?;
+                            save_keychain_to(&keychain, &password_text, &keychain_path())?;
                         }
                         match PickerView::load(password_text, launch_join) {
                             Ok(picker) => self.view = AppView::Picker(picker),
@@ -301,7 +301,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_wallet_detail_copy_shortcut(
+    fn handle_keychain_detail_copy_shortcut(
         &mut self,
         event: &winit::event::KeyEvent,
         modifiers: ModifiersState,
@@ -313,7 +313,7 @@ impl App {
         let AppView::Picker(picker) = &mut self.view else {
             return Ok(false);
         };
-        let Some(PickerOverlay::WalletDetail { index }) = picker.state.overlay.as_ref() else {
+        let Some(PickerOverlay::KeychainDetail { index }) = picker.state.overlay.as_ref() else {
             return Ok(false);
         };
         let Some(session) = picker.session.as_ref() else {
@@ -323,7 +323,7 @@ impl App {
             return Ok(false);
         };
 
-        let Some((label, value)) = wallet_detail_copy_value(event, identity) else {
+        let Some((label, value)) = keychain_detail_copy_value(event, identity) else {
             return Ok(false);
         };
 
@@ -387,14 +387,14 @@ impl App {
     }
 }
 
-fn wallet_detail_copy_value(
+fn keychain_detail_copy_value(
     event: &winit::event::KeyEvent,
-    identity: &crate::wallet::Identity,
+    identity: &crate::keychain::Identity,
 ) -> Option<(&'static str, String)> {
     match &event.logical_key {
         winit::keyboard::Key::Character(text) if text.eq_ignore_ascii_case("p") => Some((
             "Public identity",
-            crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string()),
+            crate::keychain::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string()),
         )),
         winit::keyboard::Key::Character(text) if text.eq_ignore_ascii_case("s") => {
             Some(("Secret key", identity.nsec.clone()))
@@ -458,12 +458,12 @@ impl PickerView {
                 handle_relay_key(key, &mut self.state)?;
             }
             Screen::IdentityOverlay => handle_identity_overlay_key(key, &mut self.state),
-            Screen::WalletList | Screen::WalletAddPrompt => {
+            Screen::KeychainList | Screen::KeychainAddPrompt => {
                 let session = self
                     .session
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
-                handle_wallet_key(key, &mut self.state, session)?;
+                handle_keychain_key(key, &mut self.state, session)?;
             }
             Screen::GameSelect { .. } => {
                 handle_game_select_key(key, &mut self.state)?;
@@ -567,7 +567,7 @@ impl PickerView {
         self.state.join_input.clear();
         self.state.maps_input.clear();
         self.state.maps_input_prefilled = false;
-        self.state.wallet_input.clear();
+        self.state.keychain_input.clear();
         self.state.relay_input.clear();
         self.state.pending_connect = None;
         self.state.active_connect = None;
@@ -577,7 +577,7 @@ impl PickerView {
     }
 
     fn text_entry_active(&self) -> bool {
-        matches!(self.state.screen, Screen::WalletAddPrompt)
+        matches!(self.state.screen, Screen::KeychainAddPrompt)
             || matches!(
                 self.state.overlay,
                 Some(crate::picker::overlay::PickerOverlay::RelayEditor { .. })

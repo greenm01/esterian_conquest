@@ -1,13 +1,13 @@
 use std::io::{self, Write};
 use std::path::Path;
 
-pub const WALLET_WARNING_LINES: [&str; 3] = [
-    "This password encrypts your wallet.",
+pub const KEYCHAIN_WARNING_LINES: [&str; 3] = [
+    "This password encrypts your keychain.",
     "If you lose it, you will be locked out.",
     "No IT support.",
 ];
 
-pub fn wallet_exists(path: &Path) -> bool {
+pub fn keychain_exists(path: &Path) -> bool {
     path.is_file()
 }
 
@@ -28,8 +28,8 @@ pub fn prompt_optional_alias() -> Result<Option<String>, Box<dyn std::error::Err
     Ok(Some(alias.trim().to_string()).filter(|alias| !alias.is_empty()))
 }
 
-pub fn write_wallet_warning<W: Write>(writer: &mut W) -> io::Result<()> {
-    for line in WALLET_WARNING_LINES {
+pub fn write_keychain_warning<W: Write>(writer: &mut W) -> io::Result<()> {
+    for line in KEYCHAIN_WARNING_LINES {
         writeln!(writer, "{line}")?;
     }
     Ok(())
@@ -37,7 +37,7 @@ pub fn write_wallet_warning<W: Write>(writer: &mut W) -> io::Result<()> {
 
 pub fn prompt_new_password_with_warning() -> Result<String, Box<dyn std::error::Error>> {
     let mut stdout = io::stdout();
-    write_wallet_warning(&mut stdout)?;
+    write_keychain_warning(&mut stdout)?;
     stdout.flush()?;
 
     let password = prompt_password("New password: ")?;

@@ -69,8 +69,9 @@ pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
     row += draw_logo(&mut buffer, row, popup);
     row += 1;
 
+    let copy_style = copy_style(state);
     for line in state.copy_lines() {
-        buffer.write_text_clipped(row, left, line, classic::table_body_style());
+        buffer.write_text_clipped(row, left, line, copy_style);
         row += 1;
     }
     row += 1;
@@ -156,6 +157,15 @@ fn draw_logo(buffer: &mut PlayfieldBuffer, start_row: usize, popup: Rect) -> usi
     }
 
     NOSTRIAN_CONQUEST_LOGO.len()
+}
+
+fn copy_style(state: &PasswordGateState) -> ec_ui::buffer::CellStyle {
+    match state.mode {
+        super::PasswordGateMode::UnlockExisting => classic::table_body_style(),
+        super::PasswordGateMode::CreateNew | super::PasswordGateMode::ConfirmNew => {
+            classic::prompt_notice_action_style()
+        }
+    }
 }
 
 fn is_star_decoration(ch: char) -> bool {

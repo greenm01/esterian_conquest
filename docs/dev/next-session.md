@@ -83,7 +83,7 @@ Keep this file short. Historical detail belongs in
   cannot be stolen after the SSH session exits.
 - The current live Windows/QEMU hosted-join blocker is earlier than SSH:
   the GUI hangs on `CLAIMING INVITE...`, the VM browser can reach
-  `https://relay.esterianconquest.com`, but no new VPS relay or `ec-nostr`
+  `https://relay.nostrian-conquest.com`, but no new VPS relay or `ec-nostr`
   logs appear during the hang. Treat this as a Windows `ec-connect`
   relay/websocket/discovery-path issue first, not a game-daemon issue.
 - `ec-sysop nostr verify` still fails against the live VPS relay with

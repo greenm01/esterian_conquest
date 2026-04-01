@@ -138,7 +138,7 @@ impl GameCache {
         }
     }
 
-    /// Remove every cached game joined with the given wallet identity `npub`.
+    /// Remove every cached game joined with the given keychain identity `npub`.
     ///
     /// Returns the number of removed entries.
     pub fn remove_by_npub(&mut self, npub: &str) -> usize {

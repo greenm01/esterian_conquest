@@ -1,14 +1,14 @@
-//! Regression tests for wallet crypto, types, and I/O (step 1).
+//! Regression tests for keychain crypto, types, and I/O (step 1).
 
 use std::path::PathBuf;
 
-use ec_connect::wallet::crypto::{
-    KEY_LEN, NONCE_LEN, PBKDF2_ITERATIONS, SALT_LEN, decrypt_wallet, derive_key, encrypt_wallet,
+use ec_connect::keychain::crypto::{
+    KEY_LEN, NONCE_LEN, PBKDF2_ITERATIONS, SALT_LEN, decrypt_keychain, derive_key, encrypt_keychain,
 };
-use ec_connect::wallet::io::{
-    format_iso8601, load_wallet_from, now_iso8601, parse_wallet_str, render_wallet, save_wallet_to,
+use ec_connect::keychain::io::{
+    format_iso8601, load_keychain_from, now_iso8601, parse_keychain_str, render_keychain, save_keychain_to,
 };
-use ec_connect::wallet::{Identity, IdentityType, Wallet};
+use ec_connect::keychain::{Identity, IdentityType, Keychain};
 
 // ---------------------------------------------------------------------------
 // crypto: constants
@@ -61,10 +61,10 @@ fn derive_key_output_length_is_32() {
 
 #[test]
 fn encrypt_decrypt_roundtrip() {
-    let plaintext = "hello, wallet";
+    let plaintext = "hello, keychain";
     let password = "s3cr3t";
-    let envelope = encrypt_wallet(plaintext, password).unwrap();
-    let recovered = decrypt_wallet(&envelope, password).unwrap();
+    let envelope = encrypt_keychain(plaintext, password).unwrap();
+    let recovered = decrypt_keychain(&envelope, password).unwrap();
     assert_eq!(recovered, plaintext);
 }
 
@@ -72,29 +72,29 @@ fn encrypt_decrypt_roundtrip() {
 fn encrypt_produces_random_envelopes() {
     let plaintext = "same plaintext";
     let password = "same password";
-    let e1 = encrypt_wallet(plaintext, password).unwrap();
-    let e2 = encrypt_wallet(plaintext, password).unwrap();
+    let e1 = encrypt_keychain(plaintext, password).unwrap();
+    let e2 = encrypt_keychain(plaintext, password).unwrap();
     // Two encryptions of the same data must differ (different random salt+nonce).
     assert_ne!(e1, e2);
 }
 
 #[test]
 fn decrypt_rejects_wrong_password() {
-    let envelope = encrypt_wallet("secret data", "correct").unwrap();
-    let result = decrypt_wallet(&envelope, "wrong");
+    let envelope = encrypt_keychain("secret data", "correct").unwrap();
+    let result = decrypt_keychain(&envelope, "wrong");
     assert!(result.is_err(), "wrong password should fail decryption");
 }
 
 #[test]
 fn decrypt_rejects_truncated_envelope() {
     let short = vec![0u8; SALT_LEN + NONCE_LEN - 1];
-    let result = decrypt_wallet(&short, "any");
+    let result = decrypt_keychain(&short, "any");
     assert!(result.is_err(), "truncated envelope should fail");
 }
 
 #[test]
 fn decrypt_rejects_empty_envelope() {
-    let result = decrypt_wallet(&[], "any");
+    let result = decrypt_keychain(&[], "any");
     assert!(result.is_err());
 }
 
@@ -102,13 +102,13 @@ fn decrypt_rejects_empty_envelope() {
 fn envelope_header_layout() {
     // The first SALT_LEN + NONCE_LEN bytes are the header; the rest is ciphertext+tag.
     let plaintext = "test";
-    let envelope = encrypt_wallet(plaintext, "pw").unwrap();
+    let envelope = encrypt_keychain(plaintext, "pw").unwrap();
     // Minimum length: header (28) + at least 1 ciphertext byte + 16-byte tag.
     assert!(envelope.len() >= SALT_LEN + NONCE_LEN + 1 + 16);
 }
 
 // ---------------------------------------------------------------------------
-// wallet types
+// keychain types
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -128,16 +128,16 @@ fn identity_type_parse_unknown_is_err() {
 }
 
 #[test]
-fn wallet_empty() {
-    let w = Wallet::empty();
+fn keychain_empty() {
+    let w = Keychain::empty();
     assert_eq!(w.active, 0);
     assert!(w.identities.is_empty());
     assert!(w.active_identity().is_none());
 }
 
 #[test]
-fn wallet_active_identity() {
-    let mut w = Wallet::empty();
+fn keychain_active_identity() {
+    let mut w = Keychain::empty();
     w.identities.push(Identity {
         nsec: "nsec1aaa".to_string(),
         identity_type: IdentityType::Local,
@@ -156,24 +156,24 @@ fn wallet_active_identity() {
 }
 
 #[test]
-fn wallet_active_identity_out_of_bounds_returns_none() {
-    let mut w = Wallet::empty();
+fn keychain_active_identity_out_of_bounds_returns_none() {
+    let mut w = Keychain::empty();
     w.active = 5; // no identities at all
     assert!(w.active_identity().is_none());
 }
 
 // ---------------------------------------------------------------------------
-// io: parse_wallet_str / render_wallet round-trip
+// io: parse_keychain_str / render_keychain round-trip
 // ---------------------------------------------------------------------------
 
-const SAMPLE_KDL: &str = r#"wallet active="1"
+const SAMPLE_KDL: &str = r#"keychain active="1"
 identity nsec="nsec1aaa" type="local" created="2026-03-01T00:00:00Z"
 identity nsec="nsec1bbb" type="imported" created="2026-03-02T00:00:00Z"
 "#;
 
 #[test]
-fn parse_wallet_str_basic() {
-    let w = parse_wallet_str(SAMPLE_KDL).unwrap();
+fn parse_keychain_str_basic() {
+    let w = parse_keychain_str(SAMPLE_KDL).unwrap();
     assert_eq!(w.active, 1);
     assert_eq!(w.identities.len(), 2);
     assert_eq!(w.identities[0].nsec, "nsec1aaa");
@@ -184,11 +184,11 @@ fn parse_wallet_str_basic() {
 }
 
 #[test]
-fn render_wallet_basic() {
-    let w = parse_wallet_str(SAMPLE_KDL).unwrap();
-    let rendered = render_wallet(&w);
+fn render_keychain_basic() {
+    let w = parse_keychain_str(SAMPLE_KDL).unwrap();
+    let rendered = render_keychain(&w);
     // Re-parse the rendered string and verify round-trip.
-    let w2 = parse_wallet_str(&rendered).unwrap();
+    let w2 = parse_keychain_str(&rendered).unwrap();
     assert_eq!(w2.active, 1);
     assert_eq!(w2.identities.len(), 2);
     assert_eq!(w2.identities[0].nsec, "nsec1aaa");
@@ -196,64 +196,64 @@ fn render_wallet_basic() {
 }
 
 #[test]
-fn parse_empty_wallet() {
-    let kdl = "wallet active=\"0\"\n";
-    let w = parse_wallet_str(kdl).unwrap();
+fn parse_empty_keychain() {
+    let kdl = "keychain active=\"0\"\n";
+    let w = parse_keychain_str(kdl).unwrap();
     assert_eq!(w.active, 0);
     assert!(w.identities.is_empty());
 }
 
 #[test]
-fn parse_wallet_missing_wallet_node_is_err() {
+fn parse_keychain_missing_keychain_node_is_err() {
     let kdl = "identity nsec=\"nsec1x\" type=\"local\" created=\"2026-01-01T00:00:00Z\"\n";
-    assert!(parse_wallet_str(kdl).is_err());
+    assert!(parse_keychain_str(kdl).is_err());
 }
 
 #[test]
-fn parse_wallet_bad_active_is_err() {
-    let kdl = "wallet active=\"not-a-number\"\n";
-    assert!(parse_wallet_str(kdl).is_err());
+fn parse_keychain_bad_active_is_err() {
+    let kdl = "keychain active=\"not-a-number\"\n";
+    assert!(parse_keychain_str(kdl).is_err());
 }
 
 #[test]
-fn parse_wallet_missing_nsec_is_err() {
-    let kdl = "wallet active=\"0\"\nidentity type=\"local\" created=\"2026-01-01T00:00:00Z\"\n";
-    assert!(parse_wallet_str(kdl).is_err());
+fn parse_keychain_missing_nsec_is_err() {
+    let kdl = "keychain active=\"0\"\nidentity type=\"local\" created=\"2026-01-01T00:00:00Z\"\n";
+    assert!(parse_keychain_str(kdl).is_err());
 }
 
 #[test]
-fn render_wallet_escapes_quotes() {
-    // A wallet with a (contrived) nsec containing a double-quote should not break KDL.
-    let mut w = Wallet::empty();
+fn render_keychain_escapes_quotes() {
+    // A keychain with a (contrived) nsec containing a double-quote should not break KDL.
+    let mut w = Keychain::empty();
     w.identities.push(Identity {
         nsec: "nsec1\"quoted\"".to_string(),
         identity_type: IdentityType::Local,
         created: "2026-01-01T00:00:00Z".to_string(),
         alias: None,
     });
-    let rendered = render_wallet(&w);
+    let rendered = render_keychain(&w);
     // Must round-trip without a parse error.
-    let w2 = parse_wallet_str(&rendered).unwrap();
+    let w2 = parse_keychain_str(&rendered).unwrap();
     assert_eq!(w2.identities[0].nsec, "nsec1\"quoted\"");
 }
 
 // ---------------------------------------------------------------------------
-// io: save_wallet_to / load_wallet_from round-trip
+// io: save_keychain_to / load_keychain_from round-trip
 // ---------------------------------------------------------------------------
 
-fn tmp_wallet_path(name: &str) -> PathBuf {
+fn tmp_keychain_path(name: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
-    p.push(format!("ec_connect_test_wallet_{name}.bin"));
+    p.push(format!("ec_connect_test_keychain_{name}.bin"));
     p
 }
 
 #[test]
 fn save_load_roundtrip_single_identity() {
-    let path = tmp_wallet_path("single");
+    let path = tmp_keychain_path("single");
     // Clean up any leftover from a prior run.
     let _ = std::fs::remove_file(&path);
 
-    let mut w = Wallet::empty();
+    let mut w = Keychain::empty();
     w.identities.push(Identity {
         nsec: "nsec1test".to_string(),
         identity_type: IdentityType::Local,
@@ -261,8 +261,8 @@ fn save_load_roundtrip_single_identity() {
         alias: None,
     });
 
-    save_wallet_to(&w, "mypassword", &path).unwrap();
-    let loaded = load_wallet_from("mypassword", &path).unwrap().unwrap();
+    save_keychain_to(&w, "mypassword", &path).unwrap();
+    let loaded = load_keychain_from("mypassword", &path).unwrap().unwrap();
 
     assert_eq!(loaded.active, 0);
     assert_eq!(loaded.identities.len(), 1);
@@ -273,22 +273,22 @@ fn save_load_roundtrip_single_identity() {
 }
 
 #[test]
-fn load_wallet_from_missing_file_returns_none() {
-    let path = tmp_wallet_path("missing_xyz_99999");
+fn load_keychain_from_missing_file_returns_none() {
+    let path = tmp_keychain_path("missing_xyz_99999");
     let _ = std::fs::remove_file(&path);
-    let result = load_wallet_from("pw", &path).unwrap();
+    let result = load_keychain_from("pw", &path).unwrap();
     assert!(result.is_none());
 }
 
 #[test]
-fn load_wallet_from_wrong_password_is_err() {
-    let path = tmp_wallet_path("wrongpw");
+fn load_keychain_from_wrong_password_is_err() {
+    let path = tmp_keychain_path("wrongpw");
     let _ = std::fs::remove_file(&path);
 
-    let w = Wallet::empty();
-    save_wallet_to(&w, "correct", &path).unwrap();
+    let w = Keychain::empty();
+    save_keychain_to(&w, "correct", &path).unwrap();
 
-    let result = load_wallet_from("wrong", &path);
+    let result = load_keychain_from("wrong", &path);
     assert!(result.is_err(), "wrong password should yield an error");
 
     let _ = std::fs::remove_file(&path);
@@ -296,10 +296,10 @@ fn load_wallet_from_wrong_password_is_err() {
 
 #[test]
 fn save_load_preserves_active_and_multiple_identities() {
-    let path = tmp_wallet_path("multi");
+    let path = tmp_keychain_path("multi");
     let _ = std::fs::remove_file(&path);
 
-    let mut w = Wallet::empty();
+    let mut w = Keychain::empty();
     w.identities.push(Identity {
         nsec: "nsec1first".to_string(),
         identity_type: IdentityType::Local,
@@ -314,8 +314,8 @@ fn save_load_preserves_active_and_multiple_identities() {
     });
     w.active = 1;
 
-    save_wallet_to(&w, "pw", &path).unwrap();
-    let loaded = load_wallet_from("pw", &path).unwrap().unwrap();
+    save_keychain_to(&w, "pw", &path).unwrap();
+    let loaded = load_keychain_from("pw", &path).unwrap().unwrap();
 
     assert_eq!(loaded.active, 1);
     assert_eq!(loaded.identities.len(), 2);

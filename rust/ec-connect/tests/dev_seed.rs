@@ -7,8 +7,8 @@ use ec_connect::config::load_config_from;
 use ec_connect::dev_seed::{
     SeedLocalhostFixtureOptions, SeedUiOptions, seed_localhost_fixture_to_paths, seed_ui_to_paths,
 };
-use ec_connect::wallet::io::load_wallet_from;
-use ec_connect::wallet::{IdentityType, active_identity_npub};
+use ec_connect::keychain::io::load_keychain_from;
+use ec_connect::keychain::{IdentityType, active_identity_npub};
 use nostr_sdk::{Keys, ToBech32};
 
 fn temp_dir(name: &str) -> PathBuf {
@@ -22,9 +22,9 @@ fn temp_dir(name: &str) -> PathBuf {
 }
 
 #[test]
-fn seed_ui_writes_wallet_and_cache() {
+fn seed_ui_writes_keychain_and_cache() {
     let dir = temp_dir("seed-write");
-    let wallet_path = dir.join("wallet.kdl");
+    let keychain_path = dir.join("keychain.kdl");
     let cache_path = dir.join("cache.kdl");
     let options = SeedUiOptions {
         identities: 4,
@@ -33,19 +33,19 @@ fn seed_ui_writes_wallet_and_cache() {
         force: false,
     };
 
-    let summary = seed_ui_to_paths(&options, &wallet_path, &cache_path).expect("seed data");
-    let wallet = load_wallet_from("testing", &wallet_path)
-        .expect("load wallet")
-        .expect("wallet exists");
+    let summary = seed_ui_to_paths(&options, &keychain_path, &cache_path).expect("seed data");
+    let keychain = load_keychain_from("testing", &keychain_path)
+        .expect("load keychain")
+        .expect("keychain exists");
     let cache = cache::load_cache_from(&cache_path).expect("load cache");
 
     assert_eq!(summary.identities, 4);
     assert_eq!(summary.games, 19);
-    assert_eq!(wallet.identities.len(), 4);
+    assert_eq!(keychain.identities.len(), 4);
     assert_eq!(cache.games.len(), 19);
     assert!(cache.games.iter().all(|game| !game.gate_npub.is_empty()));
 
-    let _ = fs::remove_file(wallet_path);
+    let _ = fs::remove_file(keychain_path);
     let _ = fs::remove_file(cache_path);
     let _ = fs::remove_dir(dir);
 }
@@ -53,9 +53,9 @@ fn seed_ui_writes_wallet_and_cache() {
 #[test]
 fn seed_ui_refuses_to_overwrite_without_force() {
     let dir = temp_dir("seed-overwrite");
-    let wallet_path = dir.join("wallet.kdl");
+    let keychain_path = dir.join("keychain.kdl");
     let cache_path = dir.join("cache.kdl");
-    fs::write(&wallet_path, b"occupied").expect("wallet marker");
+    fs::write(&keychain_path, b"occupied").expect("keychain marker");
     fs::write(&cache_path, b"occupied").expect("cache marker");
 
     let options = SeedUiOptions {
@@ -64,7 +64,7 @@ fn seed_ui_refuses_to_overwrite_without_force() {
         password: "testing".to_string(),
         force: false,
     };
-    let err = seed_ui_to_paths(&options, &wallet_path, &cache_path).expect_err("must refuse");
+    let err = seed_ui_to_paths(&options, &keychain_path, &cache_path).expect_err("must refuse");
     let message = err.to_string();
     assert!(message.contains("rerun with --force"));
 
@@ -72,23 +72,23 @@ fn seed_ui_refuses_to_overwrite_without_force() {
         force: true,
         ..options
     };
-    let summary = seed_ui_to_paths(&force_options, &wallet_path, &cache_path).expect("overwrite");
+    let summary = seed_ui_to_paths(&force_options, &keychain_path, &cache_path).expect("overwrite");
     assert_eq!(summary.identities, 2);
 
-    let wallet = load_wallet_from("testing", &wallet_path)
-        .expect("load wallet")
-        .expect("wallet exists");
-    assert_eq!(wallet.identities.len(), 2);
+    let keychain = load_keychain_from("testing", &keychain_path)
+        .expect("load keychain")
+        .expect("keychain exists");
+    assert_eq!(keychain.identities.len(), 2);
 
-    let _ = fs::remove_file(wallet_path);
+    let _ = fs::remove_file(keychain_path);
     let _ = fs::remove_file(cache_path);
     let _ = fs::remove_dir(dir);
 }
 
 #[test]
-fn seed_ui_allows_oversized_wallet_for_ui_stress() {
+fn seed_ui_allows_oversized_keychain_for_ui_stress() {
     let dir = temp_dir("seed-max");
-    let wallet_path = dir.join("wallet.kdl");
+    let keychain_path = dir.join("keychain.kdl");
     let cache_path = dir.join("cache.kdl");
     let options = SeedUiOptions {
         identities: 24,
@@ -97,22 +97,22 @@ fn seed_ui_allows_oversized_wallet_for_ui_stress() {
         force: false,
     };
 
-    let summary = seed_ui_to_paths(&options, &wallet_path, &cache_path).expect("oversized seed");
-    let wallet = load_wallet_from("testing", &wallet_path)
-        .expect("load wallet")
-        .expect("wallet exists");
+    let summary = seed_ui_to_paths(&options, &keychain_path, &cache_path).expect("oversized seed");
+    let keychain = load_keychain_from("testing", &keychain_path)
+        .expect("load keychain")
+        .expect("keychain exists");
     assert_eq!(summary.identities, 24);
-    assert_eq!(wallet.identities.len(), 24);
+    assert_eq!(keychain.identities.len(), 24);
 
-    let _ = fs::remove_file(wallet_path);
+    let _ = fs::remove_file(keychain_path);
     let _ = fs::remove_file(cache_path);
     let _ = fs::remove_dir(dir);
 }
 
 #[test]
-fn seed_localhost_fixture_writes_isolated_wallet_cache_and_config() {
+fn seed_localhost_fixture_writes_isolated_keychain_cache_and_config() {
     let dir = temp_dir("seed-localhost");
-    let wallet_path = dir.join("wallet.kdl");
+    let keychain_path = dir.join("keychain.kdl");
     let cache_path = dir.join("cache.kdl");
     let config_path = dir.join("config.kdl");
     let keys = Keys::generate();
@@ -133,18 +133,18 @@ fn seed_localhost_fixture_writes_isolated_wallet_cache_and_config() {
     };
 
     let summary =
-        seed_localhost_fixture_to_paths(&options, &wallet_path, &cache_path, &config_path)
+        seed_localhost_fixture_to_paths(&options, &keychain_path, &cache_path, &config_path)
             .expect("seed localhost fixture");
-    let wallet = load_wallet_from("testing", &wallet_path)
-        .expect("load wallet")
-        .expect("wallet exists");
+    let keychain = load_keychain_from("testing", &keychain_path)
+        .expect("load keychain")
+        .expect("keychain exists");
     let cache = cache::load_cache_from(&cache_path).expect("load cache");
     let config = load_config_from(&config_path).expect("load config");
 
-    assert_eq!(wallet.identities.len(), 1);
-    assert_eq!(wallet.identities[0].identity_type, IdentityType::Imported);
+    assert_eq!(keychain.identities.len(), 1);
+    assert_eq!(keychain.identities[0].identity_type, IdentityType::Imported);
     assert_eq!(
-        active_identity_npub(&wallet).expect("player npub"),
+        active_identity_npub(&keychain).expect("player npub"),
         summary.player_npub
     );
 
@@ -163,7 +163,7 @@ fn seed_localhost_fixture_writes_isolated_wallet_cache_and_config() {
 
     assert_eq!(config.default_relay_url(), Some("ws://localhost:8080"));
 
-    let _ = fs::remove_file(wallet_path);
+    let _ = fs::remove_file(keychain_path);
     let _ = fs::remove_file(cache_path);
     let _ = fs::remove_file(config_path);
     let _ = fs::remove_dir(dir);

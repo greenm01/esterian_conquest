@@ -9,13 +9,13 @@ use ec_ui::paint::StdoutRenderer;
 use ec_ui::session::TerminalSession;
 
 use crate::hard_quit::is_hard_quit_key;
-use crate::password::wallet_exists;
-use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_new_identity};
+use crate::password::keychain_exists;
+use crate::keychain::io::{now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{Keychain, push_new_identity};
 
-const UNLOCK_COPY_LINES: [&str; 1] = ["Enter your wallet password."];
+const UNLOCK_COPY_LINES: [&str; 1] = ["Enter your keychain password."];
 const CREATE_COPY_LINES: [&str; 2] = [
-    "This password encrypts your wallet.",
+    "This password encrypts your keychain.",
     "If you lose it, you will lose your game identity.",
 ];
 const CONFIRM_COPY_LINES: [&str; 2] = [
@@ -39,9 +39,9 @@ pub struct PasswordGateState {
 }
 
 impl PasswordGateState {
-    pub fn new(existing_wallet: bool, error_msg: Option<String>) -> Self {
+    pub fn new(existing_keychain: bool, error_msg: Option<String>) -> Self {
         Self {
-            mode: if existing_wallet {
+            mode: if existing_keychain {
                 PasswordGateMode::UnlockExisting
             } else {
                 PasswordGateMode::CreateNew
@@ -54,9 +54,9 @@ impl PasswordGateState {
 
     pub fn title(&self) -> &'static str {
         match self.mode {
-            PasswordGateMode::UnlockExisting => "Unlock Wallet",
-            PasswordGateMode::CreateNew => "Create Wallet Password",
-            PasswordGateMode::ConfirmNew => "Confirm Wallet Password",
+            PasswordGateMode::UnlockExisting => "Unlock Keychain",
+            PasswordGateMode::CreateNew => "Create Game Password",
+            PasswordGateMode::ConfirmNew => "Confirm Game Password",
         }
     }
 
@@ -137,8 +137,8 @@ pub fn run_password_gate_in_session(
     _session: &mut TerminalSession,
     error_msg: Option<String>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    let existing_wallet = wallet_exists(&wallet_path());
-    let mut state = PasswordGateState::new(existing_wallet, error_msg);
+    let existing_keychain = keychain_exists(&keychain_path());
+    let mut state = PasswordGateState::new(existing_keychain, error_msg);
     let mut renderer = StdoutRenderer::new();
 
     loop {
@@ -175,10 +175,10 @@ pub fn run_password_gate_in_session(
             }
             KeyCode::Enter => {
                 if let GateSubmit::Accepted(password) = state.submit() {
-                    if !existing_wallet {
-                        let mut wallet = Wallet::empty();
-                        push_new_identity(&mut wallet, now_iso8601())?;
-                        save_wallet_to(&wallet, &password, &wallet_path())?;
+                    if !existing_keychain {
+                        let mut keychain = Keychain::empty();
+                        push_new_identity(&mut keychain, now_iso8601())?;
+                        save_keychain_to(&keychain, &password, &keychain_path())?;
                     }
                     return Ok(Some(password));
                 }

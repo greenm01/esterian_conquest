@@ -17,7 +17,7 @@ use ec_connect::picker::flows::{
     apply_session_outcome, connect_selected, persist_maps_root_at,
     redownload_selected_maps_with_config,
 };
-use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, WALLET_MENU_RAIL};
+use ec_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, KEYCHAIN_MENU_RAIL};
 use ec_connect::picker::input::{handle_game_list_key, handle_relay_key};
 use ec_connect::picker::layout::MAX_BODY_ROWS;
 use ec_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
@@ -27,8 +27,8 @@ use ec_connect::picker::render::{Rect, centered_rect, matrix_glyph, short_npub, 
 use ec_connect::picker::runner::{classify_picker_event, post_bridge_recovery_event};
 use ec_connect::picker::state::{ConnectDisplay, ConnectOrigin};
 use ec_connect::picker::{PickerSession, PickerState, Screen};
-use ec_connect::wallet::identity_npub;
-use ec_connect::wallet::{Identity, IdentityType, Wallet};
+use ec_connect::keychain::identity_npub;
+use ec_connect::keychain::{Identity, IdentityType, Keychain};
 use ec_ui::theme::classic;
 use nostr_sdk::{Keys, ToBech32};
 use std::path::PathBuf;
@@ -128,17 +128,17 @@ fn make_session_with_identities(count: usize, alias: Option<&str>) -> PickerSess
             },
         });
     }
-    let wallet = Wallet {
+    let keychain = Keychain {
         active: count.saturating_sub(1).min(2),
         identities,
     };
-    let active_identity = wallet.active_identity().expect("active identity");
+    let active_identity = keychain.active_identity().expect("active identity");
     let keys = Keys::parse(&active_identity.nsec).expect("keys");
     let npub = keys.public_key().to_bech32().expect("npub");
 
     PickerSession {
         password: "testing".to_string(),
-        wallet,
+        keychain,
         keys,
         npub,
     }
@@ -155,10 +155,10 @@ fn picker_state_initial_values() {
     assert!(state.join_input.is_empty());
     assert!(state.maps_input.is_empty());
     assert!(!state.maps_input_prefilled);
-    assert!(state.wallet_input.is_empty());
+    assert!(state.keychain_input.is_empty());
     assert!(state.relay_input.is_empty());
     assert!(!state.quit);
-    assert_eq!(state.wallet_selected, 0);
+    assert_eq!(state.keychain_selected, 0);
     assert!(state.can_manual_refresh());
 }
 
@@ -198,7 +198,7 @@ fn replacing_gui_identity_purges_old_identity_games_from_cache() {
         .expect("replace identity");
 
     assert!(cache_changed);
-    assert_eq!(session.wallet.identities.len(), 1);
+    assert_eq!(session.keychain.identities.len(), 1);
     assert_ne!(session.npub, old_npub);
     assert!(!cache.games.iter().any(|game| game.npub == old_npub));
     assert_eq!(cache.games.len(), 1);
@@ -455,9 +455,9 @@ fn picker_falls_back_to_seat_label_when_player_name_missing() {
 }
 
 #[test]
-fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
+fn keychain_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.screen = Screen::WalletAddPrompt;
+    state.screen = Screen::KeychainAddPrompt;
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("REPLACE IDENTITY")));
@@ -474,8 +474,8 @@ fn wallet_add_prompt_renders_wide_popup_instead_of_command_line_prompt() {
 }
 
 #[test]
-fn wallet_menu_rail_exposes_replace_only_flow() {
-    assert_eq!(WALLET_MENU_RAIL, "? R <Enter> L <Q>");
+fn keychain_menu_rail_exposes_replace_only_flow() {
+    assert_eq!(KEYCHAIN_MENU_RAIL, "? R <Enter> L <Q>");
 }
 
 #[test]
@@ -523,25 +523,25 @@ fn join_code_popup_compacts_long_invites_without_losing_prefix() {
 }
 
 #[test]
-fn wallet_add_popup_cursor_sits_one_space_after_label() {
+fn keychain_add_popup_cursor_sits_one_space_after_label() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.screen = Screen::WalletAddPrompt;
-    state.wallet_input = "nsec1stress".to_string();
+    state.screen = Screen::KeychainAddPrompt;
+    state.keychain_input = "nsec1stress".to_string();
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains(&format!("Nsec: {}", state.wallet_input))
+            .contains(&format!("Nsec: {}", state.keychain_input))
     }));
 }
 
 #[test]
-fn wallet_detail_popup_renders_full_backup_material_and_copy_hints() {
+fn keychain_detail_popup_renders_full_backup_material_and_copy_hints() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
+    state.overlay = Some(PickerOverlay::KeychainDetail { index: 0 });
     let session = make_session(Some("Desk Alias"));
-    let identity = session.selected_identity(0).expect("wallet identity");
+    let identity = session.selected_identity(0).expect("keychain identity");
     let npub = identity_npub(identity).expect("npub");
     let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
 
@@ -555,9 +555,9 @@ fn wallet_detail_popup_renders_full_backup_material_and_copy_hints() {
 }
 
 #[test]
-fn wallet_detail_popup_has_no_alias_editor() {
+fn keychain_detail_popup_has_no_alias_editor() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
+    state.overlay = Some(PickerOverlay::KeychainDetail { index: 0 });
     let session = make_session(Some("Desk Alias"));
     let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
 
@@ -1409,9 +1409,9 @@ fn gui_inner_picker_buffer_uses_plain_80x25_canvas_without_outer_shell() {
 }
 
 #[test]
-fn wallet_table_has_no_alias_column() {
+fn keychain_table_has_no_alias_column() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.screen = Screen::WalletList;
+    state.screen = Screen::KeychainList;
     let session = make_session_with_identities(MAX_BODY_ROWS + 6, Some("Desk Alias"));
     let buffer = ec_connect::picker::render::render_buffer(&state, Some(&session), 82, 27);
 

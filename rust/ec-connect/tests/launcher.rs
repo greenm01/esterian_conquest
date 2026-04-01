@@ -8,11 +8,11 @@ fn first_non_space_column(line: &str) -> Option<usize> {
 }
 
 #[test]
-fn existing_wallet_starts_in_unlock_mode() {
+fn existing_keychain_starts_in_unlock_mode() {
     let state = PasswordGateState::new(true, None);
     assert_eq!(state.mode, PasswordGateMode::UnlockExisting);
-    assert_eq!(state.title(), "Unlock Wallet");
-    assert_eq!(state.copy_lines(), &["Enter your wallet password."]);
+    assert_eq!(state.title(), "Unlock Keychain");
+    assert_eq!(state.copy_lines(), &["Enter your keychain password."]);
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn render_buffer_shows_left_aligned_create_copy() {
 
     let copy_rows: Vec<(usize, String)> = (0..buffer.height())
         .map(|row| (row, buffer.plain_line(row)))
-        .filter(|(_, line)| line.contains("This password encrypts your wallet."))
+        .filter(|(_, line)| line.contains("This password encrypts your keychain."))
         .collect();
     assert_eq!(copy_rows.len(), 1);
 
@@ -71,9 +71,32 @@ fn render_buffer_shows_left_aligned_create_copy() {
     let col2 = first_non_space_column(&line2).unwrap();
 
     assert_eq!(col1, col2);
-    assert!(line1.contains("This password encrypts your wallet."));
+    assert!(line1.contains("This password encrypts your keychain."));
     assert!(line2.contains("If you lose it, you will lose your game identity."));
     assert!(!(0..buffer.height()).any(|row| buffer.plain_line(row).contains("No IT support.")));
+}
+
+#[test]
+fn render_buffer_uses_notice_style_for_create_copy() {
+    let state = PasswordGateState::new(false, None);
+    let buffer = render_buffer(&state, 82, 27);
+    let copy_row = (0..buffer.height())
+        .find(|&row| {
+            buffer
+                .plain_line(row)
+                .contains("This password encrypts your keychain.")
+        })
+        .expect("create copy row should exist");
+    let line = buffer.plain_line(copy_row);
+    let byte_idx = line
+        .find("This password encrypts your keychain.")
+        .expect("copy text column");
+    let col = line[..byte_idx].chars().count();
+
+    assert_eq!(
+        buffer.row(copy_row)[col].style,
+        classic::prompt_notice_action_style()
+    );
 }
 
 #[test]
@@ -92,7 +115,7 @@ fn render_buffer_places_logo_above_password_copy() {
         .find(|&row| {
             buffer
                 .plain_line(row)
-                .contains("This password encrypts your wallet.")
+                .contains("This password encrypts your keychain.")
         })
         .expect("copy row should exist");
 
@@ -107,7 +130,7 @@ fn render_buffer_unlock_mode_uses_single_reassuring_line() {
     assert!((0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)
-            .contains("Enter your wallet password.")
+            .contains("Enter your keychain password.")
     }));
     assert!(!(0..buffer.height()).any(|row| {
         buffer

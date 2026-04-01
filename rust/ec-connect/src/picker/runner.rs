@@ -13,7 +13,7 @@ use crate::launcher::run_password_gate_in_session;
 use super::connecting::{poll_active_connect, start_pending_connect};
 use super::input::{
     handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_relay_key,
-    handle_wallet_key,
+    handle_keychain_key,
 };
 use super::overlay::handle_overlay_key;
 use super::refresh::execute_pending_refresh;
@@ -146,7 +146,7 @@ fn run_loop(
             continue;
         }
 
-        let text_entry = matches!(state.screen, Screen::WalletAddPrompt)
+        let text_entry = matches!(state.screen, Screen::KeychainAddPrompt)
             || matches!(
                 state.overlay,
                 Some(super::overlay::PickerOverlay::RelayEditor { .. })
@@ -180,11 +180,11 @@ fn run_loop(
                 handle_relay_key(key, state)?;
             }
             Screen::IdentityOverlay => handle_identity_overlay_key(key, state),
-            Screen::WalletList | Screen::WalletAddPrompt => {
+            Screen::KeychainList | Screen::KeychainAddPrompt => {
                 let session_state = picker_session
                     .as_mut()
                     .ok_or("picker session missing while unlocked")?;
-                handle_wallet_key(key, state, session_state)?;
+                handle_keychain_key(key, state, session_state)?;
             }
             Screen::GameSelect { .. } => {
                 handle_game_select_key(key, state)?;
@@ -230,7 +230,7 @@ fn lock_picker(state: &mut PickerState, picker_session: &mut Option<PickerSessio
     state.join_input.clear();
     state.maps_input.clear();
     state.maps_input_prefilled = false;
-    state.wallet_input.clear();
+    state.keychain_input.clear();
     state.relay_input.clear();
     state.pending_connect = None;
     state.active_connect = None;

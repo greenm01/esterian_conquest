@@ -7,8 +7,8 @@ use crate::cache::io::{cache_path, save_cache_to};
 use crate::cache::{CachedGame, CachedGameStatus, GameCache};
 use crate::config::io::config_path;
 use crate::config::{ConnectConfig, save_config_to};
-use crate::wallet::io::{format_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Identity, IdentityType, Wallet, identity_npub};
+use crate::keychain::io::{format_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{Identity, IdentityType, Keychain, identity_npub};
 
 const DEFAULT_IDENTITIES: usize = 32;
 const DEFAULT_GAMES: usize = 64;
@@ -24,7 +24,7 @@ pub struct SeedUiOptions {
 
 #[derive(Debug, Clone)]
 pub struct SeedUiSummary {
-    pub wallet_path: PathBuf,
+    pub keychain_path: PathBuf,
     pub cache_path: PathBuf,
     pub identities: usize,
     pub games: usize,
@@ -49,7 +49,7 @@ pub struct SeedLocalhostFixtureOptions {
 
 #[derive(Debug, Clone)]
 pub struct SeedLocalhostFixtureSummary {
-    pub wallet_path: PathBuf,
+    pub keychain_path: PathBuf,
     pub cache_path: PathBuf,
     pub config_path: PathBuf,
     pub player_npub: String,
@@ -69,34 +69,34 @@ impl Default for SeedUiOptions {
 }
 
 pub fn seed_ui(options: &SeedUiOptions) -> Result<SeedUiSummary, Box<dyn std::error::Error>> {
-    let wallet_path = wallet_path();
+    let keychain_path = keychain_path();
     let cache_path = cache_path();
-    seed_ui_to_paths(options, &wallet_path, &cache_path)
+    seed_ui_to_paths(options, &keychain_path, &cache_path)
 }
 
 pub fn seed_ui_to_paths(
     options: &SeedUiOptions,
-    wallet_out: &Path,
+    keychain_out: &Path,
     cache_out: &Path,
 ) -> Result<SeedUiSummary, Box<dyn std::error::Error>> {
     if options.identities == 0 {
         return Err("seed-ui requires at least one identity".into());
     }
     if !options.force {
-        refuse_existing(wallet_out, "wallet")?;
+        refuse_existing(keychain_out, "keychain")?;
         refuse_existing(cache_out, "cache")?;
     }
 
-    let wallet = build_wallet(options.identities)?;
-    let cache = build_cache(options.games, &wallet)?;
+    let keychain = build_keychain(options.identities)?;
+    let cache = build_cache(options.games, &keychain)?;
 
-    save_wallet_to(&wallet, &options.password, wallet_out)?;
+    save_keychain_to(&keychain, &options.password, keychain_out)?;
     save_cache_to(&cache, cache_out)?;
 
     Ok(SeedUiSummary {
-        wallet_path: wallet_out.to_path_buf(),
+        keychain_path: keychain_out.to_path_buf(),
         cache_path: cache_out.to_path_buf(),
-        identities: wallet.identities.len(),
+        identities: keychain.identities.len(),
         games: cache.games.len(),
         password: options.password.clone(),
     })
@@ -105,17 +105,17 @@ pub fn seed_ui_to_paths(
 pub fn seed_localhost_fixture(
     options: &SeedLocalhostFixtureOptions,
 ) -> Result<SeedLocalhostFixtureSummary, Box<dyn std::error::Error>> {
-    seed_localhost_fixture_to_paths(options, &wallet_path(), &cache_path(), &config_path())
+    seed_localhost_fixture_to_paths(options, &keychain_path(), &cache_path(), &config_path())
 }
 
 pub fn seed_localhost_fixture_to_paths(
     options: &SeedLocalhostFixtureOptions,
-    wallet_out: &Path,
+    keychain_out: &Path,
     cache_out: &Path,
     config_out: &Path,
 ) -> Result<SeedLocalhostFixtureSummary, Box<dyn std::error::Error>> {
     if !options.force {
-        refuse_existing(wallet_out, "wallet")?;
+        refuse_existing(keychain_out, "keychain")?;
         refuse_existing(cache_out, "cache")?;
         refuse_existing(config_out, "config")?;
     }
@@ -124,14 +124,14 @@ pub fn seed_localhost_fixture_to_paths(
         .joined
         .clone()
         .unwrap_or_else(nowish_fixture_timestamp);
-    let mut wallet = Wallet::empty();
-    wallet.identities.push(Identity {
+    let mut keychain = Keychain::empty();
+    keychain.identities.push(Identity {
         nsec: normalize_nsec(&options.nsec)?,
         identity_type: IdentityType::Imported,
         created: created.clone(),
         alias: Some("Localhost Fixture".to_string()),
     });
-    let player_npub = identity_npub(wallet.active_identity().ok_or("wallet missing identity")?)?;
+    let player_npub = identity_npub(keychain.active_identity().ok_or("keychain missing identity")?)?;
     let gate_npub = normalize_pubkey(&options.gate_npub)?;
 
     let cache = GameCache {
@@ -155,12 +155,12 @@ pub fn seed_localhost_fixture_to_paths(
     let mut config = ConnectConfig::empty();
     config.set_default_relay(&options.relay_url);
 
-    save_wallet_to(&wallet, &options.password, wallet_out)?;
+    save_keychain_to(&keychain, &options.password, keychain_out)?;
     save_cache_to(&cache, cache_out)?;
     save_config_to(&config, config_out)?;
 
     Ok(SeedLocalhostFixtureSummary {
-        wallet_path: wallet_out.to_path_buf(),
+        keychain_path: keychain_out.to_path_buf(),
         cache_path: cache_out.to_path_buf(),
         config_path: config_out.to_path_buf(),
         player_npub,
@@ -181,7 +181,7 @@ fn refuse_existing(path: &Path, label: &str) -> Result<(), Box<dyn std::error::E
     }
 }
 
-fn build_wallet(count: usize) -> Result<Wallet, Box<dyn std::error::Error>> {
+fn build_keychain(count: usize) -> Result<Keychain, Box<dyn std::error::Error>> {
     let mut identities = Vec::with_capacity(count);
     for index in 0..count {
         let keys = Keys::generate();
@@ -197,7 +197,7 @@ fn build_wallet(count: usize) -> Result<Wallet, Box<dyn std::error::Error>> {
         });
     }
 
-    Ok(Wallet {
+    Ok(Keychain {
         active: count.saturating_sub(1).min(2),
         identities,
     })
@@ -218,12 +218,12 @@ fn nowish_fixture_timestamp() -> String {
     format_iso8601(1_775_950_000)
 }
 
-fn build_cache(games: usize, wallet: &Wallet) -> Result<GameCache, Box<dyn std::error::Error>> {
+fn build_cache(games: usize, keychain: &Keychain) -> Result<GameCache, Box<dyn std::error::Error>> {
     let mut cache = GameCache::empty();
-    let identity_npubs = wallet
+    let identity_npubs = keychain
         .identities
         .iter()
-        .map(crate::wallet::identity_npub)
+        .map(crate::keychain::identity_npub)
         .collect::<Result<Vec<_>, _>>()?;
 
     for index in 0..games {

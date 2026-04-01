@@ -1,15 +1,15 @@
-//! Wallet file I/O: load, save, parse, render.
+//! Keychain file I/O: load, save, parse, render.
 //!
-//! The wallet file is a binary envelope (see `crypto` module). The decrypted
+//! The keychain file is a binary envelope (see `crypto` module). The decrypted
 //! contents are a KDL document:
 //!
 //! ```kdl
-//! wallet active="0"
+//! keychain active="0"
 //! identity nsec="nsec1..." type="local" created="2026-03-26T12:00:00Z" alias="Desk Key"
 //! identity nsec="nsec1..." type="imported" created="2026-03-28T09:35:00Z"
 //! ```
 //!
-//! `load_wallet` prompts for a password externally; this module takes the
+//! `load_keychain` prompts for a password externally; this module takes the
 //! password as a string so it stays testable without stdin interaction.
 
 use std::fs;
@@ -19,56 +19,56 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use kdl::{KdlDocument, KdlNode};
 
-use super::crypto::{decrypt_wallet, encrypt_wallet};
-use super::{Identity, IdentityType, Wallet};
+use super::crypto::{decrypt_keychain, encrypt_keychain};
+use super::{Identity, IdentityType, Keychain};
 use crate::paths::data_root;
 
 // ---------------------------------------------------------------------------
 // Path resolution
 // ---------------------------------------------------------------------------
 
-/// Return the platform-appropriate wallet file path:
-///   `~/.local/share/nc/wallet.kdl` (Linux/macOS XDG)
-///   `%APPDATA%\nc\wallet.kdl` (Windows)
-pub fn wallet_path() -> PathBuf {
-    data_root().join("wallet.kdl")
+/// Return the platform-appropriate keychain file path:
+///   `~/.local/share/nc/keychain.kdl` (Linux/macOS XDG)
+///   `%APPDATA%\nc\keychain.kdl` (Windows)
+pub fn keychain_path() -> PathBuf {
+    data_root().join("keychain.kdl")
 }
 
 // ---------------------------------------------------------------------------
 // Load / save
 // ---------------------------------------------------------------------------
 
-/// Load and decrypt the wallet at the default path.
+/// Load and decrypt the keychain at the default path.
 ///
-/// Returns `Ok(None)` when the wallet file does not exist yet.
-pub fn load_wallet(password: &str) -> Result<Option<Wallet>, Box<dyn std::error::Error>> {
-    load_wallet_from(password, &wallet_path())
+/// Returns `Ok(None)` when the keychain file does not exist yet.
+pub fn load_keychain(password: &str) -> Result<Option<Keychain>, Box<dyn std::error::Error>> {
+    load_keychain_from(password, &keychain_path())
 }
 
-/// Load and decrypt the wallet from a specific path.
-pub fn load_wallet_from(
+/// Load and decrypt the keychain from a specific path.
+pub fn load_keychain_from(
     password: &str,
     path: &std::path::Path,
-) -> Result<Option<Wallet>, Box<dyn std::error::Error>> {
+) -> Result<Option<Keychain>, Box<dyn std::error::Error>> {
     match fs::read(path) {
         Ok(blob) => {
-            let kdl_str = decrypt_wallet(&blob, password)?;
-            let wallet = parse_wallet_str(&kdl_str)?;
-            Ok(Some(wallet))
+            let kdl_str = decrypt_keychain(&blob, password)?;
+            let keychain = parse_keychain_str(&kdl_str)?;
+            Ok(Some(keychain))
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e.into()),
     }
 }
 
-/// Encrypt and save the wallet to the default path.
-pub fn save_wallet(wallet: &Wallet, password: &str) -> Result<(), Box<dyn std::error::Error>> {
-    save_wallet_to(wallet, password, &wallet_path())
+/// Encrypt and save the keychain to the default path.
+pub fn save_keychain(keychain: &Keychain, password: &str) -> Result<(), Box<dyn std::error::Error>> {
+    save_keychain_to(keychain, password, &keychain_path())
 }
 
-/// Encrypt and save the wallet to a specific path.
-pub fn save_wallet_to(
-    wallet: &Wallet,
+/// Encrypt and save the keychain to a specific path.
+pub fn save_keychain_to(
+    keychain: &Keychain,
     password: &str,
     path: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -77,8 +77,8 @@ pub fn save_wallet_to(
         fs::create_dir_all(parent)?;
     }
 
-    let kdl_str = render_wallet(wallet);
-    let blob = encrypt_wallet(&kdl_str, password)?;
+    let kdl_str = render_keychain(keychain);
+    let blob = encrypt_keychain(&kdl_str, password)?;
 
     // Atomic write via sibling .tmp file.
     let tmp = path.with_extension("tmp");
@@ -94,21 +94,21 @@ pub fn save_wallet_to(
 // KDL parse / render
 // ---------------------------------------------------------------------------
 
-/// Parse the decrypted KDL wallet document into a `Wallet`.
-pub fn parse_wallet_str(kdl: &str) -> Result<Wallet, Box<dyn std::error::Error>> {
+/// Parse the decrypted KDL keychain document into a `Keychain`.
+pub fn parse_keychain_str(kdl: &str) -> Result<Keychain, Box<dyn std::error::Error>> {
     let doc: KdlDocument = kdl.parse()?;
 
-    // The first node must be `wallet active="N"`.
-    let wallet_node = doc
+    // The first node must be `keychain active="N"`.
+    let keychain_node = doc
         .nodes()
         .first()
-        .filter(|n| n.name().value() == "wallet")
-        .ok_or("missing `wallet` node")?;
+        .filter(|n| n.name().value() == "keychain")
+        .ok_or("missing `keychain` node")?;
 
-    let active: usize = wallet_node
+    let active: usize = keychain_node
         .get("active")
         .and_then(|v| v.as_string())
-        .ok_or("missing or non-string `active` attribute on wallet node")?
+        .ok_or("missing or non-string `active` attribute on keychain node")?
         .parse::<usize>()
         .map_err(|_| "invalid `active` index")?;
 
@@ -121,14 +121,14 @@ pub fn parse_wallet_str(kdl: &str) -> Result<Wallet, Box<dyn std::error::Error>>
         identities.push(identity);
     }
 
-    Ok(Wallet { active, identities })
+    Ok(Keychain { active, identities })
 }
 
-/// Render a `Wallet` to its KDL string (decrypted form).
-pub fn render_wallet(wallet: &Wallet) -> String {
+/// Render a `Keychain` to its KDL string (decrypted form).
+pub fn render_keychain(keychain: &Keychain) -> String {
     let mut out = String::new();
-    out.push_str(&format!("wallet active=\"{}\"\n", wallet.active));
-    for id in &wallet.identities {
+    out.push_str(&format!("keychain active=\"{}\"\n", keychain.active));
+    for id in &keychain.identities {
         let nsec_escaped = id.nsec.replace('\\', "\\\\").replace('"', "\\\"");
         let created_escaped = id.created.replace('\\', "\\\\").replace('"', "\\\"");
         out.push_str(&format!(

@@ -8,7 +8,7 @@ use ec_ui::theme::classic;
 use crate::cache::CachedGameStatus;
 
 use super::help::{
-    GAME_SELECT_RAIL, MAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, WALLET_MENU_RAIL,
+    GAME_SELECT_RAIL, MAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, KEYCHAIN_MENU_RAIL,
 };
 use super::layout::{
     Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, TableMetrics,
@@ -16,7 +16,7 @@ use super::layout::{
     scroll_start, table_cell_start, table_message_col_in, table_render_width, table_text_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_date, short_npub, truncate};
-use super::overlay::{render_identity_popup, render_overlay, render_wallet_add_popup};
+use super::overlay::{render_identity_popup, render_overlay, render_keychain_add_popup};
 use super::relay::{relay_games, relay_status_label, relay_summaries};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;
@@ -31,7 +31,7 @@ const MAIN_COLUMNS: [Column<'_>; 6] = [
     Column::fixed("Joined", 10),
 ];
 
-const WALLET_COLUMNS: [Column<'_>; 3] = [
+const KEYCHAIN_COLUMNS: [Column<'_>; 3] = [
     Column::flex("Npub", 46, 2),
     Column::fixed("Type", 8),
     Column::flex("Created", 20, 1),
@@ -89,8 +89,8 @@ pub fn render_inner_buffer(
         Screen::GameList | Screen::IdentityOverlay => render_main_menu(&mut buffer, state, session),
         Screen::RelayList => render_relay_list(&mut buffer, state),
         Screen::RelayGames { relay_url } => render_relay_games(&mut buffer, state, relay_url),
-        Screen::WalletList | Screen::WalletAddPrompt => {
-            render_wallet_menu(&mut buffer, state, session)
+        Screen::KeychainList | Screen::KeychainAddPrompt => {
+            render_keychain_menu(&mut buffer, state, session)
         }
         Screen::GameSelect {
             games, selected, ..
@@ -180,26 +180,26 @@ fn render_main_menu(
     metrics.command_row
 }
 
-fn render_wallet_menu(
+fn render_keychain_menu(
     buffer: &mut PlayfieldBuffer,
     state: &PickerState,
     session: Option<&PickerSession>,
 ) -> usize {
-    let wallet_len = session
-        .map(|session| usize::from(session.wallet.active_identity().is_some()))
+    let keychain_len = session
+        .map(|session| usize::from(session.keychain.active_identity().is_some()))
         .unwrap_or(0);
-    let start = scroll_start(state.wallet_selected, MAX_BODY_ROWS, wallet_len);
-    let columns = layout_columns(&WALLET_COLUMNS, wallet_len, start);
-    let metrics = draw_picker_table_frame(buffer, &columns, wallet_len, start);
+    let start = scroll_start(state.keychain_selected, MAX_BODY_ROWS, keychain_len);
+    let columns = layout_columns(&KEYCHAIN_COLUMNS, keychain_len, start);
+    let metrics = draw_picker_table_frame(buffer, &columns, keychain_len, start);
     if let Some(session) = session {
-        if session.wallet.identities.is_empty() {
-            let message = "Wallet has no identities.";
+        if session.keychain.identities.is_empty() {
+            let message = "Keychain has no identities.";
             let row = metrics.body_start_row + metrics.displayed_rows / 2;
             let col = table_message_col_in(metrics, message);
             buffer.write_text_clipped(row, col, message, classic::notice_style());
-        } else if let Some(identity) = session.wallet.active_identity() {
+        } else if let Some(identity) = session.keychain.active_identity() {
             let row = metrics.body_start_row;
-            draw_wallet_row(
+            draw_keychain_row(
                 buffer,
                 row,
                 metrics.table_col,
@@ -212,12 +212,12 @@ fn render_wallet_menu(
     }
 
     match state.screen {
-        Screen::WalletList | Screen::WalletAddPrompt => {
+        Screen::KeychainList | Screen::KeychainAddPrompt => {
             let end_col = draw_table_command_bar_at_col(
                 buffer,
                 metrics.command_row,
                 metrics.command_col,
-                WALLET_MENU_RAIL,
+                KEYCHAIN_MENU_RAIL,
                 None,
                 "",
             );
@@ -225,8 +225,8 @@ fn render_wallet_menu(
         }
         _ => {}
     }
-    if matches!(state.screen, Screen::WalletAddPrompt) {
-        render_wallet_add_popup(buffer, &state.wallet_input);
+    if matches!(state.screen, Screen::KeychainAddPrompt) {
+        render_keychain_add_popup(buffer, &state.keychain_input);
     }
     metrics.command_row
 }
@@ -424,16 +424,16 @@ fn cached_game_status_label(status: CachedGameStatus) -> &'static str {
     }
 }
 
-fn draw_wallet_row(
+fn draw_keychain_row(
     buffer: &mut PlayfieldBuffer,
     row: usize,
     table_col: usize,
     columns: &[Column<'_>],
-    identity: &crate::wallet::Identity,
+    identity: &crate::keychain::Identity,
     selected: bool,
     active: bool,
 ) {
-    let npub = crate::wallet::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
+    let npub = crate::keychain::identity_npub(identity).unwrap_or_else(|_| "<invalid>".to_string());
     let values = [
         pad_right(&truncate(&npub, columns[0].width), columns[0].width),
         pad_right(identity.identity_type.as_str(), columns[1].width),

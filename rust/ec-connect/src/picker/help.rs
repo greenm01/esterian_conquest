@@ -1,7 +1,7 @@
 use super::state::Screen;
 
-pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N W I M D R <Space> L <Q>";
-pub const WALLET_MENU_RAIL: &str = "? R <Enter> L <Q>";
+pub const MAIN_MENU_RAIL: &str = "? J K ^U ^D N Y I M D R <Space> L <Q>";
+pub const KEYCHAIN_MENU_RAIL: &str = "? R <Enter> L <Q>";
 pub const GAME_SELECT_RAIL: &str = "? J K ^U ^D <Q>";
 pub const RELAY_MENU_RAIL: &str = "? J K ^U ^D A E D S <Enter> <Q>";
 pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D R <Q>";
@@ -9,7 +9,7 @@ pub const RELAY_GAMES_RAIL: &str = "? J K ^U ^D R <Q>";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpTopic {
     MainCommand,
-    WalletCommand,
+    KeychainCommand,
     ConnectCommand,
     SelectGame,
     RelayCommand,
@@ -43,8 +43,8 @@ const MAIN_ROWS: &[HelpRow] = &[
         description: "join by invite code",
     },
     HelpRow {
-        command: "W",
-        description: "open identity screen",
+        command: "Y",
+        description: "open keychain screen",
     },
     HelpRow {
         command: "I",
@@ -88,7 +88,7 @@ const MAIN_ROWS: &[HelpRow] = &[
     },
 ];
 
-const WALLET_ROWS: &[HelpRow] = &[
+const KEYCHAIN_ROWS: &[HelpRow] = &[
     HelpRow {
         command: "R",
         description: "replace current identity or import an nsec",
@@ -244,9 +244,9 @@ impl HelpTopic {
             Screen::GameList => Some(Self::MainCommand),
             Screen::RelayList => Some(Self::RelayCommand),
             Screen::RelayGames { .. } => Some(Self::RelayGames),
-            Screen::WalletAddPrompt => Some(Self::ConnectCommand),
+            Screen::KeychainAddPrompt => Some(Self::ConnectCommand),
             Screen::IdentityOverlay => Some(Self::Identity),
-            Screen::WalletList => Some(Self::WalletCommand),
+            Screen::KeychainList => Some(Self::KeychainCommand),
             Screen::GameSelect { .. } => Some(Self::SelectGame),
             Screen::Locked => None,
         }
@@ -259,9 +259,9 @@ impl HelpTopic {
                 rows: MAIN_ROWS,
                 note: None,
             },
-            Self::WalletCommand => HelpSpec {
-                title: "WALLET COMMAND HELP",
-                rows: WALLET_ROWS,
+            Self::KeychainCommand => HelpSpec {
+                title: "KEYCHAIN COMMAND HELP",
+                rows: KEYCHAIN_ROWS,
                 note: None,
             },
             Self::ConnectCommand => HelpSpec {

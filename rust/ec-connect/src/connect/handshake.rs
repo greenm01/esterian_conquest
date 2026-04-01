@@ -81,7 +81,7 @@ pub enum HandshakeResult {
 ///
 /// # Arguments
 ///
-/// - `player_keys` — the player's Nostr keypair (from wallet)
+/// - `player_keys` — the player's Nostr keypair (from keychain)
 /// - `target` — resolved server + relay coordinates
 /// - `keypair` — ephemeral SSH keypair for this session
 /// - `game_id` — optional game-id hint (from cache) to include in 30501

@@ -1,4 +1,4 @@
-//! Wallet encryption: ChaCha20-Poly1305 with PBKDF2-HMAC-SHA256 key derivation.
+//! Keychain encryption: ChaCha20-Poly1305 with PBKDF2-HMAC-SHA256 key derivation.
 //!
 //! On-disk binary envelope layout:
 //!   [16 bytes] random salt
@@ -35,7 +35,7 @@ pub const KEY_LEN: usize = 32;
 // Errors
 // ---------------------------------------------------------------------------
 
-/// Errors that can occur during wallet crypto operations.
+/// Errors that can occur during keychain crypto operations.
 #[derive(Debug)]
 pub enum CryptoError {
     /// Ciphertext is too short to contain the envelope header.
@@ -49,9 +49,9 @@ pub enum CryptoError {
 impl std::fmt::Display for CryptoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CryptoError::TruncatedEnvelope => write!(f, "wallet data is too short (truncated)"),
+            CryptoError::TruncatedEnvelope => write!(f, "keychain data is too short (truncated)"),
             CryptoError::DecryptionFailed => {
-                write!(f, "wrong password or corrupted wallet")
+                write!(f, "wrong password or corrupted keychain")
             }
             CryptoError::EncryptionFailed => write!(f, "encryption failed"),
         }
@@ -74,7 +74,7 @@ pub fn derive_key(password: &str, salt: &[u8]) -> [u8; KEY_LEN] {
 
 /// Encrypt `plaintext` with `password` and return the binary envelope:
 /// `[salt (16)][nonce (12)][ciphertext+tag]`.
-pub fn encrypt_wallet(plaintext: &str, password: &str) -> Result<Vec<u8>, CryptoError> {
+pub fn encrypt_keychain(plaintext: &str, password: &str) -> Result<Vec<u8>, CryptoError> {
     let mut rng = rand::rngs::StdRng::from_entropy();
 
     let mut salt = [0u8; SALT_LEN];
@@ -103,7 +103,7 @@ pub fn encrypt_wallet(plaintext: &str, password: &str) -> Result<Vec<u8>, Crypto
 ///
 /// Returns the plaintext as a UTF-8 string on success, or `CryptoError` on
 /// wrong password, corrupted data, or a truncated envelope.
-pub fn decrypt_wallet(envelope: &[u8], password: &str) -> Result<String, CryptoError> {
+pub fn decrypt_keychain(envelope: &[u8], password: &str) -> Result<String, CryptoError> {
     if envelope.len() < SALT_LEN + NONCE_LEN {
         return Err(CryptoError::TruncatedEnvelope);
     }

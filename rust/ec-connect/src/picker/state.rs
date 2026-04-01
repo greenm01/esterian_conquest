@@ -5,7 +5,7 @@ use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
 use crate::connect::resolve::ResolvedTarget;
 use crate::text_wrap::normalize_message_text;
-use crate::wallet::Wallet;
+use crate::keychain::Keychain;
 use nostr_sdk::Keys;
 
 use super::connecting::{ActiveConnect, PendingConnectRequest};
@@ -24,8 +24,8 @@ pub enum Screen {
         relay_url: String,
     },
     IdentityOverlay,
-    WalletList,
-    WalletAddPrompt,
+    KeychainList,
+    KeychainAddPrompt,
     GameSelect {
         games: Vec<GameEntry>,
         selected: usize,
@@ -57,7 +57,7 @@ impl MatrixState {
 
 pub struct PickerSession {
     pub password: String,
-    pub wallet: Wallet,
+    pub keychain: Keychain,
     pub keys: Keys,
     pub npub: String,
 }
@@ -124,7 +124,7 @@ pub struct PickerState {
     pub selected: usize,
     pub relay_selected: usize,
     pub relay_game_selected: usize,
-    pub wallet_selected: usize,
+    pub keychain_selected: usize,
     pub screen: Screen,
     pub overlay: Option<PickerOverlay>,
     pub pending_connect: Option<PendingConnectRequest>,
@@ -133,7 +133,7 @@ pub struct PickerState {
     pub join_input: String,
     pub maps_input: String,
     pub maps_input_prefilled: bool,
-    pub wallet_input: String,
+    pub keychain_input: String,
     pub relay_input: String,
     pub quit: bool,
     pub matrix: MatrixState,
@@ -148,7 +148,7 @@ impl PickerState {
             selected: 0,
             relay_selected: 0,
             relay_game_selected: 0,
-            wallet_selected: 0,
+            keychain_selected: 0,
             screen: Screen::GameList,
             overlay: None,
             pending_connect: None,
@@ -157,7 +157,7 @@ impl PickerState {
             join_input: String::new(),
             maps_input: String::new(),
             maps_input_prefilled: false,
-            wallet_input: String::new(),
+            keychain_input: String::new(),
             relay_input: String::new(),
             quit: false,
             matrix: MatrixState::new(),

@@ -1,6 +1,6 @@
 //! Identity CLI subcommands: id, id --secret, id list, id new, id import, id switch N.
 //!
-//! All subcommands that read or modify the wallet prompt for a password on
+//! All subcommands that read or modify the keychain prompt for a password on
 //! stdin.  Password reading uses the `rpassword` crate so the typed
 //! characters are not echoed.  In test mode the helpers accept an explicit
 //! password string, keeping the module testable without stdin interaction.
@@ -10,11 +10,11 @@ use nostr_sdk::{Keys, ToBech32};
 use crate::cache::io::cache_path;
 use crate::password::{
     prompt_confirm_yn, prompt_line, prompt_new_password_with_warning, prompt_optional_alias,
-    prompt_password, wallet_exists,
+    prompt_password, keychain_exists,
 };
-use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{
-    Identity, Wallet, active_identity_npub, push_imported_identity, push_new_identity,
+use crate::keychain::io::{load_keychain_from, now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{
+    Identity, Keychain, active_identity_npub, push_imported_identity, push_new_identity,
     set_identity_alias, switch_active_identity,
 };
 
@@ -25,16 +25,16 @@ use crate::wallet::{
 /// `ec-connect id` — show active identity npub.
 pub fn cmd_id_show() -> Result<(), Box<dyn std::error::Error>> {
     let password = prompt_password("Password: ")?;
-    let wallet = require_wallet(&password)?;
-    println!("{}", active_identity_npub(&wallet)?);
+    let keychain = require_keychain(&password)?;
+    println!("{}", active_identity_npub(&keychain)?);
     Ok(())
 }
 
 /// `ec-connect id --secret` — show active identity npub + nsec.
 pub fn cmd_id_secret() -> Result<(), Box<dyn std::error::Error>> {
     let password = prompt_password("Password: ")?;
-    let wallet = require_wallet(&password)?;
-    let id = require_active(&wallet)?;
+    let keychain = require_keychain(&password)?;
+    let id = require_active(&keychain)?;
     let keys = Keys::parse(&id.nsec)?;
     let npub = keys.public_key().to_bech32()?;
     println!("npub: {npub}");
@@ -45,15 +45,15 @@ pub fn cmd_id_secret() -> Result<(), Box<dyn std::error::Error>> {
 /// `ec-connect id list` — list all identities.
 pub fn cmd_id_list() -> Result<(), Box<dyn std::error::Error>> {
     let password = prompt_password("Password: ")?;
-    let wallet = require_wallet(&password)?;
-    if wallet.identities.is_empty() {
-        println!("No identities in wallet.");
+    let keychain = require_keychain(&password)?;
+    if keychain.identities.is_empty() {
+        println!("No identities in keychain.");
         return Ok(());
     }
-    for (i, id) in wallet.identities.iter().enumerate() {
+    for (i, id) in keychain.identities.iter().enumerate() {
         let keys = Keys::parse(&id.nsec)?;
         let npub = keys.public_key().to_bech32()?;
-        let marker = if i == wallet.active { "*" } else { " " };
+        let marker = if i == keychain.active { "*" } else { " " };
         println!(
             "{marker} [{i}] {}{npub}  ({})  created {}",
             id.alias
@@ -67,15 +67,15 @@ pub fn cmd_id_list() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// `ec-connect id new` — generate a new keypair and add it to the wallet.
+/// `ec-connect id new` — generate a new keypair and add it to the keychain.
 pub fn cmd_id_new() -> Result<(), Box<dyn std::error::Error>> {
-    let path = wallet_path();
-    let password = prompt_wallet_password_for_write(&path)?;
-    let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
-    if !wallet.identities.is_empty() {
-        let n = wallet.identities.len();
+    let path = keychain_path();
+    let password = prompt_keychain_password_for_write(&path)?;
+    let mut keychain = load_keychain_from(&password, &path)?.unwrap_or_else(Keychain::empty);
+    if !keychain.identities.is_empty() {
+        let n = keychain.identities.len();
         println!(
-            "Wallet already contains {} {}.",
+            "Keychain already contains {} {}.",
             n,
             if n == 1 { "identity" } else { "identities" }
         );
@@ -84,10 +84,10 @@ pub fn cmd_id_new() -> Result<(), Box<dyn std::error::Error>> {
             return Ok(());
         }
     }
-    let npub = push_new_identity(&mut wallet, now_iso8601())?;
-    let index = wallet.identities.len().saturating_sub(1);
-    set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
-    save_wallet_to(&wallet, &password, &path)?;
+    let npub = push_new_identity(&mut keychain, now_iso8601())?;
+    let index = keychain.identities.len().saturating_sub(1);
+    set_identity_alias(&mut keychain, index, prompt_optional_alias()?)?;
+    save_keychain_to(&keychain, &password, &path)?;
 
     println!("New Nostr keypair created: {npub}");
     Ok(())
@@ -98,25 +98,25 @@ pub fn cmd_id_import() -> Result<(), Box<dyn std::error::Error>> {
     let nsec_input = prompt_line("Enter your nsec: ")?;
     let nsec_input = nsec_input.trim().to_string();
 
-    let path = wallet_path();
-    let password = prompt_wallet_password_for_write(&path)?;
-    let mut wallet = load_wallet_from(&password, &path)?.unwrap_or_else(Wallet::empty);
-    if !wallet.identities.is_empty() {
-        let n = wallet.identities.len();
+    let path = keychain_path();
+    let password = prompt_keychain_password_for_write(&path)?;
+    let mut keychain = load_keychain_from(&password, &path)?.unwrap_or_else(Keychain::empty);
+    if !keychain.identities.is_empty() {
+        let n = keychain.identities.len();
         println!(
-            "Wallet already contains {} {}.",
+            "Keychain already contains {} {}.",
             n,
             if n == 1 { "identity" } else { "identities" }
         );
-        if !prompt_confirm_yn("Import Nostr keypair into this wallet? [y/N]: ")? {
+        if !prompt_confirm_yn("Import Nostr keypair into this keychain? [y/N]: ")? {
             println!("Cancelled.");
             return Ok(());
         }
     }
-    let npub = push_imported_identity(&mut wallet, &nsec_input, now_iso8601())?;
-    let index = wallet.identities.len().saturating_sub(1);
-    set_identity_alias(&mut wallet, index, prompt_optional_alias()?)?;
-    save_wallet_to(&wallet, &password, &path)?;
+    let npub = push_imported_identity(&mut keychain, &nsec_input, now_iso8601())?;
+    let index = keychain.identities.len().saturating_sub(1);
+    set_identity_alias(&mut keychain, index, prompt_optional_alias()?)?;
+    save_keychain_to(&keychain, &password, &path)?;
 
     println!("Nostr keypair imported: {npub}");
     Ok(())
@@ -129,30 +129,30 @@ pub fn cmd_id_switch(n_str: &str) -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|_| format!("invalid index: {n_str}"))?;
 
     let password = prompt_password("Password: ")?;
-    let path = wallet_path();
-    let mut wallet = require_wallet_at(&password, &path)?;
+    let path = keychain_path();
+    let mut keychain = require_keychain_at(&password, &path)?;
 
-    let npub = switch_active_identity(&mut wallet, n)?;
-    save_wallet_to(&wallet, &password, &path)?;
+    let npub = switch_active_identity(&mut keychain, n)?;
+    save_keychain_to(&keychain, &password, &path)?;
     println!("Active identity: [{n}] {npub}");
     Ok(())
 }
 
-/// `ec-connect id reset` — verify password, triple-confirm, then wipe wallet + cache.
+/// `ec-connect id reset` — verify password, triple-confirm, then wipe keychain + cache.
 pub fn cmd_id_reset() -> Result<(), Box<dyn std::error::Error>> {
-    let path = wallet_path();
-    if !wallet_exists(&path) {
-        println!("No wallet found. Nothing to reset.");
+    let path = keychain_path();
+    if !keychain_exists(&path) {
+        println!("No keychain found. Nothing to reset.");
         return Ok(());
     }
 
-    // Verify the current password actually decrypts the wallet.
+    // Verify the current password actually decrypts the keychain.
     let password = prompt_password("Current password: ")?;
-    let _ = require_wallet_at(&password, &path)?;
+    let _ = require_keychain_at(&password, &path)?;
 
     // Triple confirmation — plain stdin readline, no echo suppression needed.
     println!();
-    println!("WARNING: This will permanently delete your wallet and all identities.");
+    println!("WARNING: This will permanently delete your keychain and all identities.");
     println!("         There is no recovery unless you have a backup of your nsec.");
     println!();
     for (i, prompt) in [
@@ -170,7 +170,7 @@ pub fn cmd_id_reset() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Delete wallet.
+    // Delete keychain.
     std::fs::remove_file(&path)?;
 
     // Delete cache if it exists (best-effort; not a fatal error if absent).
@@ -179,7 +179,7 @@ pub fn cmd_id_reset() -> Result<(), Box<dyn std::error::Error>> {
         let _ = std::fs::remove_file(&cp);
     }
 
-    println!("Wallet reset. Run ec-connect to create a new identity.");
+    println!("Keychain reset. Run ec-connect to create a new identity.");
     Ok(())
 }
 
@@ -187,34 +187,34 @@ pub fn cmd_id_reset() -> Result<(), Box<dyn std::error::Error>> {
 // Private helpers
 // ---------------------------------------------------------------------------
 
-fn prompt_wallet_password_for_write(
+fn prompt_keychain_password_for_write(
     path: &std::path::Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    if wallet_exists(path) {
+    if keychain_exists(path) {
         prompt_password("Password: ")
     } else {
-        println!("No existing wallet found. Creating a new one.");
+        println!("No existing keychain found. Creating a new one.");
         prompt_new_password_with_warning()
     }
 }
 
-/// Load the wallet from the default path, returning an error if it doesn't exist.
-fn require_wallet(password: &str) -> Result<Wallet, Box<dyn std::error::Error>> {
-    let path = wallet_path();
-    require_wallet_at(password, &path)
+/// Load the keychain from the default path, returning an error if it doesn't exist.
+fn require_keychain(password: &str) -> Result<Keychain, Box<dyn std::error::Error>> {
+    let path = keychain_path();
+    require_keychain_at(password, &path)
 }
 
-fn require_wallet_at(
+fn require_keychain_at(
     password: &str,
     path: &std::path::Path,
-) -> Result<Wallet, Box<dyn std::error::Error>> {
-    load_wallet_from(password, path)?
-        .ok_or_else(|| "no wallet found; run `ec-connect id new` to create one".into())
+) -> Result<Keychain, Box<dyn std::error::Error>> {
+    load_keychain_from(password, path)?
+        .ok_or_else(|| "no keychain found; run `ec-connect id new` to create one".into())
 }
 
-/// Return the active identity from the wallet, or an error if none.
-fn require_active(wallet: &Wallet) -> Result<&Identity, Box<dyn std::error::Error>> {
-    wallet
+/// Return the active identity from the keychain, or an error if none.
+fn require_active(keychain: &Keychain) -> Result<&Identity, Box<dyn std::error::Error>> {
+    keychain
         .active_identity()
-        .ok_or_else(|| "wallet has no identities; run `ec-connect id new` to create one".into())
+        .ok_or_else(|| "keychain has no identities; run `ec-connect id new` to create one".into())
 }

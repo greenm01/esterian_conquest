@@ -20,8 +20,8 @@ use crate::launcher::{run_password_gate, run_password_gate_in_session};
 use crate::map_store::resolve_maps_root;
 
 use crate::picker::{load_picker_session, run_picker_in_session};
-use crate::wallet::io::{load_wallet_from, now_iso8601, save_wallet_to, wallet_path};
-use crate::wallet::{Wallet, push_new_identity};
+use crate::keychain::io::{load_keychain_from, now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{Keychain, push_new_identity};
 use ec_ui::session::TerminalSession;
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             Some("seed-localhost-fixture") => cmd_dev_seed_localhost_fixture(dev_args),
             Some(other) => Err(format!("unknown dev subcommand: {other}").into()),
             None => Err(
-                "usage: ec-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]\n       ec-connect dev seed-localhost-fixture --nsec-file <path> --wallet-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]"
+                "usage: ec-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]\n       ec-connect dev seed-localhost-fixture --nsec-file <path> --keychain-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]"
                     .into(),
             ),
         };
@@ -279,12 +279,12 @@ fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Err
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
-    // Load wallet — auto-create identity if wallet is missing.
-    let Some((wallet, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
+    // Load keychain — auto-create identity if keychain is missing.
+    let Some((keychain, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
     else {
         return Ok(());
     };
-    drop(wallet);
+    drop(keychain);
 
     // Resolve invite code.
     let mut target =
@@ -334,8 +334,8 @@ fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error:
     let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
     let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
 
-    // Load wallet — auto-create identity if the wallet is missing.
-    let Some((_wallet, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
+    // Load keychain — auto-create identity if the keychain is missing.
+    let Some((_keychain, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
     else {
         return Ok(());
     };
@@ -384,7 +384,7 @@ fn cmd_picker(opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut session = TerminalSession::enter_picker()?;
 
-    // Load wallet — auto-create identity if wallet is missing.
+    // Load keychain — auto-create identity if keychain is missing.
     let Some(password) = prompt_for_picker_password(&mut session)? else {
         let _ = session.restore();
         return Ok(());
@@ -432,7 +432,7 @@ fn maybe_seed_default_relay_after_join(outcome: &SessionOutcome, relay_url: &str
 
 fn prompt_and_load_identity(
     password_file: Option<&Path>,
-) -> Result<Option<(Wallet, Keys, String)>, Box<dyn std::error::Error>> {
+) -> Result<Option<(Keychain, Keys, String)>, Box<dyn std::error::Error>> {
     if let Some(path) = password_file {
         let password = load_password_from_file_once(path)?;
         return load_or_create_identity(&password).map(Some);
@@ -469,9 +469,9 @@ fn prompt_for_picker_password(
         let Some(password) = run_password_gate_in_session(session, error_msg.take())? else {
             return Ok(None);
         };
-        match load_wallet_from(&password, &wallet_path()) {
-            Ok(Some(wallet)) if wallet.identities.is_empty() => {
-                error_msg = Some("Error: wallet has no active identity".to_string())
+        match load_keychain_from(&password, &keychain_path()) {
+            Ok(Some(keychain)) if keychain.identities.is_empty() => {
+                error_msg = Some("Error: keychain has no active identity".to_string())
             }
             Ok(_) => return Ok(Some(password)),
             Err(err) => error_msg = Some(format!("Error: {err}")),
@@ -479,29 +479,29 @@ fn prompt_for_picker_password(
     }
 }
 
-/// Load wallet + active identity, or create a fresh one if no wallet exists.
-/// Returns `(wallet, keys, npub_string)`.
+/// Load keychain + active identity, or create a fresh one if no keychain exists.
+/// Returns `(keychain, keys, npub_string)`.
 fn load_or_create_identity(
     password: &str,
-) -> Result<(Wallet, Keys, String), Box<dyn std::error::Error>> {
+) -> Result<(Keychain, Keys, String), Box<dyn std::error::Error>> {
     use nostr_sdk::ToBech32;
 
-    let path = wallet_path();
+    let path = keychain_path();
 
-    let mut wallet = load_wallet_from(password, &path)?.unwrap_or_else(Wallet::empty);
+    let mut keychain = load_keychain_from(password, &path)?.unwrap_or_else(Keychain::empty);
 
-    if wallet.identities.is_empty() {
-        let npub = push_new_identity(&mut wallet, now_iso8601())?;
-        save_wallet_to(&wallet, password, &path)?;
+    if keychain.identities.is_empty() {
+        let npub = push_new_identity(&mut keychain, now_iso8601())?;
+        save_keychain_to(&keychain, password, &path)?;
         eprintln!("Nostr keypair created: {npub}");
     }
 
-    let id = wallet
+    let id = keychain
         .active_identity()
-        .ok_or("wallet has no active identity")?;
+        .ok_or("keychain has no active identity")?;
     let keys = Keys::parse(&id.nsec)?;
     let npub = keys.public_key().to_bech32()?;
-    Ok((wallet, keys, npub))
+    Ok((keychain, keys, npub))
 }
 
 /// If the player has exactly one cached game for the resolved server, inject
@@ -607,7 +607,7 @@ struct DevSeedCommand {
 struct DevSeedLocalhostCommand {
     options: SeedLocalhostFixtureOptions,
     nsec_file: PathBuf,
-    wallet_out: PathBuf,
+    keychain_out: PathBuf,
     cache_out: PathBuf,
     config_out: PathBuf,
 }
@@ -634,7 +634,7 @@ fn cmd_dev_seed_ui(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std
         return result;
     }
     println!("Seeded ec-connect UI test data.");
-    println!("wallet: {}", summary.wallet_path.display());
+    println!("keychain: {}", summary.keychain_path.display());
     println!("cache: {}", summary.cache_path.display());
     println!("identities: {}", summary.identities);
     println!("games: {}", summary.games);
@@ -654,12 +654,12 @@ fn cmd_dev_seed_localhost_fixture(
             nsec: nsec.trim().to_string(),
             ..command.options
         },
-        &command.wallet_out,
+        &command.keychain_out,
         &command.cache_out,
         &command.config_out,
     )?;
     println!("Seeded localhost returning-player fixture.");
-    println!("wallet: {}", summary.wallet_path.display());
+    println!("keychain: {}", summary.keychain_path.display());
     println!("cache: {}", summary.cache_path.display());
     println!("config: {}", summary.config_path.display());
     println!("player npub: {}", summary.player_npub);
@@ -726,7 +726,7 @@ fn parse_seed_localhost_fixture_opts(
 ) -> Result<DevSeedLocalhostCommand, Box<dyn std::error::Error>> {
     let values: Vec<String> = args.collect();
     let mut nsec_file = None;
-    let mut wallet_out = None;
+    let mut keychain_out = None;
     let mut cache_out = None;
     let mut config_out = None;
     let mut relay_url = None;
@@ -749,10 +749,10 @@ fn parse_seed_localhost_fixture_opts(
                     values.get(i).ok_or("--nsec-file requires a value")?,
                 ));
             }
-            "--wallet-out" => {
+            "--keychain-out" => {
                 i += 1;
-                wallet_out = Some(PathBuf::from(
-                    values.get(i).ok_or("--wallet-out requires a value")?,
+                keychain_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--keychain-out requires a value")?,
                 ));
             }
             "--cache-out" => {
@@ -837,7 +837,7 @@ fn parse_seed_localhost_fixture_opts(
             }
             "--force" => force = true,
             "--help" | "-h" | "help" => {
-                return Err("usage: ec-connect dev seed-localhost-fixture --nsec-file <path> --wallet-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]".into());
+                return Err("usage: ec-connect dev seed-localhost-fixture --nsec-file <path> --keychain-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]".into());
             }
             other => return Err(format!("unexpected argument: {other}").into()),
         }
@@ -861,7 +861,7 @@ fn parse_seed_localhost_fixture_opts(
             force,
         },
         nsec_file,
-        wallet_out: wallet_out.ok_or("--wallet-out is required")?,
+        keychain_out: keychain_out.ok_or("--keychain-out is required")?,
         cache_out: cache_out.ok_or("--cache-out is required")?,
         config_out: config_out.ok_or("--config-out is required")?,
     })
@@ -871,7 +871,7 @@ fn parse_seed_localhost_fixture_opts(
 
 fn print_usage() {
     #[cfg(debug_assertions)]
-    let developer = "\nDeveloper:\n  ec-connect dev seed-ui                           Seed fake wallet/cache data for UI testing\n  ec-connect dev seed-ui --launch                  Seed fake data and open the picker immediately\n  ec-connect dev seed-localhost-fixture ...        Seed one isolated localhost returning-player wallet/cache/config fixture\n";
+    let developer = "\nDeveloper:\n  ec-connect dev seed-ui                           Seed fake keychain/cache data for UI testing\n  ec-connect dev seed-ui --launch                  Seed fake data and open the picker immediately\n  ec-connect dev seed-localhost-fixture ...        Seed one isolated localhost returning-player keychain/cache/config fixture\n";
     #[cfg(not(debug_assertions))]
     let developer = "";
     println!(
@@ -886,11 +886,11 @@ Usage:
 Identity:
   ec-connect id                        Show active identity (npub)
   ec-connect id --secret               Show npub + nsec (for backup)
-  ec-connect id list                   List all wallet identities
+  ec-connect id list                   List all keychain identities
   ec-connect id new                    Generate a new Nostr keypair
   ec-connect id import                 Import an existing Nostr nsec
   ec-connect id switch <N>             Switch active identity
-  ec-connect id reset                  Wipe wallet and cache (triple confirmation)
+  ec-connect id reset                  Wipe keychain and cache (triple confirmation)
 
 Options:
   --gate <NPUB>    Gate server Nostr public key (optional override / fallback)

@@ -230,9 +230,9 @@ if [ ! -f "$CONFIG_PATH" ] || [ "$OVERWRITE_CONFIG" = "1" ]; then
   chmod 0640 "$CONFIG_PATH"
 fi
 
-cat >/etc/systemd/system/ec-nostr.service <<EOF
+cat >/etc/systemd/system/nc-nostr.service <<EOF
 [Unit]
-Description=Esterian Conquest Nostr Session Daemon
+Description=Nostrian Conquest Nostr Session Daemon
 After=network-online.target sshd.service
 Wants=network-online.target
 
@@ -248,9 +248,9 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-cat >/etc/systemd/system/ec-maint-all.service <<EOF
+cat >/etc/systemd/system/nc-maint-all.service <<EOF
 [Unit]
-Description=Esterian Conquest maintenance sweep
+Description=Nostrian Conquest maintenance sweep
 After=network-online.target
 
 [Service]
@@ -260,14 +260,14 @@ Group=$EC_USER
 ExecStart=$EC_SYSOP_DEST maint-all --config $CONFIG_PATH
 EOF
 
-cat >/etc/systemd/system/ec-maint-all.timer <<'EOF'
+cat >/etc/systemd/system/nc-maint-all.timer <<'EOF'
 [Unit]
-Description=Run Esterian Conquest maintenance sweep every five minutes
+Description=Run Nostrian Conquest maintenance sweep every five minutes
 
 [Timer]
 OnCalendar=*:0/5
 Persistent=true
-Unit=ec-maint-all.service
+Unit=nc-maint-all.service
 
 [Install]
 WantedBy=timers.target
@@ -301,12 +301,12 @@ elif systemctl list-unit-files ssh.service >/dev/null 2>&1; then
 fi
 
 if [ "$ENABLE_SERVICES" = "1" ]; then
-  systemctl enable --now ec-maint-all.timer
-  systemctl enable --now ec-nostr.service
+  systemctl enable --now nc-maint-all.timer
+  systemctl enable --now nc-nostr.service
 fi
 
 cat <<EOF
-Installed Esterian Conquest VPS layout:
+Installed Nostrian Conquest VPS layout:
   service user: $EC_USER
   config dir:   $CONFIG_DIR
   state dir:    $STATE_DIR
@@ -321,7 +321,7 @@ Next steps:
   2. Register it:
      sudo $EC_SYSOP_DEST host games add --config $CONFIG_PATH --dir $GAMES_ROOT/<slug>
   3. Restart the daemon so it reloads the updated game registry:
-     sudo systemctl restart ec-nostr.service
+     sudo systemctl restart nc-nostr.service
   4. Inspect hosted seats:
      sudo -u $EC_USER $EC_SYSOP_DEST nostr seats --dir $GAMES_ROOT/<slug>
   5. If this VPS also hosts the relay, make sure the relay is publicly reachable on the configured host:

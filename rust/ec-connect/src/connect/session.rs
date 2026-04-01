@@ -25,7 +25,7 @@ use crate::connect::resolve::ResolvedTarget;
 use crate::connect::session_state::{SessionStatePayload, fetch_game_metadata};
 use crate::connect::ssh_key::EphemeralKeypair;
 use crate::map_store::save_map_bundle;
-use crate::wallet::io::now_iso8601;
+use crate::keychain::io::now_iso8601;
 
 const HOSTED_ONBOARDING_INVARIANT_EXIT_CODE: u32 = 72;
 

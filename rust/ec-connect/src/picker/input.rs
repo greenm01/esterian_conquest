@@ -39,10 +39,10 @@ pub fn handle_game_list_key(
             ..
         } => state.screen = Screen::IdentityOverlay,
         KeyEvent {
-            code: KeyCode::Char('w' | 'W'),
+            code: KeyCode::Char('y' | 'Y'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
-        } => state.screen = Screen::WalletList,
+        } => state.screen = Screen::KeychainList,
         KeyEvent {
             code: KeyCode::Char('n' | 'N'),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
@@ -254,14 +254,14 @@ pub fn handle_identity_overlay_key(key: KeyEvent, state: &mut PickerState) {
     }
 }
 
-pub fn handle_wallet_key(
+pub fn handle_keychain_key(
     key: KeyEvent,
     state: &mut PickerState,
     picker_session: &mut PickerSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match state.screen {
-        Screen::WalletList => handle_wallet_list_key(key, state, picker_session),
-        Screen::WalletAddPrompt => handle_wallet_add_key(key, state, picker_session),
+        Screen::KeychainList => handle_keychain_list_key(key, state, picker_session),
+        Screen::KeychainAddPrompt => handle_keychain_add_key(key, state, picker_session),
         _ => Ok(()),
     }
 }
@@ -277,12 +277,12 @@ pub fn handle_relay_key(
     }
 }
 
-fn handle_wallet_list_key(
+fn handle_keychain_list_key(
     key: KeyEvent,
     state: &mut PickerState,
     picker_session: &mut PickerSession,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let wallet_len = picker_session.wallet.identities.len();
+    let keychain_len = picker_session.keychain.identities.len();
     if is_help_key(key) {
         state.open_help();
         return Ok(());
@@ -323,16 +323,16 @@ fn handle_wallet_list_key(
         | KeyEvent {
             code: KeyCode::PageUp,
             ..
-        } => move_selection(&mut state.wallet_selected, 0, wallet_len),
+        } => move_selection(&mut state.keychain_selected, 0, keychain_len),
         KeyEvent {
             code: KeyCode::Enter,
             ..
         } => {
-            if wallet_len == 0 {
-                state.show_error("Wallet has no identities.");
+            if keychain_len == 0 {
+                state.show_error("Keychain has no identities.");
             } else {
-                state.overlay = Some(PickerOverlay::WalletDetail {
-                    index: state.wallet_selected,
+                state.overlay = Some(PickerOverlay::KeychainDetail {
+                    index: state.keychain_selected,
                 });
             }
         }
@@ -341,15 +341,15 @@ fn handle_wallet_list_key(
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
-            state.wallet_input.clear();
-            state.screen = Screen::WalletAddPrompt;
+            state.keychain_input.clear();
+            state.screen = Screen::KeychainAddPrompt;
         }
         _ => {}
     }
     Ok(())
 }
 
-fn handle_wallet_add_key(
+fn handle_keychain_add_key(
     key: KeyEvent,
     state: &mut PickerState,
     picker_session: &mut PickerSession,
@@ -360,40 +360,40 @@ fn handle_wallet_add_key(
     }
     match key {
         key if is_back_key(key) => {
-            state.wallet_input.clear();
-            state.screen = Screen::WalletList;
+            state.keychain_input.clear();
+            state.screen = Screen::KeychainList;
         }
         KeyEvent {
             code: KeyCode::Backspace,
             ..
         } => {
-            state.wallet_input.pop();
+            state.keychain_input.pop();
         }
         KeyEvent {
             code: KeyCode::Enter,
             ..
-        } => match picker_session.replace_active_identity(&state.wallet_input, &mut state.cache) {
+        } => match picker_session.replace_active_identity(&state.keychain_input, &mut state.cache) {
             Ok(cache_changed) => {
                 if let Err(err) = picker_session.save() {
-                    state.wallet_input.clear();
-                    state.screen = Screen::WalletList;
+                    state.keychain_input.clear();
+                    state.screen = Screen::KeychainList;
                     state.show_error(err.to_string());
                     return Ok(());
                 }
                 if cache_changed && let Err(err) = save_cache(&state.cache) {
-                    state.wallet_input.clear();
-                    state.screen = Screen::WalletList;
+                    state.keychain_input.clear();
+                    state.screen = Screen::KeychainList;
                     state.show_error(err.to_string());
                     return Ok(());
                 }
-                state.wallet_selected = 0;
-                state.wallet_input.clear();
-                state.screen = Screen::WalletList;
-                state.overlay = Some(PickerOverlay::WalletDetail { index: 0 });
+                state.keychain_selected = 0;
+                state.keychain_input.clear();
+                state.screen = Screen::KeychainList;
+                state.overlay = Some(PickerOverlay::KeychainDetail { index: 0 });
             }
             Err(err) => {
-                state.wallet_input.clear();
-                state.screen = Screen::WalletList;
+                state.keychain_input.clear();
+                state.screen = Screen::KeychainList;
                 state.show_error(err.to_string());
             }
         },
@@ -402,7 +402,7 @@ fn handle_wallet_add_key(
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,
             ..
         } => {
-            state.wallet_input.push(ch);
+            state.keychain_input.push(ch);
         }
         _ => {}
     }
