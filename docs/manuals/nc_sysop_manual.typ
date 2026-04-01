@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 31),
+  date: datetime(year: 2026, month: 4, day: 1),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(2em)
   #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: March 31, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: April 1, 2026]
 ]
 
 #pagebreak()
@@ -355,7 +355,7 @@ downloads the static starmap bundle, and returning players reconnect without
 re-entering any flags.
 
 One hosted identity can claim only one seat in a given game. If the same
-wallet identity tries to redeem a second invite for that game, the daemon now
+keychain identity tries to redeem a second invite for that game, the daemon now
 rejects it and expects the player to reconnect with the already-claimed seat.
 
 *Power users and scripted workflows* may also join directly from the command
@@ -390,14 +390,14 @@ nc-sysop nostr publish --dir /path/to/mygame
 Hosted seats are bound to the first player identity that completes the
 in-game join and saves the empire name. In practice this means the seat is
 tied to one `npub` until the sysop changes it. Returning players should
-reconnect with the same local NC wallet identity they used when they finished
+reconnect with the same local NC keychain identity they used when they finished
 that first join.
 
-Players should not expect to paste the same invite into a brand-new wallet and
+Players should not expect to paste the same invite into a brand-new keychain and
 take over an already-claimed seat. `nc-gate` treats that as a different player
 identity and rejects the join.
 
-Players also should not expect one wallet identity to hold two seats in the
+Players also should not expect one keychain identity to hold two seats in the
 same hosted game. Seat 1 and seat 2 in one campaign must be claimed by
 different identities, even if the same human is testing both paths.
 
@@ -406,7 +406,7 @@ recovery path is:
 
 1. Reissue that seat with `nc-sysop nostr reissue`.
 2. Send the player the new invite.
-3. Have the player redeem it from the new wallet identity.
+3. Have the player redeem it from the new keychain identity.
 
 Reissuing is the deliberate “move this seat to a new identity” action. It
 clears the old `npub` binding and rotates the invite code at the same time.

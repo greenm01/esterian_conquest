@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 3, day: 31),
+  date: datetime(year: 2026, month: 4, day: 1),
 )
 
 #set page(
@@ -73,7 +73,7 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: March 31, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 1, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -156,14 +156,14 @@ In the packaged GUI, paste works with `Command-V` on macOS, `Ctrl-V`,
 
 That is all. `nc-connect` handles your identity and opens your `nc-game`
 session. The invite already carries the relay host, and `nc-connect`
-discovers the rest from there. Your seat is not claimed until you actually
-save your empire name in the game. After that completed first join,
-`nc-connect` downloads the campaign starmap bundle and remembers the game
-locally in your Documents `nc/maps` folder. Later, press `M` in the picker
-to change the default maps folder and re-download the bundle for the
-currently selected game.
+discovers the rest from there. Your seat is not claimed until you actually save your empire name in the
+game. As soon as you name your empire and claim the invite, `nc-connect`
+downloads the campaign starmap bundle so maps are available locally for
+turn 1. The game is saved to your Documents `nc/maps` folder. Later,
+press `M` in the picker to change the default maps folder and re-download
+the bundle for the currently selected game.
 
-One NC wallet identity can hold only one seat in a hosted game. If you have
+One NC keychain identity can hold only one seat in a hosted game. If you have
 already completed the first join for that game and later delete the local
 picker row, press `N`, paste the same invite again, and reconnect with that
 same identity. The original invite still belongs only to that identity; a
@@ -181,9 +181,9 @@ If your sysop gives you the Windows `.zip` build, extract it to a folder of
 your choice. Double-click `nc-connect.exe` to launch the normal player
 window. No installation required.
 
-On first use, `nc-connect` creates an encrypted wallet. You choose one wallet
-password for the machine. That password protects your local identities. If you
-lose it, the client cannot recover your wallet for you.
+On first use, `nc-connect` creates an encrypted keychain. You choose one
+keychain password for the machine. That password protects your local
+identities. If you lose it, the client cannot recover your keychain for you.
 
 Your sysop gives you one invite code in the form
 `amber-river@relay.example.com`. Paste it when prompted.
@@ -199,7 +199,7 @@ nc-connect --join amber-river@relay.example.com
 If you join from the picker later and a cached game is missing its relay,
 `nc-connect` will ask for it once and save it.
 
-== Wallet Management
+== Keychain Management
 
 Press `W` in `nc-connect` to view your current identity and backup material.
 The packaged GUI keeps one active identity at a time.
@@ -207,10 +207,31 @@ The packaged GUI keeps one active identity at a time.
 - `R` replaces the current identity: paste an existing `nsec`, or leave the field blank to generate a fresh one
 - `Enter` shows the full `npub` and `nsec`
 
-The wallet is local client state. It is not the server's player list.
+The keychain is local client state. It is not the server's player list.
 Replacing your current identity does not move any already-claimed hosted
 seat. Those stay bound to the original identity until your sysop reissues the
 seat with a new invite.
+
+=== Clearing Local Keychain Data
+
+Use the built-in reset command to clear your keychain and picker cache in
+one step:
+
+```
+nc-connect id reset
+```
+
+That command asks for your current password, confirms three times, then
+removes both `keychain.kdl` and `cache.kdl`. To locate or delete the files
+manually instead:
+
+- *Windows:* `%LOCALAPPDATA%\nc\` (e.g. `C:\Users\<you>\AppData\Local\nc\`)
+- *macOS:* `~/Library/Application Support/nc/`
+- *Linux:* `~/.local/share/nc/`
+
+Delete `keychain.kdl` to remove your identity, or `cache.kdl` to clear
+the picker game list. Removing `keychain.kdl` is permanent; a fresh
+identity will be created on next launch.
 
 == Relay Configuration
 
