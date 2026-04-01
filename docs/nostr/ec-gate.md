@@ -95,7 +95,10 @@ connections.
 
 When a player completes the in-game first-time join flow and saves the
 empire name, `nc-game` updates the hosted-seat row in `ncgame.db`: it sets
-the seat to `claimed` and records the player's `npub`.
+the seat to `claimed` and records the player's `npub`. That same transaction
+now also enqueues a durable hosted publish job so `nc-gate serve` can publish
+the player's map bundle immediately, even if the SSH session disconnects
+before the client returns cleanly.
 
 ## Invite Code Management
 
@@ -188,6 +191,10 @@ in that game, it returns an `unknown_player` error.
 This is part of the daemon behind `nc-sysop nostr serve`; there is no
 separate public map-serving command.
 
+Hosted first joins also get a proactive path: `nc-gate serve` polls the durable
+hosted publish queue in `ncgame.db`, and when it sees a new first-claim map
+job it publishes 30512 `MapPush` directly to the claiming player identity.
+
 When `nc-gate` receives a 30504 `MapRequest`:
 
 1. Read the signed player npub from the event
@@ -197,6 +204,14 @@ When `nc-gate` receives a 30504 `MapRequest`:
 4. Build the player-safe fog-of-war starmap bundle for that seat
 5. Compress each file individually with `zstd`, base64-encode it for
    JSON transport, and publish 30505 `MapBundle`
+
+When `nc-gate` drains a queued first-claim map job:
+
+1. Read the claimed player identity and seat from `ncgame.db`
+2. Build the player-safe fog-of-war starmap bundle for that seat
+3. Compress each file individually with `zstd`, base64-encode it for JSON
+   transport, and publish 30512 `MapPush`
+4. Mark the queued job as published so it does not resend on later sweeps
 
 The bundle always contains:
 

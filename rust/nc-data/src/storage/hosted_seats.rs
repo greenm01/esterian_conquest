@@ -16,6 +16,12 @@ pub struct HostedSeat {
     pub player_npub: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct HostedSeatClaimResult {
+    pub seat: HostedSeat,
+    pub newly_claimed: bool,
+}
+
 #[derive(Debug)]
 pub enum ClaimHostedSeatError {
     InvalidCode,
@@ -170,7 +176,8 @@ impl CampaignStore {
     ) -> Result<Option<HostedSeat>, CampaignStoreError> {
         let mut conn = self.connection()?;
         let tx = conn.transaction()?;
-        let seat = claim_hosted_seat_for_player_tx(&tx, player_record_index_1_based, player_npub)?;
+        let seat = claim_hosted_seat_for_player_tx(&tx, player_record_index_1_based, player_npub)?
+            .map(|result| result.seat);
         tx.commit()?;
         Ok(seat)
     }
@@ -370,14 +377,17 @@ pub(super) fn claim_hosted_seat_for_player_tx(
     tx: &rusqlite::Transaction<'_>,
     player_record_index_1_based: usize,
     player_npub: &str,
-) -> Result<Option<HostedSeat>, CampaignStoreError> {
+) -> Result<Option<HostedSeatClaimResult>, CampaignStoreError> {
     let Some(mut seat) = load_hosted_seat_by_player_tx(tx, player_record_index_1_based)? else {
         return Ok(None);
     };
     match seat.status {
         HostedSeatStatus::Claimed => {
             if seat.player_npub.as_deref() == Some(player_npub) {
-                return Ok(Some(seat));
+                return Ok(Some(HostedSeatClaimResult {
+                    seat,
+                    newly_claimed: false,
+                }));
             }
             return Err(CampaignStoreError::InvalidState(format!(
                 "hosted seat {} is already claimed by another player identity",
@@ -402,7 +412,10 @@ pub(super) fn claim_hosted_seat_for_player_tx(
     )?;
     seat.status = HostedSeatStatus::Claimed;
     seat.player_npub = Some(player_npub.to_string());
-    Ok(Some(seat))
+    Ok(Some(HostedSeatClaimResult {
+        seat,
+        newly_claimed: true,
+    }))
 }
 
 fn find_claimed_seat_for_npub_tx(

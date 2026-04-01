@@ -8,6 +8,8 @@ use winit::keyboard::ModifiersState;
 
 use crate::cache::{GameCache, load_cache};
 use crate::config::{ConnectConfig, load_config};
+use crate::keychain::io::{keychain_path, now_iso8601, save_keychain_to};
+use crate::keychain::{Keychain, push_new_identity};
 use crate::launcher::render as launcher_render;
 use crate::launcher::{GateSubmit, PasswordGateState};
 use crate::map_store::resolve_maps_root;
@@ -18,16 +20,14 @@ use crate::picker::connecting::{
 };
 use crate::picker::flows::join_with_code;
 use crate::picker::input::{
-    handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_relay_key,
-    handle_keychain_key,
+    handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_keychain_key,
+    handle_relay_key,
 };
 use crate::picker::overlay::{PickerOverlay, handle_overlay_key};
 use crate::picker::refresh::execute_pending_refresh;
 use crate::picker::render as picker_render;
 use crate::picker::session::load_picker_session;
 use crate::picker::state::{PickerSession, PickerState, Screen};
-use crate::keychain::io::{now_iso8601, save_keychain_to, keychain_path};
-use crate::keychain::{Keychain, push_new_identity};
 
 use super::clipboard::Clipboard;
 use super::input::{is_key_press, is_paste_shortcut, pasteable_text, picker_key};
@@ -673,8 +673,11 @@ impl LiveView {
     }
 
     fn finish(mut self) -> Result<PickerView, Box<dyn std::error::Error>> {
-        let (finalizer, bridge_result) = self.terminal.take_finished();
-        let outcome = self.picker.rt.block_on(finalizer.finish(bridge_result));
+        let (finalizer, bridge_result, map_push_result) = self.terminal.take_finished();
+        let outcome = self
+            .picker
+            .rt
+            .block_on(finalizer.finish(bridge_result, map_push_result));
         apply_connect_outcome(&mut self.picker.state, self.request, outcome)?;
         self.picker.last_activity = Instant::now();
         Ok(self.picker)

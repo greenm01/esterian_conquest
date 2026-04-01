@@ -21,11 +21,14 @@ use crate::cache::{CachedGame, CachedGameStatus, GameCache, load_cache, save_cac
 use crate::connect::bridge::run_bridge;
 use crate::connect::handshake::{GameEntry, HandshakeResult, SessionReadyPayload, run_handshake};
 use crate::connect::map_fetch::fetch_map_bundle;
+use crate::connect::map_push::{
+    FirstJoinMapPushConfig, MapPushMonitor, MapPushMonitorResult, fetch_recent_map_push,
+};
 use crate::connect::resolve::ResolvedTarget;
 use crate::connect::session_state::{SessionStatePayload, fetch_game_metadata};
 use crate::connect::ssh_key::EphemeralKeypair;
-use crate::map_store::save_map_bundle;
 use crate::keychain::io::now_iso8601;
+use crate::map_store::save_map_bundle;
 
 const HOSTED_ONBOARDING_INVARIANT_EXIT_CODE: u32 = 72;
 
@@ -64,11 +67,13 @@ pub struct PreparedSession {
     payload: SessionReadyPayload,
     keypair: EphemeralKeypair,
     post_bridge: PostBridgeAction,
+    map_push_config: Option<FirstJoinMapPushConfig>,
 }
 
 pub struct PreparedLiveSession {
     pub payload: SessionReadyPayload,
     pub keypair: EphemeralKeypair,
+    pub map_push_config: Option<FirstJoinMapPushConfig>,
 }
 
 pub struct PreparedSessionFinalizer {
@@ -251,10 +256,22 @@ async fn prepare_session_with_keypair(
                 upsert_cache_entry(&payload, username, gate_npub, &target);
                 PostBridgeAction::TouchCache
             };
+            let map_push_config = if first_join {
+                Some(FirstJoinMapPushConfig {
+                    player_keys: player_keys.clone(),
+                    target: target.clone(),
+                    gate_npub: gate_npub.to_string(),
+                    game_id: payload.game_id.clone(),
+                    maps_root: maps_root.to_path_buf(),
+                })
+            } else {
+                None
+            };
             SessionPreparation::Ready(PreparedSession {
                 payload,
                 keypair,
                 post_bridge,
+                map_push_config,
             })
         }
     }
@@ -262,8 +279,12 @@ async fn prepare_session_with_keypair(
 
 pub async fn finish_prepared_session(prepared: PreparedSession, username: &str) -> SessionOutcome {
     let (live, finalizer) = prepared.split();
+    let map_push_monitor = live.map_push_config.clone().map(MapPushMonitor::start);
     let outcome = run_bridge(&live.payload, &live.keypair, username).await;
-    finalizer.finish(outcome).await
+    let map_push_result = map_push_monitor
+        .map(MapPushMonitor::finish)
+        .unwrap_or_default();
+    finalizer.finish(outcome, map_push_result).await
 }
 
 impl PreparedSession {
@@ -272,6 +293,7 @@ impl PreparedSession {
             PreparedLiveSession {
                 payload: self.payload.clone(),
                 keypair: self.keypair,
+                map_push_config: self.map_push_config.clone(),
             },
             PreparedSessionFinalizer {
                 payload: self.payload,
@@ -285,6 +307,7 @@ impl PreparedSessionFinalizer {
     pub async fn finish(
         self,
         bridge_result: Result<u32, crate::connect::bridge::BridgeError>,
+        map_push_result: MapPushMonitorResult,
     ) -> SessionOutcome {
         let PreparedSessionFinalizer {
             payload,
@@ -316,6 +339,7 @@ impl PreparedSessionFinalizer {
                             &gate_npub,
                             &maps_root,
                             &npub,
+                            map_push_result,
                         )
                         .await
                     }
@@ -379,17 +403,45 @@ async fn finalize_first_join_after_session(
     gate_npub: &str,
     maps_root: &std::path::Path,
     npub: &str,
+    map_push_result: MapPushMonitorResult,
 ) -> FirstJoinCompletion {
+    if let Some(path) = map_push_result.maps_saved_to {
+        let refreshed_state = fetch_game_metadata(player_keys, target, gate_npub, &payload.game_id)
+            .await
+            .ok();
+        if let Some(state) = refreshed_state.as_ref() {
+            merge_session_state_into_cache(state, target, npub, gate_npub);
+            touch_cache_entry(&state.game_id);
+        }
+        return FirstJoinCompletion {
+            notice: None,
+            maps_saved_to: Some(path),
+        };
+    }
+
     let refreshed_state = fetch_game_metadata(player_keys, target, gate_npub, &payload.game_id)
         .await
         .ok();
-    let Some(state) = refreshed_state.as_ref() else {
-        return FirstJoinCompletion::default();
-    };
-
-    merge_session_state_into_cache(state, target, npub, gate_npub);
-    touch_cache_entry(&state.game_id);
-    match fetch_map_bundle(player_keys, target, gate_npub, &state.game_id).await {
+    if let Some(state) = refreshed_state.as_ref() {
+        merge_session_state_into_cache(state, target, npub, gate_npub);
+        touch_cache_entry(&state.game_id);
+    }
+    let game_id = refreshed_state
+        .as_ref()
+        .map(|state| state.game_id.as_str())
+        .unwrap_or(payload.game_id.as_str());
+    if let Ok(bundle) = fetch_recent_map_push(player_keys, target, gate_npub, game_id).await {
+        match save_map_bundle(&bundle, &target.relay_url, maps_root) {
+            Ok(path) => {
+                return FirstJoinCompletion {
+                    notice: None,
+                    maps_saved_to: Some(path),
+                };
+            }
+            Err(_) => {}
+        }
+    }
+    match fetch_map_bundle(player_keys, target, gate_npub, game_id).await {
         Ok(bundle) => match save_map_bundle(&bundle, &target.relay_url, maps_root) {
             Ok(path) => FirstJoinCompletion {
                 notice: None,
@@ -401,7 +453,9 @@ async fn finalize_first_join_after_session(
             },
         },
         Err(err) => FirstJoinCompletion {
-            notice: Some(format!("Warning: unable to download starmaps: {err}")),
+            notice: map_push_result
+                .warning
+                .or_else(|| Some(format!("Warning: unable to download starmaps: {err}"))),
             maps_saved_to: None,
         },
     }

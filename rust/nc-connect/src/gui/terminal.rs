@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::connect::bridge::BridgeError;
 use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
+use crate::connect::map_push::{MapPushMonitor, MapPushMonitorResult};
 use crate::connect::session::{PreparedLiveSession, PreparedSessionFinalizer};
 use alacritty_terminal::event::{Event as TermEvent, EventListener, WindowSize};
 use alacritty_terminal::index::{Column, Line, Point, Side};
@@ -38,6 +39,7 @@ pub struct TerminalView {
     title: Option<String>,
     selection_drag: bool,
     finished: Option<Result<u32, BridgeError>>,
+    map_push_monitor: Option<MapPushMonitor>,
 }
 
 impl TerminalView {
@@ -46,6 +48,7 @@ impl TerminalView {
         finalizer: PreparedSessionFinalizer,
         _username: String,
     ) -> Self {
+        let map_push_monitor = prepared.map_push_config.clone().map(MapPushMonitor::start);
         let events = EventQueue::default();
         let mut term = Term::new(
             Config::default(),
@@ -72,6 +75,7 @@ impl TerminalView {
             title: None,
             selection_drag: false,
             finished: None,
+            map_push_monitor,
         }
     }
 
@@ -79,11 +83,22 @@ impl TerminalView {
         self.finished.is_some()
     }
 
-    pub fn take_finished(self) -> (PreparedSessionFinalizer, Result<u32, BridgeError>) {
+    pub fn take_finished(
+        mut self,
+    ) -> (
+        PreparedSessionFinalizer,
+        Result<u32, BridgeError>,
+        MapPushMonitorResult,
+    ) {
         (
             self.finalizer,
             self.finished
+                .take()
                 .expect("take_finished called before live session completed"),
+            self.map_push_monitor
+                .take()
+                .map(MapPushMonitor::finish)
+                .unwrap_or_default(),
         )
     }
 

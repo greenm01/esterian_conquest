@@ -31,6 +31,7 @@ kind collisions.
 | 30509 | SessionStateError | nc-gate | NIP-44 | Session-state refresh failed |
 | 30510 | SeatClaimRequest | nc-connect | None | Deprecated pre-claim flow from older clients |
 | 30511 | SeatClaimError | nc-gate | NIP-44 | Deprecated claim flow rejected or invite claim failed |
+| 30512 | MapPush | nc-gate | NIP-44 | Proactive map bundle push after hosted first-join claim |
 
 All request/response kinds are parameterized replaceable events (NIP-33). The `d` tag
 serves as the deduplication key.
@@ -51,6 +52,7 @@ serves as the deduplication key.
 | 30509 | `d` (state-request-nonce), `p` (player npub) | |
 | 30510 | `d` (claim-nonce), `p` (gate npub) | `game-id` |
 | 30511 | `d` (claim-nonce), `p` (player npub) | |
+| 30512 | `d` (publish-id), `p` (player npub), `game-id` | |
 
 ## Event Specifications
 
@@ -362,6 +364,31 @@ transport. If the final encoded payload would exceed 64 KiB, `nc-gate`
 does not chunk it in this protocol version; it returns a 30506
 `payload_too_large` error instead.
 
+### 30512: MapPush
+
+Published by `nc-gate` immediately after a hosted first-time join commits the
+empire-name save that claims the seat.
+
+```json
+{
+  "kind": 30512,
+  "pubkey": "<gate-npub>",
+  "created_at": 1711468911,
+  "tags": [
+    ["d", "<publish-id>"],
+    ["p", "<player-npub>"],
+    ["game-id", "friday-night"]
+  ],
+  "content": "<NIP-44-encrypted-payload>",
+  "sig": "..."
+}
+```
+
+The encrypted payload matches 30505 `MapBundle`. `nc-connect` listens for this
+event during a hosted first join so the local map files can be written before
+the player leaves the opening turn. If the player disconnects early,
+`nc-connect` can still recover a recent 30512 from relay history on reconnect.
+
 ### 30506: MapError
 
 Published by `nc-gate` when a map request cannot be fulfilled.
@@ -500,9 +527,14 @@ nc-connect                       Relay                     nc-gate
 
 ### Static Map Download
 
-After a completed first join, `nc-connect` performs a second short Nostr
-round-trip so the player receives the campaign's static starmap bundle once.
-Players can later trigger the same flow manually from the picker.
+Hosted first joins now use a proactive push: when the player saves the empire
+name and the hosted seat claim commits, `nc-game` enqueues a durable host-side
+publish job and `nc-gate` publishes 30512 `MapPush`. `nc-connect` listens for
+that push during the same live SSH session and writes the local files as soon
+as it arrives. The first-return popup is confirmation that the files were
+saved, not the moment the transfer begins.
+
+Players can still later trigger an explicit pull manually from the picker.
 
 ```
 nc-connect                       Relay                     nc-gate
@@ -522,6 +554,21 @@ nc-connect                       Relay                     nc-gate
     │◄─────────────────────────────│◄─────────────────────────┤
     │                              │                          │
     │  Write local map files       │                          │
+```
+
+### Hosted First-Join Map Push
+
+```
+nc-game                    nc-gate / relay               nc-connect
+   │                              │                          │
+   │  empire-name save commits    │                          │
+   │  hosted seat claimed         │                          │
+   ├──────── durable DB job ─────►│                          │
+   │                              │  30512 MapPush           │
+   │                              │  (encrypted map bundle)  │
+   │                              ├─────────────────────────►│
+   │                              │                          │
+   │                              │                          │  Write local map files
 ```
 
 ### Returning Player (Single Game)
@@ -619,7 +666,8 @@ a `created_at` timestamp. `nc-gate` rejects requests with:
 
 The nonce also binds the response to the request: `nc-connect` only
 accepts a 30502/30503 or 30505/30506 whose `d` tag matches the nonce it
-generated.
+generated. Proactive 30512 `MapPush` is not nonce-matched; it is matched by
+kind, author, `p` tag, and `game-id`.
 
 ### Invite Code Security
 
@@ -653,7 +701,7 @@ key (which only exists in `nc-connect`'s memory).
 ### NIP-44 Encryption
 
 SessionReady (30502), SessionError (30503), MapBundle (30505),
-MapError (30506), and SeatClaimError (30511) payloads are NIP-44
+MapError (30506), SeatClaimError (30511), and MapPush (30512) payloads are NIP-44
 encrypted to the player's npub. This prevents relay operators and
 observers from reading SSH connection details, map contents, or error
 messages. The encryption uses secp256k1 ECDH shared secret with

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{OptionalExtension, params};
 
@@ -191,7 +192,7 @@ impl CampaignStore {
             &previous_intel,
         )?;
         if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
-            super::hosted_seats::claim_hosted_seat_for_player_tx(
+            let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(
                 &tx,
                 player_record_index_1_based,
                 player_npub,
@@ -202,6 +203,19 @@ impl CampaignStore {
                     player_record_index_1_based
                 ))
             })?;
+            if claim_result.newly_claimed {
+                let created_at_unix_seconds = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|duration| duration.as_secs())
+                    .unwrap_or(0);
+                super::hosted_publish_jobs::enqueue_hosted_publish_job_tx(
+                    &tx,
+                    super::hosted_publish_jobs::HostedPublishJobKind::MapPackOnFirstClaim,
+                    player_record_index_1_based,
+                    player_npub,
+                    created_at_unix_seconds,
+                )?;
+            }
         }
         tx.commit()?;
         Ok(snapshot_id)

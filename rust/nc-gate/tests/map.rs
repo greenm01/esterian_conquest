@@ -1,5 +1,8 @@
 use nc_data::PlayerMapExportData;
-use nc_gate::serve::map::{MapFilePayload, build_map_bundle_payload, parse_map_request};
+use nc_gate::serve::map::{
+    MAP_PUSH_KIND, MapFilePayload, build_map_bundle_payload, build_map_bundle_payload_for_values,
+    parse_map_request,
+};
 use nc_gate::serve::routing::ResolvedSeat;
 use nostr_sdk::{EventBuilder, Keys, Kind, Tag};
 
@@ -52,4 +55,22 @@ fn build_map_bundle_payload_compresses_each_file() {
             content: file.content.clone(),
         }
     }));
+}
+
+#[test]
+fn build_map_bundle_payload_for_values_matches_proactive_map_push_shape() {
+    let export = PlayerMapExportData {
+        ascii_export: "STAR MAP".into(),
+        csv_export: "x,y\n1,2".into(),
+        csv_details_export: "x,y,known_name\n1,2,Foosville".into(),
+    };
+
+    let payload =
+        build_map_bundle_payload_for_values("friday-night", "Friday Night EC", 2, &export)
+            .expect("payload should build");
+    assert_eq!(MAP_PUSH_KIND, 30512);
+    assert_eq!(payload.game_id, "friday-night");
+    assert_eq!(payload.game_name, "Friday Night EC");
+    assert_eq!(payload.seat, 2);
+    assert_eq!(payload.files.len(), 3);
 }

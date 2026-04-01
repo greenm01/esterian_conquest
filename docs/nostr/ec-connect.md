@@ -100,10 +100,13 @@ is connected immediately. Public first joins no longer claim the seat until
 the player actually saves the in-game empire name. If the player disconnects
 before that save, the game stays in the picker as `Pending` and `Enter` retries
 the original invite code. After a completed first join, `nc-connect` promotes
-that row to `Joined`, refreshes the seat state, and then requests the static
-starmap bundle. The download is best-effort: if it fails, the player still
-enters the game and can retry later from the picker. Invalid invite codes stay
-in the prompt and show an error notice instead of dropping out of the shell.
+that row to `Joined`, refreshes the seat state, and confirms the static
+starmap bundle saved during the live session. Hosted first joins now receive a
+proactive 30512 `MapPush` as soon as the empire-name save claims the seat, so
+the maps are available locally during turn 1. If that proactive save fails,
+`nc-connect` falls back to a best-effort pull and the player can still retry
+later from the picker. Invalid invite codes stay in the prompt and show an
+error notice instead of dropping out of the shell.
 If the player later deletes the local picker row but still has the same wallet
 identity active, pressing `N` and reusing the original invite code restores the
 joined game entry and reconnects to that already-claimed seat.
@@ -410,11 +413,12 @@ presses Enter. `nc-connect` resolves the server, runs the Nostr
 handshake, and if successful, adds the game to the list and connects
 immediately. Esc cancels and returns to the game list.
 
-After a successful first-time join, `nc-connect` performs a second Nostr
-request to download the campaign's static map bundle. The bundle is
-saved locally before SSH starts if the transfer succeeds. If the bundle
-cannot be fetched or written, `nc-connect` shows a warning but still
-continues into gameplay.
+During a hosted first-time join, `nc-connect` listens for a proactive 30512
+`MapPush` while the SSH session is already running. When the player saves the
+empire name and claims the seat, `nc-gate` publishes the map bundle and
+`nc-connect` writes it locally immediately. If the proactive path misses, the
+client falls back to the older best-effort pull behavior and still continues
+into gameplay.
 
 ### Identity Display
 

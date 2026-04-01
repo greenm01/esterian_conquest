@@ -35,6 +35,8 @@ use crate::config::GateConfig;
 fn short_log_id(value: &str) -> String {
     value[..value.len().min(15)].to_string()
 }
+
+const HOSTED_PUBLISH_SWEEP_INTERVAL_SECS: u64 = 1;
 /// Run the `nc-gate serve` event loop.
 ///
 /// Connects to `config.relay`, loads all configured game rosters into memory,
@@ -128,6 +130,27 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
 
     let shared_keys = Arc::new(keys.clone());
     let shared_config = Arc::new(config.clone());
+
+    {
+        let publish_dirs = Arc::clone(&shared_dirs);
+        let publish_keys = Arc::clone(&shared_keys);
+        let publish_client = client.clone();
+        tokio::spawn(async move {
+            let mut ticker = interval(Duration::from_secs(HOSTED_PUBLISH_SWEEP_INTERVAL_SECS));
+            loop {
+                ticker.tick().await;
+                if let Err(err) = drain_hosted_publish_jobs(
+                    publish_dirs.as_slice(),
+                    publish_keys.as_ref(),
+                    &publish_client,
+                )
+                .await
+                {
+                    error!(error = %err, "hosted publish sweep failed");
+                }
+            }
+        });
+    }
 
     client
         .handle_notifications(|notification| {
@@ -224,6 +247,95 @@ pub async fn run_serve(config: &GateConfig, keys: &Keys) -> Result<(), Box<dyn s
         .await
         .map_err(|e| format!("notification loop: {e}"))?;
 
+    Ok(())
+}
+
+async fn drain_hosted_publish_jobs(
+    game_dirs: &[std::path::PathBuf],
+    gate_keys: &Keys,
+    client: &Client,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let loaded_games = catalog::load_hosted_games(game_dirs)?;
+    for entry in loaded_games {
+        drain_game_hosted_publish_jobs(&entry.dir, &entry.game, gate_keys, client).await?;
+    }
+    Ok(())
+}
+
+async fn drain_game_hosted_publish_jobs(
+    game_dir: &Path,
+    game: &catalog::HostedGame,
+    gate_keys: &Keys,
+    client: &Client,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let store = CampaignStore::open_default_in_dir(game_dir)?;
+    let jobs = store.pending_hosted_publish_jobs()?;
+    for job in jobs {
+        match job.kind {
+            nc_data::HostedPublishJobKind::MapPackOnFirstClaim => {
+                let player_pubkey = match PublicKey::from_hex(&job.player_npub) {
+                    Ok(pubkey) => pubkey,
+                    Err(err) => {
+                        let message = format!("invalid player pubkey in hosted publish job: {err}");
+                        store.record_hosted_publish_job_error(job.id, &message)?;
+                        warn!(
+                            game_id = %game.game_id,
+                            player = job.player_record_index_1_based,
+                            error = %err,
+                            "cannot publish map push for invalid player pubkey"
+                        );
+                        continue;
+                    }
+                };
+                let export =
+                    match build_player_map_export_data(game_dir, job.player_record_index_1_based) {
+                        Ok(export) => export,
+                        Err(err) => {
+                            let message = format!("unable to build starmap bundle: {err}");
+                            store.record_hosted_publish_job_error(job.id, &message)?;
+                            warn!(
+                                game_id = %game.game_id,
+                                player = job.player_record_index_1_based,
+                                error = %err,
+                                "cannot build starmap bundle for hosted map push"
+                            );
+                            continue;
+                        }
+                    };
+                match map::publish_map_push(
+                    client,
+                    gate_keys,
+                    &player_pubkey,
+                    &job.id.to_string(),
+                    &game.game_id,
+                    &game.game_name,
+                    job.player_record_index_1_based,
+                    &export,
+                )
+                .await
+                {
+                    Ok(event_id) => {
+                        store.mark_hosted_publish_job_published(job.id, unix_now())?;
+                        info!(
+                            game_id = %game.game_id,
+                            player = job.player_record_index_1_based,
+                            event_id = short_log_id(&event_id),
+                            "published 30512 MapPush"
+                        );
+                    }
+                    Err(err) => {
+                        store.record_hosted_publish_job_error(job.id, &err.to_string())?;
+                        warn!(
+                            game_id = %game.game_id,
+                            player = job.player_record_index_1_based,
+                            error = %err,
+                            "failed to publish 30512 MapPush"
+                        );
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 

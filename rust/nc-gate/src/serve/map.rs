@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::serve::routing::ResolvedSeat;
 
 pub const MAX_MAP_PAYLOAD_BYTES: usize = 64 * 1024;
+pub const MAP_PUSH_KIND: u16 = 30512;
 
 #[derive(Debug, Clone)]
 pub struct MapRequest {
@@ -116,6 +117,59 @@ pub async fn publish_map_bundle(
     export: &PlayerMapExportData,
 ) -> Result<String, PublishMapBundleError> {
     let payload = build_map_bundle_payload(seat, export)?;
+    publish_encrypted_map_payload(
+        client,
+        gate_keys,
+        player_pubkey,
+        Kind::Custom(30505),
+        vec![
+            Tag::parse(["d", request_nonce])
+                .map_err(|err| PublishMapBundleError::Other(format!("tag nonce: {err}")))?,
+            Tag::parse(["p", &player_pubkey.to_hex()])
+                .map_err(|err| PublishMapBundleError::Other(format!("tag player: {err}")))?,
+        ],
+        &payload,
+    )
+    .await
+}
+
+pub async fn publish_map_push(
+    client: &Client,
+    gate_keys: &Keys,
+    player_pubkey: &PublicKey,
+    publish_id: &str,
+    game_id: &str,
+    game_name: &str,
+    seat: usize,
+    export: &PlayerMapExportData,
+) -> Result<String, PublishMapBundleError> {
+    let payload = build_map_bundle_payload_for_values(game_id, game_name, seat as u32, export)?;
+    publish_encrypted_map_payload(
+        client,
+        gate_keys,
+        player_pubkey,
+        Kind::Custom(MAP_PUSH_KIND),
+        vec![
+            Tag::parse(["d", publish_id])
+                .map_err(|err| PublishMapBundleError::Other(format!("tag publish id: {err}")))?,
+            Tag::parse(["p", &player_pubkey.to_hex()])
+                .map_err(|err| PublishMapBundleError::Other(format!("tag player: {err}")))?,
+            Tag::parse(["game-id", game_id])
+                .map_err(|err| PublishMapBundleError::Other(format!("tag game-id: {err}")))?,
+        ],
+        &payload,
+    )
+    .await
+}
+
+async fn publish_encrypted_map_payload(
+    client: &Client,
+    gate_keys: &Keys,
+    player_pubkey: &PublicKey,
+    kind: Kind,
+    tags: Vec<Tag>,
+    payload: &MapBundlePayload,
+) -> Result<String, PublishMapBundleError> {
     let plaintext = serde_json::to_string(&payload)
         .map_err(|err| PublishMapBundleError::Other(format!("serialize map payload: {err}")))?;
     if plaintext.len() > MAX_MAP_PAYLOAD_BYTES {
@@ -129,14 +183,7 @@ pub async fn publish_map_bundle(
         Version::V2,
     )
     .map_err(|err| PublishMapBundleError::Other(format!("encrypt map payload: {err}")))?;
-
-    let tags = vec![
-        Tag::parse(["d", request_nonce])
-            .map_err(|err| PublishMapBundleError::Other(format!("tag nonce: {err}")))?,
-        Tag::parse(["p", &player_pubkey.to_hex()])
-            .map_err(|err| PublishMapBundleError::Other(format!("tag player: {err}")))?,
-    ];
-    let event = EventBuilder::new(Kind::Custom(30505), encrypted)
+    let event = EventBuilder::new(kind, encrypted)
         .tags(tags)
         .sign_with_keys(gate_keys)
         .map_err(|err| PublishMapBundleError::Other(format!("sign map bundle: {err}")))?;
@@ -182,6 +229,15 @@ pub fn build_map_bundle_payload(
     seat: &ResolvedSeat,
     export: &PlayerMapExportData,
 ) -> Result<MapBundlePayload, PublishMapBundleError> {
+    build_map_bundle_payload_for_values(&seat.game_id, &seat.game_name, seat.player as u32, export)
+}
+
+pub fn build_map_bundle_payload_for_values(
+    game_id: &str,
+    game_name: &str,
+    seat: u32,
+    export: &PlayerMapExportData,
+) -> Result<MapBundlePayload, PublishMapBundleError> {
     let files = export
         .fixed_named_files()
         .into_iter()
@@ -199,9 +255,9 @@ pub fn build_map_bundle_payload(
         .collect::<Result<Vec<_>, PublishMapBundleError>>()?;
 
     Ok(MapBundlePayload {
-        game_id: seat.game_id.clone(),
-        game_name: seat.game_name.clone(),
-        seat: seat.player as u32,
+        game_id: game_id.to_string(),
+        game_name: game_name.to_string(),
+        seat,
         files,
     })
 }

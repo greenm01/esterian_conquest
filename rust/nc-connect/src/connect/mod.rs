@@ -4,6 +4,7 @@ pub mod handshake;
 pub mod live;
 pub mod live_response;
 pub mod map_fetch;
+pub mod map_push;
 pub mod public_join;
 pub mod resolve;
 pub mod seat_claim;

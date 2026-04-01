@@ -5,6 +5,7 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
 mod hex;
+mod hosted_publish_jobs;
 mod hosted_seats;
 mod intel;
 mod mail;
@@ -15,6 +16,7 @@ mod runtime;
 mod settings;
 mod snapshot_core;
 
+pub use hosted_publish_jobs::{HostedPublishJob, HostedPublishJobKind, HostedPublishJobStatus};
 pub use hosted_seats::{ClaimHostedSeatError, HostedSeat, HostedSeatStatus};
 pub use settings::{
     CampaignSettings, DEFAULT_CAMPAIGN_THEME_KEY, DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
@@ -22,7 +24,7 @@ pub use settings::{
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ncgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 6;
+const RUNTIME_SCHEMA_VERSION: i64 = 7;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -300,6 +302,16 @@ impl CampaignStore {
                      OR (claim_status = 'claimed' AND player_npub IS NOT NULL)
                  )
              );
+             CREATE TABLE IF NOT EXISTS hosted_publish_jobs (
+                 id INTEGER PRIMARY KEY,
+                 job_kind TEXT NOT NULL,
+                 player_record_index INTEGER NOT NULL,
+                 player_npub TEXT NOT NULL,
+                 status TEXT NOT NULL,
+                 created_at INTEGER NOT NULL,
+                 published_at INTEGER,
+                 last_error TEXT
+             );
              CREATE TABLE IF NOT EXISTS campaign_settings (
                  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
                  slug TEXT NOT NULL,
@@ -558,6 +570,9 @@ impl CampaignStore {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(5) => {
+                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
+            }
+            Some(6) => {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(found) => {

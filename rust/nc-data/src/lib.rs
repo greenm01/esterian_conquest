@@ -92,8 +92,9 @@ pub use starmap::{
 pub use storage::{
     CampaignRuntimeState, CampaignSettings, CampaignStore, CampaignStoreError,
     ClaimHostedSeatError, DEFAULT_CAMPAIGN_DB_NAME, DEFAULT_CAMPAIGN_THEME_KEY,
-    DEFAULT_MAINTENANCE_INTERVAL_MINUTES, HostedSeat, HostedSeatStatus, IntelTier,
-    PlanetIntelSnapshot, SessionLease, SessionLeaseError, SessionLeaseState,
+    DEFAULT_MAINTENANCE_INTERVAL_MINUTES, HostedPublishJob, HostedPublishJobKind,
+    HostedPublishJobStatus, HostedSeat, HostedSeatStatus, IntelTier, PlanetIntelSnapshot,
+    SessionLease, SessionLeaseError, SessionLeaseState,
 };
 pub use support::{ParseError, decode_real48, encode_real48};
 pub use turns::{

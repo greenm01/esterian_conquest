@@ -249,9 +249,11 @@ claim does `nc-connect` cache the game ID, empire name, gate key, and relay
 URL so future picker reconnects do not need to rediscover them. If the player
 backs out before claim, the invite stays reusable and no durable picker row is
 written. After a completed first join, `nc-connect` also performs a second,
-short Nostr request to fetch the game's static player-safe starmap bundle.
-That map download is best-effort and happens only on first invite-code join,
-not on every reconnect.
+short Nostr recovery fetch only if needed. The primary path is now proactive:
+the hosted seat claim writes a durable publish job, `nc-gate` publishes 30512
+`MapPush`, and `nc-connect` saves the player-safe starmap bundle during the
+same live session so it is already present for turn 1. Manual picker map
+downloads still use the explicit 30504/30505 pull path.
 
 ## Player-Side File Layout
 
