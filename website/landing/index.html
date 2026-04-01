@@ -18,16 +18,25 @@
             font-family: 'Courier New', Courier, monospace;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             margin: 0;
-            padding: 24px;
+            padding: clamp(24px, 8vh, 96px) 24px 24px;
+        }
+        .page {
+            width: min(100%, 560px);
+        }
+        .hero {
+            display: block;
+            width: 100%;
+            height: auto;
+            margin-bottom: 18px;
         }
         .terminal {
             border: 1px solid var(--fg);
             padding: 30px;
             box-shadow: 0 0 10px var(--glow);
-            width: min(100%, 560px);
+            width: 100%;
             text-align: left;
         }
         .cursor {
@@ -80,30 +89,33 @@
     </style>
 </head>
 <body>
-    <div class="terminal">
-        <div class="header">NOSTRIAN_CONQUEST_OS v1.0</div>
-        <p>IDENTITY: nc_sysop@nostrian-conquest.com</p>
-        <p>RELAY: wss://relay.nostrian-conquest.com</p>
+    <div class="page">
+        <img class="hero" src="assets/nc-banner-terminal-green.png" alt="Nostrian Conquest terminal banner">
+        <div class="terminal">
+            <div class="header">NOSTRIAN_CONQUEST_OS v1.0</div>
+            <p>IDENTITY: nc_sysop@nostrian-conquest.com</p>
+            <p>RELAY: wss://relay.nostrian-conquest.com</p>
 
-        <div class="section">
-            <p class="label">ACCESS POINTS</p>
-            <div class="nav">
-                <a href="downloads.html">DOWNLOADS</a>
-                <a href="screenshots.html">SCREENSHOTS</a>
-                <a href="https://github.com/greenm01/nostrian-conquest" target="_blank" rel="noopener noreferrer">SOURCE CODE</a>
-                <a href="https://discord.gg/FMr8sfBa" target="_blank" rel="noopener noreferrer">DISCORD</a>
-                <a href="https://primal.net/p/npub1u59207e335pxpww0r0h7scy09e99pccg5sh0xlj3v88pcyf2uwas94n0v7" target="_blank" rel="noopener noreferrer">NOSTR</a>
+            <div class="section">
+                <p class="label">ACCESS POINTS</p>
+                <div class="nav">
+                    <a href="downloads.html">DOWNLOADS</a>
+                    <a href="screenshots.html">SCREENSHOTS</a>
+                    <a href="https://github.com/greenm01/nostrian-conquest" target="_blank" rel="noopener noreferrer">SOURCE CODE</a>
+                    <a href="https://discord.gg/FMr8sfBa" target="_blank" rel="noopener noreferrer">DISCORD</a>
+                    <a href="https://primal.net/p/npub1u59207e335pxpww0r0h7scy09e99pccg5sh0xlj3v88pcyf2uwas94n0v7" target="_blank" rel="noopener noreferrer">NOSTR</a>
+                </div>
             </div>
-        </div>
 
-        <div class="section">
-            <p>THE NOSTRIAN CONQUEST HAS BEGUN.</p>
-            <p>WANT TO SEE THE CLIENT FIRST? OPEN <a href="screenshots.html">SCREENSHOTS</a>.</p>
-            <p>LOOKING FOR A CLIENT BUILD? OPEN <a href="downloads.html">DOWNLOADS</a>.</p>
-            <p>LOOKING FOR A LIVE GAME? START ON <a href="https://discord.gg/FMr8sfBa" target="_blank" rel="noopener noreferrer">DISCORD</a>.</p>
-        </div>
+            <div class="section">
+                <p>THE NOSTRIAN CONQUEST HAS BEGUN.</p>
+                <p>WANT TO SEE THE CLIENT FIRST? OPEN <a href="screenshots.html">SCREENSHOTS</a>.</p>
+                <p>LOOKING FOR A CLIENT BUILD? OPEN <a href="downloads.html">DOWNLOADS</a>.</p>
+                <p>LOOKING FOR A LIVE GAME? START ON <a href="https://discord.gg/FMr8sfBa" target="_blank" rel="noopener noreferrer">DISCORD</a>.</p>
+            </div>
 
-        <p>> <span class="cursor"></span></p>
+            <p>> <span class="cursor"></span></p>
+        </div>
     </div>
 </body>
 </html>
