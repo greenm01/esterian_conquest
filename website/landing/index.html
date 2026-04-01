@@ -5,15 +5,24 @@
     <title>NOSTRIAN CONQUEST | PROJECT</title>
     <style>
         :root {
-            --bg: #0a0a0a;
+            --bg: #030c04;
             --fg: #33ff33;
             --fg-dim: #9dff9d;
             --link: #ffffff;
             --glow: rgba(51, 255, 51, 0.12);
+            --page-top: clamp(24px, 8vh, 96px);
+            --page-width: min(calc(100vw - 48px), 560px);
         }
         * { box-sizing: border-box; }
-        body {
+        html {
             background: var(--bg);
+        }
+        body {
+            background-color: var(--bg);
+            background-image: url('assets/nc-banner-terminal-green.jpg');
+            background-repeat: no-repeat;
+            background-position: center var(--page-top);
+            background-size: var(--page-width) auto;
             color: var(--fg);
             font-family: 'Courier New', Courier, monospace;
             display: flex;
@@ -21,7 +30,7 @@
             align-items: flex-start;
             min-height: 100vh;
             margin: 0;
-            padding: clamp(24px, 8vh, 96px) 24px 24px;
+            padding: var(--page-top) 24px 24px;
         }
         .page {
             width: min(100%, 560px);
@@ -90,7 +99,7 @@
 </head>
 <body>
     <div class="page">
-        <img class="hero" src="assets/nc-banner-terminal-green.png" alt="Nostrian Conquest terminal banner">
+        <img class="hero" src="assets/nc-banner-terminal-green.jpg" alt="Nostrian Conquest terminal banner">
         <div class="terminal">
             <div class="header">NOSTRIAN_CONQUEST_OS v1.0</div>
             <p>IDENTITY: nc_sysop@nostrian-conquest.com</p>
