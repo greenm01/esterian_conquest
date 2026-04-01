@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EC_USER="ecgame"
-GAMES_ROOT="/srv/ec/games"
+EC_USER="ncgame"
+GAMES_ROOT="/srv/nc/games"
 CONFIG_DIR="/etc/nc-gate"
 STATE_DIR="/var/lib/nc-gate"
 AUTH_KEYS_METHOD="command"
@@ -26,8 +26,8 @@ Usage:
   sudo ./scripts/install_vps.sh --relay <wss://relay> --ssh-host <host> [options]
 
 Options:
-  --ec-user <name>                 Service user. Default: ecgame
-  --games-root <path>              Parent directory for campaign dirs. Default: /srv/ec/games
+  --nc-user <name>                 Service user. Default: ncgame
+  --games-root <path>              Parent directory for campaign dirs. Default: /srv/nc/games
   --relay <url>                    Nostr relay URL written to /etc/nc-gate/config.kdl
   --ssh-host <host>                Public SSH host sent to players
   --ssh-port <port>                Public SSH port. Default: 22
@@ -46,7 +46,7 @@ EOF
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --ec-user)
+    --nc-user)
       EC_USER="$2"
       shift 2
       ;;
@@ -274,7 +274,7 @@ WantedBy=timers.target
 EOF
 
 install -d -m 0755 /etc/ssh/sshd_config.d
-cat >/etc/ssh/sshd_config.d/ecgame.conf <<EOF
+cat >/etc/ssh/sshd_config.d/ncgame.conf <<EOF
 Match User $EC_USER
     AuthorizedKeysCommand $EC_GATE_KEYS_DEST %u
     AuthorizedKeysCommandUser $EC_USER
