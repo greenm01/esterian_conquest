@@ -271,7 +271,13 @@ It contains:
 Join a hosted game with the invite code from your sysop:
 
 ```bash
-{connect_binary} --join amber-river@relay.example.com
+{connect_binary}
+```
+
+Then press `N` in the app and paste the raw invite code:
+
+```text
+amber-river@relay.example.com
 ```
 
 The player manual PDF in `{player_manual_path}` is the companion manual for this binary.
