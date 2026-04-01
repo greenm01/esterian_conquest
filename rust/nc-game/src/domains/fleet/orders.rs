@@ -1394,12 +1394,12 @@ impl App {
             .map(|row| row.coords)
             .unwrap_or(self.default_planet_prompt_coords());
         match mission_code {
-            1 | 3 => vec![anchor],
+            0 | 1 | 3 => vec![anchor],
             4 => self
                 .closest_owned_starbase_target_from(anchor)
                 .into_iter()
                 .collect(),
-            5 | 15 => self.owned_planet_targets_from(anchor),
+            2 | 5 | 15 => self.owned_planet_targets_from(anchor),
             6 | 7 | 8 => self.known_enemy_planet_targets_from(anchor),
             9 => self.under_scouted_world_targets_from(anchor),
             10 => self.scout_sector_target_candidates_from(anchor, &selected_records),
@@ -1985,8 +1985,8 @@ pub(super) fn fleet_target_status_line(order_code: Option<u8>) -> String {
     }
 }
 
-fn fleet_group_order_requires_target(order_code: u8) -> bool {
-    !matches!(order_code, 0 | 2)
+fn fleet_group_order_requires_target(_order_code: u8) -> bool {
+    true
 }
 
 fn fleet_mission_requires_preselected_target(order_code: u8) -> bool {
@@ -1994,7 +1994,7 @@ fn fleet_mission_requires_preselected_target(order_code: u8) -> bool {
 }
 
 fn fleet_order_target_requires_planet_system(order_code: u8) -> bool {
-    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
+    matches!(order_code, 2 | 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
 }
 
 fn fleet_order_target_rejects_owned_planet(order_code: u8) -> bool {
@@ -2006,11 +2006,14 @@ fn fleet_order_target_rejects_owned_scout_target(order_code: u8) -> bool {
 }
 
 fn fleet_order_target_requires_owned_planet(order_code: u8) -> bool {
-    matches!(order_code, 15)
+    matches!(order_code, 2 | 15)
 }
 
 fn fleet_order_target_y_depends_on_entered_x(order_code: u8) -> bool {
-    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
+    matches!(
+        fleet_target_input_kind(Some(order_code)),
+        FleetTargetInputKind::Coordinates
+    )
 }
 
 fn fleet_group_order_label(order_code: u8) -> &'static str {

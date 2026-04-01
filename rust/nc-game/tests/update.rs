@@ -12198,6 +12198,251 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
 }
 
 #[test]
+fn fleet_order_patrol_defaults_x_and_y_to_current_sector() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let patrol_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("fixture should have a player fleet");
+    let patrol_coords = patrol_fleet.current_location_coords_raw();
+    let patrol_number = patrol_fleet.local_slot_word_raw();
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(patrol_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('3'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("patrol target x prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", patrol_coords[0]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("patrol target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", patrol_coords[1]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("patrol confirm should render");
+    assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
+    assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Patrol"));
+}
+
+#[test]
+fn fleet_order_hold_defaults_to_current_sector_and_persists_target() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let hold_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    let hold_coords = hold_fleet.current_location_coords_raw();
+    let fleet_number = hold_fleet.local_slot_word_raw();
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('0'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("hold target x prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", hold_coords[0]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("hold target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", hold_coords[1]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    confirm_fleet_order(&mut app, true);
+
+    let state = latest_runtime_state(&fixture_dir);
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == fleet_number)
+        .expect("fleet should still exist");
+    assert_eq!(ordered_fleet.standing_order_code_raw(), 0);
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), hold_coords);
+}
+
+#[test]
+fn fleet_order_seek_home_defaults_to_nearest_owned_planet_and_persists_target() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let seek_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    let anchor = seek_fleet.current_location_coords_raw();
+    let fleet_number = seek_fleet.local_slot_word_raw();
+    let mut owned_targets = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .filter(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|planet| planet.coords_raw())
+        .collect::<Vec<_>>();
+    owned_targets.sort_by_key(|coords| {
+        let dx = i32::from(anchor[0]) - i32::from(coords[0]);
+        let dy = i32::from(anchor[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    owned_targets.dedup();
+    let nearest_owned = owned_targets[0];
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("seek home target x prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", nearest_owned[0]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("seek home target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", nearest_owned[1]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
+        AppOutcome::Continue
+    );
+    confirm_fleet_order(&mut app, true);
+
+    let state = latest_runtime_state(&fixture_dir);
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == fleet_number)
+        .expect("fleet should still exist");
+    assert_eq!(ordered_fleet.standing_order_code_raw(), 2);
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), nearest_owned);
+}
+
+#[test]
 fn fleet_order_salvage_rejects_empty_sector_target() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -12841,6 +13086,300 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
     assert!(prompt.contains("Target XX "));
     assert!(!prompt.contains('['));
     assert!(!prompt.contains("Notice:"));
+}
+
+#[test]
+fn fleet_group_patrol_defaults_x_and_y_to_selected_sector() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let patrol_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("fixture should have a player fleet");
+    let patrol_coords = patrol_fleet.current_location_coords_raw();
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('3'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group patrol target x prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", patrol_coords[0]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group patrol target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", patrol_coords[1]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group patrol confirm should render");
+    assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
+    assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Patrol"));
+}
+
+#[test]
+fn fleet_group_hold_defaults_to_selected_sector_and_persists_target() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let hold_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("fixture should have a player fleet");
+    let hold_coords = hold_fleet.current_location_coords_raw();
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('0'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group hold target x prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", hold_coords[0]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group hold target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", hold_coords[1]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    confirm_fleet_group_order(&mut app, true);
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        state
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| {
+                fleet.owner_empire_raw() == 1
+                    && fleet.standing_order_code_raw() == 0
+                    && fleet.standing_order_target_coords_raw() == hold_coords
+            })
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn fleet_group_seek_home_defaults_to_nearest_owned_planet_and_persists_target() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let seek_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("fixture should have a player fleet");
+    let anchor = seek_fleet.current_location_coords_raw();
+    let mut owned_targets = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .filter(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|planet| planet.coords_raw())
+        .collect::<Vec<_>>();
+    owned_targets.sort_by_key(|coords| {
+        let dx = i32::from(anchor[0]) - i32::from(coords[0]);
+        let dy = i32::from(anchor[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    owned_targets.dedup();
+    let nearest_owned = owned_targets[0];
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group seek home target x prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", nearest_owned[0]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group seek home target y prompt should render");
+    assert!(
+        line_containing(&terminal, "Target YY [")
+            .contains(&format!("Target YY [{:02}] <Q> ->", nearest_owned[1]))
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
+        AppOutcome::Continue
+    );
+    confirm_fleet_group_order(&mut app, true);
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        state
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| {
+                fleet.owner_empire_raw() == 1
+                    && fleet.standing_order_code_raw() == 2
+                    && fleet.standing_order_target_coords_raw() == nearest_owned
+            })
+            .count(),
+        1
+    );
 }
 
 #[test]
