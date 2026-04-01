@@ -1,10 +1,10 @@
-# EC_UNLOCKED
+# NC_UNLOCKED
 
 Curated runnable plain-MZ copies of the Esterian Conquest v1.5 DOS executables.
 
 This directory now lives at the project root so docs and RE workflows can
 reference the unlocked binaries with short stable paths such as
-`EC_UNLOCKED/ECMAINT.EXE`.
+`NC_UNLOCKED/ECMAINT.EXE`.
 
 ## What are these?
 
@@ -25,7 +25,7 @@ but the three executables are not rebuilt the same way:
   its MZ file-size fields corrected so DOSBox-X loads the full recovered image
 
 The preserved `tools/unlzexe/*U.EXE` artifacts keep their historical extraction
-state for RE work. `EC_UNLOCKED/` is the curated runnable output set.
+state for RE work. `NC_UNLOCKED/` is the curated runnable output set.
 
 Supporting extraction scripts, live-memory captures, and preserved sandbox
 artifacts live under [`tools/unlzexe/`](../tools/unlzexe/).
@@ -52,7 +52,7 @@ binaries.
 | Header | 512-byte oversized | Standard 32-byte |
 | Body | Stream-cipher encrypted | Plaintext code + data |
 | MZ relocations | 0 (TP7 handles fixups internally) | 0 (same) |
-| Runs in DOSBox-X | Yes (stub decrypts at load) | Yes (verified curated `EC_UNLOCKED/` copies) |
+| Runs in DOSBox-X | Yes (stub decrypts at load) | Yes (verified curated `NC_UNLOCKED/` copies) |
 | Runs in dosemu2 | No (VM86 incompatible stub) | Not currently working |
 | Ghidra import | Requires memory dump extraction | Direct import works |
 
@@ -79,7 +79,7 @@ environment block, which shifts the load segment and affects Turbo Pascal
 4. Prepended original MZ headers recovered from the plaintext data area
    at stub+0x1B5 (outside all encryption ranges).
 
-5. Rebuilt the runnable `EC_UNLOCKED/` set with:
+5. Rebuilt the runnable `NC_UNLOCKED/` set with:
 
    ```bash
    python3 tools/unlzexe/rebuild_unlocked.py --verify

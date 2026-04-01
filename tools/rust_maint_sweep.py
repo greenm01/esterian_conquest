@@ -4,8 +4,8 @@ Validate multi-turn Rust maintenance outputs against the original ECMAINT oracle
 
 This script:
 
-- creates seeded new games through `ec-cli sysop new-game`
-- runs `ec-cli maint-rust` for multiple turns
+- creates seeded new games through `nc-cli sysop new-game`
+- runs `nc-cli maint-rust` for multiple turns
 - runs the original ECMAINT oracle on the resulting directory
 
 It is intended as an end-to-end confidence check that Rust-produced live
@@ -53,13 +53,13 @@ def generate_seeded_new_game(target_dir: Path, player_count: int, seed: int) -> 
             "run",
             "-q",
             "-p",
-            "ec-cli",
+            "nc-cli",
             "--",
             "sysop",
             "new-game",
             str(target_dir),
             "--config",
-            "ec-data/config/setup.example.kdl",
+            "nc-data/config/setup.example.kdl",
             "--players",
             str(player_count),
             "--seed",
@@ -74,7 +74,7 @@ def generate_seeded_new_game(target_dir: Path, player_count: int, seed: int) -> 
 
 def run_rust_maint(target_dir: Path, turns: int) -> tuple[bool, list[str]]:
     result = run_cmd(
-        ["cargo", "run", "-q", "-p", "ec-cli", "--", "maint-rust", str(target_dir), str(turns)],
+        ["cargo", "run", "-q", "-p", "nc-cli", "--", "maint-rust", str(target_dir), str(turns)],
         RUST_DIR,
     )
     if result.returncode != 0:

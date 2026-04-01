@@ -1,0 +1,179 @@
+// Rose Pine (Main) for nc-game
+// rose-pine/neovim
+//
+// Background: #191724  Foreground: #e0def4
+// Soft, minimalist soho aesthetic — gentle tones, deeply calming.
+
+style "body" {
+    fg "#e0def4"
+    bg "#191724"
+}
+style "title" {
+    fg "#31748f"
+    bg "#191724"
+    bold #true
+}
+style "shell_title" {
+    fg "#31748f"
+    bg "#191724"
+    bold #true
+}
+style "shell_label" {
+    fg "#c4a7e7"
+    bg "#191724"
+    bold #true
+}
+style "menu" {
+    fg "#e0def4"
+    bg "#191724"
+}
+style "menu_hotkey" {
+    fg "#f6c177"
+    bg "#191724"
+    bold #true
+}
+style "prompt" {
+    fg "#e0def4"
+    bg "#191724"
+}
+style "prompt_angle_delimiter" {
+    fg "#95b1ac"
+    bg "#191724"
+    bold #true
+}
+style "prompt_square_delimiter" {
+    fg "#eb6f92"
+    bg "#191724"
+    bold #true
+}
+style "prompt_hotkey" {
+    fg "#f6c177"
+    bg "#191724"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "#9ccfd8"
+    bg "#191724"
+    bold #true
+}
+style "bright" {
+    fg "#e0def4"
+    bg "#191724"
+    bold #true
+}
+style "logo" {
+    fg "#31748f"
+    bg "#191724"
+    bold #true
+}
+style "intro_accent" {
+    fg "#31748f"
+    bg "#191724"
+}
+style "intro_tribute" {
+    fg "#c4a7e7"
+    bg "#191724"
+}
+style "stardate_label" {
+    fg "#9ccfd8"
+    bg "#191724"
+}
+style "stardate_week" {
+    fg "#9ccfd8"
+    bg "#191724"
+    bold #true
+}
+style "stardate_year" {
+    fg "#f6c177"
+    bg "#191724"
+}
+style "error" {
+    fg "#eb6f92"
+    bg "#191724"
+    bold #true
+}
+style "notice" {
+    fg "#eb6f92"
+    bg "#191724"
+    bold #true
+}
+style "status_label" {
+    fg "#6e6a86"
+    bg "#191724"
+}
+style "status_value" {
+    fg "#e0def4"
+    bg "#191724"
+}
+style "table_chrome" {
+    fg "#26233a"
+    bg "#191724"
+}
+style "table_header" {
+    fg "#31748f"
+    bg "#191724"
+    bold #true
+}
+style "table_body" {
+    fg "#e0def4"
+    bg "#191724"
+}
+style "disabled_row" {
+    fg "#6e6a86"
+    bg "#191724"
+}
+style "selected" {
+    fg "#191724"
+    bg "#31748f"
+}
+style "alert" {
+    fg "#e0def4"
+    bg "#26233a"
+    bold #true
+}
+style "help_header" {
+    fg "#31748f"
+    bg "#191724"
+    bold #true
+}
+style "help_panel" {
+    fg "#e0def4"
+    bg "#191724"
+}
+style "map_dot" {
+    fg "#95b1ac"
+    bg "#191724"
+}
+style "map_crosshair" {
+    fg "#eb6f92"
+    bg "#191724"
+    bold #true
+}
+style "map_center" {
+    fg "#e0def4"
+    bg "#191724"
+    bold #true
+}
+style "quote" {
+    fg "#6e6a86"
+    bg "#191724"
+}
+style "quote_author" {
+    fg "#6e6a86"
+    bg "#191724"
+}
+style "report_header" {
+    fg "#9ccfd8"
+    bg "#191724"
+}
+style "indicator_on" {
+    fg "#95b1ac"
+    bg "#191724"
+    bold #true
+}
+style "indicator_off" {
+    fg "#26233a"
+    bg "#191724"
+}
+
+star-colors "#31748f" "#e0def4" "#9ccfd8" "#f6c177" "#ebbcba" "#eb6f92"

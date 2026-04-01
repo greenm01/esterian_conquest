@@ -6,7 +6,7 @@ The goal is to keep the classic printable starmap while making it practical for
 modern local play, BBS-hosted Rust deployments, and hosted Nostr play:
 
 - hosted Nostr players receive the static map bundle automatically on first join
-- hosted Nostr players can manually re-download the bundle later from `ec-connect`
+- hosted Nostr players can manually re-download the bundle later from `nc-connect`
 - local and BBS players can still export the same player-safe map files directly
 - sysops can still stage those files into a BBS download/queue area when needed
 
@@ -35,9 +35,9 @@ Fog-of-war policy:
 
 ## Hosted Nostr Delivery
 
-When a player joins a game through `ec-connect` with an invite code,
-`ec-connect` automatically requests the static map bundle from the daemon
-behind `ec-sysop nostr serve` before it opens SSH into `ec-game`.
+When a player joins a game through `nc-connect` with an invite code,
+`nc-connect` automatically requests the static map bundle from the daemon
+behind `nc-sysop nostr serve` before it opens SSH into `nc-game`.
 
 Current behavior:
 
@@ -49,11 +49,11 @@ Current behavior:
 - players can re-download the selected game's bundle from the picker with
   `M`
 
-By default, `ec-connect` stores bundles in its platform-local data area.
+By default, `nc-connect` stores bundles in its platform-local data area.
 Players can override the root with:
 
 - `maps-dir` in `~/.config/nc/config.kdl`
-- `--maps-dir <PATH>` on the `ec-connect` command line
+- `--maps-dir <PATH>` on the `nc-connect` command line
 
 ## Local / Hotseat Usage
 
@@ -61,8 +61,8 @@ Export directly from the player client:
 
 ```bash
 cd rust
-cargo run -q -p ec-game -- \
-  --dir /tmp/ec-game \
+cargo run -q -p nc-game -- \
+  --dir /tmp/nc-game \
   --player 1 \
   --export-root /tmp/ec-exports
 ```
@@ -76,7 +76,7 @@ You can also generate the files directly from the CLI:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- map-export /tmp/ec-game 1 /tmp/ec-exports/ECMAP-P1-Y3000.TXT
+cargo run -q -p nc-cli -- map-export /tmp/nc-game 1 /tmp/ec-exports/ECMAP-P1-Y3000.TXT
 ```
 
 ## Door / BBS Staging
@@ -85,7 +85,7 @@ The first implementation supports queue-style delivery by staging files into a
 configured export area and, optionally, copying them into a queue/download
 directory.
 
-`ec-game` recognizes:
+`nc-game` recognizes:
 
 - `EC_CLIENT_EXPORT_ROOT`
   - where generated map files are written
@@ -99,7 +99,7 @@ Example:
 export EC_CLIENT_EXPORT_ROOT=/bbs/doors/ecgame/exports
 export EC_CLIENT_QUEUE_DIR=/bbs/files/player-queue
 cd rust
-cargo run -q -p ec-game -- --dir /bbs/games/ec --player 2
+cargo run -q -p nc-game -- --dir /bbs/games/ec --player 2
 ```
 
 When the player presses `E` from `M`, the client writes both files under the
@@ -152,7 +152,7 @@ web-backed delivery path after the door exits.
 
 ## Telnet Screen Capture
 
-Inside `ec-game`, the `M` command still supports the classic map-capture
+Inside `nc-game`, the `M` command still supports the classic map-capture
 workflow.
 
 Current Rust behavior:

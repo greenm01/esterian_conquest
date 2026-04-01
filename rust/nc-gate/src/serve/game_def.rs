@@ -1,0 +1,84 @@
+//! 30500 GameDefinition event construction and publishing.
+//!
+//! A GameDefinition event is a public, unencrypted NIP-33 event that advertises
+//! one game: its name, number of seats, and which seats are claimed (with npubs).
+//! Invite codes are SHA-256-hashed before publishing so relay observers cannot
+//! read unclaimed codes.
+//!
+//! `nc-gate` publishes an updated 30500 for a game whenever:
+//!   - `serve` starts up (announce all loaded games)
+//!   - a seat is claimed (roster changed)
+
+use nc_nostr::hash::sha256_hex;
+use nostr_sdk::{Client, EventBuilder, Keys, Kind, Tag};
+
+use nc_data::HostedSeatStatus;
+
+use crate::serve::catalog::HostedGame;
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/// Build and publish a 30500 GameDefinition event for `game`.
+///
+/// Returns the event ID as a hex string on success.
+pub async fn publish_game_definition(
+    client: &Client,
+    gate_keys: &Keys,
+    game: &HostedGame,
+    ssh_host: &str,
+    ssh_port: u16,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let tags = build_game_def_tags(game, ssh_host, ssh_port)?;
+
+    let event = EventBuilder::new(Kind::Custom(30500), "")
+        .tags(tags)
+        .sign_with_keys(gate_keys)?;
+
+    client.send_event(&event).await?;
+
+    Ok(event.id.to_hex())
+}
+
+// ---------------------------------------------------------------------------
+// Tag construction (pub for unit tests)
+// ---------------------------------------------------------------------------
+
+/// Build the NIP-33 tag list for a 30500 GameDefinition event.
+///
+/// Tags produced (in order):
+///   `d` = game id slug
+///   `name` = human-readable game name
+///   `status` = "active"
+///   `ssh-host` = SSH hostname players connect to
+///   `ssh-port` = SSH port players connect to
+///   `players` = total number of seats
+///   `slot` = [seat-index, invite-code-hash, npub-or-empty, status] per seat
+pub fn build_game_def_tags(
+    game: &HostedGame,
+    ssh_host: &str,
+    ssh_port: u16,
+) -> Result<Vec<Tag>, Box<dyn std::error::Error + Send + Sync>> {
+    let mut tags = Vec::new();
+
+    tags.push(Tag::parse(["d", &game.game_id])?);
+    tags.push(Tag::parse(["name", &game.game_name])?);
+    tags.push(Tag::parse(["status", "active"])?);
+    tags.push(Tag::parse(["ssh-host", ssh_host])?);
+    tags.push(Tag::parse(["ssh-port", &ssh_port.to_string()])?);
+    tags.push(Tag::parse(["players", &game.seats.len().to_string()])?);
+
+    for seat in &game.seats {
+        let code_hash = sha256_hex(seat.invite_code.to_ascii_lowercase().as_bytes());
+        let npub = seat.player_npub.as_deref().unwrap_or("");
+        let status = match seat.status {
+            HostedSeatStatus::Pending => "pending",
+            HostedSeatStatus::Claimed => "claimed",
+        };
+        let seat_idx = seat.player_record_index_1_based.to_string();
+        tags.push(Tag::parse(["slot", &seat_idx, &code_hash, npub, status])?);
+    }
+
+    Ok(tags)
+}

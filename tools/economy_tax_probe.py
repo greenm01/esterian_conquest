@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUST = ROOT / "rust"
-SETUP_CONFIG = ROOT / "rust" / "ec-data" / "config" / "setup.example.kdl"
+SETUP_CONFIG = ROOT / "rust" / "nc-data" / "config" / "setup.example.kdl"
 MUTABLE_FILES = [
     "PLAYER",
     "PLANETS",
@@ -37,8 +37,8 @@ def run(cmd: list[str], cwd: Path) -> str:
     return result.stdout
 
 
-def run_ec_cli(args: list[str]) -> str:
-    return run(["cargo", "run", "-q", "-p", "ec-cli", "--", *args], RUST)
+def run_nc_cli(args: list[str]) -> str:
+    return run(["cargo", "run", "-q", "-p", "nc-cli", "--", *args], RUST)
 
 
 def run_oracle(target: Path) -> str:
@@ -67,7 +67,7 @@ def apply_probe_via_mutable_context(target: Path, player: int, tax_rate: int) ->
             source = target / f"{stem}.DAT"
             if source.exists():
                 shutil.copy2(source, mutable / f"{stem}.DAT")
-        output = run_ec_cli(
+        output = run_nc_cli(
             ["economy-tax-probe-init", str(mutable), str(player), str(tax_rate)]
         )
         for stem in MUTABLE_FILES:
@@ -85,7 +85,7 @@ def apply_probe_via_mutable_context(target: Path, player: int, tax_rate: int) ->
                     source = target / f"{stem}.DAT"
                 if source.exists():
                     shutil.copy2(source, mutable / f"{stem}.DAT")
-            run_ec_cli(["economy-tax-probe-init", str(mutable), str(player), str(tax_rate)])
+            run_nc_cli(["economy-tax-probe-init", str(mutable), str(player), str(tax_rate)])
             for stem in sav_stems:
                 dat = mutable / f"{stem}.DAT"
                 if dat.exists():
@@ -118,7 +118,7 @@ def main() -> int:
             copy_tree(args.source, target)
             print(f"Copied source fixture: {args.source}")
         else:
-            print(run_ec_cli([
+            print(run_nc_cli([
                 "sysop",
                 "new-game",
                 str(target),
@@ -132,7 +132,7 @@ def main() -> int:
         for turn in range(1, args.turns + 1):
             print(f"-- oracle turn {turn} --")
             print(run_oracle(target).strip())
-            report = run_ec_cli(["economy-report", str(target), str(args.player)]).strip()
+            report = run_nc_cli(["economy-report", str(target), str(args.player)]).strip()
             report_path = target / f"economy-after-turn-{turn}.txt"
             report_path.write_text(report + "\n", encoding="utf-8")
             print(report)

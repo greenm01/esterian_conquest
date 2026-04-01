@@ -29,7 +29,7 @@ These are the docs that should drive engine/client behavior.
 - [ec-reports.md](ec-reports.md)
   - canonical player-facing report wording, narrative style, and classic
     `RESULTS.DAT` layout contract
-- [ec-game-prompt-standard.md](ec-game-prompt-standard.md)
+- [nc-game-prompt-standard.md](nc-game-prompt-standard.md)
   - canonical non-table command-line prompt grammar and theming for the Rust client
 
 ## Architecture And Workflow Docs
@@ -84,7 +84,7 @@ For client/UI work:
 
 1. [next-session.md](next-session.md)
 2. [bbs_door_client_rust.md](bbs_door_client_rust.md)
-3. [ec-game-prompt-standard.md](ec-game-prompt-standard.md)
+3. [nc-game-prompt-standard.md](nc-game-prompt-standard.md)
 4. [rust-architecture.md](rust-architecture.md)
 
 ## Doc Policy

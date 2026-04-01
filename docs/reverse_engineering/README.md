@@ -112,7 +112,7 @@ keep it in the black-box queue until it becomes a real blocker.
     work
 - [docs/dev/archive/RE_NOTES.md](../dev/archive/RE_NOTES.md)
   - chronological archival notebook
-- [EC_UNLOCKED/README.md](../../EC_UNLOCKED/README.md)
+- [NC_UNLOCKED/README.md](../../NC_UNLOCKED/README.md)
   - decrypted runnable binaries used for static and dynamic analysis
 - [docs/dev/dosbox-workflow.md](../dev/dosbox-workflow.md)
   - oracle-running and dump-capture workflow

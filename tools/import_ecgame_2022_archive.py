@@ -12,7 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = REPO_ROOT / "artifacts" / "ecgame-client" / "archive-2022"
 
-LOGS_ZIP = "ec-logs-2022.zip"
+LOGS_ZIP = "nc-logs-2022.zip"
 SELECTED_LOGS = [
     "ec/2022-07-23-NEW-GAME.txt",
 ]

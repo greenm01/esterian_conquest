@@ -34,13 +34,13 @@ Options:
                        Override SSH key provisioning path. Requires --auth-keys-method.
   --help               Show this help
 
-This helper starts a local ec-sysop nostr serve instance for a stress-test
+This helper starts a local nc-sysop nostr serve instance for a stress-test
 game. It prints pending-seat invite codes when available and reports already
 claimed seats for returning-player fixture testing.
 
 Pending invite output looks like:
 
-  ec-connect --join victim-sickness@localhost:8080
+  nc-connect --join victim-sickness@localhost:8080
 
 Prerequisite:
   A relay must already be listening at the chosen --relay URL.
@@ -107,10 +107,10 @@ require_cmd cargo
 require_cmd sqlite3
 require_cmd python3
 
-GAME_DB="$GAME_DIR/ecgame.db"
+GAME_DB="$GAME_DIR/ncgame.db"
 CONFIG_PATH="$STATE_DIR/config.kdl"
 IDENTITY_PATH="$STATE_DIR/identity.kdl"
-EC_GAME_PATH="$RUST_DIR/target/debug/ec-game"
+EC_GAME_PATH="$RUST_DIR/target/debug/nc-game"
 
 resolve_user_home() {
   getent passwd "$1" | awk -F: 'NR == 1 { print $6 }'
@@ -312,19 +312,19 @@ relay "$RELAY_URL"
 ssh-host "$SSH_HOST"
 ssh-port $SSH_PORT
 ssh-user "$SSH_USER"
-ec-game-path "$EC_GAME_PATH"
+nc-game-path "$EC_GAME_PATH"
 auth-keys-method "$AUTH_KEYS_METHOD"
 auth-keys-path "$AUTH_KEYS_PATH"
 key-ttl $KEY_TTL
 game "$GAME_DIR"
 EOF
 
-echo "Building ec-game and ec-sysop ..."
-(cd "$RUST_DIR" && cargo build -q -p ec-game -p ec-sysop)
+echo "Building nc-game and nc-sysop ..."
+(cd "$RUST_DIR" && cargo build -q -p nc-game -p nc-sysop)
 
 if [[ ! -f "$IDENTITY_PATH" ]]; then
   echo "Initializing local gate identity at $IDENTITY_PATH ..."
-  (cd "$RUST_DIR" && cargo run -q -p ec-sysop -- nostr init --identity "$IDENTITY_PATH")
+  (cd "$RUST_DIR" && cargo run -q -p nc-sysop -- nostr init --identity "$IDENTITY_PATH")
 fi
 
 INVITE_SUFFIX="$(
@@ -350,7 +350,7 @@ if [[ -n "$PENDING_SEATS" ]]; then
   while IFS='|' read -r seat invite; do
     [[ -n "$seat" ]] || continue
     echo "  Seat $seat"
-    echo "    ec-connect --join ${invite}@${INVITE_SUFFIX}"
+    echo "    nc-connect --join ${invite}@${INVITE_SUFFIX}"
   done <<< "$PENDING_SEATS"
   echo
 fi
@@ -380,4 +380,4 @@ echo "Leave this helper running while you test GUI invite joins."
 echo
 
 cd "$RUST_DIR"
-exec cargo run -q -p ec-sysop -- nostr serve --config "$CONFIG_PATH" --identity "$IDENTITY_PATH"
+exec cargo run -q -p nc-sysop -- nostr serve --config "$CONFIG_PATH" --identity "$IDENTITY_PATH"

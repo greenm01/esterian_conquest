@@ -5,13 +5,13 @@ import argparse
 from pathlib import Path
 
 
-START_MARKER = "<!-- EC-RUST-VERIFY:START -->"
-END_MARKER = "<!-- EC-RUST-VERIFY:END -->"
+START_MARKER = "<!-- NC-RUST-VERIFY:START -->"
+END_MARKER = "<!-- NC-RUST-VERIFY:END -->"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Insert or replace the ec-connect verification note block in a release body."
+        description="Insert or replace the nc-connect verification note block in a release body."
     )
     parser.add_argument(
         "--body-file",

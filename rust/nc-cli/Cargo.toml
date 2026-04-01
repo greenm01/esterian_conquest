@@ -1,0 +1,19 @@
+[package]
+name = "nc-cli"
+version = "1.0.0-beta.1"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[[bin]]
+name = "nc-cli"
+path = "src/main.rs"
+
+[dependencies]
+nc-compat = { path = "../nc-compat" }
+nc-data = { path = "../nc-data" }
+nc-engine = { path = "../nc-engine" }
+nc-harness = { path = "../nc-harness" }
+kdl = "6"
+
+[build-dependencies]
+winresource = "0.1"

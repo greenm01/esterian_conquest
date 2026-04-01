@@ -20,7 +20,7 @@ Read this together with:
 Use this source order when implementing or correcting report text:
 
 1. recovered binary string/hexdump artifacts from `ECMAINT`
-2. shipped player-report corpus in `original/v1.5/ec-logs-2012/`
+2. shipped player-report corpus in `original/v1.5/nc-logs-2012/`
 3. Rust-side composition rules that fill dynamic values into those recovered
    phrases
 
@@ -596,10 +596,10 @@ FPC verification tool:
 
 Secondary corpus used to fill binary gaps:
 
-- [ec5.txt](../../original/v1.5/ec-logs-2012/ec5.txt)
-- [ec8.txt](../../original/v1.5/ec-logs-2012/ec8.txt)
-- [ec10.txt](../../original/v1.5/ec-logs-2012/ec10.txt)
-- [ec12.txt](../../original/v1.5/ec-logs-2012/ec12.txt)
-- [ec16.txt](../../original/v1.5/ec-logs-2012/ec16.txt)
-- [ec20.txt](../../original/v1.5/ec-logs-2012/ec20.txt)
-- [ec42.txt](../../original/v1.5/ec-logs-2012/ec42.txt)
+- [ec5.txt](../../original/v1.5/nc-logs-2012/ec5.txt)
+- [ec8.txt](../../original/v1.5/nc-logs-2012/ec8.txt)
+- [ec10.txt](../../original/v1.5/nc-logs-2012/ec10.txt)
+- [ec12.txt](../../original/v1.5/nc-logs-2012/ec12.txt)
+- [ec16.txt](../../original/v1.5/nc-logs-2012/ec16.txt)
+- [ec20.txt](../../original/v1.5/nc-logs-2012/ec20.txt)
+- [ec42.txt](../../original/v1.5/nc-logs-2012/ec42.txt)

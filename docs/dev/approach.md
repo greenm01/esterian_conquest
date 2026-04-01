@@ -85,7 +85,7 @@ initialized state, post-maintenance state, and targeted scenario snapshots.
 viewer/validation layer. Decode changes in `.DAT` files first and use report
 viewing second. Historical text captures remain reference evidence.
 
-The Rust `ec-game` client must preserve the 1992 pre-menu flow. Startup is more
+The Rust `nc-game` client must preserve the 1992 pre-menu flow. Startup is more
 than a splash screen. We model the full path: the ASCII splash, the intro text,
 and the onboarding flow. Startup presentation is game-owned and lives in the
 Rust client. The classic sequence is preserved while modernizing friction:
@@ -132,7 +132,7 @@ builder is infrastructure, but not yet a faithful initializer. Setup is a
 manual-driven subsystem covering map dimensions, star count, and homeworld
 rules.
 
-The admin setup preserves the pre-join distinction. `ec-game` onboarding must see
+The admin setup preserves the pre-join distinction. `nc-game` onboarding must see
 inactive player slots and "Not Named Yet" homeworlds. When a player joins, he
 immediately sees the starting production defined by the manuals. We do not
 reproduce the hidden map RNG, but we strictly adhere to the documented setup
@@ -173,9 +173,9 @@ classic `.DAT` fidelity. Modern storage is an adjacent milestone. KDL remains
 focused on authored setup and scenarios.
 
 SQLite sits at the runtime center without replacing the compliance boundary.
-**CoreGameData** is the in-memory snapshot, `ecgame.db` is the source of truth,
-and `.DAT` files are projections for the oracle. `ec-game` and maintenance
-operate on SQLite state. `ec-cli` provides the bridge for classic directories.
+**CoreGameData** is the in-memory snapshot, `ncgame.db` is the source of truth,
+and `.DAT` files are projections for the oracle. `nc-game` and maintenance
+operate on SQLite state. `nc-cli` provides the bridge for classic directories.
 SQLite is bundled in the Rust application; the administrator does not need to
 install it separately.
 

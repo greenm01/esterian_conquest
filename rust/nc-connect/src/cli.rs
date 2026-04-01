@@ -1,0 +1,979 @@
+use std::env;
+use std::path::{Path, PathBuf};
+
+use nostr_sdk::Keys;
+
+use crate::companion::{GAME_ID_FLAG, NO_CONSOLE_SETUP_FLAG, PASSWORD_FILE_FLAG};
+use crate::config::{ConnectConfig, load_config, seed_default_relay};
+use crate::connect::game_discovery::discover_game_for_invite;
+use crate::connect::public_join::run_public_join;
+use crate::connect::resolve::{resolve_invite, resolve_server};
+use crate::connect::session::{DisambigMode, SessionOutcome, resolve_gate_npub, run_session};
+#[cfg(debug_assertions)]
+use crate::dev_seed::{
+    SeedLocalhostFixtureOptions, SeedUiOptions, seed_localhost_fixture_to_paths, seed_ui,
+};
+use crate::identity::{
+    cmd_id_import, cmd_id_list, cmd_id_new, cmd_id_reset, cmd_id_secret, cmd_id_show, cmd_id_switch,
+};
+use crate::launcher::{run_password_gate, run_password_gate_in_session};
+use crate::map_store::resolve_maps_root;
+
+use crate::picker::{load_picker_session, run_picker_in_session};
+use crate::keychain::io::{load_keychain_from, now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::{Keychain, push_new_identity};
+use nc_ui::session::TerminalSession;
+
+// ── Public entry point ────────────────────────────────────────────────────────
+
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    // Collect all args upfront so that flags like --gate can appear in any
+    // position relative to the positional subcommand.
+    let all_args: Vec<String> = env::args().skip(1).collect();
+    let suppress_console_setup = all_args.iter().any(|arg| arg == NO_CONSOLE_SETUP_FLAG);
+    if !suppress_console_setup {
+        crate::platform::setup_console();
+    }
+
+    // Determine the subcommand by scanning for the first non-flag token,
+    // while treating `--join` as a named subcommand (not a plain flag).
+    // Flags --gate and --relay are extracted into a separate list so they can
+    // appear before or after the positional argument.
+    //
+    // Special cases handled:
+    //   nc-connect                       → picker (no positional)
+    //   nc-connect --gate <npub>         → picker with explicit gate
+    //   nc-connect --join <code> ...     → join flow
+    //   nc-connect id [sub] ...          → identity management
+    //   nc-connect <server> ...          → direct mode
+    //   nc-connect --help / --version    → meta
+
+    // First check for the meta flags that take no value.
+    if all_args
+        .iter()
+        .any(|a| matches!(a.as_str(), "--help" | "-h" | "help"))
+    {
+        print_usage();
+        return Ok(());
+    }
+    if all_args.iter().any(|a| a == "--version") {
+        println!("nc-connect {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    // Check for `--join` subcommand.
+    if let Some(join_pos) = all_args.iter().position(|a| a == "--join") {
+        let code = all_args
+            .get(join_pos + 1)
+            .cloned()
+            .ok_or("--join requires an invite code")?;
+        // Remaining flags: everything except `--join` and the code.
+        let rest: Vec<String> = all_args
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != join_pos && i != join_pos + 1)
+            .map(|(_, v)| v.clone())
+            .collect();
+        let opts = parse_connect_opts(&mut rest.into_iter())?;
+        init_connect_logging(&opts)?;
+        return cmd_join(&code, opts);
+    }
+
+    // Check for `id` subcommand.
+    if all_args.first().map(|s| s.as_str()) == Some("id") {
+        let mut id_args = all_args.into_iter().skip(1);
+        let sub = id_args.next();
+        return match sub.as_deref() {
+            None => cmd_id_show(),
+            Some("--secret") => cmd_id_secret(),
+            Some("list") => cmd_id_list(),
+            Some("new") => cmd_id_new(),
+            Some("import") => cmd_id_import(),
+            Some("switch") => {
+                let n = id_args.next().ok_or("usage: nc-connect id switch <N>")?;
+                cmd_id_switch(&n)
+            }
+            Some("reset") => cmd_id_reset(),
+            Some(other) => Err(format!("unknown id subcommand: {other}").into()),
+        };
+    }
+
+    #[cfg(debug_assertions)]
+    if all_args.first().map(|s| s.as_str()) == Some("dev") {
+        let mut dev_args = all_args.into_iter().skip(1);
+        let sub = dev_args.next();
+        return match sub.as_deref() {
+            Some("seed-ui") => cmd_dev_seed_ui(dev_args),
+            Some("seed-localhost-fixture") => cmd_dev_seed_localhost_fixture(dev_args),
+            Some(other) => Err(format!("unknown dev subcommand: {other}").into()),
+            None => Err(
+                "usage: nc-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]\n       nc-connect dev seed-localhost-fixture --nsec-file <path> --keychain-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]"
+                    .into(),
+            ),
+        };
+    }
+    #[cfg(not(debug_assertions))]
+    if all_args.first().map(|s| s.as_str()) == Some("dev") {
+        return Err("nc-connect dev is only available in debug builds".into());
+    }
+
+    // Extract --gate and --relay from all_args, leaving the first non-flag
+    // token as the optional positional (server or nothing).
+    let mut positional: Option<String> = None;
+    let mut flag_args: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < all_args.len() {
+        match all_args[i].as_str() {
+            "--gate" | "--relay" | "--maps-dir" | "--log-file" | "--log-level" | GAME_ID_FLAG
+            | PASSWORD_FILE_FLAG => {
+                flag_args.push(all_args[i].clone());
+                i += 1;
+                if i < all_args.len() {
+                    flag_args.push(all_args[i].clone());
+                }
+            }
+            NO_CONSOLE_SETUP_FLAG => {
+                flag_args.push(all_args[i].clone());
+            }
+            arg if arg.starts_with("--") => {
+                return Err(format!("unknown option: {arg}").into());
+            }
+            arg => {
+                if positional.is_none() {
+                    positional = Some(arg.to_string());
+                }
+                // Any extra positional tokens are silently ignored;
+                // parse_connect_opts will catch unexpected flags.
+            }
+        }
+        i += 1;
+    }
+
+    let opts = parse_connect_opts(&mut flag_args.into_iter())?;
+    init_connect_logging(&opts)?;
+
+    match positional {
+        None => cmd_picker(opts),
+        Some(server) => cmd_direct(&server, opts),
+    }
+}
+
+// ── Connect option parsing ────────────────────────────────────────────────────
+
+#[derive(Debug)]
+struct ConnectOpts {
+    gate_npub: Option<String>,
+    relay_override: Option<String>,
+    maps_dir: Option<PathBuf>,
+    log_file: Option<PathBuf>,
+    log_level: nc_log::LogLevel,
+    game_id_hint: Option<String>,
+    password_file: Option<PathBuf>,
+}
+
+fn parse_connect_opts(
+    args: &mut impl Iterator<Item = String>,
+) -> Result<ConnectOpts, Box<dyn std::error::Error>> {
+    let mut gate_npub = None;
+    let mut relay_override = None;
+    let mut maps_dir = None;
+    let mut log_file = None;
+    let mut log_level = nc_log::LogLevel::Info;
+    let mut saw_log_level = false;
+    let mut game_id_hint = None;
+    let mut password_file = None;
+
+    let remaining: Vec<String> = args.collect();
+    let mut i = 0;
+    while i < remaining.len() {
+        match remaining[i].as_str() {
+            "--gate" => {
+                i += 1;
+                gate_npub = Some(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--gate requires a npub argument")?,
+                );
+            }
+            "--relay" => {
+                i += 1;
+                relay_override = Some(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--relay requires a URL argument")?,
+                );
+            }
+            "--maps-dir" => {
+                i += 1;
+                maps_dir = Some(PathBuf::from(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--maps-dir requires a path argument")?,
+                ));
+            }
+            "--log-file" => {
+                i += 1;
+                log_file = Some(PathBuf::from(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--log-file requires a path argument")?,
+                ));
+            }
+            "--log-level" => {
+                i += 1;
+                let value = remaining
+                    .get(i)
+                    .cloned()
+                    .ok_or("--log-level requires a value")?;
+                log_level = nc_log::LogLevel::parse(&value)?;
+                saw_log_level = true;
+            }
+            GAME_ID_FLAG => {
+                i += 1;
+                game_id_hint = Some(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--game-id requires a value")?,
+                );
+            }
+            PASSWORD_FILE_FLAG => {
+                i += 1;
+                password_file = Some(PathBuf::from(
+                    remaining
+                        .get(i)
+                        .cloned()
+                        .ok_or("--password-file requires a path")?,
+                ));
+            }
+            NO_CONSOLE_SETUP_FLAG => {}
+            other => return Err(format!("unexpected argument: {other}").into()),
+        }
+        i += 1;
+    }
+    drop(remaining);
+
+    if saw_log_level && log_file.is_none() {
+        return Err("--log-level requires --log-file".into());
+    }
+
+    Ok(ConnectOpts {
+        gate_npub,
+        relay_override,
+        maps_dir,
+        log_file,
+        log_level,
+        game_id_hint,
+        password_file,
+    })
+}
+
+// ── --join ────────────────────────────────────────────────────────────────────
+
+fn cmd_join(code: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
+    // Load config (optional).
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
+
+    // Load keychain — auto-create identity if keychain is missing.
+    let Some((keychain, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
+    else {
+        return Ok(());
+    };
+    drop(keychain);
+
+    // Resolve invite code.
+    let mut target =
+        resolve_invite(code, &config).map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    // Apply relay override.
+    if let Some(relay) = opts.relay_override {
+        target.relay_url = relay;
+    }
+    let join_relay_url = target.relay_url.clone();
+
+    eprintln!("Joining game...");
+    let outcome = if let Some(gate_npub) = opts.gate_npub {
+        let discovered = run_tokio(discover_game_for_invite(&keys, &target, code))
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+        if let Ok(discovered) = discovered {
+            target.server_host = discovered.ssh_host;
+            target.server_port = discovered.ssh_port;
+            target.game_id = Some(discovered.game_id);
+        }
+        run_tokio(run_session(
+            &keys,
+            target,
+            &npub,
+            &gate_npub,
+            DisambigMode::Prompt,
+            &maps_root,
+        ))?
+    } else {
+        run_tokio(run_public_join(
+            &keys,
+            target,
+            &npub,
+            DisambigMode::Prompt,
+            &maps_root,
+        ))?
+        .map_err(|err| -> Box<dyn std::error::Error> { err })?
+    };
+    maybe_seed_default_relay_after_join(&outcome, &join_relay_url);
+
+    report_outcome(outcome)
+}
+
+// ── Direct mode ───────────────────────────────────────────────────────────────
+
+fn cmd_direct(server: &str, opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
+    // Load config (optional).
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
+
+    // Load keychain — auto-create identity if the keychain is missing.
+    let Some((_keychain, keys, npub)) = prompt_and_load_identity(opts.password_file.as_deref())?
+    else {
+        return Ok(());
+    };
+
+    // Resolve server.
+    let mut target =
+        resolve_server(server, &config).map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+
+    // Apply relay override.
+    if let Some(relay) = opts.relay_override {
+        target.relay_url = relay;
+    }
+    if let Some(game_id) = opts.game_id_hint {
+        target.game_id = Some(game_id);
+    }
+
+    // Inject cached game_id hint if we have exactly one game for this server.
+    inject_cached_game_id(&mut target, &npub);
+
+    // Resolve gate npub: explicit --gate takes priority, then cache lookup.
+    let cache = crate::cache::load_cache().unwrap_or_else(|_| crate::cache::GameCache::empty());
+    let gate_npub = resolve_gate_npub(&target.server_host, &cache, opts.gate_npub.as_deref())
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+
+    eprintln!("Connecting...");
+
+    let outcome = run_tokio(run_session(
+        &keys,
+        target,
+        &npub,
+        &gate_npub,
+        DisambigMode::Prompt,
+        &maps_root,
+    ))?;
+
+    report_outcome(outcome)
+}
+
+// ── Picker mode ───────────────────────────────────────────────────────────────
+
+fn cmd_picker(opts: ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
+    // --gate is optional for the picker; the user will be prompted if they try
+    // to connect and no gate is configured.  For now we pass it through; a
+    // missing gate will surface as an error inside the session handshake.
+    let gate_npub = opts.gate_npub.unwrap_or_default();
+
+    let mut session = TerminalSession::enter_picker()?;
+
+    // Load keychain — auto-create identity if keychain is missing.
+    let Some(password) = prompt_for_picker_password(&mut session)? else {
+        let _ = session.restore();
+        return Ok(());
+    };
+    let picker_session = load_picker_session(password)?;
+    let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+    let maps_root = resolve_maps_root(config.maps_dir.as_deref(), opts.maps_dir.as_deref());
+
+    let result = run_picker_in_session(
+        picker_session,
+        gate_npub,
+        maps_root,
+        config.effective_lock_timeout_minutes(),
+        session,
+    );
+    if result.is_ok() {
+        emit_picker_exit_lines();
+    }
+    result
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+fn init_connect_logging(opts: &ConnectOpts) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(path) = &opts.log_file {
+        nc_log::init_file_logging(path, opts.log_level)?;
+        tracing::info!(
+            log_file = %path.display(),
+            level = ?opts.log_level,
+            "nc-connect file logging initialized"
+        );
+    }
+    Ok(())
+}
+
+fn should_seed_default_relay_after_join(outcome: &SessionOutcome) -> bool {
+    matches!(outcome, SessionOutcome::Done { .. })
+}
+
+fn maybe_seed_default_relay_after_join(outcome: &SessionOutcome, relay_url: &str) {
+    if should_seed_default_relay_after_join(outcome) {
+        let _ = seed_default_relay(relay_url);
+    }
+}
+
+fn prompt_and_load_identity(
+    password_file: Option<&Path>,
+) -> Result<Option<(Keychain, Keys, String)>, Box<dyn std::error::Error>> {
+    if let Some(path) = password_file {
+        let password = load_password_from_file_once(path)?;
+        return load_or_create_identity(&password).map(Some);
+    }
+    let mut error_msg = None;
+    loop {
+        let Some(password) = run_password_gate(error_msg.take())? else {
+            return Ok(None);
+        };
+        match load_or_create_identity(&password) {
+            Ok(identity) => return Ok(Some(identity)),
+            Err(err) => {
+                error_msg = Some(format!("Error: {err}"));
+            }
+        }
+    }
+}
+
+fn load_password_from_file_once(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let password = std::fs::read_to_string(path)?;
+    let _ = std::fs::remove_file(path);
+    let trimmed = password.trim_end_matches(['\r', '\n']);
+    if trimmed.is_empty() {
+        return Err("password file was empty".into());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn prompt_for_picker_password(
+    session: &mut TerminalSession,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let mut error_msg = None;
+    loop {
+        let Some(password) = run_password_gate_in_session(session, error_msg.take())? else {
+            return Ok(None);
+        };
+        match load_keychain_from(&password, &keychain_path()) {
+            Ok(Some(keychain)) if keychain.identities.is_empty() => {
+                error_msg = Some("Error: keychain has no active identity".to_string())
+            }
+            Ok(_) => return Ok(Some(password)),
+            Err(err) => error_msg = Some(format!("Error: {err}")),
+        }
+    }
+}
+
+/// Load keychain + active identity, or create a fresh one if no keychain exists.
+/// Returns `(keychain, keys, npub_string)`.
+fn load_or_create_identity(
+    password: &str,
+) -> Result<(Keychain, Keys, String), Box<dyn std::error::Error>> {
+    use nostr_sdk::ToBech32;
+
+    let path = keychain_path();
+
+    let mut keychain = load_keychain_from(password, &path)?.unwrap_or_else(Keychain::empty);
+
+    if keychain.identities.is_empty() {
+        let npub = push_new_identity(&mut keychain, now_iso8601())?;
+        save_keychain_to(&keychain, password, &path)?;
+        eprintln!("Nostr keypair created: {npub}");
+    }
+
+    let id = keychain
+        .active_identity()
+        .ok_or("keychain has no active identity")?;
+    let keys = Keys::parse(&id.nsec)?;
+    let npub = keys.public_key().to_bech32()?;
+    Ok((keychain, keys, npub))
+}
+
+/// If the player has exactly one cached game for the resolved server, inject
+/// its game_id as a hint so the handshake can skip disambiguation.
+fn inject_cached_game_id(target: &mut crate::connect::resolve::ResolvedTarget, npub: &str) {
+    use crate::cache::load_cache;
+
+    let Ok(cache) = load_cache() else { return };
+    let matches: Vec<_> = cache
+        .games
+        .iter()
+        .filter(|g| g.server == target.server_host && g.npub == npub)
+        .collect();
+
+    if matches.len() == 1 {
+        target.game_id = Some(matches[0].id.clone());
+    }
+}
+
+/// Run an async future on a new single-threaded tokio runtime.
+fn run_tokio<F, T>(fut: F) -> Result<T, Box<dyn std::error::Error>>
+where
+    F: std::future::Future<Output = T>,
+{
+    let rt = tokio::runtime::Runtime::new()?;
+    Ok(rt.block_on(fut))
+}
+
+#[doc(hidden)]
+pub fn successful_session_handoff_lines(outcome: &SessionOutcome) -> Option<Vec<String>> {
+    match outcome {
+        SessionOutcome::Done {
+            exit_code: 0,
+            notice,
+            maps_saved_to,
+        } => {
+            let mut lines = Vec::new();
+            if let Some(msg) = notice.as_deref().filter(|msg| !msg.trim().is_empty()) {
+                lines.push(msg.to_string());
+            }
+            if let Some(path) = maps_saved_to {
+                lines.push(format!("Maps downloaded to {}", path.display()));
+            }
+            lines.push("For Griffith and glory.".to_string());
+            Some(lines)
+        }
+        _ => None,
+    }
+}
+
+#[doc(hidden)]
+pub fn picker_exit_lines() -> Vec<String> {
+    vec!["For Griffith and glory.".to_string()]
+}
+
+fn emit_picker_exit_lines() {
+    for line in picker_exit_lines() {
+        eprintln!("{line}");
+    }
+}
+
+/// Print the `SessionOutcome` and convert to a Result.
+fn report_outcome(outcome: SessionOutcome) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(lines) = successful_session_handoff_lines(&outcome) {
+        for line in lines {
+            eprintln!("{line}");
+        }
+        return Ok(());
+    }
+
+    match outcome {
+        SessionOutcome::Done {
+            exit_code,
+            notice,
+            maps_saved_to,
+        } => {
+            if let Some(msg) = notice {
+                eprintln!("{msg}");
+            }
+            if let Some(path) = maps_saved_to {
+                eprintln!("Maps downloaded to {}", path.display());
+            }
+            Err(format!("session exited with code {exit_code}").into())
+        }
+        SessionOutcome::Error(msg) => Err(msg.into()),
+        SessionOutcome::Timeout => Err("handshake timed out (no response from server)".into()),
+        SessionOutcome::NeedsDisambiguation { .. } => {
+            // Should never happen in CLI mode (DisambigMode::Prompt handles this inline).
+            Err("unexpected disambiguation required (use picker mode)".into())
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone)]
+struct DevSeedCommand {
+    options: SeedUiOptions,
+    launch: bool,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone)]
+struct DevSeedLocalhostCommand {
+    options: SeedLocalhostFixtureOptions,
+    nsec_file: PathBuf,
+    keychain_out: PathBuf,
+    cache_out: PathBuf,
+    config_out: PathBuf,
+}
+
+#[cfg(debug_assertions)]
+fn cmd_dev_seed_ui(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
+    let command = parse_seed_ui_opts(args)?;
+    let summary = seed_ui(&command.options)?;
+    if command.launch {
+        let picker_session = load_picker_session(summary.password.clone())?;
+        let config = load_config().unwrap_or_else(|_| ConnectConfig::empty());
+        let maps_root = resolve_maps_root(config.maps_dir.as_deref(), None);
+        let session = TerminalSession::enter_picker()?;
+        let result = run_picker_in_session(
+            picker_session,
+            String::new(),
+            maps_root,
+            config.effective_lock_timeout_minutes(),
+            session,
+        );
+        if result.is_ok() {
+            emit_picker_exit_lines();
+        }
+        return result;
+    }
+    println!("Seeded nc-connect UI test data.");
+    println!("keychain: {}", summary.keychain_path.display());
+    println!("cache: {}", summary.cache_path.display());
+    println!("identities: {}", summary.identities);
+    println!("games: {}", summary.games);
+    println!("password: {}", summary.password);
+    println!("Run nc-connect normally to open the seeded picker.");
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn cmd_dev_seed_localhost_fixture(
+    args: impl Iterator<Item = String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let command = parse_seed_localhost_fixture_opts(args)?;
+    let nsec = std::fs::read_to_string(&command.nsec_file)?;
+    let summary = seed_localhost_fixture_to_paths(
+        &SeedLocalhostFixtureOptions {
+            nsec: nsec.trim().to_string(),
+            ..command.options
+        },
+        &command.keychain_out,
+        &command.cache_out,
+        &command.config_out,
+    )?;
+    println!("Seeded localhost returning-player fixture.");
+    println!("keychain: {}", summary.keychain_path.display());
+    println!("cache: {}", summary.cache_path.display());
+    println!("config: {}", summary.config_path.display());
+    println!("player npub: {}", summary.player_npub);
+    println!("gate npub: {}", summary.gate_npub);
+    println!("password: {}", summary.password);
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn parse_seed_ui_opts(
+    args: impl Iterator<Item = String>,
+) -> Result<DevSeedCommand, Box<dyn std::error::Error>> {
+    let mut options = SeedUiOptions::default();
+    let mut launch = false;
+    let values: Vec<String> = args.collect();
+    let mut i = 0;
+    while i < values.len() {
+        match values[i].as_str() {
+            "--games" => {
+                i += 1;
+                options.games = values
+                    .get(i)
+                    .ok_or("--games requires a value")?
+                    .parse::<usize>()
+                    .map_err(|_| "invalid --games value")?;
+            }
+            "--identities" => {
+                i += 1;
+                options.identities = values
+                    .get(i)
+                    .ok_or("--identities requires a value")?
+                    .parse::<usize>()
+                    .map_err(|_| "invalid --identities value")?;
+            }
+            "--password" => {
+                i += 1;
+                options.password = values
+                    .get(i)
+                    .cloned()
+                    .ok_or("--password requires a value")?;
+            }
+            "--force" => {
+                options.force = true;
+            }
+            "--launch" => {
+                launch = true;
+            }
+            "--help" | "-h" | "help" => {
+                return Err(
+                    "usage: nc-connect dev seed-ui [--games N] [--identities N] [--password PASS] [--force] [--launch]"
+                        .into(),
+                );
+            }
+            other => return Err(format!("unexpected argument: {other}").into()),
+        }
+        i += 1;
+    }
+    Ok(DevSeedCommand { options, launch })
+}
+
+#[cfg(debug_assertions)]
+fn parse_seed_localhost_fixture_opts(
+    args: impl Iterator<Item = String>,
+) -> Result<DevSeedLocalhostCommand, Box<dyn std::error::Error>> {
+    let values: Vec<String> = args.collect();
+    let mut nsec_file = None;
+    let mut keychain_out = None;
+    let mut cache_out = None;
+    let mut config_out = None;
+    let mut relay_url = None;
+    let mut game_id = None;
+    let mut game_name = None;
+    let mut player_name = None;
+    let mut server = None;
+    let mut port = 22u16;
+    let mut seat = None;
+    let mut gate_npub = None;
+    let mut joined = None;
+    let mut password = "testing".to_string();
+    let mut force = false;
+    let mut i = 0;
+    while i < values.len() {
+        match values[i].as_str() {
+            "--nsec-file" => {
+                i += 1;
+                nsec_file = Some(PathBuf::from(
+                    values.get(i).ok_or("--nsec-file requires a value")?,
+                ));
+            }
+            "--keychain-out" => {
+                i += 1;
+                keychain_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--keychain-out requires a value")?,
+                ));
+            }
+            "--cache-out" => {
+                i += 1;
+                cache_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--cache-out requires a value")?,
+                ));
+            }
+            "--config-out" => {
+                i += 1;
+                config_out = Some(PathBuf::from(
+                    values.get(i).ok_or("--config-out requires a value")?,
+                ));
+            }
+            "--relay" => {
+                i += 1;
+                relay_url = Some(values.get(i).cloned().ok_or("--relay requires a value")?);
+            }
+            "--game-id" => {
+                i += 1;
+                game_id = Some(values.get(i).cloned().ok_or("--game-id requires a value")?);
+            }
+            "--game-name" => {
+                i += 1;
+                game_name = Some(
+                    values
+                        .get(i)
+                        .cloned()
+                        .ok_or("--game-name requires a value")?,
+                );
+            }
+            "--player-name" => {
+                i += 1;
+                player_name = Some(
+                    values
+                        .get(i)
+                        .cloned()
+                        .ok_or("--player-name requires a value")?,
+                );
+            }
+            "--server" => {
+                i += 1;
+                server = Some(values.get(i).cloned().ok_or("--server requires a value")?);
+            }
+            "--port" => {
+                i += 1;
+                port = values
+                    .get(i)
+                    .ok_or("--port requires a value")?
+                    .parse::<u16>()
+                    .map_err(|_| "invalid --port value")?;
+            }
+            "--seat" => {
+                i += 1;
+                seat = Some(
+                    values
+                        .get(i)
+                        .ok_or("--seat requires a value")?
+                        .parse::<u32>()
+                        .map_err(|_| "invalid --seat value")?,
+                );
+            }
+            "--gate-npub" => {
+                i += 1;
+                gate_npub = Some(
+                    values
+                        .get(i)
+                        .cloned()
+                        .ok_or("--gate-npub requires a value")?,
+                );
+            }
+            "--password" => {
+                i += 1;
+                password = values
+                    .get(i)
+                    .cloned()
+                    .ok_or("--password requires a value")?;
+            }
+            "--joined" => {
+                i += 1;
+                joined = Some(values.get(i).cloned().ok_or("--joined requires a value")?);
+            }
+            "--force" => force = true,
+            "--help" | "-h" | "help" => {
+                return Err("usage: nc-connect dev seed-localhost-fixture --nsec-file <path> --keychain-out <path> --cache-out <path> --config-out <path> --relay <url> --game-id <id> --game-name <name> --server <host> --port <port> --seat <N> --gate-npub <npub> [--player-name <name>] [--password <pw>] [--joined <iso8601>] [--force]".into());
+            }
+            other => return Err(format!("unexpected argument: {other}").into()),
+        }
+        i += 1;
+    }
+
+    let nsec_file = nsec_file.ok_or("--nsec-file is required")?;
+    Ok(DevSeedLocalhostCommand {
+        options: SeedLocalhostFixtureOptions {
+            nsec: String::new(),
+            password,
+            relay_url: relay_url.ok_or("--relay is required")?,
+            game_id: game_id.ok_or("--game-id is required")?,
+            game_name: game_name.ok_or("--game-name is required")?,
+            player_name,
+            server: server.ok_or("--server is required")?,
+            port,
+            seat: seat.ok_or("--seat is required")?,
+            gate_npub: gate_npub.ok_or("--gate-npub is required")?,
+            joined,
+            force,
+        },
+        nsec_file,
+        keychain_out: keychain_out.ok_or("--keychain-out is required")?,
+        cache_out: cache_out.ok_or("--cache-out is required")?,
+        config_out: config_out.ok_or("--config-out is required")?,
+    })
+}
+
+// ── Usage ─────────────────────────────────────────────────────────────────────
+
+fn print_usage() {
+    #[cfg(debug_assertions)]
+    let developer = "\nDeveloper:\n  nc-connect dev seed-ui                           Seed fake keychain/cache data for UI testing\n  nc-connect dev seed-ui --launch                  Seed fake data and open the picker immediately\n  nc-connect dev seed-localhost-fixture ...        Seed one isolated localhost returning-player keychain/cache/config fixture\n";
+    #[cfg(not(debug_assertions))]
+    let developer = "";
+    println!(
+        "{}\
+nc-connect — Nostrian Conquest multiplayer client
+
+Usage:
+  nc-connect                                       Picker mode (game list)
+  nc-connect <SERVER> --gate <NPUB>                Direct mode (connect to server)
+  nc-connect --join <INVITE-CODE>                  Join a new game
+
+Identity:
+  nc-connect id                        Show active identity (npub)
+  nc-connect id --secret               Show npub + nsec (for backup)
+  nc-connect id list                   List all keychain identities
+  nc-connect id new                    Generate a new Nostr keypair
+  nc-connect id import                 Import an existing Nostr nsec
+  nc-connect id switch <N>             Switch active identity
+  nc-connect id reset                  Wipe keychain and cache (triple confirmation)
+
+Options:
+  --gate <NPUB>    Gate server Nostr public key (optional override / fallback)
+  --relay <URL>    Override Nostr relay URL
+  --maps-dir <PATH> Override where downloaded starmap bundles are stored
+  --log-file <PATH> Append diagnostic logs to a file
+  --log-level <LVL> error, warn, info, debug, or trace (requires --log-file)
+  --version        Print version
+  --help           Print this help",
+        developer
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_connect_opts, should_seed_default_relay_after_join};
+    use crate::connect::session::SessionOutcome;
+    use std::path::PathBuf;
+
+    #[test]
+    fn parse_connect_opts_accepts_log_flags() {
+        let args = vec![
+            "--gate".to_string(),
+            "npub1example".to_string(),
+            "--log-file".to_string(),
+            "/tmp/nc-connect.log".to_string(),
+            "--log-level".to_string(),
+            "debug".to_string(),
+            "--game-id".to_string(),
+            "friday-night".to_string(),
+            "--password-file".to_string(),
+            "/tmp/pass.txt".to_string(),
+            "--no-console-setup".to_string(),
+        ];
+        let opts = parse_connect_opts(&mut args.into_iter()).expect("opts should parse");
+        assert_eq!(opts.gate_npub.as_deref(), Some("npub1example"));
+        assert_eq!(
+            opts.log_file.as_deref(),
+            Some(PathBuf::from("/tmp/nc-connect.log").as_path())
+        );
+        assert_eq!(opts.log_level, nc_log::LogLevel::Debug);
+        assert_eq!(opts.game_id_hint.as_deref(), Some("friday-night"));
+        assert_eq!(
+            opts.password_file.as_deref(),
+            Some(PathBuf::from("/tmp/pass.txt").as_path())
+        );
+    }
+
+    #[test]
+    fn parse_connect_opts_rejects_log_level_without_log_file() {
+        let args = vec!["--log-level".to_string(), "debug".to_string()];
+        let err = parse_connect_opts(&mut args.into_iter()).expect_err("parse should fail");
+        assert!(format!("{err}").contains("--log-level requires --log-file"));
+    }
+
+    #[test]
+    fn successful_join_outcome_seeds_the_default_relay() {
+        assert!(should_seed_default_relay_after_join(
+            &SessionOutcome::Done {
+                exit_code: 0,
+                notice: None,
+                maps_saved_to: None,
+            }
+        ));
+        assert!(should_seed_default_relay_after_join(
+            &SessionOutcome::Done {
+                exit_code: 7,
+                notice: Some("warning".to_string()),
+                maps_saved_to: None,
+            }
+        ));
+    }
+
+    #[test]
+    fn failed_join_outcomes_do_not_seed_the_default_relay() {
+        assert!(!should_seed_default_relay_after_join(
+            &SessionOutcome::Error("nope".to_string(),)
+        ));
+        assert!(!should_seed_default_relay_after_join(
+            &SessionOutcome::Timeout
+        ));
+        assert!(!should_seed_default_relay_after_join(
+            &SessionOutcome::NeedsDisambiguation { games: Vec::new() },
+        ));
+    }
+}

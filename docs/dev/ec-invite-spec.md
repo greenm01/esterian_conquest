@@ -23,9 +23,9 @@ and gate public keys.
 
 - `token` is the two-word seat claim code stored in the hosted-seat rows.
 - `relay-host[:port]` is derived from the sysop's configured `relay` URL in
-  `ec-gate` config.
+  `nc-gate` config.
 
-`ec-connect` rebuilds the relay URL from that suffix:
+`nc-connect` rebuilds the relay URL from that suffix:
 
 - public hosts default to `wss://`
 - localhost/private hosts default to `ws://`
@@ -34,7 +34,7 @@ and gate public keys.
 ## Sysop Requirements
 
 Hosted EC requires a Nostr relay. The sysop configures the full relay URL in
-`ec-gate` config, for example:
+`nc-gate` config, for example:
 
 ```kdl
 relay "wss://relay.example.com"
@@ -53,11 +53,11 @@ The configured relay URL must be convertible to an invite host[:port]:
 - query/fragment are not allowed
 - path is not allowed
 
-`ec-sysop nostr seats` renders the public player join line from that relay
+`nc-sysop nostr seats` renders the public player join line from that relay
 configuration:
 
 ```text
-ec-connect --join amber-river@relay.example.com
+nc-connect --join amber-river@relay.example.com
 ```
 
 ## Client Join Flow

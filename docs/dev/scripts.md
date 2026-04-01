@@ -31,7 +31,7 @@ The script creates a Rust-backed campaign and seeds:
 - active player-1 starbases
 - player-1-only queued mail and report backlog
 - mixed foreign intel for player 1, including partial and full scout-style data
-- optional localhost hosted returning-player fixture data for `ec-connect`
+- optional localhost hosted returning-player fixture data for `nc-connect`
 
 ## Usage
 
@@ -47,12 +47,12 @@ Then enter as player 1:
 python3 scripts/run_client.py /tmp/ec-player1-ui --player 1
 ```
 
-`run_client.py` now preserves the existing `ecgame.db` runtime state by
-default. This is the normal workflow for repeated `ec-game` login/logout
+`run_client.py` now preserves the existing `ncgame.db` runtime state by
+default. This is the normal workflow for repeated `nc-game` login/logout
 testing.
 
 If you intentionally changed the classic `.DAT` files outside the Rust runtime
-and want to refresh `ecgame.db` from them before launch, opt in explicitly:
+and want to refresh `ncgame.db` from them before launch, opt in explicitly:
 
 ```bash
 python3 scripts/run_client.py /tmp/ec-player1-ui --player 1 --refresh-from-dat
@@ -125,7 +125,7 @@ python3 scripts/run_client.py /tmp/ec-player1-ui --player 1
 
 ## Local Hosted GUI Invite Test
 
-If you want to test the real `ec-connect` GUI invite flow locally against the
+If you want to test the real `nc-connect` GUI invite flow locally against the
 stress game, keep the same `/tmp/ec-player1-ui` campaign but start a local gate
 publisher for it:
 
@@ -135,22 +135,22 @@ publisher for it:
 
 This helper:
 
-- checks that `/tmp/ec-player1-ui/ecgame.db` exists
+- checks that `/tmp/ec-player1-ui/ncgame.db` exists
 - prints pending invite codes when the game still has unclaimed seats
 - prints claimed-seat identities when the game has already been seeded for returning-player reconnect tests
 - requires a relay already listening at `ws://localhost:8080`
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
 - defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
 - still supports explicit `--ssh-user` / `--auth-keys-*` overrides
-- starts `ec-sysop nostr serve` for that game
-- prints full invite lines such as `ec-connect --join victim-sickness@localhost:8080`
+- starts `nc-sysop nostr serve` for that game
+- prints full invite lines such as `nc-connect --join victim-sickness@localhost:8080`
 
 Then, in another terminal, run the GUI and paste one of the printed invite
 codes:
 
 ```bash
 cd rust
-cargo run -q -p ec-connect --bin ec-connect
+cargo run -q -p nc-connect --bin nc-connect
 ```
 
 Notes:
@@ -161,13 +161,13 @@ Notes:
 - For same-machine hosted play, the normal path is to run this helper without
   `sudo`; it publishes your current login plus `~/.ssh/authorized_keys` unless
   you override it.
-- This is distinct from direct localhost `ec-game` play. Through `ec-connect`,
+- This is distinct from direct localhost `nc-game` play. Through `nc-connect`,
   localhost-hosted sessions still use the normal hosted SSH transport.
 
 ## Localhost Returning-Player Fixture
 
-If you want `ec-connect` to show a localhost stress game in the picker
-immediately, seed a claimed hosted seat plus an isolated `ec-connect` state
+If you want `nc-connect` to show a localhost stress game in the picker
+immediately, seed a claimed hosted seat plus an isolated `nc-connect` state
 root:
 
 ```bash

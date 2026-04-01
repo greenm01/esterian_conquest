@@ -6,12 +6,12 @@ after the engine/oracle milestone.
 It replaces older notes that assumed a future client crate and a deferred
 runtime/storage split. The repository today is centered on:
 
-- `ec-data`: canonical game state, classic `.DAT` parsing/writing, shared
+- `nc-data`: canonical game state, classic `.DAT` parsing/writing, shared
   setup config/builder helpers, validation
-- `ec-engine`: gameplay rules, maintenance, movement/pathfinding, and
+- `nc-engine`: gameplay rules, maintenance, movement/pathfinding, and
   setup/mapgen execution
-- `ec-cli`: sysop/admin/oracle/inspection workflows on top of `ec-data`
-- `ec-game`: the SQLite-native player application layer
+- `nc-cli`: sysop/admin/oracle/inspection workflows on top of `nc-data`
+- `nc-game`: the SQLite-native player application layer
 
 The next client work should be built on top of that reality, not beside it.
 
@@ -23,7 +23,7 @@ real player client:
 - default `sysop new-game` creates a joinable `ECGAME`-compatible start
 - `maint-rust` runs repeated campaigns and stays green against the current
   oracle suite
-- `ec-game` already runs against `ecgame.db`
+- `nc-game` already runs against `ncgame.db`
 - `CoreGameData` is the canonical in-memory snapshot boundary
 - classic `.DAT` directories remain the compatibility boundary, but only
   through explicit CLI import/export/materialization flows
@@ -56,17 +56,17 @@ Current versioning direction:
 
 Keep the current crate responsibilities:
 
-- `ec-engine`
+- `nc-engine`
   - owns gameplay rule execution, yearly maintenance, movement/pathfinding,
     and setup/map generation
-  - consumes `ec-data` state/model types rather than duplicating them
-- `ec-data`
+  - consumes `nc-data` state/model types rather than duplicating them
+- `nc-data`
   - owns runtime/store/model state, shared plain payload types, and setup
     config/builder helpers
-- `ec-cli`
+- `nc-cli`
   - remains the sysop/admin/oracle/testing tool
   - owns the explicit classic import/export/materialization bridge
-- `ec-game`
+- `nc-game`
   - owns rendering, input, screen flow, and transport concerns
   - runs from SQLite-backed runtime state
   - does not reimplement game rules or emit classic `.DAT` files directly
@@ -75,20 +75,20 @@ Current workspace shape:
 
 ```text
 rust/
-├── ec-data     # runtime/store/model + shared payload/data helpers
-├── ec-engine   # gameplay rule execution + maintenance/navigation/setup
-├── ec-cli      # sysop/admin/oracle/inspection workflows + compat bridge
-└── ec-game   # player-facing client (local first, door later)
+├── nc-data     # runtime/store/model + shared payload/data helpers
+├── nc-engine   # gameplay rule execution + maintenance/navigation/setup
+├── nc-cli      # sysop/admin/oracle/inspection workflows + compat bridge
+└── nc-game   # player-facing client (local first, door later)
 ```
 
 If BBS door concerns grow large enough, that can later split into:
 
 ```text
 rust/
-├── ec-data
-├── ec-engine
-├── ec-cli
-├── ec-game   # shared player UI/application layer
+├── nc-data
+├── nc-engine
+├── nc-cli
+├── nc-game   # shared player UI/application layer
 └── ec-door     # optional thin door launcher / dropfile adapter
 ```
 
@@ -98,7 +98,7 @@ That split should happen only if it buys clarity. It is not needed on day one.
 
 The storage direction is now:
 
-- `ecgame.db` is the first-class persisted campaign store
+- `ncgame.db` is the first-class persisted campaign store
 - `CoreGameData` is the canonical in-memory snapshot model
 - classic `.DAT` directories remain the required compatibility projection
 
@@ -108,15 +108,15 @@ CLI import/export/materialization workflows instead of inside the player client.
 
 Current storage rules:
 
-- default campaign DB filename: `ecgame.db`
+- default campaign DB filename: `ncgame.db`
 - SQLite must be bundled/self-hosted in the compiled Rust build
 - no external SQLite runtime dependency should be required
-- `ec-game` should load/save runtime state from `ecgame.db` only
-- Rust maintenance should also run against `ecgame.db` and save the next
+- `nc-game` should load/save runtime state from `ncgame.db` only
+- Rust maintenance should also run against `ncgame.db` and save the next
   snapshot there
 - classic `.DAT` directories should enter or leave the Rust runtime only
   through explicit CLI import/export workflows
-- `ec-game` should not create or refresh classic `.DAT` files as a side
+- `nc-game` should not create or refresh classic `.DAT` files as a side
   effect of normal play
 - some classic-shaped outputs may still live in compatibility-oriented tables
   while the normalized Rust-native model matures
@@ -152,7 +152,7 @@ The best near-term target is:
 
 ANSI policy:
 
-- local `ec-game` should assume ANSI/CP437 output and render in color by default
+- local `nc-game` should assume ANSI/CP437 output and render in color by default
 - do not keep a plain-text local mode as a first-class UI target
 - local-terminal sessions should expose player color choice through a
   `C>olor Theme` picker, including a monochrome `Mono` entry
@@ -173,7 +173,7 @@ modern fluid terminal layout:
   them on a virtual DOS-sized canvas first and then project/crop the result
   back into the real `80x25` player window
 - keep that projection logic in the client renderer; do not dump raw ANSI
-  directly to the user's terminal during normal `ec-game` startup
+  directly to the user's terminal during normal `nc-game` startup
 
 ## Rendering Stack
 
@@ -202,7 +202,7 @@ widget-layout TUI frameworks:
 - keep screen geometry screen-specific when the original layout is exact
 - keep one shared internal table widget for all tabular screens, with the
   standard presentation defined in
-  [ec-game-table-standard.md](ec-game-table-standard.md)
+  [nc-game-table-standard.md](nc-game-table-standard.md)
 - keep the visual palette and semantic color tokens defined in
   [tui_style_guide.md](tui_style_guide.md)
 - keep table browse/prompt rows on the shared `COMMANDS` grammar rather than
@@ -240,7 +240,7 @@ Door mode can then wrap the same application layer with:
 
 ## Application Model
 
-Keep the player client as a thin layer over `ec-data`.
+Keep the player client as a thin layer over `nc-data`.
 
 Recommended core objects:
 
@@ -259,7 +259,7 @@ Recommended core objects:
 The important point is separation:
 
 - screens decide interaction flow
-- `ec-data` decides state semantics
+- `nc-data` decides state semantics
 - rendering stays isolated from rules
 
 Keep the code layout aligned to that model:
@@ -383,7 +383,7 @@ Current startup-art policy:
 - keep client views driven by SQLite-backed runtime/intel state
 - remove any lingering assumptions that classic `.DAT` files are present or
   current during normal client play
-- keep order-save paths on shared `ec-data` mutation helpers
+- keep order-save paths on shared `nc-data` mutation helpers
 
 ### Milestone 3: Door Wrapper ✓ (implemented)
 
@@ -404,7 +404,7 @@ Current startup-art policy:
 
 ## Non-Goals For The First Client Pass
 
-- teaching `ec-game` to own classic `.DAT` import/export directly
+- teaching `nc-game` to own classic `.DAT` import/export directly
 - direct multiplayer networking
 - inventing a new game UX unrelated to EC
 - reproducing every DOS rendering quirk exactly
@@ -412,14 +412,14 @@ Current startup-art policy:
 
 ## Practical Recommendation
 
-Continue building `ec-game` as a local terminal app that replays the current
-`ECGAME` command flow over SQLite-backed runtime state and shared `ec-data`
+Continue building `nc-game` as a local terminal app that replays the current
+`ECGAME` command flow over SQLite-backed runtime state and shared `nc-data`
 helpers.
 
 That path:
 
 - uses the engine we already trust
-- keeps the compatibility boundary explicit in `ec-cli`
+- keeps the compatibility boundary explicit in `nc-cli`
 - avoids reintroducing classic-file churn into normal client play
 - gives the fastest route to a usable Rust replacement for `ECGAME`
 

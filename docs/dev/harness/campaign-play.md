@@ -17,7 +17,7 @@ conductor to validate and apply it.
 
 There are two distinct coordinator roles in this workflow.
 
-1. `ec-cli harness` conductor
+1. `nc-cli harness` conductor
    - opens turns
    - writes bundles and status files
    - validates `turn.kdl`
@@ -41,7 +41,7 @@ Build the campaign and advance it until turn 5 is open:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
+cargo run -q -p nc-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
 ```
 
 If every active player already has a valid turn file for turns 1 through 4, the
@@ -51,7 +51,7 @@ Then inspect the live runtime campaign in the TUI:
 
 ```bash
 cd rust
-cargo run -q -p ec-game -- --dir /tmp/ec-bot-campaign --player 1
+cargo run -q -p nc-game -- --dir /tmp/ec-bot-campaign --player 1
 ```
 
 Use any player slot you want to inspect.
@@ -121,42 +121,42 @@ Initialize the campaign explicitly:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --bundle-profile llm
+cargo run -q -p nc-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --bundle-profile llm
 ```
 
 Re-open or refresh bundles for the current open turn:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness open-turn --dir /tmp/ec-bot-campaign
+cargo run -q -p nc-cli -- harness open-turn --dir /tmp/ec-bot-campaign
 ```
 
 Mark a player's turn as in progress:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
+cargo run -q -p nc-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
 ```
 
 Scan all current player workspaces and validate any submitted files:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness scan-turn --dir /tmp/ec-bot-campaign
+cargo run -q -p nc-cli -- harness scan-turn --dir /tmp/ec-bot-campaign
 ```
 
 Apply a fully validated year batch:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness apply-turn-batch --dir /tmp/ec-bot-campaign
+cargo run -q -p nc-cli -- harness apply-turn-batch --dir /tmp/ec-bot-campaign
 ```
 
 Resume the conductor loop after more turns arrive:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
+cargo run -q -p nc-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
 ```
 
 If the campaign manifest already exists, `play-until` resumes from the current
@@ -184,7 +184,7 @@ out player workers directly.
 Do not let player workers:
 
 - read other players' bundles
-- inspect `ecgame.db`
+- inspect `ncgame.db`
 - apply maintenance
 - edit another player's turn file
 

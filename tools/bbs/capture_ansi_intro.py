@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--port", type=int, default=8888)
     parser.add_argument("--user", default="mag")
     parser.add_argument("--password", default="fooBar")
-    parser.add_argument("--out", default="capture/ec_full_intro.ans")
+    parser.add_argument("--out", default="capture/nc_full_intro.ans")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

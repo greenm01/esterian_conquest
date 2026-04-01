@@ -1,0 +1,11 @@
+[package]
+name = "nc-engine"
+version = "1.0.0-beta.1"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+nc-data = { path = "../nc-data" }

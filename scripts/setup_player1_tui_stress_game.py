@@ -35,22 +35,22 @@ PLAYER_SPECS = [
 ]
 
 
-def run_ec_cli(*args: str) -> None:
+def run_nc_cli(*args: str) -> None:
     env = os.environ.copy()
     env["RUSTC_WRAPPER"] = ""
     subprocess.run(
-        ["cargo", "run", "-q", "-p", "ec-cli", "--", *args],
+        ["cargo", "run", "-q", "-p", "nc-cli", "--", *args],
         cwd=RUST_DIR,
         check=True,
         env=env,
     )
 
 
-def run_ec_sysop(*args: str) -> str:
+def run_nc_sysop(*args: str) -> str:
     env = os.environ.copy()
     env["RUSTC_WRAPPER"] = ""
     result = subprocess.run(
-        ["cargo", "run", "-q", "-p", "ec-sysop", "--", *args],
+        ["cargo", "run", "-q", "-p", "nc-sysop", "--", *args],
         cwd=RUST_DIR,
         check=True,
         env=env,
@@ -60,11 +60,11 @@ def run_ec_sysop(*args: str) -> str:
     return result.stdout
 
 
-def run_ec_connect(*args: str) -> str:
+def run_nc_connect(*args: str) -> str:
     env = os.environ.copy()
     env["RUSTC_WRAPPER"] = ""
     result = subprocess.run(
-        ["cargo", "run", "-q", "-p", "ec-connect", "--bin", "ec-connect", "--", *args],
+        ["cargo", "run", "-q", "-p", "nc-connect", "--bin", "nc-connect", "--", *args],
         cwd=RUST_DIR,
         check=True,
         env=env,
@@ -75,8 +75,8 @@ def run_ec_connect(*args: str) -> str:
 
 
 def set_player(target: Path, record: int, handle: str, empire: str, tax: int) -> None:
-    run_ec_cli("player-name", str(target), str(record), handle, empire)
-    run_ec_cli("player-tax", str(target), str(record), str(tax))
+    run_nc_cli("player-name", str(target), str(record), handle, empire)
+    run_nc_cli("player-tax", str(target), str(record), str(tax))
 
 
 def map_size_for_player_count(player_count: int) -> int:
@@ -149,13 +149,13 @@ def main() -> None:
         help="Path to the nsec file used for the returning-player localhost fixture.",
     )
     parser.add_argument(
-        "--ec-connect-data-root",
-        help="Isolated XDG-like root for the seeded localhost ec-connect fixture.",
+        "--nc-connect-data-root",
+        help="Isolated XDG-like root for the seeded localhost nc-connect fixture.",
     )
     parser.add_argument(
-        "--ec-connect-password",
+        "--nc-connect-password",
         default=DEFAULT_EC_CONNECT_PASSWORD,
-        help=f"Password for the isolated localhost ec-connect wallet. Default: {DEFAULT_EC_CONNECT_PASSWORD}.",
+        help=f"Password for the isolated localhost nc-connect wallet. Default: {DEFAULT_EC_CONNECT_PASSWORD}.",
     )
     parser.add_argument(
         "--localhost-gate-state-dir",
@@ -186,7 +186,7 @@ def main() -> None:
             raise SystemExit(f"target already exists: {target} (use --force)")
         shutil.rmtree(target)
 
-    run_ec_sysop(
+    run_nc_sysop(
         "new-game",
         str(target),
         "--players",
@@ -200,9 +200,9 @@ def main() -> None:
     for idx, (handle, empire, tax) in enumerate(PLAYER_SPECS[: args.players], start=1):
         set_player(target, idx, handle, empire, tax)
 
-    run_ec_cli("harness", "seed-player1-tui-stress", "--dir", str(target))
+    run_nc_cli("harness", "seed-player1-tui-stress", "--dir", str(target))
     for _ in range(args.turn - 1):
-        run_ec_cli("maint-rust", str(target), "1")
+        run_nc_cli("maint-rust", str(target), "1")
 
     print()
     print(f"Created player-1 TUI stress game at {target}")
@@ -220,7 +220,7 @@ def main() -> None:
         gate_state_dir = Path(args.localhost_gate_state_dir).resolve()
         gate_state_dir.mkdir(parents=True, exist_ok=True)
         gate_identity = gate_state_dir / "identity.kdl"
-        gate_stdout = run_ec_sysop(
+        gate_stdout = run_nc_sysop(
             "nostr",
             "init",
             "--identity",
@@ -229,9 +229,9 @@ def main() -> None:
         gate_npub = parse_npub(gate_stdout)
 
         data_root = (
-            Path(args.ec_connect_data_root).resolve()
-            if args.ec_connect_data_root
-            else Path(tempfile.gettempdir()) / f"ec-connect-localhost-{target.name}"
+            Path(args.nc_connect_data_root).resolve()
+            if args.nc_connect_data_root
+            else Path(tempfile.gettempdir()) / f"nc-connect-localhost-{target.name}"
         )
         wallet_out, cache_out, config_out = fixture_paths(data_root)
         seed_args = [
@@ -262,13 +262,13 @@ def main() -> None:
             "--gate-npub",
             gate_npub,
             "--password",
-            args.ec_connect_password,
+            args.nc_connect_password,
         ]
         if args.force:
             seed_args.append("--force")
-        fixture_stdout = run_ec_connect(*seed_args)
+        fixture_stdout = run_nc_connect(*seed_args)
         player_npub = parse_npub(fixture_stdout)
-        run_ec_sysop(
+        run_nc_sysop(
             "nostr",
             "claim",
             "--dir",
@@ -284,16 +284,16 @@ def main() -> None:
         print(f"Claimed seat: {args.hosted_claim_player}")
         print(f"Player npub: {player_npub}")
         print(f"Gate npub: {gate_npub}")
-        print(f"ec-connect data root: {data_root}")
-        print(f"ec-connect password: {args.ec_connect_password}")
+        print(f"nc-connect data root: {data_root}")
+        print(f"nc-connect password: {args.nc_connect_password}")
         print("Start localhost hosting with:")
         print(f"  ./scripts/start_local_gui_hosted_test.sh --dir {target}")
-        print("Then launch ec-connect against the isolated fixture state with:")
+        print("Then launch nc-connect against the isolated fixture state with:")
         print(
             "  "
             f"XDG_CONFIG_HOME={data_root / 'config'} "
             f"XDG_DATA_HOME={data_root / 'data'} "
-            "cargo run -q -p ec-connect --bin ec-connect"
+            "cargo run -q -p nc-connect --bin nc-connect"
         )
         print("This fixture opens as a returning player from the picker; it does not exercise the pending-seat first-join flow.")
 

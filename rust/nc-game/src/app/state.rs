@@ -1,0 +1,355 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
+use std::path::PathBuf;
+
+use nc_data::{
+    CampaignStore, CoreGameData, GameConfig, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
+};
+
+use crate::app::help::PopupHelp;
+use crate::domains::empire::EmpireState;
+use crate::domains::fleet::FleetState;
+use crate::domains::messaging::MessagingState;
+use crate::domains::planet::PlanetState;
+use crate::domains::starbase::StarbaseState;
+use crate::domains::starmap::StarmapState;
+use crate::domains::startup::StartupState;
+use crate::model::{MainMenuSummary, PlayerContext};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::screen::{
+    CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, FirstTimeEmpiresScreen,
+    FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachScreen, FleetEtaScreen, FleetGroupScreen,
+    FleetListScreen, FleetMenuScreen, FleetMissionPickerScreen, FleetReviewScreen,
+    FleetSingleOrderScreen, FleetTransferScreen, GeneralMenuScreen, MainMenuScreen,
+    MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen, PlanetCommissionScreen,
+    PlanetDatabaseScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen, PlanetTaxScreen,
+    PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenGeometry, ScreenId,
+    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
+    ThemePickerScreen,
+};
+use crate::startup::{StartupSequence, StartupSummary};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppConfig {
+    pub game_dir: PathBuf,
+    pub player_record_index_1_based: usize,
+    pub export_root: Option<PathBuf>,
+    pub queue_dir: Option<PathBuf>,
+    /// Session time limit in seconds sourced from `--timeout` or a dropfile.
+    /// `None` means no limit.
+    pub session_timeout_secs: Option<u32>,
+    /// Runtime configuration materialized from campaign settings in `ncgame.db`.
+    pub game_config: GameConfig,
+}
+
+pub struct App {
+    pub game_dir: PathBuf,
+    pub game_name: String,
+    pub game_data: CoreGameData,
+    pub player: PlayerContext,
+    pub current_screen: ScreenId,
+    pub startup_sequence: StartupSequence,
+    pub startup: StartupScreen,
+    pub first_time_menu: FirstTimeMenuScreen,
+    pub first_time_empires: FirstTimeEmpiresScreen,
+    pub first_time_intro: FirstTimeIntroScreen,
+    pub theme_picker: ThemePickerScreen,
+    pub main_menu: MainMenuScreen,
+    pub general_menu: GeneralMenuScreen,
+    pub starbase_menu: StarbaseMenuScreen,
+    pub starbase_list: StarbaseListScreen,
+    pub starbase_review: StarbaseReviewScreen,
+    pub fleet_menu: FleetMenuScreen,
+    pub fleet_list: FleetListScreen,
+    pub fleet_review: FleetReviewScreen,
+    pub fleet_order: FleetSingleOrderScreen,
+    pub fleet_group: FleetGroupScreen,
+    pub fleet_mission_picker: FleetMissionPickerScreen,
+    pub fleet_transfer: FleetTransferScreen,
+    pub fleet_detach: FleetDetachScreen,
+    pub fleet_eta: FleetEtaScreen,
+    pub planet_menu: PlanetMenuScreen,
+    pub planet_commission: PlanetCommissionScreen,
+    pub planet_transport: PlanetTransportScreen,
+    pub planet_build: PlanetBuildScreen,
+    pub planet_list: PlanetListScreen,
+    pub planet_tax: PlanetTaxScreen,
+    pub starmap: StarmapScreen,
+    pub partial_starmap: PartialStarmapScreen,
+    pub planet_database: PlanetDatabaseScreen,
+    pub planet_info: PlanetInfoScreen,
+    pub enemies: EnemiesScreen,
+    pub message_compose: MessageComposeScreen,
+    pub empire_status: EmpireStatusScreen,
+    pub empire_profile: EmpireProfileScreen,
+    pub rankings: RankingsScreen,
+    pub reports: ReportsScreen,
+
+    pub fleet: FleetState,
+    pub planet: PlanetState,
+    pub starbase: StarbaseState,
+    pub empire: EmpireState,
+    pub messaging: MessagingState,
+    pub starmap_state: StarmapState,
+    pub startup_state: StartupState,
+
+    pub command_return_menu: CommandMenu,
+    pub return_screen: Option<ScreenId>,
+    pub export_root: PathBuf,
+    pub queue_dir: Option<PathBuf>,
+    pub screen_geometry: ScreenGeometry,
+    pub door_mode: bool,
+    pub autopilot: bool,
+    pub expert_mode: bool,
+    pub snapshot_id: i64,
+    pub campaign_seed: u64,
+    pub report_block_rows: Vec<ReportBlockRow>,
+    pub queued_mail: Vec<QueuedPlayerMail>,
+    pub command_menu_notice: Option<String>,
+    pub quit_confirm_open: bool,
+    pub popup_help: Option<PopupHelp>,
+    pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
+    pub planet_scorch_orders: BTreeSet<usize>,
+}
+
+impl App {
+    pub fn load(config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
+        let game_dir = config.game_dir.clone();
+        let game_name = config.game_config.game_name.clone();
+        crate::theme::initialize_from_game_dir(&game_dir, config.game_config.theme.clone())?;
+        let export_root = config
+            .export_root
+            .clone()
+            .unwrap_or_else(|| game_dir.join("exports"));
+        let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
+        let runtime_state = campaign_store.load_latest_runtime_state()?.ok_or(
+            "campaign store has no snapshots; initialize the campaign with nc-sysop first",
+        )?;
+        let snapshot_id = runtime_state.snapshot_id;
+        let campaign_seed = runtime_state.campaign_seed;
+        let report_block_rows = runtime_state.report_block_rows;
+        let queued_mail = runtime_state.queued_mail;
+        let planet_scorch_orders = runtime_state.planet_scorch_orders;
+
+        // Apply campaign-setting overrides to game_data. Only save a new
+        // snapshot if any field actually changed, to avoid churn on clean
+        // starts.
+        let (game_data, snapshot_id) = apply_game_config_overrides(
+            runtime_state.game_data,
+            &config.game_config,
+            &campaign_store,
+            snapshot_id,
+            &planet_scorch_orders,
+            &report_block_rows,
+            &queued_mail,
+        )?;
+
+        let reports = ReportsPreview::from_block_rows(
+            &game_data,
+            config.player_record_index_1_based as u8,
+            &report_block_rows,
+            &queued_mail,
+        );
+        let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
+        apply_player_theme_preference(&campaign_store, &game_dir, &player)?;
+        let planet_intel_snapshots = campaign_store
+            .latest_planet_intel_for_viewer(config.player_record_index_1_based as u8)?
+            .into_iter()
+            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+            .collect::<BTreeMap<_, _>>();
+        let main_menu_summary = MainMenuSummary::from_game_data(
+            &game_data,
+            config.player_record_index_1_based,
+            !report_block_rows.is_empty(),
+            has_visible_runtime_messages(config.player_record_index_1_based as u8, &queued_mail),
+        );
+        let startup_summary = StartupSummary::from_reports(
+            main_menu_summary.game_year,
+            player.classic_login_state,
+            main_menu_summary.pending_results,
+            main_menu_summary.pending_messages,
+            &reports,
+        );
+        let startup_sequence = StartupSequence::new(&startup_summary, player.classic_login_state);
+        let mut startup_state = StartupState::default();
+        startup_state.reserved_seat_alias = config
+            .game_config
+            .reservation_for_player(config.player_record_index_1_based)
+            .map(|reservation| reservation.alias.clone());
+        Ok(Self {
+            game_dir,
+            game_name,
+            game_data,
+            player,
+            current_screen: ScreenId::Startup(startup_sequence.current()),
+            startup_sequence,
+            startup: StartupScreen::new(startup_summary, reports.clone()),
+            first_time_menu: FirstTimeMenuScreen::new(),
+            first_time_empires: FirstTimeEmpiresScreen::new(),
+            first_time_intro: FirstTimeIntroScreen::new(),
+            theme_picker: ThemePickerScreen::new(),
+            main_menu: MainMenuScreen::new(),
+            general_menu: GeneralMenuScreen::new(),
+            starbase_menu: StarbaseMenuScreen::new(),
+            starbase_list: StarbaseListScreen::new(),
+            starbase_review: StarbaseReviewScreen::new(),
+            fleet_menu: FleetMenuScreen::new(),
+            fleet_list: FleetListScreen::new(),
+            fleet_review: FleetReviewScreen::new(),
+            fleet_order: FleetSingleOrderScreen::new(),
+            fleet_group: FleetGroupScreen::new(),
+            fleet_mission_picker: FleetMissionPickerScreen::new(),
+            fleet_transfer: FleetTransferScreen::new(),
+            fleet_detach: FleetDetachScreen::new(),
+            fleet_eta: FleetEtaScreen::new(),
+            planet_menu: PlanetMenuScreen::new(),
+            planet_commission: PlanetCommissionScreen::new(),
+            planet_transport: PlanetTransportScreen::new(),
+            planet_build: PlanetBuildScreen::new(),
+            planet_list: PlanetListScreen::new(),
+            planet_tax: PlanetTaxScreen::new(),
+            starmap: StarmapScreen::new(),
+            partial_starmap: PartialStarmapScreen::new(),
+            planet_database: PlanetDatabaseScreen::new(),
+            planet_info: PlanetInfoScreen::new(),
+            enemies: EnemiesScreen::new(),
+            message_compose: MessageComposeScreen::new(),
+            empire_status: EmpireStatusScreen::new(),
+            empire_profile: EmpireProfileScreen::new(),
+            rankings: RankingsScreen::new(),
+            reports: ReportsScreen::new(),
+
+            fleet: FleetState::default(),
+            planet: PlanetState::new(campaign_store, planet_intel_snapshots.clone()),
+            starbase: StarbaseState::default(),
+            empire: EmpireState::default(),
+            messaging: MessagingState::default(),
+            starmap_state: StarmapState {
+                partial_center: [8, 2],
+                ..Default::default()
+            },
+            startup_state,
+
+            command_return_menu: CommandMenu::General,
+            return_screen: None,
+            export_root,
+            queue_dir: config.queue_dir,
+            screen_geometry: ScreenGeometry::local_default(),
+            door_mode: false,
+            autopilot: false,
+            expert_mode: false,
+            snapshot_id,
+            campaign_seed,
+            report_block_rows,
+            queued_mail,
+            command_menu_notice: None,
+            quit_confirm_open: false,
+            popup_help: None,
+            planet_intel_snapshots,
+            planet_scorch_orders,
+        })
+    }
+}
+
+fn apply_player_theme_preference(
+    campaign_store: &CampaignStore,
+    game_dir: &Path,
+    player: &PlayerContext,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !player.is_joined {
+        return Ok(());
+    }
+    let Some(theme_key) = campaign_store.player_theme_preference(player.record_index_1_based)?
+    else {
+        return Ok(());
+    };
+    let entries = crate::theme::discover_theme_entries(game_dir)?;
+    if let Some(entry) = entries.into_iter().find(|entry| entry.key == theme_key) {
+        if crate::theme::apply_theme_entry(&entry).is_ok() {
+            return Ok(());
+        }
+    }
+    crate::theme::apply_default_theme();
+    campaign_store.set_player_theme_preference(player.record_index_1_based, "tokyo_night")?;
+    Ok(())
+}
+
+/// Apply runtime operational settings to `game_data.setup`.
+///
+/// If any SetupDat byte changed, save a new snapshot so the engine always
+/// sees the current config on the next run.  Returns the (possibly updated)
+/// `CoreGameData` and the active snapshot id (new if saved, original if not).
+fn apply_game_config_overrides(
+    mut game_data: CoreGameData,
+    cfg: &GameConfig,
+    store: &CampaignStore,
+    current_snapshot_id: i64,
+    planet_scorch_orders: &BTreeSet<usize>,
+    report_block_rows: &[ReportBlockRow],
+    queued_mail: &[QueuedPlayerMail],
+) -> Result<(CoreGameData, i64), Box<dyn std::error::Error>> {
+    let s = &mut game_data.setup;
+    let mut changed = false;
+
+    macro_rules! apply_bool {
+        ($getter:ident, $setter:ident, $value:expr) => {
+            if s.$getter() != $value {
+                s.$setter($value);
+                changed = true;
+            }
+        };
+    }
+    macro_rules! apply_u8 {
+        ($getter:ident, $setter:ident, $value:expr) => {
+            if s.$getter() != $value {
+                s.$setter($value);
+                changed = true;
+            }
+        };
+    }
+
+    apply_bool!(snoop_enabled, set_snoop_enabled, cfg.snoop);
+    apply_bool!(
+        local_timeout_enabled,
+        set_local_timeout_enabled,
+        cfg.session.local_timeout
+    );
+    apply_bool!(
+        remote_timeout_enabled,
+        set_remote_timeout_enabled,
+        cfg.session.remote_timeout
+    );
+    apply_u8!(
+        max_time_between_keys_minutes_raw,
+        set_max_time_between_keys_minutes_raw,
+        cfg.session.max_idle_minutes
+    );
+    apply_u8!(
+        minimum_time_granted_minutes_raw,
+        set_minimum_time_granted_minutes_raw,
+        cfg.session.minimum_time_minutes
+    );
+    apply_u8!(
+        purge_after_turns_raw,
+        set_purge_after_turns_raw,
+        cfg.inactivity.purge_after_turns
+    );
+    apply_u8!(
+        autopilot_inactive_turns_raw,
+        set_autopilot_inactive_turns_raw,
+        cfg.inactivity.autopilot_after_turns
+    );
+
+    let snapshot_id = if changed {
+        store.save_runtime_state_structured(
+            &game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+        )?
+    } else {
+        current_snapshot_id
+    };
+
+    Ok((game_data, snapshot_id))
+}

@@ -7,7 +7,7 @@ import argparse
 import shutil
 from pathlib import Path
 
-from ecmaint_oracle import ROOT, collect_diffs, print_diff_summary, run_ec_cli, run_ecmaint, snapshot_dir
+from ecmaint_oracle import ROOT, collect_diffs, print_diff_summary, run_nc_cli, run_ecmaint, snapshot_dir
 
 PLANET_RECORD_SIZE = 97
 TARGET_PLANET_RECORD = 15
@@ -20,7 +20,7 @@ def prepare_case(target: Path) -> None:
     shutil.copytree(source, target)
 
     for slot in range(10):
-        result = run_ec_cli(
+        result = run_nc_cli(
             ["planet-stardock", str(target), str(TARGET_PLANET_RECORD), str(slot), "1", "1"]
         )
         if result.returncode != 0:

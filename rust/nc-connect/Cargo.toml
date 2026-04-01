@@ -1,0 +1,77 @@
+[package]
+name = "nc-connect"
+version = "1.0.0-beta.1"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[[bin]]
+name = "nc-connect"
+path = "src/main.rs"
+
+[[bin]]
+name = "nc-connect-cli"
+path = "src/bin/nc-connect-cli.rs"
+
+[dependencies]
+# Shared Nostr protocol helpers
+nc-nostr = { path = "../nc-nostr" }
+
+# Nostr identity + relay handshake
+nostr-sdk = { version = "0.44", features = ["nip44"] }
+
+# Wallet encryption: ChaCha20-Poly1305 + PBKDF2-HMAC-SHA256
+chacha20poly1305 = "0.10"
+pbkdf2 = { version = "0.12", features = ["hmac"] }
+sha2 = "0.10"
+
+# Randomness (salt, nonce generation)
+rand = "0.8"
+
+# Config/wallet/cache file format
+kdl = "6"
+
+# Platform-appropriate config/data directories
+dirs = "5"
+
+# Password prompting without echo
+rpassword = "7"
+
+# Async runtime (needed for relay handshake)
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-std", "signal", "sync"] }
+
+# SSH client: ephemeral keypair auth, PTY channel I/O
+# Use `ring` instead of russh's default `aws-lc-rs` backend so Windows GNU
+# builds do not require NASM.
+russh = { version = "0.59.0", default-features = false, features = ["flate2", "ring", "rsa"] }
+
+# SSH keypair generation using russh's key type
+# (ed25519-dalek is transitively provided by russh)
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+
+# Base64 encoding for OpenSSH public key wire format
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zstd = "0.13"
+url = "2"
+
+# Terminal raw mode + resize events
+crossterm = "0.29"
+nc-ui = { path = "../nc-ui" }
+nc-log = { path = "../nc-log" }
+libc = "0.2"
+tracing = "0.1"
+alacritty_terminal = "0.25"
+arboard = { version = "3", features = ["wayland-data-control"] }
+fontdue = "0.9"
+softbuffer = "0.4"
+winit = "0.29"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["wincon", "winuser", "windef", "winbase", "processenv"] }
+
+# CLI argument parsing
+# clap = { version = "...", features = ["derive"] }
+
+[build-dependencies]
+winresource = "0.1"

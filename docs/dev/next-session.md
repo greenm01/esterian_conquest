@@ -5,28 +5,28 @@ Keep this file short. Historical detail belongs in
 
 ## Current State
 
-- Public gameplay work is centered on `ec-connect`, `ec-game`, and
-  `ec-sysop`.
-- Hosted Rust campaigns are now DB-only: `ec-sysop new-game` creates only
-  `ecgame.db`.
-- `ec-sysop` now owns SQLite-native `new-game`, `settings`, `maint-all`, and
-  host game-registry commands directly instead of delegating to `ec-cli`.
-- `ec-game` and `ec-sysop` normal dependency graphs no longer pull
-  `ec-compat` / `ec-classic`.
-- `ec-gate` now reads game names and seat/session metadata from `ecgame.db`
+- Public gameplay work is centered on `nc-connect`, `nc-game`, and
+  `nc-sysop`.
+- Hosted Rust campaigns are now DB-only: `nc-sysop new-game` creates only
+  `ncgame.db`.
+- `nc-sysop` now owns SQLite-native `new-game`, `settings`, `maint-all`, and
+  host game-registry commands directly instead of delegating to `nc-cli`.
+- `nc-game` and `nc-sysop` normal dependency graphs no longer pull
+  `nc-compat` / `nc-classic`.
+- `nc-gate` now reads game names and seat/session metadata from `ncgame.db`
   and issues per-seat session leases to block duplicate logins.
-- `ec-sysop nostr` now has one-shot `publish` / `verify` repair commands for
+- `nc-sysop nostr` now has one-shot `publish` / `verify` repair commands for
   hosted `30500` relay metadata, and `nostr reissue` / `nostr claim` now try
   to republish the affected game immediately.
-- `ec-game` is broadly feature-complete and the player TUI is in good shape.
-- `ec-sysop` is also in good enough shape for normal campaign operation.
+- `nc-game` is broadly feature-complete and the player TUI is in good shape.
+- `nc-sysop` is also in good enough shape for normal campaign operation.
 - The total planet database now supports both `F` filters and `S` sorting.
 - SQLite is the live runtime store and the runtime/storage architecture is now
   effectively production-complete for normal gameplay use.
 - Snapshot families use normalized per-family tables rather than the old
   byte-offset `*_record_fields` tables.
 - Runtime/gameplay code no longer dereferences classic record offsets directly
-  under `ec-engine`, and shared `ec-data` runtime helpers are now using record
+  under `nc-engine`, and shared `nc-data` runtime helpers are now using record
   accessors instead of open-coded `.raw[...]` reads.
 - Runtime-only state such as reports, mail, intel, scorch orders, and theme
   preferences is already stored relationally.
@@ -37,13 +37,13 @@ Keep this file short. Historical detail belongs in
 - The Rust BBS door client is now verified on both Mystic and ENiGMA½.
 - For BBS play, the stable door control contract is `HJKL` movement, `^U` /
   `^D` paging, and `Q` / `Esc` for back/quit.
-- The SSH/local `ec-game` renderer now diffs retained frames instead of
+- The SSH/local `nc-game` renderer now diffs retained frames instead of
   clearing the whole terminal every keypress; the BBS door path still uses
   full-frame repaint and should get the same treatment later.
 - Latest broad baselines before new work:
   - `cargo test -q`
-  - `cargo test -q -p ec-game`
-  - `cargo test -q -p ec-sysop`
+  - `cargo test -q -p nc-game`
+  - `cargo test -q -p nc-sysop`
 
 ## Current Goal
 
@@ -56,10 +56,10 @@ Keep this file short. Historical detail belongs in
 ## Recent Fixes
 
 - **Hosted Rust runtime decoupled from classic packaging** (fixed):
-  `ec-sysop new-game` now writes only `ecgame.db`; no `.DAT` files, classic
+  `nc-sysop new-game` now writes only `ncgame.db`; no `.DAT` files, classic
   executables/docs, `config.kdl`, or `themes/` are produced in hosted game
   directories.
-- **Multi-game host operations moved into `ec-sysop`** (fixed):
+- **Multi-game host operations moved into `nc-sysop`** (fixed):
   per-game settings now live in SQLite, `maint-all` sweeps registered games
   from the gate config, and host `games add/remove/list` plus `status` now
   manage and inspect the daemon-facing game registry.
@@ -68,8 +68,8 @@ Keep this file short. Historical detail belongs in
   falling through generic first-time screens, and one hosted identity can no
   longer claim multiple seats in the same game.
 - **Hosted relay drift repair path added** (fixed):
-  sysops can now run `ec-sysop nostr publish --dir ...` and
-  `ec-sysop nostr verify --dir ...`, and seat reissue/claim now attempt to
+  sysops can now run `nc-sysop nostr publish --dir ...` and
+  `nc-sysop nostr verify --dir ...`, and seat reissue/claim now attempt to
   republish the game's public `30500` metadata automatically.
 
 ## Biggest Blockers
@@ -78,21 +78,21 @@ Keep this file short. Historical detail belongs in
 - There is no known major player-TUI feature gap left.
 - The main remaining risk is unknown bugs or confusing workflows that only show
   up under real player/sysop use.
-- `ec-connect`'s post-`ec-game` first-key fix is currently Unix-only; Windows
+- `nc-connect`'s post-`nc-game` first-key fix is currently Unix-only; Windows
   still needs a bridge-side stdin shutdown path so the first returned keypress
   cannot be stolen after the SSH session exits.
 - The current live Windows/QEMU hosted-join blocker is earlier than SSH:
   the GUI hangs on `CLAIMING INVITE...`, the VM browser can reach
-  `https://relay.nostrian-conquest.com`, but no new VPS relay or `ec-nostr`
-  logs appear during the hang. Treat this as a Windows `ec-connect`
+  `https://relay.nostrian-conquest.com`, but no new VPS relay or `nc-nostr`
+  logs appear during the hang. Treat this as a Windows `nc-connect`
   relay/websocket/discovery-path issue first, not a game-daemon issue.
-- `ec-sysop nostr verify` still fails against the live VPS relay with
+- `nc-sysop nostr verify` still fails against the live VPS relay with
   `could not fetch 30500 ...: no relays`; the one-shot `publish` path works,
   but the `verify` fetch path needs a follow-up fix before relying on it in
   ops docs.
-- `ec-connect` is still single-relay; multi-relay join/handshake redundancy is
+- `nc-connect` is still single-relay; multi-relay join/handshake redundancy is
   a future resilience improvement, not part of the current player fix stream.
-- `ec-connect` cache rows are still not modeled for the legitimate edge case of
+- `nc-connect` cache rows are still not modeled for the legitimate edge case of
   one local wallet keeping multiple seats in the same hosted game under
   different identities; that is a separate follow-up from current management
   fixes.
@@ -104,7 +104,7 @@ Keep this file short. Historical detail belongs in
 
 1. Reproduce the Windows/QEMU `CLAIMING INVITE...` hang with better client-side
    signal, ideally from a Windows build that can emit relay/discovery logs.
-2. Fix the `ec-sysop nostr verify` live-relay fetch bug (`no relays`) so the
+2. Fix the `nc-sysop nostr verify` live-relay fetch bug (`no relays`) so the
    new repair command is actually usable on VPS hosts.
 3. Run more VPS and live multi-game playtests against the DB-only hosted
    layout once the Windows hosted join path is unblocked.
@@ -112,10 +112,10 @@ Keep this file short. Historical detail belongs in
    code does not drift back toward raw-offset dependence.
 5. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
    so screen-local key discoverability can move out of crowded command rails.
-6. Add the Windows half of the `ec-connect` bridge stdin shutdown fix so
+6. Add the Windows half of the `nc-connect` bridge stdin shutdown fix so
    post-game return behavior matches Linux/macOS and the first keypress works
-   immediately after leaving `ec-game`.
-7. Revisit multi-relay support for `ec-connect` join/handshake flows if relay
+   immediately after leaving `nc-game`.
+7. Revisit multi-relay support for `nc-connect` join/handshake flows if relay
    reliability remains a recurring playtest problem.
 8. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.

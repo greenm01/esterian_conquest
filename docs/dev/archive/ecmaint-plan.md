@@ -167,9 +167,9 @@ Do not promote fields based on guesswork. Record raw bytes if semantics are stil
 
 After the diff is understood enough to be actionable:
 
-- add or refine the corresponding accessors in `rust/ec-data`
+- add or refine the corresponding accessors in `rust/nc-data`
 - preserve the new fixtures in repo
-- add at least one fixture-backed test in `ec-data` or `ec-cli`
+- add at least one fixture-backed test in `nc-data` or `nc-cli`
 
 If the result is still too ambiguous for a named field, add a conservative raw accessor instead of inventing semantics.
 
@@ -181,8 +181,8 @@ This phase should explicitly use:
 - `fixtures/ecmaint-post/v1.5/`
 - `docs/fixtures.md`
 - `docs/dev/archive/RE_NOTES.md`
-- `rust/ec-data`
-- `rust/ec-cli`
+- `rust/nc-data`
+- `rust/nc-cli`
 
 New phase-1 fixture names are fixed:
 

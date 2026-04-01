@@ -35,10 +35,10 @@ class SweepResult:
 
 
 def generate_gamestate(target_dir: Path, player_count: int, year: int, coords: List[Tuple[int, int]]) -> Tuple[bool, List[str]]:
-    """Generate a gamestate using ec-cli generate-gamestate command."""
+    """Generate a gamestate using nc-cli generate-gamestate command."""
     coord_args = [f"{x}:{y}" for x, y in coords]
     cmd = [
-        "cargo", "run", "-q", "-p", "ec-cli", "--",
+        "cargo", "run", "-q", "-p", "nc-cli", "--",
         "generate-gamestate", str(target_dir),
         str(player_count), str(year)
     ] + coord_args
@@ -73,7 +73,7 @@ def generate_seeded_new_game(target_dir: Path, player_count: int, seed: int) -> 
         "run",
         "-q",
         "-p",
-        "ec-cli",
+        "nc-cli",
         "--",
         "sysop",
         "new-game",

@@ -38,7 +38,7 @@ Allowed inputs:
 
 Forbidden inputs:
 
-- direct inspection of `ecgame.db`
+- direct inspection of `ncgame.db`
 - hidden state from other empires
 - total-map dumps or developer summaries that reveal unexplored worlds
 - harness/debug/oracle output not available to the player
@@ -98,7 +98,7 @@ Use the helper command when a bot starts work:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
+cargo run -q -p nc-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
 ```
 
 The bot should not advance maintenance itself. The conductor does that only
@@ -148,7 +148,7 @@ Important boundary:
 - current bundles now also include coordinator-generated legal action hints per fleet
 - `--bundle-profile llm` campaigns also include hidden `.llm/spatial.kdl` route/target summaries derived only from player-visible state
 - current bundles do not expose raw global review text from `RESULTS.DAT` or `MESSAGES.DAT`
-- do not pass the bot `ecgame.db`, hidden empire summaries, or developer-only metrics
+- do not pass the bot `ncgame.db`, hidden empire summaries, or developer-only metrics
 - if using sub-agents, do not pass one bot another bot's bundle or turn file
 
 ## The Bot's Turn Loop
@@ -392,7 +392,7 @@ Example operator flow in a conductor-led campaign:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-campaign --player 2
+cargo run -q -p nc-cli -- harness claim-turn --dir /tmp/ec-campaign --player 2
 ```
 
 4. Prompt the bot with the manuals, the visible bundle, and the target path above.
@@ -401,14 +401,14 @@ cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-campaign --player 2
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness scan-turn --dir /tmp/ec-campaign
+cargo run -q -p nc-cli -- harness scan-turn --dir /tmp/ec-campaign
 ```
 
 7. If every player is validated, let the conductor advance the year:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness apply-turn-batch --dir /tmp/ec-campaign
+cargo run -q -p nc-cli -- harness apply-turn-batch --dir /tmp/ec-campaign
 ```
 
 For one-off single-player experiments outside the conductor flow, direct

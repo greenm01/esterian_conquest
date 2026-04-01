@@ -20,11 +20,11 @@ BUILD_RELEASE_PACKAGES = REPO_ROOT / "scripts" / "build_release_packages.py"
 BUILD_PLAYTEST_BUNDLE = REPO_ROOT / "scripts" / "build_playtest_bundle.py"
 CHECKSUM_PATH = RELEASES_DIR / "SHA256SUMS.txt"
 SIGNATURE_PATH = RELEASES_DIR / "SHA256SUMS.txt.asc"
-RELEASE_NOTE_PATH = RELEASES_DIR / "ec-connect-release-note.md"
+RELEASE_NOTE_PATH = RELEASES_DIR / "nc-connect-release-note.md"
 RELEASE_NOTE_URL = (
     "https://github.com/greenm01/nostrian-conquest/blob/main/docs/release-signing.md"
 )
-EC_CONNECT_ARCHIVE_RE = re.compile(r"^ec-connect-v.*\.(?:zip|tar\.gz)$")
+EC_CONNECT_ARCHIVE_RE = re.compile(r"^nc-connect-v.*\.(?:zip|tar\.gz)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,15 +49,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--ec-connect-target",
+        "--nc-connect-target",
         action="append",
         choices=sorted(SUPPORTED_TARGETS),
-        help="Build and upload a public ec-connect archive for the selected target.",
+        help="Build and upload a public nc-connect archive for the selected target.",
     )
     parser.add_argument(
         "--gpg-key",
         help=(
-            "GPG key fingerprint or key ID used to sign the shared ec-connect "
+            "GPG key fingerprint or key ID used to sign the shared nc-connect "
             "checksum manifest."
         ),
     )
@@ -88,7 +88,7 @@ def capture(argv: list[str], *, cwd: Path | None = None) -> str:
 
 def selected_dos_variants(args: argparse.Namespace) -> list[str]:
     variants = list(args.variant or [])
-    if variants or args.ec_connect_target:
+    if variants or args.nc_connect_target:
         return variants
     return ["classic", "unlocked"]
 
@@ -107,13 +107,13 @@ def build_dos_variants(variants: list[str]) -> list[Path]:
     return [RELEASES_DIR / archive_names[variant] for variant in variants]
 
 
-def build_ec_connect_archive(target: str) -> Path:
+def build_nc_connect_archive(target: str) -> Path:
     output = capture(
         [
             sys.executable,
             str(BUILD_PLAYTEST_BUNDLE),
             "--artifact",
-            "ec-connect",
+            "nc-connect",
             "--target",
             target,
             "--verify",
@@ -125,7 +125,7 @@ def build_ec_connect_archive(target: str) -> Path:
     return Path(lines[-1])
 
 
-def download_existing_ec_connect_assets(
+def download_existing_nc_connect_assets(
     release_tag: str,
     selected_names: set[str],
     download_dir: Path,
@@ -190,10 +190,10 @@ def sign_checksum_manifest(gpg_key: str) -> str:
 
 
 def write_release_note(fingerprint: str) -> None:
-    body = f"""<!-- EC-RUST-VERIFY:START -->
+    body = f"""<!-- NC-RUST-VERIFY:START -->
 ## Verify Rust downloads
 
-The Rust-built `ec-connect` downloads in this release can be verified with the signed `SHA256SUMS.txt` manifest.
+The Rust-built `nc-connect` downloads in this release can be verified with the signed `SHA256SUMS.txt` manifest.
 
 `gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt`
 `shasum -a 256 -c SHA256SUMS.txt`
@@ -201,8 +201,8 @@ The Rust-built `ec-connect` downloads in this release can be verified with the s
 Full instructions and public key: {RELEASE_NOTE_URL}
 Signing key fingerprint: `{fingerprint}`
 
-The signed manifest covers the public `ec-connect` archives, not the DOS compatibility bundles on this page.
-<!-- EC-RUST-VERIFY:END -->
+The signed manifest covers the public `nc-connect` archives, not the DOS compatibility bundles on this page.
+<!-- NC-RUST-VERIFY:END -->
 """
     RELEASE_NOTE_PATH.write_text(body, encoding="utf-8")
 
@@ -235,23 +235,23 @@ def upload_assets(release_tag: str, assets: list[Path]) -> None:
 def main() -> None:
     args = parse_args()
     dos_variants = selected_dos_variants(args)
-    ec_connect_targets = list(args.ec_connect_target or [])
+    nc_connect_targets = list(args.nc_connect_target or [])
 
-    if ec_connect_targets and not args.gpg_key:
-        raise SystemExit("--gpg-key is required when publishing ec-connect release assets.")
+    if nc_connect_targets and not args.gpg_key:
+        raise SystemExit("--gpg-key is required when publishing nc-connect release assets.")
 
     assets = build_dos_variants(dos_variants)
-    ec_connect_assets = [build_ec_connect_archive(target) for target in ec_connect_targets]
-    assets.extend(ec_connect_assets)
+    nc_connect_assets = [build_nc_connect_archive(target) for target in nc_connect_targets]
+    assets.extend(nc_connect_assets)
 
     if not assets:
         raise SystemExit("no release assets selected")
 
-    if ec_connect_assets:
+    if nc_connect_assets:
         with tempfile.TemporaryDirectory(prefix="ec-release-download-") as temp_dir:
             download_dir = Path(temp_dir)
-            selected_names = {asset.name for asset in ec_connect_assets}
-            manifest_assets = ec_connect_assets + download_existing_ec_connect_assets(
+            selected_names = {asset.name for asset in nc_connect_assets}
+            manifest_assets = nc_connect_assets + download_existing_nc_connect_assets(
                 args.tag,
                 selected_names,
                 download_dir,

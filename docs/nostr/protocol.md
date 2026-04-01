@@ -1,7 +1,7 @@
 # Nostr Protocol
 
 This document specifies the Nostr event kinds and message flows used by
-`ec-connect` and `ec-gate` for public seat claiming, session authentication,
+`nc-connect` and `nc-gate` for public seat claiming, session authentication,
 post-session seat metadata refresh, and static player starmap delivery.
 
 ## Design Principles
@@ -19,18 +19,18 @@ kind collisions.
 
 | Kind | Name | Publisher | Encryption | Purpose |
 |------|------|-----------|------------|---------|
-| 30500 | GameDefinition | ec-gate | None | Public game metadata and seat status |
-| 30501 | SessionRequest | ec-connect | None | Player requests a session launch |
-| 30502 | SessionReady | ec-gate | NIP-44 | Session provisioned, SSH details enclosed |
-| 30503 | SessionError | ec-gate | NIP-44 | Session request failed |
-| 30504 | MapRequest | ec-connect | None | Player requests the static map bundle for a joined game |
-| 30505 | MapBundle | ec-gate | NIP-44 | Compressed static map bundle |
-| 30506 | MapError | ec-gate | NIP-44 | Map request failed |
-| 30507 | SessionStateRequest | ec-connect | None | Player requests refreshed seat metadata after a hosted session |
-| 30508 | SessionStateReady | ec-gate | NIP-44 | Current game name, seat, and empire name |
-| 30509 | SessionStateError | ec-gate | NIP-44 | Session-state refresh failed |
-| 30510 | SeatClaimRequest | ec-connect | None | Deprecated pre-claim flow from older clients |
-| 30511 | SeatClaimError | ec-gate | NIP-44 | Deprecated claim flow rejected or invite claim failed |
+| 30500 | GameDefinition | nc-gate | None | Public game metadata and seat status |
+| 30501 | SessionRequest | nc-connect | None | Player requests a session launch |
+| 30502 | SessionReady | nc-gate | NIP-44 | Session provisioned, SSH details enclosed |
+| 30503 | SessionError | nc-gate | NIP-44 | Session request failed |
+| 30504 | MapRequest | nc-connect | None | Player requests the static map bundle for a joined game |
+| 30505 | MapBundle | nc-gate | NIP-44 | Compressed static map bundle |
+| 30506 | MapError | nc-gate | NIP-44 | Map request failed |
+| 30507 | SessionStateRequest | nc-connect | None | Player requests refreshed seat metadata after a hosted session |
+| 30508 | SessionStateReady | nc-gate | NIP-44 | Current game name, seat, and empire name |
+| 30509 | SessionStateError | nc-gate | NIP-44 | Session-state refresh failed |
+| 30510 | SeatClaimRequest | nc-connect | None | Deprecated pre-claim flow from older clients |
+| 30511 | SeatClaimError | nc-gate | NIP-44 | Deprecated claim flow rejected or invite claim failed |
 
 All request/response kinds are parameterized replaceable events (NIP-33). The `d` tag
 serves as the deduplication key.
@@ -56,7 +56,7 @@ serves as the deduplication key.
 
 ### 30500: GameDefinition
 
-Published by `ec-gate` for each game it serves. This is a public,
+Published by `nc-gate` for each game it serves. This is a public,
 unencrypted event that lets players and clients discover games on a relay.
 
 ```json
@@ -84,7 +84,7 @@ unencrypted event that lets players and clients discover games on a relay.
 **Tag definitions:**
 
 - `d`: Game identifier slug, derived from the game directory name (e.g.,
-  `friday-night`). Unique per `ec-gate` instance.
+  `friday-night`). Unique per `nc-gate` instance.
 - `name`: Human-readable game name
 - `status`: `setup` (waiting for players), `active` (game in progress),
   or `finished`
@@ -94,12 +94,12 @@ unencrypted event that lets players and clients discover games on a relay.
 - `slot`: `[index, invite-code-hash, player-pubkey-or-empty, status]`
 
 Invite codes are normalized (lowercase, trimmed) before hashing with
-SHA-256. The hash is published in the event so that `ec-connect` can
+SHA-256. The hash is published in the event so that `nc-connect` can
 verify it holds a valid code for a pending slot without revealing the
-code to relay observers. `ec-connect` also uses `ssh-host` and `ssh-port`
+code to relay observers. `nc-connect` also uses `ssh-host` and `ssh-port`
 to match the right public game definition before first join.
 
-**Publishing:** `ec-gate` publishes an updated 30500 whenever a seat
+**Publishing:** `nc-gate` publishes an updated 30500 whenever a seat
 status changes (player joins, admin reissues). The parameterized
 replaceable semantics (NIP-33) ensure the relay retains only the latest
 version.
@@ -133,7 +133,7 @@ after the player saves the in-game empire name during the first session.
 
 ### 30511: SeatClaimError
 
-Published by `ec-gate` when a deprecated 30510 invite claim is received or
+Published by `nc-gate` when a deprecated 30510 invite claim is received or
 cannot be fulfilled.
 
 The encrypted payload shape matches other simple error responses:
@@ -144,7 +144,7 @@ The encrypted payload shape matches other simple error responses:
 
 ### 30501: SessionRequest
 
-Published by `ec-connect` when a player wants to start a session.
+Published by `nc-connect` when a player wants to start a session.
 
 ```json
 {
@@ -166,14 +166,14 @@ Published by `ec-connect` when a player wants to start a session.
 
 - `d`: A unique session nonce (random hex string, 32 bytes). Used to
   correlate the request with the response and prevent replay.
-- `p`: The `ec-gate` daemon's npub. Tells the relay to route this event
+- `p`: The `nc-gate` daemon's npub. Tells the relay to route this event
   to the gate's subscription.
 - `ssh-pubkey`: The ephemeral ed25519 SSH public key generated by
-  `ec-connect` for this session. Encoded in OpenSSH `ssh-ed25519` format.
+  `nc-connect` for this session. Encoded in OpenSSH `ssh-ed25519` format.
 - `game-id`: The game identifier slug from discovery or local cache.
   Public first joins resolve this directly from 30500 before the first session.
   Reconnects use the cached game ID when available. If it is absent and
-  the player is in multiple games on the same server, `ec-gate` returns
+  the player is in multiple games on the same server, `nc-gate` returns
   `multiple_games`.
 
 **Content field:** on first join, the invite code; on returning sessions, the
@@ -188,7 +188,7 @@ not claimed until the in-game join is actually completed.
 
 ### 30502: SessionReady
 
-Published by `ec-gate` when a session has been provisioned.
+Published by `nc-gate` when a session has been provisioned.
 
 ```json
 {
@@ -206,7 +206,7 @@ Published by `ec-gate` when a session has been provisioned.
 
 **Tag definitions:**
 
-- `d`: Echoes the session nonce from the request. `ec-connect` uses this
+- `d`: Echoes the session nonce from the request. `nc-connect` uses this
   to match the response to its pending request.
 - `p`: The player's npub. Tells the relay to route this event to the
   player's subscription.
@@ -229,7 +229,7 @@ Fields:
 
 | Field | Description |
 |-------|-------------|
-| `game_id` | Game identifier slug. Used by `ec-connect` to disambiguate future connections and to populate the local cache once a seat is confirmed claimed. |
+| `game_id` | Game identifier slug. Used by `nc-connect` to disambiguate future connections and to populate the local cache once a seat is confirmed claimed. |
 | `ssh_host` | Hostname or IP to SSH into |
 | `ssh_port` | SSH port number |
 | `host_fingerprint` | SSH server host key fingerprint for verification |
@@ -239,7 +239,7 @@ Fields:
 
 ### 30503: SessionError
 
-Published by `ec-gate` when a session request cannot be fulfilled.
+Published by `nc-gate` when a session request cannot be fulfilled.
 
 ```json
 {
@@ -279,7 +279,7 @@ Error codes:
 
 ### 30504: MapRequest
 
-Published by `ec-connect` after a successful first-time invite-code join,
+Published by `nc-connect` after a successful first-time invite-code join,
 or later when the player manually re-downloads maps from the picker.
 
 ```json
@@ -309,7 +309,7 @@ request flow.
 
 ### 30505: MapBundle
 
-Published by `ec-gate` when the player is authorized to receive the
+Published by `nc-gate` when the player is authorized to receive the
 static starmap bundle for a joined game.
 
 ```json
@@ -358,13 +358,13 @@ static starmap bundle for a joined game.
 
 The bundle always contains the same three player-safe files. Each file is
 compressed individually with `zstd` and then base64-encoded for JSON
-transport. If the final encoded payload would exceed 64 KiB, `ec-gate`
+transport. If the final encoded payload would exceed 64 KiB, `nc-gate`
 does not chunk it in this protocol version; it returns a 30506
 `payload_too_large` error instead.
 
 ### 30506: MapError
 
-Published by `ec-gate` when a map request cannot be fulfilled.
+Published by `nc-gate` when a map request cannot be fulfilled.
 
 ```json
 {
@@ -400,7 +400,7 @@ Map error codes:
 
 ### 30507: SessionStateRequest
 
-Published by `ec-connect` after a hosted SSH session ends successfully, so it
+Published by `nc-connect` after a hosted SSH session ends successfully, so it
 can refresh the local cache with the current empire name and seat metadata.
 
 The event is signed by the player's identity and carries the same `game-id`
@@ -408,7 +408,7 @@ authorization shape as `MapRequest`.
 
 ### 30508: SessionStateReady
 
-Published by `ec-gate` when the requesting player is enrolled in the requested
+Published by `nc-gate` when the requesting player is enrolled in the requested
 game and the current seat metadata can be loaded.
 
 **Encrypted payload** (NIP-44 encrypted to the player's npub):
@@ -424,7 +424,7 @@ game and the current seat metadata can be loaded.
 
 ### 30509: SessionStateError
 
-Published by `ec-gate` when a session-state refresh cannot be fulfilled.
+Published by `nc-gate` when a session-state refresh cannot be fulfilled.
 
 **Encrypted payload** (NIP-44 encrypted to the player's npub):
 
@@ -446,8 +446,8 @@ Session-state error codes:
 ### multiple_games Error Payload
 
 When a returning player's npub matches seats in more than one game on the
-server and the SessionRequest did not include a `game-id` tag, `ec-gate`
-returns a `multiple_games` error with a game list so that `ec-connect`
+server and the SessionRequest did not include a `game-id` tag, `nc-gate`
+returns a `multiple_games` error with a game list so that `nc-connect`
 can present a selection:
 
 ```json
@@ -461,7 +461,7 @@ can present a selection:
 }
 ```
 
-`ec-connect` displays the game list to the player, lets them select one,
+`nc-connect` displays the game list to the player, lets them select one,
 and retries the SessionRequest with the chosen `game-id` tag. Claimed
 games that the player actually reconnects to are kept in the local cache
 so future connections can include the `game-id` directly.
@@ -471,7 +471,7 @@ so future connections can include the `game-id` directly.
 ### First-Time Join (Invite Redemption)
 
 ```
-ec-connect                       Relay                     ec-gate
+nc-connect                       Relay                     nc-gate
     │                              │                          │
     │  30501 SessionRequest        │                          │
     │  (game-id + ssh-pubkey +     │                          │
@@ -485,7 +485,7 @@ ec-connect                       Relay                     ec-gate
     │◄─────────────────────────────│◄─────────────────────────┤
     │                              │                          │
     │  SSH connect ────────────────────────────────────────►  │
-    │                              │                     ec-game
+    │                              │                     nc-game
     │  PTY session ◄───────────────────────────────────────── │
     │                              │                          │
     │  Player saves empire name ───────────────────────────►  │
@@ -500,12 +500,12 @@ ec-connect                       Relay                     ec-gate
 
 ### Static Map Download
 
-After a completed first join, `ec-connect` performs a second short Nostr
+After a completed first join, `nc-connect` performs a second short Nostr
 round-trip so the player receives the campaign's static starmap bundle once.
 Players can later trigger the same flow manually from the picker.
 
 ```
-ec-connect                       Relay                     ec-gate
+nc-connect                       Relay                     nc-gate
     │                              │                          │
     │  30504 MapRequest            │                          │
     │  (game-id tag)               │                          │
@@ -527,7 +527,7 @@ ec-connect                       Relay                     ec-gate
 ### Returning Player (Single Game)
 
 ```
-ec-connect                       Relay                     ec-gate
+nc-connect                       Relay                     nc-gate
     │                              │                          │
     │  30501 SessionRequest        │                          │
     │  (no invite code,            │                          │
@@ -548,7 +548,7 @@ ec-connect                       Relay                     ec-gate
 ### Returning Player (Multiple Games, No Cached ID)
 
 ```
-ec-connect                       Relay                     ec-gate
+nc-connect                       Relay                     nc-gate
     │                              │                          │
     │  30501 SessionRequest        │                          │
     │  (no invite code,            │                          │
@@ -583,7 +583,7 @@ ec-connect                       Relay                     ec-gate
 ### Failed Join
 
 ```
-ec-connect                       Relay                     ec-gate
+nc-connect                       Relay                     nc-gate
     │                              │                          │
     │  30501 SessionRequest        │                          │
     │  (bad invite code)           │                          │
@@ -602,7 +602,7 @@ ec-connect                       Relay                     ec-gate
 
 ### Authentication
 
-Authentication is implicit in the Nostr event signature. When `ec-gate`
+Authentication is implicit in the Nostr event signature. When `nc-gate`
 receives a 30501 session request, it verifies the event signature against
 the sender's pubkey. A valid signature proves the sender controls the
 corresponding private key. No passwords, tokens, or challenge-response
@@ -611,13 +611,13 @@ exchanges are needed beyond what Nostr already provides.
 ### Replay Prevention
 
 Each session request includes a unique session nonce in the `d` tag and
-a `created_at` timestamp. `ec-gate` rejects requests with:
+a `created_at` timestamp. `nc-gate` rejects requests with:
 
 - A `created_at` older than 60 seconds (prevents replaying captured
   events)
 - A `d` nonce that has been seen before (prevents immediate replays)
 
-The nonce also binds the response to the request: `ec-connect` only
+The nonce also binds the response to the request: `nc-connect` only
 accepts a 30502/30503 or 30505/30506 whose `d` tag matches the nonce it
 generated.
 
@@ -630,25 +630,25 @@ shared privately. Mitigations:
   observers cannot read unclaimed codes.
 - Each code can only be claimed once. After the in-game join is completed,
   it is permanently bound to the claiming npub.
-- `ec-gate` should rate-limit invalid first-join session requests per
+- `nc-gate` should rate-limit invalid first-join session requests per
   source npub to prevent brute-force code guessing. With approximately 2.6 million
   possible two-word codes, a rate limit of 10 attempts per minute makes
   brute force impractical.
 
 ### Ephemeral SSH Key Scope
 
-The SSH key provisioned by `ec-gate` is restricted in multiple ways:
+The SSH key provisioned by `nc-gate` is restricted in multiple ways:
 
-- `command=` forces it to run only `ec-game` with specific arguments
+- `command=` forces it to run only `nc-game` with specific arguments
 - `no-port-forwarding`, `no-X11-forwarding`, `no-agent-forwarding`
   prevent tunneling
 - The key has a 60-second TTL and is removed after use or expiration
 - The key is ephemeral: generated per session, never stored on disk by
-  `ec-connect`
+  `nc-connect`
 
 Even if an attacker captured the ephemeral public key from a relay event,
 they could not use it because they do not have the corresponding private
-key (which only exists in `ec-connect`'s memory).
+key (which only exists in `nc-connect`'s memory).
 
 ### NIP-44 Encryption
 
@@ -691,17 +691,17 @@ metadata confidentiality.
 ### Trust Model
 
 **Players trust:**
-- `ec-gate` to enforce invite codes honestly and provision sessions
+- `nc-gate` to enforce invite codes honestly and provision sessions
   correctly
 - The relay to deliver events without censorship or modification
 - The SSH server to be the one described in the SessionReady payload
 
-**ec-gate trusts:**
+**nc-gate trusts:**
 - Nostr signatures to authenticate player identity
 - The relay to deliver session requests from legitimate players
 
 **Mitigations:**
-- `ec-gate` is open source and auditable
+- `nc-gate` is open source and auditable
 - Players verify the SSH host key fingerprint from the SessionReady
   payload
 - Multiple relay fallback could be supported for censorship resistance

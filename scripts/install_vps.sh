@@ -3,15 +3,15 @@ set -euo pipefail
 
 EC_USER="ecgame"
 GAMES_ROOT="/srv/ec/games"
-CONFIG_DIR="/etc/ec-gate"
-STATE_DIR="/var/lib/ec-gate"
+CONFIG_DIR="/etc/nc-gate"
+STATE_DIR="/var/lib/nc-gate"
 AUTH_KEYS_METHOD="command"
-AUTH_KEYS_PATH="/var/lib/ec-gate/keys"
-EC_GAME_SRC="${PWD}/rust/target/release/ec-game"
-EC_SYSOP_SRC="${PWD}/rust/target/release/ec-sysop"
-EC_GAME_DEST="/usr/local/bin/ec-game"
-EC_SYSOP_DEST="/usr/local/bin/ec-sysop"
-EC_GATE_KEYS_DEST="/usr/local/bin/ec-gate-keys"
+AUTH_KEYS_PATH="/var/lib/nc-gate/keys"
+EC_GAME_SRC="${PWD}/rust/target/release/nc-game"
+EC_SYSOP_SRC="${PWD}/rust/target/release/nc-sysop"
+EC_GAME_DEST="/usr/local/bin/nc-game"
+EC_SYSOP_DEST="/usr/local/bin/nc-sysop"
+EC_GATE_KEYS_DEST="/usr/local/bin/nc-gate-keys"
 SSH_PORT="22"
 KEY_TTL="60"
 ENABLE_SERVICES="1"
@@ -28,17 +28,17 @@ Usage:
 Options:
   --ec-user <name>                 Service user. Default: ecgame
   --games-root <path>              Parent directory for campaign dirs. Default: /srv/ec/games
-  --relay <url>                    Nostr relay URL written to /etc/ec-gate/config.kdl
+  --relay <url>                    Nostr relay URL written to /etc/nc-gate/config.kdl
   --ssh-host <host>                Public SSH host sent to players
   --ssh-port <port>                Public SSH port. Default: 22
   --auth-keys-method <command|file>
                                    Authorized keys backend. Default: command
-  --auth-keys-path <path>          Authorized keys dir/file. Default: /var/lib/ec-gate/keys
+  --auth-keys-path <path>          Authorized keys dir/file. Default: /var/lib/nc-gate/keys
   --key-ttl <seconds>              Ephemeral SSH key TTL. Default: 60
-  --ec-game-src <path>             Source binary to install. Default: ./rust/target/release/ec-game
-  --ec-sysop-src <path>            Source binary to install. Default: ./rust/target/release/ec-sysop
-  --game <dir>                     Register a game directory in /etc/ec-gate/config.kdl (repeatable)
-  --overwrite-config               Rewrite /etc/ec-gate/config.kdl from the supplied flags
+  --nc-game-src <path>             Source binary to install. Default: ./rust/target/release/nc-game
+  --nc-sysop-src <path>            Source binary to install. Default: ./rust/target/release/nc-sysop
+  --game <dir>                     Register a game directory in /etc/nc-gate/config.kdl (repeatable)
+  --overwrite-config               Rewrite /etc/nc-gate/config.kdl from the supplied flags
   --skip-enable                    Install files but do not enable/restart systemd units
   --help                           Show this help
 EOF
@@ -78,11 +78,11 @@ while [ "$#" -gt 0 ]; do
       KEY_TTL="$2"
       shift 2
       ;;
-    --ec-game-src)
+    --nc-game-src)
       EC_GAME_SRC="$2"
       shift 2
       ;;
-    --ec-sysop-src)
+    --nc-sysop-src)
       EC_SYSOP_SRC="$2"
       shift 2
       ;;
@@ -130,12 +130,12 @@ case "$AUTH_KEYS_METHOD" in
 esac
 
 if [ ! -x "$EC_GAME_SRC" ]; then
-  echo "error: missing executable ec-game binary at $EC_GAME_SRC" >&2
+  echo "error: missing executable nc-game binary at $EC_GAME_SRC" >&2
   exit 1
 fi
 
 if [ ! -x "$EC_SYSOP_SRC" ]; then
-  echo "error: missing executable ec-sysop binary at $EC_SYSOP_SRC" >&2
+  echo "error: missing executable nc-sysop binary at $EC_SYSOP_SRC" >&2
   exit 1
 fi
 
@@ -218,7 +218,7 @@ if [ ! -f "$CONFIG_PATH" ] || [ "$OVERWRITE_CONFIG" = "1" ]; then
     printf 'ssh-host "%s"\n' "$SSH_HOST"
     printf 'ssh-port %s\n' "$SSH_PORT"
     printf 'ssh-user "%s"\n' "$EC_USER"
-    printf 'ec-game-path "%s"\n' "$EC_GAME_DEST"
+    printf 'nc-game-path "%s"\n' "$EC_GAME_DEST"
     printf 'auth-keys-method "%s"\n' "$AUTH_KEYS_METHOD"
     printf 'auth-keys-path "%s"\n' "$AUTH_KEYS_PATH"
     printf 'key-ttl %s\n' "$KEY_TTL"
@@ -311,8 +311,8 @@ Installed Nostrian Conquest VPS layout:
   config dir:   $CONFIG_DIR
   state dir:    $STATE_DIR
   games root:   $GAMES_ROOT
-  ec-game:      $EC_GAME_DEST
-  ec-sysop:     $EC_SYSOP_DEST
+  nc-game:      $EC_GAME_DEST
+  nc-sysop:     $EC_SYSOP_DEST
   gate config:  $CONFIG_PATH
 
 Next steps:

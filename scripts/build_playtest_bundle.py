@@ -20,8 +20,8 @@ RELEASES_DIR = REPO_ROOT / "releases"
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_player_manual.pdf"
 SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_sysop_manual.pdf"
 EC_CONNECT_LICENSES = (
-    REPO_ROOT / "rust" / "ec-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
-    REPO_ROOT / "rust" / "ec-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
+    REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
+    REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
 )
 
 
@@ -69,8 +69,8 @@ class BundleSpec:
 
     @property
     def bundle_root_name(self) -> str:
-        if self.artifact == "ec-connect":
-            return f"ec-connect-v{self.version}-{self.platform.slug}"
+        if self.artifact == "nc-connect":
+            return f"nc-connect-v{self.version}-{self.platform.slug}"
         return f"esterian-conquest-v{self.version}-{self.platform.slug}"
 
     @property
@@ -86,16 +86,16 @@ class BundleSpec:
 def parse_args(default_target: str | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a beta ec-game/ec-sysop/ec-connect release bundle."
+            "Build a beta nc-game/nc-sysop/nc-connect release bundle."
         )
     )
     parser.add_argument(
         "--artifact",
-        choices=("public-beta", "ec-connect"),
+        choices=("public-beta", "nc-connect"),
         default="public-beta",
         help=(
             "Artifact type to package. `public-beta` keeps the internal combined "
-            "bundle; `ec-connect` builds the public player archive."
+            "bundle; `nc-connect` builds the public player archive."
         ),
     )
     parser.add_argument(
@@ -122,10 +122,10 @@ def parse_args(default_target: str | None) -> argparse.Namespace:
 
 
 def load_version() -> str:
-    cargo_toml = (RUST_ROOT / "ec-game" / "Cargo.toml").read_text(encoding="utf-8")
+    cargo_toml = (RUST_ROOT / "nc-game" / "Cargo.toml").read_text(encoding="utf-8")
     match = re.search(r'(?m)^version = "([^"]+)"$', cargo_toml)
     if match is None:
-        raise SystemExit("could not parse version from rust/ec-game/Cargo.toml")
+        raise SystemExit("could not parse version from rust/nc-game/Cargo.toml")
     return match.group(1)
 
 
@@ -171,14 +171,14 @@ def resolve_target(target_triple: str | None) -> TargetPlatform:
 
 
 def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
-    if spec.artifact == "ec-connect":
-        return ("ec-connect",)
-    return ("ec-game", "ec-sysop", "ec-connect")
+    if spec.artifact == "nc-connect":
+        return ("nc-connect",)
+    return ("nc-game", "nc-sysop", "nc-connect")
 
 def artifact_packages(spec: BundleSpec) -> tuple[str, ...]:
-    if spec.artifact == "ec-connect":
-        return ("ec-connect",)
-    return ("ec-game", "ec-sysop", "ec-connect")
+    if spec.artifact == "nc-connect":
+        return ("nc-connect",)
+    return ("nc-game", "nc-sysop", "nc-connect")
 
 
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
@@ -187,7 +187,7 @@ def build_binaries(spec: BundleSpec) -> dict[str, Path]:
     host_target = detect_host_target()
     if spec.platform.target_triple == "x86_64-pc-windows-msvc" and host_target != spec.platform.target_triple:
         raise SystemExit(
-            "Windows ec-connect release bundles must be built on a native "
+            "Windows nc-connect release bundles must be built on a native "
             "x86_64-pc-windows-msvc host. GNU and non-Windows cross-builds are "
             "not supported for release packaging."
         )
@@ -220,14 +220,14 @@ def build_info_text(spec: BundleSpec) -> str:
 
 
 def package_readme(spec: BundleSpec) -> str:
-    connect_binary = "ec-connect.exe" if spec.is_windows else "./bin/ec-connect"
+    connect_binary = "nc-connect.exe" if spec.is_windows else "./bin/nc-connect"
     player_manual_path = "nc_player_manual.pdf" if spec.is_windows else "docs/nc_player_manual.pdf"
     windows_note = ""
     if spec.is_windows:
         windows_note = """
 ## Windows
 
-Extract the `.zip` archive to a folder of your choice. Double-click `ec-connect.exe`
+Extract the `.zip` archive to a folder of your choice. Double-click `nc-connect.exe`
 to launch. No installation required.
 
 If Windows Defender flags the binary, click "More info" → "Run anyway".
@@ -235,11 +235,11 @@ If Windows Defender flags the binary, click "More info" → "Run anyway".
 
     macos_quarantine_note = ""
     if spec.platform.target_triple.endswith("-apple-darwin"):
-        if spec.artifact == "ec-connect":
-            binary_list = "./bin/ec-connect"
+        if spec.artifact == "nc-connect":
+            binary_list = "./bin/nc-connect"
             descriptor = "a standalone GUI binary"
         else:
-            binary_list = "./bin/ec-game ./bin/ec-sysop ./bin/ec-connect"
+            binary_list = "./bin/nc-game ./bin/nc-sysop ./bin/nc-connect"
             descriptor = "command-line binaries"
         macos_quarantine_note = f"""
 ## macOS First Run Note
@@ -253,8 +253,8 @@ xattr -d com.apple.quarantine {binary_list}
 ```
 """.rstrip()
 
-    if spec.artifact == "ec-connect":
-        return f"""# ec-connect {spec.platform.display_name}
+    if spec.artifact == "nc-connect":
+        return f"""# nc-connect {spec.platform.display_name}
 
 This archive contains the public player client for {spec.platform.display_name}.
 
@@ -295,9 +295,9 @@ This bundle is for public beta testing on {spec.platform.display_name}.
 
 It contains:
 
-- `bin/ec-game`
-- `bin/ec-sysop`
-- `bin/ec-connect`
+- `bin/nc-game`
+- `bin/nc-sysop`
+- `bin/nc-connect`
 
 It also includes:
 
@@ -308,7 +308,7 @@ It also includes:
 - `BUILD-INFO.txt` with version/build metadata for bug reports
 
 This is not a public release package. Public GitHub Releases currently publish
-Windows x64, Linux x64, and macOS Apple Silicon `ec-connect` player archives
+Windows x64, Linux x64, and macOS Apple Silicon `nc-connect` player archives
 plus the DOS compatibility bundles while the hosted Rust path is still under
 live playtest.
 
@@ -317,37 +317,37 @@ live playtest.
 Create a fresh campaign:
 
 ```bash
-./bin/ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4 --seed 1515
+./bin/nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4 --seed 1515
 ```
 
 Initialize and run the Nostr hosting daemon:
 
 ```bash
-./bin/ec-sysop nostr init
-./bin/ec-sysop nostr serve
+./bin/nc-sysop nostr init
+./bin/nc-sysop nostr serve
 ```
 
-The hosted-player join path is `ec-connect`:
+The hosted-player join path is `nc-connect`:
 
 ```bash
-./bin/ec-connect --join amber-river@relay.example.com
+./bin/nc-connect --join amber-river@relay.example.com
 ```
 
 Run maintenance:
 
 ```bash
-./bin/ec-sysop maint-all --config /etc/ec-gate/config.kdl
+./bin/nc-sysop maint-all --config /etc/nc-gate/config.kdl
 ```
 
 For localhost or hotseat play, you can still launch the game client directly:
 
 ```bash
-./bin/ec-game --dir /tmp/ec-game --player 1
+./bin/nc-game --dir /tmp/nc-game --player 1
 ```
 
 ## BBS Door Note
 
-If you host `ec-game` as a BBS door, the current stable door-mode controls are:
+If you host `nc-game` as a BBS door, the current stable door-mode controls are:
 
 - `HJKL` for movement
 - `Ctrl-U` / `Ctrl-D` for paging
@@ -355,8 +355,8 @@ If you host `ec-game` as a BBS door, the current stable door-mode controls are:
 
 Arrow keys and `PgUp` / `PgDn` are not part of the primary door-mode contract.
 
-Hosted Rust campaigns are DB-only. `ec-sysop new-game` creates just
-`<game_dir>/ecgame.db`.
+Hosted Rust campaigns are DB-only. `nc-sysop new-game` creates just
+`<game_dir>/ncgame.db`.
 {macos_quarantine_note}
 
 ## Bug Reports
@@ -442,19 +442,19 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             "licenses/LICENSE-NotoSansMono.txt",
         ]
         forbidden_files = [
-            f"{binary_prefix}ec-connect-cli{binary_ext}",
+            f"{binary_prefix}nc-connect-cli{binary_ext}",
         ]
         if spec.artifact == "public-beta":
             required_files.extend(
                 (
                     f"{docs_prefix}nc_sysop_manual.pdf",
-                    f"{binary_prefix}ec-game{binary_ext}",
-                    f"{binary_prefix}ec-sysop{binary_ext}",
-                    f"{binary_prefix}ec-connect{binary_ext}",
+                    f"{binary_prefix}nc-game{binary_ext}",
+                    f"{binary_prefix}nc-sysop{binary_ext}",
+                    f"{binary_prefix}nc-connect{binary_ext}",
                 )
             )
         else:
-            required_files.append(f"{binary_prefix}ec-connect{binary_ext}")
+            required_files.append(f"{binary_prefix}nc-connect{binary_ext}")
 
         for relative in required_files:
             path = bundle_root / relative
@@ -466,21 +466,21 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             if path.exists():
                 raise SystemExit(f"{archive_path.name}: unexpected {relative}")
 
-        if not run_smoke or spec.artifact == "ec-connect":
+        if not run_smoke or spec.artifact == "nc-connect":
             print(
                 f"{archive_path.name}: verified archive contents; skipped binary smoke run "
-                f"because {'the target is not the current host' if not run_smoke else 'ec-connect is an interactive GUI archive'}."
+                f"because {'the target is not the current host' if not run_smoke else 'nc-connect is an interactive GUI archive'}."
             )
             return
 
         if spec.artifact == "public-beta":
-            run([str(bundle_root / f"{binary_prefix}ec-game{binary_ext}"), "--help"], cwd=bundle_root)
-            run([str(bundle_root / f"{binary_prefix}ec-sysop{binary_ext}"), "--help"], cwd=bundle_root)
+            run([str(bundle_root / f"{binary_prefix}nc-game{binary_ext}"), "--help"], cwd=bundle_root)
+            run([str(bundle_root / f"{binary_prefix}nc-sysop{binary_ext}"), "--help"], cwd=bundle_root)
 
             campaign_dir = temp_root / "playtest-campaign"
             run(
                 [
-                    str(bundle_root / f"{binary_prefix}ec-sysop{binary_ext}"),
+                    str(bundle_root / f"{binary_prefix}nc-sysop{binary_ext}"),
                     "new-game",
                     str(campaign_dir),
                     "--players",
@@ -490,8 +490,8 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 ],
                 cwd=bundle_root,
             )
-            if not (campaign_dir / "ecgame.db").exists():
-                raise SystemExit(f"{archive_path.name}: ec-sysop did not create ecgame.db")
+            if not (campaign_dir / "ncgame.db").exists():
+                raise SystemExit(f"{archive_path.name}: nc-sysop did not create ncgame.db")
 
 
 def main(*, default_target: str | None = None) -> None:

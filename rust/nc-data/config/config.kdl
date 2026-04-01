@@ -1,0 +1,42 @@
+// Nostrian Conquest — game directory runtime configuration
+// Edit this file to change sysop-facing settings.
+// Changes take effect on the next nc-game startup.
+
+// Display name shown in the main menu header.
+game_name "Nostrian Conquest"
+
+// Theme file (relative to this directory, or absolute path).
+// Shipped themes live under themes/. Tokyo Night is the default.
+// Omit to use themes/tokyo_night.kdl in the themes/ subdirectory.
+// theme "themes/tokyo_night.kdl"
+
+// Sysop snoop: set to #false to disable.
+snoop #true
+
+// Session timeout and timing policies.
+session {
+    // Minutes of inactivity before timeout (0–120).
+    max_idle_minutes 10
+    // Minimum time granted per session in minutes (0–120).
+    minimum_time_minutes 0
+    // Apply timeout to local (non-remote) sessions.
+    local_timeout #false
+    // Apply timeout to remote sessions.
+    remote_timeout #true
+}
+
+// Inactivity thresholds (in turns). Set to 0 to disable.
+inactivity {
+    // Purge a player after this many inactive turns (0–100).
+    purge_after_turns 0
+    // Put a player on autopilot after this many inactive turns (0–100).
+    autopilot_after_turns 0
+}
+
+// Optional BBS/dropfile seat reservations by caller alias.
+// Reserved aliases can omit --player when launching nc-game with --dropfile.
+//
+// reservations {
+//     seat player=1 alias="SYSOP"
+//     seat player=2 alias="NightShade"
+// }

@@ -8,8 +8,8 @@ Unix accounts, BBS middleware, or manual SSH key management.
 ## Motivation
 
 Esterian Conquest now has a recommended modern hosted path: a sysop runs
-`ec-sysop nostr serve`, players join with `ec-connect`, and the live game
-session runs inside `ec-game` over SSH. Localhost play remains a first-class
+`nc-sysop nostr serve`, players join with `nc-connect`, and the live game
+session runs inside `nc-game` over SSH. Localhost play remains a first-class
 secondary mode, and BBS door hosting remains supported for legacy
 compatibility, but Nostr-authenticated hosting is the default public story for
 new campaigns.
@@ -17,7 +17,7 @@ new campaigns.
 Nostr solves the identity problem cleanly. Players authenticate with a
 secp256k1 keypair, the same cryptographic identity used across the Nostr
 ecosystem. For players who already use Nostr, they bring their existing
-keys. For everyone else, `ec-connect` generates a keypair automatically
+keys. For everyone else, `nc-connect` generates a keypair automatically
 and encrypts it with a password. From the player's perspective the
 experience is the same either way: run one command, enter a password or
 have a signer handle it, and land directly in the game.
@@ -35,22 +35,22 @@ Nostr relays. This spec is the shipped foundation for that path.
 
 Nostr handles identity and session establishment. The actual game session runs
 over SSH, because SSH is the proven, low-latency, feature-complete protocol
-for interactive terminal sessions. The game binary `ec-game` does not change
+for interactive terminal sessions. The game binary `nc-game` does not change
 at all.
 
 The identity model, invite code system, wallet format, local game cache, and
 player roster are designed to carry forward directly when the transport
 eventually evolves: SSH gives way to relay-mediated turn submission and state
-sync, and `ec-connect` evolves from a PTY bridge into a local client that
+sync, and `nc-connect` evolves from a PTY bridge into a local client that
 renders game state natively.
 
 ## Components
 
 | Component | Role | Location |
 |-----------|------|----------|
-| `ec-connect` | Player-side client. Ratatui game picker, identity management, Nostr auth handshake, and SSH terminal bridging. Cross-platform (Linux, macOS, Windows). | Player's machine |
-| `ec-sysop nostr` | Public sysop/operator surface for Nostr hosting. Internally backed by the `ec-gate` crate. Validates identity, manages invites and seats, provisions SSH sessions, and handles multi-game routing. | VPS |
-| `ec-game` | The game TUI. Unchanged. Runs in a PTY on the server. | VPS |
+| `nc-connect` | Player-side client. Ratatui game picker, identity management, Nostr auth handshake, and SSH terminal bridging. Cross-platform (Linux, macOS, Windows). | Player's machine |
+| `nc-sysop nostr` | Public sysop/operator surface for Nostr hosting. Internally backed by the `nc-gate` crate. Validates identity, manages invites and seats, provisions SSH sessions, and handles multi-game routing. | VPS |
+| `nc-game` | The game TUI. Unchanged. Runs in a PTY on the server. | VPS |
 
 ## Auth Model Overview
 
@@ -58,7 +58,7 @@ Three hosting paths, one game binary, but one recommended public default:
 
 | Path | Identity | Transport | Use case |
 |------|----------|-----------|----------|
-| Nostr | secp256k1 keypair | SSH (via `ec-connect`) | Recommended public multiplayer |
+| Nostr | secp256k1 keypair | SSH (via `nc-connect`) | Recommended public multiplayer |
 | Localhost | None needed | Direct PTY | Solo play, hotseat, development |
 | BBS door | Dropfile (caller alias) | Telnet/SSH via BBS | Legacy compatibility hosting |
 
@@ -67,16 +67,16 @@ shared game today. Players join by redeeming an invite code, then complete the
 in-game empire-naming save to bind their Nostr public key to a player seat.
 On subsequent connections, the server recognizes their key and routes them to
 the correct game and seat automatically. Players can be in multiple games on
-the same server; `ec-connect` caches claimed joined games locally and includes
+the same server; `nc-connect` caches claimed joined games locally and includes
 a game ID in reconnection requests for disambiguation.
 
-The `Localhost` row above describes direct local `ec-game` play. If a player
-chooses to run a same-machine hosted game through `ec-connect`, that is still
+The `Localhost` row above describes direct local `nc-game` play. If a player
+chooses to run a same-machine hosted game through `nc-connect`, that is still
 the hosted Nostr path and still uses the normal SSH-backed session transport.
 
 ## Player-Side Files
 
-`ec-connect` stores maps under the user's Documents folder and keeps other
+`nc-connect` stores maps under the user's Documents folder and keeps other
 player state in the platform-appropriate config/data locations:
 
 | File | Path | Purpose |
@@ -94,10 +94,10 @@ Players can override the maps root with `maps-dir` in the config file or
 
 1. [architecture.md](architecture.md) -- system design, connection flow,
    and transport rationale
-2. [ec-connect.md](ec-connect.md) -- player-side client: identity
+2. [nc-connect.md](nc-connect.md) -- player-side client: identity
    management, game picker, invite redemption, session lifecycle
-3. [ec-gate.md](ec-gate.md) -- server-side daemon backend and public
-   `ec-sysop nostr` workflow: invite codes, seat management, multi-game
+3. [nc-gate.md](nc-gate.md) -- server-side daemon backend and public
+   `nc-sysop nostr` workflow: invite codes, seat management, multi-game
    routing, SSH provisioning, deployment
 4. [protocol.md](protocol.md) -- Nostr event kinds, session handshake,
    encryption, and security model

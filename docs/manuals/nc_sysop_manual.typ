@@ -110,7 +110,7 @@ instance. It covers:
 - creating and maintaining a DB-only game
 - running the recommended Nostr host
 - running a local or direct SSH game
-- putting `ec-game` on a BBS door
+- putting `nc-game` on a BBS door
 - managing players and yearly maintenance
 
 For player-facing rules and gameplay, see the *Player Manual*.
@@ -141,7 +141,7 @@ manuals.
 From the repository root:
 
 ```
-cargo build --release -p ec-sysop -p ec-game -p ec-connect
+cargo build --release -p nc-sysop -p nc-game -p nc-connect
 ```
 
 The release binaries will be in `target/release/`.
@@ -149,18 +149,18 @@ The release binaries will be in `target/release/`.
 == Current Beta Distribution
 
 During the current beta, public GitHub Releases include Windows x64, Linux x64,
-and macOS Apple Silicon `ec-connect` player archives alongside the old DOS
+and macOS Apple Silicon `nc-connect` player archives alongside the old DOS
 compatibility packages.
 
 For the Rust edition:
 
 1. Rust self-host and VPS sysops should build from tagged source with Cargo.
-2. Hosted players can use the public GitHub Releases `ec-connect` archives
+2. Hosted players can use the public GitHub Releases `nc-connect` archives
    with the player manual on Windows, Linux, or macOS.
 3. BBS sysops should build from source or use a direct/private beta build.
 
 A public Linux x64 BBS door package is planned later. When it ships, it should
-include `ec-game`, `ec-sysop`, the BBS wrapper/docs, the player manual, and
+include `nc-game`, `nc-sysop`, the BBS wrapper/docs, the player manual, and
 this sysop manual.
 
 == Choose Your Deployment
@@ -172,16 +172,16 @@ NC has three practical deployment paths.
 Use this when a sysop wants to run one game for himself and a few friends.
 
 1. Build the binaries.
-2. Create a game directory with `ec-sysop new-game`.
-3. Run `ec-game` directly, or turn on `ec-sysop nostr` if the players will
+2. Create a game directory with `nc-sysop new-game`.
+3. Run `nc-game` directly, or turn on `nc-sysop nostr` if the players will
    connect remotely.
-4. Run `ec-sysop maint` when the year should advance.
+4. Run `nc-sysop maint` when the year should advance.
 
 The simplest local setup is:
 
 ```
-ec-sysop new-game /home/sysop/ec-games/friday-night --name "Friday Night NC" --players 4
-ec-game --dir /home/sysop/ec-games/friday-night --player 1
+nc-sysop new-game /home/sysop/nc-games/friday-night --name "Friday Night NC" --players 4
+nc-game --dir /home/sysop/nc-games/friday-night --player 1
 ```
 
 === 2. Dedicated VPS Host
@@ -191,26 +191,26 @@ server.
 
 1. Run `scripts/install_vps.sh` as root.
 2. Create each game under `/srv/ec/games/<slug>/` as the `ecgame` service user.
-3. Register each game with `ec-sysop host games add` as root.
-4. Run one `ec-sysop nostr serve` daemon for all games.
-5. Run one `ec-sysop maint-all` timer for all games.
+3. Register each game with `nc-sysop host games add` as root.
+4. Run one `nc-sysop nostr serve` daemon for all games.
+5. Run one `nc-sysop maint-all` timer for all games.
 
 The standard VPS layout is:
 
 ```
-/usr/local/bin/ec-game
-/usr/local/bin/ec-sysop
-/usr/local/bin/ec-gate-keys
-/etc/ec-gate/config.kdl
-/etc/ec-gate/identity.kdl
-/var/lib/ec-gate/keys/
-/srv/ec/games/<slug>/ecgame.db
+/usr/local/bin/nc-game
+/usr/local/bin/nc-sysop
+/usr/local/bin/nc-gate-keys
+/etc/nc-gate/config.kdl
+/etc/nc-gate/identity.kdl
+/var/lib/nc-gate/keys/
+/srv/ec/games/<slug>/ncgame.db
 ```
 
 The host-global relay URL and SSH address live in
-`/etc/ec-gate/config.kdl`. `scripts/install_vps.sh` writes them from
+`/etc/nc-gate/config.kdl`. `scripts/install_vps.sh` writes them from
 `--relay`, `--ssh-host`, and `--ssh-port`. If you change those values later,
-edit `/etc/ec-gate/config.kdl` as root and restart `ec-nostr.service`.
+edit `/etc/nc-gate/config.kdl` as root and restart `nc-nostr.service`.
 
 If you self-host the relay on the same VPS, remember that the relay host must
 also be publicly reachable. A common setup is `nostr-rs-relay` bound to
@@ -219,13 +219,13 @@ hostname on port `443`.
 
 === 3. BBS Door Host
 
-Use this when the sysop wants `ec-game` as a door under Mystic, ENiGMA½, or a
+Use this when the sysop wants `nc-game` as a door under Mystic, ENiGMA½, or a
 similar BBS.
 
-1. Create the game with `ec-sysop new-game`.
-2. Reserve caller aliases with `ec-sysop settings reserve`.
-3. Launch `ec-game` with a BBS dropfile.
-4. Keep maintenance outside the door. Run `ec-sysop maint` from the host or
+1. Create the game with `nc-sysop new-game`.
+2. Reserve caller aliases with `nc-sysop settings reserve`.
+3. Launch `nc-game` with a BBS dropfile.
+4. Keep maintenance outside the door. Run `nc-sysop maint` from the host or
    the BBS event runner.
 
 During the current beta, a BBS sysop should build from source or use a
@@ -243,25 +243,25 @@ A hosted Rust game directory is DB-only:
 
 ```
 /path/to/mygame/
-  ecgame.db
+  ncgame.db
 ```
 
 All tools take `--dir /path/to/mygame` to locate the game.
 
 == Initializing a New Game
 
-Create a new game with `ec-sysop new-game`:
+Create a new game with `nc-sysop new-game`:
 
 ```
-sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
+sudo -u ecgame nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
 ```
 
-This creates one runtime file: `ecgame.db`.
+This creates one runtime file: `ncgame.db`.
 
 #admonition("IMPORTANT")[
   On a VPS host installed with `scripts/install_vps.sh`, create hosted games as
   the `ecgame` service user. If you create `/srv/ec/games/<slug>` as `root`,
-  the `ec-nostr.service` daemon may fail to write session leases and hosted
+  the `nc-nostr.service` daemon may fail to write session leases and hosted
   joins can time out.
 ]
 
@@ -270,10 +270,10 @@ The supported public creation flags are:
 #table(
   columns: (auto, auto, 1fr),
   [*Flag*], [*Type*], [*Description*],
-  [`--name`], [string], [Optional human-readable game title stored in `ecgame.db`. If omitted, `ec-sysop` derives a title from the directory slug.],
+  [`--name`], [string], [Optional human-readable game title stored in `ncgame.db`. If omitted, `nc-sysop` derives a title from the directory slug.],
   [`--players`], [integer], [Number of empires. Supported range: 1–25. Defaults to `4`.],
   [`--year`], [integer], [Optional starting campaign year. Defaults to `3000`.],
-  [`--seed`], [integer], [Optional integer seed for the campaign RNG. Controls map layout, starting positions, and all random events. If omitted, the engine picks a random seed and saves it to `ecgame.db`. The seed cannot be changed after creation.],
+  [`--seed`], [integer], [Optional integer seed for the campaign RNG. Controls map layout, starting positions, and all random events. If omitted, the engine picks a random seed and saves it to `ncgame.db`. The seed cannot be changed after creation.],
 )
 
 #admonition("NOTE")[Use a different seed for every game. Reusing the same seed produces the same map, starting positions, and event sequence every time.]
@@ -281,15 +281,15 @@ The supported public creation flags are:
 The target directory basename becomes the stable game slug. It must use only
 lowercase ASCII letters, digits, and dashes. The slug is distinct from the
 human-readable `game_name`, and both are distinct from the per-seat invite
-codes used by `ec-connect`.
+codes used by `nc-connect`.
 
 == Recommended Public Host
 
-For new public campaigns, the recommended deployment path is `ec-sysop nostr`
-plus `ec-connect`. In that model, the sysop runs the normal Rust engine on a
+For new public campaigns, the recommended deployment path is `nc-sysop nostr`
+plus `nc-connect`. In that model, the sysop runs the normal Rust engine on a
 host, publishes the Nostr-facing daemon, and players join from their own
 machines with invite codes. The daemon handles identity and seat routing; the
-live game still runs inside `ec-game` over SSH. This keeps the original
+live game still runs inside `nc-game` over SSH. This keeps the original
 asynchronous NC rhythm without requiring per-player Unix account management or
 BBS door middleware.
 
@@ -302,14 +302,14 @@ Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
 A minimal hosted setup looks like:
 
 ```
-sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
-sudo ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
-sudo systemctl restart ec-nostr.service
-ec-sysop nostr init
-ec-sysop nostr serve
+sudo -u ecgame nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
+sudo nc-sysop host games add --config /etc/nc-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo systemctl restart nc-nostr.service
+nc-sysop nostr init
+nc-sysop nostr serve
 ```
 
-The values handed to players come from `/etc/ec-gate/config.kdl`:
+The values handed to players come from `/etc/nc-gate/config.kdl`:
 
 - `relay` is the Nostr relay URL
 - `ssh-host` and `ssh-port` are published in relay discovery during the first session handshake
@@ -323,34 +323,34 @@ After the daemon is running, view the hosted seat state and get the
 ready-to-distribute invite commands:
 
 ```
-ec-sysop nostr seats --dir /path/to/mygame
+nc-sysop nostr seats --dir /path/to/mygame
 ```
 
 The output lists every seat. Pending seats show the canonical join line:
 
 ```
 Seat 1  [pending]
-  ec-connect --join amber-river@relay.example.com
+  nc-connect --join amber-river@relay.example.com
 
 Seat 2  [claimed]
   npub1...
 ```
 
-Send each player his `ec-connect --join ...` line. The player:
+Send each player his `nc-connect --join ...` line. The player:
 
-1. Runs `ec-connect`.
+1. Runs `nc-connect`.
 2. Presses `N`.
 3. Pastes the invite code and presses Enter.
 
 That is the full player-side flow. The invite carries the seat token and relay
-host, and `ec-connect` discovers the rest from the relay. No extra flags are
+host, and `nc-connect` discovers the rest from the relay. No extra flags are
 normally required.
 
-On first join, `ec-connect` creates or unlocks the player's encrypted
-identity and opens the SSH-backed `ec-game` session. The hosted seat is not
+On first join, `nc-connect` creates or unlocks the player's encrypted
+identity and opens the SSH-backed `nc-game` session. The hosted seat is not
 claimed until the player actually saves the in-game empire name. If the player
 disconnects before that save, the invite is still pending and can be used
-again. After a completed first join, `ec-connect` caches the game locally,
+again. After a completed first join, `nc-connect` caches the game locally,
 downloads the static starmap bundle, and returning players reconnect without
 re-entering any flags.
 
@@ -362,18 +362,18 @@ rejects it and expects the player to reconnect with the already-claimed seat.
 line:
 
 ```
-ec-connect --join amber-river@relay.example.com
+nc-connect --join amber-river@relay.example.com
 ```
 
 If an invite code is lost or compromised, reissue it:
 
 ```
-ec-sysop nostr reissue --dir /path/to/mygame --player 2
+nc-sysop nostr reissue --dir /path/to/mygame --player 2
 ```
 
 This generates a fresh code for that seat, clears the old claim, and lets the
 player join again with the new code. On a normal host with the daemon config
-and identity present, `ec-sysop` now also republishes that game's public
+and identity present, `nc-sysop` now also republishes that game's public
 `30500` metadata immediately so the relay sees the new invite hash without
 waiting for a daemon restart.
 
@@ -381,8 +381,8 @@ If a player reports that a pending invite cannot be found on the relay, check
 and repair the published hosted metadata directly:
 
 ```
-ec-sysop nostr verify --dir /path/to/mygame
-ec-sysop nostr publish --dir /path/to/mygame
+nc-sysop nostr verify --dir /path/to/mygame
+nc-sysop nostr publish --dir /path/to/mygame
 ```
 
 == Hosted Player Identity Management
@@ -394,7 +394,7 @@ reconnect with the same local NC wallet identity they used when they finished
 that first join.
 
 Players should not expect to paste the same invite into a brand-new wallet and
-take over an already-claimed seat. `ec-gate` treats that as a different player
+take over an already-claimed seat. `nc-gate` treats that as a different player
 identity and rejects the join.
 
 Players also should not expect one wallet identity to hold two seats in the
@@ -404,21 +404,21 @@ different identities, even if the same human is testing both paths.
 If a player loses or forgets the original local identity, the supported
 recovery path is:
 
-1. Reissue that seat with `ec-sysop nostr reissue`.
+1. Reissue that seat with `nc-sysop nostr reissue`.
 2. Send the player the new invite.
 3. Have the player redeem it from the new wallet identity.
 
 Reissuing is the deliberate “move this seat to a new identity” action. It
 clears the old `npub` binding and rotates the invite code at the same time.
 
-Hosted seat claims are stored in `ecgame.db`. That SQLite state is the
+Hosted seat claims are stored in `ncgame.db`. That SQLite state is the
 authority for invite codes, claim status, and bound player `npub`s. Legacy
 `roster.kdl` files are migration input only.
 
 #admonition("NOTE")[
-  `/etc/ec-gate/config.kdl` is host-owned. Game-registry edits such as
+  `/etc/nc-gate/config.kdl` is host-owned. Game-registry edits such as
   `host games add` and `host games remove` should be run as root. Restart
-  `ec-nostr.service` after changing the game list so the daemon reloads the
+  `nc-nostr.service` after changing the game list so the daemon reloads the
   config.
 ]
 
@@ -426,7 +426,7 @@ authority for invite codes, claim status, and bound player `npub`s. Legacy
 
 = Game Directory Structure
 
-/ `ecgame.db`: The SQLite runtime database. All game state lives here. Hosted
+/ `ncgame.db`: The SQLite runtime database. All game state lives here. Hosted
   seat claims live here too. Do not edit it by hand.
 
 // ─── 4. Configuration ─────────────────────────────────────────────────────────
@@ -435,12 +435,12 @@ authority for invite codes, claim status, and bound player `npub`s. Legacy
 
 Hosted Rust campaigns do not use a per-game `config.kdl`. Sysop-editable
 runtime policy now lives in SQLite alongside the rest of the campaign state.
-Use `ec-sysop settings ...` to inspect or change it:
+Use `nc-sysop settings ...` to inspect or change it:
 
 ```
-ec-sysop settings show --dir /srv/ec/games/friday-night
-ec-sysop settings set --dir /srv/ec/games/friday-night --game-name "Friday Night NC"
-ec-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SYSOP
+nc-sysop settings show --dir /srv/ec/games/friday-night
+nc-sysop settings set --dir /srv/ec/games/friday-night --game-name "Friday Night NC"
+nc-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SYSOP
 ```
 
 === Full Example
@@ -505,7 +505,7 @@ reservation seat=2 alias=NightShade
 )
 
 #admonition("NOTE")[
-  `ec-sysop settings import-kdl --dir <game_dir>` still exists as a one-time
+  `nc-sysop settings import-kdl --dir <game_dir>` still exists as a one-time
   migration tool for older beta campaigns that carried a per-game `config.kdl`.
   Normal hosted Rust campaigns do not depend on that file at runtime.
 ]
@@ -515,20 +515,20 @@ reservation seat=2 alias=NightShade
 The default display look is controlled by `default_theme_key`. That key names a
 compiled-in color set. It is not a file path.
 
-Players may still choose a local color theme inside `ec-game`. That choice is
-stored in `ecgame.db` as a player preference.
+Players may still choose a local color theme inside `nc-game`. That choice is
+stored in `ncgame.db` as a player preference.
 
 // ─── 6. SSH Access ────────────────────────────────────────────────────────────
 
 = SSH Access
 
 The recommended hosted path above already uses SSH under the hood: players
-enter through `ec-connect`, and the daemon opens a PTY running `ec-game`.
-You can also run `ec-game` over SSH directly when you want a private
+enter through `nc-connect`, and the daemon opens a PTY running `nc-game`.
+You can also run `nc-game` over SSH directly when you want a private
 shared-host setup, manual debugging, or a simple trusted deployment without
 the Nostr invite flow.
 
-`ec-game` runs cleanly over SSH. No special flags are required for modern
+`nc-game` runs cleanly over SSH. No special flags are required for modern
 terminal sessions.
 
 Color mode is auto-detected from the environment:
@@ -541,7 +541,7 @@ Force a specific mode with `--color-mode` if your SSH setup does not propagate
 `COLORTERM` reliably:
 
 ```
-ec-game --dir /path/to/mygame --player 1 --color-mode 256
+nc-game --dir /path/to/mygame --player 1 --color-mode 256
 ```
 
 UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
@@ -553,10 +553,10 @@ terminal emulator over SSH.
 = Local and Direct Play
 
 Localhost play remains a fully supported secondary mode for solo campaigns,
-hotseat sessions, and sysop testing. Run `ec-game` directly in your terminal:
+hotseat sessions, and sysop testing. Run `nc-game` directly in your terminal:
 
 ```
-ec-game --dir /path/to/mygame --player 1
+nc-game --dir /path/to/mygame --player 1
 ```
 
 Color mode and encoding default to `auto` / `utf8`, which is correct for
@@ -567,7 +567,7 @@ automatically.
 
 = Legacy BBS Door Setup
 
-`ec-game` can still run as a BBS door. This path is preserved for classic-host
+`nc-game` can still run as a BBS door. This path is preserved for classic-host
 compatibility, not as the primary recommendation for new public campaigns. In
 door mode, the client reads from and writes to a socket instead of the local
 TTY, using CP437 encoding and 16-color ANSI.
@@ -575,7 +575,7 @@ TTY, using CP437 encoding and 16-color ANSI.
 == Flags for Door Mode
 
 ```
-ec-game \
+nc-game \
   --dir /path/to/mygame \
   --player <1-based index> \
   --encoding cp437 \
@@ -592,10 +592,10 @@ color depth.
 
 == Drop File
 
-`ec-game` can read a BBS drop file directly with `--dropfile <path>`:
+`nc-game` can read a BBS drop file directly with `--dropfile <path>`:
 
 ```
-ec-game \
+nc-game \
   --dir /path/to/mygame \
   --dropfile /path/to/DOOR32.SYS
 ```
@@ -612,12 +612,12 @@ flags always override drop file values. When `--dropfile` is given and
 
 `--timeout <minutes>` sets a session time limit independently of a drop file.
 
-Reserve seats in `ecgame.db` when you want the caller alias to determine the
+Reserve seats in `ncgame.db` when you want the caller alias to determine the
 empire automatically:
 
 ```sh
-ec-sysop settings reserve --dir /path/to/mygame --player 1 --alias SYSOP
-ec-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
+nc-sysop settings reserve --dir /path/to/mygame --player 1 --alias SYSOP
+nc-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 With that in place, a reserved caller can launch with `--dropfile` alone.
@@ -634,18 +634,18 @@ agree on the same empire slot.
 
 == Enigma BBS (Rust Client)
 
-The native Rust `ec-game` door is now verified on both Mystic and ENiGMA½.
+The native Rust `nc-game` door is now verified on both Mystic and ENiGMA½.
 For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
 `io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
 `--encoding cp437`, and `--color-mode ansi16` to the client, or use the
 helper wrapper at `tools/bbs/run_ec_rust.sh`. Use `--player` for unreserved
-callers, or reserve the alias in `ecgame.db` and let `--dropfile` resolve
+callers, or reserve the alias in `ncgame.db` and let `--dropfile` resolve
 the seat.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
 
 ```
-ec-game \
+nc-game \
   --dir /path/to/mygame \
   --dropfile /path/to/DOOR32.SYS
 ```
@@ -666,12 +666,12 @@ Do not rely on arrows or `PgUp` / `PgDn` for normal play through BBS hosts.
 = File-Based Turn Submission
 
 For localhost, shared-host, or custom-client workflows, players can submit
-orders by writing a KDL turn file and passing it to `ec-game submit-turn`.
+orders by writing a KDL turn file and passing it to `nc-game submit-turn`.
 Use `--check` to validate without writing, then run without it to apply:
 
 ```
-ec-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
-ec-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+nc-game submit-turn --check --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
+nc-game submit-turn --dir /path/to/mygame --player 1 --file /path/to/player1-turn.kdl
 ```
 
 The `--player` value must match the `turn player=...` header in the file. If
@@ -712,12 +712,12 @@ For the full node reference and schema, see `docs/sysop/turn-kdl.md`.
 Run yearly maintenance with:
 
 ```
-ec-sysop maint /path/to/mygame [turns]
-ec-sysop maint-all [--config /etc/ec-gate/config.kdl]
+nc-sysop maint /path/to/mygame [turns]
+nc-sysop maint-all [--config /etc/nc-gate/config.kdl]
 ```
 
-`ec-sysop maint` advances the campaign in `ecgame.db`. NC does not schedule
-maintenance by itself. In a real deployment, invoke `ec-sysop maint` from your
+`nc-sysop maint` advances the campaign in `ncgame.db`. NC does not schedule
+maintenance by itself. In a real deployment, invoke `nc-sysop maint` from your
 host scheduler or BBS tooling:
 
 - a `systemd` timer
@@ -726,18 +726,18 @@ host scheduler or BBS tooling:
 - or manual sysop operation
 
 For multi-game Nostr hosting, prefer a single global timer that runs
-`ec-sysop maint-all`. It reads the configured game directories from the gate
+`nc-sysop maint-all`. It reads the configured game directories from the gate
 config, skips games whose next due time has not arrived yet, and also skips
 games with live session leases so a player is never interrupted by maintenance.
 
 Do not treat game settings as a scheduler. Snoop, inactivity, and the rest of
-the policy live in `ecgame.db`. The schedule still belongs to the host.
+the policy live in `ncgame.db`. The schedule still belongs to the host.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
 
 = Player Management
 
-Inactive-player policy is configured in `ecgame.db` under the campaign settings
+Inactive-player policy is configured in `ncgame.db` under the campaign settings
 block. The two public thresholds are:
 
 - `purge_after_turns`
@@ -750,19 +750,19 @@ These values are runtime policy, not setup-time game creation input.
 To reserve empire slots for specific BBS users:
 
 ```sh
-ec-sysop settings reserve --dir /path/to/mygame --player 1 --alias SYSOP
-ec-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
+nc-sysop settings reserve --dir /path/to/mygame --player 1 --alias SYSOP
+nc-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 Each `seat` entry binds one 1-based empire slot to one caller alias. Alias
 matching is ASCII case-insensitive, so `NightShade`, `nightshade`, and
 `NIGHTSHADE` are treated as the same reservation.
 
-With reservations in place, launch `ec-game` with `--dropfile` and let the
+With reservations in place, launch `nc-game` with `--dropfile` and let the
 caller alias choose the empire automatically:
 
 ```sh
-ec-game --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
+nc-game --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 ```
 
 Important rules:
@@ -770,7 +770,7 @@ Important rules:
 - if the caller alias is reserved, `--player` becomes optional
 - if the caller alias is not reserved, `--player` is still required
 - if both `--player` and `--dropfile` are supplied for a reserved caller, they must match
-- if a reservation conflicts with an already-stored different player handle, `ec-game` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
+- if a reservation conflicts with an already-stored different player handle, `nc-game` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
 
 Reserving a seat does not by itself join or pre-name the empire. It only
 routes the caller to the intended slot. The usual first-time join flow still
@@ -781,59 +781,59 @@ into the player record for later logins.
 
 = Terminology
 
-/ game directory: The directory containing `ecgame.db` for one running game.
+/ game directory: The directory containing `ncgame.db` for one running game.
   Passed to all tools with `--dir`.
 
-/ `ec-sysop`: The public Rust command-line sysop tool for campaign creation
+/ `nc-sysop`: The public Rust command-line sysop tool for campaign creation
   maintenance, and Nostr hosting.
 
-/ `ec-connect`: The beta-quality player-side connection client for the
+/ `nc-connect`: The beta-quality player-side connection client for the
   recommended hosted flow. It manages the player's Nostr identity, joins
   games by invite code, downloads the static starmap bundle on first join,
-  and opens the SSH-backed `ec-game` session.
+  and opens the SSH-backed `nc-game` session.
 
-/ `ec-game`: The Rust TUI player client.
+/ `nc-game`: The Rust TUI player client.
 
-/ `ecgame.db`: The SQLite database that is the runtime source of truth for the
+/ `ncgame.db`: The SQLite database that is the runtime source of truth for the
   Rust engine.
 
 / campaign settings: The sysop-managed runtime policy rows stored in
-  `ecgame.db`. They control game name, snoop mode, the default compiled-in
+  `ncgame.db`. They control game name, snoop mode, the default compiled-in
   color set, seat reservations, maintenance cadence, and inactivity thresholds.
 
 // ─── 13. CLI Reference ────────────────────────────────────────────────────────
 
 = CLI Reference
 
-== ec-sysop
+== nc-sysop
 
 ```
-ec-sysop <subcommand> [options]
+nc-sysop <subcommand> [options]
 ```
 
 #table(
   columns: (auto, 1fr),
   [*Subcommand*], [*Purpose*],
   [`new-game`], [Create a fresh DB-only campaign directory. Public flags: `--name`, `--players`, `--year`, and `--seed`.],
-  [`settings show|set|reserve|unreserve`], [Inspect or edit the per-game runtime policy stored in `ecgame.db`.],
-  [`host games list|add|remove`], [Inspect or edit the global game registry in `/etc/ec-gate/config.kdl`.],
+  [`settings show|set|reserve|unreserve`], [Inspect or edit the per-game runtime policy stored in `ncgame.db`.],
+  [`host games list|add|remove`], [Inspect or edit the global game registry in `/etc/nc-gate/config.kdl`.],
   [`host status`], [Summarize the configured host, served game directories, claim counts, busy state, and maintenance-due state.],
   [`nostr init`], [Initialize the Nostr-hosting identity and config for the recommended public multiplayer path.],
-  [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `ec-game` sessions.],
-  [`nostr seats`], [List the hosted seat state stored in `ecgame.db` for one game directory.],
+  [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `nc-game` sessions.],
+  [`nostr seats`], [List the hosted seat state stored in `ncgame.db` for one game directory.],
   [`nostr reissue`], [Generate a fresh invite code for one hosted seat, clear its old player binding, and republish that game's public `30500` metadata when possible.],
   [`nostr publish`], [Republish one game's public `30500` metadata to the configured relay immediately.],
   [`nostr verify`], [Compare one game's local hosted-seat state against the latest published `30500` on the configured relay.],
-  [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ecgame.db`, copy its display name into the campaign settings rows, and archive the old roster file.],
-  [`maint`], [Run one or more maintenance turns against `ecgame.db`.],
+  [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ncgame.db`, copy its display name into the campaign settings rows, and archive the old roster file.],
+  [`maint`], [Run one or more maintenance turns against `ncgame.db`.],
   [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions.],
 )
 
-== ec-game
+== nc-game
 
 ```
-ec-game --dir <game_dir> [--player <1-based index>] [options]
-ec-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
+nc-game --dir <game_dir> [--player <1-based index>] [options]
+nc-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
 
 Interactive client flags:
@@ -841,12 +841,12 @@ Interactive client flags:
 #table(
   columns: (auto, 1fr),
   [*Flag*], [*Description*],
-  [`--dir <path>`], [Game directory containing `ecgame.db`. Required.],
-  [`--player <N>`], [1-based empire index. Required unless a reserved dropfile alias resolves the seat from `ecgame.db` campaign settings.],
+  [`--dir <path>`], [Game directory containing `ncgame.db`. Required.],
+  [`--player <N>`], [1-based empire index. Required unless a reserved dropfile alias resolves the seat from `ncgame.db` campaign settings.],
   [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
   [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
-  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through `ecgame.db` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
-  [`--session-token <hex>`], [Hosted-session lease token injected by `ec-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
+  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through `ncgame.db` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
+  [`--session-token <hex>`], [Hosted-session lease token injected by `nc-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
   [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
 )
@@ -857,9 +857,9 @@ Interactive client flags:
   columns: (auto, 1fr),
   [*Flag*], [*Description*],
   [`--check`], [Validate the KDL file without mutating the campaign.],
-  [`--dir <path>`], [Game directory containing `ecgame.db`. Required.],
+  [`--dir <path>`], [Game directory containing `ncgame.db`. Required.],
   [`--player <N>`], [1-based empire index. Required, and must match the KDL header.],
   [`--file <path>`], [Turn submission KDL file to validate or apply. Required.],
 )
 
-#admonition("NOTE")[`ec-game submit-turn` is all-or-nothing. If any command in the file is invalid, the entire submission is rejected and nothing is written to `ecgame.db`.]
+#admonition("NOTE")[`nc-game submit-turn` is all-or-nothing. If any command in the file is invalid, the entire submission is rejected and nothing is written to `ncgame.db`.]

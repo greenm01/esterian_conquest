@@ -9,7 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UNLZEXE_DIR = REPO_ROOT / "tools" / "unlzexe"
-UNLOCKED_DIR = REPO_ROOT / "EC_UNLOCKED"
+UNLOCKED_DIR = REPO_ROOT / "NC_UNLOCKED"
 
 MZ_SIGNATURE = 0x5A4D
 MZ_CBLP_OFFSET = 2
@@ -33,7 +33,7 @@ ASSET_SPECS = (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Rebuild the curated runnable executables under EC_UNLOCKED/ from "
+            "Rebuild the curated runnable executables under NC_UNLOCKED/ from "
             "the preserved tools/unlzexe artifacts."
         )
     )

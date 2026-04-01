@@ -104,15 +104,15 @@ This keeps config from driving low-level design too early.
 
 When KDL is introduced, prefer:
 
-- `rust/ec-data/config/combat.kdl`
-- `rust/ec-cli/config/setup.example.kdl`
-- `rust/ec-data/config/scenarios/*.kdl`
+- `rust/nc-data/config/combat.kdl`
+- `rust/nc-cli/config/setup.example.kdl`
+- `rust/nc-data/config/scenarios/*.kdl`
 - schema and examples documented in `docs/`
 
 For setup presets, prefer the ownership split:
 
-- public sysop workflow uses `ec-sysop new-game` flags plus `config.kdl`
-- internal authored setup presets belong to `ec-cli`
+- public sysop workflow uses `nc-sysop new-game` flags plus `config.kdl`
+- internal authored setup presets belong to `nc-cli`
 - runtime/operator policy does not belong in setup presets
 
 The first expected config extraction is combat constants and oracle scenarios,

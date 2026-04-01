@@ -75,24 +75,24 @@ OTHER_DETACH_SPECS = [
 ]
 
 
-def run_ec_cli(*args: str) -> None:
+def run_nc_cli(*args: str) -> None:
     subprocess.run(
-        ["cargo", "run", "-q", "-p", "ec-cli", "--", *args],
+        ["cargo", "run", "-q", "-p", "nc-cli", "--", *args],
         cwd=RUST_DIR,
         check=True,
     )
 
 
 def set_planet(target: Path, record: int, owner: int, name: str, potential: int, stored: int, armies: int, batteries: int) -> None:
-    run_ec_cli("planet-owner", str(target), str(record), str(owner))
-    run_ec_cli("planet-name", str(target), str(record), name)
-    run_ec_cli("planet-potential", str(target), str(record), str(potential), "0")
-    run_ec_cli("planet-stored", str(target), str(record), str(stored))
-    run_ec_cli("planet-stats", str(target), str(record), str(armies), str(batteries))
+    run_nc_cli("planet-owner", str(target), str(record), str(owner))
+    run_nc_cli("planet-name", str(target), str(record), name)
+    run_nc_cli("planet-potential", str(target), str(record), str(potential), "0")
+    run_nc_cli("planet-stored", str(target), str(record), str(stored))
+    run_nc_cli("planet-stats", str(target), str(record), str(armies), str(batteries))
 
 
 def fleet_order_for(target: Path, fleet_record: int, order_code: int, x: int, y: int, speed: int) -> None:
-    run_ec_cli(
+    run_nc_cli(
         "fleet-order",
         str(target),
         str(fleet_record),
@@ -104,14 +104,14 @@ def fleet_order_for(target: Path, fleet_record: int, order_code: int, x: int, y:
 
 
 def configure_player_one_fleets(target: Path) -> None:
-    run_ec_cli("fleet-ships", str(target), "1", "45", "18", "26", "40", "18", "8", "6")
-    run_ec_cli("fleet-ships", str(target), "2", "6", "4", "8", "10", "4", "2", "0")
-    run_ec_cli("fleet-ships", str(target), "3", "10", "2", "6", "8", "0", "0", "0")
-    run_ec_cli("fleet-ships", str(target), "4", "12", "0", "4", "4", "2", "0", "2")
+    run_nc_cli("fleet-ships", str(target), "1", "45", "18", "26", "40", "18", "8", "6")
+    run_nc_cli("fleet-ships", str(target), "2", "6", "4", "8", "10", "4", "2", "0")
+    run_nc_cli("fleet-ships", str(target), "3", "10", "2", "6", "8", "0", "0", "0")
+    run_nc_cli("fleet-ships", str(target), "4", "12", "0", "4", "4", "2", "0", "2")
 
     for offset, spec in enumerate(P1_DETACH_SPECS, start=17):
         bb, ca, dd, full_tt, empty_tt, scouts, etacs, roe = spec
-        run_ec_cli(
+        run_nc_cli(
             "fleet-detach",
             str(target),
             "1",
@@ -147,10 +147,10 @@ def configure_other_player_fleets(target: Path, player: int, donor_record: int) 
         3: ("12", "4", "8", "12", "6", "2", "0"),
         4: ("5", "8", "12", "10", "5", "1", "2"),
     }
-    run_ec_cli("fleet-ships", str(target), str(donor_record), *base_counts[player])
+    run_nc_cli("fleet-ships", str(target), str(donor_record), *base_counts[player])
     for idx, spec in enumerate(OTHER_DETACH_SPECS):
         bb, ca, dd, full_tt, empty_tt, scouts, etacs, roe = spec
-        run_ec_cli(
+        run_nc_cli(
             "fleet-detach",
             str(target),
             str(player),
@@ -196,7 +196,7 @@ def main() -> None:
             raise SystemExit(f"target already exists: {target} (use --force)")
         shutil.rmtree(target)
 
-    run_ec_cli(
+    run_nc_cli(
         "sysop",
         "generate-gamestate",
         str(target),
@@ -206,16 +206,16 @@ def main() -> None:
     )
 
     for idx, (handle, empire, tax) in enumerate(PLAYER_SPECS, start=1):
-        run_ec_cli("player-name", str(target), str(idx), handle, empire)
-        run_ec_cli("player-tax", str(target), str(idx), str(tax))
+        run_nc_cli("player-name", str(target), str(idx), handle, empire)
+        run_nc_cli("player-tax", str(target), str(idx), str(tax))
 
     for record, owner, name, potential, stored, armies, batteries in PLANET_SPECS:
         set_planet(target, record, owner, name, potential, stored, armies, batteries)
 
-    run_ec_cli("planet-stardock", str(target), "1", "0", "4", "2")
-    run_ec_cli("planet-stardock", str(target), "6", "0", "4", "1")
-    run_ec_cli("planet-stardock", str(target), "11", "0", "4", "1")
-    run_ec_cli("planet-stardock", str(target), "16", "0", "4", "2")
+    run_nc_cli("planet-stardock", str(target), "1", "0", "4", "2")
+    run_nc_cli("planet-stardock", str(target), "6", "0", "4", "1")
+    run_nc_cli("planet-stardock", str(target), "11", "0", "4", "1")
+    run_nc_cli("planet-stardock", str(target), "16", "0", "4", "2")
 
     configure_player_one_fleets(target)
     configure_other_player_fleets(target, 2, 5)

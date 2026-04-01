@@ -28,8 +28,8 @@ Enforce these as standing requirements:
 
 In practice:
 
-- `ec-data` shall stay organized around explicit file/record layouts
-- `ec-cli` shall stay organized around command-family submodules
+- `nc-data` shall stay organized around explicit file/record layouts
+- `nc-cli` shall stay organized around command-family submodules
 - shared parsing, path, and reporting helpers shall live in support modules
 - batch/report commands shall reuse pure validators rather than duplicate checks
 - larger features shall be split across focused modules instead of accumulating in oversized files
@@ -69,7 +69,7 @@ Before making gameplay or rules assumptions, first check the current Rust
 manual sources:
 
 - [docs/manuals/ec_player_manual.typ](docs/manuals/ec_player_manual.typ)
-- [docs/manuals/ec_sysop_manual.typ](docs/manuals/ec_sysop_manual.typ)
+- [docs/manuals/nc_sysop_manual.typ](docs/manuals/nc_sysop_manual.typ)
 
 These Typst manuals are the authoritative user-facing manuals for the modern
 Rust edition.
@@ -117,7 +117,7 @@ If the task is DOSBox-heavy, also check:
 - prefer headless Ghidra scripts and reproducible artifacts over ad hoc manual notes
 - do not treat guessed semantics as settled; keep unknown fields raw until supported
 - agents shall treat `docs/manuals/ec_player_manual.typ` and
-  `docs/manuals/ec_sysop_manual.typ` as the authoritative manual sources for
+  `docs/manuals/nc_sysop_manual.typ` as the authoritative manual sources for
   the Rust edition
 - agents shall check the shipped game docs in `original/v1.5/*.DOC` when the
   current manuals/docs are ambiguous or incomplete; binary RE and fixture
@@ -148,8 +148,8 @@ If the task is DOSBox-heavy, also check:
 
 When extending Rust support:
 
-- first add or refine typed accessors in `ec-data`
-- then expose the behavior through focused `ec-cli` commands
+- first add or refine typed accessors in `nc-data`
+- then expose the behavior through focused `nc-cli` commands
 - then add regression tests using preserved fixtures or known-valid generated directories
 - then update docs for the new capability
 

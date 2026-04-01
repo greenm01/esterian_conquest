@@ -6,7 +6,7 @@
 - Parameterized the Guard Starbase generator to dynamically copy `tuple_a`, `tuple_b`, and `tuple_c` payloads directly from the guarding fleet, completely removing hardcoded byte arrays.
 - Documented findings in `token-investigation.md`.
 - Rust scenario-writer milestone:
-  - `ec-cli` is now split further by feature area:
+  - `nc-cli` is now split further by feature area:
     - `src/commands/compare.rs`
     - `src/commands/compliance.rs`
     - `src/commands/fleet_order.rs`
@@ -24,50 +24,50 @@
   - compliance/batch-report, compare/preserved-diff, inspect/header dumping,
     and setup/config editing are also now extracted from `main.rs`
   - current refactor checkpoint:
-    - `rust/ec-cli/src/main.rs` is now `767` lines, down from the original
+    - `rust/nc-cli/src/main.rs` is now `767` lines, down from the original
       multi-thousand-line monolith
     - full `cargo test` is green after the extraction
-  - `ec-data` now parses `BASES.DAT` (`35`-byte records) and `IPBM.DAT`
+  - `nc-data` now parses `BASES.DAT` (`35`-byte records) and `IPBM.DAT`
     (`0x20`-byte records) to the current structural level
-  - `ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+  - `nc-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
     rewrites decoded fleet-order fields in place
-  - `ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+  - `nc-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>`
     rewrites decoded build-queue bytes in place
   - latest Rust scenario CLI milestone:
-    - `ec-cli scenario <dir> fleet-order`
-    - `ec-cli scenario <dir> planet-build`
-    - `ec-cli validate <dir> fleet-order`
-    - `ec-cli validate <dir> planet-build`
-    - `ec-cli validate <dir> all`
-    - `ec-cli validate-preserved <dir> <scenario>`
-    - `ec-cli validate-preserved <dir> all`
-    - `ec-cli compare-preserved <dir> <scenario>`
-    - `ec-cli compare-preserved <dir> all`
-    - `ec-cli scenario <dir> list`
-    - `ec-cli scenario <dir> show <scenario>`
-    - `ec-cli scenario-init-all [source_dir] <target_root>`
-    - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
-    - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
+    - `nc-cli scenario <dir> fleet-order`
+    - `nc-cli scenario <dir> planet-build`
+    - `nc-cli validate <dir> fleet-order`
+    - `nc-cli validate <dir> planet-build`
+    - `nc-cli validate <dir> all`
+    - `nc-cli validate-preserved <dir> <scenario>`
+    - `nc-cli validate-preserved <dir> all`
+    - `nc-cli compare-preserved <dir> <scenario>`
+    - `nc-cli compare-preserved <dir> all`
+    - `nc-cli scenario <dir> list`
+    - `nc-cli scenario <dir> show <scenario>`
+    - `nc-cli scenario-init-all [source_dir] <target_root>`
+    - `nc-cli scenario-init [source_dir] <target_dir> fleet-order`
+    - `nc-cli scenario-init [source_dir] <target_dir> planet-build`
     - these now turn the two already-preserved accepted fleet/build rewrites
       into named runnable scenarios rather than only low-level mutator calls
     - latest parser/usability correction:
-      - `ec-cli init <target_dir>` now correctly uses the documented default
+      - `nc-cli init <target_dir>` now correctly uses the documented default
         source `original/v1.5`
-      - `ec-cli scenario-init <target_dir> <scenario>` now correctly uses the
+      - `nc-cli scenario-init <target_dir> <scenario>` now correctly uses the
         documented scenario baseline `fixtures/ecmaint-post/v1.5`
-  - `cargo test -p ec-cli` now proves two exact fixture recreations from the
+  - `cargo test -p nc-cli` now proves two exact fixture recreations from the
     compliant `fixtures/ecmaint-post/v1.5` baseline:
     - `FLEETS.DAT` for `fixtures/ecmaint-fleet-pre/v1.5`
     - `PLANETS.DAT` for `fixtures/ecmaint-build-pre/v1.5`
   - new accepted starbase scenario command:
-    - `ec-cli scenario <dir> guard-starbase`
+    - `nc-cli scenario <dir> guard-starbase`
     - verified against `fixtures/ecmaint-starbase-pre/v1.5` for:
       - `PLAYER.DAT`
       - `FLEETS.DAT`
       - `BASES.DAT`
     - latest Rust milestone:
       - `BASES.DAT` is no longer emitted from a raw 35-byte template constant
-      - `ec-data::BaseRecord` now exposes named setters for the currently
+      - `nc-data::BaseRecord` now exposes named setters for the currently
         mapped integrity-critical fields:
         - local slot
         - active flag
@@ -79,7 +79,7 @@
         - trailing coords
         - owner empire
       - `cargo test` is green for the full Rust workspace after this change
-  - `ec-cli validate <dir> guard-starbase` now checks the currently-known
+  - `nc-cli validate <dir> guard-starbase` now checks the currently-known
     accepted one-base Guard Starbase invariants across `PLAYER.DAT`,
     `FLEETS.DAT`, and `BASES.DAT`
     - latest refinement:
@@ -97,38 +97,38 @@
         - Enforced strict linkage-key validation checking that `base.summary_word_raw() == fleet.local_slot_word_raw()` and matching `base.chain_word_raw() == fleet.fleet_id_word_raw()`
         - Demonstrated that the kind-1 / kind-2 linkage semantics described by the `3558/355A` decode logic fully align with the preserved one-base fixture values
       - Rust-side next-step milestone already landed:
-        - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
+        - `nc-cli guard-starbase-onebase <dir> <target_x> <target_y>`
         - this emits a parameterized one-base guard-starbase directory while
           keeping the currently-known accepted linkage keys fixed
-        - `ec-cli guard-starbase-report <dir>`
+        - `nc-cli guard-starbase-report <dir>`
         - this prints the current player/fleet/base linkage words and the
           current validator verdict, which is now the quickest Rust-side
           inspection tool before handing a directory to `ECMAINT`
-        - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
+        - `nc-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
         - this now materializes a coordinate-parameterized one-base Guard
           Starbase directory in one command, defaulting to
           `fixtures/ecmaint-post/v1.5`
-        - `ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
+        - `nc-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
         - this now materializes multiple coordinate-parameterized one-base
           Guard Starbase directories plus a manifest in one run
-        - `ec-cli ipbm-report <dir>`
-        - `ec-cli ipbm-zero <dir> <count>`
-        - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
-        - `ec-cli ipbm-validate <dir>`
-        - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
-        - `ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
+        - `nc-cli ipbm-report <dir>`
+        - `nc-cli ipbm-zero <dir> <count>`
+        - `nc-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
+        - `nc-cli ipbm-validate <dir>`
+        - `nc-cli ipbm-init [source_dir] <target_dir> <count>`
+        - `nc-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
         - these now cover the first practical Rust-side `IPBM.DAT` workflow:
           inspect the current count/length state, then materialize a zero-filled
           valid record family that satisfies the known `PLAYER[0x48]` gate,
           then start populating the decoded record prefix fields from Rust
         - latest refinement:
-          - `ec-data::IpbmRecord` now exposes the currently mapped tuple tags,
+          - `nc-data::IpbmRecord` now exposes the currently mapped tuple tags,
             tuple payload groups, and trailing control bytes
-          - `ec-cli ipbm-report` now prints those groups directly, so Rust-side
+          - `nc-cli ipbm-report` now prints those groups directly, so Rust-side
             scenario shaping no longer needs raw hex inspection for the mapped
             parts of the record
-        - `ec-cli compliance-report <dir>`
-        - `ec-cli compliance-batch-report <root>`
+        - `nc-cli compliance-report <dir>`
+        - `nc-cli compliance-batch-report <root>`
         - this now gives the quickest Rust-side preflight for the currently
           mapped integrity-sensitive areas:
           - Fleet Order
@@ -137,18 +137,18 @@
           - `IPBM.DAT` count/length state
         - the batch form now gives a compact per-directory verdict for roots
           produced by the Rust scenario generators
-        - `ec-cli fleet-order-report [dir] [fleet_record]`
-        - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
-        - `ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
-        - `ec-cli planet-build-report [dir] [planet_record]`
-        - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
-        - `ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
+        - `nc-cli fleet-order-report [dir] [fleet_record]`
+        - `nc-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+        - `nc-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
+        - `nc-cli planet-build-report [dir] [planet_record]`
+        - `nc-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+        - `nc-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
         - these now make fleet/build experiment directories as easy to
           materialize and inspect as the existing starbase/IPBM flows
         - the new batch forms now make it practical to generate multiple
           parameterized fleet/build experiment roots without hand-copying the
           same baseline directory repeatedly
-  - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
+  - `nc-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline
   - practical meaning:
@@ -205,21 +205,21 @@ Preservation TODO:
 Rust architecture note:
 
 - recent refactor milestone:
-  - `ec-cli` Guard Starbase/IPBM logic now lives in command submodules
-  - shared argument/path helpers now live under `ec-cli/src/support/`
-  - `ec-cli` workspace/file-copy helpers now live in `src/workspace.rs`
+  - `nc-cli` Guard Starbase/IPBM logic now lives in command submodules
+  - shared argument/path helpers now live under `nc-cli/src/support/`
+  - `nc-cli` workspace/file-copy helpers now live in `src/workspace.rs`
   - top-level CLI usage/help text now lives in `src/usage.rs`
   - top-level command routing now lives in `src/dispatch.rs`
-  - `ec-cli` integration tests are now split by command family with shared
+  - `nc-cli` integration tests are now split by command family with shared
     helpers under `tests/common/mod.rs`
-  - `ec-data` integration tests are now split by concern:
+  - `nc-data` integration tests are now split by concern:
     - `tests/formats.rs`
     - `tests/mutators.rs`
     - `tests/ecmaint.rs`
     - `tests/common/mod.rs`
-  - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
+  - `nc-data` and `ec-tui` tests now live in crate `tests/` directories
   - latest multi-file compliance milestone:
-    - `ec-data::CoreGameData` now provides a typed core-directory load/save
+    - `nc-data::CoreGameData` now provides a typed core-directory load/save
       layer for:
       - `PLAYER.DAT`
       - `PLANETS.DAT`
@@ -233,8 +233,8 @@ Rust architecture note:
     - this is the first step from scenario-specific file choreography toward
       a general compliant gamestate model in Rust
   - latest scenario-composition milestone:
-    - `ec-cli scenario <dir> compose <scenario> <scenario>...`
-    - `ec-cli scenario-init-compose [source_dir] <target_dir> <scenario> <scenario>...`
+    - `nc-cli scenario <dir> compose <scenario> <scenario>...`
+    - `nc-cli scenario-init-compose [source_dir] <target_dir> <scenario> <scenario>...`
     - these now let Rust materialize combined experiment directories from the
       compliant post-maint baseline without hand-chaining multiple commands
     - current verified example:
@@ -242,7 +242,7 @@ Rust architecture note:
         satisfies both validators
   - latest convergence milestone:
     - `fleet-order` and `planet-build` now also operate through
-      `ec_data::CoreGameData`
+      `nc_data::CoreGameData`
     - all current scenario transforms now share the same typed directory model:
       - `fleet-order`
       - `planet-build`
@@ -253,18 +253,18 @@ Rust architecture note:
         without introducing new per-file choreography
   - latest DRY workspace milestone:
     - the repeated `INIT_FILES` overlay loop now lives in the shared
-      `ec-cli` workspace layer
+      `nc-cli` workspace layer
     - fleet/build/starbase/IPBM/scenario init paths now reuse that helper
       instead of duplicating the same file-copy boilerplate
   - latest inspection milestone:
-    - `ec-cli inspect` now loads through `ec_data::CoreGameData`
+    - `nc-cli inspect` now loads through `nc_data::CoreGameData`
     - this gives generated experiment directories a single typed report path
       for players/planets/fleets/bases/IPBM instead of ad hoc per-file loads
-    - `ec-cli headers` intentionally stays on the lighter `SETUP.DAT` /
+    - `nc-cli headers` intentionally stays on the lighter `SETUP.DAT` /
       `CONQUEST.DAT` path so it still works against `original/v1.5`
   - latest core-state milestone:
-    - `ec-cli core-report [dir]`
-    - `ec-cli core-validate [dir]`
+    - `nc-cli core-report [dir]`
+    - `nc-cli core-validate [dir]`
     - these now provide a typed structural report/validator over the shared
       `CoreGameData` model
     - current-known validation scope is intentionally narrow:
@@ -273,7 +273,7 @@ Rust architecture note:
     - this is a reusable structural preflight surface for generated
       experiment directories, not a full `ECMAINT` integrity reimplementation
   - latest normalization milestone:
-    - `ec-cli core-sync-counts [dir]`
+    - `nc-cli core-sync-counts [dir]`
     - this repairs the current-known player-1 structural count invariants from
       the actual directory contents:
       - `PLAYER[1].starbase_count_raw <- BASES.DAT` record count
@@ -283,7 +283,7 @@ Rust architecture note:
       - if only the current-known count words are wrong, `core-sync-counts`
         can normalize them before higher-level scenario or `ECMAINT` testing
   - latest shared-model milestone:
-    - current-known core-state semantics now live on `ec_data::CoreGameData`
+    - current-known core-state semantics now live on `nc_data::CoreGameData`
     - shared methods now cover:
       - `player1_starbase_count_current_known()`
       - `player1_ipbm_count_current_known()`
@@ -309,7 +309,7 @@ Rust architecture note:
       - one-base guard-starbase
       - IPBM count/length
       - player-1 structural count words
-    - direct `ec-data` tests now cover those validation helpers against the
+    - direct `nc-data` tests now cover those validation helpers against the
       preserved accepted fixtures
     - practical effect:
       - the CLI is now a thin wrapper for the current-known mutation,
@@ -318,13 +318,13 @@ Rust architecture note:
   - latest `IPBM` centralization follow-on:
     - `CoreGameData` now also owns the current-known `IPBM` mutation helpers
       for zero-filled record families and mapped prefix-field updates
-    - `ec-cli ipbm-zero` and `ec-cli ipbm-record-set` now delegate to the
+    - `nc-cli ipbm-zero` and `nc-cli ipbm-record-set` now delegate to the
       shared directory model instead of mutating decoded `IPBM` state in
       CLI-only code
   - latest compliance-report centralization follow-on:
     - `CoreGameData` now owns the current-known compliance status aggregate
       and key-word summary used by the compliance report surfaces
-    - `ec-cli compliance-report` and `ec-cli compliance-batch-report` now
+    - `nc-cli compliance-report` and `nc-cli compliance-batch-report` now
       consume that shared model output instead of reassembling current-known
       rule groups in CLI-only code
   - latest starbase-linkage expansion:
@@ -336,7 +336,7 @@ Rust architecture note:
       - selected base presence
       - selected base ID / summary word / chain word
       - selected base coords / trailing coords / owner
-    - `ec-cli` guard-starbase validation still preserves the one-base scenario
+    - `nc-cli` guard-starbase validation still preserves the one-base scenario
       output, but it now does so on top of the broader shared selected-base
       linkage checker
   - latest guarding-fleet aggregation follow-on:
@@ -345,7 +345,7 @@ Rust architecture note:
     - current-known guard-starbase compliance is no longer implicitly tied to
       fleet 1 inside the shared model; it now means “all guarding fleets satisfy
       the selected-base linkage checks”
-    - `ec-cli compliance-report` now reports guard-starbase status through that
+    - `nc-cli compliance-report` now reports guard-starbase status through that
       shared all-guarding-fleets validator and prints the current guarding
       fleet count
     - this is the current-best shared-model view for guard-starbase compliance:
@@ -354,7 +354,7 @@ Rust architecture note:
   - phase-close refinement:
     - `CoreGameData` now also exposes full per-guarding-fleet linkage summaries
       for the current-known selected-base rule set
-    - `ec-cli compliance-report` now prints those shared guarding-fleet
+    - `nc-cli compliance-report` now prints those shared guarding-fleet
       summaries directly instead of inferring them in CLI-local code
   - next-phase core-count correction:
     - the shared model now treats `PLAYER[1].starbase_count_raw` as a count of
@@ -416,7 +416,7 @@ Rust architecture note:
       - likely-army count `0`
       - zeroed build queue, stardock, and population payloads
     - `core-report` now exposes `unowned_planet_payloads`
-  - `ec-data` is now split into domain modules:
+  - `nc-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
     - `src/records/fleet.rs`
@@ -425,10 +425,10 @@ Rust architecture note:
     - `src/records/setup.rs`
     - `src/records/conquest.rs`
     - `src/support.rs`
-  - `ec-data/src/lib.rs` is now crate wiring and reexports instead of another
+  - `nc-data/src/lib.rs` is now crate wiring and reexports instead of another
     monolithic record dump
-  - `ec-cli/src/main.rs` is now just the process boundary
-  - `ec-cli/src/dispatch.rs` carries the top-level command switchboard
+  - `nc-cli/src/main.rs` is now just the process boundary
+  - `nc-cli/src/dispatch.rs` carries the top-level command switchboard
 - preserve this direction:
   - data-oriented layout
   - feature/domain submodules
@@ -1120,7 +1120,7 @@ Suggested execution order:
 
 - New shared repair path:
   - `CoreGameData::sync_current_known_baseline_controls_and_counts()`
-  - CLI: `ec-cli core-sync-baseline [dir]`
+  - CLI: `nc-cli core-sync-baseline [dir]`
   - this now repairs the deterministic current-known control/count fields:
     - player starbase counts
     - player-1 `IPBM` count
@@ -1133,7 +1133,7 @@ Suggested execution order:
 
 - New shared fleet repair path:
   - `CoreGameData::sync_current_known_initialized_fleet_baseline()`
-  - CLI: `ec-cli core-sync-initialized-fleets [dir]`
+  - CLI: `nc-cli core-sync-initialized-fleets [dir]`
   - this rebuilds the deterministic preserved four-fleet-per-player baseline
     from current homeworld-seed coordinates:
     - fleet block topology
@@ -1145,7 +1145,7 @@ Suggested execution order:
 
 - New shared planet repair path:
   - `CoreGameData::sync_current_known_initialized_planet_payloads()`
-  - CLI: `ec-cli core-sync-initialized-planets [dir]`
+  - CLI: `nc-cli core-sync-initialized-planets [dir]`
   - this repairs the deterministic payload fields for:
     - owned homeworld seeds
     - unowned planets
@@ -1166,7 +1166,7 @@ Suggested execution order:
 
 - New composed baseline synchronizer:
   - `CoreGameData::sync_current_known_initialized_post_maint_baseline()`
-  - CLI: `ec-cli core-sync-current-known-baseline [dir]`
+  - CLI: `nc-cli core-sync-current-known-baseline [dir]`
   - this composes the three bounded repair surfaces now available:
     - empty auxiliary-state repair
     - control/count repair
@@ -1178,7 +1178,7 @@ Suggested execution order:
       baseline model in one command
 
 - New baseline constructor command:
-  - `ec-cli core-init-current-known-baseline [source_dir] <target_dir>`
+  - `nc-cli core-init-current-known-baseline [source_dir] <target_dir>`
   - copies a source tree, then applies the composed current-known baseline
     synchronizer before writing the target directory
   - defaults the source to `fixtures/ecmaint-post/v1.5`
@@ -1188,7 +1188,7 @@ Suggested execution order:
 
 - New current-known drift report:
   - `CoreGameData::current_known_baseline_diff_counts()`
-  - CLI: `ec-cli core-diff-current-known-baseline [dir]`
+  - CLI: `nc-cli core-diff-current-known-baseline [dir]`
   - reports per-file differing-byte counts between a directory and the
     Rust-generated current-known baseline normalization
   - this answers: "what would the current-known normalizer still change?"
@@ -1199,7 +1199,7 @@ Suggested execution order:
 
 - New current-known drift offset report:
   - `CoreGameData::current_known_baseline_diff_offsets()`
-  - CLI: `ec-cli core-diff-current-known-baseline-offsets [dir]`
+  - CLI: `nc-cli core-diff-current-known-baseline-offsets [dir]`
   - reports exact differing byte offsets per core `.DAT` file versus the
     Rust-generated current-known baseline normalization
   - practical meaning:
@@ -1245,8 +1245,8 @@ Suggested execution order:
       - `PLANETS.DAT`
       - `FLEETS.DAT`
   - new canonical drift reports:
-    - CLI: `ec-cli core-diff-canonical-current-known-baseline [dir]`
-    - CLI: `ec-cli core-diff-canonical-current-known-baseline-offsets [dir]`
+    - CLI: `nc-cli core-diff-canonical-current-known-baseline [dir]`
+    - CLI: `nc-cli core-diff-canonical-current-known-baseline-offsets [dir]`
     - these compare a directory directly against the preserved canonical core
       post-maint oracle in `fixtures/ecmaint-post/v1.5`
     - this answers: "how far is this directory from the preserved oracle
@@ -1258,11 +1258,11 @@ Suggested execution order:
         differs from the canonical baseline in `PLAYER.DAT`, `PLANETS.DAT`,
         `FLEETS.DAT`, and `CONQUEST.DAT`
   - new exact baseline oracle:
-    - CLI: `ec-cli core-validate-current-known-baseline [dir]`
+    - CLI: `nc-cli core-validate-current-known-baseline [dir]`
     - this is the first byte-level pass/fail oracle for the canonical preserved
       post-maint core baseline, not just a structural validator or drift report
   - new exact baseline classification path:
-    - `ec-cli match <dir>` now emits
+    - `nc-cli match <dir>` now emits
       `MATCH current-known-post-maint-baseline-core` when the directory's core
       `.DAT` set is an exact byte match for the canonical preserved post-maint
       core baseline
@@ -1271,8 +1271,8 @@ Suggested execution order:
       auxiliary files are seeded, but that result is not yet the canonical
       preserved post-maint baseline
   - new exact canonical constructor/synchronizer:
-    - CLI: `ec-cli core-sync-canonical-current-known-baseline [dir]`
-    - CLI: `ec-cli core-init-canonical-current-known-baseline [source_dir] <target_dir>`
+    - CLI: `nc-cli core-sync-canonical-current-known-baseline [dir]`
+    - CLI: `nc-cli core-init-canonical-current-known-baseline [source_dir] <target_dir>`
     - these overlay the exact preserved post-maint core `.DAT` set from
       `fixtures/ecmaint-post/v1.5`
     - practical meaning:

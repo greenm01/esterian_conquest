@@ -144,21 +144,21 @@ normal `amber-river@relay.example.com` form.
 == Joining a Game
 
 Your sysop will give you an invite code, usually in a command like
-`ec-connect --join amber-river@relay.example.com`. Here is the normal picker
+`nc-connect --join amber-river@relay.example.com`. Here is the normal picker
 flow:
 
-1. Run `ec-connect`.
+1. Run `nc-connect`.
 2. Press `N` to join a new game.
 3. Paste your invite code and press Enter.
 
 In the packaged GUI, paste works with `Command-V` on macOS, `Ctrl-V`,
 `Ctrl-Shift-V`, `Shift-Insert`, or right-click.
 
-That is all. `ec-connect` handles your identity and opens your `ec-game`
-session. The invite already carries the relay host, and `ec-connect`
+That is all. `nc-connect` handles your identity and opens your `nc-game`
+session. The invite already carries the relay host, and `nc-connect`
 discovers the rest from there. Your seat is not claimed until you actually
 save your empire name in the game. After that completed first join,
-`ec-connect` downloads the campaign starmap bundle and remembers the game
+`nc-connect` downloads the campaign starmap bundle and remembers the game
 locally in your Documents `ec/maps` folder. Later, press `M` in the picker
 to change the default maps folder and re-download the bundle for the
 currently selected game.
@@ -169,19 +169,19 @@ picker row, press `N`, paste the same invite again, and reconnect with that
 same identity. The original invite still belongs only to that identity; a
 different identity cannot use it to take over the seat.
 
-== ec-connect Setup
+== nc-connect Setup
 
-Get the current `ec-connect` build from the repo's GitHub Releases page.
+Get the current `nc-connect` build from the repo's GitHub Releases page.
 Public player packages are available for Windows x64, Linux x64, and macOS
 Apple Silicon. Keep this manual with it.
 
 === Windows
 
 If your sysop gives you the Windows `.zip` build, extract it to a folder of
-your choice. Double-click `ec-connect.exe` to launch the normal player
+your choice. Double-click `nc-connect.exe` to launch the normal player
 window. No installation required.
 
-On first use, `ec-connect` creates an encrypted wallet. You choose one wallet
+On first use, `nc-connect` creates an encrypted wallet. You choose one wallet
 password for the machine. That password protects your local identities. If you
 lose it, the client cannot recover your wallet for you.
 
@@ -193,15 +193,15 @@ Your sysop gives you one invite code in the form
 You can also join from the command line directly:
 
 ``` 
-ec-connect --join amber-river@relay.example.com
+nc-connect --join amber-river@relay.example.com
 ```
 
 If you join from the picker later and a cached game is missing its relay,
-`ec-connect` will ask for it once and save it.
+`nc-connect` will ask for it once and save it.
 
 == Wallet Management
 
-Press `W` in `ec-connect` to view your current identity and backup material.
+Press `W` in `nc-connect` to view your current identity and backup material.
 The packaged GUI keeps one active identity at a time.
 
 - `R` replaces the current identity: paste an existing `nsec`, or leave the field blank to generate a fresh one
@@ -214,7 +214,7 @@ seat with a new invite.
 
 == Relay Configuration
 
-Press lowercase `r` in the main `ec-connect` menu to open the relay manager.
+Press lowercase `r` in the main `nc-connect` menu to open the relay manager.
 That screen lets you add relays, edit saved relay entries, mark a default
 relay, and inspect which joined games use each relay.
 
@@ -222,7 +222,7 @@ Press uppercase `R` in the main game list to edit the relay for the currently
 selected joined game only. That is mainly useful when fixing an older cached
 entry or moving one specific game to a different relay.
 
-After a successful join, `ec-connect` caches the exact relay for that game, so
+After a successful join, `nc-connect` caches the exact relay for that game, so
 most reconnects do not need relay entry again.
 
 == Refreshing Game Info
@@ -540,9 +540,9 @@ The game is organized around four primary menus. From the *Main Menu*, you acces
 
 === Visual Themes
 
-The `ec-game` client is themable. Each campaign has a sysop-chosen default theme, and local-terminal players can open *C>olor Theme* from the Main Menu or First Time Menu to choose their own session theme from the campaign's available theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several other built-in palettes, plus a monochrome `Mono` option in the picker. You can preview and apply these without leaving the client, and your last local theme choice is remembered for your empire in that campaign.
+The `nc-game` client is themable. Each campaign has a sysop-chosen default theme, and local-terminal players can open *C>olor Theme* from the Main Menu or First Time Menu to choose their own session theme from the campaign's available theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several other built-in palettes, plus a monochrome `Mono` option in the picker. You can preview and apply these without leaving the client, and your last local theme choice is remembered for your empire in that campaign.
 
-In BBS door mode, `ec-game` instead keeps the classic *A>nsi color ON/OFF* toggle and begins from the campaign default theme each session. If a saved custom theme later disappears or becomes invalid, `ec-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
+In BBS door mode, `nc-game` instead keeps the classic *A>nsi color ON/OFF* toggle and begins from the campaign default theme each session. If a saved custom theme later disappears or becomes invalid, `nc-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
 
 === General Command
 
@@ -568,7 +568,7 @@ A planet without a starbase can spend up to its Present Production in a single t
 
 #admonition("WARNING")[Stardock contents are a prime target for enemy bombardment. Commission your ships promptly or risk losing them before they ever see combat.]
 
-#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. In the recommended hosted flow, `ec-connect` downloads that static bundle automatically the first time you join. Local Rust-client play can also export it directly from the in-game starmap view.]
+#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. In the recommended hosted flow, `nc-connect` downloads that static bundle automatically the first time you join. Local Rust-client play can also export it directly from the in-game starmap view.]
 
 #pagebreak()
 
@@ -938,13 +938,13 @@ running the classic binaries under DOSBox. This legacy setup friction is one of
 the motivating factors behind the Rust rewrite --- making the game accessible on
 modern systems without emulation or fragile drop file plumbing.
 
-The Rust `ec-game` binary handles drop files natively and robustly. Pass the
+The Rust `nc-game` binary handles drop files natively and robustly. Pass the
 `--dropfile <path>` flag and it will auto-detect the format
 (`DOOR32.SYS`, `DOOR.SYS`, or `CHAIN.TXT`), tolerate both CRLF and LF line
 endings, and extract the player alias and session timeout without any wrapper
 scripts or format massaging. The `--timeout <minutes>` flag can override the
 timeout from the command line. This means a modern BBS can drop any of the
-three supported formats and launch `ec-game` directly, with no DOSBox, no
+three supported formats and launch `nc-game` directly, with no DOSBox, no
 `ECUTIL.EXE`, and no fragile field-count dependencies.
 
 === This Manual

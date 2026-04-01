@@ -1,4 +1,4 @@
-# `ec-game` TUI Style Guide
+# `nc-game` TUI Style Guide
 
 This document defines the visual and color standard for the Rust player TUI.
 
@@ -9,24 +9,24 @@ and telnet-style ANSI clients.
 Read it together with:
 
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
-- [ec-game-prompt-standard.md](ec-game-prompt-standard.md)
-- [ec-game-table-standard.md](ec-game-table-standard.md)
+- [nc-game-prompt-standard.md](nc-game-prompt-standard.md)
+- [nc-game-table-standard.md](nc-game-table-standard.md)
 
 ## Core Rules
 
-- `ec-game` uses a fixed `80x25` playfield.
+- `nc-game` uses a fixed `80x25` playfield.
 - The TUI color standard is ANSI 16-color, not truecolor.
 - Interactive rendering should go through `crossterm` end-to-end.
 - The whole TUI uses a black background.
 - The default look is restrained and Tokyo-Night-inspired, but it is expressed
   through ANSI-safe semantic styles.
 - Theme configuration is file-driven and lives in the game directory alongside
-  `ecgame.db`:
+  `ncgame.db`:
   - `<game_dir>/themes/classic.kdl` — the default theme, bootstrapped on first run
   - `<game_dir>/themes/*.kdl` — bundled alternate themes plus any sysop-added custom themes
   - `<game_dir>/config.kdl` — sysop config; if present and contains a `theme`
     directive, that path (relative to `game_dir`) is used instead
-- On first run, `ec-game` bootstraps `themes/classic.kdl` into the game directory
+- On first run, `nc-game` bootstraps `themes/classic.kdl` into the game directory
   if it is missing, creating the `themes/` subdirectory as needed.
 - Once created, `themes/classic.kdl` is sysop-owned and is not silently overwritten.
 
@@ -90,7 +90,7 @@ Default semantic mapping:
 
 - Live prompts must leave a space after `-> ` before the cursor.
 - Non-table command-line prompt grammar is defined in
-  [ec-game-prompt-standard.md](ec-game-prompt-standard.md).
+  [nc-game-prompt-standard.md](nc-game-prompt-standard.md).
 - Prompt brackets keep neutral prompt coloring:
   - `<` and `>`
   - `[` and `]`

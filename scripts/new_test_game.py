@@ -11,14 +11,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_DIR = REPO_ROOT / "rust"
 
 
-def run_ec_cli(*args: str) -> None:
-    cmd = ["cargo", "run", "-q", "-p", "ec-cli", "--", *args]
+def run_nc_cli(*args: str) -> None:
+    cmd = ["cargo", "run", "-q", "-p", "nc-cli", "--", *args]
     subprocess.run(cmd, cwd=RUST_DIR, check=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Create a fresh joinable test game backed by ecgame.db."
+        description="Create a fresh joinable test game backed by ncgame.db."
     )
     parser.add_argument("target_dir", help="Directory to create or replace.")
     parser.add_argument(
@@ -46,7 +46,7 @@ def main() -> None:
             raise SystemExit(f"target already exists: {target} (use --force)")
         shutil.rmtree(target)
 
-    run_ec_cli(
+    run_nc_cli(
         "sysop",
         "new-game",
         str(target),

@@ -7,7 +7,7 @@ import re
 import statistics
 
 
-LOG_DIR = pathlib.Path("original/v1.5/ec-logs-2012")
+LOG_DIR = pathlib.Path("original/v1.5/nc-logs-2012")
 OUT_PATH = pathlib.Path("artifacts/ec-report-log-analysis.txt")
 HEADER_RE = re.compile(r"-> From (.+?)\s+Stardate:\s*(\d+)/(\d+)")
 

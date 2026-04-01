@@ -1,4 +1,4 @@
-# `ec-game` Table Standard
+# `nc-game` Table Standard
 
 This document defines the standard table format for the Rust player TUI.
 
@@ -9,7 +9,7 @@ this spec unless a screen has a narrow, explicit exception.
 Read it together with:
 
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
-- [ec-game-prompt-standard.md](ec-game-prompt-standard.md)
+- [nc-game-prompt-standard.md](nc-game-prompt-standard.md)
 - [tui_style_guide.md](tui_style_guide.md)
 - [rust-architecture.md](rust-architecture.md)
 

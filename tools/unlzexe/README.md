@@ -22,12 +22,12 @@ The top level holds the artifacts that proved most useful in day-to-day RE:
   preserved unpacker baselines and experiments
 
 The runnable unlocked binaries that the rest of the project treats as the
-primary plain-MZ copies live in [`EC_UNLOCKED/`](../../EC_UNLOCKED/).
+primary plain-MZ copies live in [`NC_UNLOCKED/`](../../NC_UNLOCKED/).
 
 Important distinction:
 
 - `*U.EXE` files here are preserved extraction artifacts
-- `EC_UNLOCKED/` is the curated runnable output set
+- `NC_UNLOCKED/` is the curated runnable output set
 
 Rebuild the curated set with:
 

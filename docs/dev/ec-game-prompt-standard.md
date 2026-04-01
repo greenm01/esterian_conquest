@@ -1,4 +1,4 @@
-# `ec-game` Prompt Standard
+# `nc-game` Prompt Standard
 
 This document defines the standard command-line prompt grammar for the Rust
 player TUI.
@@ -11,7 +11,7 @@ Read it together with:
 
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
 - [tui_style_guide.md](tui_style_guide.md)
-- [ec-game-table-standard.md](ec-game-table-standard.md)
+- [nc-game-table-standard.md](nc-game-table-standard.md)
 
 ## Core Rules
 
@@ -208,5 +208,5 @@ COMMANDS <- J K ^U ^D <Q> [03,03] ->
 ```
 
 This document does not change the prompt-replacement table rows described in
-[ec-game-table-standard.md](ec-game-table-standard.md). Those still use normal
+[nc-game-table-standard.md](nc-game-table-standard.md). Those still use normal
 prompt markup such as `COMMANDS <- Sort by <C>urrent Prod ... [C] ->`.

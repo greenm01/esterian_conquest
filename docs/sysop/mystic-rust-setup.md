@@ -1,7 +1,7 @@
 # Mystic Rust Door Setup
 
 This is the current baseline local-door BBS host for the Rust-native
-`ec-game` client.
+`nc-game` client.
 
 Status note:
 
@@ -12,12 +12,12 @@ Status note:
 
 Use:
 
-- `ec-sysop` to create and maintain the campaign
-- `ec-game` as the player door
+- `nc-sysop` to create and maintain the campaign
+- `nc-game` as the player door
 - Mystic's `DC` door command so Mystic writes `CHAIN.TXT` into `%P`
 - [`tools/bbs/run_ec_rust.sh`](../../tools/bbs/run_ec_rust.sh) as the door launcher
 
-`ec-game` already accepts `CHAIN.TXT`, so Mystic does not need a format
+`nc-game` already accepts `CHAIN.TXT`, so Mystic does not need a format
 translation layer.
 
 ## 1. Build the Rust binaries
@@ -29,7 +29,7 @@ From the repo root:
 
 ```bash
 cd rust
-cargo build -q --release -p ec-game -p ec-sysop
+cargo build -q --release -p nc-game -p nc-sysop
 ```
 
 ## 2. Create a campaign
@@ -38,7 +38,7 @@ Example:
 
 ```bash
 cd rust
-cargo run -q -p ec-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
+cargo run -q -p nc-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
 ```
 
 Reserve each caller alias so the door can resolve the seat from the dropfile
@@ -46,15 +46,15 @@ without `--player`:
 
 ```bash
 cd rust
-cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias mag
-cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
+cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias mag
+cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
 Run yearly maintenance with your normal host tooling:
 
 ```bash
 cd rust
-cargo run -q -p ec-sysop -- maint /path/to/ec-campaign 1
+cargo run -q -p nc-sysop -- maint /path/to/ec-campaign 1
 ```
 
 ## 3. Install Mystic
@@ -90,7 +90,7 @@ Door data:
 Why `DC`:
 
 - Mystic generates `CHAIN.TXT` automatically
-- `ec-game` parses `CHAIN.TXT` directly
+- `nc-game` parses `CHAIN.TXT` directly
 - no DOS compatibility wrapper is required
 
 ## 5. Start Mystic
@@ -107,7 +107,7 @@ For local testing, connect with SyncTERM or telnet to the configured port.
 
 The expected first-pass smoke test is:
 
-1. create or log into a Mystic user whose alias is reserved in `ecgame.db`
+1. create or log into a Mystic user whose alias is reserved in `ncgame.db`
 2. open the Doors menu
 3. launch the EC entry
 4. confirm the EC first-time menu renders in color and sits on the normal

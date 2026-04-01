@@ -19,13 +19,13 @@ def fail(message: str, code: int = 64) -> None:
 
 def choose_command(repo_root: str) -> tuple[list[str], str]:
     rust_dir = os.path.join(repo_root, "rust")
-    release_bin = os.path.join(rust_dir, "target", "release", "ec-game")
-    debug_bin = os.path.join(rust_dir, "target", "debug", "ec-game")
+    release_bin = os.path.join(rust_dir, "target", "release", "nc-game")
+    debug_bin = os.path.join(rust_dir, "target", "debug", "nc-game")
     if os.path.isfile(release_bin) and os.access(release_bin, os.X_OK):
         return [release_bin], repo_root
     if os.path.isfile(debug_bin) and os.access(debug_bin, os.X_OK):
         return [debug_bin], repo_root
-    return ["cargo", "run", "-q", "-p", "ec-game", "--"], rust_dir
+    return ["cargo", "run", "-q", "-p", "nc-game", "--"], rust_dir
 
 
 def set_winsize(fd: int, cols: int, rows: int) -> None:
@@ -36,7 +36,7 @@ def set_winsize(fd: int, cols: int, rows: int) -> None:
 def main() -> int:
     if len(sys.argv) < 6:
         fail(
-            "usage: run_ec_rust_bridge.py <game_dir> <dropfile_path> <srv_port> <term_width> <term_height> [extra ec-game args...]"
+            "usage: run_ec_rust_bridge.py <game_dir> <dropfile_path> <srv_port> <term_width> <term_height> [extra nc-game args...]"
         )
 
     game_dir = sys.argv[1]
@@ -47,20 +47,20 @@ def main() -> int:
     extra_args = sys.argv[6:]
 
     if not os.path.isdir(game_dir):
-        fail(f"ec-game bridge error: game dir not found: {game_dir}", 66)
+        fail(f"nc-game bridge error: game dir not found: {game_dir}", 66)
     if not os.path.isfile(dropfile):
-        fail(f"ec-game bridge error: dropfile not found: {dropfile}", 66)
+        fail(f"nc-game bridge error: dropfile not found: {dropfile}", 66)
 
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     base_cmd, cwd = choose_command(repo_root)
 
-    export_root = os.environ.get("EC_CLIENT_EXPORT_ROOT")
+    export_root = os.environ.get("NC_CLIENT_EXPORT_ROOT")
     if not export_root:
         export_root = os.path.join(game_dir, "exports")
-        os.environ["EC_CLIENT_EXPORT_ROOT"] = export_root
+        os.environ["NC_CLIENT_EXPORT_ROOT"] = export_root
     os.makedirs(export_root, exist_ok=True)
 
-    queue_dir = os.environ.get("EC_CLIENT_QUEUE_DIR")
+    queue_dir = os.environ.get("NC_CLIENT_QUEUE_DIR")
     if queue_dir:
         os.makedirs(queue_dir, exist_ok=True)
 

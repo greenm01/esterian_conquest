@@ -26,11 +26,11 @@ Current-known movement rules in Rust already model:
 
 The live movement implementation is in:
 
-- [mod.rs](../../rust/ec-engine/src/maint/mod.rs)
-- [movement/mod.rs](../../rust/ec-engine/src/maint/movement/mod.rs)
-- [navigation/mod.rs](../../rust/ec-engine/src/navigation/mod.rs)
-- [geometry.rs](../../rust/ec-engine/src/navigation/geometry.rs)
-- [fleet_motion_state.rs](../../rust/ec-data/src/fleet_motion_state.rs)
+- [mod.rs](../../rust/nc-engine/src/maint/mod.rs)
+- [movement/mod.rs](../../rust/nc-engine/src/maint/movement/mod.rs)
+- [navigation/mod.rs](../../rust/nc-engine/src/navigation/mod.rs)
+- [geometry.rs](../../rust/nc-engine/src/navigation/geometry.rs)
+- [fleet_motion_state.rs](../../rust/nc-data/src/fleet_motion_state.rs)
 
 The current implementation keeps the recovered annual `speed * 8 / 9` movement
 budget, persists exact in-transit position between yearly maintenance passes,
@@ -243,7 +243,7 @@ Threat-aware routing must preserve fog of war.
 
 Current Rust implementation status:
 
-- the `ec-data` pathfinder now accepts explicit visible hazard intel as input
+- the `nc-data` pathfinder now accepts explicit visible hazard intel as input
 - the live maint path now accepts owner-scoped visible hazards and the CLI
   derives first-pass foreign-world hazard intel from each empire's
   `DATABASE.DAT` view
@@ -254,7 +254,7 @@ Current Rust implementation status:
   invisible to routing until discovered
 - combat/contact handling now also has an explicit hostility decision seam
   rather than burying that choice inside the battle loop
-- `ec-data` now exposes a typed stored-diplomacy seam, and the classic
+- `nc-data` now exposes a typed stored-diplomacy seam, and the classic
   `PLAYER.DAT` enemy/neutral bytes are now mapped as a contiguous table:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`

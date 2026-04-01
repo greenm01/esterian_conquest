@@ -96,7 +96,7 @@ def build_workspace_binary(package: str, release: bool) -> Path:
     return RUST_DIR / "target" / cargo_profile_dir(release) / package
 
 
-def run_ec_cli(cli_binary: Path, *args: str) -> str:
+def run_nc_cli(cli_binary: Path, *args: str) -> str:
     result = subprocess.run(
         [str(cli_binary), *args],
         cwd=RUST_DIR,
@@ -113,7 +113,7 @@ def set_player_specs(cli_binary: Path, target: Path, player_one_alias: str, play
             handle = player_one_alias
             empire = player_one_empire
         if record == 1:
-            run_ec_cli(
+            run_nc_cli(
                 cli_binary,
                 "player-join",
                 str(target),
@@ -123,13 +123,13 @@ def set_player_specs(cli_binary: Path, target: Path, player_one_alias: str, play
                 "Foundation",
             )
         else:
-            run_ec_cli(cli_binary, "player-name", str(target), str(record), handle, empire)
-        run_ec_cli(cli_binary, "player-tax", str(target), str(record), str(tax_rate))
+            run_nc_cli(cli_binary, "player-name", str(target), str(record), handle, empire)
+        run_nc_cli(cli_binary, "player-tax", str(target), str(record), str(tax_rate))
 
 
 def clear_planet_stardock(cli_binary: Path, target: Path, record: int) -> None:
     for slot in range(CLASSIC_STARDOCK_SLOTS):
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), str(slot), "0", "0")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), str(slot), "0", "0")
 
 
 def apply_probe_stardock_payload(
@@ -138,26 +138,26 @@ def apply_probe_stardock_payload(
     clear_planet_stardock(cli_binary, target, record)
 
     if aurora_stardock == "busy":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "2")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "2")
     elif aurora_stardock == "single-dd":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
     elif aurora_stardock == "single-scout":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
     elif aurora_stardock == "single-dd-count2":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "2")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "2")
     elif aurora_stardock == "single-dd-slot1":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
     elif aurora_stardock == "single-scout-slot1":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "4", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "4", "1")
     elif aurora_stardock == "single-dd-slot2":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "2", "1", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "2", "1", "1")
     elif aurora_stardock == "two-dd-slots":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
     elif aurora_stardock == "mixed-light":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
-        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
+        run_nc_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
     elif aurora_stardock != "empty":
         raise ValueError(f"unknown Aurora stardock mode: {aurora_stardock}")
 
@@ -175,34 +175,34 @@ def configure_probe_stardocks(
         raise ValueError(f"unknown probe dock host: {probe_dock_host}")
     apply_probe_stardock_payload(cli_binary, target, probe_record, aurora_stardock)
 
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "17", "0", "2", "3")
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "17", "0", "2", "3")
 
     # Fill Helios Prime (record 5, coords 9,2) stardock with every ship type.
     # Use moderate quantities that fit within stardock capacity (6 slots).
     # Kind: 1=DD, 2=CA, 3=BB, 4=SC, 5=TP, 6=ETAC
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "0", "1", "3")   # 3 destroyers
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "1", "2", "2")   # 2 cruisers
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "2", "3", "1")   # 1 battleship
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "3", "4", "4")   # 4 scout ships
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "4", "5", "2")   # 2 transports
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "5", "0", "1", "3")   # 3 destroyers
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "5", "1", "2", "2")   # 2 cruisers
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "5", "2", "3", "1")   # 1 battleship
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "5", "3", "4", "4")   # 4 scout ships
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "5", "4", "5", "2")   # 2 transports
+    run_nc_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
 
 
 def set_planet_specs(
     cli_binary: Path, target: Path, aurora_stardock: str, probe_dock_host: str
 ) -> None:
     for record, owner, name, potential, stored, armies, batteries in PLANET_SPECS:
-        run_ec_cli(cli_binary, "planet-owner", str(target), str(record), str(owner))
-        run_ec_cli(cli_binary, "planet-name", str(target), str(record), name)
-        run_ec_cli(cli_binary, "planet-potential", str(target), str(record), str(potential), "135")
-        run_ec_cli(cli_binary, "planet-stored", str(target), str(record), str(stored))
-        run_ec_cli(cli_binary, "planet-stats", str(target), str(record), str(armies), str(batteries))
+        run_nc_cli(cli_binary, "planet-owner", str(target), str(record), str(owner))
+        run_nc_cli(cli_binary, "planet-name", str(target), str(record), name)
+        run_nc_cli(cli_binary, "planet-potential", str(target), str(record), str(potential), "135")
+        run_nc_cli(cli_binary, "planet-stored", str(target), str(record), str(stored))
+        run_nc_cli(cli_binary, "planet-stats", str(target), str(record), str(armies), str(batteries))
 
     # The direct PLANETS.DAT rewrite below must start from the current runtime
     # snapshot, not the stale first-login files left on disk by new-game.
-    run_ec_cli(cli_binary, "db-export", str(target), str(target))
+    run_nc_cli(cli_binary, "db-export", str(target), str(target))
     rewrite_player_one_owned_probe_worlds(target)
-    run_ec_cli(cli_binary, "db-import", str(target))
+    run_nc_cli(cli_binary, "db-import", str(target))
 
     configure_probe_stardocks(cli_binary, target, aurora_stardock, probe_dock_host)
 
@@ -257,23 +257,23 @@ def write_diplomacy_sidecar(target: Path) -> None:
 
 
 def configure_enemy_fleets(cli_binary: Path, target: Path) -> None:
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "5", "0", "2", "8", "4", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "5", "3", "5", "9", "2")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "5", "0", "2", "8", "4", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "5", "3", "5", "9", "2")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "6", "0", "2", "6", "5", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "6", "3", "5", "9", "2")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "6", "0", "2", "6", "5", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "6", "3", "5", "9", "2")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "9", "1", "1", "4", "2", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "9", "3", "5", "9", "2")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "9", "1", "1", "4", "2", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "9", "3", "5", "9", "2")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "10", "0", "1", "4", "2", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "10", "3", "5", "13", "5")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "10", "0", "1", "4", "2", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "10", "3", "5", "13", "5")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "13", "0", "1", "4", "2", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "13", "3", "5", "5", "13")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "13", "0", "1", "4", "2", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "13", "3", "5", "5", "13")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "14", "0", "1", "4", "2", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "14", "3", "5", "13", "13")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "14", "0", "1", "4", "2", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "14", "3", "5", "13", "13")
 
 
 def configure_player_one_fleets(cli_binary: Path, target: Path) -> dict[str, int]:
@@ -284,20 +284,20 @@ def configure_player_one_fleets(cli_binary: Path, target: Path) -> dict[str, int
         "salvage": 4,
     }
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "1", "0", "2", "4", "6", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "1", "3", "6", "9", "2")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "1", "0", "2", "4", "6", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "1", "3", "6", "9", "2")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "2", "1", "0", "1", "2", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "2", "3", "11", "9", "2")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "2", "1", "0", "1", "2", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "2", "3", "11", "9", "2")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "3", "1", "0", "0", "1", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "3", "1", "0", "0", "1", "0", "0", "0")
     # Keep the moving player-one fleet off Aurora Prime itself. The current
     # classic crash thread points at the owned-world space-force formatter, and
     # Aurora Prime is already carrying docked ships for detail-path inspection.
-    run_ec_cli(cli_binary, "fleet-order", str(target), "3", "3", "1", "5", "4")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "3", "3", "1", "5", "4")
 
-    run_ec_cli(cli_binary, "fleet-ships", str(target), "4", "0", "1", "1", "1", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "4", "3", "15", "5", "2")
+    run_nc_cli(cli_binary, "fleet-ships", str(target), "4", "0", "1", "1", "1", "0", "0", "0")
+    run_nc_cli(cli_binary, "fleet-order", str(target), "4", "3", "15", "5", "2")
 
     return fleet_records
 
@@ -705,9 +705,9 @@ def main() -> None:
             raise SystemExit(f"target already exists: {target} (use --force)")
         shutil.rmtree(target)
 
-    cli_binary = build_workspace_binary("ec-cli", args.release)
+    cli_binary = build_workspace_binary("nc-cli", args.release)
 
-    run_ec_cli(
+    run_nc_cli(
         cli_binary,
         "sysop",
         "new-game",
@@ -722,14 +722,14 @@ def main() -> None:
     configure_enemy_fleets(cli_binary, target)
     fleet_records = configure_player_one_fleets(cli_binary, target)
     write_diplomacy_sidecar(target)
-    run_ec_cli(cli_binary, "maint-rust", str(target), str(args.turns))
-    run_ec_cli(cli_binary, "db-export", str(target), str(target))
+    run_nc_cli(cli_binary, "maint-rust", str(target), str(args.turns))
+    run_nc_cli(cli_binary, "db-export", str(target), str(target))
     prepare_player_one_classic_report_probe(
         target,
         player_record=1,
         empire_name=args.empire,
     )
-    run_ec_cli(cli_binary, "db-import", str(target))
+    run_nc_cli(cli_binary, "db-import", str(target))
 
     print_summary(
         target,

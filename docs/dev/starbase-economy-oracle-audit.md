@@ -24,7 +24,7 @@ That gives a strong player-facing spec, but not an exact internal formula.
 Current reproducible tooling:
 
 - CLI initializer:
-  [rust/ec-cli/src/commands/economy.rs](../../rust/ec-cli/src/commands/economy.rs)
+  [rust/nc-cli/src/commands/economy.rs](../../rust/nc-cli/src/commands/economy.rs)
   `economy-starbase-probe-init`
 - Oracle runner:
   [tools/ecmaint_starbase_economy_audit.py](../../tools/ecmaint_starbase_economy_audit.py)
@@ -38,7 +38,7 @@ Probe shape:
   - `Plain Colony`
   - `Base Colony`
 - commission a friendly active starbase at `Base Colony`
-- export through `ec-compat`
+- export through `nc-compat`
 - run classic `ECMAINT /R`
 - import and compare the two colony rows
 

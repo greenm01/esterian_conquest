@@ -1,0 +1,12 @@
+[package]
+name = "nc-compat"
+version = "1.0.0-beta.1"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+nc-classic = { path = "../nc-classic" }
+nc-data = { path = "../nc-data" }

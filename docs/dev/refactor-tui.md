@@ -1,8 +1,8 @@
-# Refactor Plan: `ec-game` TUI Architecture
+# Refactor Plan: `nc-game` TUI Architecture
 
 ## 1. Context & Rationale
 
-The current `ec-game` TUI is organized around technical layers rather than feature domains. 
+The current `nc-game` TUI is organized around technical layers rather than feature domains. 
 - All screen-rendering logic lives in a flat `src/screen/` directory (40+ files).
 - The central application state (`src/app/state.rs`) acts as a "God object", holding nearly 200 fields for every possible screen's transient state (input buffers, cursor positions, modal statuses).
 - The central action enum (`src/app/action.rs`) defines ~200 variants.
@@ -11,7 +11,7 @@ The current `ec-game` TUI is organized around technical layers rather than featu
 This violates the project's architectural guidelines, which mandate:
 > "agents shall avoid monolithic source files when feature-oriented submodules are clearer"
 
-To keep the `ec-game` source files lean, mean, and DRY, we must reorganize the application into feature-oriented, domain-driven submodules. This reduces coupling, makes it easier to navigate, and isolates state and logic according to the game's actual domains (e.g., Fleet, Planet, Starbase).
+To keep the `nc-game` source files lean, mean, and DRY, we must reorganize the application into feature-oriented, domain-driven submodules. This reduces coupling, makes it easier to navigate, and isolates state and logic according to the game's actual domains (e.g., Fleet, Planet, Starbase).
 
 ## 2. Proposed Domain-Driven Architecture
 
@@ -19,7 +19,7 @@ Instead of grouping by `app/` and `screen/`, the codebase will be partitioned in
 
 **Target Directory Structure:**
 ```text
-rust/ec-game/src/
+rust/nc-game/src/
 ├── app/                  # Top-level routing, dispatch, and main loop
 │   ├── mod.rs            # Top-level App struct holding domain sub-states
 │   ├── action.rs         # Top-level Action enum wrapping domain actions

@@ -10,17 +10,17 @@ These scripts are intended for:
 - creating classic-probe campaigns that open in original `ECGAME` with a busy
   player-1 report backlog
 - bootstrapping a VPS host for DB-only Rust campaigns
-- launching `ec-game` against a chosen campaign and player seat
+- launching `nc-game` against a chosen campaign and player seat
 - building standalone release bundles for playtesting
 
 The current boundary is:
 
-- `ec-game` runs from `ecgame.db`
-- `maint-rust` runs from `ecgame.db`
-- `ec-cli` is the setup and classic `.DAT` bridge/tooling surface
+- `nc-game` runs from `ncgame.db`
+- `maint-rust` runs from `ncgame.db`
+- `nc-cli` is the setup and classic `.DAT` bridge/tooling surface
 
-So these scripts call `ec-cli` to build or mutate campaigns, then launch
-`ec-game` directly.
+So these scripts call `nc-cli` to build or mutate campaigns, then launch
+`nc-game` directly.
 
 ## Prerequisites
 
@@ -46,13 +46,13 @@ It:
 
 - creates the dedicated `ecgame` service user
 - ensures the service user has a real shell for forced SSH commands
-- creates `/etc/ec-gate`, `/var/lib/ec-gate/keys`, and `/srv/ec/games`
-- installs `ec-game` and `ec-sysop` into `/usr/local/bin`
-- installs `/usr/local/bin/ec-gate-keys`
-- writes `/etc/ec-gate/config.kdl`
-- installs the `ec-nostr.service`, `ec-maint-all.service`, and `ec-maint-all.timer` units
+- creates `/etc/nc-gate`, `/var/lib/nc-gate/keys`, and `/srv/ec/games`
+- installs `nc-game` and `nc-sysop` into `/usr/local/bin`
+- installs `/usr/local/bin/nc-gate-keys`
+- writes `/etc/nc-gate/config.kdl`
+- installs the `nc-nostr.service`, `ec-maint-all.service`, and `ec-maint-all.timer` units
 - installs an `sshd` drop-in for the service user
-- initializes `/etc/ec-gate/identity.kdl` if missing
+- initializes `/etc/nc-gate/identity.kdl` if missing
 
 It does not replace a public relay front end. If you self-host
 `nostr-rs-relay` on the same VPS and keep it bound to `127.0.0.1:8080`,
@@ -70,12 +70,12 @@ sudo ./scripts/install_vps.sh \
 This script never creates classic `.DAT` files or copies DOS artifacts into
 per-game directories. Hosted Rust campaigns remain DB-only.
 
-Host game-registry edits still happen as `root` because `/etc/ec-gate/config.kdl`
-is host-owned. After `host games add/remove`, restart `ec-nostr.service` so the
+Host game-registry edits still happen as `root` because `/etc/nc-gate/config.kdl`
+is host-owned. After `host games add/remove`, restart `nc-nostr.service` so the
 daemon reloads the updated game list.
 
 Create hosted games under `/srv/ec/games` as the `ecgame` service user, not as
-plain `root`, so the daemon can write session leases into `ecgame.db`.
+plain `root`, so the daemon can write session leases into `ncgame.db`.
 
 ### `new_test_game.py`
 
@@ -112,7 +112,7 @@ It currently:
 Example:
 
 ```bash
-python3 scripts/setup_ui_stress_game.py /tmp/ec-ui-stress --force
+python3 scripts/setup_ui_stress_game.py /tmp/nc-ui-stress --force
 ```
 
 Use this when you want:
@@ -138,7 +138,7 @@ It currently:
 - seeds player 1 with active starbases, rich unread report blocks, and queued mail
 - injects mixed foreign-world intel for player 1 so database/detail screens show
   unknown, partial, and full scout-quality rows
-- can also seed an isolated localhost `ec-connect` returning-player fixture
+- can also seed an isolated localhost `nc-connect` returning-player fixture
   with a pre-claimed hosted seat
 
 Example:
@@ -182,13 +182,13 @@ That mode:
 
 - keeps the normal stress game seeding
 - claims one hosted seat for the supplied identity
-- creates an isolated `ec-connect` wallet/cache/config tree under `/tmp`
+- creates an isolated `nc-connect` wallet/cache/config tree under `/tmp`
 - prints exact launch commands for the localhost host helper and GUI reconnect
 
 ### `start_local_gui_hosted_test.sh`
 
-Starts a local `ec-sysop nostr serve` instance for a stress-test game so the
-standalone `ec-connect` GUI can join it through the real invite-code path.
+Starts a local `nc-sysop nostr serve` instance for a stress-test game so the
+standalone `nc-connect` GUI can join it through the real invite-code path.
 
 Example:
 
@@ -198,19 +198,19 @@ Example:
 
 It:
 
-- verifies `/tmp/ec-player1-ui/ecgame.db`
+- verifies `/tmp/ec-player1-ui/ncgame.db`
 - reports pending invite codes when the game still has unclaimed seats
 - reports claimed seats when the game is already seeded for returning-player reconnects
 - requires a relay already listening at `ws://localhost:8080`
 - writes a temporary gate config and identity under `/tmp/ec-local-gate`
 - defaults loopback localhost to the current user plus `~/.ssh/authorized_keys`
 - still supports explicit `--ssh-user` / `--auth-keys-*` overrides
-- prints full invite lines like `ec-connect --join victim-sickness@localhost:8080`
+- prints full invite lines like `nc-connect --join victim-sickness@localhost:8080`
 - prints claimed seat identities for returning-player fixture checks
-- runs `ec-sysop nostr serve` in the foreground
+- runs `nc-sysop nostr serve` in the foreground
 
 Use this when you want to test the real localhost GUI invite flow instead of
-launching `ec-game` directly.
+launching `nc-game` directly.
 
 For same-machine hosted play, the intended normal command is the plain example
 above; `sudo` should not be necessary unless your SSH setup is unusual.
@@ -237,18 +237,18 @@ It currently:
 Example:
 
 ```bash
-python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
+python3 scripts/setup_classic_probe_game.py /tmp/nc-classic-probe --force
 ```
 
 Dry-run example:
 
 ```bash
-python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force --no-launch
+python3 scripts/setup_classic_probe_game.py /tmp/nc-classic-probe --force --no-launch
 ```
 
 Use this when you want:
 
-- the original DOS client, not `ec-game`
+- the original DOS client, not `nc-game`
 - a busy unread-report backlog for player 1
 - multiple fleets and planets to inspect in classic menus
 - a practical hybrid-loop smoke test after Rust maint changes
@@ -261,7 +261,7 @@ Thin wrapper around `setup_classic_probe_game.py` for the most common
 If you do not pass a target directory, it uses:
 
 ```bash
-/tmp/ec-classic-report-probe
+/tmp/nc-classic-report-probe
 ```
 
 Example:
@@ -297,7 +297,7 @@ It currently:
 - seeds both packages with the preserved `fixtures/ecutil-init/v1.5` game
   directory
 - generates the known-good local-console `CHAIN.TXT`
-- refreshes `EC_UNLOCKED/` first when the unlocked variant is selected
+- refreshes `NC_UNLOCKED/` first when the unlocked variant is selected
 - validates the generated archives when `--verify` is passed
 
 Example:
@@ -326,7 +326,7 @@ It currently:
 
 - builds either:
   - the internal combined private-beta bundle
-  - or a public `ec-connect` player archive
+  - or a public `nc-connect` player archive
 - includes the matching public PDF manuals under `docs/`
 - writes `README.md` and `BUILD-INFO.txt` into the bundle root
 - can unpack and smoke-test the bundle when `--verify` is passed
@@ -345,25 +345,25 @@ python3 scripts/build_playtest_bundle.py --verify
 Public player archive example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --artifact ec-connect --verify
+python3 scripts/build_playtest_bundle.py --artifact nc-connect --verify
 ```
 
 Explicit Apple Silicon example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --artifact ec-connect --target aarch64-apple-darwin --verify
+python3 scripts/build_playtest_bundle.py --artifact nc-connect --target aarch64-apple-darwin --verify
 ```
 
 Use this when you want:
 
 - a native archive without requiring a Rust toolchain
-- either a public `ec-connect` player package or the internal combined bundle
+- either a public `nc-connect` player package or the internal combined bundle
 - a quick way to hand players or testers the right manual with the binary
 
-The combined bundle is an internal/private-beta helper. The `ec-connect`
+The combined bundle is an internal/private-beta helper. The `nc-connect`
 artifact is the public player-facing archive.
 
-The release tooling supports public `ec-connect` archives for:
+The release tooling supports public `nc-connect` archives for:
 
 - `x86_64-pc-windows-msvc`
 - `x86_64-unknown-linux-gnu`
@@ -381,9 +381,9 @@ python3 scripts/build_linux_playtest_bundle.py --verify
 
 ### `publish_release_packages.py`
 
-Builds the selected DOS release bundles and/or `ec-connect` player archives,
+Builds the selected DOS release bundles and/or `nc-connect` player archives,
 verifies them, then uploads the generated assets to an existing GitHub Release
-with `gh release upload --clobber`. When public `ec-connect` assets are part of
+with `gh release upload --clobber`. When public `nc-connect` assets are part of
 the run, it also refreshes the signed-download verification block at the top of
 the release body.
 
@@ -409,7 +409,7 @@ Windows player archive example:
 
 ```bash
 python3 scripts/publish_release_packages.py \
-  --ec-connect-target x86_64-pc-windows-msvc \
+  --nc-connect-target x86_64-pc-windows-msvc \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
@@ -417,7 +417,7 @@ Linux player archive example:
 
 ```bash
 python3 scripts/publish_release_packages.py \
-  --ec-connect-target x86_64-unknown-linux-gnu \
+  --nc-connect-target x86_64-unknown-linux-gnu \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
@@ -425,7 +425,7 @@ Apple Silicon player archive example:
 
 ```bash
 python3 scripts/publish_release_packages.py \
-  --ec-connect-target aarch64-apple-darwin \
+  --nc-connect-target aarch64-apple-darwin \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
@@ -433,22 +433,22 @@ Signed public player release example:
 
 ```bash
 python3 scripts/publish_release_packages.py \
-  --ec-connect-target aarch64-apple-darwin \
+  --nc-connect-target aarch64-apple-darwin \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
 Use this when you want:
 
-- the easiest release workflow for DOS bundles and public `ec-connect` archives
+- the easiest release workflow for DOS bundles and public `nc-connect` archives
 - the generated release assets to stay untracked locally under `releases/`
 - the public downloadable copies to live on GitHub Releases instead of `main`
 - signed `SHA256SUMS.txt` / `SHA256SUMS.txt.asc` assets for the public
-  `ec-connect` archives
+  `nc-connect` archives
 
-When `--ec-connect-target` is used, `publish_release_packages.py` now requires
-`--gpg-key` and signs the shared `ec-connect` checksum manifest for the
+When `--nc-connect-target` is used, `publish_release_packages.py` now requires
+`--gpg-key` and signs the shared `nc-connect` checksum manifest for the
 selected target(s). It keeps that manifest complete by reusing any other
-already-published public `ec-connect` archives from the release. It also
+already-published public `nc-connect` archives from the release. It also
 updates the GitHub release-body verification notice automatically.
 
 `publish_release_packages.sh` remains as a thin compatibility wrapper around
@@ -456,22 +456,22 @@ the Python entrypoint.
 
 ### `run_client.py`
 
-Launches `ec-game` against a chosen campaign directory and player seat.
+Launches `nc-game` against a chosen campaign directory and player seat.
 
 Example:
 
 ```bash
-python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
+python3 scripts/run_client.py /tmp/nc-ui-stress --player 1
 ```
 
 Release build example:
 
 ```bash
-python3 scripts/run_client.py /tmp/ec-ui-stress --player 1 --release
+python3 scripts/run_client.py /tmp/nc-ui-stress --player 1 --release
 ```
 
-By default `run_client.py` launches `ec-game` against the existing
-`ecgame.db` runtime state and does not refresh from classic `.DAT` files.
+By default `run_client.py` launches `nc-game` against the existing
+`ncgame.db` runtime state and does not refresh from classic `.DAT` files.
 This preserves joins, theme choices, and other in-client changes across
 re-entry.
 
@@ -479,7 +479,7 @@ If you intentionally changed the `.DAT` files outside the Rust runtime and
 need to resync the runtime DB before launch, opt in explicitly:
 
 ```bash
-python3 scripts/run_client.py /tmp/ec-ui-stress --player 1 --refresh-from-dat
+python3 scripts/run_client.py /tmp/nc-ui-stress --player 1 --refresh-from-dat
 ```
 
 ## Recommended Workflow
@@ -494,8 +494,8 @@ python3 scripts/run_client.py /tmp/ec-join-test --player 1
 ### Rich UI / command-menu test
 
 ```bash
-python3 scripts/setup_ui_stress_game.py /tmp/ec-ui-stress --force
-python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
+python3 scripts/setup_ui_stress_game.py /tmp/nc-ui-stress --force
+python3 scripts/run_client.py /tmp/nc-ui-stress --player 1
 ```
 
 ### Player 1 TUI torture test
@@ -508,27 +508,27 @@ python3 scripts/run_client.py /tmp/ec-player1-ui --player 1
 ### Classic ECGAME playback test
 
 ```bash
-python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
+python3 scripts/setup_classic_probe_game.py /tmp/nc-classic-probe --force
 ```
 
 ### Maintenance regression pass on a scripted game
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- maint-rust /tmp/ec-ui-stress 1
+cargo run -q -p nc-cli -- maint-rust /tmp/nc-ui-stress 1
 ```
 
 ### Export a scripted game back to classic `.DAT`
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- db-export /tmp/ec-ui-stress /tmp/ec-ui-stress-exported
+cargo run -q -p nc-cli -- db-export /tmp/nc-ui-stress /tmp/nc-ui-stress-exported
 ```
 
 Then run the original oracle if needed:
 
 ```bash
-python3 tools/ecmaint_oracle.py run /tmp/ec-ui-stress-exported
+python3 tools/ecmaint_oracle.py run /tmp/nc-ui-stress-exported
 ```
 
 ## Extending These Scripts
@@ -536,11 +536,11 @@ python3 tools/ecmaint_oracle.py run /tmp/ec-ui-stress-exported
 If you add new scripted setups, keep them aligned with the current project
 boundary:
 
-- prefer calling `ec-cli` commands instead of mutating SQLite directly in
+- prefer calling `nc-cli` commands instead of mutating SQLite directly in
   Python
-- treat `ec-cli` as the stable setup surface
+- treat `nc-cli` as the stable setup surface
 - keep the client/runtime SQLite-native
 - use `db-export` only when you specifically need classic compatibility output
 
-If a setup needs a new reusable state mutation, add a focused `ec-cli` command
+If a setup needs a new reusable state mutation, add a focused `nc-cli` command
 first and keep the Python layer thin.

@@ -13,7 +13,7 @@ What this script owns:
 - claiming players 1..4 for the current open turn
 - scanning and applying a fully validated turn batch
 - reopening and reclaiming the next turn after maintenance
-- printing the live `ec-client` inspect commands and player bundle paths
+- printing the live `nc-client` inspect commands and player bundle paths
 
 What the outer LLM coordinator owns:
 - read only one player's bundle at a time
@@ -36,7 +36,7 @@ Normal loop:
 5. `python3 tools/harness/four_player_human_campaign.py advance`
 6. Coordinate player workers for turn 3.
 7. `python3 tools/harness/four_player_human_campaign.py advance`
-8. Inspect the live game in the TUI using the printed `ec-client` command.
+8. Inspect the live game in the TUI using the printed `nc-client` command.
 
 The script always uses the harness `human` bundle profile. This keeps the player
 surface human-visible and avoids hidden `.llm/spatial.kdl` files for this
@@ -69,9 +69,9 @@ def rust_dir() -> Path:
     return repo_root() / "rust"
 
 
-def run_ec_cli(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_nc_cli(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["cargo", "run", "-q", "-p", "ec-cli", "--", *args],
+        ["cargo", "run", "-q", "-p", "nc-cli", "--", *args],
         cwd=rust_dir(),
         check=check,
         text=True,
@@ -93,12 +93,12 @@ def write_scenario(path: Path, seed: int) -> None:
 
 
 def manifest_path(campaign_dir: Path) -> Path:
-    return campaign_dir / "ec-bot-campaign.kdl"
+    return campaign_dir / "nc-bot-campaign.kdl"
 
 
 def claim_all_players(campaign_dir: Path, players: int) -> None:
     for player in range(1, players + 1):
-        result = run_ec_cli(
+        result = run_nc_cli(
             [
                 "harness",
                 "claim-turn",
@@ -136,7 +136,7 @@ def print_summary(game_id: str, scenario_path: Path, campaign_dir: Path, workspa
         print(f"    turn_file={turn_file}")
     print("\nInspect in the TUI:")
     for player in range(1, 5):
-        print(f"  cd rust && cargo run -q -p ec-client -- --dir {campaign_dir} --player {player}")
+        print(f"  cd rust && cargo run -q -p nc-client -- --dir {campaign_dir} --player {player}")
 
 
 def bootstrap(args: argparse.Namespace) -> None:
@@ -152,9 +152,9 @@ def bootstrap(args: argparse.Namespace) -> None:
         write_scenario(scenario_path, args.seed)
 
     if manifest_path(campaign_dir).exists():
-        result = run_ec_cli(["harness", "open-turn", "--dir", str(campaign_dir)])
+        result = run_nc_cli(["harness", "open-turn", "--dir", str(campaign_dir)])
     else:
-        result = run_ec_cli(
+        result = run_nc_cli(
             [
                 "harness",
                 "init-campaign",
@@ -178,17 +178,17 @@ def advance(args: argparse.Namespace) -> None:
     # It validates the current batch, applies maintenance if the batch is
     # complete, then immediately opens and claims the next turn.
     _, campaign_dir, _ = default_paths(args.game_id)
-    scan = run_ec_cli(["harness", "scan-turn", "--dir", str(campaign_dir)], check=False)
+    scan = run_nc_cli(["harness", "scan-turn", "--dir", str(campaign_dir)], check=False)
     sys.stdout.write(scan.stdout)
     if scan.returncode != 0:
         raise SystemExit(scan.stderr or "scan-turn failed")
     if "blocking_players=" in scan.stdout and "blocking_players=none" not in scan.stdout:
         raise SystemExit("scan-turn reported blocking players; fix rejected or missing turn files first")
 
-    applied = run_ec_cli(["harness", "apply-turn-batch", "--dir", str(campaign_dir)])
+    applied = run_nc_cli(["harness", "apply-turn-batch", "--dir", str(campaign_dir)])
     sys.stdout.write(applied.stdout)
 
-    opened = run_ec_cli(["harness", "open-turn", "--dir", str(campaign_dir)])
+    opened = run_nc_cli(["harness", "open-turn", "--dir", str(campaign_dir)])
     sys.stdout.write(opened.stdout)
     claim_all_players(campaign_dir, 4)
 

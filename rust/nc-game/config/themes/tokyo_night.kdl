@@ -1,0 +1,183 @@
+// Tokyo Night theme for nc-game
+//
+// Background: #1a1b26 (deep navy)
+// Foreground: #c0caf5 (soft lavender-white)
+//
+// All colors use 24-bit hex (#RRGGBB).  nc-game downgrades automatically:
+//   - truecolor terminals: full fidelity
+//   - 256-color terminals: nearest xterm-256 index
+//   - ansi16 terminals:    nearest named 16-color
+
+style "body" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+}
+style "title" {
+    fg "#7aa2f7"
+    bg "#1a1b26"
+    bold #true
+}
+style "shell_title" {
+    fg "#7dcfff"
+    bg "#1a1b26"
+    bold #true
+}
+style "shell_label" {
+    fg "#bb9af7"
+    bg "#1a1b26"
+    bold #true
+}
+style "menu" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+}
+style "menu_hotkey" {
+    fg "#e0af68"
+    bg "#1a1b26"
+    bold #true
+}
+style "prompt" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+}
+style "prompt_angle_delimiter" {
+    fg "#9ece6a"
+    bg "#1a1b26"
+    bold #true
+}
+style "prompt_square_delimiter" {
+    fg "#f7768e"
+    bg "#1a1b26"
+    bold #true
+}
+style "prompt_hotkey" {
+    fg "#e0af68"
+    bg "#1a1b26"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "#7dcfff"
+    bg "#1a1b26"
+    bold #true
+}
+style "bright" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+    bold #true
+}
+style "logo" {
+    fg "#7aa2f7"
+    bg "#1a1b26"
+    bold #true
+}
+style "intro_accent" {
+    fg "#7aa2f7"
+    bg "#1a1b26"
+}
+style "intro_tribute" {
+    fg "#bb9af7"
+    bg "#1a1b26"
+}
+style "stardate_label" {
+    fg "#7dcfff"
+    bg "#1a1b26"
+}
+style "stardate_week" {
+    fg "#7dcfff"
+    bg "#1a1b26"
+    bold #true
+}
+style "stardate_year" {
+    fg "#e0af68"
+    bg "#1a1b26"
+}
+style "error" {
+    fg "#f7768e"
+    bg "#1a1b26"
+    bold #true
+}
+style "notice" {
+    fg "#f7768e"
+    bg "#1a1b26"
+    bold #true
+}
+style "status_label" {
+    fg "#565f89"
+    bg "#1a1b26"
+}
+style "status_value" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+}
+style "table_chrome" {
+    fg "#3b4261"
+    bg "#1a1b26"
+}
+style "table_header" {
+    fg "#7aa2f7"
+    bg "#1a1b26"
+    bold #true
+}
+style "table_body" {
+    fg "#a9b1d6"
+    bg "#1a1b26"
+}
+style "disabled_row" {
+    fg "#565f89"
+    bg "#1a1b26"
+}
+style "selected" {
+    fg "#1a1b26"
+    bg "#7aa2f7"
+}
+style "alert" {
+    fg "#f7768e"
+    bg "#4a272f"
+    bold #true
+}
+style "help_header" {
+    fg "#7aa2f7"
+    bg "#1a1b26"
+    bold #true
+}
+style "help_panel" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+}
+style "map_dot" {
+    fg "#9ece6a"
+    bg "#1a1b26"
+}
+style "map_crosshair" {
+    fg "#f7768e"
+    bg "#1a1b26"
+    bold #true
+}
+style "map_center" {
+    fg "#c0caf5"
+    bg "#1a1b26"
+    bold #true
+}
+style "quote" {
+    fg "#565f89"
+    bg "#1a1b26"
+}
+style "quote_author" {
+    fg "#565f89"
+    bg "#1a1b26"
+}
+style "report_header" {
+    fg "#7dcfff"
+    bg "#1a1b26"
+}
+style "indicator_on" {
+    fg "#9ece6a"
+    bg "#1a1b26"
+    bold #true
+}
+style "indicator_off" {
+    fg "#3b4261"
+    bg "#1a1b26"
+}
+
+star-colors "#7aa2f7" "#c0caf5" "#a9b1d6" "#e0af68" "#ff9e64" "#f7768e"

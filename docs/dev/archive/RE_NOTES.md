@@ -11,8 +11,8 @@
 > | Known Working Runtime / Launch Recipe | Stale | `dosbox-workflow.md` |
 > | Door File Findings | Mixed | `dosbox-workflow.md` |
 > | Reverse Engineering Notes | Stale | Compiler confirmed as Borland Pascal |
-> | Data Files To Decode Next | Stale | All decoded in `ec-data` |
-> | Draft File Layouts | Superseded | Rust record definitions in `ec-data` |
+> | Data Files To Decode Next | Stale | All decoded in `nc-data` |
+> | Draft File Layouts | Superseded | Rust record definitions in `nc-data` |
 > | ECMAINT File-I/O Trace | Superseded | `ec-turn-cycle-spec.md` |
 > | ECMAINT Live Memory Dump Anchors | Reference | Ghidra catalog, still unique |
 > | ECUTIL Surface | Mixed | Unique setup utility notes |
@@ -41,8 +41,8 @@
   - lower taxes help colonies develop current production faster
   - starbases improve growth and build capacity
 - Built a dedicated mixed-production probe surface:
-  - `ec-cli economy-tax-probe-init`
-  - `ec-cli economy-report`
+  - `nc-cli economy-tax-probe-init`
+  - `nc-cli economy-report`
   - `tools/economy_tax_probe.py`
 - The existing `ECMAINT /R` replay harness is still awkward for mutated economy
   experiments:
@@ -51,7 +51,7 @@
     replay path can collapse to a no-op even when the directory still loads
     and passes basic oracle acceptance
 - Adopted a documented canonical Rust rule in
-  `rust/ec-data/src/maint/mod.rs`:
+  `rust/nc-data/src/maint/mod.rs`:
   - apply empire-wide tax to every owned active planet
   - add yearly tax revenue to `stored_goods_raw`
   - grow current production toward potential each year
@@ -59,7 +59,7 @@
   - friendly starbase => growth bonus and higher build capacity
   - civil-disorder fixture baselines are excluded so preserved maint fixtures
     remain stable
-- Added focused regression coverage in `rust/ec-data/tests/production.rs`:
+- Added focused regression coverage in `rust/nc-data/tests/production.rs`:
   - Real48 encode/decode round-trips common production values
   - lower tax produces faster colony growth than high tax
   - starbases accelerate colony growth
@@ -89,7 +89,7 @@
 ## Session 2026-03-22 - Starbase tax-burden follow-up remains unresolved
 
 - Added a dedicated starbase/tax oracle probe path:
-  - `ec-cli economy-starbase-probe-init`
+  - `nc-cli economy-starbase-probe-init`
   - `tools/ecmaint_starbase_economy_audit.py`
   - `docs/dev/starbase-economy-oracle-audit.md`
 - The new sweep does confirm one useful thing cleanly:
@@ -1984,8 +1984,8 @@ Kind-`2` matching milestone:
 Rust Guard Starbase encoder milestone:
 
 - the accepted one-base Guard Starbase scenario is no longer emitted from a
-  raw 35-byte `BASES.DAT` constant in `ec-cli`
-- `ec-data::BaseRecord` now exposes named setters for the currently mapped
+  raw 35-byte `BASES.DAT` constant in `nc-cli`
+- `nc-data::BaseRecord` now exposes named setters for the currently mapped
   integrity-critical base fields:
   - local slot (`0x00`)
   - active flag (`0x02`)
@@ -1998,17 +1998,17 @@ Rust Guard Starbase encoder milestone:
   - tuple C payload (`0x19..0x1D`)
   - trailing coords (`0x20..0x21`)
   - owner empire (`0x22`)
-- `ec-cli scenario <dir> guard-starbase` now builds the accepted base record
+- `nc-cli scenario <dir> guard-starbase` now builds the accepted base record
   through those setters and still reproduces
   `fixtures/ecmaint-starbase-pre/v1.5/BASES.DAT` exactly
-- `ec-cli validate <dir> guard-starbase` now checks the currently-known
+- `nc-cli validate <dir> guard-starbase` now checks the currently-known
   accepted one-base scenario invariants directly:
   - `PLAYER[1].starbase_count_raw == 1`
   - `FLEET[1].order == 0x04`
   - `FLEET[1].aux == [0x01, 0x01]`
   - `BASES.DAT` contains exactly one record matching the structured accepted
     one-base encoding
-- `ec-cli scenario-init [source_dir] <target_dir> guard-starbase` now copies a
+- `nc-cli scenario-init [source_dir] <target_dir> guard-starbase` now copies a
   compliant baseline and applies the accepted one-base scenario in one step,
   producing a runnable directory directly from Rust
 - practical meaning:
@@ -2021,38 +2021,38 @@ Rust Guard Starbase encoder milestone:
 Rust fleet/build scenario CLI milestone:
 
 - the previously low-level exact-fixture rewrites are now exposed as named
-  accepted scenarios in `ec-cli`:
-  - `ec-cli scenario <dir> fleet-order`
-  - `ec-cli scenario <dir> planet-build`
+  accepted scenarios in `nc-cli`:
+  - `nc-cli scenario <dir> fleet-order`
+  - `nc-cli scenario <dir> planet-build`
 - both scenarios also have validation entry points:
-  - `ec-cli validate <dir> fleet-order`
-  - `ec-cli validate <dir> planet-build`
-  - `ec-cli validate <dir> all` now runs the current scenario validators as a
+  - `nc-cli validate <dir> fleet-order`
+  - `nc-cli validate <dir> planet-build`
+  - `nc-cli validate <dir> all` now runs the current scenario validators as a
     directory-classification pass and reports which known accepted scenarios
     match
 - the Rust-side known accepted scenarios are now centralized behind one
   catalog:
-  - `ec-cli scenario <dir> list`
-  - `ec-cli scenario <dir> show <scenario>`
-  - `ec-cli scenario-init-all [source_dir] <target_root>`
+  - `nc-cli scenario <dir> list`
+  - `nc-cli scenario <dir> show <scenario>`
+  - `nc-cli scenario-init-all [source_dir] <target_root>`
 - scenario validation now has two layers:
   - rule-shaped acceptance checks:
-    - `ec-cli validate <dir> <scenario>`
-    - `ec-cli validate <dir> all`
+    - `nc-cli validate <dir> <scenario>`
+    - `nc-cli validate <dir> all`
   - preserved exact-match checks:
-    - `ec-cli validate-preserved <dir> <scenario>`
-    - `ec-cli validate-preserved <dir> all`
+    - `nc-cli validate-preserved <dir> <scenario>`
+    - `nc-cli validate-preserved <dir> all`
 - preserved scenario drift can now be inspected directly:
-  - `ec-cli compare-preserved <dir> <scenario>`
-  - `ec-cli compare-preserved <dir> all`
+  - `nc-cli compare-preserved <dir> <scenario>`
+  - `nc-cli compare-preserved <dir> all`
 - both scenarios can now be materialized into runnable directories from a
   compliant baseline in one command:
-  - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
-  - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
+  - `nc-cli scenario-init [source_dir] <target_dir> fleet-order`
+  - `nc-cli scenario-init [source_dir] <target_dir> planet-build`
 - parser/usability correction:
   - the documented optional-source CLI forms now work as intended
-  - `ec-cli init <target_dir>` defaults to `original/v1.5`
-  - `ec-cli scenario-init <target_dir> <scenario>` defaults to the compliant
+  - `nc-cli init <target_dir>` defaults to `original/v1.5`
+  - `nc-cli scenario-init <target_dir> <scenario>` defaults to the compliant
     `fixtures/ecmaint-post/v1.5` baseline instead of incorrectly treating the
     target directory as the source argument
 - current accepted scenario checks are intentionally narrow and tied to the
@@ -2552,7 +2552,7 @@ Practical implication:
 
 Preserved initialized fleet baseline:
 
-From `original/v1.5/ec-logs-2012/ec.txt`, the first empire's four starting fleets in the
+From `original/v1.5/nc-logs-2012/ec.txt`, the first empire's four starting fleets in the
 post-maintenance `3001 A.D.` state are:
 
 - Fleet `1`: Speed `3`, ETA `1`, Ships `2`, ROE `6`, `Sector(14,14)`,
@@ -2652,7 +2652,7 @@ Useful but still conservatively named:
 
 Practical implication for the Rust port:
 
-- `ec-data` can now expose a small but real typed fleet model for initialized states
+- `nc-data` can now expose a small but real typed fleet model for initialized states
 - the next useful fleet target is to decode current location, destination, ETA, and mission type
 
 Confirmed initialized fleet-table structure:
@@ -2766,9 +2766,9 @@ Footer text from the preserved screenshot:
 
 Practical implication for the Rust port:
 
-- the preserved `ec-cli init` command corresponds directly to `F1`
-- the preserved `ec-cli maintenance-days` command corresponds directly to `F2`
-- the preserved `ec-cli setup-programs` command now mirrors the decoded `F4` screen wording
+- the preserved `nc-cli init` command corresponds directly to `F1`
+- the preserved `nc-cli maintenance-days` command corresponds directly to `F2`
+- the preserved `nc-cli setup-programs` command now mirrors the decoded `F4` screen wording
 - the screenshot gives exact wording for a future faithful text-mode compatibility frontend
 
 Confirmed `ECUTIL` F4 Setup The Programs menu from `captures/v1.5-dosboxx/ecutil_002.png`:
@@ -2784,14 +2784,14 @@ Confirmed `ECUTIL` F4 Setup The Programs menu from `captures/v1.5-dosboxx/ecutil
 
 Current Rust CLI coverage for the decoded `F4` fields:
 
-- `ec-cli setup-programs [dir]`
-- `ec-cli snoop [dir] <on|off>`
-- `ec-cli local-timeout [dir] <on|off>`
-- `ec-cli remote-timeout [dir] <on|off>`
-- `ec-cli max-key-gap [dir] <minutes>`
-- `ec-cli minimum-time [dir] <minutes>`
-- `ec-cli purge-after [dir] <turns>`
-- `ec-cli autopilot-after [dir] <turns>`
+- `nc-cli setup-programs [dir]`
+- `nc-cli snoop [dir] <on|off>`
+- `nc-cli local-timeout [dir] <on|off>`
+- `nc-cli remote-timeout [dir] <on|off>`
+- `nc-cli max-key-gap [dir] <minutes>`
+- `nc-cli minimum-time [dir] <minutes>`
+- `nc-cli purge-after [dir] <turns>`
+- `nc-cli autopilot-after [dir] <turns>`
 
 This means the decoded `F4 Modify Program Options` surface is now fully represented in the std-only Rust CLI, even though the command names are intentionally more Unix-like than the original single-letter menu.
 
@@ -2826,7 +2826,7 @@ Conservative `PLAYER.DAT` ownership findings from the preserved `F3` fixture `fi
 
 Rust preservation impact:
 
-- `ec-data` now exposes conservative player ownership summaries:
+- `nc-data` now exposes conservative player ownership summaries:
   - `owner_mode_raw()`
   - `assigned_player_flag_raw()`
   - `legacy_status_name_summary()`
@@ -2865,12 +2865,12 @@ Confirmed from the preserved `v1.5` screenshots and live diff:
 
 Rust preservation impact:
 
-- `ec-data` now exposes:
+- `nc-data` now exposes:
   - `com_irq_raw()`
   - `set_com_irq_raw()`
   - `com_hardware_flow_control_enabled()`
   - `set_com_hardware_flow_control_enabled()`
-- `ec-cli` now exposes:
+- `nc-cli` now exposes:
   - `port-setup [dir]`
   - `com-irq <dir> <com1|com2|com3|com4> [0..7]`
   - `flow-control <dir> <com1|com2|com3|com4> [on|off]`
@@ -2881,8 +2881,8 @@ The CLI now covers the verified `F5` flow-control toggles directly and exposes t
 
 Current preservation split:
 
-- `ec-data` stays focused on binary formats and decoded fields
-- `ec-cli` stays std-only and scriptable for RE work
+- `nc-data` stays focused on binary formats and decoded fields
+- `nc-cli` stays std-only and scriptable for RE work
 - `ec-tui` is the new interactive terminal frontend
 
 Current `ec-tui` shape:
@@ -2953,7 +2953,7 @@ Interpretation:
 
 Rust preservation impact:
 
-- `ec-data` now has a fixture-backed test that locks in this first maintenance transform
+- `nc-data` now has a fixture-backed test that locks in this first maintenance transform
 - this is enough to prove the phase-1 workflow works, even though the exact semantics of the new `0x38` and `0x4C` planet bytes are not named yet
 
 ## Second ECMAINT Scenario: Single Fleet Order
@@ -3021,14 +3021,14 @@ Interpretation:
 
 Rust preservation impact:
 
-- `ec-data` now has a second fixture-backed `ECMAINT` transform test covering fleet-side order consumption
+- `nc-data` now has a second fixture-backed `ECMAINT` transform test covering fleet-side order consumption
 - the preservation workflow now covers both a planet build queue case and a fleet order resolution case
 
 ## Historical Combat References From Later Text Captures
 
 External reference set:
 
-- `/path/to/private-logs/ec-logs-2022/`
+- `/path/to/private-logs/nc-logs-2022/`
 
 These are not yet copied into the repo snapshot, but they are useful as
 reference evidence for `ECMAINT` combat behavior because they preserve
@@ -3778,8 +3778,8 @@ Reasoning:
 Suggested crate layout:
 
 - `ec-core`: rules, turn processing, economy, combat, maintenance
-- `ec-data`: original file codecs and compatibility structures
-- `ec-cli`: standalone terminal/text interface
+- `nc-data`: original file codecs and compatibility structures
+- `nc-cli`: standalone terminal/text interface
 - `ec-door`: optional BBS door adapter for legacy use
 - `ec-import`: import or convert original EC 1.5 game state
 
@@ -3791,8 +3791,8 @@ Practical note:
 Current scaffold status:
 
 - a Rust workspace now exists under [`rust`](../../../rust)
-- first crate: [`ec-data`](../../../rust/ec-data)
-- first executable tool: [`ec-cli`](../../../rust/ec-cli)
+- first crate: [`nc-data`](../../../rust/nc-data)
+- first executable tool: [`nc-cli`](../../../rust/nc-cli)
 - preserved fixture sets now include:
   - [`original/v1.5`](../../../original/v1.5)
   - [`fixtures/ecutil-init/v1.5`](../../../fixtures/ecutil-init/v1.5)
@@ -3805,12 +3805,12 @@ Current scaffold status:
   - `CONQUEST.DAT`: `2085`
 - unknown regions are intentionally preserved as raw byte arrays
 - current test status: `cargo test` passes in the original archive workspace and now also in the GitHub-tracked preservation repo
-- `ec-cli` now provides a first inspection command against `original/v1.5`
-- `ec-cli init` now reproduces the known `ECUTIL` new-game initialization result by overlaying the preserved initialized fixture set onto a target directory
+- `nc-cli` now provides a first inspection command against `original/v1.5`
+- `nc-cli init` now reproduces the known `ECUTIL` new-game initialization result by overlaying the preserved initialized fixture set onto a target directory
 - the post-maint fixture set captures another confirmed RE result:
   - `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, and `SETUP.DAT` match the initialized baseline after maintenance
   - `CONQUEST.DAT` and `DATABASE.DAT` preserve the global maintenance/output differences
-- `ec-cli` now also provides:
+- `nc-cli` now also provides:
   - `headers` to dump the currently known `SETUP.DAT` option prefix and `CONQUEST.DAT` header words
   - `match` to identify whether a directory matches the preserved shipped, initialized, or post-maint fixture states
   - `compare` with integration coverage for the key fixture-state transitions
@@ -5189,7 +5189,7 @@ Resolved replay-gap cause:
   - `ecmaint-fleet-pre`
   - `ecmaint-build-pre`
   - `ecmaint-starbase-pre`
-- `ec-cli scenario-init-replayable [source_dir] <target_dir> <scenario>` now
+- `nc-cli scenario-init-replayable [source_dir] <target_dir> <scenario>` now
   overlays that shared pre-maint replay context and produces exact preserved
   pre-maint directories for the known scenarios
 - practical implication:
@@ -5315,9 +5315,9 @@ Code change:
 
 Coverage added:
 
-- `ec-data` tests now lock in the joinable baseline semantics and keep the
+- `nc-data` tests now lock in the joinable baseline semantics and keep the
   old initialized baseline available explicitly
-- `ec-cli` `sysop` tests now assert that default `new-game` writes inactive
+- `nc-cli` `sysop` tests now assert that default `new-game` writes inactive
   player slots with `Not Named Yet` homeworlds
 - maint/oracle automation was switched to the explicit builder-compatible setup
   config so engine sweeps still start from an active campaign baseline
@@ -6349,7 +6349,7 @@ static anchors for that timing path.
 
 #### Historical log sweep: strong evidence for a 52-step yearly scale
 
-A quick sweep over `original/v1.5/ec-logs-2012/*.txt` found:
+A quick sweep over `original/v1.5/nc-logs-2012/*.txt` found:
 
 - `735` `Stardate:` lines total
 - minimum observed day = `1`
@@ -8993,7 +8993,7 @@ That compat rule is now patched in Rust:
 - captured-world owned rows still use the accepted `0x41`/`0x42`/... family
 
 Regression coverage was added in
-`rust/ec-cli/tests/maint.rs::maint_rust_named_homeworld_seed_preserves_oracle_compat_word_family`.
+`rust/nc-cli/tests/maint.rs::maint_rust_named_homeworld_seed_preserves_oracle_compat_word_family`.
 
 Direct row diff after the patch:
 
@@ -9614,9 +9614,9 @@ busy classic probe harness, the first ownership assumption turned out to be
 wrong: the current `setup_classic_probe_game.py` intentionally seeds
 `Aurora Prime` as a player-1 world.
 
-Controlled recheck on `/tmp/ec-classic-probe-crash` after:
+Controlled recheck on `/tmp/nc-classic-probe-crash` after:
 
-- `python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe-crash --force --no-launch`
+- `python3 scripts/setup_classic_probe_game.py /tmp/nc-classic-probe-crash --force --no-launch`
 
 Raw ownership confirmation:
 
@@ -9660,7 +9660,7 @@ Probe-harness patch:
 - the script then re-imports with `db-import` before applying its later
   stardock mutations
 
-Regenerated raw check on `/tmp/ec-classic-probe-crash` confirmed:
+Regenerated raw check on `/tmp/nc-classic-probe-crash` confirmed:
 
 - records `16`, `17`, and `19` now carry the stable template bytes
 - later `planet-stardock` writes still land on top of the rewritten records
@@ -9722,7 +9722,7 @@ Static crash-window follow-up from the DOSBox-X live dump:
   - iterates a fixed `1..8` category table
   - formats count + label pairs
   - special-cases category `6` for pluralization before the loop continues
-- the corrected probe at `/tmp/ec-classic-probe-verify` now shows all four
+- the corrected probe at `/tmp/nc-classic-probe-verify` now shows all four
   player-1 owned worlds with:
   - `raw[0x03] = 0x87`
   - no fleets on the same coordinates
@@ -9751,7 +9751,7 @@ Follow-up harness correction after field-offset inspection:
 - `scripts/setup_classic_probe_game.py` now zeros `0x1d..0x23` for those extra
   rewritten worlds instead of copying that suffix, specifically to stop the
   owned-world `Space Forces:` formatter from seeing a bogus live count there
-- fresh regen on `/tmp/ec-classic-probe-word22` confirmed:
+- fresh regen on `/tmp/nc-classic-probe-word22` confirmed:
   - records `16`, `17`, and `19` now have `word [0x22..0x23] = 0`
   - the same worlds still keep `raw[0x03] = 0x87`
   - classic login state remains correct (`inspect-classic-login` still shows
@@ -9761,8 +9761,8 @@ Practical interpretation:
 
 - this is the strongest current candidate for the persistent `P -> D` crash on
   the busy classic probe
-- the next manual oracle check should use `/tmp/ec-classic-probe-word22`
-  instead of the earlier `/tmp/ec-classic-probe-verify`
+- the next manual oracle check should use `/tmp/nc-classic-probe-word22`
+  instead of the earlier `/tmp/nc-classic-probe-verify`
 
 Follow-up harness split for Aurora Prime docked-ship bisection:
 
@@ -9772,11 +9772,11 @@ Follow-up harness split for Aurora Prime docked-ship bisection:
   - keep the same joined-player / owned-world / fleet baseline
   - vary only Aurora Prime's docked-ship payload
 - verified outputs:
-  - `/tmp/ec-classic-probe-aurora-empty`
+  - `/tmp/nc-classic-probe-aurora-empty`
     - `Aurora Prime` `raw[0x38..0x4d]` all zeroes
-  - `/tmp/ec-classic-probe-aurora-single`
+  - `/tmp/nc-classic-probe-aurora-single`
     - `Aurora Prime` slot `0` only: one destroyer
-  - `/tmp/ec-classic-probe-word22`
+  - `/tmp/nc-classic-probe-word22`
     - current busy reference: scout + two destroyers
 - all three variants still pass `inspect-classic-login` with slot 1 as
   `returning-player`
@@ -9784,9 +9784,9 @@ Follow-up harness split for Aurora Prime docked-ship bisection:
 Practical next step:
 
 - manual oracle check should now compare:
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-aurora-empty 1 SYSOP`
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-aurora-single 1 SYSOP`
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-word22 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-aurora-empty 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-aurora-single 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-word22 1 SYSOP`
 - if only the busy or single-slot variants crash, the remaining bug is in the
   owned-world stardock encoding itself rather than general ownership/report
   shape
@@ -9800,7 +9800,7 @@ Follow-up host-transfer probe for the same dock payload:
   - place the same variable owned-world dock payload on `Foundation` instead
     of `Aurora Prime`
 - verified new output:
-  - `/tmp/ec-classic-probe-foundation-busy`
+  - `/tmp/nc-classic-probe-foundation-busy`
     - `Foundation` now carries the old busy payload
       (`raw[0x38..0x4d] = 01 00 02 00 ... 04 01`)
     - `Aurora Prime` dock bytes are all zeroes
@@ -9818,10 +9818,10 @@ Practical interpretation:
 
 Manual oracle outcome from the four-way matrix:
 
-- `/tmp/ec-classic-probe-aurora-empty`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-aurora-single`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-word22`: `P -> D` **does** crash
-- `/tmp/ec-classic-probe-foundation-busy`: `P -> D` **does** crash on
+- `/tmp/nc-classic-probe-aurora-empty`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-aurora-single`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-word22`: `P -> D` **does** crash
+- `/tmp/nc-classic-probe-foundation-busy`: `P -> D` **does** crash on
   `Foundation`
 
 Interpretation:
@@ -9841,11 +9841,11 @@ Follow-up probe split for the busy payload:
   - `two-dd-slots`
   - `mixed-light`
 - verified outputs:
-  - `/tmp/ec-classic-probe-single-scout`
+  - `/tmp/nc-classic-probe-single-scout`
     - `Aurora Prime raw[0x38..0x4d] = 01 00 00 00 ... 04 00`
-  - `/tmp/ec-classic-probe-two-dd-slots`
+  - `/tmp/nc-classic-probe-two-dd-slots`
     - `Aurora Prime raw[0x38..0x4d] = 01 00 01 00 ... 01 01`
-  - `/tmp/ec-classic-probe-mixed-light`
+  - `/tmp/nc-classic-probe-mixed-light`
     - `Aurora Prime raw[0x38..0x4d] = 01 00 01 00 ... 04 01`
 - all three still pass `inspect-classic-login`, and all still keep
   `raw[0x03] = 0x87` plus `word [0x22..0x23] = 0`
@@ -9853,9 +9853,9 @@ Follow-up probe split for the busy payload:
 Practical next step:
 
 - manual oracle check should now compare:
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-scout 1 SYSOP`
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-two-dd-slots 1 SYSOP`
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-mixed-light 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-single-scout 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-two-dd-slots 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-mixed-light 1 SYSOP`
 - interpretation:
   - if `single-scout` crashes, scout kind `4` alone is enough
   - if `two-dd-slots` crashes, multiple occupied slots alone are enough
@@ -9866,9 +9866,9 @@ Practical next step:
 
 Manual oracle outcome from the second split:
 
-- `/tmp/ec-classic-probe-single-scout`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-two-dd-slots`: `P -> D` **does** crash
-- `/tmp/ec-classic-probe-mixed-light`: `P -> D` **does** crash
+- `/tmp/nc-classic-probe-single-scout`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-two-dd-slots`: `P -> D` **does** crash
+- `/tmp/nc-classic-probe-mixed-light`: `P -> D` **does** crash
 
 Interpretation:
 
@@ -9886,9 +9886,9 @@ Follow-up probe split for slot-index vs multi-slot occupancy:
   - `single-dd-count2`
   - `single-dd-slot1`
 - verified outputs:
-  - `/tmp/ec-classic-probe-single-dd-count2`
+  - `/tmp/nc-classic-probe-single-dd-count2`
     - `Aurora Prime raw[0x38..0x4d] = 02 00 00 00 ... 01 00`
-  - `/tmp/ec-classic-probe-single-dd-slot1`
+  - `/tmp/nc-classic-probe-single-dd-slot1`
     - `Aurora Prime raw[0x38..0x4d] = 00 00 01 00 ... 00 01`
 - both still pass `inspect-classic-login`, and both still keep
   `raw[0x03] = 0x87` plus `word [0x22..0x23] = 0`
@@ -9896,8 +9896,8 @@ Follow-up probe split for slot-index vs multi-slot occupancy:
 Practical next step:
 
 - manual oracle check should now compare:
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-dd-count2 1 SYSOP`
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-dd-slot1 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-single-dd-count2 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-single-dd-slot1 1 SYSOP`
 - interpretation:
   - if `single-dd-slot1` crashes, slot `1` occupancy alone is enough
   - if `single-dd-slot1` is safe but `single-dd-count2` crashes, the trigger is
@@ -9907,8 +9907,8 @@ Practical next step:
 
 Manual oracle outcome from the slot-index/count split:
 
-- `/tmp/ec-classic-probe-single-dd-count2`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-single-dd-slot1`: `P -> D` **does** crash
+- `/tmp/nc-classic-probe-single-dd-count2`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-single-dd-slot1`: `P -> D` **does** crash
 
 Interpretation:
 
@@ -9924,9 +9924,9 @@ Follow-up probe split for slot-position semantics:
   - `single-scout-slot1`
   - `single-dd-slot2`
 - verified outputs:
-  - `/tmp/ec-classic-probe-single-scout-slot1`
+  - `/tmp/nc-classic-probe-single-scout-slot1`
     - `Aurora Prime raw[0x38..0x4d] = 00 00 01 00 ... 00 04`
-  - `/tmp/ec-classic-probe-single-dd-slot2`
+  - `/tmp/nc-classic-probe-single-dd-slot2`
     - `Aurora Prime raw[0x38..0x4d] = 00 00 00 00 01 00 ... 00 00`
 - both still pass `inspect-classic-login`, and both still keep
   `raw[0x03] = 0x87` plus `word [0x22..0x23] = 0`
@@ -9934,8 +9934,8 @@ Follow-up probe split for slot-position semantics:
 Practical next step:
 
 - manual oracle check should now compare:
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-scout-slot1 1 SYSOP`
-  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-dd-slot2 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-single-scout-slot1 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/nc-classic-probe-single-dd-slot2 1 SYSOP`
 - interpretation:
   - if `single-scout-slot1` crashes, slot `1` is special regardless of kind
   - if `single-dd-slot2` also crashes, the bug is likely any occupied slot
@@ -9993,7 +9993,7 @@ Rust follow-up:
 
 Fresh regenerated busy probe after the fix:
 
-- `/tmp/ec-classic-probe-word22` record `16` (`Aurora Prime`) now exports:
+- `/tmp/nc-classic-probe-word22` record `16` (`Aurora Prime`) now exports:
   - counts `[1, 2, 0, 0, 0, 0]`
   - kinds `[4, 1, 0, 0, 0, 0]`
   - raw tail `010200000000000000000000000000000000000004010000000000000000`
@@ -10008,10 +10008,10 @@ Next step:
 
 Manual oracle recheck after the sparse-layout fix:
 
-- `/tmp/ec-classic-probe-word22`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-single-dd-slot1`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-single-scout-slot1`: `P -> D` does **not** crash
-- `/tmp/ec-classic-probe-single-dd-slot2`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-word22`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-single-dd-slot1`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-single-scout-slot1`: `P -> D` does **not** crash
+- `/tmp/nc-classic-probe-single-dd-slot2`: `P -> D` does **not** crash
 
 Final conclusion for this thread:
 
@@ -10389,7 +10389,7 @@ DOSBox-X `memory file` fallback, but that path currently is not clean enough to
 use as a comparison dump here:
 
 - replaying the success directory under both packed `original/v1.5/ECMAINT.EXE`
-  and unlocked `EC_UNLOCKED/ECMAINT.EXE` with `memory file` produced sustained
+  and unlocked `NC_UNLOCKED/ECMAINT.EXE` with `memory file` produced sustained
   `Illegal Unhandled Interrupt Called 6` spam in DOSBox-X
 - `RESULTS.DAT` stayed empty and the resulting guest RAM image did not expose
   the expected scout strings, so it is not yet a trustworthy success-side PSP

@@ -1,0 +1,179 @@
+// Gruvbox Dark (medium contrast) for nc-game
+// morhetz/gruvbox
+//
+// Background: #282828  Foreground: #ebdbb2
+// The enduring retro-groove classic — warm, high-contrast pastels.
+
+style "body" {
+    fg "#ebdbb2"
+    bg "#282828"
+}
+style "title" {
+    fg "#83a598"
+    bg "#282828"
+    bold #true
+}
+style "shell_title" {
+    fg "#83a598"
+    bg "#282828"
+    bold #true
+}
+style "shell_label" {
+    fg "#d3869b"
+    bg "#282828"
+    bold #true
+}
+style "menu" {
+    fg "#ebdbb2"
+    bg "#282828"
+}
+style "menu_hotkey" {
+    fg "#fabd2f"
+    bg "#282828"
+    bold #true
+}
+style "prompt" {
+    fg "#ebdbb2"
+    bg "#282828"
+}
+style "prompt_angle_delimiter" {
+    fg "#b8bb26"
+    bg "#282828"
+    bold #true
+}
+style "prompt_square_delimiter" {
+    fg "#fb4934"
+    bg "#282828"
+    bold #true
+}
+style "prompt_hotkey" {
+    fg "#fabd2f"
+    bg "#282828"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "#8ec07c"
+    bg "#282828"
+    bold #true
+}
+style "bright" {
+    fg "#fbf1c7"
+    bg "#282828"
+    bold #true
+}
+style "logo" {
+    fg "#83a598"
+    bg "#282828"
+    bold #true
+}
+style "intro_accent" {
+    fg "#83a598"
+    bg "#282828"
+}
+style "intro_tribute" {
+    fg "#d3869b"
+    bg "#282828"
+}
+style "stardate_label" {
+    fg "#8ec07c"
+    bg "#282828"
+}
+style "stardate_week" {
+    fg "#8ec07c"
+    bg "#282828"
+    bold #true
+}
+style "stardate_year" {
+    fg "#fabd2f"
+    bg "#282828"
+}
+style "error" {
+    fg "#fb4934"
+    bg "#282828"
+    bold #true
+}
+style "notice" {
+    fg "#fb4934"
+    bg "#282828"
+    bold #true
+}
+style "status_label" {
+    fg "#928374"
+    bg "#282828"
+}
+style "status_value" {
+    fg "#ebdbb2"
+    bg "#282828"
+}
+style "table_chrome" {
+    fg "#504945"
+    bg "#282828"
+}
+style "table_header" {
+    fg "#83a598"
+    bg "#282828"
+    bold #true
+}
+style "table_body" {
+    fg "#d5c4a1"
+    bg "#282828"
+}
+style "disabled_row" {
+    fg "#665c54"
+    bg "#282828"
+}
+style "selected" {
+    fg "#282828"
+    bg "#83a598"
+}
+style "alert" {
+    fg "#ebdbb2"
+    bg "#9d0006"
+    bold #true
+}
+style "help_header" {
+    fg "#83a598"
+    bg "#282828"
+    bold #true
+}
+style "help_panel" {
+    fg "#ebdbb2"
+    bg "#282828"
+}
+style "map_dot" {
+    fg "#b8bb26"
+    bg "#282828"
+}
+style "map_crosshair" {
+    fg "#fb4934"
+    bg "#282828"
+    bold #true
+}
+style "map_center" {
+    fg "#fbf1c7"
+    bg "#282828"
+    bold #true
+}
+style "quote" {
+    fg "#7c6f64"
+    bg "#282828"
+}
+style "quote_author" {
+    fg "#7c6f64"
+    bg "#282828"
+}
+style "report_header" {
+    fg "#8ec07c"
+    bg "#282828"
+}
+style "indicator_on" {
+    fg "#b8bb26"
+    bg "#282828"
+    bold #true
+}
+style "indicator_off" {
+    fg "#504945"
+    bg "#282828"
+}
+
+star-colors "#83a598" "#fbf1c7" "#d5c4a1" "#fabd2f" "#fe8019" "#fb4934"

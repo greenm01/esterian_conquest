@@ -12,13 +12,13 @@ Our immediate goal is to build the definitive, modern-host-friendly drop-in repl
 
 ## Phase 2: Decentralized Nostr Multiplayer
 
-The core engine is complete. The shipped `ec-connect` + Nostr system delivers hosted multiplayer today. Players authenticate with `secp256k1` keypairs, and sysops run `ec-sysop nostr serve`. This is the production path.
+The core engine is complete. The shipped `nc-connect` + Nostr system delivers hosted multiplayer today. Players authenticate with `secp256k1` keypairs, and sysops run `nc-sysop nostr serve`. This is the production path.
 
 The next step is to push further along the same axis — replacing the SSH transport with relay-mediated turn submission and game state sync:
 
 - **Nostr as the Full Transport Layer:** The asynchronous, daily-turn nature of EC maps perfectly to the Nostr protocol. Instead of bridging a remote PTY over SSH, players submit encrypted turn orders directly to relays, and `ec-maint` publishes per-player results back as encrypted events, preserving the "fog of war."
 - **Headless Server:** The `ec-maint` engine runs on a schedule, collects daily orders from the relay, processes maintenance, and broadcasts new game state to each player's key.
-- **Local TUI Client:** `ec-connect` evolves from a PTY bridge into a local `Ratatui` client that renders game state natively — full-screen, modern ANSI/UTF-8, running on the player's machine. The wallet, invite code system, and player roster carry forward directly from the current implementation.
+- **Local TUI Client:** `nc-connect` evolves from a PTY bridge into a local `Ratatui` client that renders game state natively — full-screen, modern ANSI/UTF-8, running on the player's machine. The wallet, invite code system, and player roster carry forward directly from the current implementation.
 
 ## Beyond Classic: EC4X
 

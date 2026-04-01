@@ -19,7 +19,7 @@ from tools.unlzexe.rebuild_unlocked import rebuild_unlocked_dir
 
 FIXTURE_GAME_DIR = REPO_ROOT / "fixtures" / "ecutil-init" / "v1.5"
 ORIGINAL_DIR = REPO_ROOT / "original" / "v1.5"
-UNLOCKED_DIR = REPO_ROOT / "EC_UNLOCKED"
+UNLOCKED_DIR = REPO_ROOT / "NC_UNLOCKED"
 RELEASES_DIR = REPO_ROOT / "releases"
 ZIP_TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 DOC_NAMES = (
@@ -92,7 +92,7 @@ PACKAGE_SPECS = (
         notes_title="Unlocked Plain-MZ Bundle",
         notes_summary=(
             "This package swaps in the curated runnable plain-MZ executables "
-            "from EC_UNLOCKED/ while keeping the same filenames and game layout."
+            "from NC_UNLOCKED/ while keeping the same filenames and game layout."
         ),
         emulator_notes=(
             "Use this bundle when you want the stub-free binaries in the "
@@ -101,7 +101,7 @@ PACKAGE_SPECS = (
             "with corrected MZ size fields so DOS loads the full image. "
             "DOSBox-X is currently the only verified local runner."
         ),
-        bundle_summary="Curated runnable plain-MZ executables from `EC_UNLOCKED/`",
+        bundle_summary="Curated runnable plain-MZ executables from `NC_UNLOCKED/`",
         dosbox_status="Verified",
         dosbox_notes=(
             "8s smoke pass from `/tmp`; current `ECGAME.EXE` is rebuilt from "
@@ -284,7 +284,7 @@ def releases_readme() -> str:
         "```bash\n"
         "python3 scripts/build_release_packages.py --verify\n"
         "```\n\n"
-        "The unlocked package build refreshes `EC_UNLOCKED/` first via:\n\n"
+        "The unlocked package build refreshes `NC_UNLOCKED/` first via:\n\n"
         "```bash\n"
         "python3 tools/unlzexe/rebuild_unlocked.py --verify\n"
         "```\n\n"

@@ -9,8 +9,8 @@ Status note:
 
 Use the native Rust stack:
 
-- `ec-sysop` to create and maintain the campaign
-- `ec-game` as the player door
+- `nc-sysop` to create and maintain the campaign
+- `nc-game` as the player door
 - `abracadabra` in `stdio` mode for the ENiGMA launcher
 
 Do not use the legacy DOS wrapper unless you specifically want to host the
@@ -25,18 +25,18 @@ From the repo root:
 
 ```bash
 cd rust
-cargo build -q -p ec-game -p ec-sysop
+cargo build -q -p nc-game -p nc-sysop
 ```
 
 For a lower-latency door, prefer release builds:
 
 ```bash
 cd rust
-cargo build -q --release -p ec-game -p ec-sysop
+cargo build -q --release -p nc-game -p nc-sysop
 ```
 
 The helper script [`tools/bbs/run_ec_rust.sh`](../../tools/bbs/run_ec_rust.sh)
-will use `target/release/ec-game` first, then `target/debug/ec-game`, then
+will use `target/release/nc-game` first, then `target/debug/nc-game`, then
 fall back to `cargo run`.
 
 ## 2. Create a campaign
@@ -45,14 +45,14 @@ Example:
 
 ```bash
 cd rust
-cargo run -q -p ec-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
+cargo run -q -p nc-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
 ```
 
 Run yearly maintenance from cron, `systemd`, or a BBS event hook:
 
 ```bash
 cd rust
-cargo run -q -p ec-sysop -- maint /path/to/ec-campaign 1
+cargo run -q -p nc-sysop -- maint /path/to/ec-campaign 1
 ```
 
 ## 3. Reserve caller aliases
@@ -62,11 +62,11 @@ can resolve the seat from the dropfile:
 
 ```bash
 cd rust
-cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias niltempus
-cargo run -q -p ec-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
+cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias niltempus
+cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
-If a caller alias is not reserved, `ec-game` still requires `--player`, which
+If a caller alias is not reserved, `nc-game` still requires `--player`, which
 is awkward for a normal BBS door flow.
 
 ## 4. Add the ENiGMA door entry
@@ -101,7 +101,7 @@ Why `stdio`:
 
 - ENiGMA `socket` mode is for doors or wrappers that actively connect back to
   `{srvPort}`
-- native `ec-game` reads and writes directly on stdin/stdout
+- native `nc-game` reads and writes directly on stdin/stdout
 - `DOOR32` is still useful for caller alias and timeout metadata
 
 Door-control note:

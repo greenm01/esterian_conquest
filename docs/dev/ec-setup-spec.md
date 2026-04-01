@@ -133,10 +133,10 @@ Game setup is a sysop/admin responsibility, not a normal player action.
 
 For the Rust port, that means:
 
-- setup/map-generation rule execution should live in `ec-engine`
+- setup/map-generation rule execution should live in `nc-engine`
 - shared setup config parsing and baseline state-construction helpers may live
-  in `ec-data`
-- admin-facing setup commands may live in `ec-cli` or a future sysop UI
+  in `nc-data`
+- admin-facing setup commands may live in `nc-cli` or a future sysop UI
 - the player client should not be the primary place where a new game is
   initialized or rewritten
 
@@ -192,8 +192,8 @@ The setup roadmap is now split differently:
 The Rust sysop path now has a seeded generator for the documented player
 tiers:
 
-- public sysop path: `ec-sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
-- internal dev preset path: `ec-cli sysop new-game <target_dir> --config ec-cli/config/setup.example.kdl`
+- public sysop path: `nc-sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
+- internal dev preset path: `nc-cli sysop new-game <target_dir> --config nc-cli/config/setup.example.kdl`
 
 Current behavior:
 

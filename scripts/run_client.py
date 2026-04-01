@@ -24,7 +24,7 @@ def build_workspace_binary(package: str, release: bool) -> Path:
 
 
 def refresh_campaign_snapshot(game_dir: Path, release: bool) -> None:
-    cli_binary = build_workspace_binary("ec-cli", release)
+    cli_binary = build_workspace_binary("nc-cli", release)
     result = subprocess.run(
         [str(cli_binary), "db-import", str(game_dir)],
         cwd=RUST_DIR,
@@ -46,9 +46,9 @@ def refresh_campaign_snapshot(game_dir: Path, release: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Launch the Rust ec-game client for a chosen campaign directory and player seat."
+        description="Launch the Rust nc-game client for a chosen campaign directory and player seat."
     )
-    parser.add_argument("game_dir", help="Campaign directory that contains ecgame.db.")
+    parser.add_argument("game_dir", help="Campaign directory that contains ncgame.db.")
     parser.add_argument(
         "--player",
         type=int,
@@ -64,7 +64,7 @@ def main() -> None:
         "--refresh-from-dat",
         action="store_true",
         help=(
-            "Re-import classic .DAT files into ecgame.db before launch. "
+            "Re-import classic .DAT files into ncgame.db before launch. "
             "Use this only when you intentionally want the runtime DB to be refreshed "
             "from classic files."
         ),
@@ -73,20 +73,20 @@ def main() -> None:
         "--log-file",
         default=None,
         metavar="PATH",
-        help="Write ec-game logs to this file.",
+        help="Write nc-game logs to this file.",
     )
     parser.add_argument(
         "--log-level",
         default=None,
         metavar="LEVEL",
-        help="Log level to pass to ec-game: error, warn, info, debug, or trace.",
+        help="Log level to pass to nc-game: error, warn, info, debug, or trace.",
     )
     args = parser.parse_args()
 
     game_dir = Path(args.game_dir).resolve()
     if args.refresh_from_dat:
         refresh_campaign_snapshot(game_dir, args.release)
-    client_binary = build_workspace_binary("ec-game", args.release)
+    client_binary = build_workspace_binary("nc-game", args.release)
     cmd = [
         str(client_binary),
         "--dir",

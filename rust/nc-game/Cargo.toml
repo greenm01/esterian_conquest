@@ -1,0 +1,24 @@
+[package]
+name = "nc-game"
+version = "1.0.0-beta.1"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[[bin]]
+name = "nc-game"
+path = "src/main.rs"
+
+[dependencies]
+crossterm = "0.28"
+nc-data = { path = "../nc-data" }
+nc-engine = { path = "../nc-engine" }
+nc-ui = { path = "../nc-ui" }
+nc-log = { path = "../nc-log" }
+kdl = "6"
+tracing = "0.1"
+
+[build-dependencies]
+winresource = "0.1"
+
+[dev-dependencies]
+nc-compat = { path = "../nc-compat" }

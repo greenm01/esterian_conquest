@@ -1,6 +1,6 @@
 # Release Signing
 
-Public GitHub Releases currently publish the public `ec-connect` player
+Public GitHub Releases currently publish the public `nc-connect` player
 archives during the beta, together with a signed `SHA256SUMS.txt` manifest.
 
 This page documents the signing key and verification flow for those public Rust

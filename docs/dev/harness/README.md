@@ -1,6 +1,6 @@
 # Harness
 
-`ec-cli harness` now supports three related workflows:
+`nc-cli harness` now supports three related workflows:
 
 - campaign play orchestration for multi-bot or mixed human/LLM games
 - runtime scenario setup for TUI playtesting and repros
@@ -30,24 +30,24 @@ Then inspect any house directly:
 
 ```bash
 cd rust
-cargo run -q -p ec-game -- --dir .tmp/campaigns/human-tui-four-player/game --player 1
+cargo run -q -p nc-game -- --dir .tmp/campaigns/human-tui-four-player/game --player 1
 ```
 
 ## Commands
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --bundle-profile llm
-cargo run -q -p ec-cli -- harness open-turn --dir /tmp/ec-bot-campaign
-cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
-cargo run -q -p ec-cli -- harness scan-turn --dir /tmp/ec-bot-campaign
-cargo run -q -p ec-cli -- harness apply-turn-batch --dir /tmp/ec-bot-campaign
-cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
-cargo run -q -p ec-cli -- harness check-scenario --file /tmp/scenario.kdl
-cargo run -q -p ec-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /tmp/ec-scenario
-cargo run -q -p ec-cli -- harness check-combat --file /tmp/combat-scenario.kdl
-cargo run -q -p ec-cli -- harness run-combat --file /tmp/combat-scenario.kdl
-cargo run -q -p ec-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
+cargo run -q -p nc-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --bundle-profile llm
+cargo run -q -p nc-cli -- harness open-turn --dir /tmp/ec-bot-campaign
+cargo run -q -p nc-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
+cargo run -q -p nc-cli -- harness scan-turn --dir /tmp/ec-bot-campaign
+cargo run -q -p nc-cli -- harness apply-turn-batch --dir /tmp/ec-bot-campaign
+cargo run -q -p nc-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
+cargo run -q -p nc-cli -- harness check-scenario --file /tmp/scenario.kdl
+cargo run -q -p nc-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /tmp/ec-scenario
+cargo run -q -p nc-cli -- harness check-combat --file /tmp/combat-scenario.kdl
+cargo run -q -p nc-cli -- harness run-combat --file /tmp/combat-scenario.kdl
+cargo run -q -p nc-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
 ```
 
 ## Campaign Play
@@ -57,7 +57,7 @@ or humans can keep playing turn by turn.
 
 In practice this usually means:
 
-- `ec-cli harness` acts as the authoritative in-repo conductor
+- `nc-cli harness` acts as the authoritative in-repo conductor
 - an outer operator or LLM coordinator claims player turns and spawns one player worker per bundle
 - each worker writes only its own `turn-<nnnn>.kdl`
 
@@ -105,7 +105,7 @@ Fog-of-war boundary:
 - bundle `README.md` files are refreshed with current turn status and any
   rejection error, so rerun workers see the latest validation feedback in-place
 - they currently expose review flags only, not raw global `RESULTS.DAT` or `MESSAGES.DAT` text
-- bots should treat the bundle as the safe source of truth and not inspect `ecgame.db`
+- bots should treat the bundle as the safe source of truth and not inspect `ncgame.db`
 
 For the full reproducible operator flow, including "play to turn 5 then open the
 TUI", and for the sub-agent coordination pattern layered on top of it, see

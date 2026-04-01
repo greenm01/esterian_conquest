@@ -42,9 +42,9 @@ The Rust workspace should follow pragmatic data-oriented design:
 
 ## Workspace Ownership
 
-### `ec-data`
+### `nc-data`
 
-`ec-data` is the shared runtime/store/model crate.
+`nc-data` is the shared runtime/store/model crate.
 
 It is responsible for:
 
@@ -68,9 +68,9 @@ Operationally:
   as narrowly-scoped explicit runtime fields rather than regressing to whole
   record blobs or byte-offset tables
 
-### `ec-engine`
+### `nc-engine`
 
-`ec-engine` is the public Rust engine/rules boundary.
+`nc-engine` is the public Rust engine/rules boundary.
 
 It is responsible for:
 
@@ -80,12 +80,12 @@ It is responsible for:
 - the stable public API that CLI/client/harness code should use for gameplay
   logic
 
-Engine callers should depend on `ec-engine` rather than reaching directly into
-`ec-data` for rules.
+Engine callers should depend on `nc-engine` rather than reaching directly into
+`nc-data` for rules.
 
-### `ec-classic`
+### `nc-classic`
 
-`ec-classic` is the low-level classic-file support crate.
+`nc-classic` is the low-level classic-file support crate.
 
 It is responsible for:
 
@@ -100,9 +100,9 @@ It should stay small and dumb:
 - no runtime-store policy
 - no gameplay rules
 
-### `ec-compat`
+### `nc-compat`
 
-`ec-compat` owns the explicit classic compatibility boundary.
+`nc-compat` owns the explicit classic compatibility boundary.
 
 It is responsible for:
 
@@ -115,9 +115,9 @@ It is responsible for:
 This is the only layer that should need to think in terms of classic
 directories as a workflow boundary.
 
-### `ec-sysop`
+### `nc-sysop`
 
-`ec-sysop` is the public sysop/admin surface.
+`nc-sysop` is the public sysop/admin surface.
 
 It is responsible for:
 
@@ -132,12 +132,12 @@ It should stay thin:
 - command modules orchestrate workflows but do not own rules
 
 Game rules should not be reimplemented in command modules. If a command needs a
-shared rule, that rule belongs in `ec-engine` (backed by shared runtime/store
-types from `ec-data`).
+shared rule, that rule belongs in `nc-engine` (backed by shared runtime/store
+types from `nc-data`).
 
-### `ec-cli`
+### `nc-cli`
 
-`ec-cli` is the internal developer/oracle/inspection surface.
+`nc-cli` is the internal developer/oracle/inspection surface.
 
 It is responsible for:
 
@@ -156,13 +156,13 @@ It should stay thin:
 - `workspace.rs` owns shared directory/bootstrap helpers
 
 Game rules should not be reimplemented in command modules. If a command needs a
-shared rule, that rule belongs in `ec-engine` (backed by shared runtime/store
-types from `ec-data`).
+shared rule, that rule belongs in `nc-engine` (backed by shared runtime/store
+types from `nc-data`).
 
-### `ec-game`
+### `nc-game`
 
-`ec-game` is the player-facing application layer and currently ships as the
-`ec-game` binary.
+`nc-game` is the player-facing application layer and currently ships as the
+`nc-game` binary.
 
 It is responsible for:
 
@@ -171,11 +171,11 @@ It is responsible for:
 - terminal/layout/theme concerns
 - player-report presentation
 
-It should not duplicate game rules. The client consumes `ec-data` runtime/store
-types and `ec-engine` rule surfaces instead of re-deriving combat, movement,
+It should not duplicate game rules. The client consumes `nc-data` runtime/store
+types and `nc-engine` rule surfaces instead of re-deriving combat, movement,
 build, or maintenance semantics locally.
 It also should not own classic `.DAT` projection; if a workflow needs classic
-files, that belongs in `ec-cli` export/materialization code.
+files, that belongs in `nc-cli` export/materialization code.
 
 Keep the client structure similarly explicit:
 
@@ -199,22 +199,22 @@ The current workspace shape is:
 
 ```text
 rust/
-├── ec-classic
+├── nc-classic
 │   └── src/          # low-level classic record/codecs
-├── ec-data
+├── nc-data
 │   ├── src/records/   # explicit binary/runtime record layouts
 │   ├── src/storage/   # SQLite campaign store + snapshot bridge modules
 │   └── shared runtime/support modules
-├── ec-engine
+├── nc-engine
 │   └── src/          # public engine/rules surface
-├── ec-compat
+├── nc-compat
 │   └── src/          # classic import/export and compat projections
-├── ec-sysop
+├── nc-sysop
 │   └── src/          # public sysop/admin/maintenance workflows
-├── ec-cli
+├── nc-cli
 │   ├── src/commands/  # developer/oracle/runtime/compat workflows
 │   └── src/support/   # shared CLI helpers
-└── ec-game
+└── nc-game
     ├── src/domains/   # feature/domain slices + domain controllers
     ├── src/app/       # thin app shell/state/update/action seams
     ├── src/screen/    # screen/layout primitives
@@ -231,7 +231,7 @@ but the ownership boundaries above should remain stable.
 +--------------------------------------------------------------+
 |                         Frontends                            |
 |--------------------------------------------------------------|
-|  ec-game      ec-sysop         ec-cli         ec-harness   |
+|  nc-game      nc-sysop         nc-cli         nc-harness   |
 |  player TUI   sysop/admin    dev/oracle/compat  scenarios/tests |
 +--------------------------------------------------------------+
                 |          |                |
@@ -239,7 +239,7 @@ but the ownership boundaries above should remain stable.
                 | runtime  | runtime        |
                 v          v                v
 +--------------------------------+   +-------------------------+
-|           ec-engine            |   |        ec-compat        |
+|           nc-engine            |   |        nc-compat        |
 |--------------------------------|   |-------------------------|
 | gameplay rules                 |   | classic DAT workflows   |
 | maintenance                    |   | import/export bridge    |
@@ -248,7 +248,7 @@ but the ownership boundaries above should remain stable.
                  |                              |
                  v                              v
 +--------------------------------+   +-------------------------+
-|            ec-data             |   |       ec-classic        |
+|            nc-data             |   |       nc-classic        |
 |--------------------------------|   |-------------------------|
 | semantic runtime store         |   | raw classic records     |
 | shared model                   |   | byte codecs             |
@@ -257,7 +257,7 @@ but the ownership boundaries above should remain stable.
 +--------------------------------+               |
                  |                               v
                  v                    classic directories / DOS oracles
-         SQLite / ecgame.db          DATABASE.DAT / RESULTS.DAT / MESSAGES.DAT
+         SQLite / ncgame.db          DATABASE.DAT / RESULTS.DAT / MESSAGES.DAT
          authoritative state         ECGAME / ECMAINT / DOSBox-X
 ```
 
@@ -270,28 +270,28 @@ Even simpler:
 
 `NORMAL PLAY / RUNTIME`
 
-`frontend -> ec-engine -> ec-data -> SQLite`
+`frontend -> nc-engine -> nc-data -> SQLite`
 
 `CLASSIC / ORACLE`
 
-`frontend -> ec-compat -> ec-classic -> .DAT files / DOS binaries`
+`frontend -> nc-compat -> nc-classic -> .DAT files / DOS binaries`
 
 Read this sketch with the ownership rules above:
 
-- `ec-game` does not parse classic `.DAT` files
-- `ec-engine` owns gameplay rules, not classic file workflows
-- `ec-data` owns shared runtime/store/model state
-- `ec-classic` owns low-level classic byte/record helpers only
-- `ec-sysop` owns public maintenance/setup flows
-- `ec-cli` orchestrates explicit compat flows through `ec-compat`
+- `nc-game` does not parse classic `.DAT` files
+- `nc-engine` owns gameplay rules, not classic file workflows
+- `nc-data` owns shared runtime/store/model state
+- `nc-classic` owns low-level classic byte/record helpers only
+- `nc-sysop` owns public maintenance/setup flows
+- `nc-cli` orchestrates explicit compat flows through `nc-compat`
 - SQLite is authoritative; `.DAT` is the compatibility/oracle edge
 
 ## Maintenance Engine Structure
 
 The Rust yearly maintenance engine is exposed and implemented through
-`ec-engine/src/maint/`.
+`nc-engine/src/maint/`.
 
-Shared maintenance result payloads remain in `ec-data::maintenance_types` so
+Shared maintenance result payloads remain in `nc-data::maintenance_types` so
 multiple crates can consume the same plain event data without duplicating the
 rule code.
 
@@ -328,7 +328,7 @@ detail into submodules instead of extending the driver further.
 ## Shared Model Boundary
 
 `CoreGameData` remains the canonical gameplay-state snapshot model inside
-`ec-data`.
+`nc-data`.
 `CampaignStore` is the persisted source of truth for active campaigns.
 
 Use it when the code needs:
@@ -341,7 +341,7 @@ Use it when the code needs:
 
 If a transform expresses shared game-directory/runtime-store semantics rather
 than one frontend's interaction policy, it should live on `CoreGameData` or in
-a closely related `ec-data` helper module.
+a closely related `nc-data` helper module.
 
 Examples:
 
@@ -357,7 +357,7 @@ The CLI and client should orchestrate those helpers, not replace them.
 
 The runtime storage direction is now active, not deferred:
 
-- `CampaignStore` / `CampaignRuntimeState` in `ecgame.db` are the runtime
+- `CampaignStore` / `CampaignRuntimeState` in `ncgame.db` are the runtime
   source of truth for active campaigns
 - `CoreGameData` is the canonical snapshot shape carried through storage and
   shared engine helpers
@@ -373,14 +373,14 @@ The runtime storage direction is now active, not deferred:
 
 Practical rule:
 
-- `ec-game` and normal Rust maintenance/mutator paths read and write SQLite
+- `nc-game` and normal Rust maintenance/mutator paths read and write SQLite
   runtime state
 - explicit compatibility paths such as `db-export`, scenario materialization,
   and oracle setup are the only places that should intentionally write classic
-  `.DAT` outputs, normally through `ec-compat`
+  `.DAT` outputs, normally through `nc-compat`
 - explicit import paths such as `db-import` are the only places that should
-  rebuild runtime state from a classic directory, normally through `ec-compat`
-- read-only inspection/report commands must not create or update `ecgame.db`
+  rebuild runtime state from a classic directory, normally through `nc-compat`
+- read-only inspection/report commands must not create or update `ncgame.db`
   as a side effect
 - SQLite is the runtime source of truth; classic files remain the compatibility
   and oracle projection boundary
@@ -395,16 +395,16 @@ drive the Rust engine or player client.
 
 Keep ownership clear:
 
-- rule calculation belongs in `ec-engine`
-- operator command selection / argument parsing belongs in `ec-sysop`
-- developer/oracle command selection / argument parsing belongs in `ec-cli`
-- screen flow / interaction belongs in `ec-game`
+- rule calculation belongs in `nc-engine`
+- operator command selection / argument parsing belongs in `nc-sysop`
+- developer/oracle command selection / argument parsing belongs in `nc-cli`
+- screen flow / interaction belongs in `nc-game`
 - player-visible report timing and header rules belong to the dedicated specs,
-  then to shared `ec-engine` / `ec-data` helpers, not to CLI or client-only
+  then to shared `nc-engine` / `nc-data` helpers, not to CLI or client-only
   string logic
 
 If the same report/intel/business rule is needed in more than one frontend,
-promote it into `ec-engine` or a shared `ec-data` helper, depending on whether
+promote it into `nc-engine` or a shared `nc-data` helper, depending on whether
 the code is rule logic or runtime/store structure.
 
 ## Setup, Movement, Economy, And Combat Boundaries
@@ -422,8 +422,8 @@ Subsystem behavior should follow the companion specs:
 
 The architecture consequence is straightforward:
 
-- keep gameplay/rule execution in `ec-engine`
-- keep shared models, invariants, and plain event/result payloads in `ec-data`
+- keep gameplay/rule execution in `nc-engine`
+- keep shared models, invariants, and plain event/result payloads in `nc-data`
 - keep the specs authoritative
 - keep CLI/client layers as consumers of those rules
 
@@ -447,7 +447,7 @@ module, it usually deserves its own test surface too.
 Do not:
 
 - grow giant `main.rs`, `mod.rs`, or catch-all utility files
-- duplicate rules between `ec-engine`, `ec-data`, `ec-cli`, and `ec-game`
+- duplicate rules between `nc-engine`, `nc-data`, `nc-cli`, and `nc-game`
 - bury classic byte semantics in UI or command code
 - treat scenario-specific scripts as the long-term home for shared mechanics
 - collapse maint ordering, combat rules, timing rules, and economy rules into
@@ -466,10 +466,10 @@ When adding or refactoring behavior, ask:
 
 Then place it accordingly:
 
-- gameplay/rule execution -> `ec-engine`
-- shared model/invariant/plain payload -> `ec-data`
-- public sysop/admin workflow -> `ec-sysop`
-- developer/oracle/compat workflow -> `ec-cli`
-- player interaction/rendering -> `ec-game`
+- gameplay/rule execution -> `nc-engine`
+- shared model/invariant/plain payload -> `nc-data`
+- public sysop/admin workflow -> `nc-sysop`
+- developer/oracle/compat workflow -> `nc-cli`
+- player interaction/rendering -> `nc-game`
 
 That placement rule matters more than preserving any one historical file tree.
