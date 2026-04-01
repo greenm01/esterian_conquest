@@ -6,6 +6,8 @@ _Nostrian Conquest – A from-scratch Rust recreation inspired by the classic 19
 
 ![Nostrian Conquest title screen](docs/assets/nc-hero.png)
 
+[View screenshots](https://nostrian-conquest.com/screenshots.html)
+
 ## Premise
 
 Beyond the mapped frontiers of the old Nostrian dominion lies a galaxy of contested solar systems. The old masters are gone. Their stations are silent. You are left with a fleet, a factory, and the knowledge to build an empire.

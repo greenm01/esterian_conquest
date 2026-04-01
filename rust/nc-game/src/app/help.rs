@@ -89,7 +89,6 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         | ScreenId::PlanetBuildQuantity
         | ScreenId::PlanetCommissionResult
         | ScreenId::PlanetTransportDone(_)
-        | ScreenId::ComposeMessageSubject
         | ScreenId::ComposeMessageDiscardConfirm
         | ScreenId::ComposeMessageSendConfirm
         | ScreenId::ComposeMessageSent => Some(prompt_help(
@@ -99,6 +98,16 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("Backspace", "erase typed input"),
                 ("Enter", "accept the current prompt"),
                 ("Q/Esc", "cancel or return when available"),
+                ("?", "show/hide helper"),
+            ],
+        )),
+        ScreenId::ComposeMessageSubject => Some(prompt_help(
+            "COMMAND HELP",
+            &[
+                ("Type", "enter the message subject"),
+                ("Backspace", "erase typed input"),
+                ("Enter", "accept the current subject"),
+                ("Esc", "return to recipient selection"),
                 ("?", "show/hide helper"),
             ],
         )),

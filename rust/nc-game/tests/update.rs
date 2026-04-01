@@ -15404,6 +15404,113 @@ fn apply_action_queues_composed_message() {
 }
 
 #[test]
+fn compose_subject_treats_q_as_text_and_esc_as_return() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageSubject);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('Q'))),
+        Action::Messaging(MessagingAction::AppendComposeSubjectChar('Q'))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeSubjectChar('Q'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_subject, "Q");
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageSubject);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Esc)),
+        Action::Messaging(MessagingAction::OpenComposeRecipient)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
+}
+
+#[test]
+fn compose_subject_prompt_uses_esc_cancel_markup() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal)
+        .expect("compose subject prompt should render");
+    let prompt = line_containing(&terminal, "COMMAND <- Message subject");
+    assert!(prompt.contains("<ESC> ->"), "{prompt}");
+    assert!(!prompt.contains("<Q> ->"), "{prompt}");
+}
+
+#[test]
 fn compose_message_rejects_fourth_message_to_same_recipient_in_same_year() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);

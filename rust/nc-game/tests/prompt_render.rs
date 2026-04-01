@@ -379,7 +379,7 @@ fn compose_subject_prompt_renders_below_recipient_with_single_blank_row() {
 
     assert!(row_text(&buffer, 2).starts_with(" To: Empire 9 (Viridian Chain)"));
     assert_eq!(row_text(&buffer, 3).trim_end(), "");
-    assert!(row_text(&buffer, 4).starts_with(" COMMAND <- Message subject <Q> -> "));
+    assert!(row_text(&buffer, 4).starts_with(" COMMAND <- Message subject <ESC> -> "));
     assert_eq!(row_text(&buffer, COMMAND_LINE_ROW).trim_end(), "");
 }
 

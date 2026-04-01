@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
     LEFT_WINDOW_PAD_COL, ScreenGeometry, command_line_row_for, dismiss_prompt_row,
-    draw_command_line_default_input_at_col, draw_command_line_prompt_text_at,
+    draw_command_line_default_input_with_cancel_at_col, draw_command_line_prompt_text_at,
     draw_command_prompt_at, draw_dismiss_prompt, draw_prompt_error_after_padded, draw_title_bar,
     draw_title_bar_padded, new_playfield, new_playfield_for, standard_table_visible_rows_for,
 };
@@ -150,7 +150,7 @@ impl MessageComposeScreen {
             classic::status_value_style(),
         );
         let command_row = 4;
-        draw_command_line_default_input_at_col(
+        draw_command_line_default_input_with_cancel_at_col(
             &mut buffer,
             command_row,
             LEFT_WINDOW_PAD_COL,
@@ -158,6 +158,7 @@ impl MessageComposeScreen {
             "Message subject ",
             "",
             subject,
+            "<ESC> -> ",
         );
         if let Some(status) = status {
             draw_prompt_error_after_padded(&mut buffer, command_row, status);
@@ -399,9 +400,7 @@ impl MessageComposeScreen {
 
     pub fn handle_subject_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Messaging(MessagingAction::OpenComposeRecipient)
-            }
+            KeyCode::Esc => Action::Messaging(MessagingAction::OpenComposeRecipient),
             KeyCode::Enter => Action::Messaging(MessagingAction::SubmitComposeSubject),
             KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceComposeSubject),
             KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {

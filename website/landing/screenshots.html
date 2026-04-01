@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NOSTRIAN CONQUEST | SCREENSHOTS</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --fg: #33ff33;
+            --fg-dim: #9dff9d;
+            --link: #ffffff;
+            --glow: rgba(51, 255, 51, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+        }
+        .terminal {
+            border: 1px solid var(--fg);
+            padding: 30px;
+            box-shadow: 0 0 10px var(--glow);
+            width: min(100%, 1080px);
+        }
+        .header {
+            font-weight: bold;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--fg);
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+        a {
+            color: var(--link);
+            text-decoration: none;
+            border-bottom: 1px solid var(--fg);
+        }
+        a:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+        p {
+            margin: 0 0 8px;
+            line-height: 1.45;
+        }
+        .section {
+            margin-top: 20px;
+        }
+        .label {
+            color: var(--fg-dim);
+            margin-bottom: 10px;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 18px;
+        }
+        .shot {
+            border: 1px solid rgba(51, 255, 51, 0.32);
+            padding: 14px;
+        }
+        .shot img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border: 1px solid rgba(51, 255, 51, 0.28);
+            background: #050505;
+        }
+        .shot h2 {
+            color: var(--fg);
+            font-size: 1rem;
+            margin: 12px 0 8px;
+        }
+        .meta {
+            color: var(--fg-dim);
+        }
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            margin-top: 14px;
+        }
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background: var(--fg);
+            margin-left: 5px;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+        @media (max-width: 640px) {
+            .terminal {
+                padding: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="header">NOSTRIAN_CONQUEST_SCREENSHOTS</div>
+        <p>LIVE LOOK AT THE CURRENT RUST CLIENT.</p>
+        <p>TERMINAL-FIRST, MAP-HEAVY, AND BUILT FOR LONG-FORM CAMPAIGN PLAY.</p>
+
+        <div class="section">
+            <p class="label">CURRENT CAPTURES</p>
+            <div class="gallery">
+                <div class="shot">
+                    <a href="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-keychain-setup.png" target="_blank" rel="noopener noreferrer">
+                        <img src="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-keychain-setup.png" alt="Nostrian Conquest keychain setup screen">
+                    </a>
+                    <h2>KEYCHAIN SETUP</h2>
+                    <p class="meta">First-run identity bootstrap for the hosted client flow.</p>
+                </div>
+                <div class="shot">
+                    <a href="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-main-menu.png" target="_blank" rel="noopener noreferrer">
+                        <img src="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-main-menu.png" alt="Nostrian Conquest main menu">
+                    </a>
+                    <h2>MAIN MENU</h2>
+                    <p class="meta">Classic command-rail presentation rebuilt in the Rust client.</p>
+                </div>
+                <div class="shot">
+                    <a href="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-view-map.png" target="_blank" rel="noopener noreferrer">
+                        <img src="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-view-map.png" alt="Nostrian Conquest star map view">
+                    </a>
+                    <h2>STAR MAP</h2>
+                    <p class="meta">Sector-grid navigation with classic-style symbols and scan data.</p>
+                </div>
+                <div class="shot">
+                    <a href="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-total-planet-db.png" target="_blank" rel="noopener noreferrer">
+                        <img src="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-total-planet-db.png" alt="Nostrian Conquest total planet database screen">
+                    </a>
+                    <h2>TOTAL PLANET DATABASE</h2>
+                    <p class="meta">Review empire-wide world data with filters, sorting, and dense tabular output.</p>
+                </div>
+                <div class="shot">
+                    <a href="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-message.png" target="_blank" rel="noopener noreferrer">
+                        <img src="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-message.png" alt="Nostrian Conquest message composer">
+                    </a>
+                    <h2>MESSAGE COMPOSER</h2>
+                    <p class="meta">Draft empire-to-empire mail inside the client without breaking the command-line flow.</p>
+                </div>
+                <div class="shot">
+                    <a href="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-screen-lock.png" target="_blank" rel="noopener noreferrer">
+                        <img src="https://github.com/greenm01/nostrian-conquest/raw/main/docs/assets/screenshots/nc-screen-lock.png" alt="Nostrian Conquest screen lock view">
+                    </a>
+                    <h2>SCREEN LOCK</h2>
+                    <p class="meta">Privacy lock screen for shared terminals, BBS doors, or stepped-away sessions.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="nav">
+                <a href="index.html">RETURN TO LANDING</a>
+                <a href="downloads.html">OPEN DOWNLOADS</a>
+                <a href="https://github.com/greenm01/nostrian-conquest" target="_blank" rel="noopener noreferrer">SOURCE CODE</a>
+            </div>
+        </div>
+
+        <p>> <span class="cursor"></span></p>
+    </div>
+</body>
+</html>
