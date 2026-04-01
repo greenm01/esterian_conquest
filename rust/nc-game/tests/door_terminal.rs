@@ -138,38 +138,47 @@ fn door_input_decoder_maps_ascii_and_control_keys() {
 }
 
 #[test]
-fn door_input_decoder_ignores_arrow_and_page_sequences_in_door_mode() {
-    assert_decode(b"\x1b[A", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1b[B", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1b[C", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1b[D", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1b[U", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1b[V", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1bOA", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1bOB", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1bOC", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1bOD", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+fn door_input_decoder_maps_arrow_and_page_sequences() {
+    assert_decode(b"\x1b[A", KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    assert_decode(b"\x1b[B", KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    assert_decode(b"\x1b[C", KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+    assert_decode(b"\x1b[D", KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
     assert_decode(
-        b"\x1b[1;2A",
-        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+        b"\x1b[U",
+        KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
     );
-    assert_decode(b"\x1b[5~", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
-    assert_decode(b"\x1b[6~", KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+    assert_decode(
+        b"\x1b[V",
+        KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+    );
+    assert_decode(b"\x1bOA", KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    assert_decode(b"\x1bOB", KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    assert_decode(b"\x1bOC", KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+    assert_decode(b"\x1bOD", KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+    assert_decode(b"\x1b[1;2A", KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    assert_decode(
+        b"\x1b[5~",
+        KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
+    );
+    assert_decode(
+        b"\x1b[6~",
+        KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+    );
     assert_decode(
         &[0xe0, b'H'],
-        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+        KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
     );
     assert_decode(
         &[0xe0, b'P'],
-        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+        KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
     );
     assert_decode(
         &[0xe0, b'M'],
-        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+        KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
     );
     assert_decode(
         &[0xe0, b'K'],
-        KeyEvent::new(KeyCode::Null, KeyModifiers::NONE),
+        KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
     );
 }
 
@@ -199,28 +208,34 @@ fn door_input_decoder_keeps_home_end_delete_sequences() {
 }
 
 #[test]
-fn door_input_decoder_drops_fragmented_arrow_sequences() {
+fn door_input_decoder_reassembles_fragmented_arrow_sequences() {
     let got = decode_fragmented_input_for_test(b"\x1b", b"[A").expect("decode fragmented");
-    assert_eq!(got, KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+    assert_eq!(got, KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
 
     let got = decode_fragmented_input_for_test(b"\x1b[", b"A").expect("decode fragmented");
-    assert_eq!(got, KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+    assert_eq!(got, KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
 
     let got = decode_fragmented_input_for_test(b"\x1b[1;", b"2D").expect("decode fragmented");
-    assert_eq!(got, KeyEvent::new(KeyCode::Null, KeyModifiers::NONE));
+    assert_eq!(got, KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
 }
 
 #[test]
-fn door_input_decoder_handles_back_to_back_csi_arrows_without_literal_tail_text() {
+fn door_input_decoder_handles_back_to_back_csi_arrows() {
     let got = decode_input_stream_for_test(b"\x1b[B\x1b[D").expect("decode stream");
-    assert!(got.is_empty());
+    assert_eq!(
+        got,
+        vec![
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
+        ]
+    );
 }
 
 #[test]
 fn door_input_decoder_uses_one_short_deadline_for_fragmented_arrows() {
     let got = decode_timed_input_stream_for_test(&[(0, b"\x1b"), (350, b"[A")])
         .expect("decode timed stream");
-    assert!(got.is_empty());
+    assert_eq!(got, vec![KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)]);
 }
 
 #[test]
@@ -238,7 +253,13 @@ fn door_input_decoder_turns_around_on_opposite_direction_without_stale_timeout_l
         (25, b"[D"),
     ])
     .expect("decode timed stream");
-    assert!(got.is_empty());
+    assert_eq!(
+        got,
+        vec![
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
+        ]
+    );
 }
 
 #[test]
@@ -257,7 +278,13 @@ fn timed_sync_term_page_keys_decode_without_falling_back_to_escape() {
         (1350, b"[V"),
     ])
     .expect("decode timed stream");
-    assert!(got.is_empty());
+    assert_eq!(
+        got,
+        vec![
+            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+        ]
+    );
 }
 
 #[test]

@@ -132,7 +132,11 @@ mod tests {
     #[test]
     fn parse_launch_args_rejects_join_argument() {
         let err = parse_launch_args(
-            vec!["--join".to_string(), "amber-river@relay.example.com".to_string()].into_iter(),
+            vec![
+                "--join".to_string(),
+                "amber-river@relay.example.com".to_string(),
+            ]
+            .into_iter(),
         )
         .expect_err("desktop nc-connect should reject command-line args");
         assert!(

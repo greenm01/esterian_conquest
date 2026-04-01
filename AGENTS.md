@@ -101,6 +101,7 @@ If the task is DOSBox-heavy, also check:
 
 - keep tests in crate `tests/` directories, not inline `#[cfg(test)]` modules, unless there is a strong local reason not to
 - prefer regression tests that lock in preserved fixture behavior
+- do not treat large test files as dumping grounds; when a suite starts getting crowded, split helpers and scenarios into focused test modules before the file becomes unwieldy
 - run `cargo test` from `rust/` after meaningful Rust changes
 - do not claim compliance unless the relevant Rust tests are green
 

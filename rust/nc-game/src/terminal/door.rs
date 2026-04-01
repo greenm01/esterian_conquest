@@ -386,6 +386,10 @@ fn try_decode_ss3_complete(pending: &VecDeque<u8>) -> ParseResult {
         return ParseResult::NeedMore;
     };
     let event = match byte {
+        b'A' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
+        b'B' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+        b'C' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
+        b'D' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
         b'H' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
         b'F' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
         _ => None,
@@ -416,7 +420,13 @@ fn finalize_escape_after_timeout(pending: &VecDeque<u8>) -> ParseResult {
 fn map_dos_extended(byte: u8) -> Option<KeyEvent> {
     match byte {
         b'G' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
+        b'H' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
+        b'I' => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
+        b'K' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
+        b'M' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
         b'O' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+        b'P' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+        b'Q' => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
         b'S' => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
         _ => None,
     }
@@ -424,12 +434,20 @@ fn map_dos_extended(byte: u8) -> Option<KeyEvent> {
 
 fn map_csi_event(byte: u8, sequence: &[u8]) -> Option<KeyEvent> {
     match byte {
+        b'A' => Some(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
+        b'B' => Some(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+        b'C' => Some(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
+        b'D' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
         b'H' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
         b'F' | b'K' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
+        b'U' => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
+        b'V' => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
         b'~' => match sequence {
             b"1~" | b"7~" => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
             b"4~" | b"8~" => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
             b"3~" => Some(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)),
+            b"5~" => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
+            b"6~" => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
             _ => None,
         },
         _ => None,
