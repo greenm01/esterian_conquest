@@ -50,7 +50,7 @@ It:
 - installs `nc-game` and `nc-sysop` into `/usr/local/bin`
 - installs `/usr/local/bin/nc-gate-keys`
 - writes `/etc/nc-gate/config.kdl`
-- installs the `nc-nostr.service`, `ec-maint-all.service`, and `ec-maint-all.timer` units
+- installs the `nc-nostr.service`, `nc-maint-all.service`, and `nc-maint-all.timer` units
 - installs an `sshd` drop-in for the service user
 - initializes `/etc/nc-gate/identity.kdl` if missing
 

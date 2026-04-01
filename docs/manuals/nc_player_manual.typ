@@ -159,7 +159,7 @@ session. The invite already carries the relay host, and `nc-connect`
 discovers the rest from there. Your seat is not claimed until you actually
 save your empire name in the game. After that completed first join,
 `nc-connect` downloads the campaign starmap bundle and remembers the game
-locally in your Documents `ec/maps` folder. Later, press `M` in the picker
+locally in your Documents `nc/maps` folder. Later, press `M` in the picker
 to change the default maps folder and re-download the bundle for the
 currently selected game.
 

@@ -190,7 +190,7 @@ Use this when one operator wants to run many games for many players on one
 server.
 
 1. Run `scripts/install_vps.sh` as root.
-2. Create each game under `/srv/ec/games/<slug>/` as the `ecgame` service user.
+2. Create each game under `/srv/nc/games/<slug>/` as the `ncgame` service user.
 3. Register each game with `nc-sysop host games add` as root.
 4. Run one `nc-sysop nostr serve` daemon for all games.
 5. Run one `nc-sysop maint-all` timer for all games.
@@ -204,7 +204,7 @@ The standard VPS layout is:
 /etc/nc-gate/config.kdl
 /etc/nc-gate/identity.kdl
 /var/lib/nc-gate/keys/
-/srv/ec/games/<slug>/ncgame.db
+/srv/nc/games/<slug>/ncgame.db
 ```
 
 The host-global relay URL and SSH address live in
@@ -253,14 +253,14 @@ All tools take `--dir /path/to/mygame` to locate the game.
 Create a new game with `nc-sysop new-game`:
 
 ```
-sudo -u ecgame nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
+sudo -u ncgame nc-sysop new-game /srv/nc/games/friday-night --name "Friday Night NC" --players 4
 ```
 
 This creates one runtime file: `ncgame.db`.
 
 #admonition("IMPORTANT")[
   On a VPS host installed with `scripts/install_vps.sh`, create hosted games as
-  the `ecgame` service user. If you create `/srv/ec/games/<slug>` as `root`,
+  the `ncgame` service user. If you create `/srv/nc/games/<slug>` as `root`,
   the `nc-nostr.service` daemon may fail to write session leases and hosted
   joins can time out.
 ]
@@ -302,8 +302,8 @@ Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
 A minimal hosted setup looks like:
 
 ```
-sudo -u ecgame nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
-sudo nc-sysop host games add --config /etc/nc-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo -u ncgame nc-sysop new-game /srv/nc/games/friday-night --name "Friday Night NC" --players 4
+sudo nc-sysop host games add --config /etc/nc-gate/config.kdl --dir /srv/nc/games/friday-night
 sudo systemctl restart nc-nostr.service
 nc-sysop nostr init
 nc-sysop nostr serve
@@ -438,9 +438,9 @@ runtime policy now lives in SQLite alongside the rest of the campaign state.
 Use `nc-sysop settings ...` to inspect or change it:
 
 ```
-nc-sysop settings show --dir /srv/ec/games/friday-night
-nc-sysop settings set --dir /srv/ec/games/friday-night --game-name "Friday Night NC"
-nc-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SYSOP
+nc-sysop settings show --dir /srv/nc/games/friday-night
+nc-sysop settings set --dir /srv/nc/games/friday-night --game-name "Friday Night NC"
+nc-sysop settings reserve --dir /srv/nc/games/friday-night --player 1 --alias SYSOP
 ```
 
 === Full Example
