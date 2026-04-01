@@ -99,9 +99,9 @@ def parse_npub(stdout: str) -> str:
 
 
 def fixture_paths(root: Path) -> tuple[Path, Path, Path]:
-    wallet = root / "data" / "ec" / "wallet.kdl"
-    cache = root / "data" / "ec" / "cache.kdl"
-    config = root / "config" / "ec" / "config.kdl"
+    wallet = root / "data" / "nc" / "wallet.kdl"
+    cache = root / "data" / "nc" / "cache.kdl"
+    config = root / "config" / "nc" / "config.kdl"
     return wallet, cache, config
 
 

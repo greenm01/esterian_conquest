@@ -1,6 +1,6 @@
 //! Player config types and I/O.
 //!
-//! The config file lives at `~/.config/ec/config.kdl` and is entirely
+//! The config file lives at `~/.config/nc/config.kdl` and is entirely
 //! optional.  A missing file produces a default `ConnectConfig` with no
 //! bookmarks, no relays, and no default server.
 //!

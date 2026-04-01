@@ -8,14 +8,10 @@ use sha2::{Digest, Sha256};
 use url::Url;
 
 use crate::connect::map_fetch::MapBundlePayload;
+use crate::paths::default_maps_root as default_nc_maps_root;
 
 pub fn default_maps_root() -> PathBuf {
-    let base = dirs::document_dir().unwrap_or_else(|| {
-        dirs::home_dir()
-            .map(|h| h.join("Documents"))
-            .unwrap_or_else(|| PathBuf::from("."))
-    });
-    base.join("ec").join("maps")
+    default_nc_maps_root()
 }
 
 pub fn resolve_maps_root(config_override: Option<&Path>, cli_override: Option<&Path>) -> PathBuf {

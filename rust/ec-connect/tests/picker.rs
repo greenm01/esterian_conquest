@@ -72,7 +72,7 @@ fn make_state(games: Vec<CachedGame>) -> PickerState {
     for g in games {
         cache.upsert(g);
     }
-    PickerState::new(cache, PathBuf::from("/tmp/ec/maps"))
+    PickerState::new(cache, PathBuf::from("/tmp/nc/maps"))
 }
 
 fn make_pending_connect_request() -> PendingConnectRequest {
@@ -609,7 +609,7 @@ fn notice_dismisses_on_arrow_key() {
 fn maps_downloaded_popup_dismisses_on_any_key() {
     let mut state = make_state(vec![]);
     state.overlay = Some(PickerOverlay::MapsDownloaded {
-        path: PathBuf::from("/tmp/ec/maps/friday-night"),
+        path: PathBuf::from("/tmp/nc/maps/friday-night"),
     });
 
     handle_overlay_key(
@@ -796,7 +796,7 @@ fn main_game_list_m_opens_maps_download_popup_for_selected_game() {
         state.overlay,
         Some(PickerOverlay::MapsDownloadPrompt { error: None })
     );
-    assert_eq!(state.maps_input, "/tmp/ec/maps");
+    assert_eq!(state.maps_input, "/tmp/nc/maps");
     assert!(state.maps_input_prefilled);
     assert_eq!(state.selected, 2);
 }
@@ -837,7 +837,7 @@ fn maps_download_popup_escape_cancels_and_clears_input() {
 #[test]
 fn maps_download_popup_first_char_replaces_prefilled_path() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.maps_input = "/tmp/ec/maps".to_string();
+    state.maps_input = "/tmp/nc/maps".to_string();
     state.maps_input_prefilled = true;
     state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
 
@@ -857,7 +857,7 @@ fn maps_download_popup_first_char_replaces_prefilled_path() {
 #[test]
 fn maps_download_popup_first_backspace_clears_prefilled_path() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.maps_input = "/tmp/ec/maps".to_string();
+    state.maps_input = "/tmp/nc/maps".to_string();
     state.maps_input_prefilled = true;
     state.overlay = Some(PickerOverlay::MapsDownloadPrompt { error: None });
 
@@ -900,7 +900,7 @@ fn persist_maps_root_rejects_relative_path() {
     let err = persist_maps_root_at(&mut state, &config_path).expect_err("relative path rejected");
 
     assert!(err.to_string().contains("absolute path"));
-    assert_eq!(state.maps_root, PathBuf::from("/tmp/ec/maps"));
+    assert_eq!(state.maps_root, PathBuf::from("/tmp/nc/maps"));
 }
 
 #[test]
@@ -914,7 +914,7 @@ fn persist_maps_root_rejects_existing_file() {
     let err = persist_maps_root_at(&mut state, &config_path).expect_err("file path rejected");
 
     assert!(err.to_string().contains("file, not a folder"));
-    assert_eq!(state.maps_root, PathBuf::from("/tmp/ec/maps"));
+    assert_eq!(state.maps_root, PathBuf::from("/tmp/nc/maps"));
     let _ = std::fs::remove_file(&file_path);
 }
 
@@ -1036,7 +1036,7 @@ fn relay_popup_wraps_long_error_messages() {
 #[test]
 fn maps_popup_wraps_long_errors_without_hitting_border() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
-    state.maps_input = "/tmp/ec/maps".to_string();
+    state.maps_input = "/tmp/nc/maps".to_string();
     state.overlay = Some(PickerOverlay::MapsDownloadPrompt {
         error: Some(
             "this is a deliberately long maps error message that should wrap and keep the hint above the popup border"
@@ -1340,7 +1340,7 @@ fn successful_session_maps_path_opens_maps_downloaded_popup() {
         SessionOutcome::Done {
             exit_code: 0,
             notice: None,
-            maps_saved_to: Some(PathBuf::from("/tmp/ec/maps/friday-night")),
+            maps_saved_to: Some(PathBuf::from("/tmp/nc/maps/friday-night")),
         },
         None,
     );
@@ -1348,7 +1348,7 @@ fn successful_session_maps_path_opens_maps_downloaded_popup() {
     assert_eq!(
         state.overlay,
         Some(PickerOverlay::MapsDownloaded {
-            path: PathBuf::from("/tmp/ec/maps/friday-night"),
+            path: PathBuf::from("/tmp/nc/maps/friday-night"),
         })
     );
 }
@@ -1357,14 +1357,14 @@ fn successful_session_maps_path_opens_maps_downloaded_popup() {
 fn maps_downloaded_popup_renders_saved_path() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::MapsDownloaded {
-        path: PathBuf::from("/tmp/ec/maps/friday-night"),
+        path: PathBuf::from("/tmp/nc/maps/friday-night"),
     });
     let buffer = ec_connect::picker::render::render_buffer(&state, None, 82, 27);
 
     assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("MAPS DOWNLOADED")));
     assert!(
         (0..buffer.height())
-            .any(|row| buffer.plain_line(row).contains("/tmp/ec/maps/friday-night"))
+            .any(|row| buffer.plain_line(row).contains("/tmp/nc/maps/friday-night"))
     );
     assert!((0..buffer.height()).any(|row| {
         buffer

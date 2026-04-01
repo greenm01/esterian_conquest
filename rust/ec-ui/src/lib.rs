@@ -1,3 +1,4 @@
+pub mod branding;
 pub mod buffer;
 pub mod modal;
 pub mod paint;

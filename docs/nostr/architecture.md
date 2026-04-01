@@ -147,7 +147,7 @@ relay-transport client.
 ### Wallet Storage
 
 Both paths store the identity in the same wallet format at
-`~/.local/share/ec/wallet.kdl`. The wallet is encrypted with
+`~/.local/share/nc/wallet.kdl`. The wallet is encrypted with
 ChaCha20-Poly1305 using a key derived from the player's password via
 PBKDF2-HMAC-SHA256. This follows the same wallet model used by ec4x.
 
@@ -235,7 +235,7 @@ When a returning player connects:
   `ec-connect` presents the list to the player (in the picker or as a
   numbered prompt in direct mode), and retries with the selected game ID.
 
-The local game cache at `~/.local/share/ec/cache.kdl` stores joined
+The local game cache at `~/.local/share/nc/cache.kdl` stores joined
 games so that disambiguation only happens on cache miss (new machine,
 cleared cache, etc.).
 
@@ -261,10 +261,10 @@ locations:
 
 | File | Path | Purpose |
 |------|------|---------|
-| Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay |
-| Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
-| Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
-| Maps | `~/Documents/ec/maps/` | Downloaded static starmap bundles |
+| Config | `~/.config/nc/config.kdl` | Server bookmarks, default relay |
+| Wallet | `~/.local/share/nc/wallet.kdl` | Encrypted identity store |
+| Cache | `~/.local/share/nc/cache.kdl` | Joined games and connection history |
+| Maps | `~/Documents/nc/maps/` | Downloaded static starmap bundles |
 
 Config is user-edited (server bookmarks, relay preference). Wallet and
 cache are managed by `ec-connect` and should not be hand-edited. They are

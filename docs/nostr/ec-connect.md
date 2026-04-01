@@ -145,7 +145,7 @@ the CLI prints the same left-justified wallet-loss warning before asking for
 Player identities are stored in an encrypted wallet at:
 
 ```
-~/.local/share/ec/wallet.kdl
+~/.local/share/nc/wallet.kdl
 ```
 
 The packaged GUI keeps exactly one identity active at a time and treats
@@ -209,7 +209,7 @@ identity's `npub` and `nsec` for the same purpose.
 Config file at:
 
 ```
-~/.config/ec/config.kdl
+~/.config/nc/config.kdl
 ```
 
 This file is optional. Without it, `ec-connect` works using invite code
@@ -276,7 +276,7 @@ can display joined games without querying relays.
 Cache file at:
 
 ```
-~/.local/share/ec/cache.kdl
+~/.local/share/nc/cache.kdl
 ```
 
 Format:
@@ -620,10 +620,10 @@ config/data locations.
 
 | File | Default Linux-style path | Purpose |
 |------|------|---------|
-| Config | `~/.config/ec/config.kdl` | Server bookmarks, default relay, optional `maps-dir` override |
-| Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
-| Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
-| Maps root | `~/Documents/ec/maps/` | Downloaded static map bundles |
+| Config | `~/.config/nc/config.kdl` | Server bookmarks, default relay, optional `maps-dir` override |
+| Wallet | `~/.local/share/nc/wallet.kdl` | Encrypted identity store |
+| Cache | `~/.local/share/nc/cache.kdl` | Joined games and connection history |
+| Maps root | `~/Documents/nc/maps/` | Downloaded static map bundles |
 
 Within the maps root, bundles are stored as:
 
@@ -638,7 +638,7 @@ Path resolution priority for the maps root is:
 
 1. `--maps-dir <PATH>` on the current `ec-connect` invocation
 2. `maps-dir` in `config.kdl`
-3. Platform default Documents directory (`~/Documents/ec/maps` or `%USERPROFILE%\Documents\ec\maps`)
+3. Platform default Documents directory (`~/Documents/nc/maps` or `%USERPROFILE%\Documents\nc\maps`)
 
 In picker mode, if the player changes the maps root from the `M` popup,
 that choice is written back to `maps-dir` and becomes the active maps

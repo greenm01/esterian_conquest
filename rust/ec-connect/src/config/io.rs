@@ -1,4 +1,4 @@
-//! Config file I/O: load, save, parse, render for `~/.config/ec/config.kdl`.
+//! Config file I/O: load, save, parse, render for `~/.config/nc/config.kdl`.
 
 use std::fs;
 use std::io::Write;
@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use kdl::KdlDocument;
 
+use crate::paths::config_root;
 use crate::wallet::io::now_iso8601;
 
 use super::{ConnectConfig, RelayStatus, ServerBookmark, validate_relay_url};
@@ -18,15 +19,10 @@ const DEFAULT_PORT: u16 = 22;
 // ---------------------------------------------------------------------------
 
 /// Return the platform-appropriate config file path:
-///   `~/.config/ec/config.kdl` (Linux/macOS XDG)
-///   `%APPDATA%\ec\config.kdl` (Windows)
+///   `~/.config/nc/config.kdl` (Linux/macOS XDG)
+///   `%APPDATA%\nc\config.kdl` (Windows)
 pub fn config_path() -> PathBuf {
-    let base = dirs::config_dir().unwrap_or_else(|| {
-        dirs::home_dir()
-            .map(|h| h.join(".config"))
-            .unwrap_or_else(|| PathBuf::from("."))
-    });
-    base.join("ec").join("config.kdl")
+    config_root().join("config.kdl")
 }
 
 // ---------------------------------------------------------------------------

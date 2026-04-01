@@ -1,6 +1,6 @@
 //! Local game cache types and I/O.
 //!
-//! The cache file lives at `~/.local/share/ec/cache.kdl` and holds one
+//! The cache file lives at `~/.local/share/nc/cache.kdl` and holds one
 //! entry per game the player has joined.  It is a plain (unencrypted) KDL
 //! file; no secret data is stored here.
 //!

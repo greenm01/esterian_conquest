@@ -49,13 +49,13 @@ fn successful_session_handoff_lines_emit_maps_path_before_griffith_line() {
     let outcome = SessionOutcome::Done {
         exit_code: 0,
         notice: None,
-        maps_saved_to: Some(PathBuf::from("/tmp/ec/maps/friday-night")),
+        maps_saved_to: Some(PathBuf::from("/tmp/nc/maps/friday-night")),
     };
 
     assert_eq!(
         successful_session_handoff_lines(&outcome),
         Some(vec![
-            "Maps downloaded to /tmp/ec/maps/friday-night".to_string(),
+            "Maps downloaded to /tmp/nc/maps/friday-night".to_string(),
             "For Griffith and glory.".to_string(),
         ])
     );

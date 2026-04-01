@@ -598,7 +598,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     fn picker_for_join_popup() -> PickerView {
-        let mut state = PickerState::new(GameCache::empty(), PathBuf::from("/tmp/ec/maps"));
+        let mut state = PickerState::new(GameCache::empty(), PathBuf::from("/tmp/nc/maps"));
         state.screen = Screen::GameList;
         state.overlay = Some(PickerOverlay::JoinCodePopup { error: None });
         PickerView {

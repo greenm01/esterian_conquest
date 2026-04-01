@@ -39,7 +39,7 @@ fn encoded_file(name: &str, contents: &str) -> MapFilePayload {
 fn default_maps_root_ends_with_documents_ec_maps() {
     let root = default_maps_root();
     let rendered = root.to_string_lossy();
-    assert!(rendered.ends_with("Documents/ec/maps") || rendered.ends_with("Documents\\ec\\maps"));
+    assert!(rendered.ends_with("Documents/nc/maps") || rendered.ends_with("Documents\\nc\\maps"));
 }
 
 #[test]

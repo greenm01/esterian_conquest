@@ -13,6 +13,16 @@ use crate::password::wallet_exists;
 use crate::wallet::io::{now_iso8601, save_wallet_to, wallet_path};
 use crate::wallet::{Wallet, push_new_identity};
 
+const UNLOCK_COPY_LINES: [&str; 1] = ["Enter your wallet password."];
+const CREATE_COPY_LINES: [&str; 2] = [
+    "This password encrypts your wallet.",
+    "If you lose it, you will lose your game identity.",
+];
+const CONFIRM_COPY_LINES: [&str; 2] = [
+    "Enter the password again to confirm it.",
+    "If you lose it, you will lose your game identity.",
+];
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PasswordGateMode {
     UnlockExisting,
@@ -50,12 +60,16 @@ impl PasswordGateState {
         }
     }
 
-    pub fn lead_line(&self) -> &'static str {
+    pub fn copy_lines(&self) -> &'static [&'static str] {
         match self.mode {
-            PasswordGateMode::UnlockExisting => "Enter your wallet password.",
-            PasswordGateMode::CreateNew => "Enter a new wallet password.",
-            PasswordGateMode::ConfirmNew => "Enter it again to confirm.",
+            PasswordGateMode::UnlockExisting => &UNLOCK_COPY_LINES,
+            PasswordGateMode::CreateNew => &CREATE_COPY_LINES,
+            PasswordGateMode::ConfirmNew => &CONFIRM_COPY_LINES,
         }
+    }
+
+    pub fn lead_line(&self) -> &'static str {
+        self.copy_lines()[0]
     }
 
     pub fn field_label(&self) -> &'static str {
@@ -64,10 +78,6 @@ impl PasswordGateState {
             PasswordGateMode::CreateNew => "New password:",
             PasswordGateMode::ConfirmNew => "Confirm password:",
         }
-    }
-
-    pub fn show_warning(&self) -> bool {
-        self.mode != PasswordGateMode::UnlockExisting
     }
 
     pub fn masked_input(&self) -> String {

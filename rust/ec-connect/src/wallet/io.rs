@@ -21,21 +21,17 @@ use kdl::{KdlDocument, KdlNode};
 
 use super::crypto::{decrypt_wallet, encrypt_wallet};
 use super::{Identity, IdentityType, Wallet};
+use crate::paths::data_root;
 
 // ---------------------------------------------------------------------------
 // Path resolution
 // ---------------------------------------------------------------------------
 
 /// Return the platform-appropriate wallet file path:
-///   `~/.local/share/ec/wallet.kdl` (Linux/macOS XDG)
-///   `%APPDATA%\ec\wallet.kdl` (Windows)
+///   `~/.local/share/nc/wallet.kdl` (Linux/macOS XDG)
+///   `%APPDATA%\nc\wallet.kdl` (Windows)
 pub fn wallet_path() -> PathBuf {
-    let base = dirs::data_local_dir().unwrap_or_else(|| {
-        dirs::home_dir()
-            .map(|h| h.join(".local").join("share"))
-            .unwrap_or_else(|| PathBuf::from("."))
-    });
-    base.join("ec").join("wallet.kdl")
+    data_root().join("wallet.kdl")
 }
 
 // ---------------------------------------------------------------------------

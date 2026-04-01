@@ -13,6 +13,7 @@ mod input_field;
 pub mod launcher;
 pub mod map_store;
 pub mod password;
+pub(crate) mod paths;
 pub mod picker;
 pub mod platform;
 mod shell;

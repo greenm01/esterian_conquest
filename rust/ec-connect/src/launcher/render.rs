@@ -1,27 +1,29 @@
+use ec_ui::branding::NOSTRIAN_CONQUEST_LOGO;
 use ec_ui::buffer::PlayfieldBuffer;
 use ec_ui::theme::classic;
 
 use crate::input_field::{draw_labeled_input_row, input_width};
-use crate::password::WALLET_WARNING_LINES;
 use crate::picker::layout::{Rect, centered_rect, draw_box};
 use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer_in_terminal};
 use crate::text_wrap::{wrapped_lines, write_wrapped_lines_clamped};
 
 use super::PasswordGateState;
 
+const POPUP_WIDTH: u16 = 68;
+
 pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
     let mut buffer = PlayfieldBuffer::new(INNER_WIDTH, INNER_HEIGHT, classic::body_style());
-    let outer = Rect::new(0, 2, INNER_WIDTH as u16, 21);
+    let outer = Rect::new(0, 1, INNER_WIDTH as u16, 23);
     let error_lines = state
         .error_msg
         .as_deref()
         .map(|msg| wrapped_lines(msg, 64).len())
         .unwrap_or(0);
-    let content_rows =
-        error_lines + 2 + WALLET_WARNING_LINES.len() * usize::from(state.show_warning());
-    let popup_height = (content_rows + 2) as u16;
+    let fixed_rows = NOSTRIAN_CONQUEST_LOGO.len() + 1 + state.copy_lines().len() + 1 + 1;
+    let popup_height = (error_lines + usize::from(error_lines > 0) + fixed_rows + 2)
+        .min(outer.height.saturating_sub(2) as usize) as u16;
     let popup = centered_rect(
-        68,
+        POPUP_WIDTH,
         popup_height,
         Rect::new(
             outer.x + 1,
@@ -46,7 +48,6 @@ pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
     );
 
     let left = popup.x as usize + 2;
-    let fixed_rows = 1 + WALLET_WARNING_LINES.len() * usize::from(state.show_warning()) + 1;
     let max_error_rows = popup
         .height
         .saturating_sub(2)
@@ -62,17 +63,17 @@ pub fn render_inner_buffer(state: &PasswordGateState) -> PlayfieldBuffer {
             msg,
             classic::error_style(),
         );
+        row += 1;
     }
 
-    buffer.write_text_clipped(row, left, state.lead_line(), classic::table_body_style());
+    row += draw_logo(&mut buffer, row, popup);
     row += 1;
 
-    if state.show_warning() {
-        for line in WALLET_WARNING_LINES {
-            buffer.write_text_clipped(row, left, line, classic::alert_style());
-            row += 1;
-        }
+    for line in state.copy_lines() {
+        buffer.write_text_clipped(row, left, line, classic::table_body_style());
+        row += 1;
     }
+    row += 1;
 
     let label = state.field_label();
     let input_col = left + label.chars().count() + 1;
@@ -123,4 +124,40 @@ fn render_tiny(buffer: &mut PlayfieldBuffer, state: &PasswordGateState) {
         };
         buffer.write_text_clipped(row, col, line, style);
     }
+}
+
+fn draw_logo(buffer: &mut PlayfieldBuffer, start_row: usize, popup: Rect) -> usize {
+    let logo_width = NOSTRIAN_CONQUEST_LOGO
+        .iter()
+        .map(|line| line.len())
+        .max()
+        .unwrap_or(0);
+    let inner_left = popup.x as usize + 1;
+    let inner_width = popup.width.saturating_sub(2) as usize;
+    let logo_left = inner_left + inner_width.saturating_sub(logo_width) / 2;
+
+    for (row_offset, line) in NOSTRIAN_CONQUEST_LOGO.iter().enumerate() {
+        for (col_offset, ch) in line.chars().enumerate() {
+            if ch == ' ' {
+                continue;
+            }
+            let style = if is_star_decoration(ch) {
+                classic::star_decoration_style(row_offset + col_offset)
+            } else {
+                classic::logo_style()
+            };
+            buffer.write_text(
+                start_row + row_offset,
+                logo_left + col_offset,
+                &ch.to_string(),
+                style,
+            );
+        }
+    }
+
+    NOSTRIAN_CONQUEST_LOGO.len()
+}
+
+fn is_star_decoration(ch: char) -> bool {
+    matches!(ch, '.' | '*' | 'o')
 }

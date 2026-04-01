@@ -52,7 +52,7 @@ Current behavior:
 By default, `ec-connect` stores bundles in its platform-local data area.
 Players can override the root with:
 
-- `maps-dir` in `~/.config/ec/config.kdl`
+- `maps-dir` in `~/.config/nc/config.kdl`
 - `--maps-dir <PATH>` on the `ec-connect` command line
 
 ## Local / Hotseat Usage

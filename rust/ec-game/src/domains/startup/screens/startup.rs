@@ -8,6 +8,7 @@ use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
 use crate::util::Lcg;
+use ec_ui::branding::NOSTRIAN_CONQUEST_LOGO;
 
 fn is_star_decoration(ch: char) -> bool {
     matches!(ch, '.' | '*' | 'o')
@@ -455,16 +456,20 @@ fn render_splash(
 
     if splash_page == 0 {
         // First page: centered logo with attribution and version.
-        let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
+        let logo_width = NOSTRIAN_CONQUEST_LOGO
+            .iter()
+            .map(|line| line.len())
+            .max()
+            .unwrap_or(0);
         let logo_left = 80usize.saturating_sub(logo_width) / 2;
-        let block_height = INTRO_LOGO.len() + 4 + 1;
+        let block_height = NOSTRIAN_CONQUEST_LOGO.len() + 4 + 1;
         let start_row = centered_row(0, last_body_row_for(geometry), block_height);
 
         // Render logo with randomized star-decoration colors.
         let mut rng = campaign_seed
             .map(|seed| Lcg::from_campaign_seed(seed, SPLASH_RNG_TAG))
             .unwrap_or_else(Lcg::from_time);
-        for (row, line) in INTRO_LOGO.iter().enumerate() {
+        for (row, line) in NOSTRIAN_CONQUEST_LOGO.iter().enumerate() {
             let y = row + start_row;
             for (col, ch) in line.chars().enumerate() {
                 if ch == ' ' {
@@ -480,13 +485,13 @@ fn render_splash(
         }
 
         buffer.write_text(
-            start_row + INTRO_LOGO.len() + 2,
+            start_row + NOSTRIAN_CONQUEST_LOGO.len() + 2,
             logo_left,
             ATTRIBUTION,
             classic::bright_style(),
         );
         buffer.write_text(
-            start_row + INTRO_LOGO.len() + 4,
+            start_row + NOSTRIAN_CONQUEST_LOGO.len() + 4,
             logo_left,
             &version_title(),
             classic::bright_style(),
@@ -501,10 +506,14 @@ fn render_splash(
         // Subsequent pages: transcript-style scrolling intro text.
         let mut transcript: Vec<String> = Vec::new();
         // Seed with the logo block as plain text lines.
-        let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
+        let logo_width = NOSTRIAN_CONQUEST_LOGO
+            .iter()
+            .map(|line| line.len())
+            .max()
+            .unwrap_or(0);
         let logo_left = 80usize.saturating_sub(logo_width) / 2;
         let logo_pad: String = " ".repeat(logo_left);
-        for line in &INTRO_LOGO {
+        for line in &NOSTRIAN_CONQUEST_LOGO {
             transcript.push(format!("{logo_pad}{line}"));
         }
         transcript.push(String::new());
@@ -733,20 +742,6 @@ fn capitalize(s: &str) -> String {
 fn display_or_unknown(value: &str) -> &str {
     if value.is_empty() { "<unknown>" } else { value }
 }
-
-const INTRO_LOGO: [&str; 11] = [
-    " *    _   _  ___  ____ _____ ____  ___    _    _   _",
-    "     | \\ | |/ _ \\/ ___|_   _|  _ \\|_ _|  / \\  | \\ | |",
-    "     |  \\| | | | \\___ \\ | | | |_) || |  / _ \\ |  \\| |",
-    "     | |\\  | |_| |___) || | |  _ < | | / ___ \\| |\\  |",
-    "   . |_| \\_|\\___/|____/ |_| |_| \\_\\___/_/   \\_\\_| \\_|",
-    "",
-    "      ____ ___  _   _  ___  _   _ _____ ____ _____",
-    "     / ___/ _ \\| \\ | |/ _ \\| | | | ____/ ___|_   _|",
-    "    | |  | | | |  \\| | | | | | | |  _| \\___ \\ | |  *",
-    "    | |__| |_| | |\\  | |_| | |_| | |___ ___) || |",
-    "     \\____\\___/|_| \\_|\\__\\_\\\\___/|_____|____/ |_|",
-];
 
 const INTRO_PAGE_1: [&str; 13] = [
     "Beyond the mapped frontiers of the old Nostrian dominion lies a small galaxy of",

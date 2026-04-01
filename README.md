@@ -12,7 +12,7 @@ NC is a faithful reconstruction. We kept the campaign feel, the menus, the repor
 
 ## Play
 
-Nostrian Conquest is best played today over **Nostr**.
+NC is powered by the Nostr protocol for decentralized multiplayer via native Windows, macOS, and Linux clients. We don't do web apps.
 
 If you are looking for a live game, start at
 [nostrian-conquest.com](https://nostrian-conquest.com). That landing page points

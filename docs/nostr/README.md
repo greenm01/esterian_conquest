@@ -81,12 +81,12 @@ player state in the platform-appropriate config/data locations:
 
 | File | Path | Purpose |
 |------|------|---------|
-| Config | `~/.config/ec/config.kdl` | Server bookmarks, default Nostr relay |
-| Wallet | `~/.local/share/ec/wallet.kdl` | Encrypted identity store |
-| Cache | `~/.local/share/ec/cache.kdl` | Joined games and connection history |
-| Maps | `~/Documents/ec/maps/` | Downloaded static starmap bundles |
+| Config | `~/.config/nc/config.kdl` | Server bookmarks, default Nostr relay |
+| Wallet | `~/.local/share/nc/wallet.kdl` | Encrypted identity store |
+| Cache | `~/.local/share/nc/cache.kdl` | Joined games and connection history |
+| Maps | `~/Documents/nc/maps/` | Downloaded static starmap bundles |
 
-On Windows, the maps root resolves to `%USERPROFILE%\Documents\ec\maps`.
+On Windows, the maps root resolves to `%USERPROFILE%\Documents\nc\maps`.
 Players can override the maps root with `maps-dir` in the config file or
 `--maps-dir` on the command line.
 

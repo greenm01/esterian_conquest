@@ -1,10 +1,12 @@
-//! Cache file I/O: load, save, parse, render for `~/.local/share/ec/cache.kdl`.
+//! Cache file I/O: load, save, parse, render for `~/.local/share/nc/cache.kdl`.
 
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
 use kdl::KdlDocument;
+
+use crate::paths::data_root;
 
 use super::{CachedGame, CachedGameStatus, GameCache};
 
@@ -13,15 +15,10 @@ use super::{CachedGame, CachedGameStatus, GameCache};
 // ---------------------------------------------------------------------------
 
 /// Return the platform-appropriate cache file path:
-///   `~/.local/share/ec/cache.kdl` (Linux/macOS XDG)
-///   `%APPDATA%\ec\cache.kdl` (Windows)
+///   `~/.local/share/nc/cache.kdl` (Linux/macOS XDG)
+///   `%APPDATA%\nc\cache.kdl` (Windows)
 pub fn cache_path() -> PathBuf {
-    let base = dirs::data_local_dir().unwrap_or_else(|| {
-        dirs::home_dir()
-            .map(|h| h.join(".local").join("share"))
-            .unwrap_or_else(|| PathBuf::from("."))
-    });
-    base.join("ec").join("cache.kdl")
+    data_root().join("cache.kdl")
 }
 
 // ---------------------------------------------------------------------------
