@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 1500 500" height="500" width="1500">
+  <rect fill="#000000" height="500" width="1500"></rect>
+  
+  
+  <text letter-spacing="3px" stroke-linejoin="round" stroke-width="7" stroke="#00CC44" fill="none" font-weight="700" font-size="142" font-family="monospace" text-anchor="middle" y="215" x="750">NOSTRIAN</text>
+  <text opacity="0.65" letter-spacing="3px" stroke-linejoin="round" stroke-width="2" stroke="#00FF77" fill="none" font-weight="700" font-size="142" font-family="monospace" text-anchor="middle" y="215" x="750">NOSTRIAN</text>
+
+  
+  <text letter-spacing="4px" stroke-linejoin="round" stroke-width="8" stroke="#00CC44" fill="none" font-weight="700" font-size="155" font-family="monospace" text-anchor="middle" y="375" x="750">CONQUEST</text>
+  <text opacity="0.60" letter-spacing="4px" stroke-linejoin="round" stroke-width="2.2" stroke="#00FF77" fill="none" font-weight="700" font-size="155" font-family="monospace" text-anchor="middle" y="375" x="750">CONQUEST</text>
+
+  
+  <text opacity="0.08" letter-spacing="3px" stroke-linejoin="round" stroke-width="14" stroke="#00AA33" fill="none" font-weight="700" font-size="142" font-family="monospace" text-anchor="middle" y="215" x="750">NOSTRIAN</text>
+  <text opacity="0.07" letter-spacing="4px" stroke-linejoin="round" stroke-width="16" stroke="#00AA33" fill="none" font-weight="700" font-size="155" font-family="monospace" text-anchor="middle" y="375" x="750">CONQUEST</text>
+
+  
+  <text opacity="0.75" fill="#00CC44" font-size="38" y="148" x="135">◉</text>
+  <text opacity="0.70" fill="#00CC44" font-size="34" y="395" x="1365">◆</text>
+</svg>

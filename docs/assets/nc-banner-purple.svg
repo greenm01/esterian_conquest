@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 1500 500" height="500" width="1500">
+  <rect fill="#0A0A0A" height="500" width="1500"></rect>
+  
+  
+  <text letter-spacing="2px" stroke-linejoin="round" stroke-width="6" stroke="#A020F0" fill="none" font-weight="700" font-size="138" font-family="monospace" text-anchor="middle" y="215" x="750">NOSTRIAN</text>
+  <text opacity="0.9" letter-spacing="2px" stroke-linejoin="round" stroke-width="2" stroke="#00F0FF" fill="none" font-weight="700" font-size="138" font-family="monospace" text-anchor="middle" y="215" x="750">NOSTRIAN</text>
+
+  
+  <text letter-spacing="4px" stroke-linejoin="round" stroke-width="7" stroke="#A020F0" fill="none" font-weight="700" font-size="148" font-family="monospace" text-anchor="middle" y="370" x="750">CONQUEST</text>
+  <text opacity="0.9" letter-spacing="4px" stroke-linejoin="round" stroke-width="2.2" stroke="#00F0FF" fill="none" font-weight="700" font-size="148" font-family="monospace" text-anchor="middle" y="370" x="750">CONQUEST</text>
+
+  
+  <text fill="#FFAA00" font-size="32" y="145" x="140">✧</text>
+  <text fill="#00FFFF" font-size="30" y="395" x="1350">✦</text>
+</svg>
