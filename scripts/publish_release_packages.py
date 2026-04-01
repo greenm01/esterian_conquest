@@ -201,7 +201,7 @@ The Rust-built `nc-connect` downloads in this release can be verified with the s
 Full instructions and public key: {RELEASE_NOTE_URL}
 Signing key fingerprint: `{fingerprint}`
 
-The signed manifest covers the public `nc-connect` archives, not the DOS compatibility bundles on this page.
+The signed manifest covers the public Windows x64, Linux x64, and macOS Apple Silicon `nc-connect` archives on this page, not the DOS compatibility bundles.
 <!-- NC-RUST-VERIFY:END -->
 """
     RELEASE_NOTE_PATH.write_text(body, encoding="utf-8")
