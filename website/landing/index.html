@@ -8,6 +8,7 @@
             --bg: #030c04;
             --fg: #33ff33;
             --fg-dim: #9dff9d;
+            --copy: #d8e0d8;
             --link: #ffffff;
             --glow: rgba(51, 255, 51, 0.12);
             --page-top: clamp(24px, 8vh, 96px);
@@ -90,9 +91,22 @@
             margin: 0 0 8px;
             line-height: 1.45;
         }
+        .about-copy {
+            color: var(--copy);
+            font-size: 18px;
+            line-height: 1.6;
+            margin-top: 32px;
+            text-align: left;
+        }
+        .about-copy p {
+            margin: 0;
+        }
         @media (max-width: 640px) {
             .terminal {
                 padding: 22px;
+            }
+            .about-copy {
+                font-size: 16px;
             }
         }
     </style>
@@ -124,6 +138,9 @@
             </div>
 
             <p>> <span class="cursor"></span></p>
+        </div>
+        <div class="about-copy">
+            <p>Nostrian Conquest is an asynchronous multiplayer sci-fi strategy game inspired by the classic 1990s BBS door game Esterian Conquest. It is built for players who like old-school depth, patience, and imagination. Print your starmaps, plan your moves, and come back with your next turn’s orders. Built on the Nostr protocol for decentralized play.</p>
         </div>
     </div>
 </body>
