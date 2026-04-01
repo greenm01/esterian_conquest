@@ -2,10 +2,10 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use nc_game::app::Action;
 use nc_game::domains::planet::PlanetAction;
-use nc_game::screen::table::{TableColumn, table_render_width};
+use nc_game::screen::table::{TABLE_TEXT_INSET, TableColumn, table_render_width};
 use nc_game::screen::{
-    PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen,
-    ScreenGeometry,
+    BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
+    PlanetBuildScreen, ScreenGeometry,
 };
 
 #[test]
@@ -446,8 +446,17 @@ fn build_specify_table_is_centered_and_footer_tracks_table_inset() {
         .find("SPECIFY BUILD ORDERS:")
         .expect("title col");
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
+    let points_left = "PP LEFT TO SPEND: 50";
+    let points_left_col = buffer
+        .plain_line(0)
+        .find(points_left)
+        .expect("points-left label col");
     assert_eq!(border_col, expected_table_col);
     assert_eq!(title_col, border_col + 1);
+    assert_eq!(
+        points_left_col,
+        border_col + table_render_width(&combined_columns) - TABLE_TEXT_INSET - points_left.len()
+    );
 
     let command_row = (0..buffer.height())
         .find(|&row| {
@@ -463,4 +472,81 @@ fn build_specify_table_is_centered_and_footer_tracks_table_inset() {
             .expect("command col"),
         border_col + 1
     );
+}
+
+#[test]
+fn build_specify_title_shows_current_points_left_after_partial_commit() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            coords: [6, 5],
+            planet_name: "Not Named Yet".to_string(),
+            present_production: 100,
+            potential_production: 100,
+            stored_production_points: 50,
+            yearly_tax_revenue: 50,
+            yearly_growth_delta: 0,
+            build_capacity: 100,
+            has_friendly_starbase: false,
+            armies: 10,
+            ground_batteries: 4,
+            is_homeworld_seed: true,
+        },
+        committed_points: 20,
+        available_points: 50,
+        points_left: 30,
+        queue_used: 0,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+
+    let buffer = screen
+        .render_specify(&view, &[], "", None, None)
+        .expect("render specify build orders");
+
+    assert!(buffer.plain_line(0).contains("PP LEFT TO SPEND: 30"));
+}
+
+#[test]
+fn build_quantity_prompt_keeps_points_left_visible_in_title_row() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            coords: [6, 5],
+            planet_name: "Not Named Yet".to_string(),
+            present_production: 100,
+            potential_production: 100,
+            stored_production_points: 50,
+            yearly_tax_revenue: 50,
+            yearly_growth_delta: 0,
+            build_capacity: 100,
+            has_friendly_starbase: false,
+            armies: 10,
+            ground_batteries: 4,
+            is_homeworld_seed: true,
+        },
+        committed_points: 20,
+        available_points: 50,
+        points_left: 30,
+        queue_used: 0,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+
+    let unit = BuildUnitSpec {
+        number: 1,
+        kind: ProductionItemKind::Destroyer,
+        label: "Destroyers",
+        singular_label: "destroyers",
+        cost: 5,
+    };
+    let buffer = screen
+        .render_quantity_prompt(&view, &[], unit, 6, "", None)
+        .expect("render quantity prompt");
+
+    assert!(buffer.plain_line(0).contains("PP LEFT TO SPEND: 30"));
 }
