@@ -10968,9 +10968,8 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
         line_containing(&terminal, "Enter target coordinates for new order: ")
             .contains("Enter target coordinates for new order: Bombard")
     );
-    let prompt = line_containing(&terminal, "Target XX ");
-    assert!(prompt.contains("COMMAND <- Target XX "));
-    assert!(!prompt.contains('['));
+    let prompt = line_containing(&terminal, "Target XX [");
+    assert!(prompt.contains("COMMAND <- Target XX ["));
     assert!(
         !terminal
             .lines
@@ -11001,7 +11000,7 @@ fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
     assert!(line_containing(&terminal, "Confirm [Y]/N").contains("Confirm [Y]/N"));
     assert!(line_containing(&terminal, "New Orders: ").contains("New Orders: Bombard"));
     assert!(terminal.lines.iter().any(|line| line.contains(&format!(
-        "cannot reach ({:02},{:02})",
+        "reaches ({:02},{:02}) in",
         bombard_target[0], bombard_target[1]
     ))));
     assert!(
@@ -11088,9 +11087,8 @@ fn fleet_group_order_uses_compact_summary_and_eta_confirm() {
         line_containing(&terminal, "Enter target coordinates for new order: ")
             .contains("Enter target coordinates for new order: Bombard")
     );
-    let prompt = line_containing(&terminal, "Target XX ");
-    assert!(prompt.contains("COMMAND <- Target XX "));
-    assert!(!prompt.contains('['));
+    let prompt = line_containing(&terminal, "Target XX [");
+    assert!(prompt.contains("COMMAND <- Target XX ["));
     assert!(!terminal.lines.iter().any(|line| line.contains("│Sel│")));
     assert!(!terminal.lines.iter().any(|line| line.contains('│')));
     assert!(!terminal.lines.iter().any(|line| line.contains('┌')));

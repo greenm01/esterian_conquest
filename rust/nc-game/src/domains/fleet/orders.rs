@@ -1523,15 +1523,36 @@ impl App {
         self.filtered_known_world_targets_from(anchor, |_| true)
     }
 
+    fn enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
+        let mut coords = self
+            .game_data
+            .planets
+            .records
+            .iter()
+            .filter(|planet| {
+                let owner = planet.owner_empire_slot_raw() as usize;
+                owner > 0 && owner != self.player.record_index_1_based
+            })
+            .map(|planet| planet.coords_raw())
+            .collect::<Vec<_>>();
+        self.sort_unique_coords_by_distance(anchor, &mut coords);
+        coords
+    }
+
     /// Enemy-owned planets only (owner > 0 and owner != self).
     /// Excludes unowned (owner 0) worlds since they are never valid hostile targets.
     fn known_enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        self.filtered_known_world_targets_from(anchor, |world| {
+        let known = self.filtered_known_world_targets_from(anchor, |world| {
             let owner = world.known_owner_empire_id;
             owner.is_some()
                 && owner != Some(0)
                 && owner != Some(self.player.record_index_1_based as u8)
-        })
+        });
+        if known.is_empty() {
+            self.enemy_planet_targets_from(anchor)
+        } else {
+            known
+        }
     }
 
     /// Under-scouted worlds: Partial or Unknown intel tier, falling back to all known.
