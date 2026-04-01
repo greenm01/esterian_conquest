@@ -1,9 +1,9 @@
-// Esterian Conquest — game directory runtime configuration
+// Nostrian Conquest — game directory runtime configuration
 // Edit this file to change sysop-facing settings.
 // Changes take effect on the next ec-game startup.
 
 // Display name shown in the main menu header.
-game_name "Esterian Conquest"
+game_name "Nostrian Conquest"
 
 // Theme file (relative to this directory, or absolute path).
 // Shipped themes live under themes/. Tokyo Night is the default.

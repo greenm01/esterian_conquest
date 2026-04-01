@@ -56,7 +56,7 @@ const RELAY_GAME_COLUMNS: [Column<'_>; 5] = [
     Column::fixed("Last Conn", 12),
 ];
 
-const TABLE_FOOTER_VERSION_TAG: &str = concat!("EC ", env!("CARGO_PKG_VERSION"));
+const TABLE_FOOTER_VERSION_TAG: &str = concat!("NC ", env!("CARGO_PKG_VERSION"));
 
 pub fn render_buffer(
     state: &PickerState,

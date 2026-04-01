@@ -110,7 +110,7 @@ fn render_buffer_fills_popup_interior_with_body_style() {
 fn render_buffer_uses_versioned_outer_title_in_shell_title_style() {
     let state = PasswordGateState::new(true, None);
     let buffer = render_buffer(&state, 82, 27);
-    let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
+    let title = format!("NC CONNECT v{}", env!("CARGO_PKG_VERSION"));
     let row = (0..buffer.height())
         .find(|&idx| buffer.plain_line(idx).contains(&title))
         .expect("outer title row");
@@ -130,7 +130,7 @@ fn render_buffer_uses_versioned_outer_title_in_shell_title_style() {
 fn render_inner_buffer_uses_plain_80x25_canvas_without_outer_shell_title() {
     let state = PasswordGateState::new(true, None);
     let buffer = render_inner_buffer(&state);
-    let title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
+    let title = format!("NC CONNECT v{}", env!("CARGO_PKG_VERSION"));
 
     assert_eq!(buffer.width(), 80);
     assert_eq!(buffer.height(), 25);

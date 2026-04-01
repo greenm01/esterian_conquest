@@ -1,8 +1,8 @@
-// Esterian Conquest — Sysop Manual
+// Nostrian Conquest — Sysop Manual
 // Typst source — generates US Letter PDF
 
 #set document(
-  title: "Esterian Conquest — Sysop Manual",
+  title: "Nostrian Conquest — Sysop Manual",
   author: "Mason A. Green",
   date: datetime(year: 2026, month: 3, day: 31),
 )
@@ -55,13 +55,13 @@
 ]
 
 #align(center + horizon)[
-  #text(size: 28pt, weight: "bold")[Esterian Conquest]
+  #text(size: 28pt, weight: "bold")[Nostrian Conquest]
   #v(0.5em)
   #text(size: 18pt)[Sysop Manual]
+  #v(1em)
+  #text(size: 10pt, style: "italic")[A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
   #v(2em)
   #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
-  #v(0.5em)
-  #text(size: 12pt, fill: luma(80))[Copyright © 2026 Mason A. Green]
   #v(0.5em)
   #text(size: 11pt, fill: luma(120))[Revision date: March 31, 2026]
 ]
@@ -99,9 +99,9 @@
 
 = Introduction
 
-Esterian Conquest (EC) is a multi-player strategy game originally written for
-DOS-era BBS systems. The Rust-native stack reimplements the game engine, player
-client, and admin tooling for modern systems.
+Nostrian Conquest is a multi-player strategy game inspired by a DOS-era BBS
+classic and reimplemented in Rust for modern systems. The Rust-native stack
+provides the game engine, player client, and admin tooling for modern hosts.
 
 This manual is for the *sysop* — the person responsible for hosting a game
 instance. It covers:
@@ -116,7 +116,7 @@ instance. It covers:
 For player-facing rules and gameplay, see the *Player Manual*.
 
 This manual is the authoritative sysop manual for the Rust edition of
-Esterian Conquest. The preserved original `.DOC` set in `original/v1.5/`
+Nostrian Conquest. The preserved original `.DOC` set in `original/v1.5/`
 remains historical reference material and an ambiguity fallback for classic
 operator intent, not a higher-authority replacement for the current Rust
 manuals.
@@ -165,7 +165,7 @@ this sysop manual.
 
 == Choose Your Deployment
 
-EC has three practical deployment paths.
+NC has three practical deployment paths.
 
 === 1. Self-Host
 
@@ -180,7 +180,7 @@ Use this when a sysop wants to run one game for himself and a few friends.
 The simplest local setup is:
 
 ```
-ec-sysop new-game /home/sysop/ec-games/friday-night --name "Friday Night EC" --players 4
+ec-sysop new-game /home/sysop/ec-games/friday-night --name "Friday Night NC" --players 4
 ec-game --dir /home/sysop/ec-games/friday-night --player 1
 ```
 
@@ -253,7 +253,7 @@ All tools take `--dir /path/to/mygame` to locate the game.
 Create a new game with `ec-sysop new-game`:
 
 ```
-sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
+sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
 ```
 
 This creates one runtime file: `ecgame.db`.
@@ -290,11 +290,11 @@ plus `ec-connect`. In that model, the sysop runs the normal Rust engine on a
 host, publishes the Nostr-facing daemon, and players join from their own
 machines with invite codes. The daemon handles identity and seat routing; the
 live game still runs inside `ec-game` over SSH. This keeps the original
-asynchronous EC rhythm without requiring per-player Unix account management or
+asynchronous NC rhythm without requiring per-player Unix account management or
 BBS door middleware.
 
 If you are recruiting players for a live public game, point them first to
-#link("https://esterianconquest.com")[esterianconquest.com]. That landing page
+#link("https://nostrian-conquest.com")[nostrian-conquest.com]. That landing page
 can carry the current public contact points and community links before you
 issue seat-specific invites. At the moment, it should direct them to the
 Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
@@ -302,7 +302,7 @@ Discord channel at #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa].
 A minimal hosted setup looks like:
 
 ```
-sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4
+sudo -u ecgame ec-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
 sudo ec-sysop host games add --config /etc/ec-gate/config.kdl --dir /srv/ec/games/friday-night
 sudo systemctl restart ec-nostr.service
 ec-sysop nostr init
@@ -390,7 +390,7 @@ ec-sysop nostr publish --dir /path/to/mygame
 Hosted seats are bound to the first player identity that completes the
 in-game join and saves the empire name. In practice this means the seat is
 tied to one `npub` until the sysop changes it. Returning players should
-reconnect with the same local EC wallet identity they used when they finished
+reconnect with the same local NC wallet identity they used when they finished
 that first join.
 
 Players should not expect to paste the same invite into a brand-new wallet and
@@ -439,7 +439,7 @@ Use `ec-sysop settings ...` to inspect or change it:
 
 ```
 ec-sysop settings show --dir /srv/ec/games/friday-night
-ec-sysop settings set --dir /srv/ec/games/friday-night --game-name "Friday Night EC"
+ec-sysop settings set --dir /srv/ec/games/friday-night --game-name "Friday Night NC"
 ec-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SYSOP
 ```
 
@@ -447,7 +447,7 @@ ec-sysop settings reserve --dir /srv/ec/games/friday-night --player 1 --alias SY
 
 ```text
 slug=friday-night
-game_name=Friday Night EC
+game_name=Friday Night NC
 snoop=true
 session_max_idle_minutes=10
 session_minimum_time_minutes=0
@@ -467,7 +467,7 @@ reservation seat=2 alias=NightShade
 #table(
   columns: (auto, auto, auto, 1fr),
   [*Field*], [*Type*], [*Default*], [*Description*],
-  [`game_name`], [string], [`"Esterian Conquest"`], [Display name shown in the main menu header.],
+  [`game_name`], [string], [`"Nostrian Conquest"`], [Display name shown in the main menu header.],
   [`default_theme_key`], [string], [`"tokyo_night"`], [Bundled color set used by default. This is a compiled-in key, not a file path.],
   [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
   [`reservations`], [rows], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
@@ -716,7 +716,7 @@ ec-sysop maint /path/to/mygame [turns]
 ec-sysop maint-all [--config /etc/ec-gate/config.kdl]
 ```
 
-`ec-sysop maint` advances the campaign in `ecgame.db`. EC does not schedule
+`ec-sysop maint` advances the campaign in `ecgame.db`. NC does not schedule
 maintenance by itself. In a real deployment, invoke `ec-sysop maint` from your
 host scheduler or BBS tooling:
 

@@ -76,7 +76,7 @@ impl PlayerStarmapProjection {
     pub fn render_ascii_export(&self) -> String {
         let mut out = String::new();
         out.push_str(&format!(
-            "ESTERIAN CONQUEST STARMAP  YEAR {}  EMPIRE {}\n\n",
+            "NOSTRIAN CONQUEST STARMAP  YEAR {}  EMPIRE {}\n\n",
             self.year, self.viewer_empire_id
         ));
         out.push_str(&self.render_ascii_map());

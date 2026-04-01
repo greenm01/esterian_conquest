@@ -385,13 +385,13 @@ fn draw_startup_status(
 pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
 pub const STARTUP_SPLASH_PAGE_COUNT: usize = 1 + INTRO_PAGES.len();
 pub fn version_title() -> String {
-    format!("EC v{}", env!("CARGO_PKG_VERSION"))
+    format!("NC v{}", env!("CARGO_PKG_VERSION"))
 }
 
-const ATTRIBUTION: &str = "Esterian Conquest (c) 1992 Bentley C. Griffith";
+const ATTRIBUTION: &str = "Inspired by the classic 1990s BBS door game Esterian Conquest";
 
 const INTRO_ACCENT_PHRASES: &[&str] = &[
-    "Esterian dominion",
+    "Nostrian dominion",
     "stations",
     "empires",
     "Star Masters",
@@ -735,21 +735,21 @@ fn display_or_unknown(value: &str) -> &str {
 }
 
 const INTRO_LOGO: [&str; 11] = [
-    "  o     #######   ###### ########  #######  ######    ##    #####    ###  ##",
-    "    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##",
-    "      ####      #####     ##     ####     ######    ##   #######   ## ####   .",
-    "     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###",
-    " .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##",
+    " *    _   _  ___  ____ _____ ____  ___    _    _   _",
+    "     | \\ | |/ _ \\/ ___|_   _|  _ \\|_ _|  / \\  | \\ | |",
+    "     |  \\| | | | \\___ \\ | | | |_) || |  / _ \\ |  \\| |",
+    "     | |\\  | |_| |___) || | |  _ < | | / ___ \\| |\\  |",
+    "   . |_| \\_|\\___/|____/ |_| |_| \\_\\___/_/   \\_\\_| \\_|",
     "",
-    "   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########",
-    "     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .",
-    "  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##",
-    "   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .",
-    "   ######   #####    ##   ##   ######   #####   #######  ######     ##",
+    "      ____ ___  _   _  ___  _   _ _____ ____ _____",
+    "     / ___/ _ \\| \\ | |/ _ \\| | | | ____/ ___|_   _|",
+    "    | |  | | | |  \\| | | | | | | |  _| \\___ \\ | |  *",
+    "    | |__| |_| | |\\  | |_| | |_| | |___ ___) || |",
+    "     \\____\\___/|_| \\_|\\__\\_\\\\___/|_____|____/ |_|",
 ];
 
 const INTRO_PAGE_1: [&str; 13] = [
-    "Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy of",
+    "Beyond the mapped frontiers of the old Nostrian dominion lies a small galaxy of",
     "contested solar systems. The old masters are gone. Their stations are silent,",
     "their patrols vanished, and their subjects left with fleets, factories, and",
     "enough knowledge to build empires.",
@@ -764,12 +764,11 @@ const INTRO_PAGE_1: [&str; 13] = [
     "decided by distance, industry, mathematics, and will.",
 ];
 
-const INTRO_PAGE_2: [&str; 7] = [
+const INTRO_PAGE_2: [&str; 6] = [
     "",
-    "In profound respect and admiration to Bentley C. Griffith and his fellow",
-    "pioneers, who between 1990 and 1992 forged the enduring legend of Esterian",
-    "Conquest, and to the ancient dreamers, strategists, and storytellers whose",
-    "timeless visions of galactic dominion still light the way among these stars.",
+    "In homage to the 1990s door-game pioneers and to the ancient dreamers,",
+    "strategists, and storytellers whose visions of galactic dominion still",
+    "light the way among these stars.",
     "",
     "",
 ];

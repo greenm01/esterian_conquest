@@ -28,7 +28,7 @@ const MAIN_LOCAL_LINES: [&str; 12] = [
     "<?> - show Main Menu command help",
     "<I> - show Intelligence on what you know about any planet",
     "<P> - bring up the Planet Command Center menu",
-    "<Q> - quit Esterian Conquest and returns you back to Jump Start",
+    "<Q> - quit Nostrian Conquest and returns you back to Jump Start",
     "<T> - list database information about planets",
     "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
     "<X> - hide/show command menus",
@@ -43,7 +43,7 @@ const MAIN_DOOR_LINES: [&str; 12] = [
     "<?> - show Main Menu command help",
     "<I> - show Intelligence on what you know about any planet",
     "<P> - bring up the Planet Command Center menu",
-    "<Q> - quit Esterian Conquest and returns you back to Jump Start",
+    "<Q> - quit Nostrian Conquest and returns you back to Jump Start",
     "<T> - list database information about planets",
     "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
     "<X> - hide/show command menus",
@@ -135,7 +135,7 @@ const FIRST_TIME_LOCAL_LINES: [&str; 6] = [
     "<?> - show First Time Menu help",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
-    "<Q> - quit Esterian Conquest and return to the BBS",
+    "<Q> - quit Nostrian Conquest and return to the BBS",
     "<V> - view the introduction to this game",
 ];
 
@@ -144,7 +144,7 @@ const FIRST_TIME_DOOR_LINES: [&str; 6] = [
     "<?> - show First Time Menu help",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
-    "<Q> - quit Esterian Conquest and return to the BBS",
+    "<Q> - quit Nostrian Conquest and return to the BBS",
     "<V> - view the introduction to this game",
 ];
 

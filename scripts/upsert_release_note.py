@@ -38,7 +38,7 @@ def strip_legacy_top_note(body: str) -> str:
     legacy_heading = "## Verify Rust downloads"
     if not body.startswith(legacy_heading):
         return body
-    separator = "\n\nPublic Esterian Conquest release artifacts."
+    separator = "\n\nPublic Nostrian Conquest release artifacts."
     split_at = body.find(separator)
     if split_at == -1:
         return body

@@ -1,6 +1,6 @@
 # Release Policy
 
-Esterian Conquest is in active beta. Public release downloads are intentionally
+Nostrian Conquest is in active beta. Public release downloads are intentionally
 conservative until the Rust-hosted path has been proven in several real VPS
 games.
 

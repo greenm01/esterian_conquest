@@ -1,17 +1,17 @@
 # Manuals
 
 This directory holds the authoritative manuals for the Rust edition of
-Esterian Conquest.
+Nostrian Conquest.
 
 The primary sources are:
 
-- [ec_player_manual.typ](ec_player_manual.typ)
-- [ec_sysop_manual.typ](ec_sysop_manual.typ)
+- [nc_player_manual.typ](nc_player_manual.typ)
+- [nc_sysop_manual.typ](nc_sysop_manual.typ)
 
 The published outputs linked from the main README are:
 
-- [ec_player_manual.pdf](ec_player_manual.pdf)
-- [ec_sysop_manual.pdf](ec_sysop_manual.pdf)
+- [nc_player_manual.pdf](nc_player_manual.pdf)
+- [nc_sysop_manual.pdf](nc_sysop_manual.pdf)
 
 Edit the Typst sources first. When a manual changes, regenerate the matching
 PDF so the published output stays in sync.
@@ -46,6 +46,6 @@ matching PDF. Pass `--no-build` when you only want to refresh the Typst source.
 ## Archive
 
 The [archive/](archive/) subdirectory holds historical transcriptions and
-reference material derived from the original EC documents. Treat that archive
+reference material derived from the original game documents. Treat that archive
 as provenance and ambiguity fallback, not as the primary source for current
 manual edits.

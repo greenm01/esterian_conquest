@@ -11,7 +11,7 @@ UI defaults into hard blockers.
 
 Primary sources:
 
-- [ec_player_manual.typ](../manuals/ec_player_manual.typ)
+- [nc_player_manual.typ](../manuals/nc_player_manual.typ)
 - [ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC)
 
 Current implementation lives in:

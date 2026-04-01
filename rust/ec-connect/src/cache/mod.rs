@@ -6,7 +6,7 @@
 //!
 //! Format:
 //! ```kdl
-//! game id="friday-night" name="Friday Night EC" player-name="House Vale" server="play.example.com" port=22 relay-url="wss://relay.example.com" seat=2 npub="npub1aaa..." gate-npub="npub1gate..." status="joined" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
+//! game id="friday-night" name="Friday Night NC" player-name="House Vale" server="play.example.com" port=22 relay-url="wss://relay.example.com" seat=2 npub="npub1aaa..." gate-npub="npub1gate..." status="joined" joined="2026-03-26T12:00:00Z" last-connected="2026-03-28T19:30:00Z"
 //! game id="saturday-showdown" name="Saturday Showdown" server="war.example.com" port=22 seat=5 npub="npub1aaa..." status="pending" invite-code="velvet-mountain" joined="2026-03-27T10:00:00Z"
 //! ```
 //!

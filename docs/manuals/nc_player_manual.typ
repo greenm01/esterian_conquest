@@ -1,8 +1,8 @@
-// Esterian Conquest — Player Manual
+// Nostrian Conquest — Player Manual
 // Typst source — generates US Letter PDF with proper table layout
 
 #set document(
-  title: "Esterian Conquest — Player Manual",
+  title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
   date: datetime(year: 2026, month: 3, day: 31),
 )
@@ -52,7 +52,7 @@
 #let manual_license_notice = [
   New text, layout, and explanatory material in this manual
   © 2026 Mason A. Green and are licensed under CC BY-NC-SA 4.0. Original
-  Esterian Conquest names, legacy text, and other preserved 1992 source
+  historical Esterian Conquest references and other preserved 1992 source
   material are excluded from that grant and remain credited to their original
   authors and rights holders.
 ]
@@ -63,31 +63,15 @@
 ]
 
 #align(center + horizon)[
-  #block(width: 100%)[
-    #set text(size: 8pt, font: "IBM Plex Mono")
-    ```
-  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
-    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
-      ####      #####     ##     ####     ######    ##   #######   ## ####   .
-     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
- .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
-
-   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
-     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
-  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
-   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
-   ######   #####    ##   ##   ######   #####   #######  ######     ##
-    ```
-  ]
-
-  #v(2em)
-  #text(size: 24pt, weight: "bold")[Esterian Conquest]
+  #text(size: 24pt, weight: "bold")[Nostrian Conquest]
   #linebreak()
   #text(size: 16pt)[Player Manual]
   #v(1em)
-  #text(size: 10pt, style: "italic")[Copyright © 1992 Bentley C. Griffith]
-  #v(1em)
-  #text(size: 10pt, style: "italic")[Rust edition and manual adaptation by Mason A. Green]
+  #text(size: 10pt, style: "italic")[A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
+  #v(0.5em)
+  #text(size: 10pt, fill: luma(120))[Built on Nostr for decentralized play. All code, UI, and assets are original.]
+  #v(0.5em)
+  #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Revision date: March 31, 2026]
   #v(0.5em)
@@ -127,13 +111,15 @@
 
 = Introduction
 
-Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy of contested solar systems. The old masters are gone. Their stations are silent, their patrols vanished, and their subjects left with fleets, factories, and enough knowledge to build empires.
+Beyond the mapped frontiers of the old Nostrian dominion lies a small galaxy of contested solar systems. The old masters are gone. Their stations are silent, their patrols vanished, and their subjects left with fleets, factories, and enough knowledge to build empires.
 
 You rise as one of the new Star Masters. From a single world and a few small fleets, you must tax, build, scout, bargain, threaten, and strike before rival powers can do the same. Some systems will join your banner willingly. Others will require persuasion from orbit.
 
 Each maintenance marks the passage of a year. In that span, fleets cross the dark between stars, colonies grow or starve, alliances turn cold, and wars are decided by distance, industry, mathematics, and will.
 
-In profound respect and admiration to Bentley C. Griffith and his fellow pioneers, who between 1990 and 1992 forged the enduring legend of Esterian Conquest, and to the ancient dreamers, strategists, and storytellers whose timeless visions of galactic dominion still light the way among these stars.
+Nostrian Conquest is a from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. All code, UI, and assets in this edition are original, and it is not affiliated with any original release.
+
+In homage to the 1990s door-game pioneers and to the ancient dreamers, strategists, and storytellers whose visions of galactic dominion still light the way among these stars.
 
 #pagebreak()
 
@@ -144,13 +130,13 @@ In profound respect and admiration to Bentley C. Griffith and his fellow pioneer
 == Finding New Games
 
 If you do not already have an invite code, start at
-#link("https://esterianconquest.com")[esterianconquest.com]. That landing page
+#link("https://nostrian-conquest.com")[nostrian-conquest.com]. That landing page
 points to the current public meeting places for live campaigns and player
 announcements.
 
 Right now, the main public meeting place is the Discord channel at
 #link("https://discord.gg/FMr8sfBa")[discord.gg/FMr8sfBa]. The landing page
-also points to the `EC Sysop` Nostr/Primal presence for direct contact.
+also points to the `NC Sysop` Nostr/Primal presence for direct contact.
 
 Once a sysop has a seat ready for you, he gives you an invite code in the
 normal `amber-river@relay.example.com` form.
@@ -177,7 +163,7 @@ locally in your Documents `ec/maps` folder. Later, press `M` in the picker
 to change the default maps folder and re-download the bundle for the
 currently selected game.
 
-One EC wallet identity can hold only one seat in a hosted game. If you have
+One NC wallet identity can hold only one seat in a hosted game. If you have
 already completed the first join for that game and later delete the local
 picker row, press `N`, paste the same invite again, and reconnect with that
 same identity. The original invite still belongs only to that identity; a
@@ -261,7 +247,7 @@ Each round represents one year. You submit orders during the year, and maintenan
 
 === Turn Progression
 
-There is no "End Turn" button in Esterian Conquest. Because all players submit orders simultaneously, the game does not wait for a player to explicitly pass the turn. Instead, you simply set your economy, assign fleet missions, and log off. The sysop (or an automated server schedule) determines when the "maintenance cycle" runs. When it does, the game engine processes everyone's orders, resolves battles, advances time by one year, and generates a new set of reports for you to read the next time you connect.
+There is no "End Turn" button in Nostrian Conquest. Because all players submit orders simultaneously, the game does not wait for a player to explicitly pass the turn. Instead, you simply set your economy, assign fleet missions, and log off. The sysop (or an automated server schedule) determines when the "maintenance cycle" runs. When it does, the game engine processes everyone's orders, resolves battles, advances time by one year, and generates a new set of reports for you to read the next time you connect.
 
 === Assets You Can Build
 
@@ -609,13 +595,13 @@ In the endgame, fleet composition and denial matter more than raw numbers. Mix d
 = Historical Context
 
 *The BBS Era (1990--1992)* \
-Esterian Conquest was created by Bentley C. Griffith between 1990 and 1992 as a "door game" for Bulletin Board Systems. In an era before the World Wide Web, players dialed into servers over phone lines to play strategy games against dozens of strangers. Everything ran through rigid 80x25 text terminals --- every menu, every star map, every battle report squeezed into that tiny viewport. EC stood alongside classics like _TradeWars 2002_ and _Solar Realms Elite_, but was distinguished by its depth, its hands-off design, and the sheer scale of its campaigns.
+The original game emerged between 1990 and 1992 as a "door game" for Bulletin Board Systems. In an era before the World Wide Web, players dialed into servers over phone lines to play strategy games against dozens of strangers. Everything ran through rigid 80x25 text terminals --- every menu, every star map, every battle report squeezed into that tiny viewport. It stood alongside classics like _TradeWars 2002_ and _Solar Realms Elite_, but was distinguished by its depth, its hands-off design, and the sheer scale of its campaigns.
 
 *What Made It Special* \
 Most multiplayer games of the era demanded constant attention. Esterian Conquest was different. You checked in once a day, submitted your orders, and went about your life. Overnight, the engine processed every empire simultaneously --- fleets moved, economies grew, battles resolved, and alliances were tested. When you logged in the next day, a stack of reports was waiting. Campaigns ran for months, and the stories they produced --- surprise invasions, desperate blockades, betrayals at the worst possible moment --- were the kind that stuck with players for years.
 
 *The Rust Port (2026)* \
-This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played EC on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
+This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played the original game on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
 
 The project has now reached a real beta stage. The Rust player, connection,
 and sysop tools cover the core campaign workflow, and the main work from here
@@ -899,7 +885,7 @@ Category key:
 
 = Appendix D: Preservation and Original Sources <appendix-preservation>
 
-This edition is a playable modern Rust version of Esterian Conquest, built
+This edition is a playable modern Rust version of Nostrian Conquest, built
 with preservation discipline. The goal is to keep the original gameplay
 legible and playable on modern systems while documenting the exact engine
 rules that matter to players, operators, client authors, and future
@@ -908,7 +894,7 @@ maintainers.
 === Source Hierarchy
 
 This manual is the authoritative player manual for the Rust edition of
-Esterian Conquest.
+Nostrian Conquest.
 
 The preserved originals in `original/v1.5/` remain historical references and
 an ambiguity fallback:
@@ -946,7 +932,7 @@ original binary to exit immediately with no useful error. Getting the game
 running under a contemporary BBS stack requires a precise 32-line WWIV-style
 `CHAIN.TXT` with DOS CRLF endings and correct local-console values, plus
 `ECUTIL.EXE` to initialize game data before the first launch. The project
-repository at #link("https://github.com/greenm01/esterian_conquest") includes
+repository at #link("https://github.com/greenm01/nostrian-conquest") includes
 the original v1.5 package, working wrapper scripts, and setup documentation for
 running the classic binaries under DOSBox. This legacy setup friction is one of
 the motivating factors behind the Rust rewrite --- making the game accessible on

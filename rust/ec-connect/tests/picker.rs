@@ -413,12 +413,12 @@ fn empty_picker_keeps_one_body_row_and_command_line_under_table() {
     assert!(
         !buffer
             .plain_line(command_row)
-            .contains(concat!("EC ", env!("CARGO_PKG_VERSION")))
+            .contains(concat!("NC ", env!("CARGO_PKG_VERSION")))
     );
     assert!(
         buffer
             .plain_line(buffer.height() - 1)
-            .contains(concat!("EC ", env!("CARGO_PKG_VERSION")))
+            .contains(concat!("NC ", env!("CARGO_PKG_VERSION")))
     );
     assert!(
         !buffer
@@ -1137,7 +1137,7 @@ fn connecting_popup_renders_context_lines() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::Connecting {
         lines: vec![
-            "Game: Friday Night EC".to_string(),
+            "Game: Friday Night NC".to_string(),
             "Server: play.example.com:22".to_string(),
             "Relay: wss://relay.example.com".to_string(),
             "Attempting to connect...".to_string(),
@@ -1158,7 +1158,7 @@ fn refreshing_popup_renders_context_lines() {
     let mut state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     state.overlay = Some(PickerOverlay::RefreshingGame {
         lines: vec![
-            "Game: Friday Night EC".to_string(),
+            "Game: Friday Night NC".to_string(),
             "Server: play.example.com:22".to_string(),
             "Relay: wss://relay.example.com".to_string(),
             "Refreshing game info...".to_string(),
@@ -1396,7 +1396,7 @@ fn gui_inner_picker_buffer_uses_plain_80x25_canvas_without_outer_shell() {
     let state = make_state(vec![make_game("a", Some("2026-03-26T00:00:00Z"))]);
     let session = make_session(Some("Desk Alias"));
     let buffer = ec_connect::picker::render::render_inner_buffer(&state, Some(&session));
-    let outer_title = format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"));
+    let outer_title = format!("NC CONNECT v{}", env!("CARGO_PKG_VERSION"));
 
     assert_eq!(buffer.width(), 80);
     assert_eq!(buffer.height(), 25);

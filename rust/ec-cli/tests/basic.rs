@@ -186,7 +186,7 @@ fn map_export_uses_runtime_sqlite_and_ignores_stale_database_dat() {
     let txt = fs::read_to_string(&out_txt).unwrap();
     let csv = fs::read_to_string(target.join("map.csv")).unwrap();
     let details_csv = fs::read_to_string(target.join("map-DETAILS.csv")).unwrap();
-    assert!(txt.contains("ESTERIAN CONQUEST STARMAP"));
+    assert!(txt.contains("NOSTRIAN CONQUEST STARMAP"));
     assert!(txt.contains('*'));
     assert!(csv.starts_with(",01,02,03"));
     assert!(csv.contains(",*,"));

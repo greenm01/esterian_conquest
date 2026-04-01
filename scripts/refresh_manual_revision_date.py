@@ -26,14 +26,14 @@ MANUALS = {
     "player": ManualSpec(
         key="player",
         label="player",
-        typ_path=MANUALS_DIR / "ec_player_manual.typ",
-        pdf_path=MANUALS_DIR / "ec_player_manual.pdf",
+        typ_path=MANUALS_DIR / "nc_player_manual.typ",
+        pdf_path=MANUALS_DIR / "nc_player_manual.pdf",
     ),
     "sysop": ManualSpec(
         key="sysop",
         label="sysop",
-        typ_path=MANUALS_DIR / "ec_sysop_manual.typ",
-        pdf_path=MANUALS_DIR / "ec_sysop_manual.pdf",
+        typ_path=MANUALS_DIR / "nc_sysop_manual.typ",
+        pdf_path=MANUALS_DIR / "nc_sysop_manual.pdf",
     ),
 }
 

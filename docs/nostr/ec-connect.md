@@ -67,7 +67,7 @@ $ ec-connect
 [centered password window]
 Password: ********
 
-ESTERIAN CONQUEST CONNECT                              alice-main
+NOSTRIAN CONQUEST CONNECT                              alice-main
 ┌─────────────┬─────────────────┬──────────────────┬───────────────────┬──────┐
 │Empire       │Game             │Server            │Gate               │  Seat│
 ├─────────────┼─────────────────┼──────────────────┼───────────────────┼──────┤
@@ -370,7 +370,7 @@ The no-argument shell is a fixed `80x25` crossterm screen aligned with the
 ### Layout
 
 ```
- ESTERIAN CONQUEST ── CONNECT
+ NOSTRIAN CONQUEST ── CONNECT
 
  Your Games
  > Friday Night EC     play.example.com    Seat 2    (3 hours ago)

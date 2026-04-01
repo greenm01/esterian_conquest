@@ -9,7 +9,7 @@ pub const INNER_ORIGIN_COL: usize = 1;
 pub const INNER_ORIGIN_ROW: usize = 1;
 
 pub fn outer_title() -> String {
-    format!("EC CONNECT v{}", env!("CARGO_PKG_VERSION"))
+    format!("NC CONNECT v{}", env!("CARGO_PKG_VERSION"))
 }
 
 pub fn terminal_fits_outer(width: usize, height: usize) -> bool {

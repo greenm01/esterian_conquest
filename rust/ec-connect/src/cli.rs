@@ -876,7 +876,7 @@ fn print_usage() {
     let developer = "";
     println!(
         "{}\
-ec-connect — Esterian Conquest multiplayer client
+ec-connect — Nostrian Conquest multiplayer client
 
 Usage:
   ec-connect                                       Picker mode (game list)

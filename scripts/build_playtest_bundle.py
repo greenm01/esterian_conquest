@@ -17,8 +17,8 @@ import re
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
-PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_player_manual.pdf"
-SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "ec_sysop_manual.pdf"
+PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_player_manual.pdf"
+SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_sysop_manual.pdf"
 EC_CONNECT_LICENSES = (
     REPO_ROOT / "rust" / "ec-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
     REPO_ROOT / "rust" / "ec-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
@@ -221,7 +221,7 @@ def build_info_text(spec: BundleSpec) -> str:
 
 def package_readme(spec: BundleSpec) -> str:
     connect_binary = "ec-connect.exe" if spec.is_windows else "./bin/ec-connect"
-    player_manual_path = "ec_player_manual.pdf" if spec.is_windows else "docs/ec_player_manual.pdf"
+    player_manual_path = "nc_player_manual.pdf" if spec.is_windows else "docs/nc_player_manual.pdf"
     windows_note = ""
     if spec.is_windows:
         windows_note = """
@@ -289,7 +289,7 @@ When reporting a player-client issue, include:
 - a screenshot if the issue is visual
 """
 
-    return f"""# Esterian Conquest {spec.platform.display_name} Public Beta Bundle
+    return f"""# Nostrian Conquest {spec.platform.display_name} Public Beta Bundle
 
 This bundle is for public beta testing on {spec.platform.display_name}.
 
@@ -301,8 +301,8 @@ It contains:
 
 It also includes:
 
-- `docs/ec_player_manual.pdf`
-- `docs/ec_sysop_manual.pdf`
+- `docs/nc_player_manual.pdf`
+- `docs/nc_sysop_manual.pdf`
 - `licenses/OFL-0xProto.txt`
 - `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata for bug reports
@@ -437,7 +437,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         required_files = [
             "README.md",
             "BUILD-INFO.txt",
-            f"{docs_prefix}ec_player_manual.pdf",
+            f"{docs_prefix}nc_player_manual.pdf",
             "licenses/OFL-0xProto.txt",
             "licenses/LICENSE-NotoSansMono.txt",
         ]
@@ -447,7 +447,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         if spec.artifact == "public-beta":
             required_files.extend(
                 (
-                    f"{docs_prefix}ec_sysop_manual.pdf",
+                    f"{docs_prefix}nc_sysop_manual.pdf",
                     f"{binary_prefix}ec-game{binary_ext}",
                     f"{binary_prefix}ec-sysop{binary_ext}",
                     f"{binary_prefix}ec-connect{binary_ext}",

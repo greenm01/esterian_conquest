@@ -854,12 +854,12 @@ mod tests {
             &mut buffer,
             24,
             end_col,
-            "EC 1.0.0",
+            "NC 1.0.0",
             classic::prompt_hotkey_style(),
         );
 
         assert!(drawn.is_some());
-        assert!(buffer.plain_line(24).contains("EC 1.0.0"));
+        assert!(buffer.plain_line(24).contains("NC 1.0.0"));
     }
 
     #[test]
@@ -871,11 +871,11 @@ mod tests {
             &mut buffer,
             24,
             end_col,
-            "EC 1.0.0",
+            "NC 1.0.0",
             classic::prompt_hotkey_style(),
         );
 
         assert!(drawn.is_none());
-        assert!(!buffer.plain_line(24).contains("EC 1.0.0"));
+        assert!(!buffer.plain_line(24).contains("NC 1.0.0"));
     }
 }

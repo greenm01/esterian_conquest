@@ -71,7 +71,7 @@ pub struct SeatReservation {
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
-            game_name: "Esterian Conquest".to_string(),
+            game_name: "Nostrian Conquest".to_string(),
             theme: None,
             snoop: true,
             session: SessionConfig::default(),
@@ -136,7 +136,7 @@ impl GameConfig {
             .map_err(|err| GameConfigError::Parse(format!("invalid KDL: {err}")))?;
 
         let game_name = opt_node_string(&document, "game_name")
-            .unwrap_or_else(|| "Esterian Conquest".to_string());
+            .unwrap_or_else(|| "Nostrian Conquest".to_string());
 
         let theme = opt_node_string(&document, "theme").map(PathBuf::from);
 

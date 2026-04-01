@@ -126,8 +126,8 @@ fn client_renders_startup_splash_from_fixture() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("#######"));
-    assert!(stdout.contains(&format!("EC v{}", env!("CARGO_PKG_VERSION"))));
+    assert!(stdout.contains("_   _  ___  ____"));
+    assert!(stdout.contains(&format!("NC v{}", env!("CARGO_PKG_VERSION"))));
     assert!(stdout.contains("View the game introduction? Y/[N] ->"));
     assert!(!stdout.contains("config.kdl"));
     assert!(!stdout.contains("theme.kdl"));

@@ -22,7 +22,7 @@ CHECKSUM_PATH = RELEASES_DIR / "SHA256SUMS.txt"
 SIGNATURE_PATH = RELEASES_DIR / "SHA256SUMS.txt.asc"
 RELEASE_NOTE_PATH = RELEASES_DIR / "ec-connect-release-note.md"
 RELEASE_NOTE_URL = (
-    "https://github.com/greenm01/esterian_conquest/blob/main/docs/release-signing.md"
+    "https://github.com/greenm01/nostrian-conquest/blob/main/docs/release-signing.md"
 )
 EC_CONNECT_ARCHIVE_RE = re.compile(r"^ec-connect-v.*\.(?:zip|tar\.gz)$")
 

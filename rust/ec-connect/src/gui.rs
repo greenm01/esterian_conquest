@@ -20,7 +20,7 @@ pub(crate) const TERM_COLS: u16 = 80;
 pub(crate) const TERM_ROWS: u16 = 25;
 pub(crate) const CELL_WIDTH: usize = 10;
 pub(crate) const CELL_HEIGHT: usize = 18;
-const WINDOW_TITLE: &str = "Esterian Conquest";
+const WINDOW_TITLE: &str = "Nostrian Conquest";
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let launch_intent = parse_launch_intent()?;
