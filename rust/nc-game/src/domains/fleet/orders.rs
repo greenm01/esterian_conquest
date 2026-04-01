@@ -524,7 +524,42 @@ impl App {
         {
             return Err("That mission requires one of your owned planets.".to_string());
         }
+        if mission_code == nc_data::Order::ColonizeWorld.to_raw() {
+            let selected_records = if single {
+                self.fleet_order_selected_row()
+                    .map(|row| BTreeSet::from([row.fleet_record_index_1_based]))
+                    .unwrap_or_default()
+            } else {
+                self.fleet.group_selected_fleets.clone()
+            };
+            self.validate_friendly_colonize_assignment(destination, &selected_records)?;
+        }
         Ok(())
+    }
+
+    fn validate_friendly_colonize_assignment(
+        &self,
+        destination: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> Result<(), String> {
+        if selected_records.len() > 1 {
+            return Err(
+                "You cannot order multiple ETAC fleets to colonize the same world.".to_string(),
+            );
+        }
+        self.game_data
+            .validate_friendly_colonize_target_available(
+                self.player.record_index_1_based as u8,
+                destination,
+                selected_records,
+            )
+            .map_err(|err| match err {
+                nc_data::FleetOrderValidationError::DuplicateFriendlyColonizeTarget { .. } => {
+                    "Another one of your ETAC fleets is already ordered to colonize that world."
+                        .to_string()
+                }
+                other => other.to_string(),
+            })
     }
 
     fn fleet_target_eta_estimate(
@@ -1326,17 +1361,12 @@ impl App {
         selected_records: &BTreeSet<usize>,
     ) -> bool {
         self.game_data
-            .fleets
-            .records
-            .iter()
-            .enumerate()
-            .any(|(idx, fleet)| {
-                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
-                    && !selected_records.contains(&(idx + 1))
-                    && fleet.etac_count() > 0
-                    && fleet.standing_order_kind() == nc_data::Order::ColonizeWorld
-                    && fleet.standing_order_target_coords_raw() == coords
-            })
+            .conflicting_friendly_colonize_fleet_record(
+                self.player.record_index_1_based as u8,
+                coords,
+                selected_records,
+            )
+            .is_some()
     }
 
     fn friendly_scout_target_claimed_elsewhere(
@@ -1750,6 +1780,13 @@ impl App {
         aux0: u8,
         aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let selected_records = selected_rows
+            .iter()
+            .map(|row| row.fleet_record_index_1_based)
+            .collect::<BTreeSet<_>>();
+        if mission_code == nc_data::Order::ColonizeWorld.to_raw() {
+            self.validate_friendly_colonize_assignment(target, &selected_records)?;
+        }
         for row in selected_rows {
             let speed = self
                 .game_data

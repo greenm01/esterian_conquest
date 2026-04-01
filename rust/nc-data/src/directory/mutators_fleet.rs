@@ -1,7 +1,53 @@
+use std::collections::BTreeSet;
+
 use super::support::*;
 use super::*;
 
 impl CoreGameData {
+    pub fn conflicting_friendly_colonize_fleet_record(
+        &self,
+        owner_empire_raw: u8,
+        target: [u8; 2],
+        excluded_fleet_record_indexes_1_based: &BTreeSet<usize>,
+    ) -> Option<usize> {
+        if owner_empire_raw == 0 {
+            return None;
+        }
+        self.fleets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(idx, fleet)| {
+                fleet.owner_empire_raw() == owner_empire_raw
+                    && !excluded_fleet_record_indexes_1_based.contains(&(idx + 1))
+                    && fleet.etac_count() > 0
+                    && fleet.standing_order_kind() == Order::ColonizeWorld
+                    && fleet.standing_order_target_coords_raw() == target
+            })
+            .map(|(idx, _)| idx + 1)
+    }
+
+    pub fn validate_friendly_colonize_target_available(
+        &self,
+        owner_empire_raw: u8,
+        target: [u8; 2],
+        excluded_fleet_record_indexes_1_based: &BTreeSet<usize>,
+    ) -> Result<(), FleetOrderValidationError> {
+        if let Some(conflicting_fleet_record_index_1_based) = self
+            .conflicting_friendly_colonize_fleet_record(
+                owner_empire_raw,
+                target,
+                excluded_fleet_record_indexes_1_based,
+            )
+        {
+            return Err(FleetOrderValidationError::DuplicateFriendlyColonizeTarget {
+                target,
+                conflicting_fleet_record_index_1_based,
+            });
+        }
+        Ok(())
+    }
+
     pub fn set_fleet_local_slot(
         &mut self,
         player_index_1_based: usize,
@@ -201,6 +247,9 @@ impl CoreGameData {
                 if planet_owner.is_none() {
                     return Err(FleetOrderValidationError::MissingPlanetTarget);
                 }
+                let mut excluded = BTreeSet::new();
+                excluded.insert(record_index_1_based);
+                self.validate_friendly_colonize_target_available(owner, target, &excluded)?;
             }
             Order::JoinAnotherFleet => {
                 let _ = aux1;

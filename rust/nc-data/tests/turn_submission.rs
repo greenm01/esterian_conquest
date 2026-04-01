@@ -148,6 +148,69 @@ tax rate=20
 }
 
 #[test]
+fn turn_submission_rejects_duplicate_friendly_colonize_targets_without_mutation() {
+    let mut data = build_seeded_initialized_game(4, 3000, 1515).unwrap();
+    let fleet_indexes = data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, fleet)| fleet.owner_empire_raw() == 1)
+        .map(|(idx, _)| idx + 1)
+        .take(2)
+        .collect::<Vec<_>>();
+    let target_coords = data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 0)
+        .map(|planet| planet.coords_raw())
+        .expect("initialized game should have an unowned planet");
+    let first_order_before = data.fleets.records[fleet_indexes[0] - 1].standing_order_kind();
+    let second_order_before = data.fleets.records[fleet_indexes[1] - 1].standing_order_kind();
+
+    for fleet_index in &fleet_indexes {
+        let fleet = &mut data.fleets.records[*fleet_index - 1];
+        fleet.set_etac_count(1);
+        fleet.recompute_max_speed_from_composition();
+        fleet.set_current_speed(0);
+    }
+
+    let kdl = format!(
+        r#"
+turn player=1 year=3000
+fleet record={} {{
+  order speed=0 kind="colonize" x={} y={}
+}}
+fleet record={} {{
+  order speed=0 kind="colonize" x={} y={}
+}}
+"#,
+        fleet_indexes[0],
+        target_coords[0],
+        target_coords[1],
+        fleet_indexes[1],
+        target_coords[0],
+        target_coords[1],
+    );
+
+    let submission = TurnSubmission::parse_kdl_str(&kdl).unwrap();
+    let err = submission
+        .apply_to(&mut data, &mut Vec::new())
+        .expect_err("duplicate colonize targets should fail");
+
+    assert!(err.to_string().contains("friendly fleet"));
+    assert_eq!(
+        data.fleets.records[fleet_indexes[0] - 1].standing_order_kind(),
+        first_order_before
+    );
+    assert_eq!(
+        data.fleets.records[fleet_indexes[1] - 1].standing_order_kind(),
+        second_order_before
+    );
+}
+
+#[test]
 fn turn_submission_loads_from_kdl_file() {
     let dir = std::env::temp_dir().join("nc-data-turn-kdl-load");
     let _ = std::fs::remove_dir_all(&dir);

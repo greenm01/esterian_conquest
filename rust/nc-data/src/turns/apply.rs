@@ -26,6 +26,8 @@ pub(super) fn apply_turn_submission(
         )));
     }
 
+    preflight_fleet_order_actions(submission, game_data)?;
+
     if let Some(tax_rate) = submission.tax_rate {
         game_data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
     }
@@ -73,6 +75,41 @@ pub(super) fn apply_turn_submission(
             .sum(),
         messages_queued: submission.messages.len(),
     })
+}
+
+fn preflight_fleet_order_actions(
+    submission: &TurnSubmission,
+    game_data: &CoreGameData,
+) -> Result<(), TurnSubmissionError> {
+    let mut preview = game_data.clone();
+    for fleet in &submission.fleets {
+        for action in &fleet.actions {
+            let FleetTurnAction::Order {
+                speed,
+                order_code,
+                target,
+                aux0,
+                aux1,
+            } = action
+            else {
+                continue;
+            };
+            ensure_player_owns_fleet(
+                &preview,
+                submission.player_record_index_1_based,
+                fleet.fleet_record_index_1_based,
+            )?;
+            preview.set_fleet_order(
+                fleet.fleet_record_index_1_based,
+                *speed,
+                *order_code,
+                *target,
+                *aux0,
+                *aux1,
+            )?;
+        }
+    }
+    Ok(())
 }
 
 fn apply_planet_action(

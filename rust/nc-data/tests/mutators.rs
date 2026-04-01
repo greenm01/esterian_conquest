@@ -1742,6 +1742,57 @@ fn set_fleet_order_rejects_speed_above_current_maximum() {
 }
 
 #[test]
+fn set_fleet_order_rejects_duplicate_friendly_colonize_target() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(4)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let target = data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 0)
+        .map(|planet| planet.coords_raw())
+        .expect("baseline should have an unowned planet");
+    let first_speed = data.fleets.records[0].current_speed();
+    let second_speed = data.fleets.records[1].current_speed();
+    data.fleets.records[0].set_etac_count(1);
+    data.fleets.records[1].set_etac_count(1);
+
+    data.set_fleet_order(
+        1,
+        first_speed,
+        Order::ColonizeWorld.to_raw(),
+        target,
+        None,
+        None,
+    )
+    .expect("first colonize order should succeed");
+
+    let error = data
+        .set_fleet_order(
+            2,
+            second_speed,
+            Order::ColonizeWorld.to_raw(),
+            target,
+            None,
+            None,
+        )
+        .expect_err("second colonize order should be rejected");
+
+    assert_eq!(
+        error,
+        GameStateMutationError::InvalidFleetOrder {
+            fleet_index_1_based: 2,
+            reason: FleetOrderValidationError::DuplicateFriendlyColonizeTarget {
+                target,
+                conflicting_fleet_record_index_1_based: 1,
+            },
+        }
+    );
+}
+
+#[test]
 fn scorch_planet_surface_clears_economy_queue_and_stardock_immediately() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

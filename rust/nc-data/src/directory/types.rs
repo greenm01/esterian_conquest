@@ -127,6 +127,10 @@ pub enum FleetOrderValidationError {
     TargetOwnedByFleetEmpire,
     TargetNotOwnedByFleetEmpire,
     TargetAlreadyOwned,
+    DuplicateFriendlyColonizeTarget {
+        target: [u8; 2],
+        conflicting_fleet_record_index_1_based: usize,
+    },
     InvalidJoinHost,
     InvalidGuardStarbase,
 }
@@ -463,6 +467,40 @@ impl std::error::Error for GameDirectoryError {
     }
 }
 
+impl std::fmt::Display for FleetOrderValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownOrderCode(order_code) => {
+                write!(f, "unknown fleet order code {}", order_code)
+            }
+            Self::MissingCombatShips => write!(f, "mission requires combat ships"),
+            Self::MissingScoutShip => write!(f, "mission requires a scout ship"),
+            Self::MissingEtac => write!(f, "mission requires an ETAC"),
+            Self::MissingLoadedTroopTransports => {
+                write!(f, "mission requires loaded troop transports")
+            }
+            Self::MissingPlanetTarget => write!(f, "mission requires a planet target"),
+            Self::TargetOwnedByFleetEmpire => {
+                write!(f, "mission target is owned by the fleet empire")
+            }
+            Self::TargetNotOwnedByFleetEmpire => {
+                write!(f, "mission target is not owned by the fleet empire")
+            }
+            Self::TargetAlreadyOwned => write!(f, "mission target is already owned"),
+            Self::DuplicateFriendlyColonizeTarget {
+                target,
+                conflicting_fleet_record_index_1_based,
+            } => write!(
+                f,
+                "friendly fleet {} already claims colonize target ({},{})",
+                conflicting_fleet_record_index_1_based, target[0], target[1]
+            ),
+            Self::InvalidJoinHost => write!(f, "join mission host fleet is invalid"),
+            Self::InvalidGuardStarbase => write!(f, "guard starbase target is invalid"),
+        }
+    }
+}
+
 impl std::fmt::Display for GameStateMutationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -621,7 +659,7 @@ impl std::fmt::Display for GameStateMutationError {
                 reason,
             } => write!(
                 f,
-                "fleet {} has invalid order: {:?}",
+                "fleet {} has invalid order: {}",
                 fleet_index_1_based, reason
             ),
             Self::InvalidFleetPlayerInput {

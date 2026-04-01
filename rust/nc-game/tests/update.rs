@@ -11555,6 +11555,298 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
 }
 
 #[test]
+fn fleet_order_colonize_rejects_duplicate_friendly_target() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
+    let home_coords = state.game_data.planets.records
+        [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
+        .coords_raw();
+    let mut unowned_candidates = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() == 0)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    unowned_candidates.sort_by_key(|(_, coords)| {
+        let dx = i32::from(home_coords[0]) - i32::from(coords[0]);
+        let dy = i32::from(home_coords[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let claimed_coords = unowned_candidates[0].1;
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].insert(
+        unowned_candidates[0].0 + 1,
+        partial_known_world_snapshot(
+            unowned_candidates[0].0 + 1,
+            &state.game_data.planets.records[unowned_candidates[0].0],
+            0,
+            year,
+        ),
+    );
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    {
+        let other_etac = state
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .enumerate()
+            .find(|(idx, fleet)| {
+                *idx != 0 && fleet.owner_empire_raw() == 1 && fleet.etac_count() > 0
+            })
+            .map(|(_, fleet)| fleet)
+            .expect("fixture should have a second ETAC fleet");
+        other_etac.set_standing_order_kind(nc_data::Order::ColonizeWorld);
+        other_etac.set_standing_order_target_coords_raw(claimed_coords);
+    }
+    let selected_fleet_number = {
+        let selected_etac = state
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| {
+                fleet.owner_empire_raw() == 1
+                    && fleet.etac_count() > 0
+                    && fleet.standing_order_kind() != nc_data::Order::ColonizeWorld
+            })
+            .expect("fixture should have a selectable ETAC fleet");
+        selected_etac.set_standing_order_code_raw(0);
+        selected_etac.local_slot_word_raw()
+    };
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(selected_fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_order_target(&mut app, claimed_coords);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("duplicate colonize validation should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| { line.contains("already ordered to colonize") })
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Confirm [Y]/N"))
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    let selected_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| {
+            fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == selected_fleet_number
+        })
+        .expect("selected fleet should still exist");
+    assert_ne!(
+        selected_fleet.standing_order_kind(),
+        nc_data::Order::ColonizeWorld
+    );
+}
+
+#[test]
+fn fleet_group_colonize_rejects_multiple_selected_etacs_for_one_target() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let (target_index, target) = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 0)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should have an unowned planet");
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    planet_intel_by_viewer[0].insert(
+        target_index + 1,
+        partial_known_world_snapshot(
+            target_index + 1,
+            &state.game_data.planets.records[target_index],
+            0,
+            state.game_data.conquest.game_year(),
+        ),
+    );
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    let owned_fleet_indexes = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, fleet)| fleet.owner_empire_raw() == 1)
+        .map(|(idx, _)| idx)
+        .take(2)
+        .collect::<Vec<_>>();
+    for idx in &owned_fleet_indexes {
+        state.game_data.fleets.records[*idx].set_etac_count(1);
+        state.game_data.fleets.records[*idx].set_standing_order_code_raw(0);
+    }
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveGroupOrder(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_group_order_target(&mut app, target);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group duplicate colonize validation should render");
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("You cannot order multiple ETAC fleets to colonize the same world.")
+    }));
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Confirm [Y]/N"))
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        state
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| {
+                fleet.owner_empire_raw() == 1
+                    && fleet.standing_order_kind() == nc_data::Order::ColonizeWorld
+                    && fleet.standing_order_target_coords_raw() == target
+            })
+            .count(),
+        0
+    );
+}
+
+#[test]
 fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
