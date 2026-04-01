@@ -10379,10 +10379,7 @@ fn fleet_group_order_confirm_uses_eta_when_selected_fleet_speed_is_zero() {
     app.render(&mut terminal)
         .expect("fleet group order confirm should render");
     let message = line_containing(&terminal, "reaches");
-    assert!(message.contains(&format!(
-        "reaches ({:02},{:02}) in",
-        target[0], target[1],
-    )));
+    assert!(message.contains(&format!("reaches ({:02},{:02}) in", target[0], target[1],)));
     assert!(!message.contains("is stopped"));
 }
 
@@ -12345,7 +12342,10 @@ fn fleet_order_hold_defaults_to_current_sector_and_persists_target() {
         .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == fleet_number)
         .expect("fleet should still exist");
     assert_eq!(ordered_fleet.standing_order_code_raw(), 0);
-    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), hold_coords);
+    assert_eq!(
+        ordered_fleet.standing_order_target_coords_raw(),
+        hold_coords
+    );
 }
 
 #[test]
@@ -12439,7 +12439,10 @@ fn fleet_order_seek_home_defaults_to_nearest_owned_planet_and_persists_target() 
         .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == fleet_number)
         .expect("fleet should still exist");
     assert_eq!(ordered_fleet.standing_order_code_raw(), 2);
-    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), nearest_owned);
+    assert_eq!(
+        ordered_fleet.standing_order_target_coords_raw(),
+        nearest_owned
+    );
 }
 
 #[test]

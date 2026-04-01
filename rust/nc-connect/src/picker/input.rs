@@ -372,31 +372,33 @@ fn handle_keychain_add_key(
         KeyEvent {
             code: KeyCode::Enter,
             ..
-        } => match picker_session.replace_active_identity(&state.keychain_input, &mut state.cache) {
-            Ok(cache_changed) => {
-                if let Err(err) = picker_session.save() {
+        } => {
+            match picker_session.replace_active_identity(&state.keychain_input, &mut state.cache) {
+                Ok(cache_changed) => {
+                    if let Err(err) = picker_session.save() {
+                        state.keychain_input.clear();
+                        state.screen = Screen::KeychainList;
+                        state.show_error(err.to_string());
+                        return Ok(());
+                    }
+                    if cache_changed && let Err(err) = save_cache(&state.cache) {
+                        state.keychain_input.clear();
+                        state.screen = Screen::KeychainList;
+                        state.show_error(err.to_string());
+                        return Ok(());
+                    }
+                    state.keychain_selected = 0;
+                    state.keychain_input.clear();
+                    state.screen = Screen::KeychainList;
+                    state.overlay = Some(PickerOverlay::KeychainDetail { index: 0 });
+                }
+                Err(err) => {
                     state.keychain_input.clear();
                     state.screen = Screen::KeychainList;
                     state.show_error(err.to_string());
-                    return Ok(());
                 }
-                if cache_changed && let Err(err) = save_cache(&state.cache) {
-                    state.keychain_input.clear();
-                    state.screen = Screen::KeychainList;
-                    state.show_error(err.to_string());
-                    return Ok(());
-                }
-                state.keychain_selected = 0;
-                state.keychain_input.clear();
-                state.screen = Screen::KeychainList;
-                state.overlay = Some(PickerOverlay::KeychainDetail { index: 0 });
             }
-            Err(err) => {
-                state.keychain_input.clear();
-                state.screen = Screen::KeychainList;
-                state.show_error(err.to_string());
-            }
-        },
+        }
         KeyEvent {
             code: KeyCode::Char(ch),
             modifiers: KeyModifiers::NONE | KeyModifiers::SHIFT,

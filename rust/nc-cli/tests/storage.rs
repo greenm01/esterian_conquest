@@ -4,8 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    cleanup_dir, ecmaint_oracle_available, run_classic_ecgame_smoke_with_alias, run_nc_cli,
-    run_ecmaint_oracle, unique_temp_dir,
+    cleanup_dir, ecmaint_oracle_available, run_classic_ecgame_smoke_with_alias, run_ecmaint_oracle,
+    run_nc_cli, unique_temp_dir,
 };
 use nc_compat::{DatabaseDat, export_latest_snapshot_to_dir};
 use nc_data::{CampaignStore, CoreGameData, Order};

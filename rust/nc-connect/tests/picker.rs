@@ -11,13 +11,15 @@ use nc_connect::config::ConnectConfig;
 use nc_connect::connect::handshake::GameEntry;
 use nc_connect::connect::resolve::ResolvedTarget;
 use nc_connect::connect::session::SessionOutcome;
+use nc_connect::keychain::identity_npub;
+use nc_connect::keychain::{Identity, IdentityType, Keychain};
 use nc_connect::picker::connecting::PendingConnectRequest;
 use nc_connect::picker::event::is_manual_refresh_key;
 use nc_connect::picker::flows::{
     apply_session_outcome, connect_selected, persist_maps_root_at,
     redownload_selected_maps_with_config,
 };
-use nc_connect::picker::help::{HelpTopic, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, KEYCHAIN_MENU_RAIL};
+use nc_connect::picker::help::{HelpTopic, KEYCHAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL};
 use nc_connect::picker::input::{handle_game_list_key, handle_relay_key};
 use nc_connect::picker::layout::MAX_BODY_ROWS;
 use nc_connect::picker::overlay::{NoticeLevel, PickerOverlay, handle_overlay_key};
@@ -27,8 +29,6 @@ use nc_connect::picker::render::{Rect, centered_rect, matrix_glyph, short_npub, 
 use nc_connect::picker::runner::{classify_picker_event, post_bridge_recovery_event};
 use nc_connect::picker::state::{ConnectDisplay, ConnectOrigin};
 use nc_connect::picker::{PickerSession, PickerState, Screen};
-use nc_connect::keychain::identity_npub;
-use nc_connect::keychain::{Identity, IdentityType, Keychain};
 use nc_ui::theme::classic;
 use nostr_sdk::{Keys, ToBech32};
 use std::path::PathBuf;

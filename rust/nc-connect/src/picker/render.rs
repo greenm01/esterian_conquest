@@ -8,7 +8,7 @@ use nc_ui::theme::classic;
 use crate::cache::CachedGameStatus;
 
 use super::help::{
-    GAME_SELECT_RAIL, MAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL, KEYCHAIN_MENU_RAIL,
+    GAME_SELECT_RAIL, KEYCHAIN_MENU_RAIL, MAIN_MENU_RAIL, RELAY_GAMES_RAIL, RELAY_MENU_RAIL,
 };
 use super::layout::{
     Column, INNER_COMMAND_ROW, MAX_BODY_ROWS, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, TableMetrics,
@@ -16,7 +16,7 @@ use super::layout::{
     scroll_start, table_cell_start, table_message_col_in, table_render_width, table_text_col,
 };
 pub use super::layout::{Rect, centered_rect, relative_time, short_date, short_npub, truncate};
-use super::overlay::{render_identity_popup, render_overlay, render_keychain_add_popup};
+use super::overlay::{render_identity_popup, render_keychain_add_popup, render_overlay};
 use super::relay::{relay_games, relay_status_label, relay_summaries};
 use super::{MatrixState, PickerSession, PickerState, Screen};
 use crate::connect::handshake::GameEntry;

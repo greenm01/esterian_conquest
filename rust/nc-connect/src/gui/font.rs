@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use nc_ui::buffer::{CellStyle, GameColor};
 use fontdue::{Font, FontSettings};
+use nc_ui::buffer::{CellStyle, GameColor};
 
 use super::{CELL_HEIGHT, CELL_WIDTH};
 

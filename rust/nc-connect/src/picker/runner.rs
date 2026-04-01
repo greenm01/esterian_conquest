@@ -12,8 +12,8 @@ use crate::launcher::run_password_gate_in_session;
 
 use super::connecting::{poll_active_connect, start_pending_connect};
 use super::input::{
-    handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_relay_key,
-    handle_keychain_key,
+    handle_game_list_key, handle_game_select_key, handle_identity_overlay_key, handle_keychain_key,
+    handle_relay_key,
 };
 use super::overlay::handle_overlay_key;
 use super::refresh::execute_pending_refresh;

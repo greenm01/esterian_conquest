@@ -12,8 +12,8 @@ use nc_data::{
     QueuedPlayerMail, ReportBlockRow, derive_campaign_seed_from_runtime, load_mail_queue,
 };
 
-pub use nc_classic::{DATABASE_RECORD_SIZE, DatabaseDat, DatabaseRecord};
 pub use intel::{extract_player_intel_from_compat_database, merge_player_intel_from_compat};
+pub use nc_classic::{DATABASE_RECORD_SIZE, DatabaseDat, DatabaseRecord};
 
 const CLASSIC_AUXILIARY_FILES: &[&str] = &["MESSAGES.DAT", "RESULTS.DAT"];
 

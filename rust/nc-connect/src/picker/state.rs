@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 use crate::cache::{GameCache, load_cache};
 use crate::connect::handshake::GameEntry;
 use crate::connect::resolve::ResolvedTarget;
-use crate::text_wrap::normalize_message_text;
 use crate::keychain::Keychain;
+use crate::text_wrap::normalize_message_text;
 use nostr_sdk::Keys;
 
 use super::connecting::{ActiveConnect, PendingConnectRequest};

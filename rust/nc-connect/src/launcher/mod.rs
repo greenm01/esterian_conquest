@@ -9,9 +9,9 @@ use nc_ui::paint::StdoutRenderer;
 use nc_ui::session::TerminalSession;
 
 use crate::hard_quit::is_hard_quit_key;
-use crate::password::keychain_exists;
-use crate::keychain::io::{now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::io::{keychain_path, now_iso8601, save_keychain_to};
 use crate::keychain::{Keychain, push_new_identity};
+use crate::password::keychain_exists;
 
 const UNLOCK_COPY_LINES: [&str; 1] = ["Enter your keychain password."];
 const CREATE_COPY_LINES: [&str; 2] = [

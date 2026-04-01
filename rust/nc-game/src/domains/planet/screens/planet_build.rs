@@ -953,11 +953,15 @@ fn draw_specify_table(
     let points_left_label = format!("PP LEFT TO SPEND: {}", view.points_left);
     let points_left_col = table_col + table_width - TABLE_TEXT_INSET - points_left_label.len();
     debug_assert!(
-        points_left_col
-            >= table_col + TABLE_TEXT_INSET + title.len() + 1,
+        points_left_col >= table_col + TABLE_TEXT_INSET + title.len() + 1,
         "specify build title row is too narrow for the points-left label"
     );
-    buffer.write_text(0, points_left_col, &points_left_label, classic::title_style());
+    buffer.write_text(
+        0,
+        points_left_col,
+        &points_left_label,
+        classic::title_style(),
+    );
 
     let metrics = write_split_table_at(
         buffer,

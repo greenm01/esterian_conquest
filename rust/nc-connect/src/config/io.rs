@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use kdl::KdlDocument;
 
-use crate::paths::config_root;
 use crate::keychain::io::now_iso8601;
+use crate::paths::config_root;
 
 use super::{ConnectConfig, RelayStatus, ServerBookmark, validate_relay_url};
 

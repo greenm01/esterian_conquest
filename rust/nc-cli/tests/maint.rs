@@ -2,8 +2,8 @@ mod common;
 
 use common::{
     cleanup_dir, copy_fixture_dir, repo_root, run_classic_ecgame_smoke,
-    run_classic_ecgame_smoke_with_alias, run_nc_cli_in_dir, run_maint_rust_failure_after_import,
-    run_maint_rust_with_export, set_mutual_enemy_in_player_dat, unique_temp_dir,
+    run_classic_ecgame_smoke_with_alias, run_maint_rust_failure_after_import,
+    run_maint_rust_with_export, run_nc_cli_in_dir, set_mutual_enemy_in_player_dat, unique_temp_dir,
     write_mutual_enemy_diplomacy,
 };
 use nc_compat::DatabaseDat;

@@ -19,9 +19,9 @@ use crate::identity::{
 use crate::launcher::{run_password_gate, run_password_gate_in_session};
 use crate::map_store::resolve_maps_root;
 
-use crate::picker::{load_picker_session, run_picker_in_session};
-use crate::keychain::io::{load_keychain_from, now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::io::{keychain_path, load_keychain_from, now_iso8601, save_keychain_to};
 use crate::keychain::{Keychain, push_new_identity};
+use crate::picker::{load_picker_session, run_picker_in_session};
 use nc_ui::session::TerminalSession;
 
 // ── Public entry point ────────────────────────────────────────────────────────

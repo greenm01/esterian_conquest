@@ -6,7 +6,8 @@ use nc_connect::keychain::crypto::{
     KEY_LEN, NONCE_LEN, PBKDF2_ITERATIONS, SALT_LEN, decrypt_keychain, derive_key, encrypt_keychain,
 };
 use nc_connect::keychain::io::{
-    format_iso8601, load_keychain_from, now_iso8601, parse_keychain_str, render_keychain, save_keychain_to,
+    format_iso8601, load_keychain_from, now_iso8601, parse_keychain_str, render_keychain,
+    save_keychain_to,
 };
 use nc_connect::keychain::{Identity, IdentityType, Keychain};
 

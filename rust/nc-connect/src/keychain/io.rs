@@ -62,7 +62,10 @@ pub fn load_keychain_from(
 }
 
 /// Encrypt and save the keychain to the default path.
-pub fn save_keychain(keychain: &Keychain, password: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_keychain(
+    keychain: &Keychain,
+    password: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     save_keychain_to(keychain, password, &keychain_path())
 }
 

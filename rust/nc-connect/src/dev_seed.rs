@@ -7,7 +7,7 @@ use crate::cache::io::{cache_path, save_cache_to};
 use crate::cache::{CachedGame, CachedGameStatus, GameCache};
 use crate::config::io::config_path;
 use crate::config::{ConnectConfig, save_config_to};
-use crate::keychain::io::{format_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::io::{format_iso8601, keychain_path, save_keychain_to};
 use crate::keychain::{Identity, IdentityType, Keychain, identity_npub};
 
 const DEFAULT_IDENTITIES: usize = 32;
@@ -131,7 +131,11 @@ pub fn seed_localhost_fixture_to_paths(
         created: created.clone(),
         alias: Some("Localhost Fixture".to_string()),
     });
-    let player_npub = identity_npub(keychain.active_identity().ok_or("keychain missing identity")?)?;
+    let player_npub = identity_npub(
+        keychain
+            .active_identity()
+            .ok_or("keychain missing identity")?,
+    )?;
     let gate_npub = normalize_pubkey(&options.gate_npub)?;
 
     let cache = GameCache {

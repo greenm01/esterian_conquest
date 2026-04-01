@@ -18,10 +18,10 @@ use nc_ui::theme::classic;
 
 use crate::hard_quit::is_hard_quit_key;
 use crate::input_field::{draw_labeled_input_row, input_width};
+use crate::keychain::io::{keychain_path, now_iso8601, save_keychain_to};
+use crate::keychain::{Keychain, push_identity_from_input, set_identity_alias};
 use crate::picker::layout::{Rect, centered_rect, draw_box};
 use crate::shell::{INNER_HEIGHT, INNER_WIDTH, terminal_fits_outer, wrap_inner_buffer_in_terminal};
-use crate::keychain::io::{now_iso8601, save_keychain_to, keychain_path};
-use crate::keychain::{Keychain, push_identity_from_input, set_identity_alias};
 
 enum SetupMode {
     AddOrImport,

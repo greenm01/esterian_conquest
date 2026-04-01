@@ -361,7 +361,10 @@ pub fn render_identity_popup(buffer: &mut PlayfieldBuffer, session: &PickerSessi
         "Keychain mode: single identity".to_string(),
         format!(
             "Keychain: {}",
-            super::render::truncate(&crate::keychain::io::keychain_path().display().to_string(), 44,)
+            super::render::truncate(
+                &crate::keychain::io::keychain_path().display().to_string(),
+                44,
+            )
         ),
     ];
     render_modal_box(buffer, "IDENTITY INFO", &lines, classic::table_body_style());
@@ -520,7 +523,11 @@ fn render_maps_download_popup(buffer: &mut PlayfieldBuffer, input: &str, error: 
     );
 }
 
-fn render_keychain_detail_popup(buffer: &mut PlayfieldBuffer, session: &PickerSession, index: usize) {
+fn render_keychain_detail_popup(
+    buffer: &mut PlayfieldBuffer,
+    session: &PickerSession,
+    index: usize,
+) {
     let Some(identity) = session.selected_identity(index) else {
         return;
     };

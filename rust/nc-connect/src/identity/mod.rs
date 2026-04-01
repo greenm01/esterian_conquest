@@ -8,14 +8,14 @@
 use nostr_sdk::{Keys, ToBech32};
 
 use crate::cache::io::cache_path;
-use crate::password::{
-    prompt_confirm_yn, prompt_line, prompt_new_password_with_warning, prompt_optional_alias,
-    prompt_password, keychain_exists,
-};
-use crate::keychain::io::{load_keychain_from, now_iso8601, save_keychain_to, keychain_path};
+use crate::keychain::io::{keychain_path, load_keychain_from, now_iso8601, save_keychain_to};
 use crate::keychain::{
     Identity, Keychain, active_identity_npub, push_imported_identity, push_new_identity,
     set_identity_alias, switch_active_identity,
+};
+use crate::password::{
+    keychain_exists, prompt_confirm_yn, prompt_line, prompt_new_password_with_warning,
+    prompt_optional_alias, prompt_password,
 };
 
 // ---------------------------------------------------------------------------
