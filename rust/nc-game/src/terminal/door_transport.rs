@@ -1,0 +1,388 @@
+use std::io::{self, IsTerminal, Read, Write};
+use std::time::{Duration, Instant};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DoorTransport {
+    #[default]
+    Stdio,
+    #[cfg(windows)]
+    SocketDescriptor { descriptor: u64 },
+}
+
+pub(crate) trait DoorIo: Read + Write {
+    fn wait_ready(&mut self, timeout_ms: i32) -> io::Result<bool>;
+}
+
+pub(crate) fn build_door_io(transport: DoorTransport) -> io::Result<Box<dyn DoorIo>> {
+    match transport {
+        DoorTransport::Stdio => Ok(Box::new(StdioDoorIo::new())),
+        #[cfg(windows)]
+        DoorTransport::SocketDescriptor { descriptor } => {
+            Ok(Box::new(SocketDoorIo::from_socket_descriptor(descriptor)?))
+        }
+    }
+}
+
+struct StdioDoorIo {
+    input: RawStdin,
+    output: io::Stdout,
+}
+
+impl StdioDoorIo {
+    fn new() -> Self {
+        Self {
+            input: RawStdin,
+            output: io::stdout(),
+        }
+    }
+}
+
+impl Read for StdioDoorIo {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.input.read(buf)
+    }
+}
+
+impl Write for StdioDoorIo {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.output.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.output.flush()
+    }
+}
+
+impl DoorIo for StdioDoorIo {
+    fn wait_ready(&mut self, timeout_ms: i32) -> io::Result<bool> {
+        stdin_ready(timeout_ms)
+    }
+}
+
+#[cfg(unix)]
+struct RawStdin;
+
+#[cfg(unix)]
+impl Read for RawStdin {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        use std::os::fd::AsRawFd;
+
+        unsafe extern "C" {
+            fn read(fd: i32, buf: *mut u8, count: usize) -> isize;
+        }
+
+        let fd = io::stdin().as_raw_fd();
+        let ret = unsafe { read(fd, buf.as_mut_ptr(), buf.len()) };
+        if ret < 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(ret as usize)
+        }
+    }
+}
+
+#[cfg(windows)]
+struct RawStdin;
+
+#[cfg(windows)]
+impl Read for RawStdin {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let mut stdin = io::stdin();
+        if !stdin.is_terminal() {
+            return stdin.read(buf);
+        }
+
+        use std::os::windows::io::AsRawHandle;
+
+        unsafe extern "system" {
+            fn ReadFile(
+                handle: *mut std::ffi::c_void,
+                buffer: *mut u8,
+                count: u32,
+                bytes_read: *mut u32,
+                overlapped: *mut std::ffi::c_void,
+            ) -> i32;
+        }
+
+        let handle = io::stdin().as_raw_handle();
+        let mut bytes_read: u32 = 0;
+        let len = buf.len().min(u32::MAX as usize) as u32;
+        let rc = unsafe {
+            ReadFile(
+                handle as *mut _,
+                buf.as_mut_ptr(),
+                len,
+                &mut bytes_read,
+                std::ptr::null_mut(),
+            )
+        };
+        if rc == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(bytes_read as usize)
+        }
+    }
+}
+
+#[cfg(windows)]
+struct SocketDoorIo {
+    stream: std::net::TcpStream,
+}
+
+#[cfg(windows)]
+impl SocketDoorIo {
+    fn from_socket_descriptor(descriptor: u64) -> io::Result<Self> {
+        use std::os::windows::io::{FromRawSocket, RawSocket};
+
+        if descriptor == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "DOOR32 socket descriptor must be non-zero",
+            ));
+        }
+
+        ensure_winsock_started()?;
+        let stream = unsafe { std::net::TcpStream::from_raw_socket(descriptor as RawSocket) };
+        if let Err(err) = stream.peer_addr() {
+            return Err(io::Error::new(
+                err.kind(),
+                format!("failed to adopt DOOR32 socket descriptor {descriptor}: {err}"),
+            ));
+        }
+        Ok(Self { stream })
+    }
+}
+
+#[cfg(windows)]
+fn ensure_winsock_started() -> io::Result<()> {
+    use std::sync::OnceLock;
+
+    #[repr(C)]
+    struct WsaData {
+        w_version: u16,
+        w_high_version: u16,
+        sz_description: [u8; 257],
+        sz_system_status: [u8; 129],
+        i_max_sockets: u16,
+        i_max_udp_dg: u16,
+        lp_vendor_info: *mut i8,
+    }
+
+    unsafe extern "system" {
+        fn WSAStartup(version_requested: u16, data: *mut WsaData) -> i32;
+    }
+
+    static STARTUP: OnceLock<Result<(), i32>> = OnceLock::new();
+
+    match STARTUP.get_or_init(|| {
+        let mut data = WsaData {
+            w_version: 0,
+            w_high_version: 0,
+            sz_description: [0; 257],
+            sz_system_status: [0; 129],
+            i_max_sockets: 0,
+            i_max_udp_dg: 0,
+            lp_vendor_info: std::ptr::null_mut(),
+        };
+        let rc = unsafe { WSAStartup(0x0202, &mut data) };
+        if rc == 0 { Ok(()) } else { Err(rc) }
+    }) {
+        Ok(()) => Ok(()),
+        Err(code) => Err(io::Error::from_raw_os_error(*code)),
+    }
+}
+
+#[cfg(windows)]
+impl Read for SocketDoorIo {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.stream.read(buf)
+    }
+}
+
+#[cfg(windows)]
+impl Write for SocketDoorIo {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.stream.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.stream.flush()
+    }
+}
+
+#[cfg(windows)]
+impl DoorIo for SocketDoorIo {
+    fn wait_ready(&mut self, timeout_ms: i32) -> io::Result<bool> {
+        socket_ready(&self.stream, timeout_ms)
+    }
+}
+
+#[cfg(unix)]
+fn stdin_ready(timeout_ms: i32) -> io::Result<bool> {
+    use std::os::fd::AsRawFd;
+
+    const POLLIN: i16 = 0x0001;
+
+    #[repr(C)]
+    struct PollFd {
+        fd: i32,
+        events: i16,
+        revents: i16,
+    }
+
+    unsafe extern "C" {
+        fn poll(fds: *mut PollFd, nfds: usize, timeout: i32) -> i32;
+    }
+
+    let stdin = io::stdin();
+    let mut fds = [PollFd {
+        fd: stdin.as_raw_fd(),
+        events: POLLIN,
+        revents: 0,
+    }];
+
+    loop {
+        let rc = unsafe { poll(fds.as_mut_ptr(), fds.len(), timeout_ms) };
+        if rc >= 0 {
+            return Ok(rc > 0 && (fds[0].revents & POLLIN) != 0);
+        }
+        let err = io::Error::last_os_error();
+        if err.kind() == io::ErrorKind::Interrupted {
+            continue;
+        }
+        return Err(err);
+    }
+}
+
+#[cfg(windows)]
+fn stdin_ready(timeout_ms: i32) -> io::Result<bool> {
+    use std::os::windows::io::AsRawHandle;
+
+    unsafe extern "system" {
+        fn PeekNamedPipe(
+            handle: *mut std::ffi::c_void,
+            buffer: *mut u8,
+            buffer_size: u32,
+            bytes_read: *mut u32,
+            total_bytes_available: *mut u32,
+            bytes_left_this_message: *mut u32,
+        ) -> i32;
+        fn WaitForSingleObject(handle: *mut std::ffi::c_void, millis: u32) -> u32;
+    }
+
+    const WAIT_OBJECT_0: u32 = 0;
+
+    let stdin = io::stdin();
+    let handle = stdin.as_raw_handle();
+    if !stdin.is_terminal() {
+        let deadline = if timeout_ms < 0 {
+            None
+        } else {
+            Some(Instant::now() + Duration::from_millis(timeout_ms as u64))
+        };
+        loop {
+            let mut total_bytes_available = 0u32;
+            let rc = unsafe {
+                PeekNamedPipe(
+                    handle as *mut _,
+                    std::ptr::null_mut(),
+                    0,
+                    std::ptr::null_mut(),
+                    &mut total_bytes_available,
+                    std::ptr::null_mut(),
+                )
+            };
+            if rc != 0 {
+                return Ok(total_bytes_available > 0);
+            }
+
+            let err = io::Error::last_os_error();
+            if timeout_ms == 0 {
+                return Ok(false);
+            }
+            if deadline.is_some_and(|value| Instant::now() >= value) {
+                return Ok(false);
+            }
+            if err.kind() == io::ErrorKind::BrokenPipe {
+                return Ok(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    let millis = if timeout_ms < 0 {
+        0xFFFFFFFF
+    } else {
+        timeout_ms as u32
+    };
+    let rc = unsafe { WaitForSingleObject(handle as *mut _, millis) };
+    Ok(rc == WAIT_OBJECT_0)
+}
+
+#[cfg(windows)]
+fn socket_ready(stream: &std::net::TcpStream, timeout_ms: i32) -> io::Result<bool> {
+    use std::ffi::c_long;
+    use std::os::windows::io::AsRawSocket;
+
+    #[repr(C)]
+    struct FdSet {
+        fd_count: u32,
+        fd_array: [usize; 64],
+    }
+
+    #[repr(C)]
+    struct TimeVal {
+        tv_sec: c_long,
+        tv_usec: c_long,
+    }
+
+    unsafe extern "system" {
+        fn select(
+            nfds: i32,
+            readfds: *mut FdSet,
+            writefds: *mut FdSet,
+            exceptfds: *mut FdSet,
+            timeout: *const TimeVal,
+        ) -> i32;
+        fn WSAGetLastError() -> i32;
+    }
+
+    let mut readfds = FdSet {
+        fd_count: 1,
+        fd_array: [0; 64],
+    };
+    readfds.fd_array[0] = stream.as_raw_socket() as usize;
+
+    let mut timeout = TimeVal {
+        tv_sec: 0,
+        tv_usec: 0,
+    };
+    let timeout_ptr = if timeout_ms < 0 {
+        std::ptr::null()
+    } else {
+        timeout.tv_sec = (timeout_ms / 1000) as c_long;
+        timeout.tv_usec = ((timeout_ms % 1000) * 1000) as c_long;
+        &timeout
+    };
+
+    let rc = unsafe {
+        select(
+            0,
+            &mut readfds,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            timeout_ptr,
+        )
+    };
+    if rc >= 0 {
+        return Ok(rc > 0 && readfds.fd_count > 0);
+    }
+
+    let raw = unsafe { WSAGetLastError() };
+    Err(io::Error::from_raw_os_error(raw))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn stdin_ready(_timeout_ms: i32) -> io::Result<bool> {
+    Ok(false)
+}

@@ -10,7 +10,8 @@ Status note:
 Use the native Rust stack:
 
 - `nc-sysop` to create and maintain the campaign
-- `nc-game` as the player door
+- `nc-game` as the Unix-like player door
+- `nc-door.exe` as the native Windows player door
 - `abracadabra` in `stdio` mode for the ENiGMA launcher
 
 Do not use the legacy DOS wrapper unless you specifically want to host the
@@ -39,8 +40,7 @@ The helper script [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh)
 will use `target/release/nc-game` first, then `target/debug/nc-game`, then
 fall back to `cargo run`.
 
-On native Windows hosts, use
-[`tools/bbs/run_nc_rust.cmd`](../../tools/bbs/run_nc_rust.cmd) instead.
+On native Windows hosts, point ENiGMA directly at a staged `nc-door.exe`.
 
 ## 2. Create a campaign
 
@@ -129,10 +129,16 @@ doorEsterianConquestRust: {
 Windows-native command swap:
 
 ```hjson
-cmd: C:\\path\\to\\esterian_conquest\\tools\\bbs\\run_nc_rust.cmd
+cmd: C:\\path\\to\\nc-door.exe
 args: [
+    "--dir"
     "C:\\path\\to\\ec-campaign"
+    "--dropfile"
     "{dropFilePath}"
+    "--encoding"
+    "cp437"
+    "--color-mode"
+    "ansi16"
 ]
 ```
 
@@ -215,10 +221,16 @@ On native Windows, the same swap becomes:
 
 ```hjson
 dropFileType: DOOR32
-cmd: C:\\path\\to\\esterian_conquest\\tools\\bbs\\run_nc_rust.cmd
+cmd: C:\\path\\to\\nc-door.exe
 args: [
+    "--dir"
     "C:\\path\\to\\ec-campaign"
+    "--dropfile"
     "{dropFilePath}"
+    "--encoding"
+    "cp437"
+    "--color-mode"
+    "ansi16"
 ]
 io: stdio
 encoding: cp437

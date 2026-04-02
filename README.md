@@ -40,7 +40,7 @@ This keeps the classic NC rhythm — connect, read reports, issue orders, log ou
 Play entirely in your terminal. Launch `nc-game` against a local campaign directory to learn the interface, test scenarios, or run a private campaign on one machine.
 
 ### BBS Hosting
-We still support legacy BBS doors. The Rust client works natively with `DOOR32.SYS`, `DOOR.SYS`, and `CHAIN.TXT`. It is the perfect drop-in replacement for sysops running classic environments on modern hardware.
+We still support legacy BBS doors. The Rust client works natively with `DOOR32.SYS`, `DOOR.SYS`, and `CHAIN.TXT`. On native Windows BBS hosts, stage `nc-door.exe` as the live door binary and keep `nc-game.exe` for local/direct play.
 
 ## Learn How To Play
 
@@ -192,10 +192,12 @@ cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift --seed 1515
 
 For localhost and BBS hosting, use the public Linux x64 `nc-sysop` package or
 build from source. VPS/Nostr hosts should still build from source and use
-`scripts/install_vps.sh`. Then point the door entry at `nc-game` with a
-dropfile. For working setups, see:
+`scripts/install_vps.sh`. Then point the door entry at `nc-game` on Unix-like
+hosts or `nc-door` on native Windows, with a dropfile. For working setups,
+see:
 
 - [Mystic Rust Door Setup](docs/sysop/mystic-rust-setup.md)
+- [Synchronet Rust Door Setup](docs/sysop/synchronet-rust-setup.md)
 - [ENiGMA½ Rust Door Setup](docs/sysop/enigma-rust-setup.md)
 
 ## Operator Docs

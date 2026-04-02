@@ -1,17 +1,31 @@
+#[cfg(windows)]
+use std::io::Read;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::process::Command;
+use std::process::Stdio;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 use std::{io::Write, process::Child};
 
+#[cfg(windows)]
+use crossterm::event::KeyCode;
 use nc_compat::import_directory_snapshot;
 use nc_data::{CampaignSettings, CampaignStore, CoreGameData};
 use nc_game::terminal::ColorMode;
+#[cfg(windows)]
+use nc_game::terminal::OutputEncoding;
+#[cfg(windows)]
+use nc_game::terminal::Terminal;
+#[cfg(windows)]
+use nc_game::terminal::door::{DoorTerminal, DoorTransport};
+#[cfg(windows)]
+use std::net::{TcpListener, TcpStream};
+#[cfg(windows)]
+use std::os::windows::io::IntoRawSocket;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -40,10 +54,12 @@ fn temp_fixture_copy() -> PathBuf {
 }
 
 fn write_dropfile(root: &Path, alias: &str) -> PathBuf {
-    let path = root.join("DOOR32.SYS");
+    let path = root.join("CHAIN.TXT");
     fs::write(
         &path,
-        format!("2\n1\n57600\nEnigma\n1\nReal Name\n{alias}\n10\n15\n1\n80\n25\n"),
+        format!(
+            "1\n{alias}\nReal Name\nNC0DE\n34\nM\n1000.0\n03/25/26\n80\n25\n100\n0\n0\n1\n1\n900\nC:\\BBS\\GFILES\\\nC:\\BBS\\DATA\\\nBBS.LOG\n38400\n1\n1\n1\n0\n0\n0\n0\n0\n0\n0\n0\n0\n"
+        ),
     )
     .expect("write dropfile");
     path
@@ -439,4 +455,51 @@ fn nc_game_rejects_invalid_log_level() {
         "stderr={:?}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_socket_door_terminal_reads_and_writes_over_inherited_descriptor() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+    let addr = listener.local_addr().expect("listener addr");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept socket");
+        let mut buf = [0u8; 256];
+        let mut rendered = Vec::new();
+        loop {
+            let bytes_read = stream.read(&mut buf).expect("read terminal output");
+            if bytes_read == 0 {
+                break;
+            }
+            rendered.extend_from_slice(&buf[..bytes_read]);
+            if rendered
+                .windows("SOCKET OK".len())
+                .any(|window| window == b"SOCKET OK")
+            {
+                break;
+            }
+        }
+        let rendered = String::from_utf8_lossy(&rendered);
+        assert!(rendered.contains("SOCKET OK"), "rendered={rendered:?}");
+        stream.write_all(b"q").expect("write keypress");
+        stream.flush().expect("flush keypress");
+    });
+
+    let client = TcpStream::connect(addr).expect("connect client");
+    let descriptor = client.into_raw_socket() as u64;
+    let mut terminal = DoorTerminal::with_transport_and_color_mode(
+        OutputEncoding::Utf8,
+        ColorMode::Ansi16,
+        nc_game::screen::ScreenGeometry::local_default(),
+        DoorTransport::SocketDescriptor { descriptor },
+    )
+    .expect("socket transport should initialize");
+
+    terminal
+        .dump_text_capture("SOCKET OK")
+        .expect("write over socket transport");
+    let key = terminal.read_key().expect("read key from socket transport");
+    assert_eq!(key.code, KeyCode::Char('q'));
+
+    server.join().expect("server thread should finish");
 }

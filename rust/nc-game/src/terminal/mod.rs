@@ -1,5 +1,6 @@
 pub mod cp437;
 pub mod door;
+pub(crate) mod door_transport;
 pub mod stdout;
 
 use crossterm::event::KeyEvent;

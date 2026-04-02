@@ -8,6 +8,10 @@ license-file = "../../LICENSE"
 name = "nc-game"
 path = "src/main.rs"
 
+[[bin]]
+name = "nc-door"
+path = "src/bin/nc-door.rs"
+
 [dependencies]
 crossterm = "0.28"
 nc-data = { path = "../nc-data" }

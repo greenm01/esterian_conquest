@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::fs::OpenOptions;
-use std::io::{self, IsTerminal, Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -13,72 +13,9 @@ use crate::terminal::cp437;
 use crate::terminal::{ColorMode, OutputEncoding, Terminal};
 use crate::theme::classic;
 
+pub use super::door_transport::DoorTransport;
+use super::door_transport::{DoorIo, build_door_io};
 use super::stdout::resolve_color;
-
-#[cfg(unix)]
-struct RawStdin;
-
-#[cfg(unix)]
-impl Read for RawStdin {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        use std::os::fd::AsRawFd;
-
-        unsafe extern "C" {
-            fn read(fd: i32, buf: *mut u8, count: usize) -> isize;
-        }
-
-        let fd = io::stdin().as_raw_fd();
-        let ret = unsafe { read(fd, buf.as_mut_ptr(), buf.len()) };
-        if ret < 0 {
-            Err(io::Error::last_os_error())
-        } else {
-            Ok(ret as usize)
-        }
-    }
-}
-
-#[cfg(windows)]
-struct RawStdin;
-
-#[cfg(windows)]
-impl Read for RawStdin {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut stdin = io::stdin();
-        if !stdin.is_terminal() {
-            return stdin.read(buf);
-        }
-
-        use std::os::windows::io::AsRawHandle;
-
-        unsafe extern "system" {
-            fn ReadFile(
-                handle: *mut std::ffi::c_void,
-                buffer: *mut u8,
-                count: u32,
-                bytes_read: *mut u32,
-                overlapped: *mut std::ffi::c_void,
-            ) -> i32;
-        }
-
-        let handle = io::stdin().as_raw_handle();
-        let mut bytes_read: u32 = 0;
-        let len = buf.len().min(u32::MAX as usize) as u32;
-        let rc = unsafe {
-            ReadFile(
-                handle as *mut _,
-                buf.as_mut_ptr(),
-                len,
-                &mut bytes_read,
-                std::ptr::null_mut(),
-            )
-        };
-        if rc == 0 {
-            Err(io::Error::last_os_error())
-        } else {
-            Ok(bytes_read as usize)
-        }
-    }
-}
 
 const DOOR_ESCAPE_TIMEOUT_MS: i32 = 100;
 const DOOR_DOS_PREFIX_TIMEOUT_MS: i32 = 2000;
@@ -91,61 +28,69 @@ pub struct DoorTerminal {
     trace_dir: Option<PathBuf>,
     frame_seq: u64,
     decoder: DoorInputDecoder,
+    io: Box<dyn DoorIo>,
 }
 
 impl DoorTerminal {
-    pub fn with_encoding_and_color_mode(
+    pub fn with_transport_and_color_mode(
         encoding: OutputEncoding,
         color_mode: ColorMode,
         geometry: ScreenGeometry,
-    ) -> Self {
+        transport: DoorTransport,
+    ) -> io::Result<Self> {
         let trace_dir = std::env::var_os("NC_GAME_DOOR_TRACE_DIR").map(PathBuf::from);
         if let Some(path) = trace_dir.as_deref() {
             let _ = std::fs::create_dir_all(path);
         }
-        Self {
+        Ok(Self {
             encoding,
             color_mode,
             geometry,
             trace_dir,
             frame_seq: 0,
             decoder: DoorInputDecoder::new(),
-        }
+            io: build_door_io(transport)?,
+        })
+    }
+
+    pub fn with_encoding_and_color_mode(
+        encoding: OutputEncoding,
+        color_mode: ColorMode,
+        geometry: ScreenGeometry,
+    ) -> io::Result<Self> {
+        Self::with_transport_and_color_mode(encoding, color_mode, geometry, DoorTransport::Stdio)
     }
 }
 
 impl Terminal for DoorTerminal {
     fn render(&mut self, playfield: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>> {
-        let mut stdout = io::stdout();
         let frame =
             serialize_playfield_frame(playfield, self.geometry, self.encoding, self.color_mode);
         if let Some(trace_dir) = self.trace_dir.as_deref() {
             trace_output_frame(trace_dir, self.frame_seq, &frame)?;
             self.frame_seq = self.frame_seq.saturating_add(1);
         }
-        stdout.write_all(&frame)?;
-        stdout.flush()?;
+        self.io.write_all(&frame)?;
+        self.io.flush()?;
         Ok(())
     }
 
     fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-        let mut raw = RawStdin;
-        self.decoder.next_key(&mut raw, self.trace_dir.as_deref())
+        self.decoder
+            .next_key(self.io.as_mut(), self.trace_dir.as_deref())
     }
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let mut stdout = io::stdout();
-        stdout.write_all(b"\x1b[0m\x1b[?25h\x1b[2J\x1b[H")?;
-        stdout.write_all(text.as_bytes())?;
+        self.io.write_all(b"\x1b[0m\x1b[?25h\x1b[2J\x1b[H")?;
+        self.io.write_all(text.as_bytes())?;
         if !text.ends_with('\n') {
-            stdout.write_all(b"\r\n")?;
+            self.io.write_all(b"\r\n")?;
         }
-        stdout.flush()?;
+        self.io.flush()?;
         Ok(())
     }
 
     fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut stdout = io::stdout();
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&style_sgr(
             classic::terminal_foreground(),
@@ -154,8 +99,8 @@ impl Terminal for DoorTerminal {
             self.color_mode,
         ));
         bytes.extend_from_slice(b"\x1b[?25h\x1b[2J\x1b[H");
-        stdout.write_all(&bytes)?;
-        stdout.flush()?;
+        self.io.write_all(&bytes)?;
+        self.io.flush()?;
         Ok(())
     }
 }
@@ -311,7 +256,7 @@ impl DoorInputDecoder {
 
     fn next_key(
         &mut self,
-        input: &mut impl Read,
+        input: &mut dyn DoorIo,
         trace_dir: Option<&Path>,
     ) -> Result<KeyEvent, Box<dyn std::error::Error>> {
         loop {
@@ -359,7 +304,7 @@ impl DoorInputDecoder {
 
     fn read_burst(
         &mut self,
-        input: &mut impl Read,
+        input: &mut dyn DoorIo,
         trace_dir: Option<&Path>,
         timeout_ms: Option<i32>,
     ) -> Result<bool, Box<dyn std::error::Error>> {
@@ -579,18 +524,18 @@ fn orphan_ss3_suffix_len(bytes: &[u8]) -> Option<usize> {
 }
 
 fn read_burst(
-    input: &mut impl Read,
+    input: &mut dyn DoorIo,
     trace_dir: Option<&Path>,
     timeout_ms: Option<i32>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     if let Some(timeout_ms) = timeout_ms {
-        if !stdin_ready(timeout_ms)? {
+        if !input.wait_ready(timeout_ms)? {
             return Ok(Vec::new());
         }
     }
 
     let mut burst = vec![read_one(input)?];
-    while burst.len() < MAX_ESCAPE_SEQUENCE_BYTES && stdin_ready(0)? {
+    while burst.len() < MAX_ESCAPE_SEQUENCE_BYTES && input.wait_ready(0)? {
         burst.push(read_one(input)?);
     }
     if let Some(trace_dir) = trace_dir {
@@ -605,117 +550,10 @@ fn drain_pending(pending: &mut VecDeque<u8>, consumed: usize) {
     }
 }
 
-fn read_one(input: &mut impl Read) -> Result<u8, Box<dyn std::error::Error>> {
+fn read_one(input: &mut dyn Read) -> Result<u8, Box<dyn std::error::Error>> {
     let mut byte = [0u8; 1];
     input.read_exact(&mut byte)?;
     Ok(byte[0])
-}
-
-#[cfg(unix)]
-fn stdin_ready(timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
-    use std::os::fd::AsRawFd;
-
-    const POLLIN: i16 = 0x0001;
-
-    #[repr(C)]
-    struct PollFd {
-        fd: i32,
-        events: i16,
-        revents: i16,
-    }
-
-    unsafe extern "C" {
-        fn poll(fds: *mut PollFd, nfds: usize, timeout: i32) -> i32;
-    }
-
-    let stdin = io::stdin();
-    let mut fds = [PollFd {
-        fd: stdin.as_raw_fd(),
-        events: POLLIN,
-        revents: 0,
-    }];
-
-    loop {
-        let rc = unsafe { poll(fds.as_mut_ptr(), fds.len(), timeout_ms) };
-        if rc >= 0 {
-            return Ok(rc > 0 && (fds[0].revents & POLLIN) != 0);
-        }
-        let err = io::Error::last_os_error();
-        if err.kind() == io::ErrorKind::Interrupted {
-            continue;
-        }
-        return Err(err.into());
-    }
-}
-
-#[cfg(windows)]
-fn stdin_ready(timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
-    use std::os::windows::io::AsRawHandle;
-
-    unsafe extern "system" {
-        fn PeekNamedPipe(
-            handle: *mut std::ffi::c_void,
-            buffer: *mut u8,
-            buffer_size: u32,
-            bytes_read: *mut u32,
-            total_bytes_available: *mut u32,
-            bytes_left_this_message: *mut u32,
-        ) -> i32;
-        fn WaitForSingleObject(handle: *mut std::ffi::c_void, millis: u32) -> u32;
-    }
-
-    const WAIT_OBJECT_0: u32 = 0;
-
-    let stdin = io::stdin();
-    let handle = stdin.as_raw_handle();
-    if !stdin.is_terminal() {
-        let deadline = if timeout_ms < 0 {
-            None
-        } else {
-            Some(Instant::now() + Duration::from_millis(timeout_ms as u64))
-        };
-        loop {
-            let mut total_bytes_available = 0u32;
-            let rc = unsafe {
-                PeekNamedPipe(
-                    handle as *mut _,
-                    std::ptr::null_mut(),
-                    0,
-                    std::ptr::null_mut(),
-                    &mut total_bytes_available,
-                    std::ptr::null_mut(),
-                )
-            };
-            if rc != 0 {
-                return Ok(total_bytes_available > 0);
-            }
-
-            let err = io::Error::last_os_error();
-            if timeout_ms == 0 {
-                return Ok(false);
-            }
-            if deadline.is_some_and(|value| Instant::now() >= value) {
-                return Ok(false);
-            }
-            if err.kind() == io::ErrorKind::BrokenPipe {
-                return Ok(false);
-            }
-            std::thread::sleep(Duration::from_millis(5));
-        }
-    }
-
-    let millis = if timeout_ms < 0 {
-        0xFFFFFFFF
-    } else {
-        timeout_ms as u32
-    };
-    let rc = unsafe { WaitForSingleObject(handle as *mut _, millis) };
-    Ok(rc == WAIT_OBJECT_0)
-}
-
-#[cfg(not(any(unix, windows)))]
-fn stdin_ready(_timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
-    Ok(false)
 }
 
 fn trace_output_frame(

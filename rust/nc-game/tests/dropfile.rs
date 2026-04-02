@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use nc_game::dropfile::{DropfileError, DropfileInfo, parse};
+use nc_game::dropfile::{DoorConnectionType, DropfileError, DropfileInfo, parse};
 
 static SEQ: AtomicUsize = AtomicUsize::new(0);
 
@@ -49,6 +49,8 @@ fn door32_extracts_alias_and_timeout() {
     let info = parse(&path).expect("should parse");
     assert_eq!(info.alias.as_deref(), Some("Starlord"));
     assert_eq!(info.timeout_minutes, Some(45));
+    assert_eq!(info.connection_type, Some(DoorConnectionType::TelnetSocket));
+    assert_eq!(info.socket_descriptor, Some(4));
 }
 
 #[test]
@@ -92,6 +94,16 @@ fn door32_case_insensitive_filename() {
     let path = write_tmp("door32.sys", door32_content());
     let info = parse(&path).expect("should parse");
     assert_eq!(info.alias.as_deref(), Some("Starlord"));
+}
+
+#[test]
+fn door32_preserves_unknown_connection_types() {
+    let content = door32_content().replacen("2\r\n", "9\r\n", 1);
+    let path = write_tmp("DOOR32.SYS", &content);
+    let info = parse(&path).expect("should parse");
+
+    assert_eq!(info.connection_type, Some(DoorConnectionType::Unknown(9)));
+    assert_eq!(info.socket_descriptor, Some(4));
 }
 
 // ---------------------------------------------------------------------------

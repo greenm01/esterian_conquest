@@ -33,6 +33,30 @@ pub struct DropfileInfo {
     pub screen_columns: Option<usize>,
     /// Terminal height reported by the BBS, when the format provides it.
     pub screen_rows: Option<usize>,
+    /// Transport type reported by `DOOR32.SYS`, when present.
+    pub connection_type: Option<DoorConnectionType>,
+    /// Socket descriptor/handle reported by `DOOR32.SYS`, when present.
+    pub socket_descriptor: Option<u64>,
+}
+
+/// Transport type encoded in `DOOR32.SYS`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DoorConnectionType {
+    Local,
+    Serial,
+    TelnetSocket,
+    Unknown(u32),
+}
+
+impl DoorConnectionType {
+    fn from_door32_raw(value: u32) -> Self {
+        match value {
+            0 => Self::Local,
+            1 => Self::Serial,
+            2 => Self::TelnetSocket,
+            other => Self::Unknown(other),
+        }
+    }
 }
 
 /// Errors that can occur while parsing a dropfile.
@@ -116,6 +140,11 @@ fn parse_u32(lines: &[&str], n: usize) -> Option<u32> {
     line(lines, n)?.parse().ok()
 }
 
+/// Parse an unsigned integer from a line, returning `None` on any failure.
+fn parse_u64(lines: &[&str], n: usize) -> Option<u64> {
+    line(lines, n)?.parse().ok()
+}
+
 // ---------------------------------------------------------------------------
 // DOOR32.SYS
 // ---------------------------------------------------------------------------
@@ -140,6 +169,8 @@ fn parse_door32(lines: &[&str]) -> DropfileInfo {
         timeout_minutes: parse_u32(lines, 9),
         screen_columns: parse_u32(lines, 11).map(|value| value as usize),
         screen_rows: parse_u32(lines, 12).map(|value| value as usize),
+        connection_type: parse_u32(lines, 1).map(DoorConnectionType::from_door32_raw),
+        socket_descriptor: parse_u64(lines, 2),
     }
 }
 
@@ -169,6 +200,8 @@ fn parse_door_sys(lines: &[&str]) -> DropfileInfo {
         timeout_minutes: parse_u32(lines, 19),
         screen_columns: None,
         screen_rows: parse_u32(lines, 21).map(|value| value as usize),
+        connection_type: None,
+        socket_descriptor: None,
     }
 }
 
@@ -202,5 +235,7 @@ fn parse_chain_txt(lines: &[&str]) -> DropfileInfo {
         timeout_minutes,
         screen_columns: parse_u32(lines, 9).map(|value| value as usize),
         screen_rows: parse_u32(lines, 10).map(|value| value as usize),
+        connection_type: None,
+        socket_descriptor: None,
     }
 }

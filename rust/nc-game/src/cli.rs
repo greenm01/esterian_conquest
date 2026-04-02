@@ -10,7 +10,7 @@ use crate::screen::ScreenGeometry;
 use crate::terminal::ColorMode;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
-use crate::terminal::door::DoorTerminal;
+use crate::terminal::door::{DoorTerminal, DoorTransport};
 use crate::terminal::stdout::StdoutTerminal;
 use nc_data::{BbsGameConfig, CampaignStore};
 
@@ -29,6 +29,7 @@ struct ParsedLaunchArgs {
     session_token: Option<String>,
     hosted_invite_code: Option<String>,
     use_door_terminal: bool,
+    door_transport: DoorTransport,
 }
 
 struct SessionLeaseGuard {
@@ -190,11 +191,12 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         crate::theme::apply_door_theme();
     }
     let mut terminal: Box<dyn Terminal> = if parsed.use_door_terminal {
-        Box::new(DoorTerminal::with_encoding_and_color_mode(
+        Box::new(DoorTerminal::with_transport_and_color_mode(
             parsed.encoding,
             parsed.color_mode,
             parsed.screen_geometry,
-        ))
+            parsed.door_transport,
+        )?)
     } else {
         Box::new(StdoutTerminal::with_encoding_and_color_mode(
             parsed.encoding,
@@ -505,9 +507,11 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut dropfile_timeout_minutes: Option<u32> = None;
     let mut screen_geometry = ScreenGeometry::local_default();
     let mut use_door_terminal = false;
+    let mut door_transport = DoorTransport::Stdio;
 
     if let Some(path) = &dropfile_path {
         let info = dropfile::parse(path).map_err(|e| format!("{e}"))?;
+        door_transport = select_door_transport(&info)?;
         dropfile_alias = info
             .alias
             .map(|alias| alias.trim().to_string())
@@ -557,7 +561,30 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         session_token,
         hosted_invite_code,
         use_door_terminal,
+        door_transport,
     })
+}
+
+fn select_door_transport(
+    info: &dropfile::DropfileInfo,
+) -> Result<DoorTransport, Box<dyn std::error::Error>> {
+    #[cfg(windows)]
+    {
+        if matches!(
+            info.connection_type,
+            Some(dropfile::DoorConnectionType::TelnetSocket)
+        ) {
+            let Some(descriptor) = info.socket_descriptor else {
+                return Err(
+                    "DOOR32.SYS advertises telnet/socket transport but does not provide a socket descriptor"
+                        .into(),
+                );
+            };
+            return Ok(DoorTransport::SocketDescriptor { descriptor });
+        }
+    }
+
+    Ok(DoorTransport::Stdio)
 }
 
 /// Detect the terminal's color depth from standard environment variables.
@@ -913,7 +940,7 @@ mod tests {
     use super::{
         HostedLaunchContext, LaunchPlayerBinding, LaunchPlayerBindingSource, ParsedLaunchArgs,
         apply_launch_context, local_exit_lines, resolve_launch_player_binding,
-        session_lease_ttl_seconds, should_emit_local_exit_attribution,
+        select_door_transport, session_lease_ttl_seconds, should_emit_local_exit_attribution,
     };
     use crate::app::{App, AppConfig, RuntimeConfig, RuntimeSetupOverrides};
     use crate::domains::startup::state::FirstTimeOnboardingMode;
@@ -922,6 +949,7 @@ mod tests {
     };
     use crate::screen::ScreenGeometry;
     use crate::screen::ScreenId;
+    use crate::terminal::door::DoorTransport;
     use crate::terminal::{ColorMode, OutputEncoding};
     use nc_compat::import_directory_snapshot;
     use nc_data::{BbsGameConfig, CampaignStore, CoreGameData, SeatReservation};
@@ -1004,6 +1032,7 @@ mod tests {
             session_token: None,
             hosted_invite_code: None,
             use_door_terminal,
+            door_transport: DoorTransport::Stdio,
         }
     }
 
@@ -1128,13 +1157,19 @@ mod tests {
 
     #[test]
     fn interactive_loop_runs_for_door_sessions_even_without_tty_stdout() {
-        assert!(super::should_use_interactive_loop(&parsed_args(true), false));
+        assert!(super::should_use_interactive_loop(
+            &parsed_args(true),
+            false
+        ));
         assert!(super::should_use_interactive_loop(&parsed_args(true), true));
         assert!(!super::should_use_interactive_loop(
             &parsed_args(false),
             false
         ));
-        assert!(super::should_use_interactive_loop(&parsed_args(false), true));
+        assert!(super::should_use_interactive_loop(
+            &parsed_args(false),
+            true
+        ));
     }
 
     #[test]
@@ -1167,6 +1202,48 @@ mod tests {
     }
 
     #[test]
+    fn dropfile_transport_defaults_to_stdio_without_socket_metadata() {
+        let info = crate::dropfile::DropfileInfo::default();
+
+        assert_eq!(
+            select_door_transport(&info).expect("transport should resolve"),
+            DoorTransport::Stdio
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dropfile_transport_uses_socket_descriptor_for_door32_telnet_launches() {
+        let info = crate::dropfile::DropfileInfo {
+            connection_type: Some(crate::dropfile::DoorConnectionType::TelnetSocket),
+            socket_descriptor: Some(77),
+            ..crate::dropfile::DropfileInfo::default()
+        };
+
+        assert_eq!(
+            select_door_transport(&info).expect("transport should resolve"),
+            DoorTransport::SocketDescriptor { descriptor: 77 }
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dropfile_transport_rejects_missing_socket_descriptor() {
+        let info = crate::dropfile::DropfileInfo {
+            connection_type: Some(crate::dropfile::DoorConnectionType::TelnetSocket),
+            socket_descriptor: None,
+            ..crate::dropfile::DropfileInfo::default()
+        };
+
+        let err = select_door_transport(&info).expect_err("transport should fail");
+
+        assert!(
+            err.to_string()
+                .contains("does not provide a socket descriptor")
+        );
+    }
+
+    #[test]
     fn closed_input_errors_are_treated_as_clean_disconnects() {
         assert!(super::is_closed_input_error(&std::io::Error::new(
             std::io::ErrorKind::UnexpectedEof,
@@ -1176,7 +1253,9 @@ mod tests {
             std::io::ErrorKind::BrokenPipe,
             "pipe ended"
         )));
-        assert!(!super::is_closed_input_error(&std::io::Error::other("boom")));
+        assert!(!super::is_closed_input_error(&std::io::Error::other(
+            "boom"
+        )));
     }
 
     #[test]
