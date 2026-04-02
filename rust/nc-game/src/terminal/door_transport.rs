@@ -5,9 +5,14 @@ use std::time::{Duration, Instant};
 pub enum DoorTransport {
     #[default]
     Stdio,
-    TcpConnect { host: &'static str, port: u16 },
+    TcpConnect {
+        host: &'static str,
+        port: u16,
+    },
     #[cfg(windows)]
-    SocketDescriptor { descriptor: u64 },
+    SocketDescriptor {
+        descriptor: u64,
+    },
 }
 
 pub(crate) trait DoorIo: Read + Write {
@@ -17,7 +22,9 @@ pub(crate) trait DoorIo: Read + Write {
 pub(crate) fn build_door_io(transport: DoorTransport) -> io::Result<Box<dyn DoorIo>> {
     match transport {
         DoorTransport::Stdio => Ok(Box::new(StdioDoorIo::new())),
-        DoorTransport::TcpConnect { host, port } => Ok(Box::new(SocketDoorIo::connect(host, port)?)),
+        DoorTransport::TcpConnect { host, port } => {
+            Ok(Box::new(SocketDoorIo::connect(host, port)?))
+        }
         #[cfg(windows)]
         DoorTransport::SocketDescriptor { descriptor } => {
             Ok(Box::new(SocketDoorIo::from_socket_descriptor(descriptor)?))

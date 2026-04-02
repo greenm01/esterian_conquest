@@ -719,7 +719,9 @@ fn print_usage() {
     println!("  --socket-descriptor <value>");
     println!("                      Override the socket descriptor for native Windows doors.");
     println!("  --socket-port <port>");
-    println!("                      Connect back to a localhost door socket (ENiGMA abracadabra mode).");
+    println!(
+        "                      Connect back to a localhost door socket (ENiGMA abracadabra mode)."
+    );
     println!();
     println!("Logging:");
     println!("  --log-file <path>   Append diagnostic logs to a text file.");
@@ -1006,10 +1008,9 @@ fn humanize_slug(slug: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        HostedLaunchContext, LaunchPlayerBinding, LaunchPlayerBindingSource, ParsedLaunchArgs,
-        apply_launch_context, local_exit_lines, resolve_launch_player_binding,
+        HostedLaunchContext, LOOPBACK_DOOR_HOST, LaunchPlayerBinding, LaunchPlayerBindingSource,
+        ParsedLaunchArgs, apply_launch_context, local_exit_lines, resolve_launch_player_binding,
         select_door_transport, session_lease_ttl_seconds, should_emit_local_exit_attribution,
-        LOOPBACK_DOOR_HOST,
     };
     use crate::app::{App, AppConfig, RuntimeConfig, RuntimeSetupOverrides};
     use crate::domains::startup::state::FirstTimeOnboardingMode;
@@ -1317,12 +1318,10 @@ mod tests {
             ..crate::dropfile::DropfileInfo::default()
         };
 
-        assert!(
-            matches!(
-                select_door_transport(None, None, &info).expect("transport should resolve"),
-                DoorTransport::Stdio
-            )
-        );
+        assert!(matches!(
+            select_door_transport(None, None, &info).expect("transport should resolve"),
+            DoorTransport::Stdio
+        ));
     }
 
     #[cfg(windows)]

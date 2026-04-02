@@ -528,10 +528,7 @@ fn windows_nonblocking_socket_door_terminal_handles_would_block() {
             }
         }
         let rendered = String::from_utf8_lossy(&rendered);
-        assert!(
-            rendered.contains("WOULD BLOCK OK"),
-            "rendered={rendered:?}"
-        );
+        assert!(rendered.contains("WOULD BLOCK OK"), "rendered={rendered:?}");
         stream.write_all(b"q").expect("write keypress");
         stream.flush().expect("flush keypress");
     });
