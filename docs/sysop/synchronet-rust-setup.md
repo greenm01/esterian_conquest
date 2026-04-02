@@ -8,7 +8,6 @@ Validated path:
 - use `DOOR32` so Synchronet passes the caller metadata and socket descriptor
 - use the minimal command line shown below
 - keep `Intercept I/O Interrupts` off for this native socket door
-- treat `HJKL` as the primary movement keys and `^U` / `^D` as the paging keys
 
 Use:
 
@@ -147,7 +146,7 @@ The expected first-pass smoke test is:
 2. log in and open the external programs menu
 3. launch the NC entry
 4. confirm the game renders in the caller session with no extra console window
-5. verify `HJKL` movement and `^U` / `^D` paging
+5. verify normal navigation and paging behavior
 6. quit and confirm control returns cleanly to Synchronet
 
 ## 6. Troubleshooting

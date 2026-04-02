@@ -6,9 +6,6 @@ Mystic is the current baseline local-door BBS host for the Rust-native
 Status note:
 
 - this path is validated with the current Rust door client
-- callers should use `HJKL` for movement and `^U` / `^D` for paging in door
-  mode
-- `Esc` and `Q` remain the supported back/quit keys
 
 Use:
 
@@ -155,6 +152,6 @@ The expected first-pass smoke test is:
 3. launch the EC entry
 4. confirm a new unreserved caller lands on the EC first-time menu in color on
    the normal `80x25` playfield
-5. verify that `HJKL` navigation and `^U` / `^D` paging work on list screens
+5. verify that normal navigation and paging work on list screens
 6. choose `J` and verify the join flow reaches empire naming when an open
    unreserved empire exists

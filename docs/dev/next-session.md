@@ -35,8 +35,6 @@ Keep this file short. Historical detail belongs in
   - the main remaining unknowns are real-world usability issues and bugs found
     during campaign play
 - The Rust BBS door client is now verified on both Mystic and ENiGMA½.
-- For BBS play, the stable door control contract is `HJKL` movement, `^U` /
-  `^D` paging, and `Q` / `Esc` for back/quit.
 - The SSH/local `nc-game` renderer now diffs retained frames instead of
   clearing the whole terminal every keypress; the BBS door path still uses
   full-frame repaint and should get the same treatment later.

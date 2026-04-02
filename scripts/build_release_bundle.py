@@ -88,7 +88,7 @@ class BundleSpec:
             return f"nc-connect-v{self.version}-{self.platform.slug}"
         if self.artifact == "sysop":
             return f"nc-sysop-v{self.version}-{self.platform.slug}"
-        return f"esterian-conquest-v{self.version}-{self.platform.slug}"
+        return f"nostrian-conquest-v{self.version}-{self.platform.slug}"
 
     @property
     def is_windows(self) -> bool:
@@ -395,14 +395,7 @@ Then press `N` in the app and paste `amber-river@relay.example.com`.
 
 ## BBS Door Note
 
-For BBS hosting, stage `{door_binary}` as the live door binary. The current
-stable door-mode controls are:
-
-- `HJKL` for movement
-- `Ctrl-U` / `Ctrl-D` for paging
-- `Q` or `Esc` for back/quit
-
-Arrow keys and `PgUp` / `PgDn` are not part of the primary door-mode contract.
+For BBS hosting, stage `{door_binary}` as the live door binary.
 
 Hosted Rust campaigns are DB-only. `nc-sysop new-game` creates just
 `<game_dir>/ncgame.db`. The player manual lives at `{player_manual_path}` and

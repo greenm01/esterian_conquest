@@ -708,14 +708,6 @@ For full host-specific setups, including ready launcher examples, see
 `docs/sysop/enigma-rust-setup.md`, and
 `docs/sysop/synchronet-rust-setup.md`.
 
-In BBS door mode, the reliable control contract is:
-
-- `HJKL` for movement
-- `^U` / `^D` for paging
-- `Q` or `Esc` for back/quit
-
-Do not rely on arrows or `PgUp` / `PgDn` for normal play through BBS hosts.
-
 // ─── 9. File-Based Turn Submission ──────────────────────────────────────────
 
 = File-Based Turn Submission

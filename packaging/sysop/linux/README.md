@@ -38,8 +38,6 @@ ENiGMA½ setup guides under `docs/sysop/`.
 
 ## Notes
 
-Door mode uses `HJKL` for movement, `Ctrl-U` and `Ctrl-D` for paging, and `Q`
-or `Esc` for back or quit. New unreserved BBS callers land on the first-time
-menu. Reserved callers and returning callers skip that generic first-time
-screen. The signed `SHA256SUMS.txt` manifest on the GitHub release page covers
-this package.
+New unreserved BBS callers land on the first-time menu. Reserved callers and
+returning callers skip that generic first-time screen. The signed
+`SHA256SUMS.txt` manifest on the GitHub release page covers this package.

@@ -1,4 +1,4 @@
-# Esterian Conquest Release Artifacts
+# Release Artifacts
 
 This directory holds the current downloadable Esterian Conquest release artifacts.
 
@@ -49,7 +49,8 @@ Windows release packaging is standardized on native MSVC builds
 the public GUI player zip.
 
 The combined Rust private-beta bundle remains a local/internal helper. It is
-not the public player download.
+not the public player download, and it now uses the `nostrian-conquest-v...`
+name instead of the old stale `esterian-conquest-v...` name.
 
 ## nc-sysop BBS/Sysop Archives
 

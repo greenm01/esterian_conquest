@@ -38,8 +38,7 @@ door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.
 Hosted/Nostr game registry data remains global in `/etc/nc-gate/config.kdl`.
 
 Mystic and ENiGMA are validated stdio Rust-door hosts. Synchronet is the native
-Windows socket-door target. For BBS play, treat `HJKL` as the primary movement
-contract and `^U` / `^D` as the primary paging keys.
+Windows socket-door target.
 
 Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
 Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with
