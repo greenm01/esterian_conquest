@@ -1,9 +1,10 @@
 # Nostrian Conquest Linux Sysop Package
 
 This is the public Linux x64 BBS/sysop package. It contains `bin/nc-door`,
-`bin/nc-sysop`, both public PDF manuals, `examples/config.kdl`, and
-`BUILD-INFO.txt`. It does not contain `bin/nc-game`, and it does not bundle
-preserved Esterian Conquest executables, manuals, or DOS helper files.
+`bin/nc-sysop`, both public PDF manuals, the shipped `docs/sysop/` markdown
+guides, `examples/config.kdl`, and `BUILD-INFO.txt`. It does not contain
+`bin/nc-game`, and it does not bundle preserved Esterian Conquest
+executables, manuals, or DOS helper files.
 
 Use this package when you are hosting Nostrian Conquest as a Linux BBS door.
 If you want localhost or direct SSH play, build from source and use
@@ -33,8 +34,8 @@ and use `scripts/install_vps.sh`.
 ./bin/nc-door --dir /srv/nc/games/night-shift --dropfile <dropfile>
 ```
 
-For working host-specific launch lines, see the Mystic, Synchronet, and
-ENiGMA½ setup guides under `docs/sysop/`.
+For working host-specific launch lines, see the bundled Mystic, Synchronet,
+ENiGMA½, and WWIV setup guides under `docs/sysop/`.
 
 ## Notes
 

@@ -20,6 +20,7 @@ RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_player_manual.pdf"
 SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_sysop_manual.pdf"
+SYSOP_DOCS_ROOT = REPO_ROOT / "docs" / "sysop"
 SYSOP_ASSET_ROOT = REPO_ROOT / "packaging" / "sysop"
 SYSOP_CONFIG_EXAMPLE = SYSOP_ASSET_ROOT / "examples" / "config.kdl"
 SYSOP_LINUX_README = SYSOP_ASSET_ROOT / "linux" / "README.md"
@@ -422,9 +423,16 @@ def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
         dest.chmod(mode | 0o755)
 
 
+def copy_tree(src: Path, dest: Path) -> None:
+    for path in src.rglob("*"):
+        if path.is_file():
+            copy_file(path, dest / path.relative_to(src))
+
+
 def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root: Path) -> Path:
     bundle_root = workspace_root / spec.bundle_root_name
     if spec.artifact == "sysop":
+        sysop_docs_dir = bundle_root / "docs" / "sysop"
         if spec.is_windows:
             for path in binary_paths.values():
                 copy_file(path, bundle_root / path.name)
@@ -440,6 +448,7 @@ def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root
             copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
             copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
             copy_file(SYSOP_CONFIG_EXAMPLE, examples_dir / "config.kdl")
+        copy_tree(SYSOP_DOCS_ROOT, sysop_docs_dir)
     else:
         licenses_dir = bundle_root / "licenses"
         if spec.is_windows:
@@ -543,6 +552,11 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 "BUILD-INFO.txt",
                 f"{docs_prefix}nc_player_manual.pdf",
                 f"{docs_prefix}nc_sysop_manual.pdf",
+                "docs/sysop/README.md",
+                "docs/sysop/bbs/mystic-bbs-setup.md",
+                "docs/sysop/bbs/enigma-bbs-setup.md",
+                "docs/sysop/bbs/synchronet-bbs-setup.md",
+                "docs/sysop/bbs/wwiv-bbs-setup.md",
                 f"{binary_prefix}nc-door{binary_ext}",
                 f"{binary_prefix}nc-sysop{binary_ext}",
             ]

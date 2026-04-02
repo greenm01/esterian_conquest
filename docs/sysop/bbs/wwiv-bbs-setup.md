@@ -1,46 +1,50 @@
 # WWIV BBS Setup
 
-WWIV is an experimental BBS host for `nc-door`.
+WWIV is a smoke-tested BBS host for `nc-door`.
 
-Current posture:
+Status note:
 
-- Windows is the only path documented here
-- the basic WWIV chain and dropfile handoff were exercised on a normal user
-  install
-- remote caller validation is still incomplete on this machine
-- do not treat this page as equivalent to the validated Mystic, Synchronet, or
-  ENiGMA½ guides yet
+- Linux WWIV with `CHAIN.TXT` is smoke-tested through SyncTERM
+- the tested path stages `nc-door` and `nc-sysop` in a normal sysop-owned
+  tree and launches `nc-door` as a WWIV chain
+- WWIV still has less validation depth here than Mystic, Synchronet, or
+  ENiGMA½, so treat this as a practical working guide, not the broadest
+  supported host target
 
-## 1. Linux Status
+## 1. Stage the Rust binaries
 
-This repo does not yet carry a validated Linux WWIV setup for `nc-door`.
+For Linux BBS hosting, use the public `nc-sysop` package or build from source.
+Localhost play remains a source-build `nc-game` path.
 
-If you are experimenting on Linux later, keep the same core launch shape:
+From the repo root:
 
-- stage `nc-door`
-- pass `--dir`
-- pass a real WWIV dropfile such as `CHAIN.TXT`
-- keep classic ANSI/CP437 behavior
-
-## 2. Windows Layout
-
-The working layout under a normal user profile was:
-
-```text
-C:\Users\<user>\Documents\BBS\wwiv\
-  bbs.exe
-  wwivd.exe
-  data\
-  doors\nc-game\
-    bin\nc-door.exe
-    bin\nc-sysop.exe
-    campaign\
+```bash
+cd rust
+cargo build -q --release -p nc-game -p nc-sysop
 ```
 
-Keep the BBS root and the staged door files in one stable tree. Do not launch
-`nc-door` from a source checkout as the normal sysop path.
+For a normal sysop-owned layout, keep the WWIV root and the staged NC files in
+one stable tree. Example:
 
-## 3. Create the Campaign
+```text
+/path/to/wwiv/
+  bbs
+  wwivd
+  wwivconfig
+  wwivutil
+  data/
+  doors/
+    nc-game/
+      bin/
+        nc-door
+        nc-sysop
+      campaign/
+```
+
+Use the staged `nc-door` binary as the live chain target. Do not point WWIV at
+a source-tree helper script as the permanent sysop path.
+
+## 2. Create the campaign
 
 Example `config.kdl`:
 
@@ -53,59 +57,112 @@ reservations {
 
 Initialize the BBS campaign:
 
-```text
+```bash
 cd rust
-cargo run -q -p nc-sysop -- new-game --bbs C:\Users\<user>\Documents\BBS\wwiv\doors\nc-game\campaign
+cargo run -q -p nc-sysop -- new-game --bbs /path/to/wwiv/doors/nc-game/campaign
 ```
 
-Run yearly maintenance with Task Scheduler or another host-side scheduler:
+If you want a reproducible test map, keep the seed on the creation command
+line:
 
-```text
+```bash
 cd rust
-cargo run -q -p nc-sysop -- maint C:\Users\<user>\Documents\BBS\wwiv\doors\nc-game\campaign 1
+cargo run -q -p nc-sysop -- new-game --bbs /path/to/wwiv/doors/nc-game/campaign --seed 1515
 ```
 
-## 4. Chain Shape
+Run yearly maintenance with your normal host tooling:
 
-WWIV writes `CHAIN.TXT` and can launch an external door command from the BBS
-root.
+```bash
+cd rust
+cargo run -q -p nc-sysop -- maint /path/to/wwiv/doors/nc-game/campaign 1
+```
 
-The attempted Windows-native path used:
+## 3. Initialize and configure WWIV
 
-- `CHAIN.TXT` as the dropfile
-- a staged native launcher executable in the WWIV door directory
-- a final `nc-door.exe` command that passes `--dir` and `--dropfile`
+Initialize the BBS root once:
 
-That keeps the launch shape aligned with the Rust door instead of trying to
-wrap `nc-game` or a DOS door.
+```bash
+./wwivconfig --initialize --bbsdir /path/to/wwiv
+```
 
-## 5. Current Windows Blocker
+Then update `data/wwivd.json` for a normal non-root local test host:
 
-The remaining blocker is the live remote caller path, not campaign creation or
-dropfile parsing.
+- bind telnet to a non-privileged port such as `2324`
+- set `ssh_port` to `-1` unless you are intentionally running WWIV with a real
+  SSH listener
+- keep the single-node `bbses` entry aligned to node `1`
+- if this is only a local smoke-test host, keep the listener on localhost
 
-What is already known:
+The important point is simple: WWIV must be able to start as your normal user
+without trying to bind privileged ports such as `22`.
 
-- WWIV can stage `CHAIN.TXT`, `DOOR32.SYS`, and the other node temp files
-- the WWIV chain can reach a native launcher
-- `nc-door` can start from that launcher against the staged campaign
+## 4. Add the NC chain
 
-What is not yet closed:
+WWIV writes `CHAIN.TXT`, and `%C` expands to the full path to that dropfile.
+Point the chain at the staged `nc-door` binary and pass the campaign dir.
 
-- a full remote caller session through SyncTERM that cleanly enters the door
-  and stays attached to the caller terminal
+Example `data/chains.json` entry:
 
-Until that is closed, treat WWIV as an experimental host target.
+```json
+{
+  "version": 1,
+  "chains": [
+    {
+      "filename": "/path/to/wwiv/doors/nc-game/bin/nc-door --dir /path/to/wwiv/doors/nc-game/campaign --dropfile %C --encoding cp437 --color-mode ansi16",
+      "description": "Nostrian Conquest",
+      "exec_mode": "STDIO",
+      "dir": "bbs",
+      "ansi": true,
+      "local_only": false,
+      "multi_user": false,
+      "acs": "user.sl >= 10",
+      "regby": [],
+      "usage": 0,
+      "local_console_cp437": true,
+      "pause": false
+    }
+  ]
+}
+```
 
-## 6. Validation Goal
+Practical notes:
 
-The success criteria for moving WWIV out of experimental are:
+- `--dropfile %C` is the important WWIV handoff
+- keep `--encoding cp437 --color-mode ansi16` so the caller view stays aligned
+  with classic ANSI BBS behavior
+- the default WWIV `newusersl` of `10` already matches the example chain ACS
 
-1. connect remotely to WWIV from a normal BBS client
-2. log in without using the local node console
-3. launch the NC chain
-4. confirm the game renders in the caller session
-5. verify input, paging, and quit-back-to-BBS behavior
+## 5. Start WWIV
 
-Once that is repeatable, this page can be tightened into a normal validated
-setup guide.
+From the WWIV root:
+
+```bash
+./wwivd --bbsdir /path/to/wwiv
+```
+
+For a local smoke test, connect with SyncTERM to the configured telnet port,
+such as `127.0.0.1:2324`.
+
+## 6. Validate
+
+The expected first-pass smoke test is:
+
+1. connect with SyncTERM or another telnet-capable BBS client
+2. create or log into a WWIV user
+3. open the Doors section
+4. launch the Nostrian Conquest chain
+5. confirm the game renders in the caller session with ANSI color
+6. verify input, paging, and quit-back-to-BBS behavior
+
+## 7. Troubleshooting
+
+- if `wwivd` fails at startup with a socket-bind error on port `22`, disable
+  SSH in `data/wwivd.json` or move it to a non-privileged port
+- if the chain returns immediately, check the `filename` path in
+  `data/chains.json` first and confirm the staged `nc-door` binary is
+  executable
+- if the caller reaches WWIV but not the door, confirm the user SL satisfies
+  the chain ACS and that the chain description matches the menu entry you are
+  launching
+- if you are using the public `nc-sysop` package, the host-specific WWIV,
+  Mystic, Synchronet, and ENiGMA½ guides are bundled under `docs/sysop/bbs/`

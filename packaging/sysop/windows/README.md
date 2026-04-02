@@ -1,9 +1,10 @@
 # Nostrian Conquest Windows Sysop Package
 
 This is the public Windows x64 BBS/sysop package. It contains
-`nc-door.exe`, `nc-sysop.exe`, both public PDF manuals, `config.kdl`, and
-`BUILD-INFO.txt`. It does not contain `nc-game.exe`, and it does not bundle
-preserved Esterian Conquest executables, manuals, or DOS helper files.
+`nc-door.exe`, `nc-sysop.exe`, both public PDF manuals, the shipped
+`docs/sysop/` markdown guides, `config.kdl`, and `BUILD-INFO.txt`. It does
+not contain `nc-game.exe`, and it does not bundle preserved Esterian
+Conquest executables, manuals, or DOS helper files.
 
 Use this package when you are hosting Nostrian Conquest as a native Windows
 BBS door. If you want localhost or direct console play on Windows, build from
@@ -37,8 +38,8 @@ nc-door.exe --dir C:\nc\games\night-shift --dropfile <dropfile>
 nc-door.exe --dir C:\nc\games\night-shift --dropfile %f --socket-descriptor %H
 ```
 
-For working host-specific entries, see the Mystic, Synchronet, and ENiGMA½
-setup guides under `docs/sysop/`.
+For working host-specific entries, see the bundled Mystic, Synchronet,
+ENiGMA½, and WWIV setup guides under `docs/sysop/`.
 
 ## Notes
 
