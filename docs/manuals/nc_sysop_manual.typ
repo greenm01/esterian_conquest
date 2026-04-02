@@ -287,14 +287,18 @@ nc-sysop new-game --bbs /path/to/mygame
 
 The supported public creation flags are:
 
-#table(
-  columns: (auto, auto, 1fr),
-  [*Flag*], [*Type*], [*Description*],
-  [`--name`], [string], [Optional human-readable game title stored in `ncgame.db`. If omitted, `nc-sysop` derives a title from the directory slug.],
-  [`--players`], [integer], [Number of empires. Supported range: 1–25. Defaults to `4`.],
-  [`--seed`], [integer], [Optional integer seed for the campaign RNG. Controls map layout, starting positions, and all random events. If omitted, the engine picks a random seed and saves it to `ncgame.db`. The seed cannot be changed after creation.],
-  [`--bbs`], [flag], [Initialize a BBS campaign from an existing per-game `config.kdl`. In this mode, `--name` and `--players` are not accepted on the command line; use `--seed` only if you intentionally want a reproducible map for this one campaign.],
-)
+- *`--name`:* String. Optional game title stored in `ncgame.db`. If omitted,
+  `nc-sysop` derives a title from the directory slug.
+- *`--players`:* Integer. Number of empires. Supported range: `1-25`. Default:
+  `4`.
+- *`--seed`:* Integer. Optional campaign RNG seed. It controls map layout,
+  starting positions, and all random events. If omitted, the engine picks a
+  random seed and saves it to `ncgame.db`. The seed cannot be changed after
+  creation.
+- *`--bbs`:* Flag. Initialize a BBS campaign from an existing per-game
+  `config.kdl`. In this mode, `--name` and `--players` are not accepted on the
+  command line. Use `--seed` only if you intentionally want a reproducible map
+  for that one campaign.
 
 #admonition("NOTE")[Use a different seed for every game. Reusing the same seed produces the same map, starting positions, and event sequence every time. For BBS campaigns, keep that override on the `new-game --bbs --seed ...` command line instead of storing it in `config.kdl`.]
 
@@ -860,23 +864,35 @@ setup section earlier in this manual instead of the BBS dropfile path.
 nc-sysop <subcommand> [options]
 ```
 
-#table(
-  columns: (auto, 1fr),
-  [*Subcommand*], [*Purpose*],
-  [`new-game`], [Create a new campaign directory. Hosted/Nostr campaigns use `--name`, `--players`, and `--seed`; BBS campaigns use `new-game --bbs` with a minimal per-game `config.kdl`.],
-  [`settings show|set|reserve|unreserve`], [Inspect or edit hosted runtime policy in `ncgame.db`, or edit BBS seat reservations in per-game `config.kdl`.],
-  [`host games list|add|remove`], [Inspect or edit the global game registry in `/etc/nc-gate/config.kdl`.],
-  [`host status`], [Summarize the configured host, served game directories, claim counts, busy state, and maintenance-due state.],
-  [`nostr init`], [Initialize the Nostr-hosting identity and config for the recommended public multiplayer path.],
-  [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `nc-game` sessions.],
-  [`nostr seats`], [List the hosted seat state stored in `ncgame.db` for one game directory.],
-  [`nostr reissue`], [Generate a fresh invite code for one hosted seat, clear its old player binding, and republish that game's public `30500` metadata when possible.],
-  [`nostr claim`], [Manually bind one hosted seat to a specific `npub` and republish that game's public `30500` metadata when possible.],
-  [`nostr publish`], [Republish one game's public `30500` metadata to the configured relay immediately.],
-  [`nostr verify`], [Compare one game's local hosted-seat state against the latest published `30500` on the configured relay.],
-  [`maint`], [Run one or more maintenance turns against `ncgame.db`.],
-  [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions, and advancing only games whose schedule is enabled.],
-)
+- *`new-game`:* Create a new campaign directory. Hosted/Nostr campaigns use
+  `--name`, `--players`, and `--seed`. BBS campaigns use `new-game --bbs` with
+  a minimal per-game `config.kdl`.
+- *`settings show|set|reserve|unreserve`:* Inspect or edit non-BBS runtime
+  policy in `ncgame.db`, or edit BBS seat reservations in per-game
+  `config.kdl`.
+- *`host games list|add|remove`:* Inspect or edit the global game registry in
+  `/etc/nc-gate/config.kdl`.
+- *`host status`:* Summarize the configured host, served game directories,
+  claim counts, busy state, and maintenance-due state.
+- *`nostr init`:* Initialize the Nostr-hosting identity and config for the
+  recommended public multiplayer path.
+- *`nostr serve`:* Run the Nostr-facing daemon that authenticates players and
+  launches `nc-game` sessions.
+- *`nostr seats`:* List the hosted seat state stored in `ncgame.db` for one
+  game directory.
+- *`nostr reissue`:* Generate a fresh invite code for one hosted seat, clear
+  its old player binding, and republish that game's public `30500` metadata
+  when possible.
+- *`nostr claim`:* Manually bind one hosted seat to a specific `npub` and
+  republish that game's public `30500` metadata when possible.
+- *`nostr publish`:* Republish one game's public `30500` metadata to the
+  configured relay immediately.
+- *`nostr verify`:* Compare one game's local hosted-seat state against the
+  latest published `30500` on the configured relay.
+- *`maint`:* Run one or more maintenance turns against `ncgame.db`.
+- *`maint-all`:* Sweep every game registered in the gate config, skip games
+  that are not due or that currently have active sessions, and advance only
+  games whose schedule is enabled.
 
 == nc-game and nc-door
 
@@ -892,30 +908,35 @@ setup guide says otherwise.
 
 Interactive client flags:
 
-#table(
-  columns: (auto, 1fr),
-  [*Flag*], [*Description*],
-  [`--dir <path>`], [Game directory containing `ncgame.db`. Required.],
-  [`--player <N>`], [1-based empire index for direct localhost or SSH play. Normal BBS dropfile launches can omit it.],
-  [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
-  [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
-  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and resolves the player seat through BBS `config.kdl` reservations or stored joined-player aliases.],
-  [`--socket-descriptor <value>`], [Native Windows door socket handle. Mainly for Synchronet-style socket door launches.],
-  [`--session-token <hex>`], [Hosted-session lease token injected by `nc-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
-  [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
-  [`--export-root <path>`], [Optional map/export staging root for local or BBS file handoff workflows.],
-  [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
-)
+- *`--dir <path>`:* Game directory containing `ncgame.db`. Required.
+- *`--player <N>`:* 1-based empire index for direct localhost or SSH play.
+  Normal BBS dropfile launches can omit it.
+- *`--encoding <utf8|cp437>`:* Output encoding. Default: `utf8`. Use `cp437`
+  for BBS or door mode.
+- *`--color-mode <ansi16|256|truecolor|auto>`:* Color depth. Default: `auto`
+  from the environment. CP437 mode defaults to `ansi16`.
+- *`--dropfile <path>`:* Parse a BBS drop file (`DOOR32.SYS`, `DOOR.SYS`, or
+  `CHAIN.TXT`). It supplies the alias and timeout, defaults encoding to
+  `cp437`, and resolves the player seat through BBS `config.kdl` reservations
+  or stored joined-player aliases.
+- *`--socket-descriptor <value>`:* Native Windows door socket handle. Mainly
+  for Synchronet-style socket door launches.
+- *`--session-token <hex>`:* Hosted-session lease token injected by `nc-gate`
+  during Nostr or SSH login. Normal local and BBS launches do not pass this
+  flag.
+- *`--timeout <minutes>`:* Session time limit in minutes. It overrides any
+  drop file value.
+- *`--export-root <path>`:* Optional map or export staging root for local or
+  BBS file handoff workflows.
+- *`--queue-dir <path>`:* Override turn queue directory. Default:
+  `<game_dir>/queue`.
 
 `submit-turn` flags:
 
-#table(
-  columns: (auto, 1fr),
-  [*Flag*], [*Description*],
-  [`--check`], [Validate the KDL file without mutating the campaign.],
-  [`--dir <path>`], [Game directory containing `ncgame.db`. Required.],
-  [`--player <N>`], [1-based empire index. Required, and must match the KDL header.],
-  [`--file <path>`], [Turn submission KDL file to validate or apply. Required.],
-)
+- *`--check`:* Validate the KDL file without mutating the campaign.
+- *`--dir <path>`:* Game directory containing `ncgame.db`. Required.
+- *`--player <N>`:* 1-based empire index. Required, and it must match the KDL
+  header.
+- *`--file <path>`:* Turn submission KDL file to validate or apply. Required.
 
 #admonition("NOTE")[`nc-game submit-turn` is all-or-nothing. If any command in the file is invalid, the entire submission is rejected and nothing is written to `ncgame.db`.]
