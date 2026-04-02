@@ -149,9 +149,8 @@ The release binaries will be in `target/release/`.
 == Current Beta Distribution
 
 During the current beta, public GitHub Releases include Windows x64, Linux x64,
-and macOS Apple Silicon `nc-connect` player archives alongside the old DOS
-compatibility packages. Public releases also include Windows x64 and Linux x64
-`nc-sysop` BBS/sysop packages.
+and macOS Apple Silicon `nc-connect` player archives. Public releases also
+include Windows x64 and Linux x64 `nc-sysop` BBS/sysop packages.
 
 Keep the binary roles straight.
 
@@ -171,11 +170,14 @@ For the Rust edition:
 4. Localhost sysops build from tagged source with Cargo and run `nc-game`
    directly.
 
+The public Nostrian packages do not bundle preserved Esterian Conquest
+executables, manuals, or DOS helper assets.
+
 == Choose Your Deployment
 
 NC has three practical ways to run the Rust game.
 
-=== 1. Nostr Host
+=== Nostr Host
 
 Use this when a sysop wants the normal public multiplayer path. Players use
 `nc-connect`. The host runs `nc-sysop nostr serve`, and the live game runs
@@ -201,7 +203,7 @@ The standard VPS layout is:
 This path can live on a Linux VPS or any other SSH-reachable Linux host. The
 full hosted setup is covered below under *Recommended Public Host*.
 
-=== 2. Localhost Session
+=== Localhost Session
 
 Use this when a sysop wants direct same-machine play for himself, hotseat
 testing, or a small trusted session.
@@ -218,7 +220,7 @@ nc-sysop new-game /home/sysop/nc-games/friday-night --name "Friday Night NC" --p
 nc-game --dir /home/sysop/nc-games/friday-night --player 1
 ```
 
-=== 3. BBS Door Host
+=== BBS Door Host
 
 Use this when the sysop wants `nc-door` as a door under Mystic, ENiGMA½, or a
 similar BBS.
@@ -239,6 +241,7 @@ For the exact launcher setups, see:
 
 - `docs/sysop/mystic-rust-setup.md`
 - `docs/sysop/enigma-rust-setup.md`
+- `docs/sysop/synchronet-rust-setup.md`
 
 == Game Directory Layout
 
@@ -422,8 +425,8 @@ Reissuing is the deliberate “move this seat to a new identity” action. It
 clears the old `npub` binding and rotates the invite code at the same time.
 
 Hosted seat claims are stored in `ncgame.db`. That SQLite state is the
-authority for invite codes, claim status, and bound player `npub`s. Legacy
-`roster.kdl` files are migration input only.
+authority for invite codes, claim status, and bound player `npub`s. Hosted
+claim state no longer lives in a per-game roster file.
 
 #admonition("NOTE")[
   `/etc/nc-gate/config.kdl` is host-owned. Game-registry edits such as
@@ -439,13 +442,39 @@ authority for invite codes, claim status, and bound player `npub`s. Legacy
 / `ncgame.db`: The SQLite runtime database. All game state lives here. Hosted
   seat claims live here too. Do not edit it by hand.
 
+/ `config.kdl`: Present only for BBS door campaigns. It holds `players` and
+  optional seat `reservations`. Hosted/Nostr campaigns do not use it.
+
 // ─── 4. Configuration ─────────────────────────────────────────────────────────
 
 = Configuration <configuration>
 
-Hosted Rust campaigns do not use a per-game `config.kdl`. Hosted runtime
-policy lives in SQLite alongside the rest of the campaign state. Use
-`nc-sysop settings ...` to inspect or change it:
+Keep these three paths separate:
+
+=== Hosted / Nostr Host
+
+- Live state: `/etc/nc-gate/config.kdl` plus per-game `ncgame.db`
+- Runtime path: `nc-gate` launches hosted `nc-game` sessions
+- Operator rule: use `nc-sysop settings set` on the game directory; `maint-all`
+  scheduling applies here
+
+=== Direct `nc-game`
+
+- Live state: per-game `ncgame.db`
+- Runtime path: `nc-game --dir ... --player ...` on localhost or over SSH
+- Operator rule: this uses the same non-BBS settings surface as hosted games,
+  but there is no gate, no relay, and no normal `maint-all` use
+
+=== BBS Door Host
+
+- Live state: per-game `config.kdl` plus `ncgame.db`
+- Runtime path: `nc-door` with a dropfile; native Windows Synchronet also
+  passes `--socket-descriptor`
+- Operator rule: BBS `config.kdl` supports only `players` and `reservations`;
+  `settings set` does not apply
+- Common hosts: Mystic, ENiGMA½, and native Windows Synchronet
+
+Use `nc-sysop settings ...` to inspect any non-BBS campaign:
 
 ```
 nc-sysop settings show --dir /srv/nc/games/friday-night
@@ -453,71 +482,14 @@ nc-sysop settings set --dir /srv/nc/games/friday-night --game-name "Friday Night
 nc-sysop settings reserve --dir /srv/nc/games/friday-night --player 1 --alias SYSOP
 ```
 
-=== Hosted Example
-
-```text
-slug=friday-night
-game_name=Friday Night NC
-snoop=true
-session_max_idle_minutes=10
-session_minimum_time_minutes=0
-session_local_timeout=false
-session_remote_timeout=true
-inactivity_purge_after_turns=0
-inactivity_autopilot_after_turns=0
-maintenance_enabled=true
-maintenance_interval_minutes=10080
-maintenance_next_due_unix_seconds=1775347200
-reservation seat=1 alias=SYSOP
-reservation seat=2 alias=NightShade
-```
-
-=== Hosted Stored Fields
-
-#table(
-  columns: (auto, auto, auto, 1fr),
-  [*Field*], [*Type*], [*Default*], [*Description*],
-  [`game_name`], [string], [`"Nostrian Conquest"`], [Display name shown in the main menu header.],
-  [`default_theme_key`], [string], [`"tokyo_night"`], [Bundled color set used by default. This is a compiled-in key, not a file path.],
-  [`snoop`], [bool], [`#true`], [Enable sysop snoop mode.],
-  [`reservations`], [rows], [_(absent)_], [Optional BBS/dropfile seat reservations by caller alias.],
-  [`maintenance_enabled`], [bool], [`#true`], [Whether `maint-all` should advance this game when it becomes due.],
-  [`maintenance_interval_minutes`], [integer], [`10080`], [Maintenance cadence in minutes. `10080` = one week.],
-  [`maintenance_next_due_unix_seconds`], [integer], [_(auto)_], [Next scheduled maintenance time as a Unix timestamp.],
-)
-
-=== Hosted `session` Block
-
-#table(
-  columns: (auto, auto, auto, 1fr),
-  [*Field*], [*Type*], [*Default*], [*Description*],
-  [`max_idle_minutes`], [integer], [`10`], [Minutes of inactivity before session timeout. Range: 0–120.],
-  [`minimum_time_minutes`], [integer], [`0`], [Minimum session time guarantee in minutes. Range: 0–120.],
-  [`local_timeout`], [bool], [`#false`], [Apply timeout to local (non-remote) sessions.],
-  [`remote_timeout`], [bool], [`#true`], [Apply timeout to remote sessions.],
-)
-
-=== Hosted `inactivity` Block
-
-#table(
-  columns: (auto, auto, auto, 1fr),
-  [*Field*], [*Type*], [*Default*], [*Description*],
-  [`purge_after_turns`], [integer], [`0`], [Turns of inactivity before a player is purged. `0` = disabled. Range: 0–100.],
-  [`autopilot_after_turns`], [integer], [`0`], [Turns of inactivity before autopilot engages. `0` = disabled. Range: 0–100.],
-)
-
-=== Hosted `reservations` Block
-
-#table(
-  columns: (auto, auto, auto, 1fr),
-  [*Field*], [*Type*], [*Default*], [*Description*],
-  [`seat player=<N> alias="NAME"`], [entry], [_(absent)_], [Reserve empire slot `N` for a BBS/dropfile caller alias. Alias matching is ASCII case-insensitive.],
-)
+For the full non-BBS settings reference, including the raw `settings show`
+shape and the advanced carried-forward state fields, see
+`docs/sysop/campaign-settings.md`.
 
 === BBS `config.kdl`
 
-BBS campaigns use a minimal live per-game `config.kdl` instead of the hosted
-SQLite policy surface:
+BBS campaigns use a minimal live per-game `config.kdl` instead of the non-BBS
+settings surface:
 
 ```kdl
 players 4
@@ -532,12 +504,22 @@ Supported BBS fields are only:
 - `players`
 - `reservations`
 
-Do not put `game_name`, `theme`, `snoop`, `session`, or `inactivity` in the
-BBS file. Do not put `seed` there either. It is a one-shot `new-game` command
-line override, not live BBS config.
+`nc-sysop settings show --dir /path/to/mygame` reports BBS campaigns in a
+different shape:
+
+```text
+mode=bbs
+players=4
+reservation seat=1 alias=SYSOP
+reservation seat=2 alias=NightShade
+```
+
+Do not put `game_name`, `theme`, `snoop`, `session`, `inactivity`, or
+`maintenance` in the BBS file. Do not put `seed` there either. It is a one-shot
+`new-game` command line override, not live BBS config.
 
 For BBS campaigns, `nc-sysop settings reserve` and `settings unreserve` edit
-this file for you. `settings set` is a hosted-only command surface.
+this file for you. `settings set` is a non-BBS command surface.
 
 == Display Defaults
 
@@ -607,11 +589,7 @@ door mode, `nc-door` uses CP437 and 16-color ANSI for classic terminal clients.
 == Flags for Door Mode
 
 ```
-nc-door \
-  --dir /path/to/mygame \
-  --dropfile /path/to/DOOR32.SYS \
-  --encoding cp437 \
-  --color-mode ansi16
+nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS --encoding cp437 --color-mode ansi16
 ```
 
 `--encoding cp437` switches box-drawing characters and other extended
@@ -631,9 +609,7 @@ between that ANSI16 palette and a greyscale monochrome projection.
 `nc-door` can read a BBS drop file directly with `--dropfile <path>`:
 
 ```
-nc-door \
-  --dir /path/to/mygame \
-  --dropfile /path/to/DOOR32.SYS
+nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 ```
 
 Supported drop file formats (auto-detected by filename, case-insensitive):
@@ -688,22 +664,17 @@ door path.
 If the host writes a `DOOR32.SYS`, you can pass it directly:
 
 ```
-nc-door \
-  --dir /path/to/mygame \
-  --dropfile /path/to/DOOR32.SYS
+nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 ```
 
 Mystic and ENiGMA½ use that direct dropfile path. Native Windows Synchronet
 also passes the inherited socket descriptor:
 
 ```
-nc-door \
-  --dir /path/to/mygame \
-  --dropfile %f \
-  --socket-descriptor %H
+nc-door --dir /path/to/mygame --dropfile %f --socket-descriptor %H
 ```
 
-For full host-specific setups, including ready launcher examples, see
+For the exact launcher setups, see
 `docs/sysop/mystic-rust-setup.md`,
 `docs/sysop/enigma-rust-setup.md`, and
 `docs/sysop/synchronet-rust-setup.md`.
@@ -763,30 +734,47 @@ nc-sysop maint /path/to/mygame [turns]
 nc-sysop maint-all [--config /etc/nc-gate/config.kdl]
 ```
 
-`nc-sysop maint` advances the campaign in `ncgame.db`. NC does not schedule
-maintenance by itself. In a real deployment, invoke `nc-sysop maint` from your
-host scheduler or BBS tooling:
+`nc-sysop maint` advances the campaign in `ncgame.db` immediately. It does not
+change the schedule fields. NC does not schedule maintenance by itself. For
+one direct localhost game, one manual SSH/VPS game, or one BBS game, invoke
+`nc-sysop maint` from your own scheduler or event tooling:
 
 - a `systemd` timer
 - `cron`
 - a BBS event runner
 - or manual sysop operation
 
-For multi-game Nostr hosting, prefer a single global timer that runs
+For multi-game hosted/Nostr operation, prefer a single global timer that runs
 `nc-sysop maint-all`. It reads the configured game directories from the gate
-config, skips games whose next due time has not arrived yet, and also skips
-games with live session leases so a player is never interrupted by maintenance.
+config, advances only games whose schedule is enabled and already due, and
+skips games with live session leases so a player is never interrupted by
+maintenance. After a scheduled run, it writes the next due time back into
+`ncgame.db`.
 
-Do not treat game settings as a scheduler. The schedule belongs to the host,
-whether the campaign is hosted/Nostr or BBS.
+To put one hosted game on a real schedule, turn scheduling on and set the
+first due time yourself:
+
+```
+nc-sysop settings set --dir /srv/nc/games/friday-night --maintenance-enabled on --maintenance-interval-minutes 10080 --maintenance-next-due 1775347200
+```
+
+That example enables weekly scheduling. `10080` is seven days in minutes.
+`1775347200` is just a sample Unix timestamp. Replace it with the first due
+time you actually want.
+
+Treat these schedule fields as hosted `maint-all` metadata. They do not create
+their own timer. They are not BBS `config.kdl` fields. If you run a direct
+localhost or manual SSH game, you can ignore them and schedule `maint
+/path/to/mygame` yourself.
 
 // ─── 11. Player Management ────────────────────────────────────────────────────
 
 = Player Management
 
-Hosted/Nostr campaigns keep inactive-player policy in `ncgame.db`. BBS door
-campaigns do not use a separate inactivity block in `config.kdl`; caller idle
-handling belongs to the BBS software.
+Non-BBS campaigns keep player reservations and the carried-forward
+inactivity-related state in `ncgame.db`. BBS door campaigns do not use a
+separate inactivity block in `config.kdl`; caller idle handling belongs to the
+BBS software.
 
 == Reserving Seats
 
@@ -853,10 +841,11 @@ setup section earlier in this manual instead of the BBS dropfile path.
 / `ncgame.db`: The SQLite database that is the runtime source of truth for the
   Rust engine.
 
-/ hosted campaign settings: The sysop-managed runtime policy rows stored in
-  `ncgame.db` for hosted/Nostr campaigns. They control game name, snoop mode,
-  the default compiled-in color set, seat reservations, maintenance cadence,
-  and inactivity thresholds.
+/ non-BBS campaign settings: The sysop-managed runtime policy rows stored in
+  `ncgame.db` for hosted/Nostr and direct `nc-game` campaigns. They control
+  game name, the default compiled-in color set, hosted maintenance metadata,
+  optional alias reservations, and a small set of carried-forward classic
+  setup fields.
 
 / `config.kdl`: Present only for BBS door campaigns. It holds `players` and
   optional seat `reservations`.
@@ -882,11 +871,11 @@ nc-sysop <subcommand> [options]
   [`nostr serve`], [Run the Nostr-facing daemon that authenticates players and launches `nc-game` sessions.],
   [`nostr seats`], [List the hosted seat state stored in `ncgame.db` for one game directory.],
   [`nostr reissue`], [Generate a fresh invite code for one hosted seat, clear its old player binding, and republish that game's public `30500` metadata when possible.],
+  [`nostr claim`], [Manually bind one hosted seat to a specific `npub` and republish that game's public `30500` metadata when possible.],
   [`nostr publish`], [Republish one game's public `30500` metadata to the configured relay immediately.],
   [`nostr verify`], [Compare one game's local hosted-seat state against the latest published `30500` on the configured relay.],
-  [`nostr migrate-roster`], [Import a legacy `roster.kdl` into `ncgame.db`, copy its display name into the campaign settings rows, and archive the old roster file.],
   [`maint`], [Run one or more maintenance turns against `ncgame.db`.],
-  [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions.],
+  [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions, and advancing only games whose schedule is enabled.],
 )
 
 == nc-game and nc-door
@@ -907,11 +896,14 @@ Interactive client flags:
   columns: (auto, 1fr),
   [*Flag*], [*Description*],
   [`--dir <path>`], [Game directory containing `ncgame.db`. Required.],
+  [`--player <N>`], [1-based empire index for direct localhost or SSH play. Normal BBS dropfile launches can omit it.],
   [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
   [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
   [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and resolves the player seat through BBS `config.kdl` reservations or stored joined-player aliases.],
+  [`--socket-descriptor <value>`], [Native Windows door socket handle. Mainly for Synchronet-style socket door launches.],
   [`--session-token <hex>`], [Hosted-session lease token injected by `nc-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
   [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
+  [`--export-root <path>`], [Optional map/export staging root for local or BBS file handoff workflows.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],
 )
 
