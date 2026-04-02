@@ -7,8 +7,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use nc_game::screen::GameColor;
 use nc_game::theme::classic;
 use nc_game::theme::{
-    AnsiMode, ansi_mode, bundled_theme_file_names, bundled_theme_kdl, initialize_from_game_dir,
-    load_theme_from_path, toggle_ansi_mode,
+    AnsiMode, ansi_mode, apply_door_theme, bundled_theme_file_names, bundled_theme_kdl,
+    current_theme_key, door_theme_key, initialize_from_game_dir, load_theme_from_path,
+    toggle_ansi_mode,
 };
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -197,4 +198,38 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     initialize_from_game_dir(&game_dir, None).expect("reinitialize resets ansi on");
     assert_eq!(ansi_mode(), AnsiMode::On);
     assert_eq!(classic::logo_style().fg, GameColor::Rgb(122, 162, 247));
+}
+
+#[test]
+fn apply_door_theme_forces_mag16_and_restores_it_after_ansi_toggle() {
+    let _guard = theme_test_guard();
+
+    apply_door_theme();
+    assert_eq!(ansi_mode(), AnsiMode::On);
+    assert_eq!(current_theme_key().as_deref(), Some(door_theme_key()));
+    assert_eq!(classic::logo_style().fg, GameColor::BrightBlue);
+    assert_eq!(classic::notice_style().fg, GameColor::BrightRed);
+    assert_eq!(classic::body_style().fg, GameColor::White);
+    assert_eq!(classic::table_header_style().fg, GameColor::Cyan);
+    assert_eq!(classic::selected_row_style().fg, GameColor::BrightWhite);
+    assert_eq!(classic::selected_row_style().bg, GameColor::Cyan);
+
+    let next_mode = toggle_ansi_mode().expect("toggle ansi mode off");
+    assert_eq!(next_mode, AnsiMode::Off);
+    assert_eq!(ansi_mode(), AnsiMode::Off);
+    assert_eq!(current_theme_key().as_deref(), Some(door_theme_key()));
+    assert_eq!(classic::body_style().fg, GameColor::White);
+    assert_eq!(classic::logo_style().fg, GameColor::White);
+    assert_eq!(classic::notice_style().fg, GameColor::White);
+    assert_eq!(classic::selected_row_style().fg, GameColor::Black);
+    assert_eq!(classic::selected_row_style().bg, GameColor::BrightBlack);
+
+    let next_mode = toggle_ansi_mode().expect("toggle ansi mode on");
+    assert_eq!(next_mode, AnsiMode::On);
+    assert_eq!(ansi_mode(), AnsiMode::On);
+    assert_eq!(current_theme_key().as_deref(), Some(door_theme_key()));
+    assert_eq!(classic::logo_style().fg, GameColor::BrightBlue);
+    assert_eq!(classic::notice_style().fg, GameColor::BrightRed);
+    assert_eq!(classic::selected_row_style().fg, GameColor::BrightWhite);
+    assert_eq!(classic::selected_row_style().bg, GameColor::Cyan);
 }

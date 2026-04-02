@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 pub use nc_ui::theme::classic;
 pub use nc_ui::theme::{AnsiMode, ThemeEntry, ThemeEntryKind};
 
+const DOOR_THEME_KEY: &str = "mag16";
+
 pub fn discover_theme_entries(
     _game_dir: &Path,
 ) -> Result<Vec<ThemeEntry>, Box<dyn std::error::Error>> {
@@ -126,6 +128,14 @@ pub fn apply_default_theme() {
     nc_ui::theme::apply_default_theme();
 }
 
+pub fn apply_door_theme() {
+    let file_name = format!("{}.kdl", door_theme_key());
+    let contents =
+        nc_ui::theme::bundled_theme_contents(&file_name).expect("bundled door theme should exist");
+    nc_ui::theme::apply_theme_from_kdl(contents, AnsiMode::On, Some(door_theme_key()))
+        .expect("bundled door theme should be valid");
+}
+
 pub fn ansi_mode() -> AnsiMode {
     nc_ui::theme::ansi_mode()
 }
@@ -156,6 +166,10 @@ pub fn default_theme_key() -> &'static str {
 
 pub fn default_theme_display_name() -> String {
     nc_ui::theme::default_theme_display_name()
+}
+
+pub fn door_theme_key() -> &'static str {
+    DOOR_THEME_KEY
 }
 
 fn bundled_theme_for_path(path: &Path) -> Option<(String, &'static str)> {

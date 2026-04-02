@@ -112,7 +112,7 @@ pub fn serialize_playfield_frame(
         false,
         color_mode,
     ));
-    bytes.extend_from_slice(b"\x1b[?25h\x1b[2J\x1b[H");
+    bytes.extend_from_slice(b"\x1b[2J\x1b[H");
 
     let visible_height = playfield.height().min(geometry.height());
     for row_idx in 0..visible_height {
@@ -145,16 +145,21 @@ pub fn serialize_playfield_frame(
         }
     }
 
-    let default_cursor_row = visible_height.saturating_sub(1) as u16;
-    let (cursor_col, cursor_row) = playfield.cursor().unwrap_or((0, default_cursor_row));
-    let clamped_cursor_row = cursor_row.min(default_cursor_row);
     bytes.extend_from_slice(&style_sgr(
         classic::terminal_foreground(),
         classic::app_background(),
         false,
         color_mode,
     ));
-    bytes.extend_from_slice(cursor_to(clamped_cursor_row, cursor_col).as_bytes());
+    match playfield.cursor() {
+        Some((cursor_col, cursor_row)) => {
+            let default_cursor_row = visible_height.saturating_sub(1) as u16;
+            let clamped_cursor_row = cursor_row.min(default_cursor_row);
+            bytes.extend_from_slice(b"\x1b[?25h");
+            bytes.extend_from_slice(cursor_to(clamped_cursor_row, cursor_col).as_bytes());
+        }
+        None => bytes.extend_from_slice(b"\x1b[?25l"),
+    }
     bytes
 }
 
@@ -440,8 +445,8 @@ fn map_csi_event(byte: u8, sequence: &[u8]) -> Option<KeyEvent> {
         b'D' => Some(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE)),
         b'H' => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
         b'F' | b'K' => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),
-        b'U' => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
-        b'V' => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
+        b'U' => Some(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE)),
+        b'V' => Some(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE)),
         b'~' => match sequence {
             b"1~" | b"7~" => Some(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE)),
             b"4~" | b"8~" => Some(KeyEvent::new(KeyCode::End, KeyModifiers::NONE)),

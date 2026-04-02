@@ -282,7 +282,7 @@ fn first_time_and_main_popup_help_share_the_same_color_theme_text() {
 }
 
 #[test]
-fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
+fn door_mode_main_menu_uses_ansi_toggle_and_mag16_theme() {
     let fixture_dir = temp_game_copy();
     CampaignStore::open_default_in_dir(&fixture_dir)
         .expect("open store")
@@ -305,7 +305,15 @@ fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
 
     assert_eq!(
         theme::current_theme_key().as_deref(),
-        Some(theme::default_theme_key())
+        Some(theme::door_theme_key())
+    );
+    assert_eq!(
+        theme::classic::logo_style().fg,
+        nc_game::screen::GameColor::BrightBlue
+    );
+    assert_eq!(
+        theme::classic::notice_style().fg,
+        nc_game::screen::GameColor::BrightRed
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('a'))),
@@ -328,6 +336,18 @@ fn door_mode_main_menu_uses_ansi_toggle_and_default_theme() {
     let toggle = app.handle_key(key(KeyCode::Char('a')));
     assert_eq!(apply_action(&mut app, toggle), AppOutcome::Continue);
     assert!(!theme::ansi_enabled());
+    assert_eq!(
+        theme::current_theme_key().as_deref(),
+        Some(theme::door_theme_key())
+    );
+    assert_eq!(
+        theme::classic::logo_style().fg,
+        nc_game::screen::GameColor::White
+    );
+    assert_eq!(
+        theme::classic::notice_style().fg,
+        nc_game::screen::GameColor::White
+    );
 }
 
 #[test]

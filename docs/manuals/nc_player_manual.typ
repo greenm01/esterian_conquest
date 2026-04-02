@@ -543,7 +543,7 @@ The game is organized around four primary menus. From the *Main Menu*, you acces
 
 The `nc-game` client is themable. Each campaign has a sysop-chosen default theme, and local-terminal players can open *C>olor Theme* from the Main Menu or First Time Menu to choose their own session theme from the campaign's available theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several other built-in palettes, plus a monochrome `Mono` option in the picker. You can preview and apply these without leaving the client, and your last local theme choice is remembered for your empire in that campaign.
 
-In BBS door mode, `nc-game` instead keeps the classic *A>nsi color ON/OFF* toggle and begins from the campaign default theme each session. If a saved custom theme later disappears or becomes invalid, `nc-game` falls back to `tokyo_night`, with `Mono` kept as a safe last resort.
+In BBS door mode, `nc-game` instead keeps the classic *A>nsi color ON/OFF* toggle and always begins from the bundled `mag16` theme each session so classic ANSI16 terminals get a stable palette. Pressing *A* switches between that `mag16` view and a greyscale monochrome projection for the current session. Saved local theme preferences do not apply in door mode.
 
 === General Command
 

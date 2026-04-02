@@ -511,6 +511,10 @@ compiled-in color set. It is not a file path.
 Players may still choose a local color theme inside `nc-game`. That choice is
 stored in `ncgame.db` as a player preference.
 
+In BBS door mode, `nc-game` does not use `default_theme_key` at runtime. Door
+sessions always force the bundled `mag16` palette so ANSI16 terminals and BBS
+clients get a predictable color-safe baseline.
+
 // ─── 6. SSH Access ────────────────────────────────────────────────────────────
 
 = SSH Access
@@ -582,6 +586,10 @@ in classic ANSI-aware BBS terminals (SyncTERM, NetRunner, etc.).
 When `--encoding cp437` is active, `--color-mode` defaults to `ansi16`
 automatically. Override only if you know your BBS clients support a richer
 color depth.
+
+Door sessions also force the bundled `mag16` theme regardless of the campaign's
+normal `default_theme_key`. The in-game *A>nsi color ON/OFF* command toggles
+between that ANSI16 palette and a greyscale monochrome projection.
 
 == Drop File
 

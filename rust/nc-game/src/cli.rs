@@ -145,7 +145,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         }),
     );
     if app.door_mode {
-        crate::theme::apply_default_theme();
+        crate::theme::apply_door_theme();
     }
     let mut terminal: Box<dyn Terminal> = if parsed.use_door_terminal {
         Box::new(DoorTerminal::with_encoding_and_color_mode(

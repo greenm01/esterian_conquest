@@ -71,8 +71,31 @@ fn door_serializer_avoids_alt_screen_and_hides_no_cursor() {
     let frame_text = String::from_utf8_lossy(&frame);
 
     assert!(!frame_text.contains("\x1b[?1049"));
-    assert!(!frame_text.contains("\x1b[?25l"));
     assert!(frame_text.contains("\x1b[?25h"));
+}
+
+#[test]
+fn door_serializer_hides_cursor_when_playfield_has_no_cursor() {
+    apply_mag16_theme();
+    let mut buffer = PlayfieldBuffer::new(80, 25, nc_game::theme::classic::body_style());
+    nc_game::screen::help::render_help_popup(
+        &mut buffer,
+        "HELP WITH COMMANDS",
+        &["A ansi toggle".to_string(), "Q quit".to_string()],
+    );
+    assert!(buffer.cursor().is_none());
+
+    let frame = serialize_playfield_frame(
+        &buffer,
+        ScreenGeometry::local_default(),
+        OutputEncoding::Cp437,
+        ColorMode::Ansi16,
+    );
+    let frame_text = String::from_utf8_lossy(&frame);
+
+    assert!(frame_text.contains("HELP WITH COMMANDS"));
+    assert!(frame_text.ends_with("\x1b[0;37;40m\x1b[?25l"));
+    assert!(!frame_text.contains("\x1b[?25h"));
 }
 
 #[test]
@@ -145,11 +168,11 @@ fn door_input_decoder_maps_arrow_and_page_sequences() {
     assert_decode(b"\x1b[D", KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
     assert_decode(
         b"\x1b[U",
-        KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
+        KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
     );
     assert_decode(
         b"\x1b[V",
-        KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+        KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
     );
     assert_decode(b"\x1bOA", KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
     assert_decode(b"\x1bOB", KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
@@ -281,8 +304,8 @@ fn timed_sync_term_page_keys_decode_without_falling_back_to_escape() {
     assert_eq!(
         got,
         vec![
-            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
             KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
         ]
     );
 }

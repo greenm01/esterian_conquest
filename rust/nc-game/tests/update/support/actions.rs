@@ -23,7 +23,7 @@ pub(crate) fn theme_picker_select(app: &mut App, key: &str) {
 pub(crate) fn enable_door_mode(app: &mut App) {
     app.door_mode = true;
     app.screen_geometry = nc_game::screen::ScreenGeometry::for_door(Some(24));
-    theme::apply_default_theme();
+    theme::apply_door_theme();
 }
 
 pub(crate) fn key(code: KeyCode) -> KeyEvent {
