@@ -58,6 +58,25 @@ fn door_serializer_emits_classic_ansi16_colors_for_mag16_theme() {
 }
 
 #[test]
+fn door_serializer_projects_ansi_off_to_plain_greyscale_without_bold() {
+    nc_game::theme::apply_door_theme();
+    nc_game::theme::toggle_ansi_mode().expect("toggle ansi mode off");
+    let mut screen = FirstTimeMenuScreen::new();
+    let buffer = screen.render(None, true).expect("first-time menu renders");
+    let frame = serialize_playfield_frame(
+        &buffer,
+        ScreenGeometry::local_default(),
+        OutputEncoding::Cp437,
+        ColorMode::Ansi16,
+    );
+    let frame_text = String::from_utf8_lossy(&frame);
+
+    assert!(frame_text.contains("\x1b[0;37;40m"));
+    assert!(!frame_text.contains(";1m"));
+    assert!(!frame_text.contains("\x1b[0;97;40"));
+}
+
+#[test]
 fn door_serializer_avoids_alt_screen_and_hides_no_cursor() {
     apply_mag16_theme();
     let mut screen = FirstTimeMenuScreen::new();

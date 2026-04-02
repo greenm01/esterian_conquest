@@ -194,6 +194,12 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::indicator_off_style().fg, GameColor::BrightBlack);
     assert_eq!(classic::selected_row_style().fg, GameColor::Black);
     assert_eq!(classic::selected_row_style().bg, GameColor::BrightBlack);
+    assert!(!classic::body_style().bold);
+    assert!(!classic::menu_hotkey_style().bold);
+    assert!(!classic::prompt_hotkey_style().bold);
+    assert!(!classic::notice_style().bold);
+    assert!(!classic::logo_style().bold);
+    assert!(!classic::selected_row_style().bold);
 
     initialize_from_game_dir(&game_dir, None).expect("reinitialize resets ansi on");
     assert_eq!(ansi_mode(), AnsiMode::On);
@@ -223,6 +229,12 @@ fn apply_door_theme_forces_mag16_and_restores_it_after_ansi_toggle() {
     assert_eq!(classic::notice_style().fg, GameColor::White);
     assert_eq!(classic::selected_row_style().fg, GameColor::Black);
     assert_eq!(classic::selected_row_style().bg, GameColor::BrightBlack);
+    assert!(!classic::body_style().bold);
+    assert!(!classic::menu_hotkey_style().bold);
+    assert!(!classic::prompt_hotkey_style().bold);
+    assert!(!classic::notice_style().bold);
+    assert!(!classic::logo_style().bold);
+    assert!(!classic::selected_row_style().bold);
 
     let next_mode = toggle_ansi_mode().expect("toggle ansi mode on");
     assert_eq!(next_mode, AnsiMode::On);

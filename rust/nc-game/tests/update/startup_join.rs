@@ -169,6 +169,11 @@ fn reserved_first_time_player_skips_menu_and_sees_reserved_prompt() {
             .contains("This player seat is reserved for you.")
     );
     assert!(terminal.line(6).contains("You may name your empire now"));
+    assert!(
+        terminal
+            .line(8)
+            .contains("Continue with reserved setup? [Y]/N ->")
+    );
 }
 
 #[test]

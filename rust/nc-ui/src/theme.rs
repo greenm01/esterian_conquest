@@ -202,23 +202,28 @@ impl Theme {
 }
 
 fn mono_dim(style: CellStyle) -> CellStyle {
-    CellStyle::new(GameColor::White, GameColor::Black, style.bold)
+    let _ = style;
+    CellStyle::new(GameColor::White, GameColor::Black, false)
 }
 
 fn mono_muted(style: CellStyle) -> CellStyle {
-    CellStyle::new(GameColor::BrightBlack, GameColor::Black, style.bold)
+    let _ = style;
+    CellStyle::new(GameColor::BrightBlack, GameColor::Black, false)
 }
 
 fn mono_normal(style: CellStyle) -> CellStyle {
-    CellStyle::new(GameColor::White, GameColor::Black, style.bold)
+    let _ = style;
+    CellStyle::new(GameColor::White, GameColor::Black, false)
 }
 
 fn mono_bright(style: CellStyle) -> CellStyle {
-    CellStyle::new(GameColor::White, GameColor::Black, style.bold)
+    let _ = style;
+    CellStyle::new(GameColor::White, GameColor::Black, false)
 }
 
 fn mono_selected(style: CellStyle) -> CellStyle {
-    CellStyle::new(GameColor::Black, GameColor::BrightBlack, style.bold)
+    let _ = style;
+    CellStyle::new(GameColor::Black, GameColor::BrightBlack, false)
 }
 
 fn parse_named_style(document: &kdl::KdlDocument, style_name: &str) -> Result<CellStyle, String> {

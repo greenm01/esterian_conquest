@@ -123,7 +123,7 @@ pub fn render_first_time_reserved_prompt(
         &mut buffer,
         menu_prompt_row(6),
         COMMAND_LABEL,
-        "Continue with reserved setup? Y/[N] ->",
+        "Continue with reserved setup? [Y]/N ->",
     );
     Ok(buffer)
 }
