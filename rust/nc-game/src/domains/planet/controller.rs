@@ -9,7 +9,7 @@ use crate::screen::{
 use nc_data::build_player_starmap_projection_from_snapshots;
 
 impl App {
-    fn planet_database_visible_rows(&self) -> usize {
+    pub(crate) fn planet_database_visible_rows(&self) -> usize {
         crate::screen::layout::stacked_table_visible_rows_for(self.screen_geometry, 1)
     }
 
@@ -306,6 +306,10 @@ impl App {
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
+        self.move_planet_database_list_by(delta as isize);
+    }
+
+    pub fn move_planet_database_list_by(&mut self, delta: isize) {
         if self.current_screen != ScreenId::PlanetDatabaseList {
             return;
         }
@@ -315,7 +319,7 @@ impl App {
             return;
         }
         let visible_rows = self.planet_database_visible_rows();
-        let next = self.planet.database_cursor as isize + delta as isize;
+        let next = self.planet.database_cursor as isize + delta;
         self.planet.database_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,

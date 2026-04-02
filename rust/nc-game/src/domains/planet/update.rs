@@ -131,6 +131,10 @@ pub fn update(app: &mut App, action: PlanetAction) {
             }
         }
         PlanetAction::MoveDatabaseList(delta) => app.move_planet_database_list(delta),
+        PlanetAction::PageDatabaseList(direction) => {
+            let page = app.planet_database_visible_rows() as isize * direction as isize;
+            app.move_planet_database_list_by(page);
+        }
         PlanetAction::AppendDatabaseChar(ch) => app.append_planet_database_char(ch),
         PlanetAction::BackspaceDatabaseInput => app.backspace_planet_database_input(),
         PlanetAction::SubmitDatabaseLookup => app.submit_planet_database_lookup(),

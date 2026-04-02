@@ -256,7 +256,7 @@ fn door_input_decoder_handles_back_to_back_csi_arrows() {
 
 #[test]
 fn door_input_decoder_uses_one_short_deadline_for_fragmented_arrows() {
-    let got = decode_timed_input_stream_for_test(&[(0, b"\x1b"), (350, b"[A")])
+    let got = decode_timed_input_stream_for_test(&[(0, b"\x1b"), (15, b"[A")])
         .expect("decode timed stream");
     assert_eq!(got, vec![KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)]);
 }
@@ -296,9 +296,9 @@ fn timed_out_escape_drops_late_sync_term_suffix_instead_of_leaking_menu_keys() {
 fn timed_sync_term_page_keys_decode_without_falling_back_to_escape() {
     let got = decode_timed_input_stream_for_test(&[
         (0, b"\x1b"),
-        (350, b"[U"),
+        (15, b"[U"),
         (1000, b"\x1b"),
-        (1350, b"[V"),
+        (1015, b"[V"),
     ])
     .expect("decode timed stream");
     assert_eq!(

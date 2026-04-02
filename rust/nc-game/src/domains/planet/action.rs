@@ -78,6 +78,7 @@ pub enum PlanetAction {
     BackspaceTransportQty,
     SubmitTransportQty,
     MoveDatabaseList(i8),
+    PageDatabaseList(i8),
     AppendDatabaseChar(char),
     BackspaceDatabaseInput,
     SubmitDatabaseLookup,

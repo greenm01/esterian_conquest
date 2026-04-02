@@ -15,7 +15,30 @@ use crate::theme::classic;
 
 use super::stdout::resolve_color;
 
-const DOOR_ESCAPE_TIMEOUT_MS: i32 = 400;
+#[cfg(unix)]
+struct RawStdin;
+
+#[cfg(unix)]
+impl Read for RawStdin {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        use std::os::fd::AsRawFd;
+
+        unsafe extern "C" {
+            fn read(fd: i32, buf: *mut u8, count: usize) -> isize;
+        }
+
+        let fd = io::stdin().as_raw_fd();
+        let ret = unsafe { read(fd, buf.as_mut_ptr(), buf.len()) };
+        if ret < 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(ret as usize)
+        }
+    }
+}
+
+const DOOR_ESCAPE_TIMEOUT_MS: i32 = 100;
+const DOOR_DOS_PREFIX_TIMEOUT_MS: i32 = 2000;
 const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
 
 pub struct DoorTerminal {
@@ -63,9 +86,8 @@ impl Terminal for DoorTerminal {
     }
 
     fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
-        let stdin = io::stdin();
-        let mut lock = stdin.lock();
-        self.decoder.next_key(&mut lock, self.trace_dir.as_deref())
+        let mut raw = RawStdin;
+        self.decoder.next_key(&mut raw, self.trace_dir.as_deref())
     }
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -274,10 +296,10 @@ impl DoorInputDecoder {
                     }
                     match finalize_pending_after_timeout(&self.pending) {
                         ParseResult::Event(event, consumed) => {
-                            drain_pending(&mut self.pending, consumed);
-                            self.sequence_deadline = None;
                             self.orphaned_escape_suffix_deadline =
                                 orphaned_suffix_deadline(event, &self.pending, consumed);
+                            drain_pending(&mut self.pending, consumed);
+                            self.sequence_deadline = None;
                             return Ok(event);
                         }
                         ParseResult::Drop(consumed) => {
@@ -314,13 +336,16 @@ impl DoorInputDecoder {
     }
 
     fn remaining_sequence_timeout_ms(&mut self) -> i32 {
+        let timeout = match self.pending.front().copied() {
+            Some(0x00 | 0xe0) => DOOR_DOS_PREFIX_TIMEOUT_MS,
+            _ => DOOR_ESCAPE_TIMEOUT_MS,
+        };
         let deadline = self.sequence_deadline.get_or_insert_with(|| {
-            Instant::now() + Duration::from_millis(DOOR_ESCAPE_TIMEOUT_MS as u64)
+            Instant::now() + Duration::from_millis(timeout as u64)
         });
-        deadline
-            .saturating_duration_since(Instant::now())
-            .as_millis()
-            .min(i32::MAX as u128) as i32
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let ms = remaining.as_millis().min(i32::MAX as u128) as i32;
+        if ms == 0 && !remaining.is_zero() { 1 } else { ms }
     }
 }
 

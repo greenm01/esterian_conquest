@@ -299,8 +299,8 @@ impl PlanetDatabaseScreen {
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 Action::Planet(PlanetAction::MoveDatabaseList(1))
             }
-            KeyCode::PageUp => Action::Planet(PlanetAction::MoveDatabaseList(-8)),
-            KeyCode::PageDown => Action::Planet(PlanetAction::MoveDatabaseList(8)),
+            KeyCode::PageUp => Action::Planet(PlanetAction::PageDatabaseList(1)),
+            KeyCode::PageDown => Action::Planet(PlanetAction::PageDatabaseList(-1)),
             KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
                 Action::Planet(PlanetAction::AppendDatabaseChar(ch))
             }
