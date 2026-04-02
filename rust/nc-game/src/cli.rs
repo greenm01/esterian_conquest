@@ -372,6 +372,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut explicit_color_mode: Option<ColorMode> = None;
     let mut dropfile_path: Option<PathBuf> = None;
     let mut explicit_timeout_minutes: Option<u32> = None;
+    let mut explicit_socket_descriptor: Option<u64> = None;
     let mut session_token = None;
     let mut hosted_invite_code = None;
     let mut idx = 1;
@@ -478,6 +479,15 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
                 explicit_timeout_minutes = Some(minutes);
                 idx += 2;
             }
+            "--socket-descriptor" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --socket-descriptor".into());
+                };
+                explicit_socket_descriptor = Some(value.parse::<u64>().map_err(|_| {
+                    format!("--socket-descriptor value must be an unsigned integer, got '{value}'")
+                })?);
+                idx += 2;
+            }
             "--session-token" => {
                 let Some(value) = args.get(idx + 1) else {
                     return Err("missing value for --session-token".into());
@@ -511,7 +521,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
 
     if let Some(path) = &dropfile_path {
         let info = dropfile::parse(path).map_err(|e| format!("{e}"))?;
-        door_transport = select_door_transport(&info)?;
+        door_transport = select_door_transport(explicit_socket_descriptor, &info)?;
         dropfile_alias = info
             .alias
             .map(|alias| alias.trim().to_string())
@@ -519,6 +529,12 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         dropfile_timeout_minutes = info.timeout_minutes;
         screen_geometry = ScreenGeometry::for_door(info.screen_rows);
         use_door_terminal = true;
+    } else if let Some(descriptor) = explicit_socket_descriptor {
+        #[cfg(windows)]
+        {
+            door_transport = DoorTransport::SocketDescriptor { descriptor };
+            use_door_terminal = true;
+        }
     }
 
     // If a dropfile was given without an explicit --encoding, default to cp437.
@@ -566,10 +582,14 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
 }
 
 fn select_door_transport(
+    explicit_socket_descriptor: Option<u64>,
     info: &dropfile::DropfileInfo,
 ) -> Result<DoorTransport, Box<dyn std::error::Error>> {
     #[cfg(windows)]
     {
+        if let Some(descriptor) = explicit_socket_descriptor {
+            return Ok(DoorTransport::SocketDescriptor { descriptor });
+        }
         if matches!(
             info.connection_type,
             Some(dropfile::DoorConnectionType::TelnetSocket)
@@ -636,8 +656,8 @@ fn print_usage() {
     println!("Usage:");
     println!(
         "  nc-game --dir <game_dir> [--player <1-based empire index>] \
-         [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
-         [--dropfile <path>] [--timeout <minutes>] [--session-token <token>] \
+             [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
+         [--dropfile <path>] [--timeout <minutes>] [--socket-descriptor <value>] [--session-token <token>] \
          [--hosted-invite-code <code>] \
          [--export-root <dir>] [--queue-dir <dir>] \
          [--log-file <path>] [--log-level <error|warn|info|debug|trace>]"
@@ -652,6 +672,8 @@ fn print_usage() {
     println!("                      Defaults encoding to cp437 when no --encoding is given.");
     println!("                      Reserved aliases in ncgame.db can omit --player.");
     println!("  --timeout <minutes> Session time limit in minutes.");
+    println!("  --socket-descriptor <value>");
+    println!("                      Override the socket descriptor for native Windows doors.");
     println!();
     println!("Logging:");
     println!("  --log-file <path>   Append diagnostic logs to a text file.");
@@ -1206,7 +1228,7 @@ mod tests {
         let info = crate::dropfile::DropfileInfo::default();
 
         assert_eq!(
-            select_door_transport(&info).expect("transport should resolve"),
+            select_door_transport(None, &info).expect("transport should resolve"),
             DoorTransport::Stdio
         );
     }
@@ -1221,7 +1243,7 @@ mod tests {
         };
 
         assert_eq!(
-            select_door_transport(&info).expect("transport should resolve"),
+            select_door_transport(None, &info).expect("transport should resolve"),
             DoorTransport::SocketDescriptor { descriptor: 77 }
         );
     }
@@ -1235,11 +1257,26 @@ mod tests {
             ..crate::dropfile::DropfileInfo::default()
         };
 
-        let err = select_door_transport(&info).expect_err("transport should fail");
+        let err = select_door_transport(None, &info).expect_err("transport should fail");
 
         assert!(
             err.to_string()
                 .contains("does not provide a socket descriptor")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn explicit_socket_descriptor_overrides_dropfile_transport_metadata() {
+        let info = crate::dropfile::DropfileInfo {
+            connection_type: Some(crate::dropfile::DoorConnectionType::TelnetSocket),
+            socket_descriptor: Some(77),
+            ..crate::dropfile::DropfileInfo::default()
+        };
+
+        assert_eq!(
+            select_door_transport(Some(1234), &info).expect("transport should resolve"),
+            DoorTransport::SocketDescriptor { descriptor: 1234 }
         );
     }
 
