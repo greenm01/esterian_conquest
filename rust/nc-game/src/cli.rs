@@ -1,4 +1,5 @@
 use std::io::IsTerminal;
+use std::io::{self, ErrorKind};
 use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -201,11 +202,19 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         ))
     };
 
-    let interactive_terminal = std::io::stdout().is_terminal();
+    let stdout_is_terminal = std::io::stdout().is_terminal();
+    let stdin_is_terminal = std::io::stdin().is_terminal();
+    let interactive_terminal = should_use_interactive_loop(&parsed, stdout_is_terminal);
+    let enable_raw_mode = stdin_is_terminal && stdout_is_terminal;
     let emit_local_exit_attribution =
-        should_emit_local_exit_attribution(&parsed, interactive_terminal, session_lease.is_some());
+        should_emit_local_exit_attribution(&parsed, stdout_is_terminal, session_lease.is_some());
     let result = if interactive_terminal {
-        run_interactive(&mut app, terminal.as_mut(), session_lease.as_ref())
+        run_interactive(
+            &mut app,
+            terminal.as_mut(),
+            session_lease.as_ref(),
+            enable_raw_mode,
+        )
     } else {
         if let Some(session_lease) = session_lease.as_ref() {
             session_lease.heartbeat()?;
@@ -238,6 +247,10 @@ fn emit_local_exit_lines() {
     }
 }
 
+fn should_use_interactive_loop(parsed: &ParsedLaunchArgs, stdout_is_terminal: bool) -> bool {
+    parsed.use_door_terminal || stdout_is_terminal
+}
+
 #[doc(hidden)]
 pub fn local_exit_lines() -> Vec<String> {
     vec![LOCAL_EXIT_ATTRIBUTION.to_string()]
@@ -255,9 +268,14 @@ fn run_interactive(
     app: &mut App,
     terminal: &mut dyn Terminal,
     session_lease: Option<&SessionLeaseGuard>,
+    enable_raw_mode_for_session: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    enable_raw_mode()?;
-    let _guard = RawModeGuard;
+    let _guard = if enable_raw_mode_for_session {
+        enable_raw_mode()?;
+        Some(RawModeGuard)
+    } else {
+        None
+    };
     let result = run_interactive_inner(app, terminal, session_lease);
     drop(_guard);
     let cleanup_result = terminal.clear_and_restore();
@@ -274,13 +292,30 @@ fn run_interactive_inner(
             session_lease.heartbeat()?;
         }
         render_with_logging(app, terminal)?;
-        let key = terminal.read_key()?;
+        let key = match terminal.read_key() {
+            Ok(key) => key,
+            Err(err) if is_closed_input_error(err.as_ref()) => return Ok(()),
+            Err(err) => return Err(err),
+        };
         let action = app.handle_key(key);
         let outcome = apply_action(app, action);
         if matches!(outcome, AppOutcome::Quit) {
             return Ok(());
         }
     }
+}
+
+fn is_closed_input_error(err: &(dyn std::error::Error + 'static)) -> bool {
+    err.downcast_ref::<io::Error>().is_some_and(|io_err| {
+        matches!(
+            io_err.kind(),
+            ErrorKind::UnexpectedEof
+                | ErrorKind::BrokenPipe
+                | ErrorKind::ConnectionReset
+                | ErrorKind::ConnectionAborted
+                | ErrorKind::NotConnected
+        )
+    })
 }
 
 fn render_with_logging(
@@ -1092,6 +1127,17 @@ mod tests {
     }
 
     #[test]
+    fn interactive_loop_runs_for_door_sessions_even_without_tty_stdout() {
+        assert!(super::should_use_interactive_loop(&parsed_args(true), false));
+        assert!(super::should_use_interactive_loop(&parsed_args(true), true));
+        assert!(!super::should_use_interactive_loop(
+            &parsed_args(false),
+            false
+        ));
+        assert!(super::should_use_interactive_loop(&parsed_args(false), true));
+    }
+
+    #[test]
     fn attribution_only_emits_for_local_interactive_stdout_sessions() {
         assert!(should_emit_local_exit_attribution(
             &parsed_args(false),
@@ -1118,6 +1164,19 @@ mod tests {
             true,
             false
         ));
+    }
+
+    #[test]
+    fn closed_input_errors_are_treated_as_clean_disconnects() {
+        assert!(super::is_closed_input_error(&std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "eof"
+        )));
+        assert!(super::is_closed_input_error(&std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            "pipe ended"
+        )));
+        assert!(!super::is_closed_input_error(&std::io::Error::other("boom")));
     }
 
     #[test]

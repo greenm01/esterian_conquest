@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::fs::OpenOptions;
-use std::io::{self, Read, Write};
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -43,6 +43,11 @@ struct RawStdin;
 #[cfg(windows)]
 impl Read for RawStdin {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let mut stdin = io::stdin();
+        if !stdin.is_terminal() {
+            return stdin.read(buf);
+        }
+
         use std::os::windows::io::AsRawHandle;
 
         unsafe extern "system" {
@@ -648,12 +653,57 @@ fn stdin_ready(timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
     use std::os::windows::io::AsRawHandle;
 
     unsafe extern "system" {
+        fn PeekNamedPipe(
+            handle: *mut std::ffi::c_void,
+            buffer: *mut u8,
+            buffer_size: u32,
+            bytes_read: *mut u32,
+            total_bytes_available: *mut u32,
+            bytes_left_this_message: *mut u32,
+        ) -> i32;
         fn WaitForSingleObject(handle: *mut std::ffi::c_void, millis: u32) -> u32;
     }
 
     const WAIT_OBJECT_0: u32 = 0;
 
-    let handle = io::stdin().as_raw_handle();
+    let stdin = io::stdin();
+    let handle = stdin.as_raw_handle();
+    if !stdin.is_terminal() {
+        let deadline = if timeout_ms < 0 {
+            None
+        } else {
+            Some(Instant::now() + Duration::from_millis(timeout_ms as u64))
+        };
+        loop {
+            let mut total_bytes_available = 0u32;
+            let rc = unsafe {
+                PeekNamedPipe(
+                    handle as *mut _,
+                    std::ptr::null_mut(),
+                    0,
+                    std::ptr::null_mut(),
+                    &mut total_bytes_available,
+                    std::ptr::null_mut(),
+                )
+            };
+            if rc != 0 {
+                return Ok(total_bytes_available > 0);
+            }
+
+            let err = io::Error::last_os_error();
+            if timeout_ms == 0 {
+                return Ok(false);
+            }
+            if deadline.is_some_and(|value| Instant::now() >= value) {
+                return Ok(false);
+            }
+            if err.kind() == io::ErrorKind::BrokenPipe {
+                return Ok(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
     let millis = if timeout_ms < 0 {
         0xFFFFFFFF
     } else {

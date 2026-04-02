@@ -39,6 +39,9 @@ The helper script [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh)
 will use `target/release/nc-game` first, then `target/debug/nc-game`, then
 fall back to `cargo run`.
 
+On native Windows hosts, use
+[`tools/bbs/run_nc_rust.cmd`](../../tools/bbs/run_nc_rust.cmd) instead.
+
 ## 2. Create a campaign
 
 Example:
@@ -123,6 +126,16 @@ doorEsterianConquestRust: {
 }
 ```
 
+Windows-native command swap:
+
+```hjson
+cmd: C:\\path\\to\\esterian_conquest\\tools\\bbs\\run_nc_rust.cmd
+args: [
+    "C:\\path\\to\\ec-campaign"
+    "{dropFilePath}"
+]
+```
+
 Why `stdio`:
 
 - ENiGMA `socket` mode is for doors or wrappers that actively connect back to
@@ -192,6 +205,19 @@ dropFileType: DOOR32
 cmd: /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh
 args: [
     "/path/to/ec-campaign"
+    "{dropFilePath}"
+]
+io: stdio
+encoding: cp437
+```
+
+On native Windows, the same swap becomes:
+
+```hjson
+dropFileType: DOOR32
+cmd: C:\\path\\to\\esterian_conquest\\tools\\bbs\\run_nc_rust.cmd
+args: [
+    "C:\\path\\to\\ec-campaign"
     "{dropFilePath}"
 ]
 io: stdio

@@ -15,7 +15,9 @@ Use:
 - `nc-sysop` to create and maintain the campaign
 - `nc-game` as the player door
 - Mystic's `DC` door command so Mystic writes `CHAIN.TXT` into `%P`
-- [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) as the door launcher
+- [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) on Unix-like
+  hosts, or [`tools/bbs/run_nc_rust.cmd`](../../tools/bbs/run_nc_rust.cmd) on
+  native Windows, as the door launcher
 
 `nc-game` already accepts `CHAIN.TXT`, so Mystic does not need a format
 translation layer.
@@ -114,6 +116,12 @@ Door data:
 
 ```text
 /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh /path/to/ec-campaign %PCHAIN.TXT
+```
+
+Windows-native example:
+
+```text
+C:\path\to\esterian_conquest\tools\bbs\run_nc_rust.cmd C:\path\to\ec-campaign %PCHAIN.TXT
 ```
 
 Why `DC`:

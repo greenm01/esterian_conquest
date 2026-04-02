@@ -1,9 +1,13 @@
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::process::Command;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use std::{fs, path::Path};
+use std::{io::Write, process::Child};
 
 use nc_compat::import_directory_snapshot;
 use nc_data::{CampaignSettings, CampaignStore, CoreGameData};
@@ -68,6 +72,20 @@ fn copy_dir_all(src: &Path, dst: &Path) {
         } else {
             fs::copy(&path, &target).expect("copy file");
         }
+    }
+}
+
+fn wait_for_exit(child: &mut Child, timeout: Duration) -> std::process::ExitStatus {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.try_wait().expect("poll child status") {
+            return status;
+        }
+        if std::time::Instant::now() >= deadline {
+            child.kill().expect("kill hung child");
+            return child.wait().expect("wait after kill");
+        }
+        thread::sleep(Duration::from_millis(25));
     }
 }
 
@@ -219,6 +237,59 @@ fn unreserved_dropfile_alias_without_player_opens_first_time_menu() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("FIRST TIME MENU:"));
     assert!(stdout.contains("FIRST TIME COMMAND"));
+}
+
+#[test]
+fn piped_dropfile_launch_stays_interactive_without_tty_stdout() {
+    let fixture_dir = temp_fixture_copy();
+    write_reserved_config(&fixture_dir, "SYSOP", 1);
+    let dropfile = write_dropfile(&fixture_dir, "RIVAL");
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_nc-game"))
+        .args([
+            "--dir",
+            fixture_dir.to_str().expect("fixture path should be utf-8"),
+            "--dropfile",
+            dropfile.to_str().expect("dropfile path should be utf-8"),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("nc-game should start");
+
+    let mut stdin = child.stdin.take().expect("stdin should be piped");
+    let writer = thread::spawn(move || {
+        thread::sleep(Duration::from_millis(150));
+        stdin.write_all(b"j").expect("write join key");
+        stdin.flush().expect("flush join key");
+        thread::sleep(Duration::from_millis(200));
+        stdin.write_all(&[0x1b]).expect("write escape key");
+        stdin.flush().expect("flush escape key");
+        thread::sleep(Duration::from_millis(200));
+        stdin.write_all(b"q").expect("write quit key");
+        stdin.flush().expect("flush quit key");
+    });
+
+    let status = wait_for_exit(&mut child, Duration::from_secs(5));
+    writer.join().expect("writer thread should finish");
+    let output = child.wait_with_output().expect("collect child output");
+
+    assert!(
+        status.success(),
+        "nc-game failed: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "successful nc-game launch should be silent on stderr: {:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("FIRST TIME MENU:"));
+    assert!(stdout.contains("EMPIRE NAME"));
 }
 
 #[test]

@@ -27,6 +27,8 @@ Practical posture:
   validated it on a native Windows host
 - treat hosted Rust campaigns as DB-only: one `ncgame.db` per game directory
 - Mystic and ENiGMA are both now verified Rust-door hosts
+- on Unix-like hosts, use `tools/bbs/run_nc_rust.sh`; on native Windows
+  hosts, use `tools/bbs/run_nc_rust.cmd`
 - for BBS play, treat `HJKL` as the primary door navigation contract and
   `^U` / `^D` as the primary paging keys
 - treat original DOS `ECGAME` hosting as a compatibility bridge, not the long-
