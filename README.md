@@ -1,117 +1,139 @@
 # Nostrian Conquest
 
-_Nostrian Conquest – A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. Built on the Nostr protocol for decentralized play. All code, UI, and assets are original. Not affiliated with any original release. Created for fun and retro preservation._
+_Nostrian Conquest is a from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. It uses Nostr for decentralized hosted play. All code, art, and UI are original. It is not affiliated with any original release._
 
-**Status:** v1.0.0-beta.1 — Playable beta. Seeking playtesters and sysops.
+**Status:** `v1.0.0-beta.1`  
+Active beta. The Rust player and sysop stack is playable now. The main work is live playtesting, bug fixing, and tightening the rough edges.
 
 ![Nostrian Conquest title screen](docs/assets/nc-hero.png)
 
 [View screenshots](https://nostrian-conquest.com/screenshots.html)
 
-## Premise
+## What It Is
 
-Beyond the mapped frontiers of the old Nostrian dominion lies a galaxy of contested solar systems. The old masters are gone. Their stations are silent. You are left with a fleet, a factory, and the knowledge to build an empire.
+Beyond the old Nostrian frontier lies a hard galaxy. The stations are silent.
+The borders are open. You start with a fleet, a factory, and enough industry
+to build an empire.
 
-NC is a faithful reconstruction. We kept the campaign feel, the menus, the reports, and the old-school tension — now running on a modern Rust engine.
+NC keeps the yearly-turn campaign rhythm, the reports, the maps, and the
+old-school pressure of the original game. The engine is modern Rust. Hosted
+campaigns run from SQLite. Classic compatibility stays at the oracle and
+import/export boundary.
+
+If you want the recovery background, see
+[How the Game Was Recovered](docs/dev/approach.md#how-the-game-was-recovered).
+
+## Current Public Roles
+
+Keep the binaries straight:
+
+- `nc-connect`: packaged player client for the normal hosted Nostr flow
+- `nc-game`: direct local or SSH session client
+- `nc-door`: BBS door entrypoint
+- `nc-sysop`: sysop and host administration tool
+- `nc-cli`: internal developer, oracle, and compatibility tool
+
+Hosted Rust games are DB-only. A normal hosted game directory contains
+`ncgame.db` and nothing else.
 
 ## Play
 
-NC is powered by the Nostr protocol for decentralized multiplayer via native Windows, macOS, and Linux clients. We don't do web apps.
+NC is built for native Windows, Linux, and macOS clients. No web app. No BBS
+middleware required for the normal hosted path.
 
-If you are looking for a live game, start at
-[nostrian-conquest.com](https://nostrian-conquest.com). That landing page points
-to the current public meeting places for game announcements and player
-recruitment, including the Discord invite:
+If you want a live game, start at
+[nostrian-conquest.com](https://nostrian-conquest.com). That page points to the
+current public meeting places for announcements, player recruitment, and the
+Discord invite:
 [discord.gg/FMr8sfBa](https://discord.gg/FMr8sfBa).
 
-Nostr is the protocol that powers multiplayer in NC. It delivers a clean, secure, and decentralized experience — no traditional BBS middleware, no manual Unix accounts, and far less middleman friction than the old days.
+### Player Flow
 
-Joining is straightforward:
+1. Get an invite code from the sysop.
+2. Install the public `nc-connect` package from GitHub Releases.
+3. Open `nc-connect`.
+4. Press `N`.
+5. Paste the invite code.
 
-- A sysop gives you an invite code. You join the campaign with a single command.
-- The `nc-connect` tool creates and manages your encrypted Nostr identity, then opens a secure SSH-backed session.
-- One hosted identity can claim only one seat in a given game. If you already joined that game, reconnect with the same wallet identity instead of redeeming another invite from it.
-- During the current beta, the public GitHub player download lives on the repo's GitHub Releases page. Public `nc-connect` player archives are available for Windows x64, Linux x64, and macOS Apple Silicon, bundled with the player manual PDF. The packaged desktop client supports Windows, Linux, and macOS, and the Linux build supports both X11 and Wayland from the same package. `nc-connect-cli` remains a Cargo-only power-user binary and is not part of the normal player handoff.
-- On your first connection, the client automatically downloads the campaign starmap and CSV sheets to your local machine. From then on, your assets stay on your own system.
+`nc-connect` creates and protects the local wallet, joins the hosted game, and
+opens the SSH-backed `nc-game` session for you.
 
-This keeps the classic NC rhythm — connect, read reports, issue orders, log out — while cutting away most of the old friction. Just you, your empire, and the stars.
+IMPORTANT: one wallet identity can claim only one seat in a given hosted game.
+If you already joined that game, reconnect with the same identity instead of
+redeeming another invite from it.
 
-### Local and Hotseat
-Play entirely in your terminal. Launch `nc-game` against a local campaign directory to learn the interface, test scenarios, or run a private campaign on one machine.
+NOTE: the packaged `nc-connect` GUI does not use command-line arguments. Open
+it and press `N`. The Cargo/source companion tool is `nc-connect-cli`.
 
-### BBS Hosting
-We still support legacy BBS doors. The Rust client works natively with `DOOR32.SYS`, `DOOR.SYS`, and `CHAIN.TXT`. On native Windows BBS hosts, stage `nc-door.exe` as the live door binary and keep `nc-game.exe` for local/direct play.
+### Public Beta Downloads
 
-## Learn How To Play
+During the current beta, public GitHub Releases publish:
 
-The manuals cover everything from quick-start basics to deep strategy:
+- `nc-connect` player archives for Windows x64, Linux x64, and macOS Apple Silicon
+- `nc-sysop` archives for Windows x64, Windows x86 (32-bit), Windows 7+ x86 (32-bit), and Linux x64
+
+The public player archive is the normal handoff for hosted play. The public
+sysop archive is the normal BBS/sysop package. Localhost play and VPS hosting
+still use source builds. See [Release Policy](docs/release-policy.md).
+
+## Learn The Game
+
+Start with the current Rust manuals:
 
 - **[NC Player Manual (PDF)](docs/manuals/nc_player_manual.pdf)**
 - **[NC Sysop Manual (PDF)](docs/manuals/nc_sysop_manual.pdf)**
 
-Historical `.DOC` files are preserved in [original/v1.5](original/v1.5).
-
-## Beta Release Policy
-
-Public Rust downloads are intentionally limited during beta. Normal players
-should use the public Windows x64, Linux x64, or macOS Apple Silicon
-`nc-connect` archive from GitHub Releases. Windows and Linux BBS sysops can
-use the public `nc-sysop` package, which is published for Windows x64, Windows
-x86 (32-bit), Windows 7+ x86 (32-bit), and Linux x64 and ships `nc-door` and
-`nc-sysop` for native door hosting. Localhost play still uses `nc-game` from a
-source build. VPS hosting remains a tagged-source Linux workflow through
-`scripts/install_vps.sh`.
-
-The public Nostrian packages contain only original Nostrian binaries, manuals,
-and support files. They do not bundle preserved Esterian Conquest executables
-or manuals. See [Release Policy](docs/release-policy.md).
-
-## Background
-
-Nostrian Conquest is a from-scratch Rust recreation inspired by a 1990s BBS door game with yearly turns and printed starmaps. It is not a wrapper, but a ground-up reconstruction of the original rules and feel for modern decentralized play.
-
-If you want to know how the recovery work was done, see [How NC was recovered](docs/dev/approach.md#how-ec-was-recovered).
-
-The engine is explicit. Seeded RNG ensures reproducible results, and the logs explain exactly why a combat resolved the way it did.
-
-**[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
+Historical `.DOC` files remain preserved in [original/v1.5](original/v1.5).
 
 ## Quick Start
 
-### 1. Self-Host One Game
+### 1. Run One Local Or Trusted SSH Game
+
+Create one hosted game:
+
 ```bash
 cd rust
-cargo run -q -p nc-sysop -- new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
+cargo run -q -p nc-sysop -- new-game /srv/nc/games/friday-night --name "Friday Night NC" --players 4
 ```
 
-Each hosted game directory contains one runtime file:
+That game directory contains one runtime file:
 
 ```text
-/srv/ec/games/friday-night/
+/srv/nc/games/friday-night/
   ncgame.db
 ```
 
-Run the client directly for local play or trusted SSH use:
+Open the player client directly:
+
 ```bash
 cd rust
-cargo run -q -p nc-game -- --dir /srv/ec/games/friday-night --player 1
+cargo run -q -p nc-game --bin nc-game -- --dir /srv/nc/games/friday-night --player 1
 ```
 
-Advance the game when needed:
+Run maintenance when needed:
+
 ```bash
 cd rust
-cargo run -q -p nc-sysop -- maint /srv/ec/games/friday-night 1
+cargo run -q -p nc-sysop -- maint /srv/nc/games/friday-night 1
 ```
+
+IMPORTANT: use `--bin nc-game` in source builds. The `nc-game` package also
+ships `nc-door`, so plain `cargo run -p nc-game` is ambiguous.
 
 ### 2. Host Many Games On One VPS
-Bootstrap the standard host layout:
+
+1. Build `nc-game` and `nc-sysop` from source.
+2. Run the installer.
+3. Create one or more games.
+4. Register those games with the gate config.
+
+Bootstrap the standard VPS layout:
+
 ```bash
-sudo ./scripts/install_vps.sh \
-  --relay wss://relay.example.com \
-  --ssh-host play.example.com
+sudo ./scripts/install_vps.sh --relay wss://relay.example.com --ssh-host play.example.com
 ```
 
-That installs:
+The installer stages:
 
 ```text
 /usr/local/bin/nc-game
@@ -120,55 +142,38 @@ That installs:
 /etc/nc-gate/config.kdl
 /etc/nc-gate/identity.kdl
 /var/lib/nc-gate/keys/
-/srv/ec/games/<slug>/ncgame.db
+/srv/nc/games/<slug>/ncgame.db
 ```
 
-The host relay and game-server address live in `/etc/nc-gate/config.kdl`.
-`install_vps.sh` writes them from `--relay`, `--ssh-host`, and `--ssh-port`.
-If you change them later, edit that file and restart `nc-nostr.service`.
-If you self-host the relay on the same VPS, the relay host also needs a
-public HTTPS websocket front end. A common setup is `nostr-rs-relay` bound
-to `127.0.0.1:8080` with Caddy or another reverse proxy serving
-`relay.example.com` on `443`.
+Create and register a hosted game:
 
-Create and register games:
 ```bash
-sudo -u ecgame /usr/local/bin/nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night NC" --players 4
-sudo /usr/local/bin/nc-sysop host games add --config /etc/nc-gate/config.kdl --dir /srv/ec/games/friday-night
+sudo -u ncgame /usr/local/bin/nc-sysop new-game /srv/nc/games/friday-night --name "Friday Night NC" --players 4
+sudo /usr/local/bin/nc-sysop host games add --config /etc/nc-gate/config.kdl --dir /srv/nc/games/friday-night
 sudo systemctl restart nc-nostr.service
 ```
 
-Create hosted games as the `ecgame` service user so `nc-nostr.service` can
-write session leases into `ncgame.db`.
+The installer already creates the host identity, writes the gate config, and
+enables `nc-nostr.service` plus `nc-maint-all.timer` unless you tell it not to.
 
-Run the daemon:
+Inspect the registered host state:
+
 ```bash
-cd rust
-cargo run -q -p nc-sysop -- nostr init
-cargo run -q -p nc-sysop -- nostr serve
+sudo /usr/local/bin/nc-sysop host status --config /etc/nc-gate/config.kdl
+sudo -u ncgame /usr/local/bin/nc-sysop nostr seats --dir /srv/nc/games/friday-night
 ```
 
-Schedule the fleet-wide sweep with `systemd` or `cron`:
-```bash
-cargo run -q -p nc-sysop -- maint-all --config /etc/nc-gate/config.kdl
-```
+If a hosted invite drifts or a player cannot find a pending invite, compare the
+local game state to relay metadata and republish if needed:
 
-Players join by opening `nc-connect`, pressing `N`, and pasting the raw invite code:
 ```bash
-amber-river@relay.example.com
-```
-
-If a hosted invite was reissued or a player reports that the relay cannot find
-an invite that should be pending, verify and republish that game's public
-metadata:
-```bash
-sudo /usr/local/bin/nc-sysop nostr verify --dir /srv/ec/games/friday-night
-sudo /usr/local/bin/nc-sysop nostr publish --dir /srv/ec/games/friday-night
+sudo /usr/local/bin/nc-sysop nostr verify --dir /srv/nc/games/friday-night
+sudo /usr/local/bin/nc-sysop nostr publish --dir /srv/nc/games/friday-night
 ```
 
 ### 3. Run `nc-door` As A BBS Door
-Create the game directory, write a minimal per-game `config.kdl`, then
-initialize it in BBS mode:
+
+For BBS campaigns, write a minimal per-game `config.kdl` first. For example:
 
 ```kdl
 players 4
@@ -177,22 +182,16 @@ reservations {
 }
 ```
 
-```bash
-cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift
-```
-
-If you want a reproducible map for testing, pass the seed on the command line
-at creation time instead of storing it in `config.kdl`:
+Then initialize the campaign in BBS mode:
 
 ```bash
-cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift --seed 1515
+cd rust
+cargo run -q -p nc-sysop -- new-game --bbs /srv/nc/games/night-shift
 ```
 
-For Windows or Linux BBS hosting, use the public `nc-sysop` package or build
-from source. VPS/Nostr hosts should still build from source and use
-`scripts/install_vps.sh`. Stage `nc-door` as the live door binary, pass it the
-dropfile path, and follow the host-specific setup guides for the exact launch
-line. For working setups, see:
+BBS campaigns keep that `config.kdl` beside `ncgame.db`.
+
+Stage `nc-door` as the live BBS binary. For working host setups, see:
 
 - [Mystic BBS Setup](docs/sysop/bbs/mystic-bbs-setup.md)
 - [Synchronet BBS Setup](docs/sysop/bbs/synchronet-bbs-setup.md)
@@ -204,20 +203,34 @@ line. For working setups, see:
 - [NC Sysop Manual (PDF)](docs/manuals/nc_sysop_manual.pdf)
 - [Sysop Documentation Index](docs/sysop/README.md)
 - [NC Player Manual (PDF)](docs/manuals/nc_player_manual.pdf)
+- [nc-connect Notes](docs/nostr/ec-connect.md)
 
 ## Developer Commands
 
 Inspect a game directory:
+
 ```bash
 cd rust
 cargo run -q -p nc-cli -- core-report /tmp/nc-game
 ```
 
 Inspect player mail:
+
 ```bash
 cd rust
 cargo run -q -p nc-cli -- inspect-messages /tmp/nc-game
 ```
+
+Submit a turn file without opening the TUI:
+
+```bash
+cd rust
+cargo run -q -p nc-game --bin nc-game -- submit-turn --check --dir /tmp/nc-game --player 1 --file /tmp/turn.kdl
+```
+
+`nc-cli` remains the internal developer, oracle, and compatibility surface.
+Normal player and sysop workflows should prefer `nc-game`, `nc-door`, and
+`nc-sysop`.
 
 ## Local Dependencies
 
@@ -225,24 +238,29 @@ cargo run -q -p nc-cli -- inspect-messages /tmp/nc-game
 - Python 3
 - `sccache` (recommended)
 
-For compatibility work (DOSBox-X, Ghidra), see the contributor docs.
+For DOSBox-X, Ghidra, and other compatibility tooling, see the contributor
+docs under `docs/dev/`.
 
 ## For Contributors
 
-Read these before editing code:
-- [docs/approach.md](docs/dev/approach.md)
-- [docs/rust-architecture.md](docs/dev/rust-architecture.md)
+Read these first:
+
+- [docs/dev/next-session.md](docs/dev/next-session.md)
+- [docs/dev/approach.md](docs/dev/approach.md)
+- [docs/dev/rust-architecture.md](docs/dev/rust-architecture.md)
 
 ## Repository Layout
 
-- `original/`: Original binaries and manuals.
-- `docs/`: Engineering and design documentation.
-- `rust/`: The core engine, sysop tools, and player clients.
-- `tools/`: Oracle runners and analysis scripts.
+- `original/`: preserved original binaries and manuals
+- `docs/`: manuals, sysop docs, and engineering notes
+- `rust/`: engine, clients, sysop tools, and support crates
+- `tools/`: oracle runners and analysis scripts
+- `scripts/`: install, packaging, and release helpers
 
 ## License
 
-Source code and tooling are licensed under the **O'Saasy License Agreement**. See [LICENSE](LICENSE).
+Source code and tooling are licensed under the **O'Saasy License Agreement**.
+See [LICENSE](LICENSE).
 
 The repository also preserves original `Esterian Conquest` materials for
 research and compatibility work, but Nostrian package archives do not include
