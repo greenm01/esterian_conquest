@@ -173,12 +173,14 @@ In the packaged GUI, paste works with `Command-V` on macOS, `Ctrl-V`,
 
 That is all. `nc-connect` handles your identity and opens your `nc-game`
 session. The invite already carries the relay host, and `nc-connect`
-discovers the rest from there. Your seat is not claimed until you actually save your empire name in the
-game. As soon as you name your empire and claim the invite, `nc-connect`
+discovers the rest from there. Your seat is not claimed until you actually
+save your empire name in the game. As soon as you name your empire and claim
+the invite, `nc-connect`
 downloads the campaign starmap bundle so maps are available locally for
-turn 1. The game is saved to your Documents `nc/maps` folder. Later,
-press `M` in the picker to change the default maps folder and re-download
-the bundle for the currently selected game.
+turn 1. The downloaded starmap bundle and CSV sheets are saved in your
+Documents `nc/maps` folder by default. Later, press `M` in the picker to
+change the default maps folder or re-download the bundle for the currently
+selected game.
 
 One NC keychain identity can hold only one seat in a hosted game. If you have
 already completed the first join for that game and later delete the local
@@ -192,6 +194,10 @@ Get the current `nc-connect` build from the repo's GitHub Releases page.
 Public player packages are available for Windows x64, Linux x64, and macOS
 Apple Silicon. Keep this manual with it. This package is for the Nostr path.
 Localhost and BBS play do not use `nc-connect` as the game client.
+
+The public Nostrian player package contains only Nostrian binaries, manuals,
+and support files. It does not bundle preserved Esterian Conquest executables
+or manuals.
 
 === Windows
 
@@ -208,8 +214,14 @@ Your sysop gives you one invite code in the form
 
 == Keychain Management
 
-Press `W` in `nc-connect` to view your current identity and backup material.
 The packaged GUI keeps one active identity at a time.
+
+From the main `nc-connect` picker:
+
+- `Y` opens the keychain screen
+- `I` shows identity info
+
+From the keychain screen:
 
 - `R` replaces the current identity: paste an existing `nsec`, or leave the field blank to generate a fresh one
 - `Enter` shows the full `npub` and `nsec`
@@ -560,7 +572,13 @@ The game is organized around four primary menus. From the *Main Menu*, you acces
 
 === Visual Themes
 
-The `nc-game` client is themable. Each campaign has a sysop-chosen default theme, and local-terminal players can open *C>olor Theme* from the Main Menu or First Time Menu to choose their own session theme from the campaign's available theme files. The shipped bundle includes `tokyo_night`, `mag16`, and several other built-in palettes, plus a monochrome `Mono` option in the picker. You can preview and apply these without leaving the client, and your last local theme choice is remembered for your empire in that campaign.
+The `nc-game` client is themable. Each campaign has a sysop-chosen default
+theme, and local-terminal players can open *C>olor Theme* from the Main Menu
+or First Time Menu to choose their own session palette from the bundled theme
+list. The shipped bundle includes `tokyo_night`, `mag16`, and several other
+built-in palettes, plus a monochrome `Mono` option in the picker. You can
+preview and apply these without leaving the client, and your last local theme
+choice is remembered for your empire in that campaign.
 
 In BBS door mode, `nc-game` instead keeps the classic *A>nsi color ON/OFF* toggle and always begins from the bundled `mag16` theme each session so classic ANSI16 terminals get a stable palette. Pressing *A* switches between that `mag16` view and a greyscale monochrome projection for the current session. Saved local theme preferences do not apply in door mode.
 
@@ -621,7 +639,7 @@ The original game emerged between 1990 and 1992 as a "door game" for Bulletin Bo
 Most multiplayer games of the era demanded constant attention. Esterian Conquest was different. You checked in once a day, submitted your orders, and went about your life. Overnight, the engine processed every empire simultaneously --- fleets moved, economies grew, battles resolved, and alliances were tested. When you logged in the next day, a stack of reports was waiting. Campaigns ran for months, and the stories they produced --- surprise invasions, desperate blockades, betrayals at the worst possible moment --- were the kind that stuck with players for years.
 
 *The Rust Port (2026)* \
-This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, compatible with classic save files, and honest about what was recovered versus what was rebuilt. If you played the original game on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
+This version is a full Rust reimplementation of the original game, rebuilt from the ground up and validated against the original binaries as an acceptance oracle. The deterministic mechanics --- movement, economy, build queues, cross-file linking --- were recovered from the original executables and manuals, then turned into documented engine rules. Where the original behavior was hidden, stochastic, or tied to an irreproducible internal RNG (combat resolution, AI decisions), the Rust engine substitutes its own seeded, documented, and reproducible rules that preserve the structure and spirit of the originals. The result is faithful to the manuals, preserves classic compatibility at the import/export and oracle boundary, and is honest about what was recovered versus what was rebuilt. If you played the original game on a BBS in the 1990s, it should feel right. If you are discovering it for the first time, you are playing a careful reconstruction --- not a guess.
 
 The project has now reached a real beta stage. The Rust player, connection,
 and sysop tools cover the core campaign workflow, and the main work from here
@@ -944,28 +962,12 @@ an ambiguity fallback:
 
 === BBS Drop File Compatibility
 
-The original `ECGAME.EXE` advertises support for several BBS drop file formats
-(`DOOR.SYS`, `DORINFOx.DEF`, `CALLINFO.BBS`, `CHAIN.TXT`, etc.), but in
-practice the parser is extremely strict about field counts, line endings, and
-exact values. Modern BBS software frequently generates drop files that cause the
-original binary to exit immediately with no useful error. Getting the game
-running under a contemporary BBS stack requires a precise 32-line WWIV-style
-`CHAIN.TXT` with DOS CRLF endings and correct local-console values, plus
-`ECUTIL.EXE` to initialize game data before the first launch. The project
-repository at #link("https://github.com/greenm01/nostrian-conquest") includes
-the original v1.5 package, working wrapper scripts, and setup documentation for
-running the classic binaries under DOSBox. This legacy setup friction is one of
-the motivating factors behind the Rust rewrite --- making the game accessible on
-modern systems without emulation or fragile drop file plumbing.
-
-The Rust `nc-door` binary handles drop files natively and robustly. Pass the
-`--dropfile <path>` flag and it will auto-detect the format
-(`DOOR32.SYS`, `DOOR.SYS`, or `CHAIN.TXT`), tolerate both CRLF and LF line
-endings, and extract the player alias and session timeout without any wrapper
-scripts or format massaging. The `--timeout <minutes>` flag can override the
-timeout from the command line. This means a modern BBS can drop any of the
-three supported formats and launch `nc-door` directly, with no DOSBox, no
-`ECUTIL.EXE`, and no fragile field-count dependencies.
+Modern Rust BBS hosting uses `nc-door`, not the old DOS binary path. The Rust
+door reads modern drop files directly, supports `DOOR32.SYS`, `DOOR.SYS`, and
+`CHAIN.TXT`, and avoids the brittle DOS-era parser behavior that used to make
+classic BBS setup so fragile. If you are a player, the practical point is
+simple: log into the board, launch the door, and play. If you are the sysop,
+see the *Sysop Manual* for host setup details.
 
 === This Manual
 
