@@ -114,6 +114,44 @@ fn partial_starmap_view_24_row_door_keeps_command_prompt_visible_and_title_cente
     assert!(terminal.line(22).contains("MAP COMMAND"));
     assert_eq!(terminal.line(23), "");
 }
+
+#[test]
+fn partial_starmap_popup_help_mentions_enter_for_planet_info() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    let popup_action = app.handle_key(key(KeyCode::Char('?')));
+    assert_eq!(popup_action, Action::OpenPopupHelp);
+    assert_eq!(apply_action(&mut app, popup_action), AppOutcome::Continue);
+
+    let popup = app.popup_help.as_ref().expect("popup help should open");
+    assert_eq!(popup.title, "MAP COMMANDS");
+    assert!(
+        popup
+            .lines
+            .iter()
+            .any(|line| line.contains("Enter") && line.contains("planet at the current map cursor"))
+    );
+}
+
 #[test]
 fn opening_reports_from_general_menu_with_empty_inbox_stays_on_menu_with_notice() {
     let fixture_dir = temp_game_copy();

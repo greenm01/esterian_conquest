@@ -172,6 +172,7 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                     "1 2 3 4 6 7 8 9",
                     "move diagonally or by keypad-style direction",
                 ),
+                ("Enter", "open info for the planet at the current map cursor"),
                 ("Q/Esc", "return"),
                 ("?", "show/hide helper"),
             ],
