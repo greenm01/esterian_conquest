@@ -16,11 +16,11 @@ fn navigation_hotkeys_map_ctrl_d_to_page_down_actions() {
 
     assert_eq!(
         app.handle_key(ctrl_key('d')),
-        Action::Planet(PlanetAction::MoveDatabaseList(8))
+        Action::Planet(PlanetAction::PageDatabaseList(-1))
     );
     assert_eq!(
         app.handle_key(ctrl_key('u')),
-        Action::Planet(PlanetAction::MoveDatabaseList(-8))
+        Action::Planet(PlanetAction::PageDatabaseList(1))
     );
 }
 
