@@ -1,4 +1,6 @@
-use crate::app::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
+use crate::app::helpers::{
+    is_coordinate_input_char, resolve_default_coords_input, sync_scroll_to_cursor,
+};
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
 use crate::screen::{
@@ -221,7 +223,7 @@ impl App {
         let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
             return;
         };
-        if self.planet.brief_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ') {
+        if self.planet.brief_input.len() < 16 && is_coordinate_input_char(ch) {
             self.planet.brief_input.push(ch);
             self.sync_planet_brief_cursor_to_input(sort);
             self.planet.list_sort_status = None;
@@ -341,15 +343,19 @@ impl App {
             ),
             _ => false,
         };
-        if accepts_input
-            && self.planet.database_input.len() < 16
-            && (ch.is_ascii_digit()
-                || matches!(
-                    self.planet.database_prompt_mode,
-                    PlanetDatabasePromptMode::FilterRangeCoords
-                        | PlanetDatabasePromptMode::SortRangeInput
-                ) && (ch == ',' || ch == ' '))
-        {
+        let allow_char = match self.current_screen {
+            ScreenId::PlanetDatabaseList => is_coordinate_input_char(ch),
+            ScreenId::PlanetDatabaseFilterPrompt => match self.planet.database_prompt_mode {
+                PlanetDatabasePromptMode::FilterRangeCoords
+                | PlanetDatabasePromptMode::SortRangeInput => is_coordinate_input_char(ch),
+                PlanetDatabasePromptMode::FilterRangeDistance
+                | PlanetDatabasePromptMode::FilterEmpireInput
+                | PlanetDatabasePromptMode::FilterMaxProductionInput => ch.is_ascii_digit(),
+                PlanetDatabasePromptMode::FilterMenu | PlanetDatabasePromptMode::SortMenu => false,
+            },
+            _ => false,
+        };
+        if accepts_input && self.planet.database_input.len() < 16 && allow_char {
             self.planet.database_input.push(ch);
             if self.current_screen == ScreenId::PlanetDatabaseList {
                 self.sync_planet_database_cursor_to_input();

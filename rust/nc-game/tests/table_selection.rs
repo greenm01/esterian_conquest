@@ -29,6 +29,9 @@ fn coordinate_jump_ignores_render_punctuation() {
 
     assert_eq!(find_typed_jump_index(&rows, 0, "1,9"), Some(0));
     assert_eq!(find_typed_jump_index(&rows, 0, "12,3"), Some(1));
+    assert_eq!(find_typed_jump_index(&rows, 0, "{1,9}"), Some(0));
+    assert_eq!(find_typed_jump_index(&rows, 0, "12 3"), Some(1));
+    assert!(selection_key_matches("(12,03)", "[12, 3]"));
 }
 
 #[test]

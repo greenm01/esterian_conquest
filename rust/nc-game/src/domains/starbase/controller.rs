@@ -1,5 +1,6 @@
 use crate::app::helpers::{
-    center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
+    center_scroll_to_cursor, is_coordinate_input_char, resolve_default_coords_input,
+    sync_scroll_to_cursor,
 };
 use crate::app::state::App;
 use crate::domains::starbase::StarbaseAction;
@@ -230,9 +231,7 @@ impl App {
                 if match mode {
                     Some(StarbaseMovePromptMode::Base) => ch.is_ascii_digit(),
                     Some(StarbaseMovePromptMode::Decision) => ch.is_ascii_alphabetic(),
-                    Some(StarbaseMovePromptMode::Destination) => {
-                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
-                    }
+                    Some(StarbaseMovePromptMode::Destination) => is_coordinate_input_char(ch),
                     Some(StarbaseMovePromptMode::HaltConfirm) | None => false,
                 } =>
             {

@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
+use crate::app::helpers::is_coordinate_input_char;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{new_playfield_for, stacked_table_visible_rows_for};
 use crate::screen::table::{
@@ -301,7 +302,7 @@ impl PlanetDatabaseScreen {
             }
             KeyCode::PageUp => Action::Planet(PlanetAction::PageDatabaseList(1)),
             KeyCode::PageDown => Action::Planet(PlanetAction::PageDatabaseList(-1)),
-            KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
+            KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                 Action::Planet(PlanetAction::AppendDatabaseChar(ch))
             }
             KeyCode::Char('f') | KeyCode::Char('F') => {
@@ -353,7 +354,7 @@ impl PlanetDatabaseScreen {
                     PlanetDatabaseFilterMode::Range,
                 )),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
-                KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
+                KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
                 }
                 _ => Action::Noop,
@@ -423,7 +424,7 @@ impl PlanetDatabaseScreen {
                     PlanetDatabaseSortMode::Range,
                 )),
                 KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceDatabaseInput),
-                KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
+                KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                     Action::Planet(PlanetAction::AppendDatabaseChar(ch))
                 }
                 _ => Action::Noop,

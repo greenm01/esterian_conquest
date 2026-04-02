@@ -1,4 +1,4 @@
-use crate::app::helpers::resolve_default_coords_input;
+use crate::app::helpers::{is_coordinate_input_char, resolve_default_coords_input};
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
 use crate::domains::planet::state::PlanetScorchPromptMode;
@@ -73,9 +73,7 @@ impl App {
             }
             KeyCode::Char(ch)
                 if match mode {
-                    Some(PlanetScorchPromptMode::Planet) => {
-                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
-                    }
+                    Some(PlanetScorchPromptMode::Planet) => is_coordinate_input_char(ch),
                     Some(PlanetScorchPromptMode::Confirm1)
                     | Some(PlanetScorchPromptMode::Confirm2)
                     | Some(PlanetScorchPromptMode::Confirm3)

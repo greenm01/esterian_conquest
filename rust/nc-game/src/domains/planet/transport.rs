@@ -1,5 +1,6 @@
 use crate::app::helpers::{
-    center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
+    center_scroll_to_cursor, is_coordinate_input_char, resolve_default_coords_input,
+    sync_scroll_to_cursor,
 };
 use crate::app::state::App;
 use crate::domains::fleet::state::FleetMenuPromptMode;
@@ -485,9 +486,7 @@ impl App {
             }
             KeyCode::Char(ch)
                 if match mode {
-                    Some(PlanetMenuTransportPromptMode::Planet(_)) => {
-                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
-                    }
+                    Some(PlanetMenuTransportPromptMode::Planet(_)) => is_coordinate_input_char(ch),
                     Some(PlanetMenuTransportPromptMode::Fleet(_))
                     | Some(PlanetMenuTransportPromptMode::Quantity(_)) => ch.is_ascii_digit(),
                     None => false,

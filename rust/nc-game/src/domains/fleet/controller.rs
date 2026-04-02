@@ -2,7 +2,9 @@ use super::manip::{fleet_eta_label, fleet_list_eta_label};
 use super::orders::{
     FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line, resolve_yes_no_input,
 };
-use crate::app::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
+use crate::app::helpers::{
+    is_coordinate_input_char, resolve_default_coords_input, sync_scroll_to_cursor,
+};
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetChangeField, FleetMenuPromptMode};
@@ -490,9 +492,7 @@ impl App {
         }
         match self.fleet.eta_mode {
             FleetEtaMode::EnteringDestination => {
-                if self.fleet.eta_destination_input.len() < 16
-                    && (ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'))
-                {
+                if self.fleet.eta_destination_input.len() < 16 && is_coordinate_input_char(ch) {
                     self.fleet.eta_destination_input.push(ch);
                     self.fleet.eta_status = None;
                 }
@@ -1227,9 +1227,7 @@ impl App {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::Fleet(FleetAction::OpenEta)
                 }
-                KeyCode::Char(ch)
-                    if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
-                {
+                KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                     crate::app::Action::Fleet(FleetAction::AppendEtaChar(ch))
                 }
                 _ => crate::app::Action::Noop,

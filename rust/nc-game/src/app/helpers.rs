@@ -22,6 +22,10 @@ pub(crate) fn center_scroll_to_cursor(
     *scroll_offset = cursor.saturating_sub(half).min(max_offset);
 }
 
+pub(crate) fn is_coordinate_input_char(ch: char) -> bool {
+    ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']' | '{' | '}')
+}
+
 pub(crate) fn resolve_default_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {
     if input.trim().is_empty() {
         Some(default)

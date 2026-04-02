@@ -25,6 +25,81 @@ fn navigation_hotkeys_map_ctrl_d_to_page_down_actions() {
 }
 
 #[test]
+fn planet_database_list_accepts_wrapped_coordinate_input() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_database();
+
+    let input = "{12, 3}";
+    for ch in input.chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(action, Action::Planet(PlanetAction::AppendDatabaseChar(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+
+    assert_eq!(app.planet.database_input, input);
+}
+
+#[test]
+fn planet_brief_list_accepts_wrapped_coordinate_input() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let input = "([12, 3])";
+    for ch in input.chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(action, Action::Planet(PlanetAction::AppendBriefChar(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+
+    assert_eq!(app.planet.brief_input, input);
+}
+
+#[test]
+fn fleet_list_keeps_selector_input_numeric_only() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_fleet_list();
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('7'))),
+        Action::Fleet(FleetAction::AppendListChar('7'))
+    );
+    assert_eq!(app.handle_key(key(KeyCode::Char('{'))), Action::Noop);
+    assert_eq!(app.handle_key(key(KeyCode::Char(','))), Action::Noop);
+    assert_eq!(app.handle_key(key(KeyCode::Char(' '))), Action::Noop);
+}
+
+#[test]
 fn compose_body_treats_hjkl_as_text_and_keeps_arrow_navigation() {
     let screen = MessageComposeScreen::new();
 

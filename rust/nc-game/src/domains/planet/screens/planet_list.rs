@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use nc_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 
 use crate::app::Action;
+use crate::app::helpers::is_coordinate_input_char;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     dismiss_prompt_row_for, draw_dismiss_prompt_padded, draw_status_line, draw_title_bar_padded,
@@ -232,7 +233,7 @@ impl PlanetListScreen {
             }
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitBriefInput),
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceBriefInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
+            KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                 Action::Planet(PlanetAction::AppendBriefChar(ch))
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => match mode {

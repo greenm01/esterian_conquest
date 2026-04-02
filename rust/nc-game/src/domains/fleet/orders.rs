@@ -1,4 +1,6 @@
-use crate::app::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
+use crate::app::helpers::{
+    center_scroll_to_cursor, is_coordinate_input_char, sync_scroll_to_cursor,
+};
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::missions::fleet_record_supports_mission_code;
@@ -223,7 +225,7 @@ impl App {
             FleetSingleOrderMode::EnteringTarget => {
                 let allow_char = match fleet_target_input_kind(self.fleet.order_mission_code) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+                        is_coordinate_input_char(ch)
                     }
                     FleetTargetInputKind::StarbaseId | FleetTargetInputKind::FleetId => {
                         ch.is_ascii_digit()
@@ -309,7 +311,7 @@ impl App {
             FleetGroupOrderMode::EnteringTarget => {
                 let allow_char = match fleet_target_input_kind(self.fleet.group_mission_code) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
-                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+                        is_coordinate_input_char(ch)
                     }
                     FleetTargetInputKind::StarbaseId | FleetTargetInputKind::FleetId => {
                         ch.is_ascii_digit()
@@ -1039,9 +1041,7 @@ impl App {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::Fleet(FleetAction::CancelOrder)
                 }
-                KeyCode::Char(ch)
-                    if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
-                {
+                KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                     crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
                 }
                 _ => crate::app::Action::Noop,
@@ -1105,9 +1105,7 @@ impl App {
                 KeyCode::Backspace => {
                     crate::app::Action::Fleet(FleetAction::BackspaceGroupOrderInput)
                 }
-                KeyCode::Char(ch)
-                    if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
-                {
+                KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                     crate::app::Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
