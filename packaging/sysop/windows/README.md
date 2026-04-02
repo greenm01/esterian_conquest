@@ -1,65 +1,49 @@
 # Nostrian Conquest Windows Sysop Package
 
-This package is for Windows x64 localhost and BBS hosting.
+This is the public Windows x64 BBS/sysop package. It contains
+`nc-door.exe`, `nc-sysop.exe`, both public PDF manuals, `config.kdl`, and
+`BUILD-INFO.txt`. It does not contain `nc-game.exe`, and it does not bundle
+preserved Esterian Conquest executables, manuals, or DOS helper files.
 
-It includes:
-
-- `nc-game.exe`
-- `nc-sysop.exe`
-- `nc_player_manual.pdf`
-- `nc_sysop_manual.pdf`
-- `config.kdl`
-- `BUILD-INFO.txt`
-
-It does not include the VPS/Nostr daemon stack. For VPS hosting, build from
-tagged source on Linux and use `scripts/install_vps.sh`.
-
-## Localhost Quick Start
-
-Create a fresh local game:
-
-```text
-nc-sysop.exe new-game C:\nc\games\friday-night --name "Friday Night NC" --players 4
-```
-
-Launch a seat directly:
-
-```text
-nc-game.exe --dir C:\nc\games\friday-night --player 1
-```
-
-Run yearly maintenance:
-
-```text
-nc-sysop.exe maint C:\nc\games\friday-night 1
-```
+Use this package when you are hosting Nostrian Conquest as a native Windows
+BBS door. If you want localhost or direct console play on Windows, build from
+source and use `nc-game.exe`. If you want the VPS/Nostr daemon stack, build
+from tagged source on Linux and use `scripts/install_vps.sh`.
 
 ## BBS Quick Start
 
-Create a game directory and copy `config.kdl` into it. Adjust `players` and
-any `reservations`, then initialize the BBS campaign:
+1. Choose a game directory and copy `config.kdl` into it. Adjust `players`
+   and any `reservations`, then initialize the BBS campaign:
 
 ```text
 nc-sysop.exe new-game --bbs C:\nc\games\night-shift
 ```
 
-For a one-off reproducible test map, keep the seed on the command line:
+2. If you want a reproducible test map, keep the seed on the command line:
 
 ```text
 nc-sysop.exe new-game --bbs C:\nc\games\night-shift --seed 1515
 ```
 
-Point the BBS door directly at `nc-game.exe` with the dropfile path:
+3. Point the BBS door at `nc-door.exe` with the dropfile path:
 
 ```text
-nc-game.exe --dir C:\nc\games\night-shift --dropfile <dropfile> --encoding cp437 --color-mode ansi16
+nc-door.exe --dir C:\nc\games\night-shift --dropfile <dropfile>
 ```
+
+4. On native Windows Synchronet, pass the inherited socket descriptor too:
+
+```text
+nc-door.exe --dir C:\nc\games\night-shift --dropfile %f --socket-descriptor %H
+```
+
+For working host-specific entries, see the Mystic, Synchronet, and ENiGMA½
+setup guides under `docs/sysop/`.
 
 ## Notes
 
-- Door-mode control contract: `HJKL` movement, `Ctrl-U` / `Ctrl-D` paging,
-  `Q` or `Esc` for back/quit.
-- New unreserved BBS callers land on the BBS first-time menu.
-- Reserved callers and returning callers skip the generic BBS first-time menu.
-- The signed `SHA256SUMS.txt` manifest on the GitHub release page covers this
-  package.
+Door mode uses `HJKL` for movement, `Ctrl-U` and `Ctrl-D` for paging, and `Q`
+or `Esc` for back or quit. New unreserved BBS callers land on the first-time
+menu. Reserved callers and returning callers skip that generic first-time
+screen. The signed `SHA256SUMS.txt` manifest on the GitHub release page covers
+this package.

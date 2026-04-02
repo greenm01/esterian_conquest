@@ -609,7 +609,7 @@ door mode, `nc-door` uses CP437 and 16-color ANSI for classic terminal clients.
 ```
 nc-door \
   --dir /path/to/mygame \
-  --player <1-based index> \
+  --dropfile /path/to/DOOR32.SYS \
   --encoding cp437 \
   --color-mode ansi16
 ```
@@ -658,8 +658,8 @@ nc-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 With that in place, a reserved caller can launch with `--dropfile` alone.
-If the caller alias is not reserved, `nc-door` now uses this dropfile-only
-door flow:
+If the caller alias is not reserved, `nc-door` still uses the same
+dropfile-only door flow:
 
 - if the alias already matches a stored joined player handle, that caller
   resumes the matching empire automatically
@@ -669,9 +669,6 @@ door flow:
 - if the game is full, the caller still reaches the BBS first-time menu, but
   `J` is refused with the normal no-open-empires notice
 
-If both `--player` and `--dropfile` are supplied for a reserved caller, they
-must agree on the same empire slot.
-
 #admonition("NOTE")[
   The original DOS `ECGAME.EXE` v1.5 expects a strict 32-line WWIV-style
   `CHAIN.TXT` drop file. Enigma BBS-generated `DOOR.SYS` / `DORINFO` files
@@ -679,18 +676,16 @@ must agree on the same empire slot.
   legacy DOS door path if you need to host the original binary.
 ]
 
-== Enigma BBS (Rust Client)
+== Modern BBS Hosts
 
-The native Rust `nc-door` binary is now verified on both Mystic and ENiGMA½.
-For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
-`io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
-`--encoding cp437`, and `--color-mode ansi16` to `nc-door`. The helper wrapper
-at `tools/bbs/run_nc_rust.sh` remains useful only for source-tree testing. A
-normal BBS door entry no longer needs per-seat `--player` flags for unreserved
-callers; `--dropfile` is enough. Keep `--player` for localhost/manual launches
-where the sysop or tester wants an explicit fixed seat.
+The native Rust `nc-door` binary is now verified on Mystic, ENiGMA½, and
+Synchronet. On all three hosts, the standard launch shape is the same: pass
+`--dir` and `--dropfile`, keep `--encoding cp437`, and use ANSI16 color for
+classic terminal clients. The helper wrapper at `tools/bbs/run_nc_rust.sh`
+remains useful only for source-tree testing and is not the normal packaged
+door path.
 
-If Enigma writes a `DOOR32.SYS`, you can pass it directly:
+If the host writes a `DOOR32.SYS`, you can pass it directly:
 
 ```
 nc-door \
@@ -698,8 +693,20 @@ nc-door \
   --dropfile /path/to/DOOR32.SYS
 ```
 
-For a fuller ENiGMA½ Rust-door setup, including a ready `abracadabra`
-configuration, see `docs/sysop/enigma-rust-setup.md`.
+Mystic and ENiGMA½ use that direct dropfile path. Native Windows Synchronet
+also passes the inherited socket descriptor:
+
+```
+nc-door \
+  --dir /path/to/mygame \
+  --dropfile %f \
+  --socket-descriptor %H
+```
+
+For full host-specific setups, including ready launcher examples, see
+`docs/sysop/mystic-rust-setup.md`,
+`docs/sysop/enigma-rust-setup.md`, and
+`docs/sysop/synchronet-rust-setup.md`.
 
 In BBS door mode, the reliable control contract is:
 
@@ -812,14 +819,11 @@ nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 
 Important rules:
 
-- if the caller alias is reserved, `--player` becomes optional
+- if the caller alias is reserved, `--dropfile` alone is enough
 - if the caller alias is not reserved and already matches a stored joined
   player handle, that caller resumes the matching empire automatically
 - if the caller alias is not reserved and does not match an existing joined
   player handle, the caller starts on the BBS first-time menu
-- if both `--player` and `--dropfile` are supplied for a reserved caller, they must match
-- if both `--player` and `--dropfile` are supplied for a stored-handle match,
-  they must match
 - if a reservation conflicts with an already-stored different player handle, `nc-door` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
 - if no open unreserved empires remain, `J` from the BBS first-time menu is
   refused and the caller stays on that menu
@@ -830,9 +834,8 @@ claims an empire only on successful join confirmation, and that first
 successful join records the caller alias into the player record for later
 dropfile logins.
 
-For localhost/manual sessions, `--player <N>` remains the explicit fixed-seat
-path. It behaves like a direct seat binding; if the seat number is wrong,
-`nc-game` refuses the launch with a clear CLI error.
+For localhost and direct console play, use `nc-game` and follow the localhost
+setup section earlier in this manual instead of the BBS dropfile path.
 
 // ─── 12. Terminology ──────────────────────────────────────────────────────────
 
@@ -898,7 +901,7 @@ nc-sysop <subcommand> [options]
 
 ```
 nc-game --dir <game_dir> [--player <1-based index>] [options]
-nc-door --dir <game_dir> [--player <1-based index>] [options]
+nc-door --dir <game_dir> --dropfile <path> [options]
 nc-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
 
@@ -912,10 +915,9 @@ Interactive client flags:
   columns: (auto, 1fr),
   [*Flag*], [*Description*],
   [`--dir <path>`], [Game directory containing `ncgame.db`. Required.],
-  [`--player <N>`], [1-based empire index. Required unless a reserved dropfile alias resolves the seat from BBS `config.kdl` or hosted `ncgame.db` campaign settings.],
   [`--encoding <utf8|cp437>`], [Output encoding. Default: `utf8`. Use `cp437` for BBS/door mode.],
   [`--color-mode <ansi16|256|truecolor|auto>`], [Color depth. Default: `auto` (env-detected). CP437 mode defaults to `ansi16`.],
-  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and can resolve the player seat through BBS `config.kdl` reservations or hosted `ncgame.db` reservations. Explicit flags always override except that `--player` must match a reserved alias when both are present.],
+  [`--dropfile <path>`], [Parse a BBS drop file (DOOR32.SYS, DOOR.SYS, or CHAIN.TXT). Supplies alias and timeout, defaults encoding to `cp437`, and resolves the player seat through BBS `config.kdl` reservations or stored joined-player aliases.],
   [`--session-token <hex>`], [Hosted-session lease token injected by `nc-gate` during Nostr/SSH login. Normal local and BBS launches do not pass this flag.],
   [`--timeout <minutes>`], [Session time limit in minutes. Overrides any drop file value.],
   [`--queue-dir <path>`], [Override turn queue directory. Default: `<game_dir>/queue`.],

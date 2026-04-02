@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from build_playtest_bundle import SUPPORTED_TARGETS
+from build_release_bundle import SUPPORTED_TARGETS
 from upsert_release_note import merge_body
 from write_release_checksums import file_sha256
 
@@ -17,7 +17,7 @@ from write_release_checksums import file_sha256
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RELEASES_DIR = REPO_ROOT / "releases"
 BUILD_RELEASE_PACKAGES = REPO_ROOT / "scripts" / "build_release_packages.py"
-BUILD_PLAYTEST_BUNDLE = REPO_ROOT / "scripts" / "build_playtest_bundle.py"
+BUILD_RELEASE_BUNDLE = REPO_ROOT / "scripts" / "build_release_bundle.py"
 CHECKSUM_PATH = RELEASES_DIR / "SHA256SUMS.txt"
 SIGNATURE_PATH = RELEASES_DIR / "SHA256SUMS.txt.asc"
 RELEASE_NOTE_PATH = RELEASES_DIR / "nc-connect-release-note.md"
@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         choices=("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"),
         help=(
-            "Build and upload a public localhost/BBS sysop archive for the "
+            "Build and upload a public BBS/sysop archive for the "
             "selected target."
         ),
     )
@@ -121,7 +121,7 @@ def build_nc_connect_archive(target: str) -> Path:
     output = capture(
         [
             sys.executable,
-            str(BUILD_PLAYTEST_BUNDLE),
+            str(BUILD_RELEASE_BUNDLE),
             "--artifact",
             "nc-connect",
             "--target",
@@ -131,7 +131,7 @@ def build_nc_connect_archive(target: str) -> Path:
     )
     lines = [line.strip() for line in output.splitlines() if line.strip()]
     if not lines:
-        raise SystemExit(f"build_playtest_bundle.py did not print an archive path for {target}")
+        raise SystemExit(f"build_release_bundle.py did not print an archive path for {target}")
     return Path(lines[-1])
 
 
@@ -139,7 +139,7 @@ def build_sysop_archive(target: str) -> Path:
     output = capture(
         [
             sys.executable,
-            str(BUILD_PLAYTEST_BUNDLE),
+            str(BUILD_RELEASE_BUNDLE),
             "--artifact",
             "sysop",
             "--target",
@@ -149,7 +149,7 @@ def build_sysop_archive(target: str) -> Path:
     )
     lines = [line.strip() for line in output.splitlines() if line.strip()]
     if not lines:
-        raise SystemExit(f"build_playtest_bundle.py did not print an archive path for {target}")
+        raise SystemExit(f"build_release_bundle.py did not print an archive path for {target}")
     return Path(lines[-1])
 
 
@@ -259,7 +259,7 @@ The Rust-built public downloads in this release can be verified with the signed 
 Full instructions and public key: {RELEASE_NOTE_URL}
 Signing key fingerprint: `{fingerprint}`
 
-The signed manifest covers the public Rust download archives on this page, including `nc-connect` player packages and `nc-sysop` localhost/BBS packages, but not the DOS compatibility bundles.
+The signed manifest covers the public Rust download archives on this page, including `nc-connect` player packages and `nc-sysop` BBS/sysop packages, but not the DOS compatibility bundles.
 <!-- NC-RUST-VERIFY:END -->
 """
     RELEASE_NOTE_PATH.write_text(body, encoding="utf-8")

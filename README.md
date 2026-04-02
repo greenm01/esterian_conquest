@@ -53,20 +53,17 @@ Historical `.DOC` files are preserved in [original/v1.5](original/v1.5).
 
 ## Beta Release Policy
 
-Public Rust downloads are intentionally limited during beta. The current
-policy is:
+Public Rust downloads are intentionally limited during beta. Normal players
+should use the public Windows x64, Linux x64, or macOS Apple Silicon
+`nc-connect` archive from GitHub Releases. Windows and Linux BBS sysops can
+use the public `nc-sysop` package, which ships `nc-door` and `nc-sysop` for
+native door hosting. Localhost play still uses `nc-game` from a source build.
+VPS hosting remains a tagged-source Linux workflow through
+`scripts/install_vps.sh`.
 
-| Audience | Current Path |
-|---|---|
-| Normal player | Download the public Windows x64, Linux x64, or macOS Apple Silicon `nc-connect` archive from GitHub Releases |
-| Rust self-host sysop (localhost or BBS) | Download the Linux x64 `nc-sysop` package from GitHub Releases, or build from tagged source with Cargo |
-| Rust VPS sysop | Build from tagged source with Cargo and use `scripts/install_vps.sh` |
-| Windows localhost or BBS sysop | Build from tagged source with Cargo, or publish the Windows x64 `nc-sysop` package from a native Windows host |
-
-Public GitHub Releases now include Windows x64, Linux x64, and macOS Apple
-Silicon `nc-connect` player archives. The release tooling also supports Linux
-x64 and Windows x64 `nc-sysop` localhost/BBS packages. VPS hosting remains a
-tagged-source Cargo workflow. See [Release Policy](docs/release-policy.md).
+The public Nostrian packages contain only original Nostrian binaries, manuals,
+and support files. They do not bundle preserved Esterian Conquest executables
+or manuals. See [Release Policy](docs/release-policy.md).
 
 ## Background
 
@@ -168,7 +165,7 @@ sudo /usr/local/bin/nc-sysop nostr verify --dir /srv/ec/games/friday-night
 sudo /usr/local/bin/nc-sysop nostr publish --dir /srv/ec/games/friday-night
 ```
 
-### 3. Run `nc-game` As A BBS Door
+### 3. Run `nc-door` As A BBS Door
 Create the game directory, write a minimal per-game `config.kdl`, then
 initialize it in BBS mode:
 
@@ -190,11 +187,11 @@ at creation time instead of storing it in `config.kdl`:
 cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift --seed 1515
 ```
 
-For localhost and BBS hosting, use the public Linux x64 `nc-sysop` package or
-build from source. VPS/Nostr hosts should still build from source and use
-`scripts/install_vps.sh`. Then point the door entry at `nc-game` on Unix-like
-hosts or `nc-door` on native Windows, with a dropfile. For working setups,
-see:
+For Windows or Linux BBS hosting, use the public `nc-sysop` package or build
+from source. VPS/Nostr hosts should still build from source and use
+`scripts/install_vps.sh`. Stage `nc-door` as the live door binary, pass it the
+dropfile path, and follow the host-specific setup guides for the exact launch
+line. For working setups, see:
 
 - [Mystic Rust Door Setup](docs/sysop/mystic-rust-setup.md)
 - [Synchronet Rust Door Setup](docs/sysop/synchronet-rust-setup.md)
@@ -245,4 +242,6 @@ Read these before editing code:
 
 Source code and tooling are licensed under the **O'Saasy License Agreement**. See [LICENSE](LICENSE).
 
-Preserved original `Esterian Conquest` materials are included for preservation and research only.
+The repository also preserves original `Esterian Conquest` materials for
+research and compatibility work, but Nostrian package archives do not include
+them.

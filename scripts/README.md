@@ -318,7 +318,7 @@ Use this when you want:
 - a small local package that opens with the repo's known-good `CHAIN.TXT`
 - a clean split between original packed and curated runnable unlocked variants
 
-### `build_playtest_bundle.py`
+### `build_release_bundle.py`
 
 Builds a standalone release bundle under `releases/`.
 
@@ -327,7 +327,7 @@ It currently:
 - builds either:
   - the internal combined private-beta bundle
   - a public `nc-connect` player archive
-  - or a public `nc-sysop` localhost/BBS sysop archive
+  - or a public `nc-sysop` BBS/sysop archive
 - includes the matching public PDF manuals in the archive
 - writes `README.md` and `BUILD-INFO.txt` into the bundle root
 - can unpack and smoke-test the bundle when `--verify` is passed
@@ -340,25 +340,25 @@ It currently:
 Example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --verify
+python3 scripts/build_release_bundle.py --verify
 ```
 
 Public player archive example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --artifact nc-connect --verify
+python3 scripts/build_release_bundle.py --artifact nc-connect --verify
 ```
 
 Public sysop archive example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --artifact sysop --target x86_64-unknown-linux-gnu --verify
+python3 scripts/build_release_bundle.py --artifact sysop --target x86_64-unknown-linux-gnu --verify
 ```
 
 Explicit Apple Silicon example:
 
 ```bash
-python3 scripts/build_playtest_bundle.py --artifact nc-connect --target aarch64-apple-darwin --verify
+python3 scripts/build_release_bundle.py --artifact nc-connect --target aarch64-apple-darwin --verify
 ```
 
 Use this when you want:
@@ -370,7 +370,7 @@ Use this when you want:
 
 The combined bundle is an internal/private-beta helper. The `nc-connect`
 artifact is the public player-facing archive. The `sysop` artifact is the
-public localhost/BBS operator archive.
+public BBS/sysop archive for Windows and Linux door hosts.
 
 The release tooling supports public `nc-connect` archives for:
 
@@ -386,7 +386,7 @@ The release tooling supports public `nc-sysop` archives for:
 
 ### `build_linux_playtest_bundle.py`
 
-Compatibility wrapper around `build_playtest_bundle.py` that keeps the old
+Compatibility wrapper around `build_release_bundle.py` that keeps the old
 Linux x64 command working:
 
 ```bash

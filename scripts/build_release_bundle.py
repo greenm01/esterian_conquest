@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+import uuid
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -23,11 +24,20 @@ SYSOP_ASSET_ROOT = REPO_ROOT / "packaging" / "sysop"
 SYSOP_CONFIG_EXAMPLE = SYSOP_ASSET_ROOT / "examples" / "config.kdl"
 SYSOP_LINUX_README = SYSOP_ASSET_ROOT / "linux" / "README.md"
 SYSOP_WINDOWS_README = SYSOP_ASSET_ROOT / "windows" / "README.md"
-SYSOP_LINUX_WRAPPER = SYSOP_ASSET_ROOT / "linux" / "tools" / "bbs" / "run_nc_rust.sh"
 EC_CONNECT_LICENSES = (
     REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
     REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
 )
+FORBIDDEN_CLASSIC_PACKAGE_NAMES = {
+    "ECGAME.EXE",
+    "ECMAINT.EXE",
+    "ECUTIL.EXE",
+    "ECREADME.DOC",
+    "ECPLAYER.DOC",
+    "ECQSTART.DOC",
+    "WHATSNEW.DOC",
+}
+FORBIDDEN_CLASSIC_PACKAGE_DIRS = {"original", "NC_UNLOCKED"}
 
 
 @dataclass(frozen=True)
@@ -103,7 +113,7 @@ def parse_args(default_target: str | None) -> argparse.Namespace:
         help=(
             "Artifact type to package. `public-beta` keeps the internal combined "
             "bundle; `nc-connect` builds the public player archive; `sysop` "
-            "builds the public localhost/BBS sysop archive."
+            "builds the public BBS/sysop archive."
         ),
     )
     parser.add_argument(
@@ -182,8 +192,9 @@ def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
     if spec.artifact == "nc-connect":
         return ("nc-connect",)
     if spec.artifact == "sysop":
-        return ("nc-game", "nc-sysop")
-    return ("nc-game", "nc-sysop", "nc-connect")
+        return ("nc-door", "nc-sysop")
+    return ("nc-game", "nc-door", "nc-sysop", "nc-connect")
+
 
 def artifact_packages(spec: BundleSpec) -> tuple[str, ...]:
     if spec.artifact == "nc-connect":
@@ -267,7 +278,7 @@ If Windows Defender flags the binary, click "More info" → "Run anyway".
             binary_list = "./bin/nc-connect"
             descriptor = "a standalone GUI binary"
         else:
-            binary_list = "./bin/nc-game ./bin/nc-sysop ./bin/nc-connect"
+            binary_list = "./bin/nc-game ./bin/nc-door ./bin/nc-sysop ./bin/nc-connect"
             descriptor = "command-line binaries"
         macos_quarantine_note = f"""
 ## macOS First Run Note
@@ -285,6 +296,9 @@ xattr -d com.apple.quarantine {binary_list}
         return f"""# nc-connect {spec.platform.display_name}
 
 This archive contains the public player client for {spec.platform.display_name}.
+
+It includes only original Nostrian Conquest client files. No preserved Esterian
+Conquest binaries, manuals, or DOS assets are bundled here.
 
 It contains:
 
@@ -323,65 +337,66 @@ When reporting a player-client issue, include:
 - a screenshot if the issue is visual
 """
 
+    game_binary = "nc-game.exe" if spec.is_windows else "./bin/nc-game"
+    door_binary = "nc-door.exe" if spec.is_windows else "./bin/nc-door"
+    sysop_binary = "nc-sysop.exe" if spec.is_windows else "./bin/nc-sysop"
+    connect_binary = "nc-connect.exe" if spec.is_windows else "./bin/nc-connect"
+    player_manual_path = "nc_player_manual.pdf" if spec.is_windows else "docs/nc_player_manual.pdf"
+    sysop_manual_path = "nc_sysop_manual.pdf" if spec.is_windows else "docs/nc_sysop_manual.pdf"
+    sample_game_dir = "C:\\nc\\games\\friday-night" if spec.is_windows else "/srv/ec/games/friday-night"
+    sample_gate_config = "C:\\nc\\config\\gate-config.kdl" if spec.is_windows else "/etc/nc-gate/config.kdl"
+    sample_local_dir = "C:\\nc\\games\\local-test" if spec.is_windows else "/tmp/nc-game"
+
     return f"""# Nostrian Conquest {spec.platform.display_name} Public Beta Bundle
 
 This bundle is for public beta testing on {spec.platform.display_name}.
 
-It contains:
-
-- `bin/nc-game`
-- `bin/nc-sysop`
-- `bin/nc-connect`
-
-It also includes:
-
-- `docs/nc_player_manual.pdf`
-- `docs/nc_sysop_manual.pdf`
-- `licenses/OFL-0xProto.txt`
-- `licenses/LICENSE-NotoSansMono.txt`
-- `BUILD-INFO.txt` with version/build metadata for bug reports
+It contains the four Rust tester binaries, `BUILD-INFO.txt`, both public PDF
+manuals, and the bundled font license files. It does not contain preserved
+Esterian Conquest executables, manuals, or DOS helper assets.
 
 This is not a public release package. Public GitHub Releases publish the
-player-facing `nc-connect` archives and can also publish localhost/BBS
-`nc-sysop` archives, while VPS hosting remains a tagged-source workflow.
+player-facing `nc-connect` archives and the Windows/Linux BBS/sysop `nc-sysop`
+archives. VPS hosting remains a tagged-source workflow.
 
 ## Quick Start
 
-Create a fresh campaign:
+1. Create a fresh campaign:
 
-```bash
-./bin/nc-sysop new-game /srv/ec/games/friday-night --name "Friday Night EC" --players 4 --seed 1515
+```text
+{sysop_binary} new-game {sample_game_dir} --name "Friday Night NC" --players 4 --seed 1515
 ```
 
-Initialize and run the Nostr hosting daemon:
+2. Initialize and run the Nostr hosting daemon:
 
-```bash
-./bin/nc-sysop nostr init
-./bin/nc-sysop nostr serve
+```text
+{sysop_binary} nostr init
+{sysop_binary} nostr serve
 ```
 
-The hosted-player join path is `nc-connect`:
+3. Join as a hosted player with `nc-connect`:
 
-```bash
-./bin/nc-connect
+```text
+{connect_binary}
 ```
 Then press `N` in the app and paste `amber-river@relay.example.com`.
 
-Run maintenance:
+4. Run maintenance:
 
-```bash
-./bin/nc-sysop maint-all --config /etc/nc-gate/config.kdl
+```text
+{sysop_binary} maint-all --config {sample_gate_config}
 ```
 
-For localhost or hotseat play, you can still launch the game client directly:
+5. For localhost or hotseat play, launch the direct game client:
 
-```bash
-./bin/nc-game --dir /tmp/nc-game --player 1
+```text
+{game_binary} --dir {sample_local_dir} --player 1
 ```
 
 ## BBS Door Note
 
-If you host `nc-game` as a BBS door, the current stable door-mode controls are:
+For BBS hosting, stage `{door_binary}` as the live door binary. The current
+stable door-mode controls are:
 
 - `HJKL` for movement
 - `Ctrl-U` / `Ctrl-D` for paging
@@ -390,7 +405,8 @@ If you host `nc-game` as a BBS door, the current stable door-mode controls are:
 Arrow keys and `PgUp` / `PgDn` are not part of the primary door-mode contract.
 
 Hosted Rust campaigns are DB-only. `nc-sysop new-game` creates just
-`<game_dir>/ncgame.db`.
+`<game_dir>/ncgame.db`. The player manual lives at `{player_manual_path}` and
+the sysop manual lives at `{sysop_manual_path}`.
 {macos_quarantine_note}
 
 ## Bug Reports
@@ -426,13 +442,11 @@ def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root
             docs_dir = bundle_root / "docs"
             bin_dir = bundle_root / "bin"
             examples_dir = bundle_root / "examples"
-            tools_dir = bundle_root / "tools" / "bbs"
             for name, path in binary_paths.items():
                 copy_file(path, bin_dir / name, executable=True)
             copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
             copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
             copy_file(SYSOP_CONFIG_EXAMPLE, examples_dir / "config.kdl")
-            copy_file(SYSOP_LINUX_WRAPPER, tools_dir / "run_nc_rust.sh", executable=True)
     else:
         licenses_dir = bundle_root / "licenses"
         if spec.is_windows:
@@ -469,9 +483,52 @@ def write_archive(bundle_root: Path, archive_path: Path) -> None:
             tf.add(bundle_root, arcname=bundle_root.name)
 
 
+def make_temp_workspace(prefix: str) -> Path:
+    temp_root = Path(
+        os.environ.get("TMPDIR")
+        or os.environ.get("TEMP")
+        or os.environ.get("TMP")
+        or tempfile.gettempdir()
+    )
+    temp_root.mkdir(parents=True, exist_ok=True)
+    while True:
+        candidate = temp_root / f"{prefix}{uuid.uuid4().hex[:8]}"
+        try:
+            candidate.mkdir(parents=True, exist_ok=False)
+            return candidate
+        except FileExistsError:
+            continue
+
+
+def cleanup_temp_workspace(path: Path) -> None:
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def verify_no_original_ec_content(bundle_root: Path, archive_path: Path) -> None:
+    offenders: list[str] = []
+    for path in bundle_root.rglob("*"):
+        relative = path.relative_to(bundle_root).as_posix()
+        parts = relative.split("/")
+        if any(part in FORBIDDEN_CLASSIC_PACKAGE_DIRS for part in parts):
+            offenders.append(relative)
+            continue
+        if path.is_file():
+            if path.name.upper() in FORBIDDEN_CLASSIC_PACKAGE_NAMES:
+                offenders.append(relative)
+                continue
+            if path.suffix.upper() == ".DAT":
+                offenders.append(relative)
+
+    if offenders:
+        sample = ", ".join(sorted(offenders)[:5])
+        raise SystemExit(
+            f"{archive_path.name}: unexpected original EC content in Nostrian package ({sample})"
+        )
+
+
 def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> None:
-    with tempfile.TemporaryDirectory(prefix="ec-playtest-verify-") as temp_dir:
-        temp_root = Path(temp_dir)
+    temp_root = make_temp_workspace("nc-release-verify-")
+    try:
         if spec.is_windows:
             with zipfile.ZipFile(archive_path, "r") as zf:
                 zf.extractall(temp_root)
@@ -482,6 +539,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         bundle_root = temp_root / spec.bundle_root_name
         if not bundle_root.exists():
             raise SystemExit(f"{archive_path.name}: missing bundle root {spec.bundle_root_name}")
+        verify_no_original_ec_content(bundle_root, archive_path)
 
         docs_prefix = "" if spec.is_windows else "docs/"
         binary_prefix = "" if spec.is_windows else "bin/"
@@ -492,23 +550,20 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 "BUILD-INFO.txt",
                 f"{docs_prefix}nc_player_manual.pdf",
                 f"{docs_prefix}nc_sysop_manual.pdf",
-                f"{binary_prefix}nc-game{binary_ext}",
+                f"{binary_prefix}nc-door{binary_ext}",
                 f"{binary_prefix}nc-sysop{binary_ext}",
             ]
             if spec.is_windows:
                 required_files.append("config.kdl")
             else:
-                required_files.extend(
-                    (
-                        "examples/config.kdl",
-                        "tools/bbs/run_nc_rust.sh",
-                    )
-                )
+                required_files.append("examples/config.kdl")
             forbidden_files = [
+                f"{binary_prefix}nc-game{binary_ext}",
                 f"{binary_prefix}nc-connect{binary_ext}",
                 f"{binary_prefix}nc-connect-cli{binary_ext}",
                 "licenses/OFL-0xProto.txt",
                 "licenses/LICENSE-NotoSansMono.txt",
+                "tools/bbs/run_nc_rust.sh",
             ]
         else:
             required_files = [
@@ -526,6 +581,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                     (
                         f"{docs_prefix}nc_sysop_manual.pdf",
                         f"{binary_prefix}nc-game{binary_ext}",
+                        f"{binary_prefix}nc-door{binary_ext}",
                         f"{binary_prefix}nc-sysop{binary_ext}",
                         f"{binary_prefix}nc-connect{binary_ext}",
                     )
@@ -551,11 +607,13 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             return
 
         game_bin = str(bundle_root / f"{binary_prefix}nc-game{binary_ext}")
+        door_bin = str(bundle_root / f"{binary_prefix}nc-door{binary_ext}")
         sysop_bin = str(bundle_root / f"{binary_prefix}nc-sysop{binary_ext}")
-        run([game_bin, "--help"], cwd=bundle_root)
+        run([door_bin, "--help"], cwd=bundle_root)
         run([sysop_bin, "--help"], cwd=bundle_root)
 
         if spec.artifact == "public-beta":
+            run([game_bin, "--help"], cwd=bundle_root)
             campaign_dir = temp_root / "playtest-campaign"
             run(
                 [
@@ -583,6 +641,8 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             run([sysop_bin, "new-game", "--bbs", str(campaign_dir)], cwd=bundle_root)
             if not (campaign_dir / "ncgame.db").exists():
                 raise SystemExit(f"{archive_path.name}: nc-sysop --bbs did not create ncgame.db")
+    finally:
+        cleanup_temp_workspace(temp_root)
 
 
 def main(*, default_target: str | None = None) -> None:
@@ -592,13 +652,16 @@ def main(*, default_target: str | None = None) -> None:
     host_target = detect_host_target()
     binary_paths = build_binaries(spec)
 
-    with tempfile.TemporaryDirectory(prefix="ec-playtest-build-") as temp_dir:
-        bundle_root = stage_bundle(spec, binary_paths, Path(temp_dir))
+    temp_root = make_temp_workspace("nc-release-build-")
+    try:
+        bundle_root = stage_bundle(spec, binary_paths, temp_root)
         archive_path = args.output_dir / spec.archive_name
         write_archive(bundle_root, archive_path)
         if args.verify:
             verify_archive(spec, archive_path, run_smoke=platform.target_triple == host_target)
         print(archive_path)
+    finally:
+        cleanup_temp_workspace(temp_root)
 
 
 if __name__ == "__main__":
