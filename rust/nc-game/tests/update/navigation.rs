@@ -1000,6 +1000,8 @@ fn fleet_review_detail_from_menu_uses_dismiss_prompt_and_returns_to_menu() {
             .iter()
             .any(|line| line.contains("(slap a key)"))
     );
+    assert_eq!(terminal.line(13).trim_end(), "");
+    assert_eq!(terminal.line(14).trim_end(), " (slap a key)");
     assert_eq!(
         app.handle_key(key(KeyCode::Char('x'))),
         Action::Fleet(FleetAction::CloseReview)
@@ -1013,6 +1015,52 @@ fn fleet_review_detail_from_menu_uses_dismiss_prompt_and_returns_to_menu() {
         app.handle_key(key(KeyCode::Char('r'))),
         Action::Fleet(FleetAction::OpenReviewPrompt)
     );
+}
+
+#[test]
+fn fleet_review_from_list_uses_dismiss_prompt_and_any_key_returns_to_list() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReview);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet review should render");
+    assert_eq!(terminal.line(13).trim_end(), "");
+    assert_eq!(terminal.line(14).trim_end(), " (slap a key)");
+    assert!(!terminal.line(14).contains("COMMAND <-"));
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Left)),
+        Action::Fleet(FleetAction::CloseReview)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CloseReview)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
 }
 
 #[test]

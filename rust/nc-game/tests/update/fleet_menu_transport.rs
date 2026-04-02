@@ -132,10 +132,6 @@ fn fleet_review_close_returns_to_menu_without_restoring_review_prompt() {
     );
     open_review_from_fleet_menu(&mut app, Some(2));
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::MoveReview(-1))),
-        AppOutcome::Continue
-    );
-    assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::CloseReview)),
         AppOutcome::Continue
     );
