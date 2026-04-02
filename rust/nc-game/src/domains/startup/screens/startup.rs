@@ -759,12 +759,11 @@ const INTRO_PAGE_1: [&str; 13] = [
     "decided by distance, industry, mathematics, and will.",
 ];
 
-const INTRO_PAGE_2: [&str; 6] = [
-    "",
-    "In homage to the 1990s door-game pioneers and to the ancient dreamers,",
-    "strategists, and storytellers whose visions of galactic dominion still",
-    "light the way among these stars.",
-    "",
+const INTRO_PAGE_2: [&str; 5] = [
+    "In profound respect and admiration to Bentley C. Griffith and his fellow",
+    "pioneers, who between 1990 and 1992 forged the enduring legend of Esterian",
+    "Conquest, and to the ancient dreamers, strategists, and storytellers whose",
+    "timeless visions of galactic dominion still light the way among these stars.",
     "",
 ];
 

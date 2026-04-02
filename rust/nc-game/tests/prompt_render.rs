@@ -1014,3 +1014,23 @@ fn startup_intro_page_24_row_door_keeps_visible_slap_a_key_prompt() {
     assert_eq!(cursor_row as usize, 16);
     assert_eq!(cursor_col as usize, "(slap a key)".chars().count());
 }
+
+#[test]
+fn startup_intro_tribute_page_starts_with_griffith_homage_without_extra_leading_blank() {
+    let buffer = nc_game::screen::startup::render_game_intro_page(
+        ScreenGeometry::local_default(),
+        1,
+        "(slap a key)",
+    )
+    .expect("startup tribute page renders");
+
+    assert_eq!(
+        row_text(&buffer, 2).trim_end(),
+        " In profound respect and admiration to Bentley C. Griffith and his fellow"
+    );
+    assert_eq!(
+        row_text(&buffer, 3).trim_end(),
+        " pioneers, who between 1990 and 1992 forged the enduring legend of Esterian"
+    );
+    assert_eq!(row_text(&buffer, 6).trim_end(), "");
+}
