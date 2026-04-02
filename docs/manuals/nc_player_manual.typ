@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 1),
+  date: datetime(year: 2026, month: 4, day: 2),
 )
 
 #set page(
@@ -73,7 +73,7 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 1, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 2, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
 ]
@@ -127,6 +127,24 @@ In homage to the 1990s door-game pioneers and to the ancient dreamers, strategis
 
 = Connecting to a Game
 
+== Three Ways to Play
+
+Nostrian Conquest supports three practical ways to play.
+
+The normal public path is **Nostr**. In that mode you run `nc-connect`, your
+sysop gives you an invite code, and `nc-connect` opens the live `nc-game`
+session for you. This is the recommended path for public multiplayer.
+
+The direct private path is **Localhost**. In that mode you or your sysop runs
+`nc-game` directly on the same machine. Use this for solo play, hotseat
+testing, and trusted same-machine sessions. If you are setting that up
+yourself, see the *Sysop Manual* section *Localhost Session Setup*.
+
+The classic path is **BBS**. In that mode you log into a bulletin board with a
+terminal client and launch the game from the doors menu. The sysop stages
+`nc-door` behind the BBS. If you are the sysop, see the *Sysop Manual* section
+*BBS Door Setup*.
+
 == Finding New Games
 
 If you do not already have an invite code, start at
@@ -172,7 +190,8 @@ different identity cannot use it to take over the seat.
 
 Get the current `nc-connect` build from the repo's GitHub Releases page.
 Public player packages are available for Windows x64, Linux x64, and macOS
-Apple Silicon. Keep this manual with it.
+Apple Silicon. Keep this manual with it. This package is for the Nostr path.
+Localhost and BBS play do not use `nc-connect` as the game client.
 
 === Windows
 
@@ -939,13 +958,13 @@ running the classic binaries under DOSBox. This legacy setup friction is one of
 the motivating factors behind the Rust rewrite --- making the game accessible on
 modern systems without emulation or fragile drop file plumbing.
 
-The Rust `nc-game` binary handles drop files natively and robustly. Pass the
+The Rust `nc-door` binary handles drop files natively and robustly. Pass the
 `--dropfile <path>` flag and it will auto-detect the format
 (`DOOR32.SYS`, `DOOR.SYS`, or `CHAIN.TXT`), tolerate both CRLF and LF line
 endings, and extract the player alias and session timeout without any wrapper
 scripts or format massaging. The `--timeout <minutes>` flag can override the
 timeout from the command line. This means a modern BBS can drop any of the
-three supported formats and launch `nc-game` directly, with no DOSBox, no
+three supported formats and launch `nc-door` directly, with no DOSBox, no
 `ECUTIL.EXE`, and no fragile field-count dependencies.
 
 === This Manual

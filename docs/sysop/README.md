@@ -8,11 +8,11 @@ Use these docs in roughly this order:
 - [turn-kdl.md](turn-kdl.md)
   - KDL turn file format reference for file-based turn submission
 - [mystic-rust-setup.md](mystic-rust-setup.md)
-  - validated local-door BBS setup for the Rust-native `nc-game` / `nc-door`
+  - validated local-door BBS setup for the Rust-native `nc-door`
 - [synchronet-rust-setup.md](synchronet-rust-setup.md)
   - native Windows Synchronet setup for the Rust-native `nc-door`
 - [enigma-rust-setup.md](enigma-rust-setup.md)
-  - validated ENiGMA½ setup notes for the Rust-native `nc-game` / `nc-door`
+  - validated ENiGMA½ setup notes for the Rust-native `nc-door`
 - [sysop-map-exports.md](sysop-map-exports.md)
   - player map export and queue/download staging for the Rust client
 - [enigma-bbs-setup.md](enigma-bbs-setup.md)
@@ -21,28 +21,27 @@ Use these docs in roughly this order:
 
 Practical posture:
 
-- prefer the Rust-native `nc-connect` / `nc-game` / `nc-sysop` stack for new
-  deployments
-- use the public Linux x64 `nc-sysop` package for localhost or BBS hosting
-  when you want a no-Cargo operator handoff
-- use the matching Windows x64 `nc-sysop` package when you have built and
-  validated it on a native Windows host
-- treat hosted Rust campaigns as DB-only: one `ncgame.db` per game directory
-- Mystic and ENiGMA are validated stdio Rust-door hosts, and Synchronet is the
-  native Windows socket-door target
-- on Unix-like hosts, use `tools/bbs/run_nc_rust.sh` or a staged `nc-game`
-  binary; on native Windows hosts, point the BBS directly at a staged
-  `nc-door.exe`
-- for BBS play, treat `HJKL` as the primary door navigation contract and
-  `^U` / `^D` as the primary paging keys
-- treat original DOS `ECGAME` hosting as a compatibility bridge, not the long-
-  term operating model
-- VPS/Nostr hosting remains a tagged-source Cargo workflow with
-  `scripts/install_vps.sh`; the public sysop package is for localhost and BBS,
-  not VPS
-- hosted/Nostr campaigns use `ncgame.db` for per-game runtime policy, while
-  BBS door campaigns use a minimal per-game `config.kdl`; `/etc/nc-gate/config.kdl`
-  remains the global daemon game list
-- schedule `nc-sysop maint` or `nc-sysop maint-all` with host tooling such as
-  `systemd`, `cron`, or BBS event hooks instead of trying to schedule
-  maintenance inside the campaign
+For new deployments, prefer the Rust-native `nc-connect`, `nc-game`,
+`nc-door`, and `nc-sysop` stack. Keep the roles straight. `nc-game` is the
+direct localhost and SSH/VPS session client. `nc-door` is the BBS entrypoint on
+both Windows and Linux. `nc-sysop` creates campaigns, edits settings, and runs
+maintenance.
+
+The public Windows x64 and Linux x64 `nc-sysop` archives are the BBS/sysop
+packages. Use them when you want a normal door-host handoff without a Cargo
+toolchain. Localhost play on Windows, Linux, and macOS remains a source-build
+workflow. VPS/Nostr hosting also remains a source-build workflow with
+`scripts/install_vps.sh`.
+
+Hosted Rust campaigns are DB-only: one `ncgame.db` per game directory. BBS
+door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.
+Hosted/Nostr game registry data remains global in `/etc/nc-gate/config.kdl`.
+
+Mystic and ENiGMA are validated stdio Rust-door hosts. Synchronet is the native
+Windows socket-door target. For BBS play, treat `HJKL` as the primary movement
+contract and `^U` / `^D` as the primary paging keys.
+
+Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
+Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with
+real host tooling such as `systemd`, `cron`, Task Scheduler, or BBS event
+hooks rather than trying to schedule maintenance inside the campaign itself.

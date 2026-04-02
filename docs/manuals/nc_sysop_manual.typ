@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Sysop Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 1),
+  date: datetime(year: 2026, month: 4, day: 2),
 )
 
 #set page(
@@ -63,7 +63,7 @@
   #v(2em)
   #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: April 1, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: April 2, 2026]
 ]
 
 #pagebreak()
@@ -110,7 +110,7 @@ instance. It covers:
 - creating and maintaining a DB-only game
 - running the recommended Nostr host
 - running a local or direct SSH game
-- putting `nc-game` on a BBS door
+- putting `nc-door` on a BBS
 - managing players and yearly maintenance
 
 For player-facing rules and gameplay, see the *Player Manual*.
@@ -150,8 +150,15 @@ The release binaries will be in `target/release/`.
 
 During the current beta, public GitHub Releases include Windows x64, Linux x64,
 and macOS Apple Silicon `nc-connect` player archives alongside the old DOS
-compatibility packages. The release tooling also supports Linux x64 and
-Windows x64 `nc-sysop` localhost/BBS packages.
+compatibility packages. Public releases also include Windows x64 and Linux x64
+`nc-sysop` BBS/sysop packages.
+
+Keep the binary roles straight.
+
+`nc-connect` is the packaged player client for the recommended Nostr path.
+`nc-game` is the direct localhost and SSH/VPS session client. `nc-door` is the
+BBS door entrypoint on Windows and Linux. `nc-sysop` is the administrator's
+tool for creation, settings, maintenance, and hosted operations.
 
 For the Rust edition:
 
@@ -159,43 +166,25 @@ For the Rust edition:
    `scripts/install_vps.sh`.
 2. Hosted players can use the public GitHub Releases `nc-connect` archives
    with the player manual on Windows, Linux, or macOS.
-3. Localhost and BBS sysops can use the public `nc-sysop` package on Linux x64,
-   or build from tagged source with Cargo.
-4. Windows localhost and BBS sysops can use the Windows x64 `nc-sysop`
-   package when it has been built on a native Windows host, or build from
-   tagged source with Cargo.
+3. BBS sysops can use the public `nc-sysop` package on Linux x64 or Windows
+   x64, or build from tagged source with Cargo.
+4. Localhost sysops build from tagged source with Cargo and run `nc-game`
+   directly.
 
 == Choose Your Deployment
 
-NC has three practical deployment paths.
+NC has three practical ways to run the Rust game.
 
-=== 1. Self-Host
+=== 1. Nostr Host
 
-Use this when a sysop wants to run one game for himself and a few friends.
+Use this when a sysop wants the normal public multiplayer path. Players use
+`nc-connect`. The host runs `nc-sysop nostr serve`, and the live game runs
+inside `nc-game` over SSH.
 
 1. Build the binaries.
 2. Create a game directory with `nc-sysop new-game`.
-3. Run `nc-game` directly, or turn on `nc-sysop nostr` if the players will
-   connect remotely.
+3. Register the game with the host and start `nc-sysop nostr serve`.
 4. Run `nc-sysop maint` when the year should advance.
-
-The simplest local setup is:
-
-```
-nc-sysop new-game /home/sysop/nc-games/friday-night --name "Friday Night NC" --players 4
-nc-game --dir /home/sysop/nc-games/friday-night --player 1
-```
-
-=== 2. Dedicated VPS Host
-
-Use this when one operator wants to run many games for many players on one
-server.
-
-1. Run `scripts/install_vps.sh` as root.
-2. Create each game under `/srv/nc/games/<slug>/` as the `ncgame` service user.
-3. Register each game with `nc-sysop host games add` as root.
-4. Run one `nc-sysop nostr serve` daemon for all games.
-5. Run one `nc-sysop maint-all` timer for all games.
 
 The standard VPS layout is:
 
@@ -209,31 +198,42 @@ The standard VPS layout is:
 /srv/nc/games/<slug>/ncgame.db
 ```
 
-The host-global relay URL and SSH address live in
-`/etc/nc-gate/config.kdl`. `scripts/install_vps.sh` writes them from
-`--relay`, `--ssh-host`, and `--ssh-port`. If you change those values later,
-edit `/etc/nc-gate/config.kdl` as root and restart `nc-nostr.service`.
+This path can live on a Linux VPS or any other SSH-reachable Linux host. The
+full hosted setup is covered below under *Recommended Public Host*.
 
-If you self-host the relay on the same VPS, remember that the relay host must
-also be publicly reachable. A common setup is `nostr-rs-relay` bound to
-`127.0.0.1:8080` with Caddy or another HTTPS reverse proxy serving the relay
-hostname on port `443`.
+=== 2. Localhost Session
+
+Use this when a sysop wants direct same-machine play for himself, hotseat
+testing, or a small trusted session.
+
+1. Build the binaries from source.
+2. Create a game directory with `nc-sysop new-game`.
+3. Run `nc-game` directly.
+4. Run `nc-sysop maint` when the year should advance.
+
+The simplest localhost setup is:
+
+```
+nc-sysop new-game /home/sysop/nc-games/friday-night --name "Friday Night NC" --players 4
+nc-game --dir /home/sysop/nc-games/friday-night --player 1
+```
 
 === 3. BBS Door Host
 
-Use this when the sysop wants `nc-game` as a door under Mystic, ENiGMA½, or a
+Use this when the sysop wants `nc-door` as a door under Mystic, ENiGMA½, or a
 similar BBS.
 
 1. Create the game directory.
 2. Write a minimal per-game `config.kdl` with `players` and any fixed-seat
    `reservations`.
 3. Initialize it with `nc-sysop new-game --bbs`.
-4. Launch `nc-game` with a BBS dropfile.
+4. Launch `nc-door` with a BBS dropfile.
 5. Keep maintenance outside the door. Run `nc-sysop maint` from the host or
    the BBS event runner.
 
-For localhost and BBS hosting, use the `nc-sysop` package or build from
-source. VPS/Nostr hosting remains a tagged-source Cargo workflow.
+For BBS hosting, use the public `nc-sysop` package or build from source.
+Localhost play remains a source-build path. VPS/Nostr hosting remains a
+tagged-source Cargo workflow.
 
 For the exact launcher setups, see:
 
@@ -547,7 +547,7 @@ compiled-in color set. It is not a file path.
 Players may still choose a local color theme inside `nc-game`. That choice is
 stored in `ncgame.db` as a player preference.
 
-In BBS door mode, `nc-game` does not use `default_theme_key` at runtime. Door
+In BBS door mode, `nc-door` does not use `default_theme_key` at runtime. Door
 sessions always force the bundled `mag16` palette so ANSI16 terminals and BBS
 clients get a predictable color-safe baseline.
 
@@ -581,9 +581,9 @@ UTF-8 encoding (the default) is correct for SSH sessions on modern terminals.
 Use `--encoding cp437` only if you are proxying through a BBS or a CP437
 terminal emulator over SSH.
 
-// ─── 7. Local and Direct Play ─────────────────────────────────────────────────
+// ─── 7. Localhost Session Setup ───────────────────────────────────────────────
 
-= Local and Direct Play
+= Localhost Session Setup
 
 Localhost play remains a fully supported secondary mode for solo campaigns,
 hotseat sessions, and sysop testing. Run `nc-game` directly in your terminal:
@@ -596,19 +596,18 @@ Color mode and encoding default to `auto` / `utf8`, which is correct for
 modern terminal emulators. The client detects `COLORTERM` and `TERM`
 automatically.
 
-// ─── 8. Legacy BBS Door Setup ─────────────────────────────────────────────────
+// ─── 8. BBS Door Setup ────────────────────────────────────────────────────────
 
-= Legacy BBS Door Setup
+= BBS Door Setup
 
-`nc-game` can still run as a BBS door. This path is preserved for classic-host
-compatibility, not as the primary recommendation for new public campaigns. In
-door mode, the client reads from and writes to a socket instead of the local
-TTY, using CP437 encoding and 16-color ANSI.
+`nc-door` is the standard BBS entrypoint on Windows and Linux. Use it when the
+host is a BBS. Keep `nc-game` for direct localhost and SSH/VPS sessions. In
+door mode, `nc-door` uses CP437 and 16-color ANSI for classic terminal clients.
 
 == Flags for Door Mode
 
 ```
-nc-game \
+nc-door \
   --dir /path/to/mygame \
   --player <1-based index> \
   --encoding cp437 \
@@ -629,10 +628,10 @@ between that ANSI16 palette and a greyscale monochrome projection.
 
 == Drop File
 
-`nc-game` can read a BBS drop file directly with `--dropfile <path>`:
+`nc-door` can read a BBS drop file directly with `--dropfile <path>`:
 
 ```
-nc-game \
+nc-door \
   --dir /path/to/mygame \
   --dropfile /path/to/DOOR32.SYS
 ```
@@ -659,7 +658,7 @@ nc-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 With that in place, a reserved caller can launch with `--dropfile` alone.
-If the caller alias is not reserved, `nc-game` now uses this dropfile-only
+If the caller alias is not reserved, `nc-door` now uses this dropfile-only
 door flow:
 
 - if the alias already matches a stored joined player handle, that caller
@@ -682,19 +681,19 @@ must agree on the same empire slot.
 
 == Enigma BBS (Rust Client)
 
-The native Rust `nc-game` door is now verified on both Mystic and ENiGMA½.
+The native Rust `nc-door` binary is now verified on both Mystic and ENiGMA½.
 For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
 `io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
-`--encoding cp437`, and `--color-mode ansi16` to the client, or use the
-helper wrapper at `tools/bbs/run_nc_rust.sh`. A normal BBS door entry no
-longer needs per-seat `--player` flags for unreserved callers; `--dropfile`
-is enough. Keep `--player` for localhost/manual launches where the sysop or
-tester wants an explicit fixed seat.
+`--encoding cp437`, and `--color-mode ansi16` to `nc-door`. The helper wrapper
+at `tools/bbs/run_nc_rust.sh` remains useful only for source-tree testing. A
+normal BBS door entry no longer needs per-seat `--player` flags for unreserved
+callers; `--dropfile` is enough. Keep `--player` for localhost/manual launches
+where the sysop or tester wants an explicit fixed seat.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
 
 ```
-nc-game \
+nc-door \
   --dir /path/to/mygame \
   --dropfile /path/to/DOOR32.SYS
 ```
@@ -804,11 +803,11 @@ Each `seat` entry binds one 1-based empire slot to one caller alias. Alias
 matching is ASCII case-insensitive, so `NightShade`, `nightshade`, and
 `NIGHTSHADE` are treated as the same reservation.
 
-With reservations in place, launch `nc-game` with `--dropfile` and let the
+With reservations in place, launch `nc-door` with `--dropfile` and let the
 caller alias choose the empire automatically:
 
 ```sh
-nc-game --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
+nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 ```
 
 Important rules:
@@ -821,7 +820,7 @@ Important rules:
 - if both `--player` and `--dropfile` are supplied for a reserved caller, they must match
 - if both `--player` and `--dropfile` are supplied for a stored-handle match,
   they must match
-- if a reservation conflicts with an already-stored different player handle, `nc-game` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
+- if a reservation conflicts with an already-stored different player handle, `nc-door` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
 - if no open unreserved empires remain, `J` from the BBS first-time menu is
   refused and the caller stays on that menu
 
@@ -850,7 +849,11 @@ path. It behaves like a direct seat binding; if the seat number is wrong,
   games by invite code, downloads the static starmap bundle on first join,
   and opens the SSH-backed `nc-game` session.
 
-/ `nc-game`: The Rust TUI player client.
+/ `nc-game`: The Rust TUI player client for direct localhost and SSH/VPS
+  sessions.
+
+/ `nc-door`: The Rust BBS door entrypoint. It runs the same game flow as
+  `nc-game`, but it is the staged binary for Windows and Linux BBS hosts.
 
 / `ncgame.db`: The SQLite database that is the runtime source of truth for the
   Rust engine.
@@ -891,12 +894,17 @@ nc-sysop <subcommand> [options]
   [`maint-all`], [Sweep every game registered in the gate config, skipping games that are not due or that currently have active sessions.],
 )
 
-== nc-game
+== nc-game and nc-door
 
 ```
 nc-game --dir <game_dir> [--player <1-based index>] [options]
+nc-door --dir <game_dir> [--player <1-based index>] [options]
 nc-game submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>
 ```
+
+Use `nc-game` for direct localhost and SSH/VPS sessions. Use `nc-door` for BBS
+door launches. The interactive flags below apply to both binaries unless a host
+setup guide says otherwise.
 
 Interactive client flags:
 

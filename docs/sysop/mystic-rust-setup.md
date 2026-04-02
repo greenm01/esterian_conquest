@@ -1,7 +1,7 @@
 # Mystic Rust Door Setup
 
-This is the current baseline local-door BBS host for the Rust-native
-`nc-game` client.
+Mystic is the current baseline local-door BBS host for the Rust-native
+`nc-door` path.
 
 Status note:
 
@@ -13,19 +13,19 @@ Status note:
 Use:
 
 - `nc-sysop` to create and maintain the campaign
-- `nc-game` as the Unix-like player door
-- `nc-door.exe` as the native Windows player door
+- `nc-door` as the staged player door on Unix-like hosts
+- `nc-door.exe` as the staged player door on native Windows hosts
 - Mystic's `DC` door command so Mystic writes `CHAIN.TXT` into `%P`
-- [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) as the source-
-  tree launcher on Unix-like hosts
+- [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) only as a
+  source-tree/dev helper on Unix-like hosts
 
-`nc-game` already accepts `CHAIN.TXT`, so Mystic does not need a format
+`nc-door` already accepts `CHAIN.TXT`, so Mystic does not need a format
 translation layer.
 
 ## 1. Build the Rust binaries
 
-For Linux localhost/BBS hosting, use the public `nc-sysop` package or build
-from source.
+For Linux BBS hosting, use the public `nc-sysop` package or build from source.
+Localhost play remains a source-build `nc-game` path.
 
 From the repo root:
 
@@ -71,7 +71,7 @@ cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player
 cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
-If a caller alias is not reserved, Mystic can still launch `nc-game` with
+If a caller alias is not reserved, Mystic can still launch `nc-door` with
 `CHAIN.TXT` alone:
 
 - returning callers resume automatically by stored caller handle
@@ -115,7 +115,7 @@ DC
 Door data:
 
 ```text
-/path/to/esterian_conquest/tools/bbs/run_nc_rust.sh /path/to/ec-campaign %PCHAIN.TXT
+/path/to/nc-door --dir /path/to/ec-campaign --dropfile %PCHAIN.TXT --encoding cp437 --color-mode ansi16
 ```
 
 Windows-native example:
@@ -127,10 +127,13 @@ C:\path\to\nc-door.exe --dir C:\path\to\ec-campaign --dropfile %PCHAIN.TXT --enc
 For a permanent Windows install, point Mystic directly at the staged
 `nc-door.exe`. Keep `run_nc_rust.cmd` only as a source-tree/dev helper.
 
+If you are wiring Mystic from a live source tree instead of a staged binary,
+`tools/bbs/run_nc_rust.sh` remains a convenient Unix-like helper.
+
 Why `DC`:
 
 - Mystic generates `CHAIN.TXT` automatically
-- `nc-game` parses `CHAIN.TXT` directly
+- `nc-door` parses `CHAIN.TXT` directly
 - no DOS compatibility wrapper is required
 
 ## 5. Start Mystic

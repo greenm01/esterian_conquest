@@ -10,8 +10,8 @@ Status note:
 Use the native Rust stack:
 
 - `nc-sysop` to create and maintain the campaign
-- `nc-game` as the Unix-like player door
-- `nc-door.exe` as the native Windows player door
+- `nc-door` as the staged player door on Unix-like hosts
+- `nc-door.exe` as the staged player door on native Windows hosts
 - `abracadabra` in `stdio` mode for the ENiGMA launcher
 
 Do not use the legacy DOS wrapper unless you specifically want to host the
@@ -19,8 +19,8 @@ original `ECGAME.EXE`.
 
 ## 1. Build the Rust client
 
-For Linux localhost/BBS hosting, use the public `nc-sysop` package or build
-from source.
+For Linux BBS hosting, use the public `nc-sysop` package or build from source.
+Localhost play remains a source-build `nc-game` path.
 
 From the repo root:
 
@@ -36,11 +36,10 @@ cd rust
 cargo build -q --release -p nc-game -p nc-sysop
 ```
 
-The helper script [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh)
-will use `target/release/nc-game` first, then `target/debug/nc-game`, then
-fall back to `cargo run`.
-
-On native Windows hosts, point ENiGMA directly at a staged `nc-door.exe`.
+For a live BBS host, stage `target/release/nc-door` or `target/release/nc-door.exe`
+and point ENiGMA directly at that binary. Keep
+[`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) only as a
+source-tree/dev helper on Unix-like hosts.
 
 ## 2. Create a campaign
 
@@ -88,7 +87,7 @@ cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player
 cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
-If a caller alias is not reserved, `nc-game` still works cleanly from the
+If a caller alias is not reserved, `nc-door` still works cleanly from the
 dropfile alone:
 
 - returning callers resume automatically by stored caller handle
@@ -115,10 +114,16 @@ doorEsterianConquestRust: {
     config: {
         name: Esterian Conquest
         dropFileType: DOOR32
-        cmd: /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh
+        cmd: /path/to/nc-door
         args: [
+            "--dir"
             "/path/to/ec-campaign"
+            "--dropfile"
             "{dropFilePath}"
+            "--encoding"
+            "cp437"
+            "--color-mode"
+            "ansi16"
         ]
         io: stdio
         encoding: cp437
@@ -146,7 +151,7 @@ Why `stdio`:
 
 - ENiGMA `socket` mode is for doors or wrappers that actively connect back to
   `{srvPort}`
-- native `nc-game` reads and writes directly on stdin/stdout
+- native `nc-door` reads and writes directly on stdin/stdout
 - `DOOR32` is still useful for caller alias and timeout metadata
 
 Door-control note:
@@ -157,7 +162,7 @@ Door-control note:
 
 ## 5. Optional map-export staging
 
-The wrapper script sets:
+If you are still launching from a live source tree, the helper wrapper sets:
 
 - `EC_CLIENT_EXPORT_ROOT=$GAME_DIR/exports` by default
 
@@ -208,10 +213,16 @@ is:
 
 ```hjson
 dropFileType: DOOR32
-cmd: /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh
+cmd: /path/to/nc-door
 args: [
+    "--dir"
     "/path/to/ec-campaign"
+    "--dropfile"
     "{dropFilePath}"
+    "--encoding"
+    "cp437"
+    "--color-mode"
+    "ansi16"
 ]
 io: stdio
 encoding: cp437

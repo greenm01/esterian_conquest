@@ -54,13 +54,21 @@ renders game state natively.
 
 ## Auth Model Overview
 
-Three hosting paths, one game binary, but one recommended public default:
+Nostrian Conquest supports three ways to play, but only one of them is the
+recommended public default.
 
-| Path | Identity | Transport | Use case |
-|------|----------|-----------|----------|
-| Nostr | secp256k1 keypair | SSH (via `nc-connect`) | Recommended public multiplayer |
-| Localhost | None needed | Direct PTY | Solo play, hotseat, development |
-| BBS door | Dropfile (caller alias) | Telnet/SSH via BBS | Legacy compatibility hosting |
+The Nostr path is the main public story. The player runs `nc-connect`, the
+sysop runs `nc-sysop nostr serve`, and the live session runs inside `nc-game`
+over SSH.
+
+Localhost play is the direct same-machine path. In that mode the sysop or
+player runs `nc-game` directly in a terminal. This is the normal route for
+solo play, hotseat testing, and developer work.
+
+BBS play is the classic door path. In that mode the sysop stages `nc-door` as
+the door entrypoint and lets the BBS hand caller identity to the game through a
+dropfile. That path remains supported, but it is not the recommended public
+onboarding story for new campaigns.
 
 The Nostr path is the focus of this spec and the recommended way to host a
 shared game today. Players join by redeeming an invite code, then complete the
