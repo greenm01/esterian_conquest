@@ -8,6 +8,8 @@ Validated path:
 - use `DOOR32` so Synchronet passes the caller metadata and socket descriptor
 - use the minimal command line shown below
 - keep `Intercept I/O Interrupts` off for this native socket door
+- this path is live-verified on a normal Windows `C:\SBBS` install with
+  SyncTERM
 
 Use:
 

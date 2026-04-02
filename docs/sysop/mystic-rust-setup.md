@@ -1,11 +1,11 @@
 # Mystic Rust Door Setup
 
-Mystic is the current baseline local-door BBS host for the Rust-native
-`nc-door` path.
+Mystic is a verified Rust-native BBS host for `nc-door`.
 
 Status note:
 
-- this path is validated with the current Rust door client
+- Unix-like Mystic with `DC` / `CHAIN.TXT` is supported
+- native Windows Mystic with `D3` / `DOOR32.SYS` is live-verified
 
 Use:
 
@@ -16,7 +16,7 @@ Use:
 - [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) only as a
   source-tree/dev helper on Unix-like hosts
 
-Use the dropfile/transport that matches the host:
+Use the dropfile and transport that match the host:
 
 - Unix-like Mystic hosts can use `DC` with `CHAIN.TXT`
 - native Windows Mystic hosts should use `D3` with `DOOR32.SYS`
@@ -97,7 +97,8 @@ documented non-interactive path is:
 ```
 
 For a local-only test harness, bind Mystic to a non-privileged localhost port
-such as `127.0.0.1:2323`.
+such as `127.0.0.1:2323`. A normal native Windows install can also stay on the
+default telnet port if that matches the rest of your BBS setup.
 
 ## 4. Add the EC door
 
@@ -176,5 +177,6 @@ C:\Mystic\doors\nc-game\bin\nc-door.exe --dir C:\Mystic\doors\nc-game\campaign -
 ```
 
 That path was smoke-tested on Windows with SyncTERM against a normal
-`C:\Mystic` install. `DC` with `CHAIN.TXT` is still correct for Unix-like
-Mystic hosts, but it is not the preferred native Windows path.
+`C:\Mystic` install and a staged Windows release package. `DC` with
+`CHAIN.TXT` is still correct for Unix-like Mystic hosts, but it is not the
+preferred native Windows path.

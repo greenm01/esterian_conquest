@@ -5,12 +5,15 @@ player-facing assets, and administering live campaigns.
 
 Use these docs in roughly this order:
 
+- [campaign-settings.md](campaign-settings.md)
+  - non-BBS campaign settings and raw `nc-sysop settings show` reference
 - [turn-kdl.md](turn-kdl.md)
   - KDL turn file format reference for file-based turn submission
 - [mystic-rust-setup.md](mystic-rust-setup.md)
-  - validated local-door BBS setup for the Rust-native `nc-door`
+  - validated Mystic setup for the Rust-native `nc-door`, including the
+    native Windows `D3` / `DOOR32` path
 - [synchronet-rust-setup.md](synchronet-rust-setup.md)
-  - native Windows Synchronet setup for the Rust-native `nc-door`
+  - validated native Windows Synchronet setup for the Rust-native `nc-door`
 - [enigma-rust-setup.md](enigma-rust-setup.md)
   - validated ENiGMA½ setup notes for the Rust-native `nc-door`
 - [sysop-map-exports.md](sysop-map-exports.md)
@@ -37,8 +40,8 @@ Hosted Rust campaigns are DB-only: one `ncgame.db` per game directory. BBS
 door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.
 Hosted/Nostr game registry data remains global in `/etc/nc-gate/config.kdl`.
 
-Mystic and ENiGMA are validated stdio Rust-door hosts. Synchronet is the native
-Windows socket-door target.
+ENiGMA½ remains the validated stdio Rust-door host. Native Windows Mystic and
+native Windows Synchronet are now both verified `DOOR32` hosts for `nc-door`.
 
 Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
 Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with
