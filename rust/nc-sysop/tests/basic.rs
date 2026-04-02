@@ -249,6 +249,66 @@ fn nc_sysop_settings_show_for_bbs_campaign_omits_seed_and_lists_reservations() {
 }
 
 #[test]
+fn nc_sysop_settings_reserve_accepts_dir_with_other_flags_for_bbs_campaigns() {
+    let target = unique_temp_dir("nc-sysop-settings-reserve-bbs");
+    BbsGameConfig {
+        players: 4,
+        reservations: Vec::new(),
+    }
+    .save_kdl(&target.join("config.kdl"))
+    .expect("write BBS config");
+
+    run_nc_sysop(&["new-game", "--bbs", target.to_str().expect("utf-8 path")]);
+
+    let stdout = run_nc_sysop(&[
+        "settings",
+        "reserve",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "1",
+        "--alias",
+        "SYSOP",
+    ]);
+    assert!(stdout.contains("Reserved seat 1"));
+
+    let config = BbsGameConfig::load_kdl(&target.join("config.kdl")).expect("load BBS config");
+    assert_eq!(
+        config.reservations,
+        vec![SeatReservation {
+            player_record_index_1_based: 1,
+            alias: "SYSOP".to_string(),
+        }]
+    );
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_settings_set_accepts_dir_with_other_flags_for_hosted_campaigns() {
+    let target = unique_temp_dir("nc-sysop-settings-set-hosted");
+    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+
+    let stdout = run_nc_sysop(&[
+        "settings",
+        "set",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--game-name",
+        "Friday Night NC",
+    ]);
+    assert!(stdout.contains("Updated settings"));
+
+    let settings = CampaignStore::open_default_in_dir(&target)
+        .expect("open campaign store")
+        .load_campaign_settings()
+        .expect("load campaign settings");
+    assert_eq!(settings.game_name, "Friday Night NC");
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn nc_sysop_help_lists_public_subcommands() {
     let output = run_nc_sysop_output(&["--help"], None);
     assert!(output.status.success(), "help should succeed");

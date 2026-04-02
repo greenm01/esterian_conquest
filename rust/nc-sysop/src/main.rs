@@ -925,7 +925,8 @@ fn parse_on_off(value: &str) -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 fn parse_required_dir_flag(args: &[String]) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    parse_path_flag(args, "--dir")?.ok_or_else(|| "missing value for --dir".into())
+    parse_optional_path_flag_anywhere(args, "--dir")?
+        .ok_or_else(|| "missing value for --dir".into())
 }
 
 fn parse_required_string_flag(
@@ -940,6 +941,9 @@ fn parse_required_string_flag(
                 return Err(format!("missing value for {flag}").into());
             };
             return Ok(next.to_string());
+        }
+        if let Some(value) = arg.strip_prefix(&format!("{flag}=")) {
+            return Ok(value.to_string());
         }
         i += 1;
     }
@@ -963,6 +967,27 @@ fn args_value(
     };
     *idx += 2;
     Ok(value.to_string())
+}
+
+fn parse_optional_path_flag_anywhere(
+    args: &[String],
+    flag: &str,
+) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if arg == flag {
+            let Some(next) = args.get(i + 1) else {
+                return Err(format!("missing value for {flag}").into());
+            };
+            return Ok(Some(PathBuf::from(next)));
+        }
+        if let Some(value) = arg.strip_prefix(&format!("{flag}=")) {
+            return Ok(Some(PathBuf::from(value)));
+        }
+        i += 1;
+    }
+    Ok(None)
 }
 
 fn resolve_repo_path(arg: &str) -> PathBuf {
@@ -1264,13 +1289,6 @@ fn parse_single_path_flag(
         i += 1;
     }
     Ok(value)
-}
-
-fn parse_path_flag(
-    args: &[String],
-    flag: &str,
-) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
-    parse_single_path_flag(args, flag)
 }
 
 fn parse_path_flags(
