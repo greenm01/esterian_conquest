@@ -210,8 +210,8 @@ widget-layout TUI frameworks:
 - use one restrained Tokyo Night-inspired dark theme across the whole client
   instead of mixing bright inverse DOS bars with dark-body screens; the
   shipped bundle includes richer modern palettes for this aesthetic
-- bootstrap the default theme (`themes/classic.kdl`) into the game directory's
-  `themes/` subdirectory on first run; sysops can switch themes via `config.kdl`
+- keep bundled themes compiled in; normal local/hosted play may use richer
+  palettes, but BBS door mode always forces the bundled `mag16` palette
 - keep interactive styling on `crossterm` rather than hand-built ANSI escape
   strings so Linux, macOS, and Windows terminal behavior stays aligned
 
@@ -439,7 +439,7 @@ The current player-binding / first-time-menu policy is:
 | Session Type | Seat Binding | Skips Generic FTM? | Result |
 | --- | --- | --- | --- |
 | Nostr hosted player | Hosted invite / seat claim | Yes | Goes through hosted onboarding, not the generic BBS FTM |
-| Reserved BBS caller | `ncgame.db` reservation by dropfile alias | Yes | Enters the reserved-seat first-time flow directly |
+| Reserved BBS caller | Per-game `config.kdl` reservation by dropfile alias | Yes | Enters the reserved-seat first-time flow directly |
 | Returning BBS caller | Stored player handle match from dropfile alias | Yes | Resumes the previously joined empire directly |
 | New BBS caller | No seat bound on entry | No | Lands on the BBS first-time menu |
 | Localhost/manual `--player <N>` | Explicit CLI seat | Yes | Treated as a fixed-seat session |

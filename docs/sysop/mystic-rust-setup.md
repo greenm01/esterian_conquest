@@ -36,13 +36,25 @@ cargo build -q --release -p nc-game -p nc-sysop
 
 Example:
 
-```bash
-cd rust
-cargo run -q -p nc-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
+Create `/path/to/ec-campaign/config.kdl`:
+
+```kdl
+players 4
+seed 1515
+reservations {
+    seat player=1 alias="mag"
+    seat player=2 alias="NightShade"
+}
 ```
 
-Seat reservations are optional. Use them when you want a specific caller alias
-to own a fixed empire slot:
+Then initialize the campaign:
+
+```bash
+cd rust
+cargo run -q -p nc-sysop -- new-game --bbs /path/to/ec-campaign
+```
+
+Seat reservations are optional. If you want to add or change them later, use:
 
 ```bash
 cd rust

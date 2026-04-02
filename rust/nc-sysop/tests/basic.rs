@@ -4,7 +4,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nc_data::{CampaignStore, HostedSeatStatus};
+use nc_data::{BbsGameConfig, CampaignStore, HostedSeatStatus, SeatReservation};
 use nc_gate::config::parse_config_str;
 use nc_gate::config::save_config;
 use nostr_sdk::{Keys, ToBech32};
@@ -102,6 +102,49 @@ fn nc_sysop_new_game_initializes_default_campaign() {
 }
 
 #[test]
+fn nc_sysop_new_game_bbs_requires_existing_config_kdl() {
+    let target = unique_temp_dir("nc-sysop-new-game-bbs-missing-config");
+
+    let stderr = run_nc_sysop_failure(&["new-game", "--bbs", target.to_str().expect("utf-8 path")]);
+    assert!(stderr.contains("requires an existing config.kdl"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_new_game_bbs_reads_minimal_config_kdl() {
+    let target = unique_temp_dir("nc-sysop-new-game-bbs");
+    let config = BbsGameConfig {
+        players: 4,
+        seed: Some(1515),
+        reservations: vec![SeatReservation {
+            player_record_index_1_based: 1,
+            alias: "SYSOP".to_string(),
+        }],
+    };
+    config
+        .save_kdl(&target.join("config.kdl"))
+        .expect("write BBS config");
+
+    let stdout = run_nc_sysop(&["new-game", "--bbs", target.to_str().expect("utf-8 path")]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("players=4"));
+    assert!(stdout.contains("year=3000"));
+    assert!(target.join("config.kdl").exists());
+    assert!(target.join("ncgame.db").exists());
+
+    let runtime = CampaignStore::open_default_in_dir(&target)
+        .expect("open campaign store")
+        .load_latest_runtime_state()
+        .expect("load runtime")
+        .expect("runtime snapshot");
+    assert_eq!(runtime.game_data.conquest.game_year(), 3000);
+    assert_eq!(runtime.game_data.player.records.len(), 4);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn nc_sysop_new_game_rejects_internal_setup_preset_flag() {
     let target = unique_temp_dir("nc-sysop-new-game-invalid-config");
     let stderr = run_nc_sysop_failure(&[
@@ -139,26 +182,16 @@ fn nc_sysop_maint_runs_rust_maintenance() {
 }
 
 #[test]
-fn nc_sysop_new_game_accepts_year_flag() {
+fn nc_sysop_new_game_rejects_year_flag() {
     let target = unique_temp_dir("nc-sysop-new-game-year");
 
-    let stdout = run_nc_sysop(&[
+    let stderr = run_nc_sysop_failure(&[
         "new-game",
         target.to_str().expect("utf-8 path"),
         "--year",
         "3012",
-        "--seed",
-        "1515",
     ]);
-    assert!(stdout.contains("Initialized new game"));
-    assert!(stdout.contains("year=3012"));
-
-    let runtime = CampaignStore::open_default_in_dir(&target)
-        .expect("open campaign store")
-        .load_latest_runtime_state()
-        .expect("load runtime")
-        .expect("runtime snapshot");
-    assert_eq!(runtime.game_data.conquest.game_year(), 3012);
+    assert!(stderr.contains("unexpected argument: --year"));
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -171,7 +204,7 @@ fn nc_sysop_help_lists_public_subcommands() {
     assert!(stdout.contains("new-game <target_dir>"));
     assert!(stdout.contains("maint <dir> [turns]"));
     assert!(stdout.contains("maint-all [--config <path>]"));
-    assert!(stdout.contains("settings <show|set|reserve|unreserve|import-kdl>"));
+    assert!(stdout.contains("settings <show|set|reserve|unreserve>"));
     assert!(stdout.contains("host <games|status>"));
     assert!(stdout.contains("nostr init [--identity <path>]"));
     assert!(stdout.contains("nostr serve [--config <path>] [--identity <path>]"));

@@ -433,16 +433,14 @@ fn app_load_persists_all_setup_backed_config_fields_into_runtime_snapshot() {
     let config = GameConfig {
         game_name: "Config Persistence Test".to_string(),
         theme: None,
-        snoop: false,
-        session: SessionConfig {
-            max_idle_minutes: 19,
-            minimum_time_minutes: 7,
-            local_timeout: true,
-            remote_timeout: false,
-        },
-        inactivity: InactivityConfig {
-            purge_after_turns: 12,
-            autopilot_after_turns: 5,
+        setup_overrides: GameSetupOverrides {
+            snoop_enabled: Some(false),
+            session_max_idle_minutes: Some(19),
+            session_minimum_time_minutes: Some(7),
+            session_local_timeout: Some(true),
+            session_remote_timeout: Some(false),
+            inactivity_purge_after_turns: Some(12),
+            inactivity_autopilot_after_turns: Some(5),
         },
         reservations: Vec::new(),
     };

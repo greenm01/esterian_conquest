@@ -13,13 +13,13 @@ pub const CONQUEST_DAT_SIZE: usize = 2085;
 pub const DATABASE_RECORD_SIZE: usize = 100;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 
+mod bbs_config;
 mod builder;
 mod config;
 mod directory;
 mod economy;
 #[doc(hidden)]
 pub mod fleet_motion_state;
-pub mod game_config;
 mod intel;
 pub mod maintenance_types;
 mod map_dimensions;
@@ -33,6 +33,7 @@ mod storage;
 mod support;
 mod turns;
 
+pub use bbs_config::{BbsGameConfig, BbsGameConfigError, SeatReservation};
 pub use builder::{FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec};
 pub use config::{DiplomacyConfig, DiplomacyDirective, SetupConfigError};
 pub use directory::{
@@ -48,10 +49,6 @@ pub use directory::{
 pub use economy::{
     build_capacity, starbase_growth_bonus_percent, yearly_growth_delta, yearly_high_tax_penalty,
     yearly_tax_revenue,
-};
-pub use game_config::{
-    DEFAULT_GAME_CONFIG_KDL, GameConfig, GameConfigError, InactivityConfig, SeatReservation,
-    SessionConfig,
 };
 pub use intel::{active_starbase_count_at, merge_player_intel_from_runtime};
 pub use maintenance_types::{

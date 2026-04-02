@@ -1,7 +1,8 @@
 use rusqlite::{OptionalExtension, params};
 
 use super::{CampaignStore, CampaignStoreError};
-use crate::{GameConfig, SeatReservation};
+use crate::SeatReservation;
+use crate::bbs_config::validate_reservations as validate_shared_reservations;
 
 pub const DEFAULT_CAMPAIGN_THEME_KEY: &str = "tokyo_night";
 pub const DEFAULT_MAINTENANCE_INTERVAL_MINUTES: u32 = 24 * 60;
@@ -65,35 +66,6 @@ impl CampaignSettings {
             maintenance_interval_minutes: DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
             maintenance_next_due_unix_seconds: None,
             reservations: Vec::new(),
-        }
-    }
-
-    pub fn from_legacy_game_config(
-        slug: impl Into<String>,
-        config: &GameConfig,
-        maintenance_next_due_unix_seconds: Option<u64>,
-    ) -> Self {
-        Self {
-            slug: slug.into(),
-            game_name: config.game_name.clone(),
-            default_theme_key: config
-                .theme
-                .as_ref()
-                .and_then(|path| path.file_stem())
-                .and_then(|stem| stem.to_str())
-                .map(normalize_theme_key)
-                .unwrap_or_else(|| DEFAULT_CAMPAIGN_THEME_KEY.to_string()),
-            snoop_enabled: config.snoop,
-            session_max_idle_minutes: config.session.max_idle_minutes,
-            session_minimum_time_minutes: config.session.minimum_time_minutes,
-            session_local_timeout: config.session.local_timeout,
-            session_remote_timeout: config.session.remote_timeout,
-            inactivity_purge_after_turns: config.inactivity.purge_after_turns,
-            inactivity_autopilot_after_turns: config.inactivity.autopilot_after_turns,
-            maintenance_enabled: false,
-            maintenance_interval_minutes: DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
-            maintenance_next_due_unix_seconds,
-            reservations: config.reservations.clone(),
         }
     }
 
@@ -619,34 +591,7 @@ impl CampaignStore {
 }
 
 fn validate_reservations(reservations: &[SeatReservation]) -> Result<(), CampaignStoreError> {
-    let mut seen_players = std::collections::BTreeSet::new();
-    let mut seen_aliases = std::collections::BTreeSet::new();
-    for reservation in reservations {
-        if reservation.player_record_index_1_based == 0 {
-            return Err(CampaignStoreError::InvalidState(
-                "reservation player must be >= 1".to_string(),
-            ));
-        }
-        if !seen_players.insert(reservation.player_record_index_1_based) {
-            return Err(CampaignStoreError::InvalidState(format!(
-                "duplicate reservation for player {}",
-                reservation.player_record_index_1_based
-            )));
-        }
-        let alias = reservation.alias.trim();
-        if alias.is_empty() {
-            return Err(CampaignStoreError::InvalidState(
-                "reservation alias must contain at least one visible character".to_string(),
-            ));
-        }
-        if !seen_aliases.insert(alias.to_ascii_lowercase()) {
-            return Err(CampaignStoreError::InvalidState(format!(
-                "duplicate reservation alias '{}'",
-                reservation.alias
-            )));
-        }
-    }
-    Ok(())
+    validate_shared_reservations(reservations).map_err(CampaignStoreError::InvalidState)
 }
 
 fn load_reservations_conn(
@@ -718,8 +663,4 @@ fn load_session_lease_tx(
     )
     .optional()
     .map_err(CampaignStoreError::Sql)
-}
-
-fn normalize_theme_key(raw: &str) -> String {
-    raw.trim().replace('-', "_").to_ascii_lowercase()
 }

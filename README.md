@@ -168,10 +168,19 @@ sudo /usr/local/bin/nc-sysop nostr publish --dir /srv/ec/games/friday-night
 ```
 
 ### 3. Run `nc-game` As A BBS Door
-Create the game and reserve caller aliases:
+Create the game directory, write a minimal per-game `config.kdl`, then
+initialize it in BBS mode:
+
+```kdl
+players 4
+seed 1515
+reservations {
+  seat player=1 alias="SYSOP"
+}
+```
+
 ```bash
-cargo run -q -p nc-sysop -- new-game /srv/ec/games/night-shift --name "Night Shift NC" --players 4
-cargo run -q -p nc-sysop -- settings reserve --dir /srv/ec/games/night-shift --player 1 --alias SYSOP
+cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift
 ```
 
 During the current beta, a BBS sysop should build from source or use a

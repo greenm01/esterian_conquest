@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use nc_data::{CampaignSettings, CampaignStore, GameConfig, HostedSeat, HostedSeatStatus};
+use nc_data::{CampaignSettings, CampaignStore, HostedSeat, HostedSeatStatus};
 use nc_gate::config::io::{config_path, load_config};
 use nc_gate::invite::generate_invite_code;
 use nc_gate::roster::io::load_roster;
@@ -51,17 +51,7 @@ pub fn migrate_roster(dir: &Path) -> Result<String, Box<dyn std::error::Error>> 
     store.replace_hosted_seats(&seats)?;
 
     let roster_name = roster.name.clone();
-    let settings = if dir.join("config.kdl").exists() {
-        let game_config = GameConfig::load_kdl(&dir.join("config.kdl"))?;
-        CampaignSettings::from_legacy_game_config(expected_game_id, &game_config, None)
-    } else {
-        CampaignSettings::new(expected_game_id, &roster_name)
-    };
-    let settings = CampaignSettings {
-        game_name: roster_name,
-        reservations: settings.reservations,
-        ..settings
-    };
+    let settings = CampaignSettings::new(expected_game_id, &roster_name);
     store.save_campaign_settings(&settings)?;
 
     let legacy_path = dir.join("roster.kdl.legacy");

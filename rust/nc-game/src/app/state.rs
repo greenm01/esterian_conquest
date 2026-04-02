@@ -2,11 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::path::PathBuf;
 
-use nc_data::{
-    CampaignStore, CoreGameData, GameConfig, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
-};
+use nc_data::{CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
 
 use crate::app::help::PopupHelp;
+use crate::app::runtime_config::RuntimeConfig;
 use crate::domains::empire::EmpireState;
 use crate::domains::fleet::FleetState;
 use crate::domains::messaging::MessagingState;
@@ -38,14 +37,14 @@ pub struct AppConfig {
     /// Session time limit in seconds sourced from `--timeout` or a dropfile.
     /// `None` means no limit.
     pub session_timeout_secs: Option<u32>,
-    /// Runtime configuration materialized from campaign settings in `ncgame.db`.
-    pub game_config: GameConfig,
+    /// Runtime configuration materialized from campaign settings or BBS config.
+    pub game_config: RuntimeConfig,
 }
 
 pub struct App {
     pub game_dir: PathBuf,
     pub game_name: String,
-    pub game_config: GameConfig,
+    pub game_config: RuntimeConfig,
     pub game_data: CoreGameData,
     pub player: PlayerContext,
     pub current_screen: ScreenId,
@@ -283,7 +282,7 @@ fn apply_player_theme_preference(
 /// `CoreGameData` and the active snapshot id (new if saved, original if not).
 fn apply_game_config_overrides(
     mut game_data: CoreGameData,
-    cfg: &GameConfig,
+    cfg: &RuntimeConfig,
     store: &CampaignStore,
     current_snapshot_id: i64,
     planet_scorch_orders: &BTreeSet<usize>,
@@ -310,37 +309,39 @@ fn apply_game_config_overrides(
         };
     }
 
-    apply_bool!(snoop_enabled, set_snoop_enabled, cfg.snoop);
-    apply_bool!(
-        local_timeout_enabled,
-        set_local_timeout_enabled,
-        cfg.session.local_timeout
-    );
-    apply_bool!(
-        remote_timeout_enabled,
-        set_remote_timeout_enabled,
-        cfg.session.remote_timeout
-    );
-    apply_u8!(
-        max_time_between_keys_minutes_raw,
-        set_max_time_between_keys_minutes_raw,
-        cfg.session.max_idle_minutes
-    );
-    apply_u8!(
-        minimum_time_granted_minutes_raw,
-        set_minimum_time_granted_minutes_raw,
-        cfg.session.minimum_time_minutes
-    );
-    apply_u8!(
-        purge_after_turns_raw,
-        set_purge_after_turns_raw,
-        cfg.inactivity.purge_after_turns
-    );
-    apply_u8!(
-        autopilot_inactive_turns_raw,
-        set_autopilot_inactive_turns_raw,
-        cfg.inactivity.autopilot_after_turns
-    );
+    if let Some(value) = cfg.setup_overrides.snoop_enabled {
+        apply_bool!(snoop_enabled, set_snoop_enabled, value);
+    }
+    if let Some(value) = cfg.setup_overrides.session_local_timeout {
+        apply_bool!(local_timeout_enabled, set_local_timeout_enabled, value);
+    }
+    if let Some(value) = cfg.setup_overrides.session_remote_timeout {
+        apply_bool!(remote_timeout_enabled, set_remote_timeout_enabled, value);
+    }
+    if let Some(value) = cfg.setup_overrides.session_max_idle_minutes {
+        apply_u8!(
+            max_time_between_keys_minutes_raw,
+            set_max_time_between_keys_minutes_raw,
+            value
+        );
+    }
+    if let Some(value) = cfg.setup_overrides.session_minimum_time_minutes {
+        apply_u8!(
+            minimum_time_granted_minutes_raw,
+            set_minimum_time_granted_minutes_raw,
+            value
+        );
+    }
+    if let Some(value) = cfg.setup_overrides.inactivity_purge_after_turns {
+        apply_u8!(purge_after_turns_raw, set_purge_after_turns_raw, value);
+    }
+    if let Some(value) = cfg.setup_overrides.inactivity_autopilot_after_turns {
+        apply_u8!(
+            autopilot_inactive_turns_raw,
+            set_autopilot_inactive_turns_raw,
+            value
+        );
+    }
 
     let snapshot_id = if changed {
         store.save_runtime_state_structured(

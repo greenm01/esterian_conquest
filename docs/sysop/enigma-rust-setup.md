@@ -43,9 +43,22 @@ fall back to `cargo run`.
 
 Example:
 
+Create `/path/to/ec-campaign/config.kdl`:
+
+```kdl
+players 4
+seed 1515
+reservations {
+    seat player=1 alias="niltempus"
+    seat player=2 alias="NightShade"
+}
+```
+
+Then initialize the campaign:
+
 ```bash
 cd rust
-cargo run -q -p nc-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
+cargo run -q -p nc-sysop -- new-game --bbs /path/to/ec-campaign
 ```
 
 Run yearly maintenance from cron, `systemd`, or a BBS event hook:
@@ -57,8 +70,7 @@ cargo run -q -p nc-sysop -- maint /path/to/ec-campaign 1
 
 ## 3. Reserve caller aliases
 
-Reservations are optional. Use them when you want a fixed empire slot for a
-specific caller alias:
+Reservations are optional. If you want to add or change them later, use:
 
 ```bash
 cd rust

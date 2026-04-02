@@ -10,12 +10,14 @@ pub(crate) use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState
 pub(crate) use nc_compat::{decode_report_block_rows, import_directory_snapshot};
 pub(crate) use nc_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
-    EmpireProductionRankingSort, GameConfig, HostedSeat, HostedSeatStatus, InactivityConfig,
-    IntelTier, PlanetIntelSnapshot, ProductionItemKind, QueuedPlayerMail, SeatReservation,
-    SessionConfig, map_size_for_player_count,
+    EmpireProductionRankingSort, HostedSeat, HostedSeatStatus, IntelTier, PlanetIntelSnapshot,
+    ProductionItemKind, QueuedPlayerMail, SeatReservation, map_size_for_player_count,
 };
 pub(crate) use nc_engine::yearly_tax_revenue;
-pub(crate) use nc_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
+pub(crate) use nc_game::app::{
+    Action, App, AppConfig, AppOutcome, RuntimeConfig as GameConfig,
+    RuntimeSetupOverrides as GameSetupOverrides, apply_action,
+};
 pub(crate) use nc_game::domains::empire::EmpireAction;
 pub(crate) use nc_game::domains::fleet::FleetAction;
 pub(crate) use nc_game::domains::fleet::missions::{

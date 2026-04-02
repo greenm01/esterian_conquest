@@ -31,8 +31,9 @@ Practical posture:
   term operating model
 - a public Linux x64 BBS door package is planned later; it should carry
   `nc-game`, `nc-sysop`, and both manuals
-- use `nc-sysop settings` for per-game runtime policy and `/etc/nc-gate/config.kdl`
-  for the global daemon game list
+- hosted/Nostr campaigns use `ncgame.db` for per-game runtime policy, while
+  BBS door campaigns use a minimal per-game `config.kdl`; `/etc/nc-gate/config.kdl`
+  remains the global daemon game list
 - schedule `nc-sysop maint` or `nc-sysop maint-all` with host tooling such as
   `systemd`, `cron`, or BBS event hooks instead of trying to schedule
   maintenance inside the campaign

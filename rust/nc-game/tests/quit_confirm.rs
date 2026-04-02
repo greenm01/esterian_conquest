@@ -5,8 +5,8 @@ use std::{fs, path::Path};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use nc_compat::import_directory_snapshot;
-use nc_data::{CampaignStore, GameConfig};
-use nc_game::app::{Action, App, AppConfig, AppOutcome, apply_action};
+use nc_data::CampaignStore;
+use nc_game::app::{Action, App, AppConfig, AppOutcome, RuntimeConfig, apply_action};
 use nc_game::screen::ScreenId;
 use nc_game::terminal::Terminal;
 
@@ -58,7 +58,7 @@ fn load_app() -> App {
         export_root: None,
         queue_dir: None,
         session_timeout_secs: None,
-        game_config: GameConfig::default(),
+        game_config: RuntimeConfig::default(),
     };
     App::load(config).expect("load app")
 }

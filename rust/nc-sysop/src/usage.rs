@@ -1,7 +1,10 @@
 pub fn print_usage() {
     println!("Usage:");
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] new-game <target_dir> [--name <title>] [--players <1-25>] [--year <u16>] [--seed <u64>]"
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] new-game <target_dir> [--name <title>] [--players <1-25>] [--seed <u64>]"
+    );
+    println!(
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] new-game --bbs <target_dir>"
     );
     println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint <dir> [turns]"
@@ -10,7 +13,7 @@ pub fn print_usage() {
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] maint-all [--config <path>]"
     );
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] settings <show|set|reserve|unreserve|import-kdl> ..."
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] settings <show|set|reserve|unreserve> ..."
     );
     println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] host <games|status> ..."
@@ -44,7 +47,10 @@ pub fn print_usage() {
 pub fn print_new_game_usage() {
     println!("Usage:");
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] new-game <target_dir> [--name <title>] [--players <1-25>] [--year <u16>] [--seed <u64>]"
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] new-game <target_dir> [--name <title>] [--players <1-25>] [--seed <u64>]"
+    );
+    println!(
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] new-game --bbs <target_dir>"
     );
 }
 
@@ -75,9 +81,6 @@ pub fn print_settings_usage() {
     );
     println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] settings unreserve --dir <game_dir> --player <N>"
-    );
-    println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] settings import-kdl --dir <game_dir> [--file <config.kdl>]"
     );
 }
 

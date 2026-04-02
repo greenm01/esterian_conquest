@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
-use crate::app::{App, AppConfig, AppOutcome, apply_action};
+use crate::app::{App, AppConfig, AppOutcome, RuntimeConfig, RuntimeSetupOverrides, apply_action};
 use crate::dropfile;
 use crate::screen::ScreenGeometry;
 use crate::terminal::ColorMode;
@@ -11,7 +11,7 @@ use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
 use crate::terminal::door::DoorTerminal;
 use crate::terminal::stdout::StdoutTerminal;
-use nc_data::{CampaignStore, GameConfig};
+use nc_data::{BbsGameConfig, CampaignStore};
 
 struct ParsedLaunchArgs {
     game_dir: PathBuf,
@@ -138,7 +138,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     }
 
     let campaign_store = CampaignStore::open_default_in_dir(&parsed.game_dir)?;
-    let game_config = load_runtime_game_config(&campaign_store)?;
+    let game_config = load_runtime_game_config(&parsed.game_dir, &campaign_store)?;
     validate_runtime_game_config(&campaign_store, &game_config)?;
     let launch_binding = resolve_launch_player_binding(&parsed, &game_config, &campaign_store)?;
     let player_record_index_1_based = launch_binding.player_record_index_1_based().unwrap_or(1);
@@ -603,33 +603,43 @@ fn print_usage() {
 }
 
 fn load_runtime_game_config(
+    game_dir: &std::path::Path,
     campaign_store: &CampaignStore,
-) -> Result<GameConfig, Box<dyn std::error::Error>> {
+) -> Result<RuntimeConfig, Box<dyn std::error::Error>> {
+    let config_path = game_dir.join("config.kdl");
+    if config_path.exists() {
+        let bbs_config = BbsGameConfig::load_kdl(&config_path)?;
+        return Ok(RuntimeConfig {
+            game_name: humanize_slug(&slug_from_dir(game_dir)?),
+            theme: None,
+            reservations: bbs_config.reservations,
+            setup_overrides: RuntimeSetupOverrides::default(),
+        });
+    }
+
     let settings = campaign_store.load_campaign_settings()?;
-    Ok(GameConfig {
+    Ok(RuntimeConfig {
         game_name: settings.game_name,
         theme: Some(PathBuf::from(format!(
             "themes/{}.kdl",
             settings.default_theme_key
         ))),
-        snoop: settings.snoop_enabled,
-        session: nc_data::SessionConfig {
-            max_idle_minutes: settings.session_max_idle_minutes,
-            minimum_time_minutes: settings.session_minimum_time_minutes,
-            local_timeout: settings.session_local_timeout,
-            remote_timeout: settings.session_remote_timeout,
-        },
-        inactivity: nc_data::InactivityConfig {
-            purge_after_turns: settings.inactivity_purge_after_turns,
-            autopilot_after_turns: settings.inactivity_autopilot_after_turns,
-        },
         reservations: settings.reservations,
+        setup_overrides: RuntimeSetupOverrides {
+            snoop_enabled: Some(settings.snoop_enabled),
+            session_max_idle_minutes: Some(settings.session_max_idle_minutes),
+            session_minimum_time_minutes: Some(settings.session_minimum_time_minutes),
+            session_local_timeout: Some(settings.session_local_timeout),
+            session_remote_timeout: Some(settings.session_remote_timeout),
+            inactivity_purge_after_turns: Some(settings.inactivity_purge_after_turns),
+            inactivity_autopilot_after_turns: Some(settings.inactivity_autopilot_after_turns),
+        },
     })
 }
 
 fn resolve_launch_player_binding(
     parsed: &ParsedLaunchArgs,
-    game_config: &GameConfig,
+    game_config: &RuntimeConfig,
     campaign_store: &CampaignStore,
 ) -> Result<LaunchPlayerBinding, Box<dyn std::error::Error>> {
     let runtime_state = campaign_store
@@ -738,7 +748,7 @@ fn resolve_launch_player_binding(
 
 fn validate_runtime_game_config(
     campaign_store: &CampaignStore,
-    game_config: &GameConfig,
+    game_config: &RuntimeConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if game_config.reservations.is_empty() {
         return Ok(());
@@ -753,7 +763,7 @@ fn validate_runtime_game_config(
 
 fn validate_reserved_seat_runtime(
     game_dir: &std::path::Path,
-    game_config: &GameConfig,
+    game_config: &RuntimeConfig,
     reservation: &nc_data::SeatReservation,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let campaign_store = CampaignStore::open_default_in_dir(game_dir)?;
@@ -788,7 +798,7 @@ fn validate_session_lease(
     session_token: String,
     player_record_index_1_based: usize,
     session_timeout_secs: Option<u32>,
-    game_config: &GameConfig,
+    game_config: &RuntimeConfig,
 ) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
     let lease = campaign_store.load_session_lease(&session_token, unix_now())?;
     if lease.player_record_index_1_based != player_record_index_1_based {
@@ -807,14 +817,13 @@ fn validate_session_lease(
     )
 }
 
-fn session_lease_ttl_seconds(session_timeout_secs: Option<u32>, game_config: &GameConfig) -> u64 {
+fn session_lease_ttl_seconds(
+    session_timeout_secs: Option<u32>,
+    game_config: &RuntimeConfig,
+) -> u64 {
     session_timeout_secs
         .map(u64::from)
-        .or_else(|| {
-            let idle_timeout_secs =
-                u64::from(game_config.session.max_idle_minutes).saturating_mul(60);
-            (idle_timeout_secs > 0).then_some(idle_timeout_secs)
-        })
+        .or_else(|| game_config.idle_timeout_secs())
         .unwrap_or(120)
 }
 
@@ -825,6 +834,45 @@ fn unix_now() -> u64 {
         .as_secs()
 }
 
+fn slug_from_dir(dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {
+    let slug = dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .ok_or_else(|| format!("cannot derive slug from {}", dir.display()))?
+        .to_string();
+    if !slug
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+    {
+        return Err(format!(
+            "game slug '{}' must use only lowercase ascii letters, digits, and dashes",
+            slug
+        )
+        .into());
+    }
+    Ok(slug)
+}
+
+fn humanize_slug(slug: &str) -> String {
+    slug.split('-')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => {
+                    let mut word = String::new();
+                    word.extend(first.to_uppercase());
+                    word.push_str(chars.as_str());
+                    word
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -832,7 +880,7 @@ mod tests {
         apply_launch_context, local_exit_lines, resolve_launch_player_binding,
         session_lease_ttl_seconds, should_emit_local_exit_attribution,
     };
-    use crate::app::{App, AppConfig};
+    use crate::app::{App, AppConfig, RuntimeConfig, RuntimeSetupOverrides};
     use crate::domains::startup::state::FirstTimeOnboardingMode;
     use crate::error::{
         HOSTED_ONBOARDING_INVARIANT_EXIT_CODE, HostedOnboardingInvariantError, exit_code_for,
@@ -841,7 +889,7 @@ mod tests {
     use crate::screen::ScreenId;
     use crate::terminal::{ColorMode, OutputEncoding};
     use nc_compat::import_directory_snapshot;
-    use nc_data::{CampaignSettings, CampaignStore, CoreGameData, GameConfig, SeatReservation};
+    use nc_data::{BbsGameConfig, CampaignStore, CoreGameData, SeatReservation};
     use std::fs;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -884,17 +932,16 @@ mod tests {
     }
 
     fn write_reserved_config(root: &std::path::Path, alias: &str, player: usize) {
-        let store = CampaignStore::open_default_in_dir(root).expect("open campaign store");
-        let mut settings = store
-            .load_campaign_settings()
-            .unwrap_or_else(|_| CampaignSettings::new("fixture-game", "Esterian Conquest"));
-        settings.reservations = vec![SeatReservation {
-            player_record_index_1_based: player,
-            alias: alias.to_string(),
-        }];
-        store
-            .save_campaign_settings(&settings)
-            .expect("write settings");
+        BbsGameConfig {
+            players: 4,
+            seed: None,
+            reservations: vec![SeatReservation {
+                player_record_index_1_based: player,
+                alias: alias.to_string(),
+            }],
+        }
+        .save_kdl(&root.join("config.kdl"))
+        .expect("write BBS config");
     }
 
     fn seed_joined_player_handle(root: &std::path::Path, player: usize, alias: &str) {
@@ -943,7 +990,7 @@ mod tests {
         parsed.dropfile_alias = Some("rival".to_string());
 
         let binding =
-            resolve_launch_player_binding(&parsed, &GameConfig::default(), &campaign_store)
+            resolve_launch_player_binding(&parsed, &RuntimeConfig::default(), &campaign_store)
                 .expect("binding should resolve");
 
         assert_eq!(
@@ -967,7 +1014,7 @@ mod tests {
         parsed.dropfile_alias = Some("RIVAL".to_string());
 
         let binding =
-            resolve_launch_player_binding(&parsed, &GameConfig::default(), &campaign_store)
+            resolve_launch_player_binding(&parsed, &RuntimeConfig::default(), &campaign_store)
                 .expect("binding should resolve");
 
         assert_eq!(binding, LaunchPlayerBinding::UnboundDropfile);
@@ -988,12 +1035,12 @@ mod tests {
 
         let err = resolve_launch_player_binding(
             &parsed,
-            &GameConfig {
+            &RuntimeConfig {
                 reservations: vec![SeatReservation {
                     player_record_index_1_based: 2,
                     alias: "SYSOP".to_string(),
                 }],
-                ..GameConfig::default()
+                ..RuntimeConfig::default()
             },
             &campaign_store,
         )
@@ -1009,22 +1056,31 @@ mod tests {
 
     #[test]
     fn session_lease_uses_explicit_timeout_when_present() {
-        let mut game_config = GameConfig::default();
-        game_config.session.max_idle_minutes = 10;
+        let mut game_config = RuntimeConfig::default();
+        game_config.setup_overrides = RuntimeSetupOverrides {
+            session_max_idle_minutes: Some(10),
+            ..RuntimeSetupOverrides::default()
+        };
         assert_eq!(session_lease_ttl_seconds(Some(45), &game_config), 45);
     }
 
     #[test]
     fn session_lease_uses_campaign_idle_timeout_by_default() {
-        let mut game_config = GameConfig::default();
-        game_config.session.max_idle_minutes = 10;
+        let mut game_config = RuntimeConfig::default();
+        game_config.setup_overrides = RuntimeSetupOverrides {
+            session_max_idle_minutes: Some(10),
+            ..RuntimeSetupOverrides::default()
+        };
         assert_eq!(session_lease_ttl_seconds(None, &game_config), 600);
     }
 
     #[test]
     fn session_lease_falls_back_when_timeout_is_disabled() {
-        let mut game_config = GameConfig::default();
-        game_config.session.max_idle_minutes = 0;
+        let mut game_config = RuntimeConfig::default();
+        game_config.setup_overrides = RuntimeSetupOverrides {
+            session_max_idle_minutes: Some(0),
+            ..RuntimeSetupOverrides::default()
+        };
         assert_eq!(session_lease_ttl_seconds(None, &game_config), 120);
     }
 
@@ -1084,7 +1140,7 @@ mod tests {
             export_root: None,
             queue_dir: None,
             session_timeout_secs: None,
-            game_config: GameConfig::default(),
+            game_config: RuntimeConfig::default(),
         };
         let mut app = App::load(config).expect("app should load");
         let parsed = parsed_args(false);
@@ -1128,7 +1184,7 @@ mod tests {
             export_root: None,
             queue_dir: None,
             session_timeout_secs: None,
-            game_config: GameConfig::default(),
+            game_config: RuntimeConfig::default(),
         };
         let mut app = App::load(config).expect("app should load");
         let mut parsed = parsed_args(true);
