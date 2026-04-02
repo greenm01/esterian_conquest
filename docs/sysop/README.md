@@ -21,13 +21,12 @@ Use these docs in roughly this order:
 - [bbs/mystic-bbs-setup.md](bbs/mystic-bbs-setup.md)
   - validated Mystic setup for `nc-door` on Unix-like hosts and native Windows
 - [bbs/synchronet-bbs-setup.md](bbs/synchronet-bbs-setup.md)
-  - validated Windows Synchronet setup for `nc-door`, plus a smoke-tested Linux
-    native-door path
+  - validated Synchronet setup for `nc-door` on Windows and Linux
 - [bbs/enigma-bbs-setup.md](bbs/enigma-bbs-setup.md)
   - validated ENiGMA½ setup for `nc-door` on Linux and Windows, plus the
     compatibility-only DOS path
 - [bbs/wwiv-bbs-setup.md](bbs/wwiv-bbs-setup.md)
-  - smoke-tested Linux WWIV + SyncTERM setup notes for `nc-door`
+  - validated Linux WWIV + SyncTERM setup notes for `nc-door`
 
 Practical posture:
 
@@ -53,9 +52,8 @@ Current `nc-door` host wins here are:
 - Synchronet
 - ENiGMA½
 
-WWIV also has a smoke-tested Linux `CHAIN.TXT` + SyncTERM path here, but it
-still has less validation depth than the Mystic, Synchronet, and ENiGMA½
-guides.
+WWIV is now validated on Linux too. The remaining cross-platform host gap is
+WWIV on Windows.
 
 Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
 Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with

@@ -661,7 +661,7 @@ dropfile-only door flow:
 == Modern BBS Hosts
 
 The native Rust `nc-door` binary is now verified on Mystic, ENiGMA½, and
-Synchronet, and WWIV now has a smoke-tested Linux path. The shared core launch
+Synchronet, and WWIV now has a validated Linux path. The shared core launch
 shape is simple: pass `--dir` and a dropfile. ENiGMA½ also passes
 `--socket-port`, and Windows Synchronet also passes `--socket-descriptor`.
 The helper wrapper at `tools/bbs/run_nc_rust.sh` remains useful only for
@@ -685,12 +685,12 @@ Windows Synchronet also passes the inherited socket descriptor:
 nc-door --dir /path/to/mygame --dropfile %f --socket-descriptor %H
 ```
 
-Linux Synchronet is smoke-tested with the same `DOOR32` dropfile shape. If
+Linux Synchronet is validated with the same `DOOR32` dropfile shape. If
 your Synchronet install mangles a long native `cmd=` line, keep the full
 `nc-door --dir ... --dropfile ...` invocation inside a tiny wrapper and pass
 only `%f` into that wrapper.
 
-WWIV is documented separately as a smoke-tested Linux `CHAIN.TXT` path:
+WWIV is documented separately as a validated Linux `CHAIN.TXT` path:
 
 ```
 nc-door --dir /path/to/mygame --dropfile /path/to/CHAIN.TXT

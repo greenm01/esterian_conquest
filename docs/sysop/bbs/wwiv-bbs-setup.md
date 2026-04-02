@@ -1,15 +1,14 @@
 # WWIV BBS Setup
 
-WWIV is a smoke-tested BBS host for `nc-door`.
+WWIV is a validated Linux BBS host for `nc-door`.
 
 Status note:
 
-- Linux WWIV with `CHAIN.TXT` is smoke-tested through SyncTERM
+- Linux WWIV with `CHAIN.TXT` is validated through SyncTERM
 - the tested path stages `nc-door` and `nc-sysop` in a normal sysop-owned
   tree and launches `nc-door` as a WWIV chain
-- WWIV still has less validation depth here than Mystic, Synchronet, or
-  ENiGMA½, so treat this as a practical working guide, not the broadest
-  supported host target
+- Windows WWIV is still pending, so this guide currently documents the
+  validated Linux path only
 
 ## 1. Stage the Rust binaries
 
@@ -91,7 +90,7 @@ Then update `data/wwivd.json` for a normal non-root local test host:
 - set `ssh_port` to `-1` unless you are intentionally running WWIV with a real
   SSH listener
 - keep the single-node `bbses` entry aligned to node `1`
-- if this is only a local smoke-test host, keep the listener on localhost
+- if this is only a local validation host, keep the listener on localhost
 
 The important point is simple: WWIV must be able to start as your normal user
 without trying to bind privileged ports such as `22`.
@@ -140,12 +139,12 @@ From the WWIV root:
 ./wwivd --bbsdir /path/to/wwiv
 ```
 
-For a local smoke test, connect with SyncTERM to the configured telnet port,
+For a local validation pass, connect with SyncTERM to the configured telnet port,
 such as `127.0.0.1:2324`.
 
 ## 6. Validate
 
-The expected first-pass smoke test is:
+The expected first-pass validation pass is:
 
 1. connect with SyncTERM or another telnet-capable BBS client
 2. create or log into a WWIV user

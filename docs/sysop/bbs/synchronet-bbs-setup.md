@@ -10,7 +10,7 @@ Validated path:
 - keep `Intercept I/O Interrupts` off for this native socket door
 - this path is live-verified on a normal Windows `C:\SBBS` install with
   SyncTERM
-- Linux Synchronet with `nc-door` is also smoke-tested through SyncTERM using a
+- Linux Synchronet with `nc-door` is also validated through SyncTERM using a
   native `DOOR32` entry and a tiny wrapper that receives `%f` and execs
   `nc-door --dir ... --dropfile "$1"`
 
@@ -31,7 +31,7 @@ This repo now carries two tested Synchronet paths for `nc-door`:
   - use `DOOR32`
   - pass `--socket-descriptor %H`
 - Linux:
-  - smoke-tested on a localhost Synchronet install with SyncTERM
+  - validated on a localhost Synchronet install with SyncTERM
   - use `DOOR32`
   - keep the external program native, not DOS
   - use the wrapper shape shown below if Synchronet does not preserve the full
@@ -141,7 +141,7 @@ Do not add `--encoding` or `--color-mode` here. In door mode, `nc-door.exe`
 already defaults to the expected CP437/ANSI behavior from the dropfile path,
 and the minimal command line was the live-tested path on Windows Synchronet.
 
-Smoke-tested Linux command line:
+Validated Linux command line:
 
 ```text
 bash /srv/sbbs/xtrn/nc-game/bin/sbbs-nc-door.sh %f
@@ -205,7 +205,7 @@ startup_dir=C:\SBBS\xtrn\nc-game\bin\
 Do not use `16391` for this setup. That extra `Intercept I/O Interrupts` bit
 caused the door to launch but hang on input during live Windows testing.
 
-The smoke-tested Linux `xtrn.ini` shape was:
+The validated Linux `xtrn.ini` shape was:
 
 ```text
 [prog:GAMES:NCGAME]
