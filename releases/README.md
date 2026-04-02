@@ -1,6 +1,11 @@
 # Release Artifacts
 
-This directory holds the current downloadable Esterian Conquest release artifacts.
+This directory is the local staging area for release-build docs and disposable
+output.
+
+Generated archives, checksum manifests, signatures, release notes, and unpacked
+bundle directories stay untracked here and are published on GitHub Releases
+instead of `main`.
 
 ## EC v1.5 DOS Bundles
 

@@ -99,9 +99,10 @@ fixtures/**/*.SAV
 # Local release-package build output. Published copies live on GitHub Releases.
 releases/*.zip
 releases/*.tar.gz
+releases/*/
 releases/SHA256SUMS.txt
 releases/SHA256SUMS.txt.asc
-releases/ec-connect-release-note.md
+releases/*-release-note.md
 
 # Local bot/LLM turn submissions and notes.
 .tmp/
