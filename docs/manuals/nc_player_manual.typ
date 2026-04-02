@@ -131,16 +131,16 @@ In homage to the 1990s door-game pioneers and to the ancient dreamers, strategis
 
 Nostrian Conquest supports three practical ways to play.
 
-The normal public path is **Nostr**. In that mode you run `nc-connect`, your
+The normal public path is *Nostr*. In that mode you run `nc-connect`, your
 sysop gives you an invite code, and `nc-connect` opens the live `nc-game`
 session for you. This is the recommended path for public multiplayer.
 
-The direct private path is **Localhost**. In that mode you or your sysop runs
+The direct private path is *Localhost*. In that mode you or your sysop runs
 `nc-game` directly on the same machine. Use this for solo play, hotseat
 testing, and trusted same-machine sessions. If you are setting that up
 yourself, see the *Sysop Manual* section *Localhost Session Setup*.
 
-The classic path is **BBS**. In that mode you log into a bulletin board with a
+The classic path is *BBS*. In that mode you log into a bulletin board with a
 terminal client and launch the game from the doors menu. The sysop stages
 `nc-door` behind the BBS. If you are the sysop, see the *Sysop Manual* section
 *BBS Door Setup*.
