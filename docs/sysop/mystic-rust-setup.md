@@ -12,12 +12,14 @@ Use:
 - `nc-sysop` to create and maintain the campaign
 - `nc-door` as the staged player door on Unix-like hosts
 - `nc-door.exe` as the staged player door on native Windows hosts
-- Mystic's `DC` door command so Mystic writes `CHAIN.TXT` into `%P`
+- Mystic's native door commands, not DOS wrappers
 - [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) only as a
   source-tree/dev helper on Unix-like hosts
 
-`nc-door` already accepts `CHAIN.TXT`, so Mystic does not need a format
-translation layer.
+Use the dropfile/transport that matches the host:
+
+- Unix-like Mystic hosts can use `DC` with `CHAIN.TXT`
+- native Windows Mystic hosts should use `D3` with `DOOR32.SYS`
 
 ## 1. Build the Rust binaries
 
@@ -68,8 +70,8 @@ cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player
 cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
-If a caller alias is not reserved, Mystic can still launch `nc-door` with
-`CHAIN.TXT` alone:
+If a caller alias is not reserved, Mystic can still launch `nc-door` from
+dropfile data alone:
 
 - returning callers resume automatically by stored caller handle
 - new callers land on the BBS first-time menu
@@ -99,6 +101,8 @@ such as `127.0.0.1:2323`.
 
 ## 4. Add the EC door
 
+### Unix-like Mystic hosts
+
 Use Mystic's `DC` menu command. That command writes `CHAIN.TXT` into the
 node temp directory, and `%P` expands to that directory with the trailing
 separator already included.
@@ -115,23 +119,29 @@ Door data:
 /path/to/nc-door --dir /path/to/ec-campaign --dropfile %PCHAIN.TXT --encoding cp437 --color-mode ansi16
 ```
 
-Windows-native example:
+If you are wiring Mystic from a live source tree instead of a staged binary,
+`tools/bbs/run_nc_rust.sh` remains a convenient Unix-like helper.
+
+### Native Windows Mystic hosts
+
+Use Mystic's `D3` menu command. That command writes `DOOR32.SYS` into the
+node temp directory and passes the native socket handoff that `nc-door.exe`
+expects on Windows.
+
+Door command:
 
 ```text
-C:\path\to\nc-door.exe --dir C:\path\to\ec-campaign --dropfile %PCHAIN.TXT --encoding cp437 --color-mode ansi16
+D3
+```
+
+Door data:
+
+```text
+C:\path\to\nc-door.exe --dir C:\path\to\ec-campaign --dropfile %Pdoor32.sys
 ```
 
 For a permanent Windows install, point Mystic directly at the staged
 `nc-door.exe`. Keep `run_nc_rust.cmd` only as a source-tree/dev helper.
-
-If you are wiring Mystic from a live source tree instead of a staged binary,
-`tools/bbs/run_nc_rust.sh` remains a convenient Unix-like helper.
-
-Why `DC`:
-
-- Mystic generates `CHAIN.TXT` automatically
-- `nc-door` parses `CHAIN.TXT` directly
-- no DOS compatibility wrapper is required
 
 ## 5. Start Mystic
 
@@ -149,9 +159,22 @@ The expected first-pass smoke test is:
 
 1. create or log into a Mystic user, either reserved or brand-new
 2. open the Doors menu
-3. launch the EC entry
+3. launch the NC entry
 4. confirm a new unreserved caller lands on the EC first-time menu in color on
    the normal `80x25` playfield
 5. verify that normal navigation and paging work on list screens
 6. choose `J` and verify the join flow reaches empire naming when an open
    unreserved empire exists
+
+### Native Windows note
+
+The verified Windows-native Mystic setup is:
+
+```text
+D3
+C:\Mystic\doors\nc-game\bin\nc-door.exe --dir C:\Mystic\doors\nc-game\campaign --dropfile %Pdoor32.sys
+```
+
+That path was smoke-tested on Windows with SyncTERM against a normal
+`C:\Mystic` install. `DC` with `CHAIN.TXT` is still correct for Unix-like
+Mystic hosts, but it is not the preferred native Windows path.

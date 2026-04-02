@@ -503,3 +503,60 @@ fn windows_socket_door_terminal_reads_and_writes_over_inherited_descriptor() {
 
     server.join().expect("server thread should finish");
 }
+
+#[cfg(windows)]
+#[test]
+fn windows_nonblocking_socket_door_terminal_handles_would_block() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+    let addr = listener.local_addr().expect("listener addr");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept socket");
+        thread::sleep(Duration::from_millis(200));
+        let mut buf = [0u8; 8192];
+        let mut rendered = Vec::new();
+        loop {
+            let bytes_read = stream.read(&mut buf).expect("read terminal output");
+            if bytes_read == 0 {
+                break;
+            }
+            rendered.extend_from_slice(&buf[..bytes_read]);
+            if rendered
+                .windows("WOULD BLOCK OK".len())
+                .any(|window| window == b"WOULD BLOCK OK")
+            {
+                break;
+            }
+        }
+        let rendered = String::from_utf8_lossy(&rendered);
+        assert!(
+            rendered.contains("WOULD BLOCK OK"),
+            "rendered={rendered:?}"
+        );
+        stream.write_all(b"q").expect("write keypress");
+        stream.flush().expect("flush keypress");
+    });
+
+    let client = TcpStream::connect(addr).expect("connect client");
+    client
+        .set_nonblocking(true)
+        .expect("mark client socket nonblocking");
+    let descriptor = client.into_raw_socket() as u64;
+    let mut terminal = DoorTerminal::with_transport_and_color_mode(
+        OutputEncoding::Utf8,
+        ColorMode::Ansi16,
+        nc_game::screen::ScreenGeometry::local_default(),
+        DoorTransport::SocketDescriptor { descriptor },
+    )
+    .expect("socket transport should initialize");
+
+    let payload = format!("{}WOULD BLOCK OK", "X".repeat(4 * 1024 * 1024));
+    terminal
+        .dump_text_capture(&payload)
+        .expect("write over nonblocking socket transport");
+    let key = terminal
+        .read_key()
+        .expect("read key from nonblocking socket transport");
+    assert_eq!(key.code, KeyCode::Char('q'));
+
+    server.join().expect("server thread should finish");
+}

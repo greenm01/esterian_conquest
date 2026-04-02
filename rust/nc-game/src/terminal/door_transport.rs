@@ -195,14 +195,30 @@ fn ensure_winsock_started() -> io::Result<()> {
 #[cfg(windows)]
 impl Read for SocketDoorIo {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.stream.read(buf)
+        loop {
+            match self.stream.read(buf) {
+                Ok(size) => return Ok(size),
+                Err(err) if socket_would_block(&err) => {
+                    socket_wait(&self.stream, SocketWait::Read, -1)?;
+                }
+                Err(err) => return Err(err),
+            }
+        }
     }
 }
 
 #[cfg(windows)]
 impl Write for SocketDoorIo {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.stream.write(buf)
+        loop {
+            match self.stream.write(buf) {
+                Ok(size) => return Ok(size),
+                Err(err) if socket_would_block(&err) => {
+                    socket_wait(&self.stream, SocketWait::Write, -1)?;
+                }
+                Err(err) => return Err(err),
+            }
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -213,7 +229,7 @@ impl Write for SocketDoorIo {
 #[cfg(windows)]
 impl DoorIo for SocketDoorIo {
     fn wait_ready(&mut self, timeout_ms: i32) -> io::Result<bool> {
-        socket_ready(&self.stream, timeout_ms)
+        socket_wait(&self.stream, SocketWait::Read, timeout_ms)
     }
 }
 
@@ -320,7 +336,17 @@ fn stdin_ready(timeout_ms: i32) -> io::Result<bool> {
 }
 
 #[cfg(windows)]
-fn socket_ready(stream: &std::net::TcpStream, timeout_ms: i32) -> io::Result<bool> {
+enum SocketWait {
+    Read,
+    Write,
+}
+
+#[cfg(windows)]
+fn socket_wait(
+    stream: &std::net::TcpStream,
+    direction: SocketWait,
+    timeout_ms: i32,
+) -> io::Result<bool> {
     use std::ffi::c_long;
     use std::os::windows::io::AsRawSocket;
 
@@ -347,11 +373,11 @@ fn socket_ready(stream: &std::net::TcpStream, timeout_ms: i32) -> io::Result<boo
         fn WSAGetLastError() -> i32;
     }
 
-    let mut readfds = FdSet {
+    let mut socketfds = FdSet {
         fd_count: 1,
         fd_array: [0; 64],
     };
-    readfds.fd_array[0] = stream.as_raw_socket() as usize;
+    socketfds.fd_array[0] = stream.as_raw_socket() as usize;
 
     let mut timeout = TimeVal {
         tv_sec: 0,
@@ -368,18 +394,29 @@ fn socket_ready(stream: &std::net::TcpStream, timeout_ms: i32) -> io::Result<boo
     let rc = unsafe {
         select(
             0,
-            &mut readfds,
-            std::ptr::null_mut(),
+            match direction {
+                SocketWait::Read => &mut socketfds,
+                SocketWait::Write => std::ptr::null_mut(),
+            },
+            match direction {
+                SocketWait::Read => std::ptr::null_mut(),
+                SocketWait::Write => &mut socketfds,
+            },
             std::ptr::null_mut(),
             timeout_ptr,
         )
     };
     if rc >= 0 {
-        return Ok(rc > 0 && readfds.fd_count > 0);
+        return Ok(rc > 0 && socketfds.fd_count > 0);
     }
 
     let raw = unsafe { WSAGetLastError() };
     Err(io::Error::from_raw_os_error(raw))
+}
+
+#[cfg(windows)]
+fn socket_would_block(err: &io::Error) -> bool {
+    err.kind() == io::ErrorKind::WouldBlock || err.raw_os_error() == Some(10035)
 }
 
 #[cfg(not(any(unix, windows)))]
