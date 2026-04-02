@@ -3,25 +3,30 @@
 This section is for EC operators running the Rust game stack, staging
 player-facing assets, and administering live campaigns.
 
+Keep the buckets straight:
+
+- shared docs in `docs/sysop/`
+- non-BBS Rust stack docs in `docs/sysop/rust/`
+- BBS host setup guides in `docs/sysop/bbs/`
+
 Use these docs in roughly this order:
 
-- [campaign-settings.md](campaign-settings.md)
-  - non-BBS campaign settings and raw `nc-sysop settings show` reference
-- [turn-kdl.md](turn-kdl.md)
-  - KDL turn file format reference for file-based turn submission
-- [mystic-rust-setup.md](mystic-rust-setup.md)
-  - validated Mystic setup for the Rust-native `nc-door`, including the
-    native Windows `D3` / `DOOR32` path
-- [synchronet-rust-setup.md](synchronet-rust-setup.md)
-  - validated native Windows Synchronet setup for the Rust-native `nc-door`
-- [enigma-rust-setup.md](enigma-rust-setup.md)
-  - validated ENiGMA½ setup notes for the Rust-native `nc-door`, including the
-    native Windows `abracadabra` socket path
 - [sysop-map-exports.md](sysop-map-exports.md)
-  - player map export and queue/download staging for the Rust client
-- [enigma-bbs-setup.md](enigma-bbs-setup.md)
-  - legacy DOS door setup under Enigma BBS; useful for compatibility hosting,
-    but not the main EC direction
+  - player map export and queue/download staging across hosted, direct, and
+    BBS workflows
+- [rust/campaign-settings.md](rust/campaign-settings.md)
+  - non-BBS campaign settings and raw `nc-sysop settings show` reference
+- [rust/turn-kdl.md](rust/turn-kdl.md)
+  - KDL turn file format reference for file-based turn submission
+- [bbs/mystic-bbs-setup.md](bbs/mystic-bbs-setup.md)
+  - validated Mystic setup for `nc-door` on Unix-like hosts and native Windows
+- [bbs/synchronet-bbs-setup.md](bbs/synchronet-bbs-setup.md)
+  - validated native Windows Synchronet setup for `nc-door`
+- [bbs/enigma-bbs-setup.md](bbs/enigma-bbs-setup.md)
+  - validated ENiGMA½ setup for `nc-door` on Linux and Windows, plus the
+    compatibility-only DOS path
+- [bbs/wwiv-bbs-setup.md](bbs/wwiv-bbs-setup.md)
+  - experimental WWIV Windows setup notes for `nc-door`
 
 Practical posture:
 
@@ -41,9 +46,14 @@ Hosted Rust campaigns are DB-only: one `ncgame.db` per game directory. BBS
 door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.
 Hosted/Nostr game registry data remains global in `/etc/nc-gate/config.kdl`.
 
-ENiGMA½ is the validated `abracadabra` socket-mode Rust-door host. Native
-Windows Mystic and native Windows Synchronet are both verified `DOOR32` hosts
-for `nc-door`.
+Current Windows-native `nc-door` wins are:
+
+- Mystic
+- Synchronet
+- ENiGMA½
+
+WWIV is documented here as an experimental Windows host path, not a validated
+one.
 
 Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
 Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with

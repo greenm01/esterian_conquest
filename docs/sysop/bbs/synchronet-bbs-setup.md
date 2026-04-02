@@ -1,6 +1,6 @@
-# Synchronet Rust Door Setup
+# Synchronet BBS Setup
 
-This is the native Windows host path for the Rust door.
+This page covers Synchronet as a BBS host for `nc-door`.
 
 Validated path:
 
@@ -17,7 +17,21 @@ Use:
 - `nc-game.exe` for local/direct play on the Windows host
 - `nc-door.exe` for the Synchronet external program entry
 
-## 1. Build the Rust binaries
+## 1. Linux Status
+
+Synchronet is a real BBS target, but this repo does not yet carry a validated
+Linux-native Synchronet setup for `nc-door`.
+
+Use the Windows setup below when you need a tested path today. If you are
+experimenting on Linux, keep the command surface aligned with the same core
+requirements:
+
+- stage `nc-door`
+- pass `--dir`
+- pass a real dropfile
+- keep classic ANSI/CP437 behavior
+
+## 2. Build the Rust binaries
 
 From the repo root:
 
@@ -39,7 +53,7 @@ C:\SBBS\xtrn\nc-game\bin\nc-door.exe
 C:\SBBS\xtrn\nc-game\bin\nc-sysop.exe
 ```
 
-## 2. Create a campaign
+## 3. Create a campaign
 
 Example `config.kdl`:
 
@@ -73,7 +87,7 @@ cd rust
 cargo run -q -p nc-sysop -- maint C:\SBBS\xtrn\nc-game\campaign 1
 ```
 
-## 3. Add the native program entry
+## 4. Add the native program entry
 
 In `SCFG`, add `nc-door.exe` to the Native Program List.
 
@@ -97,7 +111,7 @@ Do not add `--encoding` or `--color-mode` here. In door mode, `nc-door.exe`
 already defaults to the expected CP437/ANSI behavior from the dropfile path,
 and the minimal command line was the live-tested path on Windows Synchronet.
 
-## 4. Add the external program
+## 5. Add the external program
 
 In the online external programs section, configure the entry as a native
 Windows door:
@@ -140,7 +154,7 @@ startup_dir=C:\SBBS\xtrn\nc-game\bin\
 Do not use `16391` for this setup. That extra `Intercept I/O Interrupts` bit
 caused the door to launch but hang on input during live Windows testing.
 
-## 5. Validate
+## 6. Validate
 
 The expected first-pass smoke test is:
 
@@ -151,7 +165,7 @@ The expected first-pass smoke test is:
 5. verify normal navigation and paging behavior
 6. quit and confirm control returns cleanly to Synchronet
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 - if the door opens a second Windows console window, you are launching
   `nc-game.exe` or a stdio wrapper instead of `nc-door.exe --socket-descriptor %H`

@@ -193,9 +193,10 @@ from source. VPS/Nostr hosts should still build from source and use
 dropfile path, and follow the host-specific setup guides for the exact launch
 line. For working setups, see:
 
-- [Mystic Rust Door Setup](docs/sysop/mystic-rust-setup.md)
-- [Synchronet Rust Door Setup](docs/sysop/synchronet-rust-setup.md)
-- [ENiGMA½ Rust Door Setup](docs/sysop/enigma-rust-setup.md)
+- [Mystic BBS Setup](docs/sysop/bbs/mystic-bbs-setup.md)
+- [Synchronet BBS Setup](docs/sysop/bbs/synchronet-bbs-setup.md)
+- [ENiGMA½ BBS Setup](docs/sysop/bbs/enigma-bbs-setup.md)
+- [WWIV BBS Setup](docs/sysop/bbs/wwiv-bbs-setup.md)
 
 ## Operator Docs
 

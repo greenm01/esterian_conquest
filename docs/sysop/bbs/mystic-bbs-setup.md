@@ -1,6 +1,6 @@
-# Mystic Rust Door Setup
+# Mystic BBS Setup
 
-Mystic is a verified Rust-native BBS host for `nc-door`.
+Mystic is a verified BBS host for `nc-door`.
 
 Status note:
 

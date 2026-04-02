@@ -1,6 +1,6 @@
-# ENiGMA½ Rust Door Setup
+# ENiGMA½ BBS Setup
 
-ENiGMA½ is now a verified Rust-native BBS host for `nc-door`.
+ENiGMA½ is a verified BBS host for `nc-door`.
 
 The important split is simple. On both Linux and Windows, ENiGMA½ should stage
 `nc-door` as the live door binary and `nc-sysop` as the campaign tool. On
@@ -246,7 +246,7 @@ doorEsterianConquestRust: {
 }
 ```
 
-See [sysop-map-exports.md](sysop-map-exports.md) for the export/queue flow.
+See [../sysop-map-exports.md](../sysop-map-exports.md) for the export/queue flow.
 
 ## 6. Local testing with your existing launcher
 
@@ -326,3 +326,47 @@ The expected first-pass smoke test is straightforward:
 
 The native Windows path above was smoke-tested on a normal `C:\enigma-bbs`
 install with SyncTERM and the staged Windows release package.
+
+## 9. Legacy DOS Compatibility Path
+
+Use this only when you explicitly want to host the original DOS
+`ECGAME.EXE`. It is a compatibility bridge, not the main ENiGMA deployment
+story.
+
+Keep the main lessons straight:
+
+- ENiGMA-generated `DOOR.SYS` and `DORINFO` files are not reliable for the
+  original DOS binary
+- the most reliable legacy path is a strict 32-line WWIV-style `CHAIN.TXT`
+- `ECGAME.EXE` should be launched with zero arguments from the mounted game
+  directory
+- DOSBox-X needs a headless-safe launch shape on modern Linux hosts
+
+The current compatibility wrapper is `tools/bbs/run_ec_dos.sh`. It ignores the
+native ENiGMA dropfile, generates a strict `CHAIN.TXT`, and launches DOSBox-X
+against the preserved game directory.
+
+Use the compatibility menu block only for that DOS path:
+
+```hjson
+doorEsterianConquest: {
+    desc: Esterian Conquest
+    module: abracadabra
+    config: {
+        name: Esterian Conquest
+        dropFileType: DORINFO
+        cmd: /path/to/esterian_conquest/tools/bbs/run_ec_dos.sh
+        args: [
+            "{dropFile}"
+            "{node}"
+            "{srvPort}"
+        ]
+        io: socket
+    }
+}
+```
+
+Performance expectations are different here. The DOS path still paints over
+emulated serial I/O and will feel much slower than the Rust-native door. Use
+it for compatibility or migration work, not because it is the preferred sysop
+path.

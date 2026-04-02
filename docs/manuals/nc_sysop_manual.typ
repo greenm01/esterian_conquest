@@ -239,9 +239,10 @@ tagged-source Cargo workflow.
 
 For the exact launcher setups, see:
 
-- `docs/sysop/mystic-rust-setup.md`
-- `docs/sysop/enigma-rust-setup.md`
-- `docs/sysop/synchronet-rust-setup.md`
+- `docs/sysop/bbs/mystic-bbs-setup.md`
+- `docs/sysop/bbs/enigma-bbs-setup.md`
+- `docs/sysop/bbs/synchronet-bbs-setup.md`
+- `docs/sysop/bbs/wwiv-bbs-setup.md`
 
 == Game Directory Layout
 
@@ -488,7 +489,7 @@ nc-sysop settings reserve --dir /srv/nc/games/friday-night --player 1 --alias SY
 
 For the full non-BBS settings reference, including the raw `settings show`
 shape and the advanced carried-forward state fields, see
-`docs/sysop/campaign-settings.md`.
+`docs/sysop/rust/campaign-settings.md`.
 
 === BBS `config.kdl`
 
@@ -652,8 +653,9 @@ dropfile-only door flow:
 #admonition("NOTE")[
   The original DOS `ECGAME.EXE` v1.5 expects a strict 32-line WWIV-style
   `CHAIN.TXT` drop file. Enigma BBS-generated `DOOR.SYS` / `DORINFO` files
-  will crash `ECGAME.EXE`. See `docs/sysop/enigma-bbs-setup.md` for the full
-  legacy DOS door path if you need to host the original binary.
+  will crash `ECGAME.EXE`. See the legacy DOS compatibility section in
+  `docs/sysop/bbs/enigma-bbs-setup.md` if you need to host the original
+  binary.
 ]
 
 == Modern BBS Hosts
@@ -682,10 +684,17 @@ Native Windows Synchronet also passes the inherited socket descriptor:
 nc-door --dir /path/to/mygame --dropfile %f --socket-descriptor %H
 ```
 
+WWIV is documented separately as an experimental Windows host path:
+
+```
+nc-door --dir /path/to/mygame --dropfile /path/to/CHAIN.TXT
+```
+
 For the exact launcher setups, see
-`docs/sysop/mystic-rust-setup.md`,
-`docs/sysop/enigma-rust-setup.md`, and
-`docs/sysop/synchronet-rust-setup.md`.
+`docs/sysop/bbs/mystic-bbs-setup.md`,
+`docs/sysop/bbs/enigma-bbs-setup.md`,
+`docs/sysop/bbs/synchronet-bbs-setup.md`, and
+`docs/sysop/bbs/wwiv-bbs-setup.md`.
 
 // ─── 9. File-Based Turn Submission ──────────────────────────────────────────
 
@@ -729,7 +738,7 @@ fleet record=1 {
 message to=2 subject="Border" body="Watching the north lane."
 ```
 
-For the full node reference and schema, see `docs/sysop/turn-kdl.md`.
+For the full node reference and schema, see `docs/sysop/rust/turn-kdl.md`.
 
 // ─── 10. Turn Processing and Maintenance ─────────────────────────────────────
 
