@@ -395,12 +395,19 @@ Current startup-art policy:
 - explicit CLI flags always win over dropfile values
 - parser is lenient: tolerates both CRLF/LF, trailing whitespace, and short
   files; missing fields resolve to `None`
-- `--player` is still required; alias→empire-index resolution is a follow-up
 
-### Milestone 4: Alias Resolution
+### Milestone 4: Alias Resolution ✓ (implemented)
 
-- resolve player handle/alias from drop file to empire index automatically
-- remove the requirement to pass `--player` when `--dropfile` is given
+- reserved dropfile aliases resolve to their reserved empire slot
+- returning unreserved BBS callers resume by stored player handle match
+- new unreserved BBS callers enter the BBS first-time menu without claiming a
+  seat yet
+- `J` from that menu claims the lowest-numbered open unreserved empire only
+  when join is confirmed
+- if the game is full, the caller still reaches the BBS first-time menu, but
+  `J` is refused
+- explicit localhost/manual `--player <N>` launches still work and behave like
+  fixed-seat sessions
 
 ## Non-Goals For The First Client Pass
 
@@ -424,3 +431,27 @@ That path:
 - gives the fastest route to a usable Rust replacement for `ECGAME`
 
 Door support should follow once that local player workflow is solid.
+
+## Current FTM Routing Matrix
+
+The current player-binding / first-time-menu policy is:
+
+| Session Type | Seat Binding | Skips Generic FTM? | Result |
+| --- | --- | --- | --- |
+| Nostr hosted player | Hosted invite / seat claim | Yes | Goes through hosted onboarding, not the generic BBS FTM |
+| Reserved BBS caller | `ncgame.db` reservation by dropfile alias | Yes | Enters the reserved-seat first-time flow directly |
+| Returning BBS caller | Stored player handle match from dropfile alias | Yes | Resumes the previously joined empire directly |
+| New BBS caller | No seat bound on entry | No | Lands on the BBS first-time menu |
+| Localhost/manual `--player <N>` | Explicit CLI seat | Yes | Treated as a fixed-seat session |
+
+Important details:
+
+- new BBS callers do not claim a seat merely by entering the door, opening the
+  intro, or typing an empire name
+- the seat is claimed only when the first-time join confirm step succeeds
+- the chosen seat is the lowest-numbered open unreserved empire at confirm time
+- if a full game has no open empires, a BBS caller still lands on the
+  first-time menu, but `J` is refused and the caller stays there with the
+  no-open-empires notice
+- bad localhost/manual `--player` values are rejected at launch with a clear
+  CLI error instead of falling through to the first-time menu

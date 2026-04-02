@@ -45,6 +45,7 @@ pub struct AppConfig {
 pub struct App {
     pub game_dir: PathBuf,
     pub game_name: String,
+    pub game_config: GameConfig,
     pub game_data: CoreGameData,
     pub player: PlayerContext,
     pub current_screen: ScreenId,
@@ -179,6 +180,7 @@ impl App {
         Ok(Self {
             game_dir,
             game_name,
+            game_config: config.game_config.clone(),
             game_data,
             player,
             current_screen: ScreenId::Startup(startup_sequence.current()),

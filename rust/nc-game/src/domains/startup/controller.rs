@@ -2,7 +2,7 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::domains::startup::state::FirstTimeOnboardingMode;
-use crate::model::{ClassicLoginState, MainMenuSummary, PlayerContext};
+use crate::model::{ClassicLoginState, MainMenuSummary};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     CommandMenu, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId,
@@ -11,10 +11,20 @@ use crate::screen::{
 use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
+    pub fn enter_unbound_bbs_first_time_mode(&mut self) {
+        self.startup_state.unbound_bbs_caller = true;
+        self.startup_state.fixed_player_launch = false;
+        self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::Generic;
+        self.startup_state.first_time_status = None;
+        self.startup_state.first_time_input.clear();
+        self.current_screen = ScreenId::FirstTimeMenu;
+    }
+
     pub fn set_hosted_invite_session(&mut self, player_npub: String, invite_code: Option<String>) {
         self.startup_state.hosted_player_npub = Some(player_npub);
         self.startup_state.hosted_invite_code = invite_code;
         self.startup_state.first_time_onboarding_mode = FirstTimeOnboardingMode::HostedInvite;
+        self.startup_state.unbound_bbs_caller = false;
         tracing::info!(
             screen = ?self.current_screen,
             login_state = ?self.player.classic_login_state,
@@ -909,11 +919,29 @@ impl App {
                                 FirstTimeOnboardingMode::Generic;
                             self.current_screen = ScreenId::FirstTimeJoinSummary;
                         }
-                        Err(_) => {
+                        Err(err) => {
+                            let status = if let Some(reason) =
+                                err.downcast_ref::<nc_data::GameStateMutationError>()
+                            {
+                                match reason {
+                                    nc_data::GameStateMutationError::PlayerAlreadyJoined {
+                                        ..
+                                    } => {
+                                        "That empire slot was just claimed by another player. Please try again."
+                                    }
+                                    _ => "Unable to join this empire right now. Please try again.",
+                                }
+                            } else if err.to_string()
+                                == "This game is already full. No open empires remain."
+                            {
+                                "This game is already full. No open empires remain."
+                            } else {
+                                "Unable to join this empire right now. Please try again."
+                            };
                             self.restore_first_time_input_after_failure(
                                 ScreenId::FirstTimeJoinEmpireName,
                                 self.startup_state.first_time_empire_name.clone(),
-                                "Unable to join this empire right now. Please try again.",
+                                status,
                             );
                         }
                     }
@@ -1276,6 +1304,35 @@ impl App {
     }
 
     fn complete_first_time_join(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.startup_state.unbound_bbs_caller {
+            let runtime_state = self
+                .planet
+                .campaign_store
+                .load_latest_runtime_state()?
+                .ok_or(
+                    "campaign store has no snapshots; initialize the campaign with nc-sysop first",
+                )?;
+            let player_record_index_1_based = runtime_state
+                .game_data
+                .player
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(idx, player)| {
+                    let seat = idx + 1;
+                    (player.occupied_flag() == 0
+                        && self.game_config.reservation_for_player(seat).is_none())
+                    .then_some(seat)
+                })
+                .ok_or("This game is already full. No open empires remain.")?;
+            self.reload_runtime_state_and_bind_player_record_index_1_based(
+                player_record_index_1_based,
+            )?;
+        } else {
+            self.reload_runtime_state_and_bind_player_record_index_1_based(
+                self.player.record_index_1_based,
+            )?;
+        }
         self.game_data.join_player(
             self.player.record_index_1_based,
             &self.startup_state.first_time_empire_name,
@@ -1290,6 +1347,7 @@ impl App {
                 player.set_assigned_player_handle_raw(alias);
             }
         }
+        self.startup_state.unbound_bbs_caller = false;
         if let Some(player_npub) = self.startup_state.hosted_player_npub.clone() {
             self.save_game_data_and_claim_hosted_seat(&player_npub)?;
         } else {
@@ -1359,13 +1417,10 @@ impl App {
     }
 
     fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.player =
-            PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
-        self.refresh_review_context()?;
-        Ok(())
+        self.bind_player_record_index_1_based(self.player.record_index_1_based)
     }
 
-    fn refresh_review_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) fn refresh_review_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let refreshed = ReportsPreview::from_block_rows(
             &self.game_data,
             self.player.record_index_1_based as u8,
@@ -1438,6 +1493,10 @@ impl App {
                         self.hosted_first_time_entry_screen()
                     } else if self.is_bbs_reserved_first_time_login() {
                         ScreenId::FirstTimeReservedPrompt
+                    } else if self.startup_state.fixed_player_launch {
+                        self.startup_state.first_time_status = None;
+                        self.startup_state.first_time_input.clear();
+                        ScreenId::FirstTimeJoinEmpireName
                     } else {
                         ScreenId::FirstTimeMenu
                     }

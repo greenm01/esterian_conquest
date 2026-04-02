@@ -256,6 +256,9 @@ pub enum GameStateMutationError {
     MissingPlayerRecord {
         index_1_based: usize,
     },
+    PlayerAlreadyJoined {
+        index_1_based: usize,
+    },
     PlanetBuildQueueFull {
         index_1_based: usize,
     },
@@ -518,6 +521,9 @@ impl std::fmt::Display for GameStateMutationError {
             }
             Self::MissingPlayerRecord { index_1_based } => {
                 write!(f, "missing player record {}", index_1_based)
+            }
+            Self::PlayerAlreadyJoined { index_1_based } => {
+                write!(f, "player {} is already joined", index_1_based)
             }
             Self::PlanetBuildQueueFull { index_1_based } => {
                 write!(f, "build queue full for planet record {}", index_1_based)

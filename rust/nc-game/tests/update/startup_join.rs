@@ -1313,6 +1313,27 @@ fn escaping_empire_name_does_not_partially_join_player() {
 }
 
 #[test]
+fn fixed_player_first_time_launch_skips_first_time_menu() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.fixed_player_launch = true;
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::SkipIntro)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+}
+
+#[test]
 fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
@@ -1420,6 +1441,73 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
             homeworld.present_production_points().unwrap_or(0),
             player.tax_rate(),
         )
+    );
+}
+
+#[test]
+fn unbound_bbs_first_time_join_claims_lowest_open_unreserved_seat() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: reserved_game_config(1, "SYSOP"),
+    })
+    .expect("app should load");
+    app.door_mode = true;
+    app.startup_state.caller_alias = Some("RIVAL".to_string());
+    app.enter_unbound_bbs_first_time_mode();
+
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+    assert_eq!(app.player.record_index_1_based, 2);
+
+    let game_data = latest_runtime_state(&fixture_dir).game_data;
+    assert_eq!(game_data.player.records[0].occupied_flag(), 0);
+    assert_eq!(game_data.player.records[1].occupied_flag(), 1);
+    assert_eq!(
+        game_data.player.records[1].assigned_player_handle_summary(),
+        "RIVAL"
+    );
+    assert_eq!(
+        game_data.player.records[1].controlled_empire_name_summary(),
+        "Codex Dominion"
     );
 }
 
@@ -2046,6 +2134,36 @@ fn first_time_join_from_reserved_dropfile_persists_caller_alias() {
 
     let player = &latest_runtime_state(&fixture_dir).game_data.player.records[0];
     assert_eq!(player.assigned_player_handle_summary(), "SYSOP");
+}
+
+#[test]
+fn unbound_bbs_first_time_menu_refuses_join_when_no_open_empires_remain() {
+    let fixture_dir = temp_full_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.door_mode = true;
+    app.startup_state.caller_alias = Some("RIVAL".to_string());
+    app.enter_unbound_bbs_first_time_mode();
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert_eq!(
+        app.startup_state.first_time_status.as_deref(),
+        Some("This game is already full. No open empires remain.")
+    );
 }
 
 #[test]

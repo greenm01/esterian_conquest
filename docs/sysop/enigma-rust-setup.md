@@ -57,8 +57,8 @@ cargo run -q -p nc-sysop -- maint /path/to/ec-campaign 1
 
 ## 3. Reserve caller aliases
 
-For BBS hosting, reserve each caller alias to a fixed empire slot so the door
-can resolve the seat from the dropfile:
+Reservations are optional. Use them when you want a fixed empire slot for a
+specific caller alias:
 
 ```bash
 cd rust
@@ -66,8 +66,15 @@ cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player
 cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
 
-If a caller alias is not reserved, `nc-game` still requires `--player`, which
-is awkward for a normal BBS door flow.
+If a caller alias is not reserved, `nc-game` still works cleanly from the
+dropfile alone:
+
+- returning callers resume automatically by stored caller handle
+- new callers land on the BBS first-time menu
+- `J` claims the lowest-numbered open unreserved empire only when the join is
+  confirmed
+- if the game is full, the caller still reaches the first-time menu, but `J`
+  is refused
 
 ## 4. Add the ENiGMA door entry
 

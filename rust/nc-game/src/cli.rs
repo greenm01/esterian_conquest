@@ -37,6 +37,41 @@ struct SessionLeaseGuard {
     ttl_seconds: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LaunchPlayerBindingSource {
+    ExplicitPlayer,
+    ReservedAlias,
+    StoredHandle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LaunchPlayerBinding {
+    Bound {
+        player_record_index_1_based: usize,
+        source: LaunchPlayerBindingSource,
+    },
+    UnboundDropfile,
+}
+
+impl LaunchPlayerBinding {
+    fn player_record_index_1_based(self) -> Option<usize> {
+        match self {
+            Self::Bound {
+                player_record_index_1_based,
+                ..
+            } => Some(player_record_index_1_based),
+            Self::UnboundDropfile => None,
+        }
+    }
+
+    fn source(self) -> Option<LaunchPlayerBindingSource> {
+        match self {
+            Self::Bound { source, .. } => Some(source),
+            Self::UnboundDropfile => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct HostedLaunchContext {
     player_npub: String,
@@ -105,11 +140,16 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     let campaign_store = CampaignStore::open_default_in_dir(&parsed.game_dir)?;
     let game_config = load_runtime_game_config(&campaign_store)?;
     validate_runtime_game_config(&campaign_store, &game_config)?;
-    let player_record_index_1_based = resolve_player_record_index_1_based(&parsed, &game_config)?;
+    let launch_binding = resolve_launch_player_binding(&parsed, &game_config, &campaign_store)?;
+    let player_record_index_1_based = launch_binding.player_record_index_1_based().unwrap_or(1);
     let session_lease = parsed
         .session_token
         .clone()
         .map(|session_token| {
+            let Some(player_record_index_1_based) = launch_binding.player_record_index_1_based()
+            else {
+                return Err("session token requires a bound player seat".into());
+            };
             validate_session_lease(
                 campaign_store.clone(),
                 session_token,
@@ -139,6 +179,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     apply_launch_context(
         &mut app,
         &parsed,
+        launch_binding,
         session_lease.as_ref().map(|lease| HostedLaunchContext {
             player_npub: lease.player_npub.clone(),
             invite_code: parsed.hosted_invite_code.clone(),
@@ -261,14 +302,22 @@ fn render_with_logging(
 fn apply_launch_context(
     app: &mut App,
     parsed: &ParsedLaunchArgs,
+    launch_binding: LaunchPlayerBinding,
     hosted_context: Option<HostedLaunchContext>,
 ) {
     app.screen_geometry = parsed.screen_geometry;
     app.door_mode = parsed.use_door_terminal;
+    app.startup_state.fixed_player_launch = matches!(
+        launch_binding.source(),
+        Some(LaunchPlayerBindingSource::ExplicitPlayer)
+    );
     if let Some(hosted_context) = hosted_context {
         app.set_hosted_invite_session(hosted_context.player_npub, hosted_context.invite_code);
     }
     app.startup_state.caller_alias = parsed.dropfile_alias.clone();
+    if launch_binding == LaunchPlayerBinding::UnboundDropfile {
+        app.enter_unbound_bbs_first_time_mode();
+    }
 }
 
 fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::Error>> {
@@ -578,10 +627,26 @@ fn load_runtime_game_config(
     })
 }
 
-fn resolve_player_record_index_1_based(
+fn resolve_launch_player_binding(
     parsed: &ParsedLaunchArgs,
     game_config: &GameConfig,
-) -> Result<usize, Box<dyn std::error::Error>> {
+    campaign_store: &CampaignStore,
+) -> Result<LaunchPlayerBinding, Box<dyn std::error::Error>> {
+    let runtime_state = campaign_store
+        .load_latest_runtime_state()?
+        .ok_or("campaign store has no snapshots; initialize the campaign with nc-sysop first")?;
+    let player_count = runtime_state.game_data.player.records.len();
+
+    if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
+        if explicit_player > player_count {
+            return Err(format!(
+                "--player {} exceeds player count {}",
+                explicit_player, player_count
+            )
+            .into());
+        }
+    }
+
     let alias_reservation = parsed
         .dropfile_alias
         .as_deref()
@@ -598,12 +663,77 @@ fn resolve_player_record_index_1_based(
                 .into());
             }
         }
-        return Ok(reservation.player_record_index_1_based);
+        return Ok(LaunchPlayerBinding::Bound {
+            player_record_index_1_based: reservation.player_record_index_1_based,
+            source: LaunchPlayerBindingSource::ReservedAlias,
+        });
     }
 
-    parsed.explicit_player_record_index_1_based.ok_or_else(|| {
-        "usage: nc-game --dir <game_dir> --player <1-based empire index>\n       or reserve the dropfile alias in ncgame.db and use --dropfile".into()
-    })
+    if let Some(alias) = parsed.dropfile_alias.as_deref().map(str::trim) {
+        if !alias.is_empty() {
+            let matching_players = runtime_state
+                .game_data
+                .player
+                .records
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, player)| {
+                    let handle = player.assigned_player_handle_summary();
+                    (!handle.is_empty() && handle.eq_ignore_ascii_case(alias)).then_some(idx + 1)
+                })
+                .collect::<Vec<_>>();
+
+            if matching_players.len() > 1 {
+                return Err(format!(
+                    "caller alias '{}' matches multiple joined empires; reserve the caller explicitly in ncgame.db",
+                    alias
+                )
+                .into());
+            }
+
+            if let Some(player_record_index_1_based) = matching_players.first().copied() {
+                if let Some(reservation) =
+                    game_config.reservation_for_player(player_record_index_1_based)
+                {
+                    if !reservation.alias.eq_ignore_ascii_case(alias) {
+                        return Err(format!(
+                            "caller alias '{}' conflicts with reserved alias '{}' for seat {}; reconcile ncgame.db settings or the campaign state",
+                            alias, reservation.alias, player_record_index_1_based
+                        )
+                        .into());
+                    }
+                }
+                if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
+                    if explicit_player != player_record_index_1_based {
+                        return Err(format!(
+                            "--player {} does not match stored handle seat {} for alias '{}'",
+                            explicit_player, player_record_index_1_based, alias
+                        )
+                        .into());
+                    }
+                }
+                return Ok(LaunchPlayerBinding::Bound {
+                    player_record_index_1_based,
+                    source: LaunchPlayerBindingSource::StoredHandle,
+                });
+            }
+        }
+    }
+
+    if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
+        return Ok(LaunchPlayerBinding::Bound {
+            player_record_index_1_based: explicit_player,
+            source: LaunchPlayerBindingSource::ExplicitPlayer,
+        });
+    }
+
+    if parsed.use_door_terminal {
+        return Ok(LaunchPlayerBinding::UnboundDropfile);
+    }
+
+    Err(
+        "usage: nc-game --dir <game_dir> --player <1-based empire index>\n       or use --dropfile for BBS/door mode".into(),
+    )
 }
 
 fn validate_runtime_game_config(
@@ -698,7 +828,8 @@ fn unix_now() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        HostedLaunchContext, ParsedLaunchArgs, apply_launch_context, local_exit_lines,
+        HostedLaunchContext, LaunchPlayerBinding, LaunchPlayerBindingSource, ParsedLaunchArgs,
+        apply_launch_context, local_exit_lines, resolve_launch_player_binding,
         session_lease_ttl_seconds, should_emit_local_exit_attribution,
     };
     use crate::app::{App, AppConfig};
@@ -707,9 +838,10 @@ mod tests {
         HOSTED_ONBOARDING_INVARIANT_EXIT_CODE, HostedOnboardingInvariantError, exit_code_for,
     };
     use crate::screen::ScreenGeometry;
+    use crate::screen::ScreenId;
     use crate::terminal::{ColorMode, OutputEncoding};
     use nc_compat::import_directory_snapshot;
-    use nc_data::{CampaignStore, GameConfig};
+    use nc_data::{CampaignSettings, CampaignStore, CoreGameData, GameConfig, SeatReservation};
     use std::fs;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -751,6 +883,30 @@ mod tests {
         root
     }
 
+    fn write_reserved_config(root: &std::path::Path, alias: &str, player: usize) {
+        let store = CampaignStore::open_default_in_dir(root).expect("open campaign store");
+        let mut settings = store
+            .load_campaign_settings()
+            .unwrap_or_else(|_| CampaignSettings::new("fixture-game", "Esterian Conquest"));
+        settings.reservations = vec![SeatReservation {
+            player_record_index_1_based: player,
+            alias: alias.to_string(),
+        }];
+        store
+            .save_campaign_settings(&settings)
+            .expect("write settings");
+    }
+
+    fn seed_joined_player_handle(root: &std::path::Path, player: usize, alias: &str) {
+        let mut data = CoreGameData::load(root).expect("load fixture");
+        data.join_player(player, &format!("Empire {player}"))
+            .expect("join player");
+        data.player.records[player - 1].set_assigned_player_handle_raw(alias);
+        data.save(root).expect("save fixture");
+        let store = CampaignStore::open_default_in_dir(root).expect("open campaign store");
+        import_directory_snapshot(&store, root).expect("refresh sqlite snapshot");
+    }
+
     fn parsed_args(use_door_terminal: bool) -> ParsedLaunchArgs {
         ParsedLaunchArgs {
             game_dir: PathBuf::from("/tmp/test"),
@@ -774,6 +930,81 @@ mod tests {
         let mut parsed = parsed_args(false);
         parsed.session_token = Some("session-token".to_string());
         parsed
+    }
+
+    #[test]
+    fn resolve_launch_binding_uses_stored_handle_for_returning_dropfile_caller() {
+        let game_dir = temp_first_time_game_copy();
+        seed_joined_player_handle(&game_dir, 2, "RIVAL");
+        let campaign_store = CampaignStore::open_default_in_dir(&game_dir).expect("open store");
+        let mut parsed = parsed_args(true);
+        parsed.game_dir = game_dir.clone();
+        parsed.explicit_player_record_index_1_based = None;
+        parsed.dropfile_alias = Some("rival".to_string());
+
+        let binding =
+            resolve_launch_player_binding(&parsed, &GameConfig::default(), &campaign_store)
+                .expect("binding should resolve");
+
+        assert_eq!(
+            binding,
+            LaunchPlayerBinding::Bound {
+                player_record_index_1_based: 2,
+                source: LaunchPlayerBindingSource::StoredHandle,
+            }
+        );
+
+        let _ = fs::remove_dir_all(&game_dir);
+    }
+
+    #[test]
+    fn resolve_launch_binding_uses_unbound_dropfile_for_new_bbs_caller() {
+        let game_dir = temp_first_time_game_copy();
+        let campaign_store = CampaignStore::open_default_in_dir(&game_dir).expect("open store");
+        let mut parsed = parsed_args(true);
+        parsed.game_dir = game_dir.clone();
+        parsed.explicit_player_record_index_1_based = None;
+        parsed.dropfile_alias = Some("RIVAL".to_string());
+
+        let binding =
+            resolve_launch_player_binding(&parsed, &GameConfig::default(), &campaign_store)
+                .expect("binding should resolve");
+
+        assert_eq!(binding, LaunchPlayerBinding::UnboundDropfile);
+
+        let _ = fs::remove_dir_all(&game_dir);
+    }
+
+    #[test]
+    fn resolve_launch_binding_rejects_stored_handle_on_other_players_reserved_seat() {
+        let game_dir = temp_first_time_game_copy();
+        seed_joined_player_handle(&game_dir, 2, "RIVAL");
+        write_reserved_config(&game_dir, "SYSOP", 2);
+        let campaign_store = CampaignStore::open_default_in_dir(&game_dir).expect("open store");
+        let mut parsed = parsed_args(true);
+        parsed.game_dir = game_dir.clone();
+        parsed.explicit_player_record_index_1_based = None;
+        parsed.dropfile_alias = Some("RIVAL".to_string());
+
+        let err = resolve_launch_player_binding(
+            &parsed,
+            &GameConfig {
+                reservations: vec![SeatReservation {
+                    player_record_index_1_based: 2,
+                    alias: "SYSOP".to_string(),
+                }],
+                ..GameConfig::default()
+            },
+            &campaign_store,
+        )
+        .expect_err("binding should reject reservation conflict");
+
+        assert!(
+            err.to_string()
+                .contains("conflicts with reserved alias 'SYSOP' for seat 2")
+        );
+
+        let _ = fs::remove_dir_all(&game_dir);
     }
 
     #[test]
@@ -861,6 +1092,10 @@ mod tests {
         apply_launch_context(
             &mut app,
             &parsed,
+            LaunchPlayerBinding::Bound {
+                player_record_index_1_based: 1,
+                source: LaunchPlayerBindingSource::ExplicitPlayer,
+            },
             Some(HostedLaunchContext {
                 player_npub: "npub1hostedplayer".to_string(),
                 invite_code: Some("velvet-mountain".to_string()),
@@ -879,6 +1114,36 @@ mod tests {
             app.startup_state.first_time_onboarding_mode,
             FirstTimeOnboardingMode::HostedInvite
         );
+        assert!(app.startup_state.fixed_player_launch);
+
+        let _ = fs::remove_dir_all(&game_dir);
+    }
+
+    #[test]
+    fn apply_launch_context_moves_unbound_dropfile_to_first_time_menu() {
+        let game_dir = temp_first_time_game_copy();
+        let config = AppConfig {
+            game_dir: game_dir.clone(),
+            player_record_index_1_based: 1,
+            export_root: None,
+            queue_dir: None,
+            session_timeout_secs: None,
+            game_config: GameConfig::default(),
+        };
+        let mut app = App::load(config).expect("app should load");
+        let mut parsed = parsed_args(true);
+        parsed.dropfile_alias = Some("RIVAL".to_string());
+
+        apply_launch_context(
+            &mut app,
+            &parsed,
+            LaunchPlayerBinding::UnboundDropfile,
+            None,
+        );
+
+        assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+        assert!(app.startup_state.unbound_bbs_caller);
+        assert_eq!(app.startup_state.caller_alias.as_deref(), Some("RIVAL"));
 
         let _ = fs::remove_dir_all(&game_dir);
     }

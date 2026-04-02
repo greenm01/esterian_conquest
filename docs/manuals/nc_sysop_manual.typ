@@ -622,9 +622,19 @@ nc-sysop settings reserve --dir /path/to/mygame --player 2 --alias NightShade
 ```
 
 With that in place, a reserved caller can launch with `--dropfile` alone.
-If the caller alias is not reserved, `--player` is still required. If both
-`--player` and `--dropfile` are supplied for a reserved caller, they must
-agree on the same empire slot.
+If the caller alias is not reserved, `nc-game` now uses this dropfile-only
+door flow:
+
+- if the alias already matches a stored joined player handle, that caller
+  resumes the matching empire automatically
+- if the alias does not match an existing joined empire, the caller lands on
+  the BBS first-time menu and can claim the lowest-numbered open unreserved
+  empire only when the join is actually confirmed
+- if the game is full, the caller still reaches the BBS first-time menu, but
+  `J` is refused with the normal no-open-empires notice
+
+If both `--player` and `--dropfile` are supplied for a reserved caller, they
+must agree on the same empire slot.
 
 #admonition("NOTE")[
   The original DOS `ECGAME.EXE` v1.5 expects a strict 32-line WWIV-style
@@ -639,9 +649,10 @@ The native Rust `nc-game` door is now verified on both Mystic and ENiGMA½.
 For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
 `io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
 `--encoding cp437`, and `--color-mode ansi16` to the client, or use the
-helper wrapper at `tools/bbs/run_ec_rust.sh`. Use `--player` for unreserved
-callers, or reserve the alias in `ncgame.db` and let `--dropfile` resolve
-the seat.
+helper wrapper at `tools/bbs/run_ec_rust.sh`. A normal BBS door entry no
+longer needs per-seat `--player` flags for unreserved callers; `--dropfile`
+is enough. Keep `--player` for localhost/manual launches where the sysop or
+tester wants an explicit fixed seat.
 
 If Enigma writes a `DOOR32.SYS`, you can pass it directly:
 
@@ -769,14 +780,26 @@ nc-game --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 Important rules:
 
 - if the caller alias is reserved, `--player` becomes optional
-- if the caller alias is not reserved, `--player` is still required
+- if the caller alias is not reserved and already matches a stored joined
+  player handle, that caller resumes the matching empire automatically
+- if the caller alias is not reserved and does not match an existing joined
+  player handle, the caller starts on the BBS first-time menu
 - if both `--player` and `--dropfile` are supplied for a reserved caller, they must match
+- if both `--player` and `--dropfile` are supplied for a stored-handle match,
+  they must match
 - if a reservation conflicts with an already-stored different player handle, `nc-game` will stop with a clear error so the sysop can reconcile the reservation and the runtime state
+- if no open unreserved empires remain, `J` from the BBS first-time menu is
+  refused and the caller stays on that menu
 
 Reserving a seat does not by itself join or pre-name the empire. It only
 routes the caller to the intended slot. The usual first-time join flow still
-claims an open empire, and that first successful join records the caller alias
-into the player record for later logins.
+claims an empire only on successful join confirmation, and that first
+successful join records the caller alias into the player record for later
+dropfile logins.
+
+For localhost/manual sessions, `--player <N>` remains the explicit fixed-seat
+path. It behaves like a direct seat binding; if the seat number is wrong,
+`nc-game` refuses the launch with a clear CLI error.
 
 // ─── 12. Terminology ──────────────────────────────────────────────────────────
 

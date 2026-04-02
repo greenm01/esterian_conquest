@@ -41,14 +41,24 @@ cd rust
 cargo run -q -p nc-sysop -- new-game /path/to/ec-campaign --players 4 --seed 1515
 ```
 
-Reserve each caller alias so the door can resolve the seat from the dropfile
-without `--player`:
+Seat reservations are optional. Use them when you want a specific caller alias
+to own a fixed empire slot:
 
 ```bash
 cd rust
 cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 1 --alias mag
 cargo run -q -p nc-sysop -- settings reserve --dir /path/to/ec-campaign --player 2 --alias NightShade
 ```
+
+If a caller alias is not reserved, Mystic can still launch `nc-game` with
+`CHAIN.TXT` alone:
+
+- returning callers resume automatically by stored caller handle
+- new callers land on the BBS first-time menu
+- `J` claims the lowest-numbered open unreserved empire only when the join is
+  confirmed
+- if the game is full, the caller still reaches the first-time menu, but `J`
+  is refused
 
 Run yearly maintenance with your normal host tooling:
 
@@ -107,10 +117,11 @@ For local testing, connect with SyncTERM or telnet to the configured port.
 
 The expected first-pass smoke test is:
 
-1. create or log into a Mystic user whose alias is reserved in `ncgame.db`
+1. create or log into a Mystic user, either reserved or brand-new
 2. open the Doors menu
 3. launch the EC entry
-4. confirm the EC first-time menu renders in color and sits on the normal
-   `80x25` playfield
+4. confirm a new unreserved caller lands on the EC first-time menu in color on
+   the normal `80x25` playfield
 5. verify that `HJKL` navigation and `^U` / `^D` paging work on list screens
-6. choose `J` and verify the join flow reaches empire naming
+6. choose `J` and verify the join flow reaches empire naming when an open
+   unreserved empire exists

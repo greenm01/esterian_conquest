@@ -201,6 +201,22 @@ fn join_player_normalizes_zero_tax_slots_to_seeded_opening_tax_rate() {
 }
 
 #[test]
+fn join_player_rejects_already_joined_seat() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(2)
+        .build_joinable_new_game_baseline()
+        .expect("joinable baseline should build");
+
+    data.join_player(1, "Codex Dominion")
+        .expect("first join should succeed");
+
+    assert_eq!(
+        data.join_player(1, "Other Empire"),
+        Err(GameStateMutationError::PlayerAlreadyJoined { index_1_based: 1 })
+    );
+}
+
+#[test]
 fn stardock_slots_round_trip_through_contiguous_classic_offsets() {
     let mut planet = PlanetRecord::new_zeroed();
 

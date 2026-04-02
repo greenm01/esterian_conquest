@@ -190,7 +190,7 @@ fn reserved_dropfile_alias_rejects_mismatched_explicit_player() {
 }
 
 #[test]
-fn unreserved_dropfile_alias_without_player_still_requires_player() {
+fn unreserved_dropfile_alias_without_player_opens_first_time_menu() {
     let fixture_dir = temp_fixture_copy();
     write_reserved_config(&fixture_dir, "SYSOP", 1);
     let dropfile = write_dropfile(&fixture_dir, "RIVAL");
@@ -205,9 +205,42 @@ fn unreserved_dropfile_alias_without_player_still_requires_player() {
         .output()
         .expect("nc-game should run");
 
-    assert!(!output.status.success(), "nc-game should require --player");
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains("reserve the dropfile alias in ncgame.db"),
+        output.status.success(),
+        "nc-game failed: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "successful nc-game launch should be silent on stderr: {:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
+    assert!(stdout.contains("FIRST TIME MENU:"));
+    assert!(stdout.contains("FIRST TIME COMMAND"));
+}
+
+#[test]
+fn explicit_player_out_of_range_is_refused() {
+    let fixture_dir = temp_fixture_copy();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_nc-game"))
+        .args([
+            "--dir",
+            fixture_dir.to_str().expect("fixture path should be utf-8"),
+            "--player",
+            "9",
+        ])
+        .output()
+        .expect("nc-game should run");
+
+    assert!(
+        !output.status.success(),
+        "nc-game should reject bad --player"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("--player 9 exceeds player count 4"),
         "stderr={:?}",
         String::from_utf8_lossy(&output.stderr)
     );

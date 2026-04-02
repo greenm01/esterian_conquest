@@ -40,6 +40,11 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingPlayerRecord {
                 index_1_based: player_record_index_1_based,
             })?;
+        if player.is_active_human_player() {
+            return Err(GameStateMutationError::PlayerAlreadyJoined {
+                index_1_based: player_record_index_1_based,
+            });
+        }
         player.set_player_mode_raw(0x01);
         player.set_controlled_empire_name_raw(empire_name);
         player.set_tax_rate_raw(tax_rate);
