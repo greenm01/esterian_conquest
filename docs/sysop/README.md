@@ -52,8 +52,10 @@ Current `nc-door` host wins here are:
 - Synchronet
 - ENiGMA½
 
-WWIV is now validated on Linux too. The remaining cross-platform host gap is
-WWIV on Windows.
+WWIV is validated on Linux. Native Windows WWIV remains unvalidated here and
+is not currently recommended; one local Windows 11 test with an older 2023
+WWIV Windows package ended with Defender quarantining the downloaded binary,
+and the tested `bbs.exe` then crashed before login.
 
 Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
 Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with

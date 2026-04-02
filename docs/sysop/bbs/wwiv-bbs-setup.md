@@ -7,8 +7,13 @@ Status note:
 - Linux WWIV with `CHAIN.TXT` is validated through SyncTERM
 - the tested path stages `nc-door` and `nc-sysop` in a normal sysop-owned
   tree and launches `nc-door` as a WWIV chain
-- Windows WWIV is still pending, so this guide currently documents the
-  validated Linux path only
+- Windows WWIV is not validated here and is not currently recommended
+- one local Windows 11 test with an older 2023 WWIV Windows package ended
+  with Defender quarantining the downloaded binary, and the tested
+  `bbs.exe` build then crashed in both remote and local-node paths before
+  login
+- treat Windows WWIV as an upstream/platform-debug path; use Linux WWIV or a
+  different validated BBS host when you want a reliable `nc-door` setup
 
 ## 1. Stage the Rust binaries
 
@@ -163,5 +168,9 @@ The expected first-pass validation pass is:
 - if the caller reaches WWIV but not the door, confirm the user SL satisfies
   the chain ACS and that the chain description matches the menu entry you are
   launching
+- if you are attempting native Windows WWIV hosting, stop and verify that the
+  WWIV package itself is trustworthy and stable on that machine before
+  debugging `nc-door`; on one local Windows 11 test, `bbs.exe` crashed before
+  login in both telnet and local-node modes
 - if you are using the public `nc-sysop` package, the host-specific WWIV,
   Mystic, Synchronet, and ENiGMA½ guides are bundled under `docs/sysop/bbs/`

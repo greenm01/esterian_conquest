@@ -696,6 +696,11 @@ WWIV is documented separately as a validated Linux `CHAIN.TXT` path:
 nc-door --dir /path/to/mygame --dropfile /path/to/CHAIN.TXT
 ```
 
+Treat native Windows WWIV as unvalidated for now. In one local Windows 11 test
+with an older 2023 WWIV Windows package, Defender quarantined the downloaded
+binary and `bbs.exe` then crashed before login in both remote and local-node
+flows.
+
 For the exact launcher setups, see
 `docs/sysop/bbs/mystic-bbs-setup.md`,
 `docs/sysop/bbs/enigma-bbs-setup.md`,
