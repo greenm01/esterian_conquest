@@ -21,16 +21,19 @@ Practical posture:
 
 - prefer the Rust-native `nc-connect` / `nc-game` / `nc-sysop` stack for new
   deployments
-- during the current beta, Rust sysops should expect tagged-source Cargo
-  installs rather than public Rust binary downloads
+- use the public Linux x64 `nc-sysop` package for localhost or BBS hosting
+  when you want a no-Cargo operator handoff
+- use the matching Windows x64 `nc-sysop` package when you have built and
+  validated it on a native Windows host
 - treat hosted Rust campaigns as DB-only: one `ncgame.db` per game directory
 - Mystic and ENiGMA are both now verified Rust-door hosts
 - for BBS play, treat `HJKL` as the primary door navigation contract and
   `^U` / `^D` as the primary paging keys
 - treat original DOS `ECGAME` hosting as a compatibility bridge, not the long-
   term operating model
-- a public Linux x64 BBS door package is planned later; it should carry
-  `nc-game`, `nc-sysop`, and both manuals
+- VPS/Nostr hosting remains a tagged-source Cargo workflow with
+  `scripts/install_vps.sh`; the public sysop package is for localhost and BBS,
+  not VPS
 - hosted/Nostr campaigns use `ncgame.db` for per-game runtime policy, while
   BBS door campaigns use a minimal per-game `config.kdl`; `/etc/nc-gate/config.kdl`
   remains the global daemon game list

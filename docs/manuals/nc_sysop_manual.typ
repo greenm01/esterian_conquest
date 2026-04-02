@@ -150,18 +150,20 @@ The release binaries will be in `target/release/`.
 
 During the current beta, public GitHub Releases include Windows x64, Linux x64,
 and macOS Apple Silicon `nc-connect` player archives alongside the old DOS
-compatibility packages.
+compatibility packages. The release tooling also supports Linux x64 and
+Windows x64 `nc-sysop` localhost/BBS packages.
 
 For the Rust edition:
 
-1. Rust self-host and VPS sysops should build from tagged source with Cargo.
+1. VPS sysops should build from tagged source with Cargo and use
+   `scripts/install_vps.sh`.
 2. Hosted players can use the public GitHub Releases `nc-connect` archives
    with the player manual on Windows, Linux, or macOS.
-3. BBS sysops should build from source or use a direct/private beta build.
-
-A public Linux x64 BBS door package is planned later. When it ships, it should
-include `nc-game`, `nc-sysop`, the BBS wrapper/docs, the player manual, and
-this sysop manual.
+3. Localhost and BBS sysops can use the public `nc-sysop` package on Linux x64,
+   or build from tagged source with Cargo.
+4. Windows localhost and BBS sysops can use the Windows x64 `nc-sysop`
+   package when it has been built on a native Windows host, or build from
+   tagged source with Cargo.
 
 == Choose Your Deployment
 
@@ -230,9 +232,8 @@ similar BBS.
 5. Keep maintenance outside the door. Run `nc-sysop maint` from the host or
    the BBS event runner.
 
-During the current beta, a BBS sysop should build from source or use a
-direct/private beta build. Windows BBS hosting is best-effort source-build
-only.
+For localhost and BBS hosting, use the `nc-sysop` package or build from
+source. VPS/Nostr hosting remains a tagged-source Cargo workflow.
 
 For the exact launcher setups, see:
 
@@ -685,7 +686,7 @@ The native Rust `nc-game` door is now verified on both Mystic and ENiGMA½.
 For ENiGMA, use the `abracadabra` module with `dropFileType: DOOR32`,
 `io: stdio`, and `encoding: cp437`. Pass `--dir`, `--dropfile`,
 `--encoding cp437`, and `--color-mode ansi16` to the client, or use the
-helper wrapper at `tools/bbs/run_ec_rust.sh`. A normal BBS door entry no
+helper wrapper at `tools/bbs/run_nc_rust.sh`. A normal BBS door entry no
 longer needs per-seat `--player` flags for unreserved callers; `--dropfile`
 is enough. Keep `--player` for localhost/manual launches where the sysop or
 tester wants an explicit fixed seat.

@@ -326,8 +326,9 @@ It currently:
 
 - builds either:
   - the internal combined private-beta bundle
-  - or a public `nc-connect` player archive
-- includes the matching public PDF manuals under `docs/`
+  - a public `nc-connect` player archive
+  - or a public `nc-sysop` localhost/BBS sysop archive
+- includes the matching public PDF manuals in the archive
 - writes `README.md` and `BUILD-INFO.txt` into the bundle root
 - can unpack and smoke-test the bundle when `--verify` is passed
 - defaults to the current host Rust target, with explicit support for:
@@ -348,6 +349,12 @@ Public player archive example:
 python3 scripts/build_playtest_bundle.py --artifact nc-connect --verify
 ```
 
+Public sysop archive example:
+
+```bash
+python3 scripts/build_playtest_bundle.py --artifact sysop --target x86_64-unknown-linux-gnu --verify
+```
+
 Explicit Apple Silicon example:
 
 ```bash
@@ -357,11 +364,13 @@ python3 scripts/build_playtest_bundle.py --artifact nc-connect --target aarch64-
 Use this when you want:
 
 - a native archive without requiring a Rust toolchain
-- either a public `nc-connect` player package or the internal combined bundle
+- either a public `nc-connect` player package, a public `nc-sysop` sysop
+  package, or the internal combined bundle
 - a quick way to hand players or testers the right manual with the binary
 
 The combined bundle is an internal/private-beta helper. The `nc-connect`
-artifact is the public player-facing archive.
+artifact is the public player-facing archive. The `sysop` artifact is the
+public localhost/BBS operator archive.
 
 The release tooling supports public `nc-connect` archives for:
 
@@ -369,6 +378,11 @@ The release tooling supports public `nc-connect` archives for:
 - `x86_64-unknown-linux-gnu`
 - `aarch64-apple-darwin`
 - `x86_64-apple-darwin`
+
+The release tooling supports public `nc-sysop` archives for:
+
+- `x86_64-pc-windows-msvc`
+- `x86_64-unknown-linux-gnu`
 
 ### `build_linux_playtest_bundle.py`
 
@@ -381,11 +395,11 @@ python3 scripts/build_linux_playtest_bundle.py --verify
 
 ### `publish_release_packages.py`
 
-Builds the selected DOS release bundles and/or `nc-connect` player archives,
+Builds the selected DOS release bundles and/or public Rust download archives,
 verifies them, then uploads the generated assets to an existing GitHub Release
-with `gh release upload --clobber`. When public `nc-connect` assets are part of
-the run, it also refreshes the signed-download verification block at the top of
-the release body.
+with `gh release upload --clobber`. When public Rust assets are part of the
+run, it also refreshes the signed-download verification block at the top of the
+release body.
 
 Default example:
 
@@ -421,6 +435,22 @@ python3 scripts/publish_release_packages.py \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
+Linux sysop archive example:
+
+```bash
+python3 scripts/publish_release_packages.py \
+  --sysop-target x86_64-unknown-linux-gnu \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
+```
+
+Windows sysop archive example:
+
+```bash
+python3 scripts/publish_release_packages.py \
+  --sysop-target x86_64-pc-windows-msvc \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
+```
+
 Apple Silicon player archive example:
 
 ```bash
@@ -439,17 +469,18 @@ python3 scripts/publish_release_packages.py \
 
 Use this when you want:
 
-- the easiest release workflow for DOS bundles and public `nc-connect` archives
+- the easiest release workflow for DOS bundles and public Rust download archives
 - the generated release assets to stay untracked locally under `releases/`
 - the public downloadable copies to live on GitHub Releases instead of `main`
 - signed `SHA256SUMS.txt` / `SHA256SUMS.txt.asc` assets for the public
-  `nc-connect` archives
+  Rust archives
 
-When `--nc-connect-target` is used, `publish_release_packages.py` now requires
-`--gpg-key` and signs the shared `nc-connect` checksum manifest for the
-selected target(s). It keeps that manifest complete by reusing any other
-already-published public `nc-connect` archives from the release. It also
-updates the GitHub release-body verification notice automatically.
+When `--nc-connect-target` or `--sysop-target` is used,
+`publish_release_packages.py` requires `--gpg-key` and signs the shared public
+Rust checksum manifest for the selected target(s). It keeps that manifest
+complete by reusing any other already-published public Rust archives from the
+release. It also updates the GitHub release-body verification notice
+automatically.
 
 `publish_release_packages.sh` remains as a thin compatibility wrapper around
 the Python entrypoint.

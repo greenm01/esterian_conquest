@@ -15,15 +15,15 @@ Use:
 - `nc-sysop` to create and maintain the campaign
 - `nc-game` as the player door
 - Mystic's `DC` door command so Mystic writes `CHAIN.TXT` into `%P`
-- [`tools/bbs/run_ec_rust.sh`](../../tools/bbs/run_ec_rust.sh) as the door launcher
+- [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) as the door launcher
 
 `nc-game` already accepts `CHAIN.TXT`, so Mystic does not need a format
 translation layer.
 
 ## 1. Build the Rust binaries
 
-During the current beta, build these from source or use a direct/private beta
-build. A public Linux x64 BBS door package is planned later.
+For Linux localhost/BBS hosting, use the public `nc-sysop` package or build
+from source.
 
 From the repo root:
 
@@ -113,7 +113,7 @@ DC
 Door data:
 
 ```text
-/path/to/esterian_conquest/tools/bbs/run_ec_rust.sh /path/to/ec-campaign %PCHAIN.TXT
+/path/to/esterian_conquest/tools/bbs/run_nc_rust.sh /path/to/ec-campaign %PCHAIN.TXT
 ```
 
 Why `DC`:

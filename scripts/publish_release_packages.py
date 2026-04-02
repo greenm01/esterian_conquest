@@ -25,6 +25,7 @@ RELEASE_NOTE_URL = (
     "https://github.com/greenm01/nostrian-conquest/blob/main/docs/release-signing.md"
 )
 EC_CONNECT_ARCHIVE_RE = re.compile(r"^nc-connect-v.*\.(?:zip|tar\.gz)$")
+SYSOP_ARCHIVE_RE = re.compile(r"^nc-sysop-v.*\.(?:zip|tar\.gz)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,9 +56,18 @@ def parse_args() -> argparse.Namespace:
         help="Build and upload a public nc-connect archive for the selected target.",
     )
     parser.add_argument(
+        "--sysop-target",
+        action="append",
+        choices=("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"),
+        help=(
+            "Build and upload a public localhost/BBS sysop archive for the "
+            "selected target."
+        ),
+    )
+    parser.add_argument(
         "--gpg-key",
         help=(
-            "GPG key fingerprint or key ID used to sign the shared nc-connect "
+            "GPG key fingerprint or key ID used to sign the shared public Rust "
             "checksum manifest."
         ),
     )
@@ -88,7 +98,7 @@ def capture(argv: list[str], *, cwd: Path | None = None) -> str:
 
 def selected_dos_variants(args: argparse.Namespace) -> list[str]:
     variants = list(args.variant or [])
-    if variants or args.nc_connect_target:
+    if variants or args.nc_connect_target or args.sysop_target:
         return variants
     return ["classic", "unlocked"]
 
@@ -125,6 +135,24 @@ def build_nc_connect_archive(target: str) -> Path:
     return Path(lines[-1])
 
 
+def build_sysop_archive(target: str) -> Path:
+    output = capture(
+        [
+            sys.executable,
+            str(BUILD_PLAYTEST_BUNDLE),
+            "--artifact",
+            "sysop",
+            "--target",
+            target,
+            "--verify",
+        ]
+    )
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if not lines:
+        raise SystemExit(f"build_playtest_bundle.py did not print an archive path for {target}")
+    return Path(lines[-1])
+
+
 def download_existing_nc_connect_assets(
     release_tag: str,
     selected_names: set[str],
@@ -137,6 +165,36 @@ def download_existing_nc_connect_assets(
     downloaded: list[Path] = []
     for asset_name in asset_names:
         if asset_name in selected_names or not EC_CONNECT_ARCHIVE_RE.match(asset_name):
+            continue
+        run(
+            [
+                "gh",
+                "release",
+                "download",
+                release_tag,
+                "--pattern",
+                asset_name,
+                "--dir",
+                str(download_dir),
+            ]
+        )
+        downloaded.append(download_dir / asset_name)
+    return downloaded
+
+
+def download_existing_public_rust_assets(
+    release_tag: str,
+    selected_names: set[str],
+    download_dir: Path,
+) -> list[Path]:
+    output = capture(
+        ["gh", "release", "view", release_tag, "--json", "assets", "--jq", ".assets[].name"]
+    )
+    asset_names = [line.strip() for line in output.splitlines() if line.strip()]
+    downloaded: list[Path] = []
+    for asset_name in asset_names:
+        matches_public_rust = EC_CONNECT_ARCHIVE_RE.match(asset_name) or SYSOP_ARCHIVE_RE.match(asset_name)
+        if asset_name in selected_names or not matches_public_rust:
             continue
         run(
             [
@@ -193,7 +251,7 @@ def write_release_note(fingerprint: str) -> None:
     body = f"""<!-- NC-RUST-VERIFY:START -->
 ## Verify Rust downloads
 
-The Rust-built `nc-connect` downloads in this release can be verified with the signed `SHA256SUMS.txt` manifest.
+The Rust-built public downloads in this release can be verified with the signed `SHA256SUMS.txt` manifest.
 
 `gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt`
 `shasum -a 256 -c SHA256SUMS.txt`
@@ -201,7 +259,7 @@ The Rust-built `nc-connect` downloads in this release can be verified with the s
 Full instructions and public key: {RELEASE_NOTE_URL}
 Signing key fingerprint: `{fingerprint}`
 
-The signed manifest covers the public Windows x64, Linux x64, and macOS Apple Silicon `nc-connect` archives on this page, not the DOS compatibility bundles.
+The signed manifest covers the public Rust download archives on this page, including `nc-connect` player packages and `nc-sysop` localhost/BBS packages, but not the DOS compatibility bundles.
 <!-- NC-RUST-VERIFY:END -->
 """
     RELEASE_NOTE_PATH.write_text(body, encoding="utf-8")
@@ -236,22 +294,26 @@ def main() -> None:
     args = parse_args()
     dos_variants = selected_dos_variants(args)
     nc_connect_targets = list(args.nc_connect_target or [])
+    sysop_targets = list(args.sysop_target or [])
 
-    if nc_connect_targets and not args.gpg_key:
-        raise SystemExit("--gpg-key is required when publishing nc-connect release assets.")
+    if (nc_connect_targets or sysop_targets) and not args.gpg_key:
+        raise SystemExit("--gpg-key is required when publishing public Rust release assets.")
 
     assets = build_dos_variants(dos_variants)
     nc_connect_assets = [build_nc_connect_archive(target) for target in nc_connect_targets]
+    sysop_assets = [build_sysop_archive(target) for target in sysop_targets]
     assets.extend(nc_connect_assets)
+    assets.extend(sysop_assets)
 
     if not assets:
         raise SystemExit("no release assets selected")
 
-    if nc_connect_assets:
+    public_rust_assets = nc_connect_assets + sysop_assets
+    if public_rust_assets:
         with tempfile.TemporaryDirectory(prefix="ec-release-download-") as temp_dir:
             download_dir = Path(temp_dir)
-            selected_names = {asset.name for asset in nc_connect_assets}
-            manifest_assets = nc_connect_assets + download_existing_nc_connect_assets(
+            selected_names = {asset.name for asset in public_rust_assets}
+            manifest_assets = public_rust_assets + download_existing_public_rust_assets(
                 args.tag,
                 selected_names,
                 download_dir,

@@ -18,8 +18,8 @@ original `ECGAME.EXE`.
 
 ## 1. Build the Rust client
 
-During the current beta, build these from source or use a direct/private beta
-build. A public Linux x64 BBS door package is planned later.
+For Linux localhost/BBS hosting, use the public `nc-sysop` package or build
+from source.
 
 From the repo root:
 
@@ -35,7 +35,7 @@ cd rust
 cargo build -q --release -p nc-game -p nc-sysop
 ```
 
-The helper script [`tools/bbs/run_ec_rust.sh`](../../tools/bbs/run_ec_rust.sh)
+The helper script [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh)
 will use `target/release/nc-game` first, then `target/debug/nc-game`, then
 fall back to `cargo run`.
 
@@ -112,7 +112,7 @@ doorEsterianConquestRust: {
     config: {
         name: Esterian Conquest
         dropFileType: DOOR32
-        cmd: /path/to/esterian_conquest/tools/bbs/run_ec_rust.sh
+        cmd: /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh
         args: [
             "/path/to/ec-campaign"
             "{dropFilePath}"
@@ -155,7 +155,7 @@ doorEsterianConquestRust: {
     config: {
         name: Esterian Conquest
         dropFileType: DOOR32
-        cmd: /path/to/esterian_conquest/tools/bbs/run_ec_rust.sh
+        cmd: /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh
         args: [
             "/path/to/ec-campaign"
             "{dropFilePath}"
@@ -179,7 +179,7 @@ Your local `~/launch_bbs.sh` can stay as-is if it already:
 2. opens SyncTERM against `localhost:8888`
 3. shuts ENiGMA down when you exit
 
-Once the menu entry above points at `run_ec_rust.sh`, launching the EC door
+Once the menu entry above points at `run_nc_rust.sh`, launching the EC door
 from ENiGMA should run the Rust client instead of the DOS wrapper.
 
 ## 7. Current local config change
@@ -189,7 +189,7 @@ is:
 
 ```hjson
 dropFileType: DOOR32
-cmd: /path/to/esterian_conquest/tools/bbs/run_ec_rust.sh
+cmd: /path/to/esterian_conquest/tools/bbs/run_nc_rust.sh
 args: [
     "/path/to/ec-campaign"
     "{dropFilePath}"

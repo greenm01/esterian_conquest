@@ -1,0 +1,4 @@
+players 4
+reservations {
+    seat player=1 alias="SYSOP"
+}

@@ -19,6 +19,11 @@ RUST_ROOT = REPO_ROOT / "rust"
 RELEASES_DIR = REPO_ROOT / "releases"
 PLAYER_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_player_manual.pdf"
 SYSOP_MANUAL = REPO_ROOT / "docs" / "manuals" / "nc_sysop_manual.pdf"
+SYSOP_ASSET_ROOT = REPO_ROOT / "packaging" / "sysop"
+SYSOP_CONFIG_EXAMPLE = SYSOP_ASSET_ROOT / "examples" / "config.kdl"
+SYSOP_LINUX_README = SYSOP_ASSET_ROOT / "linux" / "README.md"
+SYSOP_WINDOWS_README = SYSOP_ASSET_ROOT / "windows" / "README.md"
+SYSOP_LINUX_WRAPPER = SYSOP_ASSET_ROOT / "linux" / "tools" / "bbs" / "run_nc_rust.sh"
 EC_CONNECT_LICENSES = (
     REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
     REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
@@ -71,6 +76,8 @@ class BundleSpec:
     def bundle_root_name(self) -> str:
         if self.artifact == "nc-connect":
             return f"nc-connect-v{self.version}-{self.platform.slug}"
+        if self.artifact == "sysop":
+            return f"nc-sysop-v{self.version}-{self.platform.slug}"
         return f"esterian-conquest-v{self.version}-{self.platform.slug}"
 
     @property
@@ -86,16 +93,17 @@ class BundleSpec:
 def parse_args(default_target: str | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a beta nc-game/nc-sysop/nc-connect release bundle."
+            "Build release archives for internal beta, public player, or public sysop packaging."
         )
     )
     parser.add_argument(
         "--artifact",
-        choices=("public-beta", "nc-connect"),
+        choices=("public-beta", "nc-connect", "sysop"),
         default="public-beta",
         help=(
             "Artifact type to package. `public-beta` keeps the internal combined "
-            "bundle; `nc-connect` builds the public player archive."
+            "bundle; `nc-connect` builds the public player archive; `sysop` "
+            "builds the public localhost/BBS sysop archive."
         ),
     )
     parser.add_argument(
@@ -173,21 +181,37 @@ def resolve_target(target_triple: str | None) -> TargetPlatform:
 def artifact_binaries(spec: BundleSpec) -> tuple[str, ...]:
     if spec.artifact == "nc-connect":
         return ("nc-connect",)
+    if spec.artifact == "sysop":
+        return ("nc-game", "nc-sysop")
     return ("nc-game", "nc-sysop", "nc-connect")
 
 def artifact_packages(spec: BundleSpec) -> tuple[str, ...]:
     if spec.artifact == "nc-connect":
         return ("nc-connect",)
+    if spec.artifact == "sysop":
+        return ("nc-game", "nc-sysop")
     return ("nc-game", "nc-sysop", "nc-connect")
 
 
+def validate_artifact_platform(spec: BundleSpec) -> None:
+    if spec.artifact == "sysop" and spec.platform.target_triple not in (
+        "x86_64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc",
+    ):
+        raise SystemExit(
+            "sysop packaging is only supported for x86_64-unknown-linux-gnu and "
+            "x86_64-pc-windows-msvc"
+        )
+
+
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
+    validate_artifact_platform(spec)
     binaries = artifact_binaries(spec)
     packages = artifact_packages(spec)
     host_target = detect_host_target()
     if spec.platform.target_triple == "x86_64-pc-windows-msvc" and host_target != spec.platform.target_triple:
         raise SystemExit(
-            "Windows nc-connect release bundles must be built on a native "
+            "Windows release bundles must be built on a native "
             "x86_64-pc-windows-msvc host. GNU and non-Windows cross-builds are "
             "not supported for release packaging."
         )
@@ -220,6 +244,10 @@ def build_info_text(spec: BundleSpec) -> str:
 
 
 def package_readme(spec: BundleSpec) -> str:
+    if spec.artifact == "sysop":
+        readme_path = SYSOP_WINDOWS_README if spec.is_windows else SYSOP_LINUX_README
+        return readme_path.read_text(encoding="utf-8")
+
     connect_binary = "nc-connect.exe" if spec.is_windows else "./bin/nc-connect"
     player_manual_path = "nc_player_manual.pdf" if spec.is_windows else "docs/nc_player_manual.pdf"
     windows_note = ""
@@ -313,10 +341,9 @@ It also includes:
 - `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata for bug reports
 
-This is not a public release package. Public GitHub Releases currently publish
-Windows x64, Linux x64, and macOS Apple Silicon `nc-connect` player archives
-plus the DOS compatibility bundles while the hosted Rust path is still under
-live playtest.
+This is not a public release package. Public GitHub Releases publish the
+player-facing `nc-connect` archives and can also publish localhost/BBS
+`nc-sysop` archives, while VPS hosting remains a tagged-source workflow.
 
 ## Quick Start
 
@@ -388,24 +415,42 @@ def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
 
 def stage_bundle(spec: BundleSpec, binary_paths: dict[str, Path], workspace_root: Path) -> Path:
     bundle_root = workspace_root / spec.bundle_root_name
-    licenses_dir = bundle_root / "licenses"
-
-    if spec.is_windows:
-        for path in binary_paths.values():
-            copy_file(path, bundle_root / path.name)
-        copy_file(PLAYER_MANUAL, bundle_root / PLAYER_MANUAL.name)
-        if spec.artifact == "public-beta":
+    if spec.artifact == "sysop":
+        if spec.is_windows:
+            for path in binary_paths.values():
+                copy_file(path, bundle_root / path.name)
+            copy_file(PLAYER_MANUAL, bundle_root / PLAYER_MANUAL.name)
             copy_file(SYSOP_MANUAL, bundle_root / SYSOP_MANUAL.name)
-    else:
-        docs_dir = bundle_root / "docs"
-        bin_dir = bundle_root / "bin"
-        for name, path in binary_paths.items():
-            copy_file(path, bin_dir / name, executable=True)
-        copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
-        if spec.artifact == "public-beta":
+            copy_file(SYSOP_CONFIG_EXAMPLE, bundle_root / "config.kdl")
+        else:
+            docs_dir = bundle_root / "docs"
+            bin_dir = bundle_root / "bin"
+            examples_dir = bundle_root / "examples"
+            tools_dir = bundle_root / "tools" / "bbs"
+            for name, path in binary_paths.items():
+                copy_file(path, bin_dir / name, executable=True)
+            copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
             copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
-    for license_path in EC_CONNECT_LICENSES:
-        copy_file(license_path, licenses_dir / license_path.name)
+            copy_file(SYSOP_CONFIG_EXAMPLE, examples_dir / "config.kdl")
+            copy_file(SYSOP_LINUX_WRAPPER, tools_dir / "run_nc_rust.sh", executable=True)
+    else:
+        licenses_dir = bundle_root / "licenses"
+        if spec.is_windows:
+            for path in binary_paths.values():
+                copy_file(path, bundle_root / path.name)
+            copy_file(PLAYER_MANUAL, bundle_root / PLAYER_MANUAL.name)
+            if spec.artifact == "public-beta":
+                copy_file(SYSOP_MANUAL, bundle_root / SYSOP_MANUAL.name)
+        else:
+            docs_dir = bundle_root / "docs"
+            bin_dir = bundle_root / "bin"
+            for name, path in binary_paths.items():
+                copy_file(path, bin_dir / name, executable=True)
+            copy_file(PLAYER_MANUAL, docs_dir / PLAYER_MANUAL.name)
+            if spec.artifact == "public-beta":
+                copy_file(SYSOP_MANUAL, docs_dir / SYSOP_MANUAL.name)
+        for license_path in EC_CONNECT_LICENSES:
+            copy_file(license_path, licenses_dir / license_path.name)
 
     (bundle_root / "README.md").write_text(package_readme(spec), encoding="utf-8")
     (bundle_root / "BUILD-INFO.txt").write_text(build_info_text(spec), encoding="utf-8")
@@ -441,27 +486,52 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
         docs_prefix = "" if spec.is_windows else "docs/"
         binary_prefix = "" if spec.is_windows else "bin/"
         binary_ext = ".exe" if spec.is_windows else ""
-        required_files = [
-            "README.md",
-            "BUILD-INFO.txt",
-            f"{docs_prefix}nc_player_manual.pdf",
-            "licenses/OFL-0xProto.txt",
-            "licenses/LICENSE-NotoSansMono.txt",
-        ]
-        forbidden_files = [
-            f"{binary_prefix}nc-connect-cli{binary_ext}",
-        ]
-        if spec.artifact == "public-beta":
-            required_files.extend(
-                (
-                    f"{docs_prefix}nc_sysop_manual.pdf",
-                    f"{binary_prefix}nc-game{binary_ext}",
-                    f"{binary_prefix}nc-sysop{binary_ext}",
-                    f"{binary_prefix}nc-connect{binary_ext}",
+        if spec.artifact == "sysop":
+            required_files = [
+                "README.md",
+                "BUILD-INFO.txt",
+                f"{docs_prefix}nc_player_manual.pdf",
+                f"{docs_prefix}nc_sysop_manual.pdf",
+                f"{binary_prefix}nc-game{binary_ext}",
+                f"{binary_prefix}nc-sysop{binary_ext}",
+            ]
+            if spec.is_windows:
+                required_files.append("config.kdl")
+            else:
+                required_files.extend(
+                    (
+                        "examples/config.kdl",
+                        "tools/bbs/run_nc_rust.sh",
+                    )
                 )
-            )
+            forbidden_files = [
+                f"{binary_prefix}nc-connect{binary_ext}",
+                f"{binary_prefix}nc-connect-cli{binary_ext}",
+                "licenses/OFL-0xProto.txt",
+                "licenses/LICENSE-NotoSansMono.txt",
+            ]
         else:
-            required_files.append(f"{binary_prefix}nc-connect{binary_ext}")
+            required_files = [
+                "README.md",
+                "BUILD-INFO.txt",
+                f"{docs_prefix}nc_player_manual.pdf",
+                "licenses/OFL-0xProto.txt",
+                "licenses/LICENSE-NotoSansMono.txt",
+            ]
+            forbidden_files = [
+                f"{binary_prefix}nc-connect-cli{binary_ext}",
+            ]
+            if spec.artifact == "public-beta":
+                required_files.extend(
+                    (
+                        f"{docs_prefix}nc_sysop_manual.pdf",
+                        f"{binary_prefix}nc-game{binary_ext}",
+                        f"{binary_prefix}nc-sysop{binary_ext}",
+                        f"{binary_prefix}nc-connect{binary_ext}",
+                    )
+                )
+            else:
+                required_files.append(f"{binary_prefix}nc-connect{binary_ext}")
 
         for relative in required_files:
             path = bundle_root / relative
@@ -480,14 +550,16 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             )
             return
 
-        if spec.artifact == "public-beta":
-            run([str(bundle_root / f"{binary_prefix}nc-game{binary_ext}"), "--help"], cwd=bundle_root)
-            run([str(bundle_root / f"{binary_prefix}nc-sysop{binary_ext}"), "--help"], cwd=bundle_root)
+        game_bin = str(bundle_root / f"{binary_prefix}nc-game{binary_ext}")
+        sysop_bin = str(bundle_root / f"{binary_prefix}nc-sysop{binary_ext}")
+        run([game_bin, "--help"], cwd=bundle_root)
+        run([sysop_bin, "--help"], cwd=bundle_root)
 
+        if spec.artifact == "public-beta":
             campaign_dir = temp_root / "playtest-campaign"
             run(
                 [
-                    str(bundle_root / f"{binary_prefix}nc-sysop{binary_ext}"),
+                    sysop_bin,
                     "new-game",
                     str(campaign_dir),
                     "--players",
@@ -499,6 +571,18 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
             )
             if not (campaign_dir / "ncgame.db").exists():
                 raise SystemExit(f"{archive_path.name}: nc-sysop did not create ncgame.db")
+        elif spec.artifact == "sysop":
+            campaign_dir = temp_root / "sysop-bbs-campaign"
+            campaign_dir.mkdir()
+            example_src = (
+                bundle_root / "config.kdl"
+                if spec.is_windows
+                else bundle_root / "examples" / "config.kdl"
+            )
+            shutil.copy2(example_src, campaign_dir / "config.kdl")
+            run([sysop_bin, "new-game", "--bbs", str(campaign_dir)], cwd=bundle_root)
+            if not (campaign_dir / "ncgame.db").exists():
+                raise SystemExit(f"{archive_path.name}: nc-sysop --bbs did not create ncgame.db")
 
 
 def main(*, default_target: str | None = None) -> None:

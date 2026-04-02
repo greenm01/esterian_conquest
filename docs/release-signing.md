@@ -1,10 +1,11 @@
 # Release Signing
 
-Public GitHub Releases currently publish the public `nc-connect` player
-archives during the beta, together with a signed `SHA256SUMS.txt` manifest.
+Public GitHub Releases publish the public Rust download archives during the
+beta, together with a signed `SHA256SUMS.txt` manifest.
 
 This page documents the signing key and verification flow for those public Rust
-archives and for any later public player archives added to the release page.
+archives, including `nc-connect` player packages and `nc-sysop`
+localhost/BBS packages.
 
 ## Public Key
 
@@ -19,8 +20,7 @@ C350 4EE1 EE38 410C E1C4 33BC 372B 8AAA CB86 7F13
 
 ## Verify A Release
 
-When a signed Rust player build is distributed, download the archive you want
-plus:
+When a signed Rust archive is distributed, download the archive you want plus:
 
 - `SHA256SUMS.txt`
 - `SHA256SUMS.txt.asc`

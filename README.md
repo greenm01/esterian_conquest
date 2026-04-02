@@ -59,13 +59,14 @@ policy is:
 | Audience | Current Path |
 |---|---|
 | Normal player | Download the public Windows x64, Linux x64, or macOS Apple Silicon `nc-connect` archive from GitHub Releases |
-| Rust self-host sysop | Build from tagged source with Cargo |
+| Rust self-host sysop (localhost or BBS) | Download the Linux x64 `nc-sysop` package from GitHub Releases, or build from tagged source with Cargo |
 | Rust VPS sysop | Build from tagged source with Cargo and use `scripts/install_vps.sh` |
-| BBS sysop | Build from source, or use a direct/private beta build |
+| Windows localhost or BBS sysop | Build from tagged source with Cargo, or publish the Windows x64 `nc-sysop` package from a native Windows host |
 
 Public GitHub Releases now include Windows x64, Linux x64, and macOS Apple
-Silicon `nc-connect` player archives alongside the DOS compatibility bundles.
-See [Release Policy](docs/release-policy.md).
+Silicon `nc-connect` player archives. The release tooling also supports Linux
+x64 and Windows x64 `nc-sysop` localhost/BBS packages. VPS hosting remains a
+tagged-source Cargo workflow. See [Release Policy](docs/release-policy.md).
 
 ## Background
 
@@ -189,8 +190,9 @@ at creation time instead of storing it in `config.kdl`:
 cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift --seed 1515
 ```
 
-During the current beta, a BBS sysop should build from source or use a
-direct/private test build. Then point the door entry at `nc-game` with a
+For localhost and BBS hosting, use the public Linux x64 `nc-sysop` package or
+build from source. VPS/Nostr hosts should still build from source and use
+`scripts/install_vps.sh`. Then point the door entry at `nc-game` with a
 dropfile. For working setups, see:
 
 - [Mystic Rust Door Setup](docs/sysop/mystic-rust-setup.md)
