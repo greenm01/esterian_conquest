@@ -37,6 +37,38 @@ impl Read for RawStdin {
     }
 }
 
+#[cfg(windows)]
+struct RawStdin;
+
+#[cfg(windows)]
+impl Read for RawStdin {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        use std::os::windows::io::AsRawHandle;
+
+        unsafe extern "system" {
+            fn ReadFile(
+                handle: *mut std::ffi::c_void,
+                buffer: *mut u8,
+                count: u32,
+                bytes_read: *mut u32,
+                overlapped: *mut std::ffi::c_void,
+            ) -> i32;
+        }
+
+        let handle = io::stdin().as_raw_handle();
+        let mut bytes_read: u32 = 0;
+        let len = buf.len().min(u32::MAX as usize) as u32;
+        let rc = unsafe {
+            ReadFile(handle as *mut _, buf.as_mut_ptr(), len, &mut bytes_read, std::ptr::null_mut())
+        };
+        if rc == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(bytes_read as usize)
+        }
+    }
+}
+
 const DOOR_ESCAPE_TIMEOUT_MS: i32 = 100;
 const DOOR_DOS_PREFIX_TIMEOUT_MS: i32 = 2000;
 const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
@@ -225,7 +257,7 @@ fn ansi_fg_code(color: crossterm::style::Color) -> u8 {
         crossterm::style::Color::Magenta => 95,
         crossterm::style::Color::Cyan => 96,
         crossterm::style::Color::White => 97,
-        other => panic!("door terminal only supports ANSI16 colors, got {other:?}"),
+        _ => 37, // fallback to grey
     }
 }
 
@@ -241,7 +273,7 @@ fn ansi_bg_code(color: crossterm::style::Color) -> u8 {
         crossterm::style::Color::Grey
         | crossterm::style::Color::DarkGrey
         | crossterm::style::Color::White => 47,
-        other => panic!("door terminal only supports ANSI16 colors, got {other:?}"),
+        _ => 40, // fallback to black
     }
 }
 
@@ -601,7 +633,23 @@ fn stdin_ready(timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn stdin_ready(timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
+    use std::os::windows::io::AsRawHandle;
+
+    unsafe extern "system" {
+        fn WaitForSingleObject(handle: *mut std::ffi::c_void, millis: u32) -> u32;
+    }
+
+    const WAIT_OBJECT_0: u32 = 0;
+
+    let handle = io::stdin().as_raw_handle();
+    let millis = if timeout_ms < 0 { 0xFFFFFFFF } else { timeout_ms as u32 };
+    let rc = unsafe { WaitForSingleObject(handle as *mut _, millis) };
+    Ok(rc == WAIT_OBJECT_0)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn stdin_ready(_timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
     Ok(false)
 }

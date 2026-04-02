@@ -202,14 +202,23 @@ pub fn local_exit_lines() -> Vec<String> {
     vec![LOCAL_EXIT_ATTRIBUTION.to_string()]
 }
 
+struct RawModeGuard;
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+    }
+}
+
 fn run_interactive(
     app: &mut App,
     terminal: &mut dyn Terminal,
     session_lease: Option<&SessionLeaseGuard>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     enable_raw_mode()?;
+    let _guard = RawModeGuard;
     let result = run_interactive_inner(app, terminal, session_lease);
-    disable_raw_mode()?;
+    drop(_guard);
     let cleanup_result = terminal.clear_and_restore();
     result.and(cleanup_result)
 }
