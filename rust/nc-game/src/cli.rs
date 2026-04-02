@@ -599,7 +599,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
 fn select_door_transport(
     explicit_socket_descriptor: Option<u64>,
     explicit_socket_port: Option<u16>,
-    info: &dropfile::DropfileInfo,
+    _info: &dropfile::DropfileInfo,
 ) -> Result<DoorTransport, Box<dyn std::error::Error>> {
     if let Some(transport) =
         explicit_door_transport(explicit_socket_descriptor, explicit_socket_port)?
@@ -610,10 +610,10 @@ fn select_door_transport(
     #[cfg(windows)]
     {
         if matches!(
-            info.connection_type,
+            _info.connection_type,
             Some(dropfile::DoorConnectionType::TelnetSocket)
         ) {
-            let Some(descriptor) = info.socket_descriptor else {
+            let Some(descriptor) = _info.socket_descriptor else {
                 return Ok(DoorTransport::Stdio);
             };
             return Ok(DoorTransport::SocketDescriptor { descriptor });

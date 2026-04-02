@@ -1,4 +1,8 @@
-use std::io::{self, IsTerminal, Read, Write};
+use std::io::{self, Read, Write};
+
+#[cfg(windows)]
+use std::io::IsTerminal;
+#[cfg(windows)]
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

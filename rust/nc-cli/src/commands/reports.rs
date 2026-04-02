@@ -710,6 +710,13 @@ fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> Stri
         FleetOrderValidationError::TargetAlreadyOwned => {
             "the target world is already owned".to_string()
         }
+        FleetOrderValidationError::DuplicateFriendlyColonizeTarget {
+            target,
+            conflicting_fleet_record_index_1_based,
+        } => format!(
+            "another of our fleets is already set to colonize ({:02},{:02}) (fleet record #{conflicting_fleet_record_index_1_based})",
+            target[0], target[1]
+        ),
         FleetOrderValidationError::InvalidJoinHost => {
             "the selected host fleet is invalid".to_string()
         }
