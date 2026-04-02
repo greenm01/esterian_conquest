@@ -1,20 +1,15 @@
 # ENiGMA½ Rust Door Setup
 
-Status note:
+ENiGMA½ is now a verified Rust-native BBS host for `nc-door`.
 
-- this path is now verified with the current Rust door client
+The important split is simple. On both Linux and Windows, ENiGMA½ should stage
+`nc-door` as the live door binary and `nc-sysop` as the campaign tool. On
+native Windows, ENiGMA½ should use `abracadabra` in `socket` mode so
+`nc-door.exe` connects back to ENiGMA's temporary localhost socket. Do not use
+the legacy DOS wrapper unless you specifically want to host the original
+`ECGAME.EXE`.
 
-Use the native Rust stack:
-
-- `nc-sysop` to create and maintain the campaign
-- `nc-door` as the staged player door on Unix-like hosts
-- `nc-door.exe` as the staged player door on native Windows hosts
-- `abracadabra` in `socket` mode for the ENiGMA launcher
-
-Do not use the legacy DOS wrapper unless you specifically want to host the
-original `ECGAME.EXE`.
-
-## 1. Build the Rust client
+## 1. Build or stage the Rust binaries
 
 For Linux BBS hosting, use the public `nc-sysop` package or build from source.
 Localhost play remains a source-build `nc-game` path.
@@ -37,6 +32,19 @@ For a live BBS host, stage `target/release/nc-door` or `target/release/nc-door.e
 and point ENiGMA directly at that binary. Keep
 [`tools/bbs/run_nc_rust.sh`](../../tools/bbs/run_nc_rust.sh) only as a
 source-tree/dev helper on Unix-like hosts.
+
+For a normal native Windows install, the simplest layout is to stage the
+public Windows `nc-sysop` package under the ENiGMA root itself. The verified
+layout on Windows was:
+
+```text
+C:\enigma-bbs\doors\nc-game\nc-door.exe
+C:\enigma-bbs\doors\nc-game\nc-sysop.exe
+C:\enigma-bbs\doors\nc-game\campaign\
+```
+
+That keeps the door binary, sysop tool, and campaign under the same permanent
+sysop-owned tree instead of relying on temp paths or source-tree wrappers.
 
 ## 2. Create a campaign
 
@@ -159,6 +167,50 @@ Why `socket`:
 - `DOOR32` still carries caller alias and timeout metadata through
   `{dropFilePath}`
 
+### Native Windows ENiGMA setup
+
+On native Windows, treat ENiGMA as a permanent local install. Put the BBS in a
+stable root such as `C:\enigma-bbs`. Stage the Windows `nc-sysop` package
+under `C:\enigma-bbs\doors\nc-game`, create the campaign there, and point the
+door entry straight at `nc-door.exe`.
+
+The live-tested Windows menu block was:
+
+```hjson
+doorNostrianConquest: {
+    desc: Nostrian Conquest
+    module: abracadabra
+    config: {
+        name: Nostrian Conquest
+        dropFileType: DOOR32
+        cmd: C:\\enigma-bbs\\doors\\nc-game\\nc-door.exe
+        args: [
+            "--dir"
+            "C:\\enigma-bbs\\doors\\nc-game\\campaign"
+            "--dropfile"
+            "{dropFilePath}"
+            "--socket-port"
+            "{srvPort}"
+            "--encoding"
+            "cp437"
+            "--color-mode"
+            "ansi16"
+        ]
+        io: socket
+        encoding: cp437
+    }
+}
+```
+
+This is the correct Windows ENiGMA path. Do not try to treat ENiGMA like
+native Windows Synchronet or Mystic. ENiGMA does not hand the child process a
+usable `DOOR32` socket descriptor on Windows. It starts the door through
+`abracadabra`, and `nc-door.exe` must connect back to `{srvPort}` instead.
+
+If you are editing the menu from an existing ENiGMA setup, the practical rule
+is blunt: `dropFileType: DOOR32`, `io: socket`, `--dropfile {dropFilePath}`,
+and `--socket-port {srvPort}` all belong together.
+
 ## 5. Optional map-export staging
 
 If you are still launching from a live source tree, the helper wrapper sets:
@@ -204,10 +256,10 @@ Your local `~/launch_bbs.sh` can stay as-is if it already:
 2. opens SyncTERM against `localhost:8888`
 3. shuts ENiGMA down when you exit
 
-Once the menu entry above points at `run_nc_rust.sh`, launching the EC door
+Once the menu entry above points at `run_nc_rust.sh`, launching the NC door
 from ENiGMA should run the Rust client instead of the DOS wrapper.
 
-## 7. Current local config change
+## 7. Minimal config swap from an older door
 
 If you already have a door block pointing at the DOS wrapper, the minimal swap
 is:
@@ -258,3 +310,19 @@ Replace the old DOS-only pieces:
 - `cmd: .../tools/bbs/run_ec_dos.sh`
 - `args` containing `{node}` / `{srvPort}`
 - old wrapper-specific `io` handling
+
+## 8. Validate
+
+The expected first-pass smoke test is straightforward:
+
+1. connect to ENiGMA with SyncTERM or another telnet-capable BBS client
+2. log in or create a user
+3. open the Doors menu
+4. launch the NC entry
+5. confirm the game renders in the caller session with no extra Windows
+   console window
+6. verify normal movement, paging, and menu navigation
+7. quit and confirm control returns cleanly to ENiGMA
+
+The native Windows path above was smoke-tested on a normal `C:\enigma-bbs`
+install with SyncTERM and the staged Windows release package.

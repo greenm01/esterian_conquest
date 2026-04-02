@@ -15,7 +15,8 @@ Use these docs in roughly this order:
 - [synchronet-rust-setup.md](synchronet-rust-setup.md)
   - validated native Windows Synchronet setup for the Rust-native `nc-door`
 - [enigma-rust-setup.md](enigma-rust-setup.md)
-  - validated ENiGMA½ setup notes for the Rust-native `nc-door`
+  - validated ENiGMA½ setup notes for the Rust-native `nc-door`, including the
+    native Windows `abracadabra` socket path
 - [sysop-map-exports.md](sysop-map-exports.md)
   - player map export and queue/download staging for the Rust client
 - [enigma-bbs-setup.md](enigma-bbs-setup.md)
