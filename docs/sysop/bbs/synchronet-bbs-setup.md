@@ -10,26 +10,40 @@ Validated path:
 - keep `Intercept I/O Interrupts` off for this native socket door
 - this path is live-verified on a normal Windows `C:\SBBS` install with
   SyncTERM
+- Linux Synchronet with `nc-door` is also smoke-tested through SyncTERM using a
+  native `DOOR32` entry and a tiny wrapper that receives `%f` and execs
+  `nc-door --dir ... --dropfile "$1"`
 
 Use:
 
 - `nc-sysop` to create and maintain the campaign
 - `nc-game.exe` for local/direct play on the Windows host
 - `nc-door.exe` for the Synchronet external program entry
+- `nc-game` for local/direct play on Linux
+- `nc-door` for the Synchronet external program entry on Linux
 
-## 1. Linux Status
+## 1. Platform Status
 
-Synchronet is a real BBS target, but this repo does not yet carry a validated
-Linux-native Synchronet setup for `nc-door`.
+This repo now carries two tested Synchronet paths for `nc-door`:
 
-Use the Windows setup below when you need a tested path today. If you are
-experimenting on Linux, keep the command surface aligned with the same core
-requirements:
+- Windows:
+  - live-verified on a normal `C:\SBBS` install with SyncTERM
+  - use `DOOR32`
+  - pass `--socket-descriptor %H`
+- Linux:
+  - smoke-tested on a localhost Synchronet install with SyncTERM
+  - use `DOOR32`
+  - keep the external program native, not DOS
+  - use the wrapper shape shown below if Synchronet does not preserve the full
+    `nc-door --dir ... --dropfile %f` command line cleanly
+
+On both platforms, keep the command surface minimal:
 
 - stage `nc-door`
 - pass `--dir`
 - pass a real dropfile
-- keep classic ANSI/CP437 behavior
+- do not add `--encoding` or `--color-mode` unless you are debugging a
+  host-specific issue
 
 ## 2. Build the Rust binaries
 
@@ -40,10 +54,16 @@ cd rust
 cargo build -q --release -p nc-game -p nc-sysop
 ```
 
-The `nc-game` package now builds both Windows binaries:
+The `nc-game` package builds the door entrypoint on both platforms:
 
-- `target\release\nc-game.exe`
-- `target\release\nc-door.exe`
+- Windows:
+  - `target\release\nc-game.exe`
+  - `target\release\nc-door.exe`
+  - `target\release\nc-sysop.exe`
+- Linux:
+  - `target/release/nc-game`
+  - `target/release/nc-door`
+  - `target/release/nc-sysop`
 
 For a normal sysop layout, stage them somewhere stable such as:
 
@@ -51,6 +71,14 @@ For a normal sysop layout, stage them somewhere stable such as:
 C:\SBBS\xtrn\nc-game\bin\nc-game.exe
 C:\SBBS\xtrn\nc-game\bin\nc-door.exe
 C:\SBBS\xtrn\nc-game\bin\nc-sysop.exe
+```
+
+or on Linux:
+
+```text
+/srv/sbbs/xtrn/nc-game/bin/nc-game
+/srv/sbbs/xtrn/nc-game/bin/nc-door
+/srv/sbbs/xtrn/nc-game/bin/nc-sysop
 ```
 
 ## 3. Create a campaign
@@ -89,19 +117,21 @@ cargo run -q -p nc-sysop -- maint C:\SBBS\xtrn\nc-game\campaign 1
 
 ## 4. Add the native program entry
 
-In `SCFG`, add `nc-door.exe` to the Native Program List.
+In `SCFG`, add `nc-door.exe` on Windows or `nc-door` on Linux to the Native
+Program List.
 
 Use the staged binary, not a batch wrapper, and keep the external-program
 command itself as the bare executable name with `startup_dir` pointed at the
-staged binary directory.
+staged binary directory unless you need the Linux wrapper below.
 
-Suggested startup directory:
+Suggested startup directories:
 
 ```text
 C:\SBBS\xtrn\nc-game\bin
+/srv/sbbs/xtrn/nc-game/bin
 ```
 
-Tested command line:
+Tested Windows command line:
 
 ```text
 nc-door.exe --dir C:\SBBS\xtrn\nc-game\campaign --dropfile %f --socket-descriptor %H
@@ -111,16 +141,35 @@ Do not add `--encoding` or `--color-mode` here. In door mode, `nc-door.exe`
 already defaults to the expected CP437/ANSI behavior from the dropfile path,
 and the minimal command line was the live-tested path on Windows Synchronet.
 
+Smoke-tested Linux command line:
+
+```text
+bash /srv/sbbs/xtrn/nc-game/bin/sbbs-nc-door.sh %f
+```
+
+with wrapper contents:
+
+```text
+#!/usr/bin/env bash
+set -euo pipefail
+exec /srv/sbbs/xtrn/nc-game/bin/nc-door --dir /srv/sbbs/xtrn/nc-game/campaign --dropfile "$1"
+```
+
+That wrapper shape is the tested Linux path because it avoids Synchronet
+argument-mangling cases where a long native `cmd=` entry gets split badly and
+`nc-door` sees truncated flags such as `--d`.
+
 ## 5. Add the external program
 
 In the online external programs section, configure the entry as a native
-Windows door:
+Synchronet door:
 
 - section: `Games` or equivalent
 - drop file type: `DOOR32`
-- startup directory: `C:\SBBS\xtrn\nc-game\bin`
-- command line: the tested command above
-- `Native (32-bit) Executable`: `Yes`
+- startup directory: your staged `bin` directory
+- command line: the tested platform-specific command above
+- `Native (32-bit) Executable`: `Yes` on Windows
+- `Native` executable bit: `Yes` on Linux too
 - `Intercept I/O Interrupts`: `No`
 - `Multiuser`: `Yes`
 - `ANSI`: `Yes`
@@ -132,9 +181,11 @@ Why `DOOR32`:
 - on Windows, `nc-door.exe` also needs the duplicated socket descriptor passed
   explicitly with `%H`, so the session stays inside the caller's terminal
   instead of opening a second console window
+- on Linux, `DOOR32` still provides the caller metadata `nc-door` expects, but
+  the tested path does not use `--socket-descriptor`
 
 If you edit `xtrn.ini` directly instead of using `SCFG`, the tested working
-entry was:
+Windows entry was:
 
 ```text
 [prog:GAMES:NCGAME]
@@ -154,6 +205,25 @@ startup_dir=C:\SBBS\xtrn\nc-game\bin\
 Do not use `16391` for this setup. That extra `Intercept I/O Interrupts` bit
 caused the door to launch but hang on input during live Windows testing.
 
+The smoke-tested Linux `xtrn.ini` shape was:
+
+```text
+[prog:GAMES:NCGAME]
+name=Nostrian Conquest
+type=12
+settings=0x14005
+cmd=bash /srv/sbbs/xtrn/nc-game/bin/sbbs-nc-door.sh %f
+startup_dir=/srv/sbbs/xtrn/nc-game/bin
+```
+
+The important Linux bits are:
+
+- `type=12` for `DOOR32`
+- keep the entry native, not DOS
+- keep `Intercept I/O Interrupts` off
+- use a wrapper if direct long arguments do not survive cleanly through
+  Synchronet
+
 ## 6. Validate
 
 The expected first-pass smoke test is:
@@ -165,6 +235,8 @@ The expected first-pass smoke test is:
 5. verify normal navigation and paging behavior
 6. quit and confirm control returns cleanly to Synchronet
 
+On Linux, a good terminal baseline is SyncTERM in classic 80x24 BBS view.
+
 ## 7. Troubleshooting
 
 - if the door opens a second Windows console window, you are launching
@@ -173,6 +245,11 @@ The expected first-pass smoke test is:
   is off and the entry resolves to `settings=16387`, not `16391`
 - if Synchronet reports argument errors such as unknown encoding, color mode,
   or path fragments, strip the command back to the minimal tested form above
+- if Linux Synchronet reports truncated arguments such as `unknown argument:
+  --d`, move the full `nc-door --dir ... --dropfile ...` command into a tiny
+  wrapper script and keep `cmd=` itself to `bash /path/to/sbbs-nc-door.sh %f`
+- if Synchronet says DOS programs are not supported on this node, the external
+  program is missing the native executable bit
 - if the door returns immediately or the screen stays blank, check the
   Synchronet node log first
 - if Windows Security or third-party AV interferes, verify that it is not

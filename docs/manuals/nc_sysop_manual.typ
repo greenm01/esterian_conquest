@@ -474,10 +474,10 @@ Keep these three paths separate:
 
 - Live state: per-game `config.kdl` plus `ncgame.db`
 - Runtime path: `nc-door` with a dropfile; ENiGMA½ also passes `--socket-port`
-  and native Windows Synchronet passes `--socket-descriptor`
+  and Windows Synchronet passes `--socket-descriptor`
 - Operator rule: BBS `config.kdl` supports only `players` and `reservations`;
   `settings set` does not apply
-- Common hosts: Mystic, ENiGMA½, and native Windows Synchronet
+- Common hosts: Mystic, ENiGMA½, and Synchronet on Windows or Linux
 
 Use `nc-sysop settings ...` to inspect any non-BBS campaign:
 
@@ -661,10 +661,11 @@ dropfile-only door flow:
 == Modern BBS Hosts
 
 The native Rust `nc-door` binary is now verified on Mystic, ENiGMA½, and
-Synchronet. The shared core launch shape is simple: pass `--dir` and a
-dropfile, keep `--encoding cp437`, and use ANSI16 color for classic terminal
-clients. The helper wrapper at `tools/bbs/run_nc_rust.sh` remains useful only
-for source-tree testing and is not the normal packaged door path.
+Synchronet, and WWIV now has a smoke-tested Linux path. The shared core launch
+shape is simple: pass `--dir` and a dropfile. ENiGMA½ also passes
+`--socket-port`, and Windows Synchronet also passes `--socket-descriptor`.
+The helper wrapper at `tools/bbs/run_nc_rust.sh` remains useful only for
+source-tree testing and is not the normal packaged door path.
 
 Mystic uses the direct dropfile path:
 
@@ -678,13 +679,18 @@ ENiGMA½ uses the same dropfile plus its temporary localhost socket server:
 nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS --socket-port {srvPort}
 ```
 
-Native Windows Synchronet also passes the inherited socket descriptor:
+Windows Synchronet also passes the inherited socket descriptor:
 
 ```
 nc-door --dir /path/to/mygame --dropfile %f --socket-descriptor %H
 ```
 
-WWIV is documented separately as an experimental Windows host path:
+Linux Synchronet is smoke-tested with the same `DOOR32` dropfile shape. If
+your Synchronet install mangles a long native `cmd=` line, keep the full
+`nc-door --dir ... --dropfile ...` invocation inside a tiny wrapper and pass
+only `%f` into that wrapper.
+
+WWIV is documented separately as a smoke-tested Linux `CHAIN.TXT` path:
 
 ```
 nc-door --dir /path/to/mygame --dropfile /path/to/CHAIN.TXT

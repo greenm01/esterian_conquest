@@ -21,7 +21,8 @@ Use these docs in roughly this order:
 - [bbs/mystic-bbs-setup.md](bbs/mystic-bbs-setup.md)
   - validated Mystic setup for `nc-door` on Unix-like hosts and native Windows
 - [bbs/synchronet-bbs-setup.md](bbs/synchronet-bbs-setup.md)
-  - validated native Windows Synchronet setup for `nc-door`
+  - validated Windows Synchronet setup for `nc-door`, plus a smoke-tested Linux
+    native-door path
 - [bbs/enigma-bbs-setup.md](bbs/enigma-bbs-setup.md)
   - validated ENiGMA½ setup for `nc-door` on Linux and Windows, plus the
     compatibility-only DOS path
@@ -46,13 +47,13 @@ Hosted Rust campaigns are DB-only: one `ncgame.db` per game directory. BBS
 door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.
 Hosted/Nostr game registry data remains global in `/etc/nc-gate/config.kdl`.
 
-Current Windows-native `nc-door` wins are:
+Current `nc-door` host wins here are:
 
 - Mystic
 - Synchronet
 - ENiGMA½
 
-WWIV now has a smoke-tested Linux `CHAIN.TXT` + SyncTERM path here, but it
+WWIV also has a smoke-tested Linux `CHAIN.TXT` + SyncTERM path here, but it
 still has less validation depth than the Mystic, Synchronet, and ENiGMA½
 guides.
 
