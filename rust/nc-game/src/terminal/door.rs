@@ -59,7 +59,13 @@ impl Read for RawStdin {
         let mut bytes_read: u32 = 0;
         let len = buf.len().min(u32::MAX as usize) as u32;
         let rc = unsafe {
-            ReadFile(handle as *mut _, buf.as_mut_ptr(), len, &mut bytes_read, std::ptr::null_mut())
+            ReadFile(
+                handle as *mut _,
+                buf.as_mut_ptr(),
+                len,
+                &mut bytes_read,
+                std::ptr::null_mut(),
+            )
         };
         if rc == 0 {
             Err(io::Error::last_os_error())
@@ -372,12 +378,16 @@ impl DoorInputDecoder {
             Some(0x00 | 0xe0) => DOOR_DOS_PREFIX_TIMEOUT_MS,
             _ => DOOR_ESCAPE_TIMEOUT_MS,
         };
-        let deadline = self.sequence_deadline.get_or_insert_with(|| {
-            Instant::now() + Duration::from_millis(timeout as u64)
-        });
+        let deadline = self
+            .sequence_deadline
+            .get_or_insert_with(|| Instant::now() + Duration::from_millis(timeout as u64));
         let remaining = deadline.saturating_duration_since(Instant::now());
         let ms = remaining.as_millis().min(i32::MAX as u128) as i32;
-        if ms == 0 && !remaining.is_zero() { 1 } else { ms }
+        if ms == 0 && !remaining.is_zero() {
+            1
+        } else {
+            ms
+        }
     }
 }
 
@@ -644,7 +654,11 @@ fn stdin_ready(timeout_ms: i32) -> Result<bool, Box<dyn std::error::Error>> {
     const WAIT_OBJECT_0: u32 = 0;
 
     let handle = io::stdin().as_raw_handle();
-    let millis = if timeout_ms < 0 { 0xFFFFFFFF } else { timeout_ms as u32 };
+    let millis = if timeout_ms < 0 {
+        0xFFFFFFFF
+    } else {
+        timeout_ms as u32
+    };
     let rc = unsafe { WaitForSingleObject(handle as *mut _, millis) };
     Ok(rc == WAIT_OBJECT_0)
 }

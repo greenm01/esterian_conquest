@@ -934,7 +934,6 @@ mod tests {
     fn write_reserved_config(root: &std::path::Path, alias: &str, player: usize) {
         BbsGameConfig {
             players: 4,
-            seed: None,
             reservations: vec![SeatReservation {
                 player_record_index_1_based: player,
                 alias: alias.to_string(),

@@ -223,8 +223,8 @@ Use this when the sysop wants `nc-game` as a door under Mystic, ENiGMA½, or a
 similar BBS.
 
 1. Create the game directory.
-2. Write a minimal per-game `config.kdl` with `players`, optional `seed`, and
-   any fixed-seat `reservations`.
+2. Write a minimal per-game `config.kdl` with `players` and any fixed-seat
+   `reservations`.
 3. Initialize it with `nc-sysop new-game --bbs`.
 4. Launch `nc-game` with a BBS dropfile.
 5. Keep maintenance outside the door. Run `nc-sysop maint` from the host or
@@ -289,10 +289,10 @@ The supported public creation flags are:
   [`--name`], [string], [Optional human-readable game title stored in `ncgame.db`. If omitted, `nc-sysop` derives a title from the directory slug.],
   [`--players`], [integer], [Number of empires. Supported range: 1–25. Defaults to `4`.],
   [`--seed`], [integer], [Optional integer seed for the campaign RNG. Controls map layout, starting positions, and all random events. If omitted, the engine picks a random seed and saves it to `ncgame.db`. The seed cannot be changed after creation.],
-  [`--bbs`], [flag], [Initialize a BBS campaign from an existing per-game `config.kdl`. In this mode, `--name`, `--players`, and `--seed` are not accepted on the command line.],
+  [`--bbs`], [flag], [Initialize a BBS campaign from an existing per-game `config.kdl`. In this mode, `--name` and `--players` are not accepted on the command line; use `--seed` only if you intentionally want a reproducible map for this one campaign.],
 )
 
-#admonition("NOTE")[Use a different seed for every game. Reusing the same seed produces the same map, starting positions, and event sequence every time.]
+#admonition("NOTE")[Use a different seed for every game. Reusing the same seed produces the same map, starting positions, and event sequence every time. For BBS campaigns, keep that override on the `new-game --bbs --seed ...` command line instead of storing it in `config.kdl`.]
 
 The target directory basename becomes the stable game slug. It must use only
 lowercase ASCII letters, digits, and dashes. The slug is distinct from the
@@ -520,7 +520,6 @@ SQLite policy surface:
 
 ```kdl
 players 4
-seed 1515
 reservations {
   seat player=1 alias="SYSOP"
   seat player=2 alias="NightShade"
@@ -530,11 +529,11 @@ reservations {
 Supported BBS fields are only:
 
 - `players`
-- `seed`
 - `reservations`
 
 Do not put `game_name`, `theme`, `snoop`, `session`, or `inactivity` in the
-BBS file. Those are not part of the supported BBS config surface.
+BBS file. Do not put `seed` there either. It is a one-shot `new-game` command
+line override, not live BBS config.
 
 For BBS campaigns, `nc-sysop settings reserve` and `settings unreserve` edit
 this file for you. `settings set` is a hosted-only command surface.
@@ -860,8 +859,8 @@ path. It behaves like a direct seat binding; if the seat number is wrong,
   the default compiled-in color set, seat reservations, maintenance cadence,
   and inactivity thresholds.
 
-/ `config.kdl`: Present only for BBS door campaigns. It holds `players`,
-  optional `seed`, and optional seat `reservations`.
+/ `config.kdl`: Present only for BBS door campaigns. It holds `players` and
+  optional seat `reservations`.
 
 // ─── 13. CLI Reference ────────────────────────────────────────────────────────
 

@@ -116,7 +116,6 @@ fn nc_sysop_new_game_bbs_reads_minimal_config_kdl() {
     let target = unique_temp_dir("nc-sysop-new-game-bbs");
     let config = BbsGameConfig {
         players: 4,
-        seed: Some(1515),
         reservations: vec![SeatReservation {
             player_record_index_1_based: 1,
             alias: "SYSOP".to_string(),
@@ -140,6 +139,29 @@ fn nc_sysop_new_game_bbs_reads_minimal_config_kdl() {
         .expect("runtime snapshot");
     assert_eq!(runtime.game_data.conquest.game_year(), 3000);
     assert_eq!(runtime.game_data.player.records.len(), 4);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_new_game_bbs_accepts_seed_as_creation_override() {
+    let target = unique_temp_dir("nc-sysop-new-game-bbs-seed");
+    let config = BbsGameConfig {
+        players: 4,
+        reservations: vec![],
+    };
+    config
+        .save_kdl(&target.join("config.kdl"))
+        .expect("write BBS config");
+
+    let stdout = run_nc_sysop(&[
+        "new-game",
+        "--bbs",
+        target.to_str().expect("utf-8 path"),
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("seed=1515"));
 
     let _ = fs::remove_dir_all(&target);
 }
@@ -192,6 +214,36 @@ fn nc_sysop_new_game_rejects_year_flag() {
         "3012",
     ]);
     assert!(stderr.contains("unexpected argument: --year"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_settings_show_for_bbs_campaign_omits_seed_and_lists_reservations() {
+    let target = unique_temp_dir("nc-sysop-settings-show-bbs");
+    let config = BbsGameConfig {
+        players: 4,
+        reservations: vec![SeatReservation {
+            player_record_index_1_based: 2,
+            alias: "NightShade".to_string(),
+        }],
+    };
+    config
+        .save_kdl(&target.join("config.kdl"))
+        .expect("write BBS config");
+
+    run_nc_sysop(&["new-game", "--bbs", target.to_str().expect("utf-8 path")]);
+
+    let stdout = run_nc_sysop(&[
+        "settings",
+        "show",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+    ]);
+    assert!(stdout.contains("mode=bbs"));
+    assert!(stdout.contains("players=4"));
+    assert!(stdout.contains("reservation seat=2 alias=NightShade"));
+    assert!(!stdout.contains("seed="));
 
     let _ = fs::remove_dir_all(&target);
 }

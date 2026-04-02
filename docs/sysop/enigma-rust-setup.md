@@ -47,7 +47,6 @@ Create `/path/to/ec-campaign/config.kdl`:
 
 ```kdl
 players 4
-seed 1515
 reservations {
     seat player=1 alias="niltempus"
     seat player=2 alias="NightShade"
@@ -59,6 +58,14 @@ Then initialize the campaign:
 ```bash
 cd rust
 cargo run -q -p nc-sysop -- new-game --bbs /path/to/ec-campaign
+```
+
+If you need a reproducible map for a one-off test, keep the seed on the
+creation command line instead of in `config.kdl`:
+
+```bash
+cd rust
+cargo run -q -p nc-sysop -- new-game --bbs /path/to/ec-campaign --seed 1515
 ```
 
 Run yearly maintenance from cron, `systemd`, or a BBS event hook:

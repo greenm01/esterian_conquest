@@ -173,7 +173,6 @@ initialize it in BBS mode:
 
 ```kdl
 players 4
-seed 1515
 reservations {
   seat player=1 alias="SYSOP"
 }
@@ -181,6 +180,13 @@ reservations {
 
 ```bash
 cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift
+```
+
+If you want a reproducible map for testing, pass the seed on the command line
+at creation time instead of storing it in `config.kdl`:
+
+```bash
+cargo run -q -p nc-sysop -- new-game --bbs /srv/ec/games/night-shift --seed 1515
 ```
 
 During the current beta, a BBS sysop should build from source or use a

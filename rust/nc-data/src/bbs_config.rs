@@ -11,7 +11,6 @@ pub struct SeatReservation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BbsGameConfig {
     pub players: u8,
-    pub seed: Option<u64>,
     pub reservations: Vec<SeatReservation>,
 }
 
@@ -46,10 +45,10 @@ impl BbsGameConfig {
 
         for node in document.nodes() {
             match node.name().value() {
-                "players" | "seed" | "reservations" => {}
+                "players" | "reservations" => {}
                 other => {
                     return Err(BbsGameConfigError::Parse(format!(
-                        "unsupported BBS config field '{other}'; expected players, seed, or reservations"
+                        "unsupported BBS config field '{other}'; expected players or reservations"
                     )));
                 }
             }
@@ -73,21 +72,6 @@ impl BbsGameConfig {
                 }
                 Ok(players)
             })?;
-
-        let seed = document
-            .get("seed")
-            .map(|node| {
-                let value = node
-                    .get(0)
-                    .and_then(|entry| entry.as_integer())
-                    .ok_or_else(|| {
-                        BbsGameConfigError::Parse("seed requires an integer argument".to_string())
-                    })?;
-                u64::try_from(value).map_err(|_| {
-                    BbsGameConfigError::Parse(format!("seed out of u64 range: {value}"))
-                })
-            })
-            .transpose()?;
 
         let reservations = if let Some(node) = document.get("reservations") {
             let mut reservations = Vec::new();
@@ -120,7 +104,6 @@ impl BbsGameConfig {
 
         Ok(Self {
             players,
-            seed,
             reservations,
         }
         .validate()?)
@@ -134,9 +117,6 @@ impl BbsGameConfig {
     pub fn to_kdl_string(&self) -> String {
         let mut out = String::new();
         out.push_str(&format!("players {}\n", self.players));
-        if let Some(seed) = self.seed {
-            out.push_str(&format!("seed {seed}\n"));
-        }
         if !self.reservations.is_empty() {
             out.push_str("reservations {\n");
             for reservation in &self.reservations {

@@ -148,12 +148,9 @@ fn run_new_game(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 
     let bbs_config_path = target_dir.join("config.kdl");
     if bbs_mode {
-        if game_name.is_some()
-            || seed.is_some()
-            || args.iter().any(|arg| arg == "--players" || arg == "-p")
-        {
+        if game_name.is_some() || args.iter().any(|arg| arg == "--players" || arg == "-p") {
             return Err(
-                "new-game --bbs reads setup from config.kdl; do not pass --name, --players, or --seed"
+                "new-game --bbs reads players from config.kdl; do not pass --name or --players"
                     .into(),
             );
         }
@@ -212,10 +209,7 @@ fn run_new_game(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 
     let (player_count, seed) = if bbs_mode {
         let config = BbsGameConfig::load_kdl(&bbs_config_path)?;
-        (
-            config.players,
-            config.seed.unwrap_or_else(generate_campaign_seed),
-        )
+        (config.players, seed.unwrap_or_else(generate_campaign_seed))
     } else {
         (player_count, seed.unwrap_or_else(generate_campaign_seed))
     };
@@ -297,13 +291,6 @@ fn run_settings(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 let config = load_bbs_game_config(&dir)?;
                 println!("mode=bbs");
                 println!("players={}", config.players);
-                println!(
-                    "seed={}",
-                    config
-                        .seed
-                        .map(|value| value.to_string())
-                        .unwrap_or_default()
-                );
                 for reservation in config.reservations {
                     println!(
                         "reservation seat={} alias={}",

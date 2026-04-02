@@ -21,10 +21,9 @@ fn temp_dir(label: &str) -> PathBuf {
 }
 
 #[test]
-fn parses_players_seed_and_reservations() {
+fn parses_players_and_reservations() {
     let kdl = r#"
 players 4
-seed 1515
 reservations {
     seat player=1 alias="SYSOP"
     seat player=2 alias="NightShade"
@@ -34,7 +33,6 @@ reservations {
     let config = BbsGameConfig::parse_kdl_str(kdl).expect("should parse");
 
     assert_eq!(config.players, 4);
-    assert_eq!(config.seed, Some(1515));
     assert_eq!(
         config.reservations,
         vec![
@@ -51,10 +49,9 @@ reservations {
 }
 
 #[test]
-fn seed_is_optional() {
+fn reservations_are_optional() {
     let config = BbsGameConfig::parse_kdl_str("players 4\n").expect("should parse");
     assert_eq!(config.players, 4);
-    assert_eq!(config.seed, None);
     assert!(config.reservations.is_empty());
 }
 
@@ -62,6 +59,7 @@ fn seed_is_optional() {
 fn unsupported_legacy_fields_are_rejected() {
     for field in [
         "year",
+        "seed",
         "game_name",
         "theme",
         "snoop",
@@ -187,7 +185,6 @@ fn save_and_load_round_trip() {
     let path = dir.join("config.kdl");
     let config = BbsGameConfig {
         players: 4,
-        seed: Some(4242),
         reservations: vec![SeatReservation {
             player_record_index_1_based: 1,
             alias: "SYSOP".to_string(),
