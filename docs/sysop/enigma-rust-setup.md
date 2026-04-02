@@ -9,7 +9,7 @@ Use the native Rust stack:
 - `nc-sysop` to create and maintain the campaign
 - `nc-door` as the staged player door on Unix-like hosts
 - `nc-door.exe` as the staged player door on native Windows hosts
-- `abracadabra` in `stdio` mode for the ENiGMA launcher
+- `abracadabra` in `socket` mode for the ENiGMA launcher
 
 Do not use the legacy DOS wrapper unless you specifically want to host the
 original `ECGAME.EXE`.
@@ -99,7 +99,7 @@ dropfile alone:
 Use `abracadabra` with:
 
 - `dropFileType: DOOR32`
-- `io: stdio`
+- `io: socket`
 - `encoding: cp437`
 
 Example menu entry:
@@ -117,12 +117,14 @@ doorEsterianConquestRust: {
             "/path/to/ec-campaign"
             "--dropfile"
             "{dropFilePath}"
+            "--socket-port"
+            "{srvPort}"
             "--encoding"
             "cp437"
             "--color-mode"
             "ansi16"
         ]
-        io: stdio
+        io: socket
         encoding: cp437
     }
 }
@@ -137,6 +139,8 @@ args: [
     "C:\\path\\to\\ec-campaign"
     "--dropfile"
     "{dropFilePath}"
+    "--socket-port"
+    "{srvPort}"
     "--encoding"
     "cp437"
     "--color-mode"
@@ -144,12 +148,16 @@ args: [
 ]
 ```
 
-Why `stdio`:
+Why `socket`:
 
-- ENiGMA `socket` mode is for doors or wrappers that actively connect back to
-  `{srvPort}`
-- native `nc-door` reads and writes directly on stdin/stdout
-- `DOOR32` is still useful for caller alias and timeout metadata
+- ENiGMA½ does not directly share a `DOOR32.SYS` socket descriptor with a
+  child process
+- ENiGMA's `abracadabra` `stdio` path runs through `node-pty`, which is not a
+  good match for the native Windows `nc-door.exe` GUI entrypoint
+- `nc-door` can instead connect back to ENiGMA's temporary localhost socket by
+  using `--socket-port {srvPort}`
+- `DOOR32` still carries caller alias and timeout metadata through
+  `{dropFilePath}`
 
 ## 5. Optional map-export staging
 
@@ -174,8 +182,10 @@ doorEsterianConquestRust: {
         args: [
             "/path/to/ec-campaign"
             "{dropFilePath}"
+            "--socket-port"
+            "{srvPort}"
         ]
-        io: stdio
+        io: socket
         encoding: cp437
         env: {
             EC_CLIENT_QUEUE_DIR: /enigma-bbs/file_base/temp/ec
@@ -210,12 +220,14 @@ args: [
     "/path/to/ec-campaign"
     "--dropfile"
     "{dropFilePath}"
+    "--socket-port"
+    "{srvPort}"
     "--encoding"
     "cp437"
     "--color-mode"
     "ansi16"
 ]
-io: stdio
+io: socket
 encoding: cp437
 ```
 
@@ -229,12 +241,14 @@ args: [
     "C:\\path\\to\\ec-campaign"
     "--dropfile"
     "{dropFilePath}"
+    "--socket-port"
+    "{srvPort}"
     "--encoding"
     "cp437"
     "--color-mode"
     "ansi16"
 ]
-io: stdio
+io: socket
 encoding: cp437
 ```
 
@@ -243,4 +257,4 @@ Replace the old DOS-only pieces:
 - `dropFileType: DORINFO`
 - `cmd: .../tools/bbs/run_ec_dos.sh`
 - `args` containing `{node}` / `{srvPort}`
-- `io: socket`
+- old wrapper-specific `io` handling

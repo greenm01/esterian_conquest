@@ -40,8 +40,9 @@ Hosted Rust campaigns are DB-only: one `ncgame.db` per game directory. BBS
 door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.
 Hosted/Nostr game registry data remains global in `/etc/nc-gate/config.kdl`.
 
-ENiGMA½ remains the validated stdio Rust-door host. Native Windows Mystic and
-native Windows Synchronet are now both verified `DOOR32` hosts for `nc-door`.
+ENiGMA½ is the validated `abracadabra` socket-mode Rust-door host. Native
+Windows Mystic and native Windows Synchronet are both verified `DOOR32` hosts
+for `nc-door`.
 
 Treat original DOS `ECGAME` hosting as a compatibility bridge, not the main
 Rust operating model. Schedule `nc-sysop maint` or `nc-sysop maint-all` with

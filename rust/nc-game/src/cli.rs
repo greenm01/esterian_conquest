@@ -116,6 +116,7 @@ impl Drop for SessionLeaseGuard {
 }
 
 const LOCAL_EXIT_ATTRIBUTION: &str = "For Griffith and glory.";
+const LOOPBACK_DOOR_HOST: &str = "127.0.0.1";
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
@@ -373,6 +374,7 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut dropfile_path: Option<PathBuf> = None;
     let mut explicit_timeout_minutes: Option<u32> = None;
     let mut explicit_socket_descriptor: Option<u64> = None;
+    let mut explicit_socket_port: Option<u16> = None;
     let mut session_token = None;
     let mut hosted_invite_code = None;
     let mut idx = 1;
@@ -488,6 +490,19 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
                 })?);
                 idx += 2;
             }
+            "--socket-port" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --socket-port".into());
+                };
+                let port = value.parse::<u16>().map_err(|_| {
+                    format!("--socket-port value must be an integer from 1 to 65535, got '{value}'")
+                })?;
+                if port == 0 {
+                    return Err("--socket-port must be between 1 and 65535".into());
+                }
+                explicit_socket_port = Some(port);
+                idx += 2;
+            }
             "--session-token" => {
                 let Some(value) = args.get(idx + 1) else {
                     return Err("missing value for --session-token".into());
@@ -521,7 +536,8 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
 
     if let Some(path) = &dropfile_path {
         let info = dropfile::parse(path).map_err(|e| format!("{e}"))?;
-        door_transport = select_door_transport(explicit_socket_descriptor, &info)?;
+        door_transport =
+            select_door_transport(explicit_socket_descriptor, explicit_socket_port, &info)?;
         dropfile_alias = info
             .alias
             .map(|alias| alias.trim().to_string())
@@ -529,12 +545,11 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
         dropfile_timeout_minutes = info.timeout_minutes;
         screen_geometry = ScreenGeometry::for_door(info.screen_rows);
         use_door_terminal = true;
-    } else if let Some(descriptor) = explicit_socket_descriptor {
-        #[cfg(windows)]
-        {
-            door_transport = DoorTransport::SocketDescriptor { descriptor };
-            use_door_terminal = true;
-        }
+    } else if let Some(transport) =
+        explicit_door_transport(explicit_socket_descriptor, explicit_socket_port)?
+    {
+        door_transport = transport;
+        use_door_terminal = true;
     }
 
     // If a dropfile was given without an explicit --encoding, default to cp437.
@@ -583,28 +598,57 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
 
 fn select_door_transport(
     explicit_socket_descriptor: Option<u64>,
+    explicit_socket_port: Option<u16>,
     info: &dropfile::DropfileInfo,
 ) -> Result<DoorTransport, Box<dyn std::error::Error>> {
+    if let Some(transport) =
+        explicit_door_transport(explicit_socket_descriptor, explicit_socket_port)?
+    {
+        return Ok(transport);
+    }
+
     #[cfg(windows)]
     {
-        if let Some(descriptor) = explicit_socket_descriptor {
-            return Ok(DoorTransport::SocketDescriptor { descriptor });
-        }
         if matches!(
             info.connection_type,
             Some(dropfile::DoorConnectionType::TelnetSocket)
         ) {
             let Some(descriptor) = info.socket_descriptor else {
-                return Err(
-                    "DOOR32.SYS advertises telnet/socket transport but does not provide a socket descriptor"
-                        .into(),
-                );
+                return Ok(DoorTransport::Stdio);
             };
             return Ok(DoorTransport::SocketDescriptor { descriptor });
         }
     }
 
     Ok(DoorTransport::Stdio)
+}
+
+fn explicit_door_transport(
+    explicit_socket_descriptor: Option<u64>,
+    explicit_socket_port: Option<u16>,
+) -> Result<Option<DoorTransport>, Box<dyn std::error::Error>> {
+    if explicit_socket_descriptor.is_some() && explicit_socket_port.is_some() {
+        return Err("--socket-descriptor and --socket-port cannot be used together".into());
+    }
+
+    #[cfg(windows)]
+    if let Some(descriptor) = explicit_socket_descriptor {
+        return Ok(Some(DoorTransport::SocketDescriptor { descriptor }));
+    }
+
+    #[cfg(not(windows))]
+    if explicit_socket_descriptor.is_some() {
+        return Err("--socket-descriptor is only supported on Windows".into());
+    }
+
+    if let Some(port) = explicit_socket_port {
+        return Ok(Some(DoorTransport::TcpConnect {
+            host: LOOPBACK_DOOR_HOST,
+            port,
+        }));
+    }
+
+    Ok(None)
 }
 
 /// Detect the terminal's color depth from standard environment variables.
@@ -657,7 +701,7 @@ fn print_usage() {
     println!(
         "  nc-game --dir <game_dir> [--player <1-based empire index>] \
              [--encoding <utf8|cp437>] [--color-mode <ansi16|256|truecolor|auto>] \
-         [--dropfile <path>] [--timeout <minutes>] [--socket-descriptor <value>] [--session-token <token>] \
+         [--dropfile <path>] [--timeout <minutes>] [--socket-descriptor <value>] [--socket-port <port>] [--session-token <token>] \
          [--hosted-invite-code <code>] \
          [--export-root <dir>] [--queue-dir <dir>] \
          [--log-file <path>] [--log-level <error|warn|info|debug|trace>]"
@@ -674,6 +718,8 @@ fn print_usage() {
     println!("  --timeout <minutes> Session time limit in minutes.");
     println!("  --socket-descriptor <value>");
     println!("                      Override the socket descriptor for native Windows doors.");
+    println!("  --socket-port <port>");
+    println!("                      Connect back to a localhost door socket (ENiGMA abracadabra mode).");
     println!();
     println!("Logging:");
     println!("  --log-file <path>   Append diagnostic logs to a text file.");
@@ -963,6 +1009,7 @@ mod tests {
         HostedLaunchContext, LaunchPlayerBinding, LaunchPlayerBindingSource, ParsedLaunchArgs,
         apply_launch_context, local_exit_lines, resolve_launch_player_binding,
         select_door_transport, session_lease_ttl_seconds, should_emit_local_exit_attribution,
+        LOOPBACK_DOOR_HOST,
     };
     use crate::app::{App, AppConfig, RuntimeConfig, RuntimeSetupOverrides};
     use crate::domains::startup::state::FirstTimeOnboardingMode;
@@ -1228,8 +1275,21 @@ mod tests {
         let info = crate::dropfile::DropfileInfo::default();
 
         assert_eq!(
-            select_door_transport(None, &info).expect("transport should resolve"),
+            select_door_transport(None, None, &info).expect("transport should resolve"),
             DoorTransport::Stdio
+        );
+    }
+
+    #[test]
+    fn explicit_socket_port_uses_localhost_tcp_connect_transport() {
+        let info = crate::dropfile::DropfileInfo::default();
+
+        assert_eq!(
+            select_door_transport(None, Some(2323), &info).expect("transport should resolve"),
+            DoorTransport::TcpConnect {
+                host: LOOPBACK_DOOR_HOST,
+                port: 2323,
+            }
         );
     }
 
@@ -1243,25 +1303,25 @@ mod tests {
         };
 
         assert_eq!(
-            select_door_transport(None, &info).expect("transport should resolve"),
+            select_door_transport(None, None, &info).expect("transport should resolve"),
             DoorTransport::SocketDescriptor { descriptor: 77 }
         );
     }
 
     #[cfg(windows)]
     #[test]
-    fn dropfile_transport_rejects_missing_socket_descriptor() {
+    fn dropfile_transport_falls_back_to_stdio_when_socket_descriptor_is_missing() {
         let info = crate::dropfile::DropfileInfo {
             connection_type: Some(crate::dropfile::DoorConnectionType::TelnetSocket),
             socket_descriptor: None,
             ..crate::dropfile::DropfileInfo::default()
         };
 
-        let err = select_door_transport(None, &info).expect_err("transport should fail");
-
         assert!(
-            err.to_string()
-                .contains("does not provide a socket descriptor")
+            matches!(
+                select_door_transport(None, None, &info).expect("transport should resolve"),
+                DoorTransport::Stdio
+            )
         );
     }
 
@@ -1275,8 +1335,21 @@ mod tests {
         };
 
         assert_eq!(
-            select_door_transport(Some(1234), &info).expect("transport should resolve"),
+            select_door_transport(Some(1234), None, &info).expect("transport should resolve"),
             DoorTransport::SocketDescriptor { descriptor: 1234 }
+        );
+    }
+
+    #[test]
+    fn explicit_socket_descriptor_and_port_cannot_be_combined() {
+        let info = crate::dropfile::DropfileInfo::default();
+
+        let err = select_door_transport(Some(7), Some(2323), &info)
+            .expect_err("transport selection should reject conflicting flags");
+
+        assert!(
+            err.to_string()
+                .contains("--socket-descriptor and --socket-port cannot be used together")
         );
     }
 

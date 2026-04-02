@@ -472,8 +472,8 @@ Keep these three paths separate:
 === BBS Door Host
 
 - Live state: per-game `config.kdl` plus `ncgame.db`
-- Runtime path: `nc-door` with a dropfile; native Windows Synchronet also
-  passes `--socket-descriptor`
+- Runtime path: `nc-door` with a dropfile; ENiGMA½ also passes `--socket-port`
+  and native Windows Synchronet passes `--socket-descriptor`
 - Operator rule: BBS `config.kdl` supports only `players` and `reservations`;
   `settings set` does not apply
 - Common hosts: Mystic, ENiGMA½, and native Windows Synchronet
@@ -659,20 +659,24 @@ dropfile-only door flow:
 == Modern BBS Hosts
 
 The native Rust `nc-door` binary is now verified on Mystic, ENiGMA½, and
-Synchronet. On all three hosts, the standard launch shape is the same: pass
-`--dir` and `--dropfile`, keep `--encoding cp437`, and use ANSI16 color for
-classic terminal clients. The helper wrapper at `tools/bbs/run_nc_rust.sh`
-remains useful only for source-tree testing and is not the normal packaged
-door path.
+Synchronet. The shared core launch shape is simple: pass `--dir` and a
+dropfile, keep `--encoding cp437`, and use ANSI16 color for classic terminal
+clients. The helper wrapper at `tools/bbs/run_nc_rust.sh` remains useful only
+for source-tree testing and is not the normal packaged door path.
 
-If the host writes a `DOOR32.SYS`, you can pass it directly:
+Mystic uses the direct dropfile path:
 
 ```
 nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS
 ```
 
-Mystic and ENiGMA½ use that direct dropfile path. Native Windows Synchronet
-also passes the inherited socket descriptor:
+ENiGMA½ uses the same dropfile plus its temporary localhost socket server:
+
+```
+nc-door --dir /path/to/mygame --dropfile /path/to/DOOR32.SYS --socket-port {srvPort}
+```
+
+Native Windows Synchronet also passes the inherited socket descriptor:
 
 ```
 nc-door --dir /path/to/mygame --dropfile %f --socket-descriptor %H
@@ -919,6 +923,8 @@ Interactive client flags:
   `CHAIN.TXT`). It supplies the alias and timeout, defaults encoding to
   `cp437`, and resolves the player seat through BBS `config.kdl` reservations
   or stored joined-player aliases.
+- *`--socket-port <value>`:* Connect back to a localhost door socket. Mainly
+  for ENiGMA½ `abracadabra` in `socket` mode.
 - *`--socket-descriptor <value>`:* Native Windows door socket handle. Mainly
   for Synchronet-style socket door launches.
 - *`--session-token <hex>`:* Hosted-session lease token injected by `nc-gate`

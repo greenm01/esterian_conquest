@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 pub enum DoorTransport {
     #[default]
     Stdio,
+    TcpConnect { host: &'static str, port: u16 },
     #[cfg(windows)]
     SocketDescriptor { descriptor: u64 },
 }
@@ -16,6 +17,7 @@ pub(crate) trait DoorIo: Read + Write {
 pub(crate) fn build_door_io(transport: DoorTransport) -> io::Result<Box<dyn DoorIo>> {
     match transport {
         DoorTransport::Stdio => Ok(Box::new(StdioDoorIo::new())),
+        DoorTransport::TcpConnect { host, port } => Ok(Box::new(SocketDoorIo::connect(host, port)?)),
         #[cfg(windows)]
         DoorTransport::SocketDescriptor { descriptor } => {
             Ok(Box::new(SocketDoorIo::from_socket_descriptor(descriptor)?))
@@ -124,13 +126,27 @@ impl Read for RawStdin {
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 struct SocketDoorIo {
     stream: std::net::TcpStream,
 }
 
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 impl SocketDoorIo {
+    fn connect(host: &str, port: u16) -> io::Result<Self> {
+        #[cfg(windows)]
+        ensure_winsock_started()?;
+
+        let stream = std::net::TcpStream::connect((host, port)).map_err(|err| {
+            io::Error::new(
+                err.kind(),
+                format!("failed to connect to door socket at {host}:{port}: {err}"),
+            )
+        })?;
+        Ok(Self { stream })
+    }
+
+    #[cfg(windows)]
     fn from_socket_descriptor(descriptor: u64) -> io::Result<Self> {
         use std::os::windows::io::{FromRawSocket, RawSocket};
 
@@ -192,7 +208,7 @@ fn ensure_winsock_started() -> io::Result<()> {
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 impl Read for SocketDoorIo {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         loop {
@@ -207,7 +223,7 @@ impl Read for SocketDoorIo {
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 impl Write for SocketDoorIo {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         loop {
@@ -226,7 +242,7 @@ impl Write for SocketDoorIo {
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(unix, windows))]
 impl DoorIo for SocketDoorIo {
     fn wait_ready(&mut self, timeout_ms: i32) -> io::Result<bool> {
         socket_wait(&self.stream, SocketWait::Read, timeout_ms)
@@ -341,6 +357,12 @@ enum SocketWait {
     Write,
 }
 
+#[cfg(unix)]
+enum SocketWait {
+    Read,
+    Write,
+}
+
 #[cfg(windows)]
 fn socket_wait(
     stream: &std::net::TcpStream,
@@ -417,6 +439,56 @@ fn socket_wait(
 #[cfg(windows)]
 fn socket_would_block(err: &io::Error) -> bool {
     err.kind() == io::ErrorKind::WouldBlock || err.raw_os_error() == Some(10035)
+}
+
+#[cfg(unix)]
+fn socket_wait(
+    stream: &std::net::TcpStream,
+    direction: SocketWait,
+    timeout_ms: i32,
+) -> io::Result<bool> {
+    use std::os::fd::AsRawFd;
+
+    const POLLIN: i16 = 0x0001;
+    const POLLOUT: i16 = 0x0004;
+
+    #[repr(C)]
+    struct PollFd {
+        fd: i32,
+        events: i16,
+        revents: i16,
+    }
+
+    unsafe extern "C" {
+        fn poll(fds: *mut PollFd, nfds: usize, timeout: i32) -> i32;
+    }
+
+    let events = match direction {
+        SocketWait::Read => POLLIN,
+        SocketWait::Write => POLLOUT,
+    };
+    let mut fds = [PollFd {
+        fd: stream.as_raw_fd(),
+        events,
+        revents: 0,
+    }];
+
+    loop {
+        let rc = unsafe { poll(fds.as_mut_ptr(), fds.len(), timeout_ms) };
+        if rc >= 0 {
+            return Ok(rc > 0 && (fds[0].revents & events) != 0);
+        }
+        let err = io::Error::last_os_error();
+        if err.kind() == io::ErrorKind::Interrupted {
+            continue;
+        }
+        return Err(err);
+    }
+}
+
+#[cfg(unix)]
+fn socket_would_block(err: &io::Error) -> bool {
+    err.kind() == io::ErrorKind::WouldBlock
 }
 
 #[cfg(not(any(unix, windows)))]

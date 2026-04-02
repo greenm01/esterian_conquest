@@ -560,3 +560,56 @@ fn windows_nonblocking_socket_door_terminal_handles_would_block() {
 
     server.join().expect("server thread should finish");
 }
+
+#[cfg(windows)]
+#[test]
+fn windows_tcp_connect_door_terminal_reads_and_writes_over_local_socket_server() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+    let addr = listener.local_addr().expect("listener addr");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept socket");
+        let mut buf = [0u8; 256];
+        let mut rendered = Vec::new();
+        loop {
+            let bytes_read = stream.read(&mut buf).expect("read terminal output");
+            if bytes_read == 0 {
+                break;
+            }
+            rendered.extend_from_slice(&buf[..bytes_read]);
+            if rendered
+                .windows("CONNECT BACK OK".len())
+                .any(|window| window == b"CONNECT BACK OK")
+            {
+                break;
+            }
+        }
+        let rendered = String::from_utf8_lossy(&rendered);
+        assert!(
+            rendered.contains("CONNECT BACK OK"),
+            "rendered={rendered:?}"
+        );
+        stream.write_all(b"q").expect("write keypress");
+        stream.flush().expect("flush keypress");
+    });
+
+    let mut terminal = DoorTerminal::with_transport_and_color_mode(
+        OutputEncoding::Utf8,
+        ColorMode::Ansi16,
+        nc_game::screen::ScreenGeometry::local_default(),
+        DoorTransport::TcpConnect {
+            host: "127.0.0.1",
+            port: addr.port(),
+        },
+    )
+    .expect("tcp connect transport should initialize");
+
+    terminal
+        .dump_text_capture("CONNECT BACK OK")
+        .expect("write over tcp connect transport");
+    let key = terminal
+        .read_key()
+        .expect("read key from tcp connect transport");
+    assert_eq!(key.code, KeyCode::Char('q'));
+
+    server.join().expect("server thread should finish");
+}
