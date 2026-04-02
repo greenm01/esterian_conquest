@@ -1000,8 +1000,14 @@ fn fleet_review_detail_from_menu_uses_dismiss_prompt_and_returns_to_menu() {
             .iter()
             .any(|line| line.contains("(slap a key)"))
     );
-    assert_eq!(terminal.line(13).trim_end(), "");
-    assert_eq!(terminal.line(14).trim_end(), " (slap a key)");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Fleet Record #:"))
+    );
+    assert_eq!(terminal.line(10).trim_end(), "");
+    assert_eq!(terminal.line(11).trim_end(), " (slap a key)");
     assert_eq!(
         app.handle_key(key(KeyCode::Char('x'))),
         Action::Fleet(FleetAction::CloseReview)
@@ -1048,9 +1054,15 @@ fn fleet_review_from_list_uses_dismiss_prompt_and_any_key_returns_to_list() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review should render");
-    assert_eq!(terminal.line(13).trim_end(), "");
-    assert_eq!(terminal.line(14).trim_end(), " (slap a key)");
-    assert!(!terminal.line(14).contains("COMMAND <-"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Fleet Record #:"))
+    );
+    assert_eq!(terminal.line(10).trim_end(), "");
+    assert_eq!(terminal.line(11).trim_end(), " (slap a key)");
+    assert!(!terminal.line(11).contains("COMMAND <-"));
 
     assert_eq!(
         app.handle_key(key(KeyCode::Left)),

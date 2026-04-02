@@ -523,13 +523,7 @@ impl FleetReviewScreen {
         );
         draw_status_line(&mut buffer, 7, "Standing Order: ", &row.order_label);
         draw_status_line(&mut buffer, 9, "Composition: ", &row.composition_label);
-        draw_status_line(
-            &mut buffer,
-            12,
-            "Fleet Record #: ",
-            &row.fleet_record_index_1_based.to_string(),
-        );
-        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(12));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(9));
         Ok(buffer)
     }
 
