@@ -1,7 +1,7 @@
 # Fleet Order Selection Targeting Spec
 
-This document defines the Rust client policy for fleet-order target defaults,
-coordinate entry, and validation.
+This document defines the Rust client policy for fleet-order fleet selection,
+target defaults, coordinate entry, and validation.
 
 The manuals define the mission target classes and gameplay semantics. This spec
 defines how the Rust TUI should help the player choose a target without turning
@@ -16,6 +16,7 @@ Primary sources:
 
 Current implementation lives in:
 
+- [controller.rs](../../rust/nc-game/src/domains/fleet/controller.rs)
 - [orders.rs](../../rust/nc-game/src/domains/fleet/orders.rs)
 - [fleet.rs](../../rust/nc-game/src/domains/fleet/screens/fleet.rs)
 
@@ -25,6 +26,7 @@ This spec covers:
 
 - single-fleet Order flow
 - post-selection Group Fleet Order flow
+- Fleet Menu `Order Fleet # [default]` fleet selection
 - target defaults shown in `[XX]` and `[YY]`
 - target validation and screen routing after entry
 
@@ -43,6 +45,7 @@ Manual-backed semantics:
 
 Rust-client policy:
 
+- which fleet number should be suggested by default for `Order Fleet #`
 - which valid target should be suggested by default
 - when `[YY]` should be blank
 - when duplicate scout/colonize defaults should be suppressed
@@ -57,6 +60,26 @@ Rust-client policy:
   need manual coordinate entry.
 - `Guard Starbase` and `Join Fleet` use non-coordinate target prompts.
 
+## Default Fleet Number Policy
+
+- This policy applies only to the Fleet Menu `Order Fleet # [default]` prompt.
+- Ordering from Fleet List or Fleet Review remains contextual and uses the
+  selected fleet directly.
+- Review, Change, ETA, merge, transfer, detach, transport, and other
+  fleet-number prompts keep the existing strongest-owned-fleet default.
+- The order prompt default is chosen from player-owned fleets with this
+  precedence:
+  1. fleets not currently on `Patrol` or `Guard/Blockade`
+  2. if none exist, fleets on `Patrol` or `Guard/Blockade`
+  3. within that pool, fleets that look ready for a fresh assignment:
+     `Hold`, target `[0,0]`, or target equal to current location
+  4. within the ready bucket, fleets with `ETAC > 0`
+  5. final tie-break: the existing strongest-fleet ranking
+- If no ready fleets exist in the chosen pool, the client falls back to the
+  strongest fleet in that pool.
+- Patrol/blockade avoidance is advisory only for the default prompt. The player
+  can still type any owned fleet number manually.
+
 ## Default Target Policy
 
 - `Move`: current sector
@@ -65,8 +88,13 @@ Rust-client policy:
   - *Rationale*: Guard is the more common defensive use case. Blockade users targeting enemy worlds are expected to enter coordinates manually.
 - `Bombard`, `Invade`, `Blitz`: nearest known enemy-owned world (owner > 0 and owner != self)
   - Unowned worlds (owner 0) are excluded since they are never valid hostile targets.
-- `View`: nearest world with partial or unknown intel (IntelTier::Partial or IntelTier::Unknown), falling back to nearest known world if all are fully scouted
-  - *Rationale*: View is typically used to scan worlds the player knows little about.
+- `View`: closest unknown world from the player's total planet database,
+  preferring worlds not already targeted by another friendly fleet on any
+  mission
+  - If no unknown worlds remain, there is no smart default and the player must
+    enter coordinates manually.
+  - *Rationale*: View already collects partial intel, so partial worlds are not
+    useful smart defaults.
 - `Scout Sector`: nearest known unowned world sector not already claimed by
   another active friendly scout order; if none, current sector only if that
   sector is not one of the player’s owned systems
@@ -104,6 +132,8 @@ Interpretation rules:
   - contain scouts
   - already have active `Scout Sector` or `Scout System` orders
   - target the same coordinates
+- View defaults should prefer unknown worlds not already targeted by another
+  friendly fleet on any mission.
 - The fleets currently being ordered are excluded from these duplicate checks.
 - If every otherwise-valid candidate is already claimed, the default should be
   blank rather than falling back to a claimed target.

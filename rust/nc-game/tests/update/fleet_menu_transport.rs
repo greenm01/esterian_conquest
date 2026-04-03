@@ -1,5 +1,35 @@
 use crate::support::*;
 
+fn owned_fleet_mut(
+    state: &mut CampaignRuntimeState,
+    fleet_number: u16,
+) -> &mut nc_data::FleetRecord {
+    state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == fleet_number)
+        .unwrap_or_else(|| panic!("fleet #{fleet_number} should exist"))
+}
+
+fn set_fleet_ship_profile(
+    fleet: &mut nc_data::FleetRecord,
+    battleships: u16,
+    cruisers: u16,
+    destroyers: u16,
+    troop_transports: u16,
+    scouts: u8,
+    etacs: u16,
+) {
+    fleet.set_battleship_count(battleships);
+    fleet.set_cruiser_count(cruisers);
+    fleet.set_destroyer_count(destroyers);
+    fleet.set_troop_transport_count(troop_transports);
+    fleet.set_scout_count(scouts);
+    fleet.set_etac_count(etacs);
+}
+
 #[test]
 fn fleet_review_opens_with_an_inline_prompt_first() {
     let fixture_dir = temp_game_copy();
@@ -32,17 +62,21 @@ fn fleet_review_opens_with_an_inline_prompt_first() {
 }
 
 #[test]
-fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
+fn fleet_order_prompt_uses_smart_default_while_other_prompts_keep_strongest_default() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    let strongest = state
-        .game_data
-        .fleets
-        .records
-        .iter_mut()
-        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
-        .expect("fleet #2 should exist");
-    strongest.set_battleship_count(9);
+    {
+        let fleet = owned_fleet_mut(&mut state, 1);
+        set_fleet_ship_profile(fleet, 0, 0, 0, 0, 0, 1);
+        fleet.set_standing_order_kind(nc_data::Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw([0, 0]);
+    }
+    {
+        let fleet = owned_fleet_mut(&mut state, 2);
+        set_fleet_ship_profile(fleet, 9, 0, 0, 0, 0, 0);
+        fleet.set_standing_order_kind(nc_data::Order::MoveOnly);
+        fleet.set_standing_order_target_coords_raw([14, 9]);
+    }
     save_runtime_state(&fixture_dir, &state);
     assert_eq!(strongest_owned_fleet_number(&fixture_dir), 2);
 
@@ -78,9 +112,220 @@ fn fleet_menu_prompts_default_to_the_most_powerful_fleet() {
         AppOutcome::Continue
     );
     assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenChangePrompt)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("change prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Change Fleet #")
+            .contains("Change Fleet # [2] <Q> ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("eta prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- ETA Fleet #").contains("ETA Fleet # [2] <Q> ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
+    app.render(&mut terminal)
+        .expect("order prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Order Fleet #").contains("Order Fleet # [1] <Q> ->")
+    );
+}
+
+#[test]
+fn fleet_order_prompt_prefers_ready_etac_fleets_over_stronger_ready_non_etac_fleets() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    {
+        let fleet = owned_fleet_mut(&mut state, 1);
+        set_fleet_ship_profile(fleet, 0, 0, 0, 0, 0, 1);
+        fleet.set_standing_order_kind(nc_data::Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw([0, 0]);
+    }
+    {
+        let fleet = owned_fleet_mut(&mut state, 2);
+        set_fleet_ship_profile(fleet, 9, 0, 0, 0, 0, 0);
+        fleet.set_standing_order_kind(nc_data::Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw([0, 0]);
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("order prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Order Fleet #").contains("Order Fleet # [1] <Q> ->")
+    );
+}
+
+#[test]
+fn fleet_order_prompt_avoids_patrol_and_blockade_fleets_when_other_owned_fleets_exist() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    {
+        let fleet = owned_fleet_mut(&mut state, 1);
+        set_fleet_ship_profile(fleet, 1, 0, 0, 0, 0, 0);
+        fleet.set_standing_order_kind(nc_data::Order::MoveOnly);
+        fleet.set_standing_order_target_coords_raw([14, 9]);
+    }
+    {
+        let fleet = owned_fleet_mut(&mut state, 2);
+        let current = fleet.current_location_coords_raw();
+        set_fleet_ship_profile(fleet, 9, 0, 0, 0, 0, 1);
+        fleet.set_standing_order_kind(nc_data::Order::GuardBlockadeWorld);
+        fleet.set_standing_order_target_coords_raw(current);
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("order prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Order Fleet #").contains("Order Fleet # [1] <Q> ->")
+    );
+}
+
+#[test]
+fn fleet_order_prompt_falls_back_to_patrol_and_blockade_fleets_when_no_other_fleets_exist() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    {
+        let fleet = owned_fleet_mut(&mut state, 1);
+        let current = fleet.current_location_coords_raw();
+        set_fleet_ship_profile(fleet, 0, 0, 0, 0, 0, 1);
+        fleet.set_standing_order_kind(nc_data::Order::PatrolSector);
+        fleet.set_standing_order_target_coords_raw(current);
+    }
+    {
+        let fleet = owned_fleet_mut(&mut state, 2);
+        let current = fleet.current_location_coords_raw();
+        set_fleet_ship_profile(fleet, 9, 0, 0, 0, 0, 0);
+        fleet.set_standing_order_kind(nc_data::Order::GuardBlockadeWorld);
+        fleet.set_standing_order_target_coords_raw(current);
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("order prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Order Fleet #").contains("Order Fleet # [1] <Q> ->")
+    );
+}
+
+#[test]
+fn fleet_order_prompt_uses_strength_when_no_ready_non_patrol_fleets_exist() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    {
+        let fleet = owned_fleet_mut(&mut state, 1);
+        set_fleet_ship_profile(fleet, 0, 0, 0, 0, 0, 1);
+        fleet.set_standing_order_kind(nc_data::Order::MoveOnly);
+        fleet.set_standing_order_target_coords_raw([14, 9]);
+    }
+    {
+        let fleet = owned_fleet_mut(&mut state, 2);
+        set_fleet_ship_profile(fleet, 9, 0, 0, 0, 0, 0);
+        fleet.set_standing_order_kind(nc_data::Order::ViewWorld);
+        fleet.set_standing_order_target_coords_raw([13, 9]);
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("order prompt should render");
     assert!(
