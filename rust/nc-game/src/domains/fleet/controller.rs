@@ -648,15 +648,11 @@ impl App {
                 self.fleet.eta_mode = FleetEtaMode::ShowingResult;
             }
             FleetEtaMode::ShowingResult => {
-                let fleet_number = selected_row.fleet_number;
                 self.fleet.eta_status = None;
+                self.fleet.eta_fleet_record_index_1_based = None;
                 self.fleet.eta_destination_input.clear();
                 self.fleet.eta_include_system_input.clear();
-                self.current_screen = ScreenId::FleetMenu;
-                self.open_fleet_menu_prompt(
-                    FleetMenuPromptMode::EtaFleet,
-                    fleet_number.to_string(),
-                );
+                self.open_fleet_menu();
             }
         }
     }

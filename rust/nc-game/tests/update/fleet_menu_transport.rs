@@ -2586,6 +2586,60 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
 }
 
 #[test]
+fn fleet_eta_result_dismiss_returns_to_primary_fleet_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    open_eta_from_fleet_menu(&mut app, Some(4));
+    for ch in ['1', '0', ',', '1', '3'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render after dismissing eta result");
+    assert!(
+        line_containing(&terminal, "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->")
+            .contains("FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->")
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("COMMAND <- ETA Fleet #")),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
 fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
