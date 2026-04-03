@@ -4,7 +4,7 @@ use crate::support::*;
 fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -136,7 +136,7 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
 fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -204,7 +204,7 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
 fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -381,7 +381,7 @@ fn fleet_order_confirm_uses_stopped_eta_when_selected_fleet_speed_is_zero() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -495,7 +495,7 @@ fn fleet_group_order_confirm_uses_eta_when_selected_fleet_speed_is_zero() {
 }
 
 #[test]
-fn fleet_list_live_eta_shows_s_for_stopped_fleet_after_new_order() {
+fn fleet_list_live_eta_projects_years_for_stopped_fleet_after_new_order() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     let current_coords = state
@@ -518,7 +518,7 @@ fn fleet_list_live_eta_shows_s_for_stopped_fleet_after_new_order() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -548,6 +548,27 @@ fn fleet_list_live_eta_shows_s_for_stopped_fleet_after_new_order() {
     enter_fleet_order_target(&mut app, target);
     confirm_fleet_order(&mut app, true);
 
+    let state = latest_runtime_state(&fixture_dir);
+    let (fleet_idx, ordered_fleet) = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, fleet)| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist after ordering");
+    let expected_years = match nc_engine::estimate_fleet_eta_to_destination(
+        &state.game_data,
+        fleet_idx,
+        ordered_fleet.standing_order_target_coords_raw(),
+        false,
+        true,
+    ) {
+        nc_engine::FleetEtaEstimate::Arrived => 0,
+        nc_engine::FleetEtaEstimate::Years(years) => years,
+        other => panic!("expected projected ETA for ordered fleet, got {other:?}"),
+    };
+
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
         AppOutcome::Continue
@@ -558,7 +579,7 @@ fn fleet_list_live_eta_shows_s_for_stopped_fleet_after_new_order() {
             line.contains("│ 1│")
                 && line.contains("View")
                 && line.contains(&format!("({:02},{:02})", target[0], target[1]))
-                && line.contains("│  S│")
+                && line.contains(&format!("│{:>3}│", expected_years))
         }),
         "{:#?}",
         terminal.lines
@@ -566,7 +587,7 @@ fn fleet_list_live_eta_shows_s_for_stopped_fleet_after_new_order() {
 }
 
 #[test]
-fn fleet_group_selection_live_eta_shows_s_for_stopped_fleet() {
+fn fleet_group_selection_live_eta_projects_years_for_stopped_fleet() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     let current_coords = state
@@ -588,6 +609,23 @@ fn fleet_group_selection_live_eta_shows_s_for_stopped_fleet() {
     fleet.set_current_speed(0);
     fleet.set_standing_order_kind(nc_data::Order::ViewWorld);
     fleet.set_standing_order_target_coords_raw(target);
+    let expected_years = match nc_engine::estimate_fleet_eta_to_destination(
+        &state.game_data,
+        state
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .position(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+            .expect("fleet #1 should exist"),
+        target,
+        false,
+        true,
+    ) {
+        nc_engine::FleetEtaEstimate::Arrived => 0,
+        nc_engine::FleetEtaEstimate::Years(years) => years,
+        other => panic!("expected projected ETA for group fleet, got {other:?}"),
+    };
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -618,7 +656,7 @@ fn fleet_group_selection_live_eta_shows_s_for_stopped_fleet() {
             line.contains("│ 1│")
                 && line.contains("View")
                 && line.contains(&format!("({:02},{:02})", target[0], target[1]))
-                && line.contains("│  S│")
+                && line.contains(&format!("│{:>3}│", expected_years))
         }),
         "{:#?}",
         terminal.lines
@@ -2910,6 +2948,105 @@ fn fleet_order_hold_defaults_to_current_sector_and_persists_target() {
     assert_eq!(
         ordered_fleet.standing_order_target_coords_raw(),
         hold_coords
+    );
+}
+
+#[test]
+fn fleet_list_eta_is_zero_for_hold_orders_even_with_stale_off_sector_target() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    fleet.set_current_speed(3);
+    fleet.set_standing_order_kind(nc_data::Order::HoldPosition);
+    fleet.set_standing_order_target_coords_raw([14, 9]);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(
+        terminal.lines.iter().any(|line| {
+            line.contains("│ 1│") && line.contains("Hold") && line.contains("│  0│")
+        }),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
+fn fleet_list_eta_is_zero_when_non_hold_target_matches_current_location() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    let current_coords = fleet.current_location_coords_raw();
+    fleet.set_current_speed(3);
+    fleet.set_standing_order_kind(nc_data::Order::PatrolSector);
+    fleet.set_standing_order_target_coords_raw(current_coords);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("fleet list should render");
+    assert!(
+        terminal.lines.iter().any(|line| {
+            line.contains("│ 1│")
+                && line.contains("Patrol")
+                && line.contains(&format!(
+                    "({:02},{:02})",
+                    current_coords[0], current_coords[1]
+                ))
+                && line.contains("│  0│")
+        }),
+        "{:#?}",
+        terminal.lines
     );
 }
 

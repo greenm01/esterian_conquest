@@ -4,8 +4,8 @@ use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FleetDetachClass, FleetDetachMode, FleetRow, FleetTransferMode, ScreenId,
 };
-use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord};
-use nc_engine::{FleetEtaEstimate, estimate_fleet_eta, estimate_fleet_eta_to_destination};
+use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord, Order, map_size_for_player_count};
+use nc_engine::{FleetEtaEstimate, estimate_fleet_eta_to_destination};
 
 impl App {
     pub(crate) fn submit_inline_fleet_merge(
@@ -1240,8 +1240,27 @@ impl App {
     }
 }
 
+fn fleet_display_eta_estimate(game_data: &CoreGameData, fleet_idx: usize) -> FleetEtaEstimate {
+    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
+        return FleetEtaEstimate::Unreachable;
+    };
+    if fleet.standing_order_kind() == Order::HoldPosition {
+        return FleetEtaEstimate::Arrived;
+    }
+    let current = fleet.current_location_coords_raw();
+    let target = fleet.standing_order_target_coords_raw();
+    if current == target {
+        return FleetEtaEstimate::Arrived;
+    }
+    let map_size = map_size_for_player_count(game_data.conquest.player_count());
+    if target[0] == 0 || target[1] == 0 || target[0] > map_size || target[1] > map_size {
+        return FleetEtaEstimate::Unreachable;
+    }
+    estimate_fleet_eta_to_destination(game_data, fleet_idx, target, false, true)
+}
+
 pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
-    match estimate_fleet_eta(game_data, fleet_idx) {
+    match fleet_display_eta_estimate(game_data, fleet_idx) {
         FleetEtaEstimate::Arrived => game_data.conquest.game_year().to_string(),
         FleetEtaEstimate::Stopped => "STOP".to_string(),
         FleetEtaEstimate::Unreachable => "N/A".to_string(),
@@ -1254,7 +1273,7 @@ pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> Str
 }
 
 pub(super) fn fleet_list_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
-    match estimate_fleet_eta(game_data, fleet_idx) {
+    match fleet_display_eta_estimate(game_data, fleet_idx) {
         FleetEtaEstimate::Arrived => "0".to_string(),
         FleetEtaEstimate::Stopped => "S".to_string(),
         FleetEtaEstimate::Unreachable => "X".to_string(),
