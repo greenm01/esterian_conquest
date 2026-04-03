@@ -37,11 +37,13 @@ impl App {
         self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
         self.clear_fleet_order_target_inputs();
         self.fleet.mission_picker_caller = None;
+        let default_fleet_number = self
+            .order_prompt_default_fleet_number()
+            .map(|value| value.to_string())
+            .unwrap_or_default();
         self.open_fleet_menu_prompt(
             FleetMenuPromptMode::Order,
-            self.order_prompt_default_fleet_number()
-                .map(|value| value.to_string())
-                .unwrap_or_default(),
+            default_fleet_number,
         );
     }
 

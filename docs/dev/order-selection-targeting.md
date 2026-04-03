@@ -69,16 +69,23 @@ Rust-client policy:
   fleet-number prompts keep the existing strongest-owned-fleet default.
 - The order prompt default is chosen from player-owned fleets with this
   precedence:
-  1. fleets not currently on `Patrol` or `Guard/Blockade`
-  2. if none exist, fleets on `Patrol` or `Guard/Blockade`
-  3. within that pool, fleets that look ready for a fresh assignment:
-     `Hold`, target `[0,0]`, or target equal to current location
-  4. within the ready bucket, fleets with `ETAC > 0`
-  5. final tie-break: the existing strongest-fleet ranking
-- If no ready fleets exist in the chosen pool, the client falls back to the
-  strongest fleet in that pool.
-- Patrol/blockade avoidance is advisory only for the default prompt. The player
-  can still type any owned fleet number manually.
+  1. newly commissioned fleets from this `nc-game` session that are still on
+     `Hold Position`, most recent first
+  2. other idle `Hold Position` fleets with `ETAC > 0`
+  3. other idle `Hold Position` fleets
+  4. the strongest combat fleet that has combat ships (`DD`/`CA`/`BB`) and no
+     scouts or ETACs
+  5. final fallback: the existing strongest-owned-fleet ranking
+- Only `Hold Position` counts as idle for this prompt.
+- A fleet is not treated as idle merely because its target is `[0,0]` or its
+  target equals its current location.
+  - Example: an active same-system `Colonize`, `Guard/Blockade`, or `Patrol`
+    order is still considered committed.
+- The combat-only fallback intentionally avoids mixed colonizer/scout fleets so
+  a player who already committed ETAC fleets does not get defaulted back onto
+  them before cleaner combat fleets.
+- These defaults are advisory only. The player can still type any owned fleet
+  number manually.
 
 ## Default Target Policy
 

@@ -25,19 +25,23 @@ fn fleet_strength_key(fleet: &FleetRecord) -> (u16, u16, u16, u16, u8, u16, Reve
     )
 }
 
-fn fleet_is_on_patrol_or_blockade_duty(fleet: &FleetRecord) -> bool {
-    matches!(
-        fleet.standing_order_kind(),
-        Order::PatrolSector | Order::GuardBlockadeWorld
+fn fleet_combat_only_strength_key(fleet: &FleetRecord) -> (u16, u16, u16, Reverse<u16>) {
+    (
+        fleet.battleship_count(),
+        fleet.cruiser_count(),
+        fleet.destroyer_count(),
+        Reverse(fleet.local_slot_word_raw()),
     )
 }
 
-fn fleet_is_ready_for_new_order_prompt(fleet: &FleetRecord) -> bool {
-    if fleet.standing_order_kind() == Order::HoldPosition {
-        return true;
-    }
-    let target = fleet.standing_order_target_coords_raw();
-    target == [0, 0] || target == fleet.current_location_coords_raw()
+fn fleet_is_idle_hold(fleet: &FleetRecord) -> bool {
+    fleet.standing_order_kind() == Order::HoldPosition
+}
+
+fn fleet_is_combat_only_fallback_candidate(fleet: &FleetRecord) -> bool {
+    (fleet.destroyer_count() > 0 || fleet.cruiser_count() > 0 || fleet.battleship_count() > 0)
+        && fleet.scout_count() == 0
+        && fleet.etac_count() == 0
 }
 
 impl App {
@@ -100,7 +104,35 @@ impl App {
             .map(|fleet| fleet.local_slot_word_raw())
     }
 
-    pub(crate) fn order_prompt_default_fleet_number(&self) -> Option<u16> {
+    pub(crate) fn remember_newly_commissioned_fleet_record(
+        &mut self,
+        fleet_record_index_1_based: usize,
+    ) {
+        self.fleet
+            .recently_commissioned_fleet_records_mru
+            .retain(|idx| *idx != fleet_record_index_1_based);
+        self.fleet
+            .recently_commissioned_fleet_records_mru
+            .insert(0, fleet_record_index_1_based);
+    }
+
+    fn prune_recently_commissioned_fleet_records(&mut self) {
+        self.fleet
+            .recently_commissioned_fleet_records_mru
+            .retain(|record_index_1_based| {
+                self.game_data
+                    .fleets
+                    .records
+                    .get(*record_index_1_based - 1)
+                    .is_some_and(|fleet| {
+                        fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                            && fleet_is_idle_hold(fleet)
+                    })
+            });
+    }
+
+    pub(crate) fn order_prompt_default_fleet_number(&mut self) -> Option<u16> {
+        self.prune_recently_commissioned_fleet_records();
         let owned = self
             .game_data
             .fleets
@@ -108,42 +140,62 @@ impl App {
             .iter()
             .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
             .collect::<Vec<_>>();
-        let non_patrol_or_blockade = owned
+
+        if let Some(fleet_number) = self
+            .fleet
+            .recently_commissioned_fleet_records_mru
+            .iter()
+            .find_map(|record_index_1_based| {
+                self.game_data
+                    .fleets
+                    .records
+                    .get(*record_index_1_based - 1)
+                    .map(FleetRecord::local_slot_word_raw)
+            })
+        {
+            return Some(fleet_number);
+        }
+
+        let idle_etacs = owned
             .iter()
             .copied()
-            .filter(|fleet| !fleet_is_on_patrol_or_blockade_duty(fleet))
+            .filter(|fleet| fleet_is_idle_hold(fleet) && fleet.etac_count() > 0)
             .collect::<Vec<_>>();
-        let candidate_pool = if non_patrol_or_blockade.is_empty() {
-            owned
-        } else {
-            non_patrol_or_blockade
-        };
-        let ready = candidate_pool
+        if let Some(fleet) = idle_etacs
+            .into_iter()
+            .max_by_key(|fleet| fleet_strength_key(fleet))
+        {
+            return Some(fleet.local_slot_word_raw());
+        }
+
+        let idle_hold = owned
             .iter()
             .copied()
-            .filter(|fleet| fleet_is_ready_for_new_order_prompt(fleet))
+            .filter(|fleet| fleet_is_idle_hold(fleet))
             .collect::<Vec<_>>();
-        let winner = if ready.is_empty() {
-            candidate_pool
-                .into_iter()
-                .max_by_key(|fleet| fleet_strength_key(fleet))
-        } else {
-            let ready_etacs = ready
-                .iter()
-                .copied()
-                .filter(|fleet| fleet.etac_count() > 0)
-                .collect::<Vec<_>>();
-            if ready_etacs.is_empty() {
-                ready
-                    .into_iter()
-                    .max_by_key(|fleet| fleet_strength_key(fleet))
-            } else {
-                ready_etacs
-                    .into_iter()
-                    .max_by_key(|fleet| fleet_strength_key(fleet))
-            }
-        };
-        winner.map(|fleet| fleet.local_slot_word_raw())
+        if let Some(fleet) = idle_hold
+            .into_iter()
+            .max_by_key(|fleet| fleet_strength_key(fleet))
+        {
+            return Some(fleet.local_slot_word_raw());
+        }
+
+        let fallback_combat = owned
+            .iter()
+            .copied()
+            .filter(|fleet| fleet_is_combat_only_fallback_candidate(fleet))
+            .collect::<Vec<_>>();
+        if let Some(fleet) = fallback_combat
+            .into_iter()
+            .max_by_key(|fleet| fleet_combat_only_strength_key(fleet))
+        {
+            return Some(fleet.local_slot_word_raw());
+        }
+
+        owned
+            .into_iter()
+            .max_by_key(|fleet| fleet_strength_key(fleet))
+            .map(|fleet| fleet.local_slot_word_raw())
     }
 
     pub(crate) fn fleet_menu_prompt_label(&self) -> Option<String> {
