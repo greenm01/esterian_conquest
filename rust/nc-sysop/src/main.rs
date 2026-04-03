@@ -1103,7 +1103,20 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                 return Ok(());
             }
             init_logging(parsed, false)?;
-            let flags = parse_path_flags(&rest, &["--dir", "--player", "--config", "--identity"])?;
+            let mut nuke_seat = false;
+            let filtered = rest
+                .iter()
+                .filter_map(|arg| {
+                    if arg == "--nuke-seat" {
+                        nuke_seat = true;
+                        None
+                    } else {
+                        Some(arg.clone())
+                    }
+                })
+                .collect::<Vec<_>>();
+            let flags =
+                parse_path_flags(&filtered, &["--dir", "--player", "--config", "--identity"])?;
             let dir = flags
                 .get("--dir")
                 .cloned()
@@ -1117,12 +1130,18 @@ fn run_nostr(parsed: &ParsedArgs, rest: Vec<String>) -> Result<(), Box<dyn std::
                 .parse::<usize>()?;
             let config_path = flags.get("--config").cloned().flatten();
             let identity_path = flags.get("--identity").cloned().flatten();
-            tracing::info!(dir = %dir.display(), player, "running nc-sysop nostr reissue");
+            tracing::info!(
+                dir = %dir.display(),
+                player,
+                nuke_seat,
+                "running nc-sysop nostr reissue"
+            );
             println!(
                 "{}",
                 nostr_relay::reissue_hosted_seat_with_publish(
                     &dir,
                     player,
+                    nuke_seat,
                     config_path,
                     identity_path,
                 )?

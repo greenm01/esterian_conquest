@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use nc_data::{CampaignSettings, CampaignStore, HostedSeat, HostedSeatStatus};
+use nc_engine::build_seeded_new_game;
 use nc_gate::config::io::{config_path, load_config};
 use nc_gate::invite::generate_invite_code;
 use nc_gate::roster::io::load_roster;
@@ -12,6 +13,7 @@ use nostr_sdk::PublicKey;
 pub struct ReissuedHostedSeat {
     pub player_record_index_1_based: usize,
     pub invite_code: String,
+    pub runtime_seat_nuked: bool,
 }
 
 pub struct ClaimedHostedSeat {
@@ -109,10 +111,29 @@ pub fn render_hosted_seats(dir: &Path) -> Result<String, Box<dyn std::error::Err
 pub fn reissue_hosted_seat_record(
     dir: &Path,
     player_record_index_1_based: usize,
+    nuke_seat: bool,
 ) -> Result<ReissuedHostedSeat, Box<dyn std::error::Error>> {
     let store = CampaignStore::open_default_in_dir(dir)?;
     let invite_code = generate_unique_invite_code(&store.hosted_seats()?);
-    let Some(seat) = store.reissue_hosted_seat(player_record_index_1_based, &invite_code)? else {
+    let seat = if nuke_seat {
+        let runtime_state = store
+            .load_latest_runtime_state()?
+            .ok_or("campaign store has no runtime snapshots")?;
+        let baseline = build_seeded_new_game(
+            runtime_state.game_data.conquest.player_count(),
+            3000,
+            runtime_state.campaign_seed,
+        )?;
+        store.reissue_hosted_seat_and_reset_runtime(
+            player_record_index_1_based,
+            &invite_code,
+            &baseline,
+            unix_now(),
+        )?
+    } else {
+        store.reissue_hosted_seat(player_record_index_1_based, &invite_code)?
+    };
+    let Some(seat) = seat else {
         return Err(format!(
             "player {} not found in hosted seats",
             player_record_index_1_based
@@ -122,6 +143,7 @@ pub fn reissue_hosted_seat_record(
     Ok(ReissuedHostedSeat {
         player_record_index_1_based: seat.player_record_index_1_based,
         invite_code: seat.invite_code,
+        runtime_seat_nuked: nuke_seat,
     })
 }
 
@@ -203,4 +225,11 @@ pub fn parse_path_flag(
         i += 1;
     }
     Ok(value)
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
 }

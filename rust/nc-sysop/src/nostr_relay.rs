@@ -90,14 +90,22 @@ pub fn verify_hosted_game(
 pub fn reissue_hosted_seat_with_publish(
     dir: &Path,
     player_record_index_1_based: usize,
+    nuke_seat: bool,
     config_path: Option<PathBuf>,
     identity_path: Option<PathBuf>,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let seat = nostr::reissue_hosted_seat_record(dir, player_record_index_1_based)?;
-    let base = format!(
-        "Reissued invite for seat {}: {}",
-        seat.player_record_index_1_based, seat.invite_code
-    );
+    let seat = nostr::reissue_hosted_seat_record(dir, player_record_index_1_based, nuke_seat)?;
+    let base = if seat.runtime_seat_nuked {
+        format!(
+            "Reissued invite and nuked seat {}: {}",
+            seat.player_record_index_1_based, seat.invite_code
+        )
+    } else {
+        format!(
+            "Reissued invite for seat {}: {}",
+            seat.player_record_index_1_based, seat.invite_code
+        )
+    };
     format_mutation_with_republish(
         dir,
         base,

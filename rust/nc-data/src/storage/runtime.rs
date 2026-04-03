@@ -150,74 +150,99 @@ impl CampaignStore {
         let year = game_data.conquest.game_year();
         let mut conn = self.connection()?;
         let tx = conn.transaction()?;
-        let campaign_seed = super::metadata::load_campaign_seed_tx(&tx)?
-            .or(campaign_seed_override)
-            .unwrap_or_else(generate_campaign_seed);
-        super::metadata::persist_campaign_seed_tx(&tx, campaign_seed)?;
-        let previous_snapshot_id = tx
-            .query_row(
-                "SELECT id FROM snapshots ORDER BY game_year DESC LIMIT 1",
-                [],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()?;
-        let previous_intel = if let Some(previous_snapshot_id) = previous_snapshot_id {
-            super::intel::load_intel_rows(&tx, previous_snapshot_id)?
-        } else {
-            BTreeMap::new()
-        };
-        tx.execute(
-            "DELETE FROM snapshots WHERE game_year = ?1",
-            params![i64::from(year)],
-        )?;
-        tx.execute(
-            "INSERT INTO snapshots(game_year) VALUES (?1)",
-            params![i64::from(year)],
-        )?;
-        let snapshot_id = tx.last_insert_rowid();
-        super::snapshot_core::write_snapshot_core_rows(&tx, snapshot_id, game_data)?;
-        super::planet_scorch_orders::write_planet_scorch_orders(
+        let snapshot_id = save_runtime_state_internal_tx(
             &tx,
-            snapshot_id,
-            planet_scorch_orders,
-        )?;
-        super::report_blocks::write_report_block_rows(&tx, snapshot_id, report_block_rows)?;
-        super::mail::write_queued_mail_rows(&tx, snapshot_id, queued_mail)?;
-        super::intel::write_planet_intel_rows(
-            &tx,
-            snapshot_id,
             game_data,
             year,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
             planet_intel_by_viewer_override,
-            &previous_intel,
+            campaign_seed_override,
+            hosted_claim,
         )?;
-        if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
-            let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(
-                &tx,
-                player_record_index_1_based,
-                player_npub,
-            )?
-            .ok_or_else(|| {
-                CampaignStoreError::InvalidState(format!(
-                    "hosted seat {} is missing",
-                    player_record_index_1_based
-                ))
-            })?;
-            if claim_result.newly_claimed {
-                let created_at_unix_seconds = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map(|duration| duration.as_secs())
-                    .unwrap_or(0);
-                super::hosted_publish_jobs::enqueue_hosted_publish_job_tx(
-                    &tx,
-                    super::hosted_publish_jobs::HostedPublishJobKind::MapPackOnFirstClaim,
-                    player_record_index_1_based,
-                    player_npub,
-                    created_at_unix_seconds,
-                )?;
-            }
-        }
         tx.commit()?;
         Ok(snapshot_id)
     }
+}
+
+pub(super) fn save_runtime_state_internal_tx(
+    tx: &rusqlite::Transaction<'_>,
+    game_data: &CoreGameData,
+    year: u16,
+    planet_scorch_orders: &BTreeSet<usize>,
+    report_block_rows: &[ReportBlockRow],
+    queued_mail: &[QueuedPlayerMail],
+    planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
+    campaign_seed_override: Option<u64>,
+    hosted_claim: Option<(usize, &str)>,
+) -> Result<i64, CampaignStoreError> {
+    let campaign_seed = super::metadata::load_campaign_seed_tx(&tx)?
+        .or(campaign_seed_override)
+        .unwrap_or_else(generate_campaign_seed);
+    super::metadata::persist_campaign_seed_tx(&tx, campaign_seed)?;
+    let previous_snapshot_id = tx
+        .query_row(
+            "SELECT id FROM snapshots ORDER BY game_year DESC LIMIT 1",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?;
+    let previous_intel = if let Some(previous_snapshot_id) = previous_snapshot_id {
+        super::intel::load_intel_rows(&tx, previous_snapshot_id)?
+    } else {
+        BTreeMap::new()
+    };
+    tx.execute(
+        "DELETE FROM snapshots WHERE game_year = ?1",
+        params![i64::from(year)],
+    )?;
+    tx.execute(
+        "INSERT INTO snapshots(game_year) VALUES (?1)",
+        params![i64::from(year)],
+    )?;
+    let snapshot_id = tx.last_insert_rowid();
+    super::snapshot_core::write_snapshot_core_rows(&tx, snapshot_id, game_data)?;
+    super::planet_scorch_orders::write_planet_scorch_orders(
+        &tx,
+        snapshot_id,
+        planet_scorch_orders,
+    )?;
+    super::report_blocks::write_report_block_rows(&tx, snapshot_id, report_block_rows)?;
+    super::mail::write_queued_mail_rows(&tx, snapshot_id, queued_mail)?;
+    super::intel::write_planet_intel_rows(
+        &tx,
+        snapshot_id,
+        game_data,
+        year,
+        planet_intel_by_viewer_override,
+        &previous_intel,
+    )?;
+    if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
+        let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(
+            &tx,
+            player_record_index_1_based,
+            player_npub,
+        )?
+        .ok_or_else(|| {
+            CampaignStoreError::InvalidState(format!(
+                "hosted seat {} is missing",
+                player_record_index_1_based
+            ))
+        })?;
+        if claim_result.newly_claimed {
+            let created_at_unix_seconds = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|duration| duration.as_secs())
+                .unwrap_or(0);
+            super::hosted_publish_jobs::enqueue_hosted_publish_job_tx(
+                &tx,
+                super::hosted_publish_jobs::HostedPublishJobKind::MapPackOnFirstClaim,
+                player_record_index_1_based,
+                player_npub,
+                created_at_unix_seconds,
+            )?;
+        }
+    }
+    Ok(snapshot_id)
 }

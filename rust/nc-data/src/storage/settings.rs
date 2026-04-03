@@ -449,14 +449,9 @@ impl CampaignStore {
     ) -> Result<bool, CampaignStoreError> {
         let mut conn = self.connection()?;
         let tx = conn.transaction()?;
-        prune_expired_session_leases_tx(&tx, now_unix_seconds)?;
-        let exists = tx
-            .query_row("SELECT 1 FROM active_sessions LIMIT 1", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .optional()?;
+        let exists = has_live_session_leases_tx(&tx, now_unix_seconds)?;
         tx.commit()?;
-        Ok(exists.is_some())
+        Ok(exists)
     }
 
     pub fn live_session_for_npub(
@@ -611,7 +606,20 @@ fn load_reservations_conn(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-fn prune_expired_session_leases_tx(
+pub(super) fn has_live_session_leases_tx(
+    tx: &rusqlite::Transaction<'_>,
+    now_unix_seconds: u64,
+) -> Result<bool, CampaignStoreError> {
+    prune_expired_session_leases_tx(tx, now_unix_seconds)?;
+    let exists = tx
+        .query_row("SELECT 1 FROM active_sessions LIMIT 1", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .optional()?;
+    Ok(exists.is_some())
+}
+
+pub(super) fn prune_expired_session_leases_tx(
     tx: &rusqlite::Transaction<'_>,
     now_unix_seconds: u64,
 ) -> Result<(), CampaignStoreError> {

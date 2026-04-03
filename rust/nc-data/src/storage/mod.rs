@@ -6,6 +6,7 @@ use crate::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
 mod hex;
 mod hosted_publish_jobs;
+mod hosted_reset;
 mod hosted_seats;
 mod intel;
 mod mail;

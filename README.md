@@ -171,6 +171,20 @@ sudo /usr/local/bin/nc-sysop nostr verify --dir /srv/nc/games/friday-night
 sudo /usr/local/bin/nc-sysop nostr publish --dir /srv/nc/games/friday-night
 ```
 
+To hand an already-joined hosted empire to a new NC identity, rotate that
+seat's invite and have the replacement player redeem the new code:
+
+```bash
+sudo -u ncgame /usr/local/bin/nc-sysop nostr reissue --dir /srv/nc/games/friday-night --player 3
+```
+
+To fully rewind one hosted seat back to a true pre-join state during year 3000
+before the first maintenance turn, use the destructive reset path instead:
+
+```bash
+sudo -u ncgame /usr/local/bin/nc-sysop nostr reissue --dir /srv/nc/games/friday-night --player 3 --nuke-seat
+```
+
 ### 3. Run `nc-door` As A BBS Door
 
 For BBS campaigns, write a minimal per-game `config.kdl` first. For example:

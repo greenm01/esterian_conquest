@@ -390,11 +390,24 @@ If an invite code is lost or compromised, reissue it:
 nc-sysop nostr reissue --dir /path/to/mygame --player 2
 ```
 
-This generates a fresh code for that seat, clears the old claim, and lets the
-player join again with the new code. On a normal host with the daemon config
-and identity present, `nc-sysop` now also republishes that game's public
-`30500` metadata immediately so the relay sees the new invite hash without
-waiting for a daemon restart.
+This generates a fresh code for that seat, clears the old hosted `npub`
+binding, and republishes that game's public `30500` metadata when possible.
+It does *not* reset the runtime empire. Use this path when you want a new NC
+identity to take over the already-joined seat and keep the existing empire
+state.
+
+If you need to fully rewind one hosted seat back to a true pre-join state,
+use the destructive reset flag instead:
+
+```
+nc-sysop nostr reissue --dir /path/to/mygame --player 2 --nuke-seat
+```
+
+`--nuke-seat` clears the hosted `npub`, rotates the invite, resets that
+player slot back to the original seeded year-3000 baseline, and republishes
+`30500` when possible. This is only allowed during year `3000` before the
+first maintenance turn, and it refuses while any live hosted session lease
+exists.
 
 If a player reports that a pending invite cannot be found on the relay, check
 and repair the published hosted metadata directly:
@@ -425,10 +438,17 @@ recovery path is:
 
 1. Reissue that seat with `nc-sysop nostr reissue`.
 2. Send the player the new invite.
-3. Have the player redeem it from the new keychain identity.
+3. Have the player redeem it from the new keychain identity so that identity
+   takes over the existing empire.
 
 Reissuing is the deliberate “move this seat to a new identity” action. It
-clears the old `npub` binding and rotates the invite code at the same time.
+clears the old hosted `npub` binding and rotates the invite code at the same
+time, but it preserves the runtime empire.
+
+If the goal is instead “forget this joined player and make the seat brand-new
+again,” use `nc-sysop nostr reissue --nuke-seat`. That path destroys the old
+runtime player slot and should be treated as a first-turn recovery tool, not a
+mid-campaign transfer workflow.
 
 Hosted seat claims are stored in `ncgame.db`. That SQLite state is the
 authority for invite codes, claim status, and bound player `npub`s. Hosted
@@ -906,8 +926,11 @@ nc-sysop <subcommand> [options]
 - *`nostr seats`:* List the hosted seat state stored in `ncgame.db` for one
   game directory.
 - *`nostr reissue`:* Generate a fresh invite code for one hosted seat, clear
-  its old player binding, and republish that game's public `30500` metadata
-  when possible.
+  its old hosted player binding, preserve the existing runtime empire, and
+  republish that game's public `30500` metadata when possible.
+- *`nostr reissue --nuke-seat`:* Destructively reset one hosted seat back to a
+  true pre-join year-3000 baseline, clear its hosted binding, and republish
+  that game's public `30500` metadata when possible.
 - *`nostr claim`:* Manually bind one hosted seat to a specific `npub` and
   republish that game's public `30500` metadata when possible.
 - *`nostr publish`:* Republish one game's public `30500` metadata to the

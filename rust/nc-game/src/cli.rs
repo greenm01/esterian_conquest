@@ -187,7 +187,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
             player_npub: lease.player_npub.clone(),
             invite_code: parsed.hosted_invite_code.clone(),
         }),
-    );
+    )?;
     if app.door_mode {
         crate::theme::apply_door_theme();
     }
@@ -342,7 +342,7 @@ fn apply_launch_context(
     parsed: &ParsedLaunchArgs,
     launch_binding: LaunchPlayerBinding,
     hosted_context: Option<HostedLaunchContext>,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     app.screen_geometry = parsed.screen_geometry;
     app.door_mode = parsed.use_door_terminal;
     app.startup_state.fixed_player_launch = matches!(
@@ -350,12 +350,19 @@ fn apply_launch_context(
         Some(LaunchPlayerBindingSource::ExplicitPlayer)
     );
     if let Some(hosted_context) = hosted_context {
-        app.set_hosted_invite_session(hosted_context.player_npub, hosted_context.invite_code);
+        let player_npub = hosted_context.player_npub;
+        let invite_code = hosted_context.invite_code;
+        let invited_joined_transfer = invite_code.as_ref().is_some() && app.player.is_joined;
+        app.set_hosted_invite_session(player_npub.clone(), invite_code);
+        if invited_joined_transfer {
+            app.save_game_data_and_claim_hosted_seat(&player_npub)?;
+        }
     }
     app.startup_state.caller_alias = parsed.dropfile_alias.clone();
     if launch_binding == LaunchPlayerBinding::UnboundDropfile {
         app.enter_unbound_bbs_first_time_mode();
     }
+    Ok(())
 }
 
 fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::Error>> {
@@ -1022,7 +1029,9 @@ mod tests {
     use crate::terminal::door::DoorTransport;
     use crate::terminal::{ColorMode, OutputEncoding};
     use nc_compat::import_directory_snapshot;
-    use nc_data::{BbsGameConfig, CampaignStore, CoreGameData, SeatReservation};
+    use nc_data::{
+        BbsGameConfig, CampaignStore, CoreGameData, HostedSeat, HostedSeatStatus, SeatReservation,
+    };
     use std::fs;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -1402,7 +1411,8 @@ mod tests {
                 player_npub: "npub1hostedplayer".to_string(),
                 invite_code: Some("velvet-mountain".to_string()),
             }),
-        );
+        )
+        .expect("hosted context should apply");
 
         assert_eq!(
             app.startup_state.hosted_player_npub.as_deref(),
@@ -1441,11 +1451,70 @@ mod tests {
             &parsed,
             LaunchPlayerBinding::UnboundDropfile,
             None,
-        );
+        )
+        .expect("launch context should apply");
 
         assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
         assert!(app.startup_state.unbound_bbs_caller);
         assert_eq!(app.startup_state.caller_alias.as_deref(), Some("RIVAL"));
+
+        let _ = fs::remove_dir_all(&game_dir);
+    }
+
+    #[test]
+    fn apply_launch_context_claims_pending_hosted_transfer_for_joined_empire() {
+        let game_dir = temp_first_time_game_copy();
+        let mut game_data = CoreGameData::load(&game_dir).expect("load fixture");
+        game_data.join_player(1, "Empire One").expect("join player");
+        game_data.save(&game_dir).expect("save fixture");
+        let store = CampaignStore::open_default_in_dir(&game_dir).expect("open store");
+        import_directory_snapshot(&store, &game_dir).expect("refresh sqlite snapshot");
+        store
+            .replace_hosted_seats(&[
+                HostedSeat {
+                    player_record_index_1_based: 1,
+                    invite_code: "velvet-mountain".to_string(),
+                    status: HostedSeatStatus::Pending,
+                    player_npub: None,
+                },
+                HostedSeat {
+                    player_record_index_1_based: 2,
+                    invite_code: "copper-sunrise".to_string(),
+                    status: HostedSeatStatus::Pending,
+                    player_npub: None,
+                },
+            ])
+            .expect("seed hosted seats");
+
+        let config = AppConfig {
+            game_dir: game_dir.clone(),
+            player_record_index_1_based: 1,
+            export_root: None,
+            queue_dir: None,
+            session_timeout_secs: None,
+            game_config: RuntimeConfig::default(),
+        };
+        let mut app = App::load(config).expect("app should load");
+        let parsed = parsed_args(false);
+
+        apply_launch_context(
+            &mut app,
+            &parsed,
+            LaunchPlayerBinding::Bound {
+                player_record_index_1_based: 1,
+                source: LaunchPlayerBindingSource::ExplicitPlayer,
+            },
+            Some(HostedLaunchContext {
+                player_npub: "npub1hostedplayer".to_string(),
+                invite_code: Some("velvet-mountain".to_string()),
+            }),
+        )
+        .expect("hosted transfer should claim seat");
+
+        let seats = store.hosted_seats().expect("reload hosted seats");
+        assert_eq!(seats[0].status, HostedSeatStatus::Claimed);
+        assert_eq!(seats[0].player_npub.as_deref(), Some("npub1hostedplayer"));
+        assert!(app.player.is_joined);
 
         let _ = fs::remove_dir_all(&game_dir);
     }

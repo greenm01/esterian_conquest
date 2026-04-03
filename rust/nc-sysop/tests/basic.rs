@@ -4,7 +4,8 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nc_data::{BbsGameConfig, CampaignStore, HostedSeatStatus, SeatReservation};
+use nc_data::{BbsGameConfig, CampaignStore, HostedSeatStatus, QueuedPlayerMail, SeatReservation};
+use nc_engine::build_seeded_new_game;
 use nc_gate::config::parse_config_str;
 use nc_gate::config::save_config;
 use nostr_sdk::{Keys, ToBech32};
@@ -597,6 +598,30 @@ fn nc_sysop_nostr_reissue_rotates_one_hosted_seat() {
     let target = unique_temp_dir("nc-sysop-nostr-reissue");
     run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
     let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    let seed = store
+        .load_latest_runtime_state()
+        .expect("load runtime")
+        .expect("runtime should exist")
+        .campaign_seed;
+    let mut game_data = build_seeded_new_game(4, 3000, seed).expect("build baseline");
+    game_data.join_player(1, "Empire One").expect("join player");
+    store
+        .save_runtime_state_structured_and_claim_hosted_seat(
+            &game_data,
+            &std::collections::BTreeSet::new(),
+            &[],
+            &[QueuedPlayerMail {
+                sender_empire_id: 2,
+                recipient_empire_id: 1,
+                year: 3000,
+                subject: "status".to_string(),
+                body: "stay alive".to_string(),
+                recipient_deleted: false,
+            }],
+            1,
+            "npub1seat1",
+        )
+        .expect("save joined runtime");
     let before = store.hosted_seats().expect("load seats");
     let original_code = before[0].invite_code.clone();
 
@@ -614,6 +639,75 @@ fn nc_sysop_nostr_reissue_rotates_one_hosted_seat() {
     assert_ne!(after[0].invite_code, original_code);
     assert_eq!(after[0].status, nc_data::HostedSeatStatus::Pending);
     assert!(after[0].player_npub.is_none());
+    let runtime = store
+        .load_latest_runtime_state()
+        .expect("reload runtime")
+        .expect("runtime should exist");
+    assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 1);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn nc_sysop_nostr_reissue_nuke_seat_resets_runtime_player() {
+    let target = unique_temp_dir("nc-sysop-nostr-reissue-nuke");
+    run_nc_sysop(&["new-game", target.to_str().expect("utf-8 path")]);
+    let store = CampaignStore::open_default_in_dir(&target).expect("open store");
+    let seed = store
+        .load_latest_runtime_state()
+        .expect("load runtime")
+        .expect("runtime should exist")
+        .campaign_seed;
+    let mut game_data = build_seeded_new_game(4, 3000, seed).expect("build baseline");
+    game_data.join_player(1, "Empire One").expect("join player");
+    game_data
+        .rename_player_homeworld(1, "Forge")
+        .expect("rename homeworld");
+    store
+        .save_runtime_state_structured_and_claim_hosted_seat(
+            &game_data,
+            &std::collections::BTreeSet::new(),
+            &[],
+            &[],
+            1,
+            "npub1seat1",
+        )
+        .expect("save joined runtime");
+    store
+        .set_player_theme_preference(1, "chrome")
+        .expect("set theme preference");
+
+    let stdout = run_nc_sysop(&[
+        "nostr",
+        "reissue",
+        "--dir",
+        target.to_str().expect("utf-8 path"),
+        "--player",
+        "1",
+        "--nuke-seat",
+    ]);
+    assert!(stdout.contains("Reissued invite and nuked seat 1:"));
+
+    let seats = store.hosted_seats().expect("reload seats");
+    assert_eq!(seats[0].status, HostedSeatStatus::Pending);
+    assert!(seats[0].player_npub.is_none());
+    let runtime = store
+        .load_latest_runtime_state()
+        .expect("reload runtime")
+        .expect("runtime should exist");
+    assert_eq!(runtime.game_data.player.records[0].owner_mode_raw(), 0);
+    let homeworld_index =
+        runtime.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    assert_eq!(
+        runtime.game_data.planets.records[homeworld_index - 1].planet_name(),
+        "Not Named Yet"
+    );
+    assert_eq!(
+        store
+            .player_theme_preference(1)
+            .expect("load theme preference"),
+        None
+    );
 
     let _ = fs::remove_dir_all(&target);
 }

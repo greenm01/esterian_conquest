@@ -31,7 +31,7 @@ pub fn print_usage() {
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
     );
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--config <path>] [--identity <path>]"
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--nuke-seat] [--config <path>] [--identity <path>]"
     );
     println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
@@ -99,7 +99,7 @@ pub fn print_nostr_usage() {
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr seats --dir <game_dir>"
     );
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--config <path>] [--identity <path>]"
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--nuke-seat] [--config <path>] [--identity <path>]"
     );
     println!(
         "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr claim --dir <game_dir> --player <N> --npub <NPUB-OR-HEX> [--config <path>] [--identity <path>]"
@@ -159,7 +159,7 @@ pub fn print_nostr_seats_usage() {
 pub fn print_nostr_reissue_usage() {
     println!("Usage:");
     println!(
-        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--config <path>] [--identity <path>]"
+        "  nc-sysop [--log-file <path>] [--log-level <error|warn|info|debug|trace>] nostr reissue --dir <game_dir> --player <N> [--nuke-seat] [--config <path>] [--identity <path>]"
     );
 }
 

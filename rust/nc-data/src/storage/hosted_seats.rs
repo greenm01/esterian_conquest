@@ -339,7 +339,7 @@ fn load_hosted_seat_by_code_tx(
     .map_err(CampaignStoreError::Sql)
 }
 
-fn load_hosted_seat_by_player_tx(
+pub(super) fn load_hosted_seat_by_player_tx(
     tx: &rusqlite::Transaction<'_>,
     player_record_index_1_based: usize,
 ) -> Result<Option<HostedSeat>, CampaignStoreError> {
