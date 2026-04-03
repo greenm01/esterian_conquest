@@ -120,11 +120,7 @@ pub fn draw_command_prompt_at_col(
         let suffix_col = buffer.width().saturating_sub(suffix.chars().count() + 1);
         let slap_col = suffix_col.saturating_sub(slap_width);
         write_slap_a_key(buffer, row, slap_col);
-        let written = buffer.write_text(row, suffix_col, suffix, classic::prompt_style());
-        let cursor_col = suffix_col + written;
-        if cursor_col < buffer.width() {
-            buffer.set_cursor(cursor_col as u16, row as u16);
-        }
+        let _ = buffer.write_text(row, suffix_col, suffix, classic::prompt_style());
     } else {
         let prefix_col = col
             + buffer.write_spans(
@@ -199,7 +195,7 @@ pub fn draw_command_line_prompt_text_at_col(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
-    if cursor_col < buffer.width() {
+    if !contains_slap_a_key_phrase(&prompt) && cursor_col < buffer.width() {
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
 }
@@ -386,7 +382,7 @@ pub fn draw_table_command_prompt_at_col(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
-    if cursor_col < buffer.width() {
+    if !contains_slap_a_key_phrase(&prompt) && cursor_col < buffer.width() {
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
     cursor_col
@@ -405,7 +401,7 @@ pub fn draw_plain_prompt_at_col(
     buffer.fill_row(row, classic::prompt_style());
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, col, &prompt);
-    if cursor_col < buffer.width() {
+    if !contains_slap_a_key_phrase(&prompt) && cursor_col < buffer.width() {
         buffer.set_cursor(cursor_col as u16, row as u16);
     }
     cursor_col
@@ -676,6 +672,11 @@ fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usiz
     None
 }
 
+fn contains_slap_a_key_phrase(text: &str) -> bool {
+    let chars: Vec<char> = text.chars().collect();
+    (0..chars.len()).any(|idx| slap_a_key_phrase(&chars, idx).is_some())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -683,8 +684,9 @@ mod tests {
         command_line_default_input_scaffold_width_with_cancel, command_line_default_input_width,
         command_line_default_input_width_with_cancel, draw_command_line_default_input_at,
         draw_command_line_default_input_with_cancel_at, draw_command_line_prompt_text_at,
-        draw_plain_prompt, draw_right_aligned_footer_text, draw_table_command_bar_at,
-        table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
+        draw_command_prompt_at, draw_plain_prompt, draw_right_aligned_footer_text,
+        draw_table_command_bar_at, table_command_bar_scaffold_width, table_command_bar_width,
+        table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
@@ -843,6 +845,27 @@ mod tests {
                 .plain_line(24)
                 .contains("COMMAND <- Qty [12] <ESC> ->")
         );
+    }
+
+    #[test]
+    fn plain_slap_a_key_prompt_does_not_expose_cursor() {
+        let mut buffer = buffer();
+        draw_plain_prompt(&mut buffer, 24, "(slap a key)");
+        assert!(buffer.cursor().is_none());
+    }
+
+    #[test]
+    fn command_slap_a_key_prompt_does_not_expose_cursor() {
+        let mut buffer = buffer();
+        draw_command_prompt_at(&mut buffer, 24, "GENERAL COMMAND", "SLAP A KEY");
+        assert!(buffer.cursor().is_none());
+    }
+
+    #[test]
+    fn slap_a_key_for_more_prompt_does_not_expose_cursor() {
+        let mut buffer = buffer();
+        draw_command_line_prompt_text_at(&mut buffer, 24, "COMMAND", "(Slap a key for more)");
+        assert!(buffer.cursor().is_none());
     }
 
     #[test]

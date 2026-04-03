@@ -344,7 +344,7 @@ fn draw_command_prompt_at_col_offsets_label_keys_and_cursor_together() {
 }
 
 #[test]
-fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
+fn draw_command_prompt_does_not_expose_cursor_for_slap_a_key() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     draw_command_prompt_at(
         &mut buffer,
@@ -354,9 +354,7 @@ fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
     );
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
-    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
-    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
-    assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
+    assert!(buffer.cursor().is_none());
     assert!(line.contains("(slap a key)-> "));
 }
 
@@ -1000,7 +998,7 @@ fn help_panel_reserves_one_blank_row_above_dismiss_prompt() {
 }
 
 #[test]
-fn startup_intro_page_24_row_door_keeps_visible_slap_a_key_prompt() {
+fn startup_intro_page_24_row_door_keeps_slap_a_key_prompt_without_cursor() {
     let buffer = nc_game::screen::startup::render_game_intro_page(
         ScreenGeometry::for_door(Some(24)),
         0,
@@ -1010,9 +1008,7 @@ fn startup_intro_page_24_row_door_keeps_visible_slap_a_key_prompt() {
 
     assert_eq!(buffer.height(), 24);
     assert_eq!(row_text(&buffer, 16).trim_end(), "(slap a key)");
-    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
-    assert_eq!(cursor_row as usize, 16);
-    assert_eq!(cursor_col as usize, "(slap a key)".chars().count());
+    assert!(buffer.cursor().is_none());
 }
 
 #[test]
