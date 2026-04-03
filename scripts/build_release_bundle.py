@@ -74,6 +74,18 @@ SUPPORTED_TARGETS = {
         display_name="Windows x64",
         issue_platform_label="Windows version",
     ),
+    "i686-pc-windows-msvc": TargetPlatform(
+        target_triple="i686-pc-windows-msvc",
+        slug="windows-x86",
+        display_name="Windows x86 (32-bit)",
+        issue_platform_label="Windows version",
+    ),
+    "i686-win7-windows-msvc": TargetPlatform(
+        target_triple="i686-win7-windows-msvc",
+        slug="windows7-x86",
+        display_name="Windows 7+ x86 (32-bit)",
+        issue_platform_label="Windows version",
+    ),
 }
 
 
@@ -93,7 +105,11 @@ class BundleSpec:
 
     @property
     def is_windows(self) -> bool:
-        return self.platform.target_triple.startswith("x86_64-pc-windows")
+        return self.platform.target_triple.endswith("windows-msvc")
+
+    @property
+    def is_win7_windows(self) -> bool:
+        return self.platform.target_triple.endswith("-win7-windows-msvc")
 
     @property
     def archive_name(self) -> str:
@@ -206,14 +222,36 @@ def artifact_packages(spec: BundleSpec) -> tuple[str, ...]:
 
 
 def validate_artifact_platform(spec: BundleSpec) -> None:
+    if spec.platform.target_triple in (
+        "i686-pc-windows-msvc",
+        "i686-win7-windows-msvc",
+    ) and spec.artifact != "sysop":
+        raise SystemExit(
+            f"{spec.platform.target_triple} packaging is currently supported only "
+            "for the public sysop archive"
+        )
     if spec.artifact == "sysop" and spec.platform.target_triple not in (
         "x86_64-unknown-linux-gnu",
         "x86_64-pc-windows-msvc",
+        "i686-pc-windows-msvc",
+        "i686-win7-windows-msvc",
     ):
         raise SystemExit(
-            "sysop packaging is only supported for x86_64-unknown-linux-gnu and "
-            "x86_64-pc-windows-msvc"
+            "sysop packaging is only supported for x86_64-unknown-linux-gnu, "
+            "x86_64-pc-windows-msvc, i686-pc-windows-msvc, and "
+            "i686-win7-windows-msvc"
         )
+
+
+def build_command(spec: BundleSpec, packages: tuple[str, ...]) -> list[str]:
+    command = ["cargo"]
+    if spec.is_win7_windows:
+        command.extend(["+nightly", "build", "-Z", "build-std=std,panic_abort"])
+    else:
+        command.append("build")
+    command.extend(["--release", "--target", spec.platform.target_triple])
+    command.extend(arg for name in packages for arg in ("-p", name))
+    return command
 
 
 def build_binaries(spec: BundleSpec) -> dict[str, Path]:
@@ -221,17 +259,13 @@ def build_binaries(spec: BundleSpec) -> dict[str, Path]:
     binaries = artifact_binaries(spec)
     packages = artifact_packages(spec)
     host_target = detect_host_target()
-    if spec.platform.target_triple == "x86_64-pc-windows-msvc" and host_target != spec.platform.target_triple:
+    if spec.is_windows and not host_target.endswith("-pc-windows-msvc"):
         raise SystemExit(
-            "Windows release bundles must be built on a native "
-            "x86_64-pc-windows-msvc host. GNU and non-Windows cross-builds are "
+            "Windows release bundles must be built on a native Windows MSVC "
+            "host. GNU and non-Windows cross-builds are "
             "not supported for release packaging."
         )
-    run(
-        ["cargo", "build", "--release", "--target", spec.platform.target_triple]
-        + [arg for name in packages for arg in ("-p", name)],
-        cwd=RUST_ROOT,
-    )
+    run(build_command(spec, packages), cwd=RUST_ROOT)
 
     target_dir = RUST_ROOT / "target" / spec.platform.target_triple / "release"
     ext = ".exe" if spec.is_windows else ""
@@ -242,6 +276,7 @@ def build_info_text(spec: BundleSpec) -> str:
     commit = capture(["git", "rev-parse", "HEAD"])
     short_commit = capture(["git", "rev-parse", "--short", "HEAD"])
     rustc = capture(["rustc", "-V"])
+    cargo_toolchain = "nightly" if spec.is_win7_windows else "default"
     built_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
         f"artifact={spec.artifact}",
@@ -249,9 +284,12 @@ def build_info_text(spec: BundleSpec) -> str:
         f"git_commit={commit}",
         f"git_commit_short={short_commit}",
         f"target={spec.platform.target_triple}",
+        f"cargo_toolchain={cargo_toolchain}",
         f"built_at_utc={built_at}",
         f"rustc={rustc}",
     ]
+    if spec.is_win7_windows:
+        lines.append("build_std=std,panic_abort")
     return "\n".join(lines) + "\n"
 
 

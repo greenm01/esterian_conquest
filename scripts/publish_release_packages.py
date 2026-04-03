@@ -58,7 +58,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--sysop-target",
         action="append",
-        choices=("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"),
+        choices=(
+            "x86_64-unknown-linux-gnu",
+            "x86_64-pc-windows-msvc",
+            "i686-pc-windows-msvc",
+            "i686-win7-windows-msvc",
+        ),
         help=(
             "Build and upload a public BBS/sysop archive for the "
             "selected target."

@@ -36,11 +36,11 @@ direct localhost and SSH/VPS session client. `nc-door` is the BBS entrypoint on
 both Windows and Linux. `nc-sysop` creates campaigns, edits settings, and runs
 maintenance.
 
-The public Windows x64 and Linux x64 `nc-sysop` archives are the BBS/sysop
-packages. Use them when you want a normal door-host handoff without a Cargo
-toolchain. Localhost play on Windows, Linux, and macOS remains a source-build
-workflow. VPS/Nostr hosting also remains a source-build workflow with
-`scripts/install_vps.sh`.
+The public Windows x64, Windows x86 (32-bit), Windows 7+ x86 (32-bit), and
+Linux x64 `nc-sysop` archives are the BBS/sysop packages. Use them when you
+want a normal door-host handoff without a Cargo toolchain. Localhost play on
+Windows, Linux, and macOS remains a source-build workflow. VPS/Nostr hosting
+also remains a source-build workflow with `scripts/install_vps.sh`.
 
 Hosted Rust campaigns are DB-only: one `ncgame.db` per game directory. BBS
 door campaigns keep a minimal per-game `config.kdl` beside `ncgame.db`.

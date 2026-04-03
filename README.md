@@ -56,9 +56,10 @@ Historical `.DOC` files are preserved in [original/v1.5](original/v1.5).
 Public Rust downloads are intentionally limited during beta. Normal players
 should use the public Windows x64, Linux x64, or macOS Apple Silicon
 `nc-connect` archive from GitHub Releases. Windows and Linux BBS sysops can
-use the public `nc-sysop` package, which ships `nc-door` and `nc-sysop` for
-native door hosting. Localhost play still uses `nc-game` from a source build.
-VPS hosting remains a tagged-source Linux workflow through
+use the public `nc-sysop` package, which is published for Windows x64, Windows
+x86 (32-bit), Windows 7+ x86 (32-bit), and Linux x64 and ships `nc-door` and
+`nc-sysop` for native door hosting. Localhost play still uses `nc-game` from a
+source build. VPS hosting remains a tagged-source Linux workflow through
 `scripts/install_vps.sh`.
 
 The public Nostrian packages contain only original Nostrian binaries, manuals,

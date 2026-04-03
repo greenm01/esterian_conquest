@@ -1,10 +1,11 @@
 # Nostrian Conquest Windows Sysop Package
 
-This is the public Windows x64 BBS/sysop package. It contains
-`nc-door.exe`, `nc-sysop.exe`, both public PDF manuals, the shipped
-`docs/sysop/` markdown guides, `config.kdl`, and `BUILD-INFO.txt`. It does
-not contain `nc-game.exe`, and it does not bundle preserved Esterian
-Conquest executables, manuals, or DOS helper files.
+This is the public Windows BBS/sysop package. GitHub Releases may publish it
+in three variants: Windows x64, Windows x86 (32-bit), and Windows 7+ x86
+(32-bit legacy). It contains `nc-door.exe`, `nc-sysop.exe`, both public PDF
+manuals, the shipped `docs/sysop/` markdown guides, `config.kdl`, and
+`BUILD-INFO.txt`. It does not contain `nc-game.exe`, and it does not bundle
+preserved Esterian Conquest executables, manuals, or DOS helper files.
 
 Use this package when you are hosting Nostrian Conquest as a native Windows
 BBS door. If you want localhost or direct console play on Windows, build from
@@ -46,3 +47,8 @@ ENiGMA½, and WWIV setup guides under `docs/sysop/`.
 New unreserved BBS callers land on the first-time menu. Reserved callers and
 returning callers skip that generic first-time screen. The signed
 `SHA256SUMS.txt` manifest on the GitHub release page covers this package.
+
+If your machine and BBS stack are already 64-bit, use the Windows x64
+archive. If you need a normal 32-bit build for newer Windows, use the
+Windows x86 archive. If you are keeping a legacy 32-bit Windows 7 host alive,
+use the Windows 7+ x86 archive.

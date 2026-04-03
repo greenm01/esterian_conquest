@@ -20,11 +20,11 @@ Public GitHub Releases currently publish the Windows x64, Linux x64, and macOS
 Apple Silicon `nc-connect` player archives, together with the player manual PDF
 and the signed `SHA256SUMS.txt` manifest.
 
-Public GitHub Releases also publish Windows x64 and Linux x64 `nc-sysop`
-archives for BBS and sysop use. Those archives are the public BBS/sysop
-packages. They are expected to carry `nc-door`, `nc-sysop`, the sysop manual,
-the player manual, and the minimal example campaign files needed for a normal
-door host handoff.
+Public GitHub Releases also publish Windows x64, Windows x86 (32-bit), Windows
+7+ x86 (32-bit), and Linux x64 `nc-sysop` archives for BBS and sysop use.
+Those archives are the public BBS/sysop packages. They are expected to carry
+`nc-door`, `nc-sysop`, the sysop manual, the player manual, and the minimal
+example campaign files needed for a normal door host handoff.
 
 Localhost play is supported on Windows, Linux, and macOS, but it is currently a
 source-build workflow. In that mode, the sysop builds `nc-game` and `nc-sysop`
@@ -50,9 +50,10 @@ After the hosted Rust path has been proven in real games:
 The normal public player download remains the `nc-connect` archive plus the
 player manual PDF.
 
-The normal public BBS/sysop download remains the Windows x64 or Linux x64
-`nc-sysop` archive. Its public contract is the same as the beta contract: ship
-`nc-door` as the BBS binary and `nc-sysop` as the administrator's tool.
+The normal public BBS/sysop download remains the Windows x64, Windows x86
+(32-bit), Windows 7+ x86 (32-bit), or Linux x64 `nc-sysop` archive. Its
+public contract is the same as the beta contract: ship `nc-door` as the BBS
+binary and `nc-sysop` as the administrator's tool.
 
 Localhost and VPS workflows may gain additional packaging later, but they are
 not part of the current public package promise. Until that changes, localhost

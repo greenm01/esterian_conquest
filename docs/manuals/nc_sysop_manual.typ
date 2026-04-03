@@ -150,7 +150,8 @@ The release binaries will be in `target/release/`.
 
 During the current beta, public GitHub Releases include Windows x64, Linux x64,
 and macOS Apple Silicon `nc-connect` player archives. Public releases also
-include Windows x64 and Linux x64 `nc-sysop` BBS/sysop packages.
+include Windows x64, Windows x86 (32-bit), Windows 7+ x86 (32-bit), and Linux
+x64 `nc-sysop` BBS/sysop packages.
 
 Keep the binary roles straight.
 

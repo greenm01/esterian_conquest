@@ -336,6 +336,8 @@ It currently:
   - `aarch64-apple-darwin`
   - `x86_64-apple-darwin`
   - `x86_64-pc-windows-msvc`
+  - `i686-pc-windows-msvc` for `--artifact sysop` only
+  - `i686-win7-windows-msvc` for `--artifact sysop` only
 
 Example:
 
@@ -382,7 +384,13 @@ The release tooling supports public `nc-connect` archives for:
 The release tooling supports public `nc-sysop` archives for:
 
 - `x86_64-pc-windows-msvc`
+- `i686-pc-windows-msvc`
+- `i686-win7-windows-msvc`
 - `x86_64-unknown-linux-gnu`
+
+The `i686-win7-windows-msvc` sysop archive uses `cargo +nightly` with
+`-Z build-std=std,panic_abort` because Rust does not ship the standard library
+for that legacy Win7 target in the normal stable distribution.
 
 ### `build_linux_playtest_bundle.py`
 
@@ -448,6 +456,22 @@ Windows sysop archive example:
 ```bash
 python3 scripts/publish_release_packages.py \
   --sysop-target x86_64-pc-windows-msvc \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
+```
+
+Windows 32-bit sysop archive example:
+
+```bash
+python3 scripts/publish_release_packages.py \
+  --sysop-target i686-pc-windows-msvc \
+  --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
+```
+
+Windows 7 32-bit sysop archive example:
+
+```bash
+python3 scripts/publish_release_packages.py \
+  --sysop-target i686-win7-windows-msvc \
   --gpg-key C3504EE1EE38410CE1C433BC372B8AAACB867F13
 ```
 
