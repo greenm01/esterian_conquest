@@ -55,10 +55,10 @@ Discord invite:
 4. Press `N`.
 5. Paste the invite code.
 
-`nc-connect` creates and protects the local wallet, joins the hosted game, and
+`nc-connect` creates and protects the local keychain, joins the hosted game, and
 opens the SSH-backed `nc-game` session for you.
 
-IMPORTANT: one wallet identity can claim only one seat in a given hosted game.
+IMPORTANT: one keychain identity can claim only one seat in a given hosted game.
 If you already joined that game, reconnect with the same identity instead of
 redeeming another invite from it.
 
