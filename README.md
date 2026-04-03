@@ -11,13 +11,13 @@ Active beta. The Rust player and sysop stack is playable now. The main work is l
 
 ## What It Is
 
-Beyond the old Nostrian frontier lies a hard galaxy. The stations are silent.
-The borders are open. You start with a fleet, a factory, and enough industry
-to build an empire.
+Beyond the old Nostrian frontier lies an abandoned galaxy. The old stations are silent.
+The borders are open. You start with four fleets, an isolated homeworld, and enough industry
+to kickstart an empire.
 
-NC keeps the yearly-turn campaign rhythm, the reports, the maps, and the
+NC preserves the yearly-turn campaign rhythm, the reports, the maps, and the
 old-school pressure of the original game. The engine is modern Rust. Hosted
-campaigns run from SQLite. Classic compatibility stays at the oracle and
+campaigns run from SQLite. Classic EC compatibility stays at the oracle and
 import/export boundary.
 
 If you want the recovery background, see
@@ -39,7 +39,7 @@ Hosted Rust games are DB-only. A normal hosted game directory contains
 ## Play
 
 NC is built for native Windows, Linux, and macOS clients. No web app. No BBS
-middleware required for the normal hosted path.
+middleware required (but supported) for the modern hosted path.
 
 If you want a live game, start at
 [nostrian-conquest.com](https://nostrian-conquest.com). That page points to the
