@@ -1,6 +1,6 @@
 # Nostrian Conquest
 
-_Nostrian Conquest is a from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. It uses Nostr for decentralized hosted play. All code, art, and UI are original. It is not affiliated with any original release._
+_Nostrian Conquest is a from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest. It uses Nostr for decentralized hosted play. All code is original. It is not affiliated with any original release._
 
 **Status:** `v1.0.0-beta.1`  
 Active beta. The Rust player and sysop stack is playable now. The main work is live playtesting, bug fixing, and tightening the rough edges.
