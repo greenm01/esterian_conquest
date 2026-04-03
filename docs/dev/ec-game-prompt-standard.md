@@ -17,6 +17,8 @@ Read it together with:
 
 - The player TUI targets a fixed `80x25` playfield.
 - Live command-line prompts leave a space after `-> ` before the cursor.
+- Any visible live input cursor blinks while the client is waiting for input,
+  including one-key prompts.
 - Command rails use the universal frame `LABEL <- ... ->`.
 - For non-table, non-main-menu command-line prompts:
   - angle brackets `<...>` mean available command key(s)

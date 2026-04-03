@@ -10,7 +10,7 @@ use crate::terminal::Terminal;
 use crate::terminal::cp437;
 use crate::theme::classic;
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, MoveTo, SetCursorStyle, Show},
     event::{self, Event, KeyEvent},
     execute, queue,
     style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
@@ -180,6 +180,7 @@ impl Terminal for StdoutTerminal {
                 SetForegroundColor(fg),
                 Clear(ClearType::All),
                 MoveTo(0, 0),
+                SetCursorStyle::DefaultUserShape,
                 Show
             )?;
             stdout.write_all(b"\x1b[0m")?;
@@ -204,6 +205,7 @@ impl Terminal for StdoutTerminal {
                 SetForegroundColor(fg),
                 Clear(ClearType::All),
                 MoveTo(0, 0),
+                SetCursorStyle::DefaultUserShape,
                 Show
             )?;
             stdout.write_all(b"\x1b[0m")?;
@@ -280,14 +282,19 @@ fn diff_repaint(
     Ok(content_redrawn)
 }
 
-fn render_cursor(
-    stdout: &mut io::Stdout,
+fn render_cursor<W: Write>(
+    stdout: &mut W,
     cursor: Option<(u16, u16)>,
     origin: (u16, u16),
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cursor {
         Some((column, row)) => {
-            queue!(stdout, Show, MoveTo(origin.0 + column, origin.1 + row))?;
+            queue!(
+                stdout,
+                SetCursorStyle::BlinkingBlock,
+                Show,
+                MoveTo(origin.0 + column, origin.1 + row)
+            )?;
         }
         None => {
             queue!(stdout, Hide)?;
@@ -351,7 +358,7 @@ fn write_styled_cells(
 
 #[cfg(test)]
 mod tests {
-    use super::{RenderSnapshot, cursor_update_required, frame_reset_required};
+    use super::{RenderSnapshot, cursor_update_required, frame_reset_required, render_cursor};
     use crate::screen::{Cell, CellStyle, GameColor};
 
     fn snapshot(
@@ -401,6 +408,14 @@ mod tests {
     #[test]
     fn cursor_update_happens_when_visibility_changes() {
         assert!(cursor_update_required(Some((4, 5)), None, false));
+    }
+
+    #[test]
+    fn visible_cursor_requests_blinking_block_style() {
+        let mut out = Vec::new();
+        render_cursor(&mut out, Some((4, 5)), (2, 3)).expect("cursor render should succeed");
+        let output = String::from_utf8_lossy(&out);
+        assert!(output.contains("\x1b[1 q\x1b[?25h"));
     }
 }
 

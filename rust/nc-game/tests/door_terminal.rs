@@ -90,6 +90,7 @@ fn door_serializer_avoids_alt_screen_and_hides_no_cursor() {
     let frame_text = String::from_utf8_lossy(&frame);
 
     assert!(!frame_text.contains("\x1b[?1049"));
+    assert!(frame_text.contains("\x1b[1 q\x1b[?25h"));
     assert!(frame_text.contains("\x1b[?25h"));
 }
 
@@ -134,7 +135,8 @@ fn door_serializer_trims_blank_rows_and_trailing_fill_spaces() {
 
     assert!(frame_text.contains("ABC"));
     assert!(!frame_text.contains("ABC "));
-    assert_eq!(frame.iter().filter(|byte| **byte == b' ').count(), 0);
+    assert!(frame_text.contains("\x1b[1 q"));
+    assert_eq!(frame.iter().filter(|byte| **byte == b' ').count(), 1);
     assert!(!frame_text.contains("\x1b[2;1H\x1b[0;37;40m"));
 }
 

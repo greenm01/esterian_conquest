@@ -34,10 +34,12 @@ use super::terminal::TerminalView;
 use super::{TERM_COLS, TERM_ROWS};
 
 const LOCKED_FRAME_STEP: Duration = Duration::from_millis(80);
+const CURSOR_BLINK_HALF_STEP: Duration = Duration::from_millis(600);
 
 pub struct App {
     view: AppView,
     clipboard: Clipboard,
+    cursor_blink: CursorBlinkState,
     mouse_pos: PhysicalPosition<f64>,
     pub needs_redraw: bool,
     pub exit_requested: bool,
@@ -77,14 +79,58 @@ enum PasswordAction {
     Submit(String),
 }
 
+struct CursorBlinkState {
+    active: bool,
+    visible: bool,
+    next_toggle: Instant,
+}
+
+impl CursorBlinkState {
+    fn new(now: Instant) -> Self {
+        Self {
+            active: false,
+            visible: true,
+            next_toggle: now + CURSOR_BLINK_HALF_STEP,
+        }
+    }
+
+    fn sync(&mut self, now: Instant, active: bool) -> bool {
+        if !active {
+            let changed = self.active || !self.visible;
+            self.active = false;
+            self.visible = true;
+            self.next_toggle = now + CURSOR_BLINK_HALF_STEP;
+            return changed;
+        }
+
+        if !self.active {
+            let changed = !self.visible;
+            self.active = true;
+            self.visible = true;
+            self.next_toggle = now + CURSOR_BLINK_HALF_STEP;
+            return changed;
+        }
+
+        let mut changed = false;
+        while now >= self.next_toggle {
+            self.visible = !self.visible;
+            self.next_toggle += CURSOR_BLINK_HALF_STEP;
+            changed = true;
+        }
+        changed
+    }
+}
+
 impl App {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        let now = Instant::now();
         Ok(Self {
             view: AppView::Password(PasswordView {
                 state: PasswordGateState::new(keychain_exists(&keychain_path()), None),
                 resume_picker: None,
             }),
             clipboard: Clipboard::new(),
+            cursor_blink: CursorBlinkState::new(now),
             mouse_pos: PhysicalPosition::new(0.0, 0.0),
             needs_redraw: true,
             exit_requested: false,
@@ -108,6 +154,7 @@ impl App {
                 self.needs_redraw = true;
             }
         }
+        self.sync_cursor_blink(Instant::now());
         Ok(())
     }
 
@@ -129,6 +176,7 @@ impl App {
             }
             _ => {}
         }
+        self.sync_cursor_blink(Instant::now());
         Ok(())
     }
 
@@ -147,6 +195,7 @@ impl App {
                 .terminal
                 .handle_key(event, modifiers, &mut self.clipboard)?
             {
+                self.sync_cursor_blink(Instant::now());
                 self.needs_redraw = true;
                 return Ok(());
             }
@@ -160,11 +209,13 @@ impl App {
                 state: PasswordGateState::new(true, None),
                 resume_picker: Some(picker),
             });
+            self.sync_cursor_blink(Instant::now());
             self.needs_redraw = true;
             return Ok(());
         }
 
         if self.handle_keychain_detail_copy_shortcut(event, modifiers)? {
+            self.sync_cursor_blink(Instant::now());
             return Ok(());
         }
 
@@ -215,6 +266,7 @@ impl App {
         }
 
         self.resolve_transitions()?;
+        self.sync_cursor_blink(Instant::now());
         self.needs_redraw = true;
         Ok(())
     }
@@ -225,27 +277,39 @@ impl App {
                 self.needs_redraw |= picker.tick()?;
             }
             AppView::Live(live) => {
-                live.terminal.tick(&mut self.clipboard)?;
-                self.needs_redraw = true;
+                self.needs_redraw |= live.terminal.tick(&mut self.clipboard)?;
             }
             AppView::Password(_) | AppView::Empty => {}
         }
         self.resolve_transitions()?;
+        self.sync_cursor_blink(Instant::now());
         Ok(())
     }
 
     pub fn control_flow(&self) -> winit::event_loop::ControlFlow {
-        match &self.view {
+        let base = match &self.view {
             AppView::Picker(picker) => picker.control_flow(),
-            AppView::Live(_) => winit::event_loop::ControlFlow::WaitUntil(
-                Instant::now() + Duration::from_millis(16),
-            ),
+            AppView::Live(_) => winit::event_loop::ControlFlow::Wait,
             AppView::Password(_) | AppView::Empty => winit::event_loop::ControlFlow::Wait,
+        };
+        if self.blink_policy().is_some() {
+            return match base {
+                winit::event_loop::ControlFlow::Wait => {
+                    winit::event_loop::ControlFlow::WaitUntil(self.cursor_blink.next_toggle)
+                }
+                winit::event_loop::ControlFlow::WaitUntil(deadline) => {
+                    winit::event_loop::ControlFlow::WaitUntil(
+                        deadline.min(self.cursor_blink.next_toggle),
+                    )
+                }
+                other => other,
+            };
         }
+        base
     }
 
     pub fn current_buffer(&self) -> PlayfieldBuffer {
-        match &self.view {
+        let mut buffer = match &self.view {
             AppView::Password(password) => launcher_render::render_inner_buffer(&password.state),
             AppView::Picker(picker) => {
                 picker_render::render_inner_buffer(&picker.state, picker.session.as_ref())
@@ -256,6 +320,41 @@ impl App {
                 TERM_ROWS as usize,
                 nc_ui::theme::classic::body_style(),
             ),
+        };
+        if self.blink_policy_for_buffer(&buffer).is_some() && !self.cursor_blink.visible {
+            buffer.clear_cursor();
+        }
+        buffer
+    }
+
+    fn blink_policy(&self) -> Option<()> {
+        let buffer = match &self.view {
+            AppView::Password(password) => launcher_render::render_inner_buffer(&password.state),
+            AppView::Picker(picker) => {
+                picker_render::render_inner_buffer(&picker.state, picker.session.as_ref())
+            }
+            AppView::Live(live) => live.terminal.render_buffer(),
+            AppView::Empty => {
+                return None;
+            }
+        };
+        self.blink_policy_for_buffer(&buffer)
+    }
+
+    fn blink_policy_for_buffer(&self, buffer: &PlayfieldBuffer) -> Option<()> {
+        if buffer.cursor().is_none() {
+            return None;
+        }
+        match &self.view {
+            AppView::Password(_) | AppView::Picker(_) => Some(()),
+            AppView::Live(live) if live.terminal.cursor_blink_enabled() => Some(()),
+            AppView::Live(_) | AppView::Empty => None,
+        }
+    }
+
+    fn sync_cursor_blink(&mut self, now: Instant) {
+        if self.cursor_blink.sync(now, self.blink_policy().is_some()) {
+            self.needs_redraw = true;
         }
     }
 
@@ -284,6 +383,7 @@ impl App {
             AppView::Empty => {}
         }
         self.resolve_transitions()?;
+        self.sync_cursor_blink(Instant::now());
         self.needs_redraw = true;
         Ok(())
     }
@@ -570,7 +670,7 @@ impl PickerView {
 
 #[cfg(test)]
 mod tests {
-    use super::{App, AppView, PickerView};
+    use super::{App, AppView, CursorBlinkState, PickerView};
     use crate::cache::GameCache;
     use crate::picker::overlay::PickerOverlay;
     use crate::picker::state::{PickerState, Screen};
@@ -634,6 +734,44 @@ mod tests {
             panic!("expected password view");
         };
         assert_eq!(password.state.input, "abcd");
+    }
+
+    #[test]
+    fn cursor_blink_state_toggles_every_half_cycle() {
+        let start = Instant::now();
+        let mut blink = CursorBlinkState::new(start);
+
+        assert!(!blink.sync(start, true));
+        assert!(blink.visible);
+
+        assert!(blink.sync(start + Duration::from_millis(600), true));
+        assert!(!blink.visible);
+
+        assert!(blink.sync(start + Duration::from_millis(1200), true));
+        assert!(blink.visible);
+    }
+
+    #[test]
+    fn cursor_blink_state_resets_visible_when_cursor_becomes_inactive() {
+        let start = Instant::now();
+        let mut blink = CursorBlinkState::new(start);
+        blink.sync(start, true);
+        blink.sync(start + Duration::from_millis(600), true);
+
+        assert!(blink.sync(start + Duration::from_millis(600), false));
+        assert!(blink.visible);
+        assert!(!blink.active);
+    }
+
+    #[test]
+    fn current_buffer_hides_password_cursor_during_blink_off_phase() {
+        let mut app = App::new().expect("app");
+        app.cursor_blink.active = true;
+        app.cursor_blink.visible = false;
+        app.cursor_blink.next_toggle = Instant::now() + Duration::from_millis(600);
+
+        let buffer = app.current_buffer();
+        assert!(buffer.cursor().is_none());
     }
 }
 

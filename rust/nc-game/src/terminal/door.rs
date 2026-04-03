@@ -20,6 +20,8 @@ use super::stdout::resolve_color;
 const DOOR_ESCAPE_TIMEOUT_MS: i32 = 100;
 const DOOR_DOS_PREFIX_TIMEOUT_MS: i32 = 2000;
 const MAX_ESCAPE_SEQUENCE_BYTES: usize = 16;
+const DEFAULT_CURSOR_STYLE_SEQUENCE: &[u8] = b"\x1b[0 q";
+const BLINKING_BLOCK_CURSOR_STYLE_SEQUENCE: &[u8] = b"\x1b[1 q";
 
 pub struct DoorTerminal {
     encoding: OutputEncoding,
@@ -81,7 +83,8 @@ impl Terminal for DoorTerminal {
     }
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
-        self.io.write_all(b"\x1b[0m\x1b[?25h\x1b[2J\x1b[H")?;
+        self.io
+            .write_all(&reset_visible_screen_prefix(self.color_mode))?;
         self.io.write_all(text.as_bytes())?;
         if !text.ends_with('\n') {
             self.io.write_all(b"\r\n")?;
@@ -91,15 +94,8 @@ impl Terminal for DoorTerminal {
     }
 
     fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(&style_sgr(
-            classic::terminal_foreground(),
-            classic::app_background(),
-            false,
-            self.color_mode,
-        ));
-        bytes.extend_from_slice(b"\x1b[?25h\x1b[2J\x1b[H");
-        self.io.write_all(&bytes)?;
+        self.io
+            .write_all(&reset_visible_screen_prefix(self.color_mode))?;
         self.io.flush()?;
         Ok(())
     }
@@ -165,6 +161,7 @@ pub fn serialize_playfield_frame(
         Some((cursor_col, cursor_row)) => {
             let default_cursor_row = visible_height.saturating_sub(1) as u16;
             let clamped_cursor_row = cursor_row.min(default_cursor_row);
+            bytes.extend_from_slice(BLINKING_BLOCK_CURSOR_STYLE_SEQUENCE);
             bytes.extend_from_slice(b"\x1b[?25h");
             bytes.extend_from_slice(cursor_to(clamped_cursor_row, cursor_col).as_bytes());
         }
@@ -193,6 +190,18 @@ fn style_sgr(fg: GameColor, bg: GameColor, bold: bool, color_mode: ColorMode) ->
     }
     seq.push('m');
     seq.into_bytes()
+}
+
+fn reset_visible_screen_prefix(color_mode: ColorMode) -> Vec<u8> {
+    let mut bytes = style_sgr(
+        classic::terminal_foreground(),
+        classic::app_background(),
+        false,
+        color_mode,
+    );
+    bytes.extend_from_slice(DEFAULT_CURSOR_STYLE_SEQUENCE);
+    bytes.extend_from_slice(b"\x1b[?25h\x1b[2J\x1b[H");
+    bytes
 }
 
 fn ansi_fg_code(color: crossterm::style::Color) -> u8 {
@@ -770,5 +779,17 @@ fn finalize_timed_pending(
             *orphan_deadline_ms = None;
         }
         ParseResult::NeedMore => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ColorMode, reset_visible_screen_prefix};
+
+    #[test]
+    fn reset_visible_screen_prefix_restores_default_cursor_shape() {
+        let bytes = reset_visible_screen_prefix(ColorMode::Ansi16);
+        let output = String::from_utf8_lossy(&bytes);
+        assert!(output.contains("\x1b[0 q\x1b[?25h\x1b[2J\x1b[H"));
     }
 }

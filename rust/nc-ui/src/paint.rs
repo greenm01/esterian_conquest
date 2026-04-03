@@ -3,7 +3,7 @@ mod diff;
 use std::io::{self, Write};
 
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, MoveTo, SetCursorStyle, Show},
     queue,
     style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
     terminal::{self, Clear, ClearType},
@@ -236,7 +236,12 @@ fn render_cursor<W: Write>(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cursor {
         Some((column, row)) => {
-            queue!(stdout, Show, MoveTo(origin.0 + column, origin.1 + row))?;
+            queue!(
+                stdout,
+                SetCursorStyle::BlinkingBlock,
+                Show,
+                MoveTo(origin.0 + column, origin.1 + row)
+            )?;
         }
         None => {
             queue!(stdout, Hide)?;
@@ -426,5 +431,19 @@ mod tests {
             .expect("reset render should succeed");
         assert!(stats.full_repaint);
         assert!(stats.content_redrawn);
+    }
+
+    #[test]
+    fn visible_cursor_requests_blinking_block_style() {
+        let mut renderer = StdoutRenderer::new();
+        let style = CellStyle::new(GameColor::White, GameColor::Black, false);
+        let mut buffer = PlayfieldBuffer::new(10, 4, style);
+        buffer.set_cursor(2, 1);
+        let mut out = Vec::new();
+        renderer
+            .render_with_writer(&mut out, &buffer, 100, 30)
+            .expect("render should succeed");
+        let output = String::from_utf8_lossy(&out);
+        assert!(output.contains("\x1b[1 q\x1b[?25h"));
     }
 }

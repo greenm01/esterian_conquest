@@ -166,9 +166,10 @@ modern fluid terminal layout:
 - center that playfield inside larger terminals
 - keep menu bars, prompts, and reports positioned within that playfield
 - do not globally center-justify ordinary text blocks
-- use a real command-line cursor when the client is waiting for input
-- do not add spinner-style idle animation; static prompt state is closer to
-  the original feel
+- use a real blinking command-line cursor when the client is waiting for input,
+  including one-key prompts
+- do not add spinner-style idle animation; the blinking caret is the only
+  intentional liveness affordance
 - when reusing preserved full-screen ANSI assets, it is acceptable to parse
   them on a virtual DOS-sized canvas first and then project/crop the result
   back into the real `80x25` player window

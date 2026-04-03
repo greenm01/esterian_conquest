@@ -76,7 +76,7 @@ pub fn write_terminal_cleanup_sequence(out: &mut impl Write) -> io::Result<()> {
     // tests run without an initialized Windows console. This matches the ANSI
     // sequences crossterm would emit for mouse disable, cursor show, and reset.
     out.write_all(
-        b"\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[?25h\x1b[0m\x1b[39m\x1b[49m\x1b(B\x1b]110\x07\x1b]111\x07\x1b]112\x07",
+        b"\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[0 q\x1b[?25h\x1b[0m\x1b[39m\x1b[49m\x1b(B\x1b]110\x07\x1b]111\x07\x1b]112\x07",
     )?;
     Ok(())
 }
@@ -89,9 +89,19 @@ impl Drop for TerminalSession {
 
 #[cfg(test)]
 mod tests {
+    use super::write_terminal_cleanup_sequence;
+
     #[test]
     fn session_module_is_linked() {
         let name = std::any::type_name::<super::TerminalSession>();
         assert!(name.ends_with("TerminalSession"));
+    }
+
+    #[test]
+    fn cleanup_sequence_restores_default_cursor_shape_before_showing_cursor() {
+        let mut out = Vec::new();
+        write_terminal_cleanup_sequence(&mut out).expect("cleanup sequence should serialize");
+        let output = String::from_utf8_lossy(&out);
+        assert!(output.contains("\x1b[0 q\x1b[?25h"));
     }
 }

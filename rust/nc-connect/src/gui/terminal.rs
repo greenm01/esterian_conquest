@@ -126,25 +126,33 @@ impl TerminalView {
         buffer
     }
 
-    pub fn tick(&mut self, clipboard: &mut Clipboard) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn cursor_blink_enabled(&self) -> bool {
+        self.term.cursor_style().blinking
+    }
+
+    pub fn tick(&mut self, clipboard: &mut Clipboard) -> Result<bool, Box<dyn std::error::Error>> {
+        let mut redraw = false;
         while let Ok(event) = self.live.try_recv() {
             match event {
                 LiveEvent::Output(data) => {
                     self.term.selection = None;
                     self.parser.advance(&mut self.term, &data);
+                    redraw = true;
                 }
                 LiveEvent::Exit(code) => {
                     self.finished = Some(Ok(code));
+                    redraw = true;
                     break;
                 }
                 LiveEvent::Error(err) => {
                     self.finished = Some(Err(err.into()));
+                    redraw = true;
                     break;
                 }
             }
         }
-        self.handle_term_events(clipboard)?;
-        Ok(())
+        redraw |= self.handle_term_events(clipboard)?;
+        Ok(redraw)
     }
 
     pub fn handle_key(
@@ -208,7 +216,8 @@ impl TerminalView {
     fn handle_term_events(
         &mut self,
         clipboard: &mut Clipboard,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        let mut redraw = false;
         let queued = self
             .events
             .0
@@ -243,15 +252,18 @@ impl TerminalView {
                 }
                 TermEvent::ChildExit(code) => {
                     self.finished = Some(Ok(code as u32));
+                    redraw = true;
                 }
                 TermEvent::Wakeup
                 | TermEvent::Bell
                 | TermEvent::MouseCursorDirty
-                | TermEvent::CursorBlinkingChange
                 | TermEvent::ColorRequest(_, _) => {}
+                TermEvent::CursorBlinkingChange => {
+                    redraw = true;
+                }
             }
         }
-        Ok(())
+        Ok(redraw)
     }
 }
 
