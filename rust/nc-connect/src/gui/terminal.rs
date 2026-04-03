@@ -40,6 +40,7 @@ pub struct TerminalView {
     selection_drag: bool,
     finished: Option<Result<u32, BridgeError>>,
     map_push_monitor: Option<MapPushMonitor>,
+    has_received_output: bool,
 }
 
 impl TerminalView {
@@ -76,6 +77,7 @@ impl TerminalView {
             selection_drag: false,
             finished: None,
             map_push_monitor,
+            has_received_output: false,
         }
     }
 
@@ -120,7 +122,7 @@ impl TerminalView {
         let content = self.term.renderable_content();
         let cursor = content.cursor;
         populate_terminal_buffer(&mut buffer, content);
-        if cursor.shape != CursorShape::Hidden {
+        if should_render_cursor(cursor.shape, self.has_received_output) {
             buffer.set_cursor(cursor.point.column.0 as u16, cursor.point.line.0 as u16);
         }
         buffer
@@ -135,6 +137,7 @@ impl TerminalView {
         while let Ok(event) = self.live.try_recv() {
             match event {
                 LiveEvent::Output(data) => {
+                    self.has_received_output = true;
                     self.term.selection = None;
                     self.parser.advance(&mut self.term, &data);
                     redraw = true;
@@ -265,6 +268,10 @@ impl TerminalView {
         }
         Ok(redraw)
     }
+}
+
+fn should_render_cursor(shape: CursorShape, has_received_output: bool) -> bool {
+    has_received_output && shape != CursorShape::Hidden
 }
 
 fn populate_terminal_buffer(buffer: &mut PlayfieldBuffer, content: RenderableContent<'_>) {
@@ -407,5 +414,26 @@ fn indexed_color(index: u8) -> (u8, u8, u8) {
             let value = 8 + (index - 232) * 10;
             (value, value, value)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_render_cursor;
+    use alacritty_terminal::vte::ansi::CursorShape;
+
+    #[test]
+    fn live_cursor_is_suppressed_before_first_remote_output() {
+        assert!(!should_render_cursor(CursorShape::Block, false));
+    }
+
+    #[test]
+    fn live_cursor_renders_after_first_remote_output_when_visible() {
+        assert!(should_render_cursor(CursorShape::Block, true));
+    }
+
+    #[test]
+    fn hidden_cursor_stays_hidden_after_remote_output() {
+        assert!(!should_render_cursor(CursorShape::Hidden, true));
     }
 }

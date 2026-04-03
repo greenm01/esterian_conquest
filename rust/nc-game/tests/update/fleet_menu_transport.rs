@@ -2798,8 +2798,11 @@ fn fleet_eta_result_dismiss_returns_to_primary_fleet_menu() {
     app.render(&mut terminal)
         .expect("fleet menu should render after dismissing eta result");
     assert!(
-        line_containing(&terminal, "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->")
-            .contains("FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->")
+        line_containing(
+            &terminal,
+            "FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->"
+        )
+        .contains("FLEET COMMAND <- ? X V S F R E C I D T O G M L U <Q> ->")
     );
     assert!(
         !terminal

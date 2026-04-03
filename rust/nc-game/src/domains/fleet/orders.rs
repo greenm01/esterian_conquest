@@ -41,10 +41,7 @@ impl App {
             .order_prompt_default_fleet_number()
             .map(|value| value.to_string())
             .unwrap_or_default();
-        self.open_fleet_menu_prompt(
-            FleetMenuPromptMode::Order,
-            default_fleet_number,
-        );
+        self.open_fleet_menu_prompt(FleetMenuPromptMode::Order, default_fleet_number);
     }
 
     pub(crate) fn open_fleet_order_with_selected_record(

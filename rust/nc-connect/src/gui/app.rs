@@ -34,6 +34,7 @@ use super::terminal::TerminalView;
 use super::{TERM_COLS, TERM_ROWS};
 
 const LOCKED_FRAME_STEP: Duration = Duration::from_millis(80);
+const LIVE_POLL_STEP: Duration = Duration::from_millis(16);
 const CURSOR_BLINK_HALF_STEP: Duration = Duration::from_millis(600);
 
 pub struct App {
@@ -289,7 +290,7 @@ impl App {
     pub fn control_flow(&self) -> winit::event_loop::ControlFlow {
         let base = match &self.view {
             AppView::Picker(picker) => picker.control_flow(),
-            AppView::Live(_) => winit::event_loop::ControlFlow::Wait,
+            AppView::Live(_) => live_control_flow(Instant::now()),
             AppView::Password(_) | AppView::Empty => winit::event_loop::ControlFlow::Wait,
         };
         if self.blink_policy().is_some() {
@@ -472,6 +473,10 @@ impl App {
             }
         }
     }
+}
+
+fn live_control_flow(now: Instant) -> winit::event_loop::ControlFlow {
+    winit::event_loop::ControlFlow::WaitUntil(now + LIVE_POLL_STEP)
 }
 
 fn keychain_detail_copy_value(
@@ -670,7 +675,7 @@ impl PickerView {
 
 #[cfg(test)]
 mod tests {
-    use super::{App, AppView, CursorBlinkState, PickerView};
+    use super::{App, AppView, CursorBlinkState, PickerView, live_control_flow};
     use crate::cache::GameCache;
     use crate::picker::overlay::PickerOverlay;
     use crate::picker::state::{PickerState, Screen};
@@ -772,6 +777,15 @@ mod tests {
 
         let buffer = app.current_buffer();
         assert!(buffer.cursor().is_none());
+    }
+
+    #[test]
+    fn live_sessions_keep_polling_for_remote_output() {
+        let now = Instant::now();
+        let winit::event_loop::ControlFlow::WaitUntil(deadline) = live_control_flow(now) else {
+            panic!("expected live control flow to poll");
+        };
+        assert_eq!(deadline, now + Duration::from_millis(16));
     }
 }
 
