@@ -1367,6 +1367,23 @@ impl App {
             .is_some()
     }
 
+    fn friendly_target_claimed_elsewhere(
+        &self,
+        coords: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> bool {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .any(|(idx, fleet)| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                    && !selected_records.contains(&(idx + 1))
+                    && fleet.standing_order_target_coords_raw() == coords
+            })
+    }
+
     fn friendly_scout_target_claimed_elsewhere(
         &self,
         coords: [u8; 2],
@@ -1429,7 +1446,7 @@ impl App {
                 .collect(),
             2 | 5 | 15 => self.database_owned_planet_targets_from(anchor),
             6 | 7 | 8 => self.database_known_enemy_planet_targets_from(anchor),
-            9 => self.under_scouted_world_targets_from(anchor),
+            9 => self.view_world_target_candidates_from(anchor, &selected_records),
             10 => self.scout_sector_target_candidates_from(anchor, &selected_records),
             11 => self.scout_system_target_candidates_from(anchor, &selected_records),
             12 => self.colonize_target_candidates_from(anchor, &selected_records),
@@ -1538,10 +1555,6 @@ impl App {
         })
     }
 
-    fn planet_database_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        self.filtered_planet_database_targets_from(anchor, |_| true)
-    }
-
     /// Hostile targets only from the player's fog-of-war planet database.
     /// No raw runtime ownership fallback is used here.
     fn database_known_enemy_planet_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
@@ -1554,20 +1567,26 @@ impl App {
         })
     }
 
-    /// Under-scouted worlds: Partial or Unknown intel tier, falling back to all known.
-    /// View is typically used to scan worlds the player knows little about.
-    fn under_scouted_world_targets_from(&self, anchor: [u8; 2]) -> Vec<[u8; 2]> {
-        let under_scouted = self.filtered_planet_database_targets_from(anchor, |world| {
-            matches!(
-                world.intel_tier,
-                nc_data::IntelTier::Partial | nc_data::IntelTier::Unknown
+    fn view_world_target_candidates_from(
+        &self,
+        anchor: [u8; 2],
+        selected_records: &BTreeSet<usize>,
+    ) -> Vec<[u8; 2]> {
+        let mut coords = self
+            .player_planet_database_worlds()
+            .into_iter()
+            .filter(|world| matches!(world.intel_tier, nc_data::IntelTier::Unknown))
+            .map(|world| world.coords)
+            .collect::<Vec<_>>();
+        coords.sort_by_key(|coords| {
+            (
+                self.friendly_target_claimed_elsewhere(*coords, selected_records),
+                sector_distance_sq(anchor, *coords),
+                *coords,
             )
         });
-        if under_scouted.is_empty() {
-            self.planet_database_world_targets_from(anchor)
-        } else {
-            under_scouted
-        }
+        coords.dedup();
+        coords
     }
 
     fn colonize_target_candidates_from(

@@ -1449,6 +1449,432 @@ fn fleet_order_scout_system_defaults_avoid_worlds_targeted_by_other_friendly_sco
     );
 }
 
+fn latest_planet_intel_by_viewer(
+    fixture_dir: &Path,
+    player_count: u8,
+) -> Vec<BTreeMap<usize, PlanetIntelSnapshot>> {
+    (1..=player_count)
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>()
+}
+
+#[test]
+fn fleet_order_view_world_defaults_to_unknown_world_instead_of_closer_partial_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
+    let selected_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("player should have a fleet");
+    let selected_fleet_number = selected_fleet.local_slot_word_raw();
+    let anchor = selected_fleet.current_location_coords_raw();
+    let mut candidates = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(_, coords)| {
+        let dx = i32::from(anchor[0]) - i32::from(coords[0]);
+        let dy = i32::from(anchor[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let (_, partial_coords) = candidates[0];
+    let (unknown_idx, unknown_coords) = candidates[1];
+    for planet in state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .filter(|planet| planet.owner_empire_slot_raw() != 1)
+    {
+        planet.set_owner_empire_slot_raw(2);
+    }
+    let mut planet_intel_by_viewer =
+        latest_planet_intel_by_viewer(&fixture_dir, state.game_data.conquest.player_count());
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].clear();
+    for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
+        if planet.owner_empire_slot_raw() == 1 || idx == unknown_idx {
+            continue;
+        }
+        planet_intel_by_viewer[viewer_index].insert(
+            idx + 1,
+            partial_known_world_snapshot(idx + 1, planet, 2, year),
+        );
+    }
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(selected_fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("view-world target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", unknown_coords[0]))
+    );
+    assert_ne!(partial_coords, unknown_coords);
+}
+
+#[test]
+fn fleet_order_view_world_defaults_avoid_unknown_worlds_targeted_by_other_friendly_fleets() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
+    let selected_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("player should have a fleet");
+    let selected_fleet_number = selected_fleet.local_slot_word_raw();
+    let anchor = selected_fleet.current_location_coords_raw();
+    let mut candidates = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(_, coords)| {
+        let dx = i32::from(anchor[0]) - i32::from(coords[0]);
+        let dy = i32::from(anchor[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let (claimed_idx, claimed_coords) = candidates[0];
+    let (fallback_idx, fallback_coords) = candidates[1];
+    for planet in state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .filter(|planet| planet.owner_empire_slot_raw() != 1)
+    {
+        planet.set_owner_empire_slot_raw(2);
+    }
+    let claimer = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| {
+            fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() != selected_fleet_number
+        })
+        .expect("fixture should have another friendly fleet");
+    claimer.set_standing_order_kind(nc_data::Order::MoveOnly);
+    claimer.set_standing_order_target_coords_raw(claimed_coords);
+    let mut planet_intel_by_viewer =
+        latest_planet_intel_by_viewer(&fixture_dir, state.game_data.conquest.player_count());
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].clear();
+    for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
+        if planet.owner_empire_slot_raw() == 1 || idx == claimed_idx || idx == fallback_idx {
+            continue;
+        }
+        planet_intel_by_viewer[viewer_index].insert(
+            idx + 1,
+            partial_known_world_snapshot(idx + 1, planet, 2, year),
+        );
+    }
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(selected_fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("view-world target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0]))
+    );
+}
+
+#[test]
+fn fleet_group_view_world_defaults_avoid_unknown_worlds_targeted_by_other_friendly_fleets() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_standing_order_code_raw(0);
+    }
+    let mut owned_fleets = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+        .collect::<Vec<_>>();
+    owned_fleets.sort_by_key(|fleet| std::cmp::Reverse(fleet.local_slot_word_raw()));
+    let anchor = owned_fleets[0].current_location_coords_raw();
+    let selected_numbers = [
+        owned_fleets[0].local_slot_word_raw(),
+        owned_fleets[1].local_slot_word_raw(),
+    ];
+    let claimer_number = owned_fleets
+        .iter()
+        .find(|fleet| !selected_numbers.contains(&fleet.local_slot_word_raw()))
+        .expect("fixture should have a non-selected friendly fleet")
+        .local_slot_word_raw();
+    let mut candidates = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(_, coords)| {
+        let dx = i32::from(anchor[0]) - i32::from(coords[0]);
+        let dy = i32::from(anchor[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let (claimed_idx, claimed_coords) = candidates[0];
+    let (fallback_idx, fallback_coords) = candidates[1];
+    for planet in state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .filter(|planet| planet.owner_empire_slot_raw() != 1)
+    {
+        planet.set_owner_empire_slot_raw(2);
+    }
+    let claimer = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| {
+            fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == claimer_number
+        })
+        .expect("claimer fleet should exist");
+    claimer.set_standing_order_kind(nc_data::Order::BombardWorld);
+    claimer.set_standing_order_target_coords_raw(claimed_coords);
+    let mut planet_intel_by_viewer =
+        latest_planet_intel_by_viewer(&fixture_dir, state.game_data.conquest.player_count());
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].clear();
+    for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
+        if planet.owner_empire_slot_raw() == 1 || idx == claimed_idx || idx == fallback_idx {
+            continue;
+        }
+        planet_intel_by_viewer[viewer_index].insert(
+            idx + 1,
+            partial_known_world_snapshot(idx + 1, planet, 2, year),
+        );
+    }
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveGroupOrder(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("group view-world target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0]))
+    );
+}
+
+#[test]
+fn fleet_order_view_world_uses_manual_entry_when_no_unknown_worlds_exist() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let viewer_index = 0usize;
+    let selected_fleet_number = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1)
+        .expect("player should have a fleet")
+        .local_slot_word_raw();
+    for planet in state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .filter(|planet| planet.owner_empire_slot_raw() != 1)
+    {
+        planet.set_owner_empire_slot_raw(2);
+    }
+    let mut planet_intel_by_viewer =
+        latest_planet_intel_by_viewer(&fixture_dir, state.game_data.conquest.player_count());
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].clear();
+    for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
+        if planet.owner_empire_slot_raw() == 1 {
+            continue;
+        }
+        planet_intel_by_viewer[viewer_index].insert(
+            idx + 1,
+            partial_known_world_snapshot(idx + 1, planet, 2, year),
+        );
+    }
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(selected_fleet_number));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("view-world target prompt should render");
+    let prompt = line_containing(&terminal, "Target XX ");
+    assert!(prompt.contains("Target XX "));
+    assert!(!prompt.contains('['), "{prompt}");
+}
+
 #[test]
 fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let fixture_dir = temp_game_copy();

@@ -33,7 +33,7 @@ Source of truth:
 | `6` Bombard a World | coordinates | hostile worlds known hostile in the player's total planet database | no raw runtime fallback | `XX/YY` default to nearest eligible hostile world |
 | `7` Invade a World | coordinates | hostile worlds known hostile in the player's total planet database | same as bombard | same |
 | `8` Blitz a World | coordinates | hostile worlds known hostile in the player's total planet database | same as bombard | same |
-| `9` View a World | coordinates | under-scouted worlds from the player's total planet database | if none are `Partial`/`Unknown`, falls back to all database worlds | `XX/YY` default to nearest eligible world |
+| `9` View a World | coordinates | `Unknown` worlds from the player's total planet database | prefers worlds not already targeted by another friendly fleet on any mission; no fallback candidate set | `XX/YY` default to the closest eligible unknown world |
 | `10` Scout a Sector | coordinates | non-self-owned or unknown-owner worlds from the player's total planet database | excludes scout targets already claimed by other friendly scout fleets; if empty and anchor is not owned, falls back to anchor sector | `XX/YY` default to nearest eligible scout sector |
 | `11` Scout a Solar System | coordinates | non-self-owned or unknown-owner worlds from the player's total planet database | excludes scout targets already claimed by other friendly scout fleets | `XX/YY` default to nearest eligible system |
 | `12` Colonize a World | coordinates | unknown-owner or known-unowned worlds from the player's total planet database | skips worlds known colonized by any empire; excludes colonize targets already claimed by other friendly ETAC fleets | `XX/YY` default to nearest eligible colonize world |
@@ -54,7 +54,7 @@ other fields are still unknown.
 | `6` Bombard | total planet database | `known_owner_empire_id` is a hostile empire (`> 0` and not self) | unknown-owner, unowned, or self-owned | none |
 | `7` Invade | total planet database | same as `Bombard` | same as `Bombard` | none |
 | `8` Blitz | total planet database | same as `Bombard` | same as `Bombard` | none |
-| `9` View | total planet database | prefer rows with `IntelTier::Partial` or `IntelTier::Unknown` | none | all database rows if no under-scouted rows exist |
+| `9` View | total planet database | `intel_tier == IntelTier::Unknown` | unknown worlds already targeted by another friendly fleet on any mission are deprioritized behind untargeted unknown worlds | none |
 | `10` Scout a Sector | total planet database | `known_owner_empire_id != self` or owner unknown | already claimed by another friendly scout | anchor sector if no eligible database world exists and the anchor is not owned |
 | `11` Scout a Solar System | total planet database | `known_owner_empire_id != self` or owner unknown | already claimed by another friendly scout | none |
 | `12` Colonize | total planet database | `known_owner_empire_id` is `None` or `Some(0)` | known owned by any empire, or already claimed by another friendly ETAC | none |
@@ -68,6 +68,8 @@ other fields are still unknown.
 | Sorting | Coordinate candidates are sorted by distance from the anchor, nearest first. |
 | Dedup | Duplicate candidate coordinates are removed after sorting. |
 | Fog-of-war source | Smart world targeting uses the same player-visible fog-of-war world set as `TOTAL PLANET DATABASE:`. |
+| `View` intelligence | `View a World` only uses `IntelTier::Unknown` worlds for smart defaults. `Partial` worlds are not candidates because the mission already grants partial intel. |
+| Cross-mission claim priority | `View a World` prefers unknown worlds not already targeted by another friendly fleet, regardless of that other fleet's mission. |
 | Hostile-world privacy | `Bombard`, `Invade`, and `Blitz` do not fall back to hidden runtime ownership data. If the database does not know a hostile owner, no smart hostile default is shown. |
 | Colonize intelligence | `Colonize` treats unknown-owner worlds as eligible smart defaults and skips only worlds the database knows are already colonized. |
 | `XX` default | The first candidate's `X` value. |
