@@ -115,7 +115,6 @@ impl Drop for SessionLeaseGuard {
     }
 }
 
-const LOCAL_EXIT_ATTRIBUTION: &str = "For Griffith and glory.";
 const LOOPBACK_DOOR_HOST: &str = "127.0.0.1";
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -256,7 +255,7 @@ fn should_use_interactive_loop(parsed: &ParsedLaunchArgs, stdout_is_terminal: bo
 
 #[doc(hidden)]
 pub fn local_exit_lines() -> Vec<String> {
-    vec![LOCAL_EXIT_ATTRIBUTION.to_string()]
+    vec![]
 }
 
 struct RawModeGuard;
@@ -300,8 +299,42 @@ fn run_interactive_inner(
             Err(err) if is_closed_input_error(err.as_ref()) => return Ok(()),
             Err(err) => return Err(err),
         };
+        let screen_before = app.current_screen();
+        tracing::debug!(
+            screen = ?screen_before,
+            key_code = ?key.code,
+            key_modifiers = ?key.modifiers,
+            key_kind = ?key.kind,
+            "nc-game key received"
+        );
         let action = app.handle_key(key);
+        if matches!(action, crate::app::Action::Noop) {
+            let guards = app.active_navigation_guards();
+            tracing::debug!(
+                screen = ?screen_before,
+                key_code = ?key.code,
+                key_modifiers = ?key.modifiers,
+                key_kind = ?key.kind,
+                active_guards = ?guards,
+                "nc-game key resolved to noop"
+            );
+        } else {
+            tracing::debug!(
+                screen = ?screen_before,
+                key_code = ?key.code,
+                key_modifiers = ?key.modifiers,
+                key_kind = ?key.kind,
+                action = ?action,
+                "nc-game key mapped to action"
+            );
+        }
         let outcome = apply_action(app, action);
+        tracing::debug!(
+            screen_before = ?screen_before,
+            screen_after = ?app.current_screen(),
+            outcome = ?outcome,
+            "nc-game action applied"
+        );
         if matches!(outcome, AppOutcome::Quit) {
             return Ok(());
         }
@@ -374,8 +407,15 @@ fn parse_args(args: &[String]) -> Result<ParsedLaunchArgs, Box<dyn std::error::E
     let mut queue_dir = std::env::var_os("NC_GAME_QUEUE_DIR")
         .or_else(|| std::env::var_os("EC_CLIENT_QUEUE_DIR"))
         .map(PathBuf::from);
-    let mut log_file = None;
-    let mut log_level = nc_log::LogLevel::Info;
+    let mut log_file = std::env::var_os("NC_GAME_LOG_FILE")
+        .or_else(|| std::env::var_os("EC_GAME_LOG_FILE"))
+        .map(PathBuf::from);
+    let mut log_level = std::env::var("NC_GAME_LOG_LEVEL")
+        .ok()
+        .or_else(|| std::env::var("EC_GAME_LOG_LEVEL").ok())
+        .map(|value| nc_log::LogLevel::parse(&value))
+        .transpose()?
+        .unwrap_or(nc_log::LogLevel::Info);
     let mut encoding = OutputEncoding::Utf8;
     let mut explicit_color_mode: Option<ColorMode> = None;
     let mut dropfile_path: Option<PathBuf> = None;
@@ -1035,9 +1075,44 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        prior: Option<std::ffi::OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: Option<&str>) -> Self {
+            let prior = std::env::var_os(key);
+            unsafe {
+                match value {
+                    Some(value) => std::env::set_var(key, value),
+                    None => std::env::remove_var(key),
+                }
+            }
+            Self { key, prior }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match self.prior.as_ref() {
+                    Some(value) => std::env::set_var(self.key, value),
+                    None => std::env::remove_var(self.key),
+                }
+            }
+        }
+    }
 
     fn repo_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -1119,6 +1194,25 @@ mod tests {
         let mut parsed = parsed_args(false);
         parsed.session_token = Some("session-token".to_string());
         parsed
+    }
+
+    #[test]
+    fn parse_args_uses_env_log_defaults_when_present() {
+        let _lock = env_lock().lock().expect("env lock");
+        let _file = EnvVarGuard::set("NC_GAME_LOG_FILE", Some("/tmp/nc-game-env.log"));
+        let _level = EnvVarGuard::set("NC_GAME_LOG_LEVEL", Some("debug"));
+
+        let parsed = super::parse_args(&[
+            "nc-game".to_string(),
+            "--dir".to_string(),
+            "/tmp/test".to_string(),
+            "--player".to_string(),
+            "1".to_string(),
+        ])
+        .expect("parse args");
+
+        assert_eq!(parsed.log_file, Some(PathBuf::from("/tmp/nc-game-env.log")));
+        assert_eq!(parsed.log_level, nc_log::LogLevel::Debug);
     }
 
     #[test]
@@ -1227,11 +1321,8 @@ mod tests {
     }
 
     #[test]
-    fn local_exit_lines_match_nc_connect_attribution() {
-        assert_eq!(
-            local_exit_lines(),
-            vec!["For Griffith and glory.".to_string()]
-        );
+    fn local_exit_lines_returns_empty() {
+        assert_eq!(local_exit_lines(), Vec::<String>::new());
     }
 
     #[test]

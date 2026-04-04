@@ -199,10 +199,7 @@ pub(crate) fn apply_connect_outcome(
                 state.selected = 0;
                 if let Some(path) = maps_saved_to {
                     state.overlay = Some(PickerOverlay::MapsDownloaded { path });
-                } else if let Some(notice) = notice
-                    .filter(|message| !message.trim().is_empty())
-                    .filter(|message| message != "For Griffith and glory.")
-                {
+                } else if let Some(notice) = notice.filter(|message| !message.trim().is_empty()) {
                     state.show_notice(notice);
                 }
             }

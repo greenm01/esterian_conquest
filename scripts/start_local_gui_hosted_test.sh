@@ -15,6 +15,8 @@ SSH_USER_EXPLICIT=0
 AUTH_KEYS_METHOD=""
 AUTH_KEYS_PATH=""
 AUTH_KEYS_EXPLICIT=0
+NC_GAME_LOG_FILE=""
+NC_GAME_LOG_LEVEL=""
 
 usage() {
   cat <<'EOF'
@@ -32,6 +34,10 @@ Options:
                        Override SSH key provisioning mode. Requires --auth-keys-path.
   --auth-keys-path <path>
                        Override SSH key provisioning path. Requires --auth-keys-method.
+  --nc-game-log-file <path>
+                       Write hosted nc-game diagnostics to this file.
+  --nc-game-log-level <level>
+                       error, warn, info, debug, or trace. Requires --nc-game-log-file.
   --help               Show this help
 
 This helper starts a local nc-sysop nostr serve instance for a stress-test
@@ -82,6 +88,14 @@ while [[ $# -gt 0 ]]; do
     --auth-keys-path)
       AUTH_KEYS_PATH="$2"
       AUTH_KEYS_EXPLICIT=1
+      shift 2
+      ;;
+    --nc-game-log-file)
+      NC_GAME_LOG_FILE="$2"
+      shift 2
+      ;;
+    --nc-game-log-level)
+      NC_GAME_LOG_LEVEL="$2"
       shift 2
       ;;
     --help|-h)
@@ -178,6 +192,13 @@ ensure_auth_keys_explicit_pair() {
   fi
   if [[ -z "$AUTH_KEYS_METHOD" && -n "$AUTH_KEYS_PATH" ]]; then
     echo "error: --auth-keys-path requires --auth-keys-method" >&2
+    exit 1
+  fi
+}
+
+ensure_nc_game_log_pair() {
+  if [[ -n "$NC_GAME_LOG_LEVEL" && -z "$NC_GAME_LOG_FILE" ]]; then
+    echo "error: --nc-game-log-level requires --nc-game-log-file" >&2
     exit 1
   fi
 }
@@ -300,6 +321,7 @@ except OSError as exc:
 PY
 
 detect_auth_keys_config
+ensure_nc_game_log_pair
 
 mkdir -p "$STATE_DIR"
 if [[ "$AUTH_KEYS_METHOD" == "file" ]]; then
@@ -313,6 +335,14 @@ ssh-host "$SSH_HOST"
 ssh-port $SSH_PORT
 ssh-user "$SSH_USER"
 nc-game-path "$EC_GAME_PATH"
+EOF
+if [[ -n "$NC_GAME_LOG_FILE" ]]; then
+  printf 'nc-game-log-file "%s"\n' "$NC_GAME_LOG_FILE" >> "$CONFIG_PATH"
+fi
+if [[ -n "$NC_GAME_LOG_LEVEL" ]]; then
+  printf 'nc-game-log-level "%s"\n' "$NC_GAME_LOG_LEVEL" >> "$CONFIG_PATH"
+fi
+cat >> "$CONFIG_PATH" <<EOF
 auth-keys-method "$AUTH_KEYS_METHOD"
 auth-keys-path "$AUTH_KEYS_PATH"
 key-ttl $KEY_TTL

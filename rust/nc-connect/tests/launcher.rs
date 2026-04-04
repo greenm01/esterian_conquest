@@ -47,9 +47,12 @@ fn mismatched_confirmation_resets_to_create_mode() {
 #[test]
 fn unlock_mode_accepts_non_empty_password() {
     let mut state = PasswordGateState::new(true, None);
-    state.input = "griffith".to_string();
+    state.input = "starmaster".to_string();
 
-    assert_eq!(state.submit(), GateSubmit::Accepted("griffith".to_string()));
+    assert_eq!(
+        state.submit(),
+        GateSubmit::Accepted("starmaster".to_string())
+    );
 }
 
 #[test]

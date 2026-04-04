@@ -12,6 +12,8 @@
 //! default "friday"
 //! maps-dir "/path/to/maps"
 //! lock-timeout-minutes 5
+//! log-file "/tmp/nc-connect.log"
+//! log-level "debug"
 //! ```
 
 use std::path::PathBuf;
@@ -91,6 +93,10 @@ pub struct ConnectConfig {
     pub maps_dir: Option<PathBuf>,
     /// Optional idle-lock timeout override in minutes.
     pub lock_timeout_minutes: Option<u16>,
+    /// Optional GUI diagnostics log file.
+    pub log_file: Option<PathBuf>,
+    /// Optional GUI diagnostics log level.
+    pub log_level: Option<nc_log::LogLevel>,
 }
 
 impl ConnectConfig {
@@ -103,6 +109,8 @@ impl ConnectConfig {
             default_server: None,
             maps_dir: None,
             lock_timeout_minutes: None,
+            log_file: None,
+            log_level: None,
         }
     }
 
@@ -113,6 +121,10 @@ impl ConnectConfig {
 
     pub fn effective_lock_timeout_minutes(&self) -> u16 {
         self.lock_timeout_minutes.unwrap_or(5)
+    }
+
+    pub fn effective_log_level(&self) -> nc_log::LogLevel {
+        self.log_level.unwrap_or(nc_log::LogLevel::Info)
     }
 
     pub fn default_relay_url(&self) -> Option<&str> {

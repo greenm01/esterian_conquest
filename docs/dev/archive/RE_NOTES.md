@@ -2761,7 +2761,7 @@ Confirmed `ECUTIL` main menu text:
 Footer text from the preserved screenshot:
 
 - `Esterian Conquest Sysop's Utility - Test Drive Version 1.51`
-- `Copyright (C) 1990-1992 by Bentley C. Griffith.`
+- `Copyright (C) 1990-1992.`
 - `All rights reserved worldwide.`
 
 Practical implication for the Rust port:

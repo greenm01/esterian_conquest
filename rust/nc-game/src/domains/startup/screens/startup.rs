@@ -389,7 +389,7 @@ pub fn version_title() -> String {
     format!("NC v{}", env!("CARGO_PKG_VERSION"))
 }
 
-const ATTRIBUTION: &str = "Inspired by the classic 1990s BBS door game Esterian Conquest";
+const ATTRIBUTION: &str = "Inspired by EC";
 
 const INTRO_ACCENT_PHRASES: &[&str] = &[
     "Nostrian dominion",
@@ -759,12 +759,4 @@ const INTRO_PAGE_1: [&str; 13] = [
     "decided by distance, industry, mathematics, and will.",
 ];
 
-const INTRO_PAGE_2: [&str; 5] = [
-    "In profound respect and admiration to Bentley C. Griffith and his fellow",
-    "pioneers, who between 1990 and 1992 forged the enduring legend of Esterian",
-    "Conquest, and to the ancient dreamers, strategists, and storytellers whose",
-    "timeless visions of galactic dominion still light the way among these stars.",
-    "",
-];
-
-const INTRO_PAGES: [&[&str]; 2] = [&INTRO_PAGE_1, &INTRO_PAGE_2];
+const INTRO_PAGES: [&[&str]; 1] = [&INTRO_PAGE_1];

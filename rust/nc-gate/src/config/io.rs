@@ -73,6 +73,13 @@ pub fn parse_config_str(text: &str) -> Result<GateConfig, String> {
         opt_top_string(&document, "nc-game-path")?
             .unwrap_or_else(|| DEFAULT_NC_GAME_PATH.to_string()),
     );
+    let nc_game_log_file = opt_top_string(&document, "nc-game-log-file")?.map(PathBuf::from);
+    let nc_game_log_level = opt_top_string(&document, "nc-game-log-level")?
+        .map(|value| {
+            nc_log::LogLevel::parse(&value)
+                .map_err(|err| format!("nc-game-log-level rejected: {err}"))
+        })
+        .transpose()?;
 
     let auth_keys_method_str = top_string(&document, "auth-keys-method")?;
     let auth_keys_method = match auth_keys_method_str.as_str() {
@@ -103,6 +110,8 @@ pub fn parse_config_str(text: &str) -> Result<GateConfig, String> {
         ssh_port,
         ssh_user,
         nc_game_path,
+        nc_game_log_file,
+        nc_game_log_level,
         auth_keys_method,
         auth_keys_path,
         key_ttl,
@@ -127,6 +136,22 @@ pub fn render_config(config: &GateConfig) -> String {
             "nc-game-path \"{}\"\n",
             kdl_escape(&config.nc_game_path.display().to_string())
         ));
+    }
+    if let Some(log_file) = &config.nc_game_log_file {
+        out.push_str(&format!(
+            "nc-game-log-file \"{}\"\n",
+            kdl_escape(&log_file.display().to_string())
+        ));
+    }
+    if let Some(log_level) = config.nc_game_log_level {
+        let level = match log_level {
+            nc_log::LogLevel::Error => "error",
+            nc_log::LogLevel::Warn => "warn",
+            nc_log::LogLevel::Info => "info",
+            nc_log::LogLevel::Debug => "debug",
+            nc_log::LogLevel::Trace => "trace",
+        };
+        out.push_str(&format!("nc-game-log-level \"{}\"\n", level));
     }
     out.push_str(&format!("auth-keys-method \"{}\"\n", auth_keys_method));
     out.push_str(&format!(

@@ -23,6 +23,8 @@ fn parse_empty_string_returns_empty_config() {
     assert!(config.default_server.is_none());
     assert!(config.maps_dir.is_none());
     assert!(config.lock_timeout_minutes.is_none());
+    assert!(config.log_file.is_none());
+    assert!(config.log_level.is_none());
 }
 
 #[test]
@@ -34,6 +36,8 @@ server "local" host="localhost" port=2222
 default "friday"
 maps-dir "/tmp/ec-maps"
 lock-timeout-minutes 7
+log-file "/tmp/nc-connect.log"
+log-level "debug"
 "#;
     let config = parse_config_str(kdl).unwrap();
     assert_eq!(config.relay.as_deref(), Some("wss://relay.example.com"));
@@ -49,6 +53,8 @@ lock-timeout-minutes 7
     assert_eq!(config.default_server.as_deref(), Some("friday"));
     assert_eq!(config.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
     assert_eq!(config.lock_timeout_minutes, Some(7));
+    assert_eq!(config.log_file, Some(PathBuf::from("/tmp/nc-connect.log")));
+    assert_eq!(config.log_level, Some(nc_log::LogLevel::Debug));
 }
 
 #[test]
@@ -106,6 +112,12 @@ fn parse_server_missing_host_is_err() {
     assert!(parse_config_str(kdl).is_err());
 }
 
+#[test]
+fn parse_invalid_log_level_is_err() {
+    let kdl = "log-level \"loud\"\n";
+    assert!(parse_config_str(kdl).is_err());
+}
+
 // ---------------------------------------------------------------------------
 // render_config
 // ---------------------------------------------------------------------------
@@ -142,6 +154,8 @@ fn render_full_config_roundtrip() {
         default_server: Some("alpha".to_string()),
         maps_dir: Some(PathBuf::from("/tmp/ec-maps")),
         lock_timeout_minutes: Some(7),
+        log_file: Some(PathBuf::from("/tmp/nc-connect.log")),
+        log_level: Some(nc_log::LogLevel::Debug),
     };
 
     let rendered = render_config(&config);
@@ -158,6 +172,8 @@ fn render_full_config_roundtrip() {
     assert_eq!(parsed.default_server.as_deref(), Some("alpha"));
     assert_eq!(parsed.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
     assert_eq!(parsed.lock_timeout_minutes, Some(7));
+    assert_eq!(parsed.log_file, Some(PathBuf::from("/tmp/nc-connect.log")));
+    assert_eq!(parsed.log_level, Some(nc_log::LogLevel::Debug));
 }
 
 #[test]
@@ -175,6 +191,8 @@ fn render_escapes_special_chars() {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     };
     let rendered = render_config(&config);
     let parsed = parse_config_str(&rendered).unwrap();
@@ -202,6 +220,8 @@ fn server_lookup_by_name() {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     };
     let s = config.server("prod").unwrap();
     assert_eq!(s.host, "prod.example.com");
@@ -282,6 +302,8 @@ fn save_load_config_roundtrip() {
         default_server: Some("test".to_string()),
         maps_dir: Some(PathBuf::from("/tmp/ec-maps")),
         lock_timeout_minutes: Some(9),
+        log_file: Some(PathBuf::from("/tmp/nc-connect.log")),
+        log_level: Some(nc_log::LogLevel::Trace),
     };
 
     save_config_to(&config, &path).unwrap();
@@ -294,6 +316,8 @@ fn save_load_config_roundtrip() {
     assert_eq!(loaded.default_server.as_deref(), Some("test"));
     assert_eq!(loaded.maps_dir, Some(PathBuf::from("/tmp/ec-maps")));
     assert_eq!(loaded.lock_timeout_minutes, Some(9));
+    assert_eq!(loaded.log_file, Some(PathBuf::from("/tmp/nc-connect.log")));
+    assert_eq!(loaded.log_level, Some(nc_log::LogLevel::Trace));
 
     let _ = std::fs::remove_file(&path);
 }
@@ -337,6 +361,8 @@ fn seed_default_relay_keeps_existing_valid_default() {
             default_server: None,
             maps_dir: None,
             lock_timeout_minutes: None,
+            log_file: None,
+            log_level: None,
         },
         &path,
     )
@@ -419,6 +445,8 @@ fn remove_default_relay_promotes_remaining_entry() {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     };
 
     assert!(config.remove_relay("wss://one.example.com"));
@@ -442,6 +470,8 @@ fn remove_last_relay_clears_default() {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     };
 
     assert!(config.remove_relay("wss://one.example.com"));

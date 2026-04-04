@@ -1174,14 +1174,14 @@ fn refreshing_popup_renders_context_lines() {
 }
 
 #[test]
-fn picker_session_suppresses_default_griffith_notice() {
+fn picker_session_suppresses_empty_notice() {
     let mut state = make_state(vec![]);
 
     apply_session_outcome(
         &mut state,
         SessionOutcome::Done {
             exit_code: 0,
-            notice: Some("For Griffith and glory.".to_string()),
+            notice: Some("   ".to_string()),
             maps_saved_to: None,
         },
         None,
@@ -1224,7 +1224,7 @@ fn picker_session_default_return_allows_immediate_quit_confirm() {
         &mut state,
         SessionOutcome::Done {
             exit_code: 0,
-            notice: Some("For Griffith and glory.".to_string()),
+            notice: None,
             maps_saved_to: None,
         },
         None,

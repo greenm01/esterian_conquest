@@ -177,6 +177,8 @@ fn resolve_invite_ignores_default_config_relay() {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     };
     let t = resolve_invite("red-fox@relay.example.com", &config).unwrap();
     assert_eq!(t.relay_url, "wss://relay.example.com");
@@ -209,6 +211,8 @@ fn config_with_bookmark(name: &str, host: &str, port: u16) -> ConnectConfig {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     }
 }
 
@@ -262,6 +266,8 @@ fn resolve_server_relay_from_config() {
         default_server: None,
         maps_dir: None,
         lock_timeout_minutes: None,
+        log_file: None,
+        log_level: None,
     };
     let t = resolve_server("play.example.com", &config).unwrap();
     assert_eq!(t.relay_url, "wss://relay.custom.com");

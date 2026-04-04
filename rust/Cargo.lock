@@ -2199,6 +2199,7 @@ dependencies = [
  "base64",
  "kdl",
  "nc-data",
+ "nc-log",
  "nc-nostr",
  "nostr-sdk",
  "rand 0.8.5",

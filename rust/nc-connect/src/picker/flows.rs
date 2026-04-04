@@ -354,10 +354,7 @@ pub fn apply_session_outcome(
         } => {
             if let Some(path) = maps_saved_to {
                 state.overlay = Some(super::overlay::PickerOverlay::MapsDownloaded { path });
-            } else if let Some(notice) = notice
-                .filter(|message| !message.trim().is_empty())
-                .filter(|message| message != "For Griffith and glory.")
-            {
+            } else if let Some(notice) = notice.filter(|message| !message.trim().is_empty()) {
                 state.show_notice(notice);
             }
         }

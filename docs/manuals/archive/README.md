@@ -1,6 +1,6 @@
 # Esterian Conquest Manuals
 
-_Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
+_Inspired by Esterian Conquest (c) 1992.
 A fan-built resurrection -- not affiliated with the original._
 
 These are archival transcriptions and reference notes derived from the

@@ -308,7 +308,7 @@ fn fake_server(index: usize) -> String {
         "war-room.example.net",
         "bbs-gate.internal",
         "nostr-hub.example.org",
-        "griffith-lane.example.com",
+        "frontier-lane.example.com",
     ];
     let host = hosts[index % hosts.len()];
     if index % 4 == 0 {

@@ -186,12 +186,26 @@ impl App {
         event: &winit::event::KeyEvent,
         modifiers: ModifiersState,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        tracing::debug!(
+            view = self.view_name(),
+            logical_key = ?event.logical_key,
+            text = event.text.as_deref().unwrap_or(""),
+            pressed = is_key_press(event),
+            modifiers = ?modifiers,
+            "nc-connect GUI key event received"
+        );
         if is_paste_shortcut(event, modifiers) {
+            tracing::debug!("nc-connect GUI paste shortcut received");
             self.handle_paste()?;
             return Ok(());
         }
 
         if let AppView::Live(live) = &mut self.view {
+            tracing::debug!(
+                idle_ms = live.terminal.idle_for().as_millis() as u64,
+                selection_drag = live.terminal.selection_drag_active(),
+                "nc-connect live view handling key event"
+            );
             if live
                 .terminal
                 .handle_key(event, modifiers, &mut self.clipboard)?
@@ -471,6 +485,15 @@ impl App {
                 self.view = other;
                 panic!("attempted to take live view while not in live session");
             }
+        }
+    }
+
+    fn view_name(&self) -> &'static str {
+        match &self.view {
+            AppView::Empty => "empty",
+            AppView::Password(_) => "password",
+            AppView::Picker(_) => "picker",
+            AppView::Live(_) => "live",
         }
     }
 }

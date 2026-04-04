@@ -7,6 +7,7 @@ mod terminal;
 
 use std::env;
 
+use crate::config::load_config;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -24,6 +25,7 @@ const WINDOW_TITLE: &str = "Nostrian Conquest";
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     parse_launch_args(env::args().skip(1))?;
+    init_gui_logging();
     let event_loop = EventLoop::new()?;
     let logical_width = f64::from(TERM_COLS) * CELL_WIDTH as f64;
     let logical_height = f64::from(TERM_ROWS) * CELL_HEIGHT as f64;
@@ -50,6 +52,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 WindowEvent::ModifiersChanged(new_modifiers) => {
                     modifiers = new_modifiers.state();
+                }
+                WindowEvent::Focused(focused) => {
+                    tracing::debug!(focused, "nc-connect window focus changed");
+                }
+                WindowEvent::Occluded(occluded) => {
+                    tracing::debug!(occluded, "nc-connect window occlusion changed");
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     if let Err(err) = app.handle_mouse_move(position) {
@@ -106,6 +114,28 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     })?;
 
     Ok(())
+}
+
+fn init_gui_logging() {
+    let Ok(config) = load_config() else {
+        return;
+    };
+    let Some(log_file) = config.log_file.as_deref() else {
+        return;
+    };
+    let log_level = config.effective_log_level();
+    match nc_log::init_file_logging(log_file, log_level) {
+        Ok(()) => tracing::info!(
+            log_file = %log_file.display(),
+            level = ?log_level,
+            "nc-connect GUI logging initialized"
+        ),
+        Err(err) => eprintln!(
+            "warning: unable to initialize nc-connect GUI logging at {}: {}",
+            log_file.display(),
+            err
+        ),
+    }
 }
 
 fn parse_launch_args(

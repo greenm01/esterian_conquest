@@ -15,6 +15,8 @@ ssh-host "play.example.com"
 ssh-port 22
 ssh-user "ecgame"
 nc-game-path "/opt/ec/bin/nc-game"
+nc-game-log-file "/var/log/nc-game.log"
+nc-game-log-level "debug"
 auth-keys-method "command"
 auth-keys-path "/var/lib/nc-gate/keys"
 key-ttl 60
@@ -35,6 +37,11 @@ fn parse_canonical_config() {
     assert_eq!(cfg.ssh_port, 22);
     assert_eq!(cfg.ssh_user, "ecgame");
     assert_eq!(cfg.nc_game_path, PathBuf::from("/opt/ec/bin/nc-game"));
+    assert_eq!(
+        cfg.nc_game_log_file,
+        Some(PathBuf::from("/var/log/nc-game.log"))
+    );
+    assert_eq!(cfg.nc_game_log_level, Some(nc_log::LogLevel::Debug));
     assert_eq!(cfg.auth_keys_method, AuthKeysMethod::Command);
     assert_eq!(cfg.auth_keys_path, PathBuf::from("/var/lib/nc-gate/keys"));
     assert_eq!(cfg.key_ttl, 60);
@@ -63,6 +70,8 @@ game "/srv/ec/game1"
     assert_eq!(cfg.auth_keys_method, AuthKeysMethod::File);
     assert_eq!(cfg.ssh_port, 2222);
     assert_eq!(cfg.nc_game_path, PathBuf::from(DEFAULT_NC_GAME_PATH));
+    assert!(cfg.nc_game_log_file.is_none());
+    assert!(cfg.nc_game_log_level.is_none());
     assert_eq!(cfg.key_ttl, 120);
     assert_eq!(cfg.games, vec![PathBuf::from("/srv/ec/game1")]);
 }
@@ -151,6 +160,24 @@ game "/srv/ec/game1"
 }
 
 #[test]
+fn parse_invalid_nc_game_log_level_is_error() {
+    let kdl = r#"
+relay "wss://r.example.com"
+ssh-host "h.example.com"
+ssh-port 22
+ssh-user "ecgame"
+nc-game-log-level "loud"
+auth-keys-method "command"
+auth-keys-path "/var/lib/nc-gate/keys"
+key-ttl 60
+game "/srv/ec/game1"
+"#;
+    let result = parse_config_str(kdl);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("nc-game-log-level"));
+}
+
+#[test]
 fn parse_invalid_kdl_syntax_is_error() {
     let result = parse_config_str("this is not { valid kdl }}}");
     assert!(result.is_err());
@@ -187,6 +214,7 @@ fn render_and_save_config_round_trip() {
     assert_eq!(round_trip.relay, cfg.relay);
     assert_eq!(round_trip.games, cfg.games);
     assert!(rendered.contains("relay \"wss://relay.example.com\""));
+    assert!(rendered.contains("nc-game-log-file \"/var/log/nc-game.log\""));
     assert!(rendered.contains("game \"/srv/ec/friday-night\""));
 
     fs::remove_file(&path).ok();

@@ -33,6 +33,8 @@ fn config_command(auth_keys_path: PathBuf) -> GateConfig {
         ssh_port: 22,
         ssh_user: "ecgame".to_string(),
         nc_game_path: PathBuf::from(DEFAULT_NC_GAME_PATH),
+        nc_game_log_file: None,
+        nc_game_log_level: None,
         auth_keys_method: AuthKeysMethod::Command,
         auth_keys_path,
         key_ttl: 60,
@@ -47,6 +49,8 @@ fn config_file(auth_keys_path: PathBuf) -> GateConfig {
         ssh_port: 22,
         ssh_user: "ecgame".to_string(),
         nc_game_path: PathBuf::from(DEFAULT_NC_GAME_PATH),
+        nc_game_log_file: None,
+        nc_game_log_level: None,
         auth_keys_method: AuthKeysMethod::File,
         auth_keys_path,
         key_ttl: 60,
@@ -151,7 +155,7 @@ fn command_key_entry_has_command_restriction() {
     assert!(
         provisioned
             .entry
-            .contains(&format!(r#"command="exec {}"#, DEFAULT_NC_GAME_PATH)),
+            .contains(&format!(r#"command="exec '{}'"#, DEFAULT_NC_GAME_PATH)),
         "entry should exec nc-game directly so ssh exits back to nc-connect"
     );
     assert!(
@@ -161,7 +165,7 @@ fn command_key_entry_has_command_restriction() {
     assert!(
         provisioned
             .entry
-            .contains("--session-token session-test-token"),
+            .contains("--session-token 'session-test-token'"),
         "entry should contain the DB-backed session token"
     );
     assert!(
@@ -197,8 +201,32 @@ fn command_key_entry_includes_hosted_invite_code_when_present() {
     assert!(
         provisioned
             .entry
-            .contains("--hosted-invite-code velvet-mountain")
+            .contains("--hosted-invite-code 'velvet-mountain'")
     );
+}
+
+#[test]
+fn command_key_entry_exports_nc_game_log_env_when_configured() {
+    let dir = temp_dir();
+    let mut config = config_command(dir.join("keys"));
+    config.nc_game_log_file = Some(PathBuf::from("/var/log/nc-game audit.log"));
+    config.nc_game_log_level = Some(nc_log::LogLevel::Trace);
+    let game_dir = PathBuf::from(GAME_DIR);
+
+    let provisioned = provision(
+        &config,
+        &seat("friday-night", 2),
+        TEST_SSH_PUBKEY,
+        &game_dir,
+    );
+
+    assert!(
+        provisioned
+            .entry
+            .contains("NC_GAME_LOG_FILE='/var/log/nc-game audit.log'")
+    );
+    assert!(provisioned.entry.contains("NC_GAME_LOG_LEVEL='trace'"));
+    assert!(provisioned.entry.contains("exec '/usr/local/bin/nc-game'"));
 }
 
 #[test]

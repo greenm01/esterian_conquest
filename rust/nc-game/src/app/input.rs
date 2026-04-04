@@ -340,4 +340,45 @@ impl App {
         }
         Some(Action::Planet(PlanetAction::ClearCommissionDismissKey))
     }
+
+    pub(crate) fn active_navigation_guards(&self) -> Vec<&'static str> {
+        let mut guards = Vec::new();
+        if self.popup_help.is_some() {
+            guards.push("popup_help");
+        }
+        if self.quit_confirm_open {
+            guards.push("quit_confirm");
+        }
+        if self.planet.commission_result_dismiss_key.is_some() {
+            guards.push("commission_result_dismiss_latch");
+        }
+        if self.inline_planet_transport_prompt_active_on_current_screen() {
+            guards.push("planet_transport_prompt");
+        }
+        if self.inline_planet_tax_active_on_current_screen() {
+            guards.push("planet_tax_prompt");
+        }
+        if self.inline_planet_auto_commission_active_on_current_screen() {
+            guards.push("planet_auto_commission_prompt");
+        }
+        if self.inline_planet_scorch_prompt_active_on_current_screen() {
+            guards.push("planet_scorch_prompt");
+        }
+        if self.inline_planet_build_abort_active_on_current_screen() {
+            guards.push("planet_build_abort_prompt");
+        }
+        if self.inline_delete_reviewables_active_on_current_screen() {
+            guards.push("delete_reviewables_prompt");
+        }
+        if self.inline_planet_info_active_on_current_screen() {
+            guards.push("planet_info_prompt");
+        }
+        if self.inline_fleet_menu_prompt_active_on_current_screen() {
+            guards.push("fleet_menu_prompt");
+        }
+        if self.inline_starbase_move_prompt_active_on_current_screen() {
+            guards.push("starbase_move_prompt");
+        }
+        guards
+    }
 }

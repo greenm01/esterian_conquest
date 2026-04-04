@@ -219,6 +219,23 @@ pub fn parse_config_str(kdl: &str) -> Result<ConnectConfig, Box<dyn std::error::
                         .map_err(|_| format!("lock-timeout-minutes out of range: {minutes}"))?,
                 );
             }
+            "log-file" => {
+                let path = node
+                    .get(0usize)
+                    .and_then(|v| v.as_string())
+                    .ok_or("log-file node requires a string argument")?;
+                config.log_file = Some(PathBuf::from(path));
+            }
+            "log-level" => {
+                let level = node
+                    .get(0usize)
+                    .and_then(|v| v.as_string())
+                    .ok_or("log-level node requires a string argument")?;
+                config.log_level = Some(
+                    nc_log::LogLevel::parse(level)
+                        .map_err(|err| format!("log-level node rejected: {err}"))?,
+                );
+            }
             // Unknown nodes are silently ignored for forward compatibility.
             _ => {}
         }
@@ -274,6 +291,24 @@ pub fn render_config(config: &ConnectConfig) -> String {
     }
     if let Some(minutes) = config.lock_timeout_minutes {
         out.push_str(&format!("lock-timeout-minutes {minutes}\n"));
+    }
+    if let Some(log_file) = &config.log_file {
+        out.push_str(&format!(
+            "log-file \"{}\"\n",
+            kdl_escape(&log_file.to_string_lossy())
+        ));
+    }
+    if let Some(log_level) = config.log_level {
+        out.push_str(&format!(
+            "log-level \"{}\"\n",
+            match log_level {
+                nc_log::LogLevel::Error => "error",
+                nc_log::LogLevel::Warn => "warn",
+                nc_log::LogLevel::Info => "info",
+                nc_log::LogLevel::Debug => "debug",
+                nc_log::LogLevel::Trace => "trace",
+            }
+        ));
     }
     out
 }

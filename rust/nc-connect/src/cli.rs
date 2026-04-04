@@ -545,8 +545,7 @@ pub fn successful_session_handoff_lines(outcome: &SessionOutcome) -> Option<Vec<
             if let Some(path) = maps_saved_to {
                 lines.push(format!("Maps downloaded to {}", path.display()));
             }
-            lines.push("For Griffith and glory.".to_string());
-            Some(lines)
+            if lines.is_empty() { None } else { Some(lines) }
         }
         _ => None,
     }
@@ -554,7 +553,7 @@ pub fn successful_session_handoff_lines(outcome: &SessionOutcome) -> Option<Vec<
 
 #[doc(hidden)]
 pub fn picker_exit_lines() -> Vec<String> {
-    vec!["For Griffith and glory.".to_string()]
+    vec![]
 }
 
 fn emit_picker_exit_lines() {

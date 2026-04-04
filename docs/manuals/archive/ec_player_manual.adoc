@@ -6,7 +6,7 @@ Player Manual
 :chapter-refsig: Chapter
 :pdf-page-size: Letter
 :pdf-theme: default
-:author: Inspired by Bentley C. Griffith (1992). Rust port by Mason A. Green (2026)
+:author: Rust port by Mason A. Green (2026)
 :revdate: 2026
 
 [titlepage]
@@ -35,8 +35,6 @@ Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy of 
 You rise as one of the new Star Masters. From a single world and a few small fleets, you must tax, build, scout, bargain, threaten, and strike before rival powers can do the same. Some systems will join your banner willingly. Others will require persuasion from orbit.
 
 Each maintenance marks the passage of a year. In that span, fleets cross the dark between stars, colonies grow or starve, alliances turn cold, and wars are decided by distance, industry, mathematics, and will.
-
-In profound respect and admiration to Bentley C. Griffith and his fellow pioneers, who between 1990 and 1992 forged the enduring legend of Esterian Conquest, and to the ancient dreamers, strategists, and storytellers whose timeless visions of galactic dominion still light the way among these stars.
 
 Rust port by Mason A. Green, 2026.
 
@@ -445,7 +443,7 @@ WARNING: Stardock contents are a prime target for enemy bombardment. Commission 
 == Historical Context
 
 **The BBS Era (1990-1992)**
-Esterian Conquest was created by Bentley C. Griffith between 1990 and 1992 as a "door game" for Bulletin Board Systems. In an era before the World Wide Web, players dialed into servers over phone lines to play strategy games against dozens of strangers. Everything ran through rigid 80x25 text terminals -- every menu, every star map, every battle report squeezed into that tiny viewport. EC stood alongside classics like *TradeWars 2022* and *Solar Realms Elite*, but was distinguished by its depth, its hands-off design, and the sheer scale of its campaigns.
+Esterian Conquest was created between 1990 and 1992 as a "door game" for Bulletin Board Systems. In an era before the World Wide Web, players dialed into servers over phone lines to play strategy games against dozens of strangers. Everything ran through rigid 80x25 text terminals -- every menu, every star map, every battle report squeezed into that tiny viewport. EC stood alongside classics like *TradeWars 2022* and *Solar Realms Elite*, but was distinguished by its depth, its hands-off design, and the sheer scale of its campaigns.
 
 **What Made It Special**
 Most multiplayer games of the era demanded constant attention. Esterian Conquest was different. You checked in once a day, submitted your orders, and went about your life. Overnight, the engine processed every empire simultaneously -- fleets moved, economies grew, battles resolved, and alliances were tested. When you logged in the next day, a stack of reports was waiting. Campaigns ran for months, and the stories they produced -- surprise invasions, desperate blockades, betrayals at the worst possible moment -- were the kind that stuck with players for years.

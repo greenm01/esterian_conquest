@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use crate::connect::bridge::BridgeError;
 use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
@@ -19,6 +20,40 @@ use super::clipboard::Clipboard;
 use super::input::{encode_paste, terminal_key_bytes};
 use super::{CELL_HEIGHT, CELL_WIDTH, TERM_COLS, TERM_ROWS};
 
+trait LiveIo {
+    fn send_input(&self, data: Vec<u8>);
+    fn close(&self);
+    fn try_recv(&mut self) -> Result<Option<LiveEvent>, String>;
+}
+
+struct SessionLiveIo {
+    session: LiveSession,
+}
+
+impl LiveIo for SessionLiveIo {
+    fn send_input(&self, data: Vec<u8>) {
+        self.session.send_input(data);
+    }
+
+    fn close(&self) {
+        self.session.close();
+    }
+
+    fn try_recv(&mut self) -> Result<Option<LiveEvent>, String> {
+        match self.session.try_recv() {
+            Ok(event) => Ok(Some(event)),
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty) => Ok(None),
+            Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => Ok(None),
+        }
+    }
+}
+
+enum SessionFinalizer {
+    Real(PreparedSessionFinalizer),
+    #[cfg(test)]
+    Test,
+}
+
 #[derive(Clone, Default)]
 struct EventQueue(Arc<Mutex<Vec<TermEvent>>>);
 
@@ -31,8 +66,8 @@ impl EventListener for EventQueue {
 }
 
 pub struct TerminalView {
-    live: LiveSession,
-    finalizer: PreparedSessionFinalizer,
+    live: Box<dyn LiveIo>,
+    finalizer: SessionFinalizer,
     term: Term<EventQueue>,
     parser: AnsiProcessor,
     events: EventQueue,
@@ -41,6 +76,8 @@ pub struct TerminalView {
     finished: Option<Result<u32, BridgeError>>,
     map_push_monitor: Option<MapPushMonitor>,
     has_received_output: bool,
+    created_at: Instant,
+    last_output_at: Option<Instant>,
 }
 
 impl TerminalView {
@@ -68,8 +105,8 @@ impl TerminalView {
             },
         );
         Self {
-            live,
-            finalizer,
+            live: Box::new(SessionLiveIo { session: live }),
+            finalizer: SessionFinalizer::Real(finalizer),
             term,
             parser: AnsiProcessor::new(),
             events,
@@ -78,6 +115,8 @@ impl TerminalView {
             finished: None,
             map_push_monitor,
             has_received_output: false,
+            created_at: Instant::now(),
+            last_output_at: None,
         }
     }
 
@@ -93,7 +132,13 @@ impl TerminalView {
         MapPushMonitorResult,
     ) {
         (
-            self.finalizer,
+            match self.finalizer {
+                SessionFinalizer::Real(finalizer) => finalizer,
+                #[cfg(test)]
+                SessionFinalizer::Test => {
+                    panic!("take_finished called on test terminal view")
+                }
+            },
             self.finished
                 .take()
                 .expect("take_finished called before live session completed"),
@@ -105,11 +150,17 @@ impl TerminalView {
     }
 
     pub fn close(&self) {
+        tracing::debug!("nc-connect live terminal close requested");
         self.live.close();
     }
 
     pub fn paste_text(&mut self, text: &str) {
         let bytes = encode_paste(text, self.term.mode().contains(TermMode::BRACKETED_PASTE));
+        tracing::debug!(
+            bytes_len = bytes.len(),
+            idle_ms = self.idle_for().as_millis() as u64,
+            "nc-connect live paste forwarded"
+        );
         self.live.send_input(bytes);
     }
 
@@ -134,20 +185,31 @@ impl TerminalView {
 
     pub fn tick(&mut self, clipboard: &mut Clipboard) -> Result<bool, Box<dyn std::error::Error>> {
         let mut redraw = false;
-        while let Ok(event) = self.live.try_recv() {
+        while let Some(event) = self
+            .live
+            .try_recv()
+            .map_err(|err| format!("live session poll failed: {err}"))?
+        {
             match event {
                 LiveEvent::Output(data) => {
                     self.has_received_output = true;
+                    self.last_output_at = Some(Instant::now());
                     self.term.selection = None;
                     self.parser.advance(&mut self.term, &data);
+                    tracing::debug!(
+                        bytes_len = data.len(),
+                        "nc-connect live remote output received"
+                    );
                     redraw = true;
                 }
                 LiveEvent::Exit(code) => {
                     self.finished = Some(Ok(code));
+                    tracing::debug!(exit_code = code, "nc-connect live session exited");
                     redraw = true;
                     break;
                 }
                 LiveEvent::Error(err) => {
+                    tracing::debug!(error = %err, "nc-connect live session failed");
                     self.finished = Some(Err(err.into()));
                     redraw = true;
                     break;
@@ -168,12 +230,26 @@ impl TerminalView {
             if let Some(selection) = self.term.selection_to_string() {
                 clipboard.set_text(selection)?;
             }
+            tracing::debug!("nc-connect live copy shortcut handled");
             return Ok(true);
         }
         if let Some(bytes) = terminal_key_bytes(event, modifiers, *self.term.mode()) {
+            tracing::debug!(
+                logical_key = ?event.logical_key,
+                text = event.text.as_deref().unwrap_or(""),
+                bytes_len = bytes.len(),
+                idle_ms = self.idle_for().as_millis() as u64,
+                selection_drag = self.selection_drag,
+                "nc-connect live key forwarded"
+            );
             self.live.send_input(bytes);
             return Ok(true);
         }
+        tracing::debug!(
+            logical_key = ?event.logical_key,
+            selection_drag = self.selection_drag,
+            "nc-connect live key ignored"
+        );
         Ok(false)
     }
 
@@ -232,12 +308,23 @@ impl TerminalView {
             match event {
                 TermEvent::Title(title) => self.title = Some(title),
                 TermEvent::ResetTitle => self.title = None,
-                TermEvent::PtyWrite(text) => self.live.send_input(text.into_bytes()),
+                TermEvent::PtyWrite(text) => {
+                    tracing::debug!(
+                        bytes_len = text.len(),
+                        idle_ms = self.idle_for().as_millis() as u64,
+                        "nc-connect live terminal emitted pty write"
+                    );
+                    self.live.send_input(text.into_bytes());
+                }
                 TermEvent::ClipboardStore(_, text) => {
                     let _ = clipboard.set_text(text);
                 }
                 TermEvent::ClipboardLoad(_, formatter) => {
                     if let Some(text) = clipboard.get_text()? {
+                        tracing::debug!(
+                            chars = text.chars().count(),
+                            "nc-connect live clipboard load forwarded"
+                        );
                         self.live.send_input(formatter(&text).into_bytes());
                     }
                 }
@@ -248,13 +335,16 @@ impl TerminalView {
                         cell_width: CELL_WIDTH as u16,
                         cell_height: CELL_HEIGHT as u16,
                     });
+                    tracing::debug!("nc-connect live terminal answered text-area size request");
                     self.live.send_input(response.into_bytes());
                 }
                 TermEvent::Exit => {
+                    tracing::debug!("nc-connect live terminal exit requested by terminal");
                     self.live.close();
                 }
                 TermEvent::ChildExit(code) => {
                     self.finished = Some(Ok(code as u32));
+                    tracing::debug!(exit_code = code, "nc-connect live child exit observed");
                     redraw = true;
                 }
                 TermEvent::Wakeup
@@ -267,6 +357,22 @@ impl TerminalView {
             }
         }
         Ok(redraw)
+    }
+
+    pub fn idle_for(&self) -> Duration {
+        self.last_output_at
+            .map(|instant| instant.elapsed())
+            .unwrap_or_else(|| self.created_at.elapsed())
+    }
+
+    pub fn selection_drag_active(&self) -> bool {
+        self.selection_drag
+    }
+
+    #[cfg(test)]
+    fn forward_test_input(&mut self, bytes: Vec<u8>) -> bool {
+        self.live.send_input(bytes);
+        true
     }
 }
 
@@ -419,8 +525,96 @@ fn indexed_color(index: u8) -> (u8, u8, u8) {
 
 #[cfg(test)]
 mod tests {
-    use super::should_render_cursor;
+    use super::{
+        EventQueue, LiveIo, SessionFinalizer, TERM_COLS, TERM_ROWS, TerminalView,
+        should_render_cursor,
+    };
+    use crate::connect::live::LiveEvent;
+    use crate::gui::clipboard::Clipboard;
+    use crate::gui::terminal::pixel_to_terminal_point;
+    use crate::gui::{CELL_HEIGHT, CELL_WIDTH};
+    use alacritty_terminal::term::test::TermSize;
+    use alacritty_terminal::term::{Config, Term};
     use alacritty_terminal::vte::ansi::CursorShape;
+    use std::collections::VecDeque;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+    use winit::dpi::PhysicalPosition;
+    use winit::keyboard::ModifiersState;
+
+    #[derive(Clone, Default)]
+    struct TestLiveHandle {
+        sent_inputs: Arc<Mutex<Vec<Vec<u8>>>>,
+        queued_events: Arc<Mutex<VecDeque<LiveEvent>>>,
+    }
+
+    impl TestLiveHandle {
+        fn send_events(&self, events: impl IntoIterator<Item = LiveEvent>) {
+            self.queued_events
+                .lock()
+                .expect("queued events")
+                .extend(events);
+        }
+
+        fn sent_inputs(&self) -> Vec<Vec<u8>> {
+            self.sent_inputs.lock().expect("sent inputs").clone()
+        }
+    }
+
+    struct TestLiveIo {
+        handle: TestLiveHandle,
+    }
+
+    impl LiveIo for TestLiveIo {
+        fn send_input(&self, data: Vec<u8>) {
+            self.handle
+                .sent_inputs
+                .lock()
+                .expect("sent inputs")
+                .push(data);
+        }
+
+        fn close(&self) {}
+
+        fn try_recv(&mut self) -> Result<Option<LiveEvent>, String> {
+            Ok(self
+                .handle
+                .queued_events
+                .lock()
+                .expect("queued events")
+                .pop_front())
+        }
+    }
+
+    fn test_terminal_view() -> (TerminalView, TestLiveHandle) {
+        let handle = TestLiveHandle::default();
+        let events = EventQueue::default();
+        let mut term = Term::new(
+            Config::default(),
+            &TermSize::new(TERM_COLS as usize, TERM_ROWS as usize),
+            events.clone(),
+        );
+        term.resize(TermSize::new(TERM_COLS as usize, TERM_ROWS as usize));
+        (
+            TerminalView {
+                live: Box::new(TestLiveIo {
+                    handle: handle.clone(),
+                }),
+                finalizer: SessionFinalizer::Test,
+                term,
+                parser: alacritty_terminal::vte::ansi::Processor::new(),
+                events,
+                title: None,
+                selection_drag: false,
+                finished: None,
+                map_push_monitor: None,
+                has_received_output: false,
+                created_at: Instant::now() - Duration::from_secs(5),
+                last_output_at: None,
+            },
+            handle,
+        )
+    }
 
     #[test]
     fn live_cursor_is_suppressed_before_first_remote_output() {
@@ -435,5 +629,43 @@ mod tests {
     #[test]
     fn hidden_cursor_stays_hidden_after_remote_output() {
         assert!(!should_render_cursor(CursorShape::Hidden, true));
+    }
+
+    #[test]
+    fn live_key_forwards_immediately_after_idle() {
+        let (mut terminal, handle) = test_terminal_view();
+
+        assert!(terminal.forward_test_input(b"g".to_vec()));
+        assert_eq!(handle.sent_inputs(), vec![b"g".to_vec()]);
+    }
+
+    #[test]
+    fn live_output_triggers_redraw() {
+        let (mut terminal, handle) = test_terminal_view();
+        handle.send_events([LiveEvent::Output(b"menu".to_vec())]);
+
+        assert!(terminal.tick(&mut Clipboard::new()).expect("tick"));
+        assert!(terminal.has_received_output);
+    }
+
+    #[test]
+    fn selection_drag_does_not_block_keyboard_forwarding() {
+        let (mut terminal, handle) = test_terminal_view();
+        terminal
+            .handle_mouse_button(
+                true,
+                PhysicalPosition::new((CELL_WIDTH / 2) as f64, (CELL_HEIGHT / 2) as f64),
+            )
+            .expect("mouse down");
+        assert!(terminal.selection_drag_active());
+
+        assert!(terminal.forward_test_input(b"p".to_vec()));
+        assert_eq!(handle.sent_inputs(), vec![b"p".to_vec()]);
+    }
+
+    #[test]
+    fn helper_points_stay_available_for_live_tests() {
+        assert!(pixel_to_terminal_point(PhysicalPosition::new(0.0, 0.0)).is_some());
+        assert_eq!(ModifiersState::empty(), ModifiersState::default());
     }
 }

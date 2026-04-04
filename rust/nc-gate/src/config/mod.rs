@@ -34,6 +34,10 @@ pub struct GateConfig {
     pub ssh_user: String,
     /// Path to the `nc-game` binary used in forced-command SSH entries.
     pub nc_game_path: PathBuf,
+    /// Optional hosted-session nc-game log file.
+    pub nc_game_log_file: Option<PathBuf>,
+    /// Optional hosted-session nc-game log level.
+    pub nc_game_log_level: Option<nc_log::LogLevel>,
     /// How ephemeral authorized keys are stored.
     pub auth_keys_method: AuthKeysMethod,
     /// Path to the authorized keys file or directory.

@@ -79,6 +79,8 @@ fn gate_config_command(keys_dir: PathBuf) -> GateConfig {
         ssh_port: 22,
         ssh_user: "ecgame".to_string(),
         nc_game_path: PathBuf::from(DEFAULT_NC_GAME_PATH),
+        nc_game_log_file: None,
+        nc_game_log_level: None,
         auth_keys_method: AuthKeysMethod::Command,
         auth_keys_path: keys_dir,
         key_ttl: 60,
