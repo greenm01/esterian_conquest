@@ -92,8 +92,21 @@ impl App {
         let ScreenId::FleetList = self.current_screen else {
             return Err("Fleet list is not active.".to_string());
         };
-        self.fleet_list_rows()
-            .get(self.fleet.cursor)
+        let rows = self.fleet_list_rows();
+        if rows.is_empty() {
+            return Err("You have no active fleets.".to_string());
+        }
+        let input = self.fleet.list_input.trim();
+        if !input.is_empty() {
+            let fleet_number = input
+                .parse::<u16>()
+                .map_err(|_| "Enter a fleet number from the table.".to_string())?;
+            return rows
+                .into_iter()
+                .find(|row| row.fleet_number == fleet_number)
+                .ok_or_else(|| format!("Fleet #{fleet_number} is not in your fleet list."));
+        }
+        rows.get(self.fleet.cursor)
             .cloned()
             .ok_or_else(|| "You have no active fleets.".to_string())
     }
@@ -910,6 +923,7 @@ impl App {
                 order_label: fleet.standing_order_summary(),
                 composition_label: fleet.ship_composition_summary(),
                 table_composition_label: fleet.ship_composition_table_summary(),
+                fleet_list_composition_label: fleet.ship_composition_fleet_list_summary(),
             })
             .collect::<Vec<_>>();
         rows.sort_by(|left, right| {

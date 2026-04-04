@@ -251,6 +251,43 @@ fn fleet_table_summary_uses_tt_star_for_loaded_transports_only() {
 }
 
 #[test]
+fn fleet_list_summary_shows_counts_only_when_greater_than_one() {
+    let mut record = FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT"))
+        .unwrap()
+        .records[0]
+        .clone();
+    record.set_scout_count(2);
+    record.set_battleship_count(1);
+    record.set_cruiser_count(0);
+    record.set_destroyer_count(4);
+    record.set_troop_transport_count(0);
+    record.set_army_count(0);
+    record.set_etac_count(1);
+
+    assert_eq!(
+        record.ship_composition_fleet_list_summary(),
+        "2SC BB 4DD ET"
+    );
+}
+
+#[test]
+fn fleet_list_summary_splits_loaded_and_empty_transports() {
+    let mut record = FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT"))
+        .unwrap()
+        .records[0]
+        .clone();
+    record.set_scout_count(0);
+    record.set_battleship_count(0);
+    record.set_cruiser_count(0);
+    record.set_destroyer_count(0);
+    record.set_troop_transport_count(5);
+    record.set_army_count(2);
+    record.set_etac_count(0);
+
+    assert_eq!(record.ship_composition_fleet_list_summary(), "2TT* 3TT");
+}
+
+#[test]
 fn post_maintenance_matches_init_for_core_state_but_not_global_summaries() {
     assert_eq!(
         read_initialized_fixture("PLAYER.DAT"),

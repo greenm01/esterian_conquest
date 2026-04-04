@@ -2279,6 +2279,124 @@ fn fleet_list_detach_single_ship_uses_short_footer_notice() {
 }
 
 #[test]
+fn fleet_list_transfer_uses_typed_fleet_number_for_single_scout_validation() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let typed_target = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    typed_target.set_battleship_count(0);
+    typed_target.set_cruiser_count(0);
+    typed_target.set_destroyer_count(0);
+    typed_target.set_troop_transport_count(0);
+    typed_target.set_army_count(0);
+    typed_target.set_scout_count(1);
+    typed_target.set_etac_count(0);
+    typed_target.recompute_max_speed_from_composition();
+    let cursor_row = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    cursor_row.set_troop_transport_count(2);
+    cursor_row.set_scout_count(0);
+    cursor_row.set_etac_count(0);
+    cursor_row.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenList));
+    apply_action(&mut app, Action::Fleet(FleetAction::AppendListChar('1')));
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transfer typed selection error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("Use merge instead"));
+}
+
+#[test]
+fn fleet_list_detach_uses_typed_fleet_number_for_single_scout_validation() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let typed_target = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    typed_target.set_battleship_count(0);
+    typed_target.set_cruiser_count(0);
+    typed_target.set_destroyer_count(0);
+    typed_target.set_troop_transport_count(0);
+    typed_target.set_army_count(0);
+    typed_target.set_scout_count(1);
+    typed_target.set_etac_count(0);
+    typed_target.recompute_max_speed_from_composition();
+    let cursor_row = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    cursor_row.set_troop_transport_count(2);
+    cursor_row.set_scout_count(0);
+    cursor_row.set_etac_count(0);
+    cursor_row.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenList));
+    apply_action(&mut app, Action::Fleet(FleetAction::AppendListChar('1')));
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list detach typed selection error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("Unable to detach"));
+}
+
+#[test]
 fn fleet_transfer_destination_prompt_defaults_to_smallest_colocated_fleet() {
     let fixture_dir = temp_game_with_same_sector_fleets_copy();
     let mut state = latest_runtime_state(&fixture_dir);

@@ -431,6 +431,39 @@ impl FleetRecord {
         .collect()
     }
 
+    fn fleet_list_ship_composition_tokens(&self) -> Vec<String> {
+        assert!(
+            self.army_count() == 0 || self.troop_transport_count() > 0,
+            "fleet armies must be loaded in troop transports"
+        );
+
+        fn token(label: &str, count: u16) -> Option<String> {
+            match count {
+                0 => None,
+                1 => Some(label.to_string()),
+                _ => Some(format!("{count}{label}")),
+            }
+        }
+
+        let loaded_transports = self.army_count().min(self.troop_transport_count());
+        let empty_transports = self
+            .troop_transport_count()
+            .saturating_sub(loaded_transports);
+
+        [
+            token("SC", u16::from(self.scout_count())),
+            token("BB", self.battleship_count()),
+            token("CA", self.cruiser_count()),
+            token("DD", self.destroyer_count()),
+            token("TT*", loaded_transports),
+            token("TT", empty_transports),
+            token("ET", self.etac_count()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+
     pub fn ship_composition_summary(&self) -> String {
         let parts = self.counted_ship_composition_parts();
         assert!(!parts.is_empty(), "empty fleet record is not a fleet");
@@ -439,6 +472,12 @@ impl FleetRecord {
 
     pub fn ship_composition_table_summary(&self) -> String {
         let parts = self.table_ship_composition_codes();
+        assert!(!parts.is_empty(), "empty fleet record is not a fleet");
+        parts.join(" ")
+    }
+
+    pub fn ship_composition_fleet_list_summary(&self) -> String {
+        let parts = self.fleet_list_ship_composition_tokens();
         assert!(!parts.is_empty(), "empty fleet record is not a fleet");
         parts.join(" ")
     }

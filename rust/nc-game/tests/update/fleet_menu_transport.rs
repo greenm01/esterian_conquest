@@ -2415,6 +2415,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             order_label: "Hold".to_string(),
             composition_label: "CA=1".to_string(),
             table_composition_label: "CA".to_string(),
+            fleet_list_composition_label: "CA".to_string(),
         },
         FleetRow {
             fleet_record_index_1_based: 2,
@@ -2431,6 +2432,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             order_label: "Hold".to_string(),
             composition_label: "DD=1".to_string(),
             table_composition_label: "DD".to_string(),
+            fleet_list_composition_label: "DD".to_string(),
         },
         FleetRow {
             fleet_record_index_1_based: 3,
@@ -2447,6 +2449,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             order_label: "Hold".to_string(),
             composition_label: "BB=1".to_string(),
             table_composition_label: "BB".to_string(),
+            fleet_list_composition_label: "BB".to_string(),
         },
     ];
 
@@ -2489,6 +2492,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "DD=1".to_string(),
         table_composition_label: "DD".to_string(),
+        fleet_list_composition_label: "DD".to_string(),
     }];
 
     let buffer = screen
@@ -2531,6 +2535,89 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         buffer.plain_line(6),
         " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [4] ->"
     );
+}
+
+#[test]
+fn fleet_list_ships_column_shows_sparse_counted_tokens() {
+    let mut screen = nc_game::screen::FleetListScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 4,
+        coords: [8, 9],
+        target_coords: [16, 13],
+        order_code: 5,
+        current_speed: 2,
+        max_speed: 6,
+        eta_label: "3000".to_string(),
+        list_eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Guard/blockade world in System (16,13)".to_string(),
+        composition_label: "SC=2 BB=1 DD=4 AR=2 ET=1".to_string(),
+        table_composition_label: "SC BB DD TT* ET".to_string(),
+        fleet_list_composition_label: "2SC BB 4DD 2TT* ET".to_string(),
+    }];
+
+    let buffer = screen
+        .render(
+            nc_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )
+        .expect("fleet list renders");
+
+    assert!(buffer.plain_line(4).contains("2SC BB 4DD 2TT* ET"));
+}
+
+#[test]
+fn fleet_list_ships_column_truncates_by_whole_token_with_plus_marker() {
+    let mut screen = nc_game::screen::FleetListScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 4,
+        coords: [8, 9],
+        target_coords: [16, 13],
+        order_code: 5,
+        current_speed: 2,
+        max_speed: 6,
+        eta_label: "3000".to_string(),
+        list_eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Guard/blockade world in System (16,13)".to_string(),
+        composition_label: "SC=2 BB=4 CA=3 DD=5 TT=5 AR=2 ET=1".to_string(),
+        table_composition_label: "SC BB CA DD TT* TT ET".to_string(),
+        fleet_list_composition_label: "2SC 4BB 3CA 5DD 2TT* 3TT ET".to_string(),
+    }];
+
+    let buffer = screen
+        .render(
+            nc_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )
+        .expect("fleet list renders");
+
+    let ships_cell = buffer.plain_line(4);
+    assert!(ships_cell.contains("2SC 4BB 3CA 5DD 2TT* +"));
+    assert!(!ships_cell.contains("3TT"));
+    assert!(!ships_cell.contains(" ET"));
 }
 
 #[test]
@@ -2617,6 +2704,7 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
         order_label: "Move fleet to Sector (0,0)".to_string(),
         composition_label: "DD=1".to_string(),
         table_composition_label: "DD".to_string(),
+        fleet_list_composition_label: "DD".to_string(),
     }];
 
     let buffer = screen
@@ -2796,6 +2884,7 @@ fn fleet_list_load_quantity_prompt_keeps_scrollbar_gutter() {
             order_label: "Hold".to_string(),
             composition_label: "TT".to_string(),
             table_composition_label: "TT".to_string(),
+            fleet_list_composition_label: "TT".to_string(),
         })
         .collect::<Vec<_>>();
 
@@ -2909,6 +2998,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         order_label: "Move fleet to Sector (19,13)".to_string(),
         composition_label: "CA=1".to_string(),
         table_composition_label: "CA".to_string(),
+        fleet_list_composition_label: "CA".to_string(),
     };
 
     let buffer = screen

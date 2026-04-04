@@ -92,6 +92,7 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
             order_label: "Patrol".to_string(),
             composition_label: "SC=1".to_string(),
             table_composition_label: "SC".to_string(),
+            fleet_list_composition_label: "SC".to_string(),
         })
         .collect::<Vec<_>>();
     let mut screen = FleetGroupScreen::new();

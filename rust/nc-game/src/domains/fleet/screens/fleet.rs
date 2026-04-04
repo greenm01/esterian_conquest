@@ -71,6 +71,41 @@ fn fleet_list_dismiss_prompt(geometry: ScreenGeometry, table_col: usize, message
     format!("{prefix} {}", truncate_to_width(message, message_width))
 }
 
+fn fit_fleet_list_ships_summary(summary: &str, width: usize) -> String {
+    if summary.chars().count() <= width {
+        return summary.to_string();
+    }
+    if width == 0 {
+        return String::new();
+    }
+
+    let mut kept = Vec::new();
+    let mut used_width = 0usize;
+    for token in summary.split_whitespace() {
+        let token_width = token.chars().count();
+        let separator_width = usize::from(!kept.is_empty());
+        if used_width + separator_width + token_width > width {
+            break;
+        }
+        used_width += separator_width + token_width;
+        kept.push(token);
+    }
+
+    if kept.is_empty() {
+        return "+".to_string();
+    }
+
+    while !kept.is_empty() {
+        let joined = kept.join(" ");
+        if joined.chars().count() + 2 <= width {
+            return format!("{joined} +");
+        }
+        kept.pop();
+    }
+
+    "+".to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
     pub fleet_record_index_1_based: usize,
@@ -87,6 +122,7 @@ pub struct FleetRow {
     pub order_label: String,
     pub composition_label: String,
     pub table_composition_label: String,
+    pub fleet_list_composition_label: String,
 }
 
 pub struct FleetMenuScreen;
@@ -426,6 +462,11 @@ impl FleetListScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         let max_fleet_number = max_fleet_number(rows);
+        let columns = full_columns(max_fleet_number);
+        let ships_width = columns
+            .last()
+            .map(|column| column.width)
+            .unwrap_or_default();
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -438,7 +479,7 @@ impl FleetListScreen {
                     row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
                     row.loaded_armies.to_string(),
-                    row.table_composition_label.clone(),
+                    fit_fleet_list_ships_summary(&row.fleet_list_composition_label, ships_width),
                 ]
             })
             .collect::<Vec<_>>();
@@ -485,7 +526,6 @@ impl FleetListScreen {
                 input,
             }
         };
-        let columns = full_columns(max_fleet_number);
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
