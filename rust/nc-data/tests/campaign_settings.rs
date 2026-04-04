@@ -124,10 +124,7 @@ fn session_leases_allow_same_identity_retries_and_expire() {
         .create_pending_session_lease("token-4", 2, "npub-player-1", 121, 60)
         .expect("same-identity active retry should replace the old lease");
     assert_eq!(retried_active.session_token, "token-4");
-    assert_eq!(
-        retried_active.state,
-        nc_data::SessionLeaseState::PendingSsh
-    );
+    assert_eq!(retried_active.state, nc_data::SessionLeaseState::PendingSsh);
     assert!(matches!(
         store.load_session_lease("token-2", 121),
         Err(nc_data::SessionLeaseError::InvalidToken)
