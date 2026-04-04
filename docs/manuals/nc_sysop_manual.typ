@@ -61,9 +61,9 @@
   #v(1em)
   #text(size: 10pt, style: "italic")[A from-scratch Rust recreation inspired by the classic 1990s BBS door game Esterian Conquest.]
   #v(2em)
-  #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
+  #text(size: 11pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
   #v(0.5em)
-  #text(size: 11pt, fill: luma(120))[Revision date: April 2, 2026]
+  #text(size: 11pt, fill: luma(120))[Revision date: April 4, 2026]
 ]
 
 #pagebreak()

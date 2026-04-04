@@ -73,9 +73,9 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 2, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 4, 2026]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.1 — Beta]
+  #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
 ]
 
 #pagebreak()

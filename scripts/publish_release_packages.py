@@ -101,6 +101,13 @@ def capture(argv: list[str], *, cwd: Path | None = None) -> str:
     return run(argv, cwd=cwd, capture_output=True).stdout
 
 
+def list_release_assets(release_tag: str) -> list[str]:
+    output = capture(
+        ["gh", "release", "view", release_tag, "--json", "assets", "--jq", ".assets[].name"]
+    )
+    return [line.strip() for line in output.splitlines() if line.strip()]
+
+
 def selected_dos_variants(args: argparse.Namespace) -> list[str]:
     variants = list(args.variant or [])
     if variants or args.nc_connect_target or args.sysop_target:
@@ -189,17 +196,19 @@ def download_existing_nc_connect_assets(
 
 def download_existing_public_rust_assets(
     release_tag: str,
+    current_version: str,
     selected_names: set[str],
     download_dir: Path,
 ) -> list[Path]:
-    output = capture(
-        ["gh", "release", "view", release_tag, "--json", "assets", "--jq", ".assets[].name"]
-    )
-    asset_names = [line.strip() for line in output.splitlines() if line.strip()]
     downloaded: list[Path] = []
-    for asset_name in asset_names:
+    current_marker = f"-v{current_version}-"
+    for asset_name in list_release_assets(release_tag):
         matches_public_rust = EC_CONNECT_ARCHIVE_RE.match(asset_name) or SYSOP_ARCHIVE_RE.match(asset_name)
-        if asset_name in selected_names or not matches_public_rust:
+        if (
+            asset_name in selected_names
+            or not matches_public_rust
+            or current_marker not in asset_name
+        ):
             continue
         run(
             [
@@ -215,6 +224,15 @@ def download_existing_public_rust_assets(
         )
         downloaded.append(download_dir / asset_name)
     return downloaded
+
+
+def prune_stale_public_rust_assets(release_tag: str, current_version: str) -> None:
+    current_marker = f"-v{current_version}-"
+    for asset_name in list_release_assets(release_tag):
+        matches_public_rust = EC_CONNECT_ARCHIVE_RE.match(asset_name) or SYSOP_ARCHIVE_RE.match(asset_name)
+        if not matches_public_rust or current_marker in asset_name:
+            continue
+        run(["gh", "release", "delete-asset", release_tag, asset_name, "--yes"])
 
 
 def write_checksum_manifest(output_path: Path, assets: list[Path]) -> None:
@@ -297,6 +315,7 @@ def upload_assets(release_tag: str, assets: list[Path]) -> None:
 
 def main() -> None:
     args = parse_args()
+    current_version = load_version()
     dos_variants = selected_dos_variants(args)
     nc_connect_targets = list(args.nc_connect_target or [])
     sysop_targets = list(args.sysop_target or [])
@@ -320,6 +339,7 @@ def main() -> None:
             selected_names = {asset.name for asset in public_rust_assets}
             manifest_assets = public_rust_assets + download_existing_public_rust_assets(
                 args.tag,
+                current_version,
                 selected_names,
                 download_dir,
             )
@@ -329,6 +349,7 @@ def main() -> None:
             assets.extend([CHECKSUM_PATH, SIGNATURE_PATH])
 
         upload_assets(args.tag, assets)
+        prune_stale_public_rust_assets(args.tag, current_version)
         update_release_body(args.tag)
         print(f"Updated release assets on tag: {args.tag}")
         print("Updated the release-body verification notice automatically.")

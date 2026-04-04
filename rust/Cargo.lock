@@ -2102,11 +2102,11 @@ dependencies = [
 
 [[package]]
 name = "nc-classic"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 
 [[package]]
 name = "nc-cli"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "kdl",
  "nc-compat",
@@ -2118,7 +2118,7 @@ dependencies = [
 
 [[package]]
 name = "nc-compat"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "nc-classic",
  "nc-data",
@@ -2126,7 +2126,7 @@ dependencies = [
 
 [[package]]
 name = "nc-connect"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "alacritty_terminal",
  "arboard",
@@ -2161,7 +2161,7 @@ dependencies = [
 
 [[package]]
 name = "nc-data"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "kdl",
  "nc-compat",
@@ -2172,14 +2172,14 @@ dependencies = [
 
 [[package]]
 name = "nc-engine"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "nc-data",
 ]
 
 [[package]]
 name = "nc-game"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "crossterm 0.28.1",
  "kdl",
@@ -2213,7 +2213,7 @@ dependencies = [
 
 [[package]]
 name = "nc-harness"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "kdl",
  "nc-compat",
@@ -2241,7 +2241,7 @@ dependencies = [
 
 [[package]]
 name = "nc-sysop"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "nc-data",
  "nc-engine",
@@ -2256,7 +2256,7 @@ dependencies = [
 
 [[package]]
 name = "nc-ui"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "crossterm 0.29.0",
  "kdl",
