@@ -1930,21 +1930,24 @@ impl App {
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.fleet.order_return_to_menu = false;
-        self.show_fleet_context_notice(if fleet_group_order_requires_target(mission_code) {
-            format!(
-                "Applied {} to Fleet #{} for sector [{},{}].",
-                fleet_group_order_label(mission_code),
-                selected_row.fleet_number,
-                target[0],
-                target[1]
-            )
-        } else {
-            format!(
-                "Applied {} to Fleet #{}.",
-                fleet_group_order_label(mission_code),
-                selected_row.fleet_number
-            )
-        });
+        self.show_fleet_context_success(
+            if fleet_group_order_requires_target(mission_code) {
+                format!(
+                    "Applied {} to Fleet #{} for sector [{},{}].",
+                    fleet_group_order_label(mission_code),
+                    selected_row.fleet_number,
+                    target[0],
+                    target[1]
+                )
+            } else {
+                format!(
+                    "Applied {} to Fleet #{}.",
+                    fleet_group_order_label(mission_code),
+                    selected_row.fleet_number
+                )
+            },
+            true,
+        );
         Ok(())
     }
 
@@ -1975,10 +1978,13 @@ impl App {
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.fleet.order_return_to_menu = false;
-        self.show_fleet_context_notice(format!(
-            "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
-            selected_row.fleet_number, host.fleet_number
-        ));
+        self.show_fleet_context_success(
+            format!(
+                "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
+                selected_row.fleet_number, host.fleet_number
+            ),
+            true,
+        );
         Ok(())
     }
 }

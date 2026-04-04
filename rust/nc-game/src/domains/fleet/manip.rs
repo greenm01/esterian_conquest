@@ -61,10 +61,13 @@ impl App {
             .map_err(|err| err.to_string())?;
         self.save_game_data().map_err(|err| err.to_string())?;
         self.fleet.merge_source_record_index_1_based = None;
-        self.show_fleet_context_notice(format!(
-            "Fleet #{} ordered to join Fleet #{}.",
-            source_fleet_number, host_fleet_number
-        ));
+        self.show_fleet_context_success(
+            format!(
+                "Fleet #{} ordered to join Fleet #{}.",
+                source_fleet_number, host_fleet_number
+            ),
+            true,
+        );
         Ok(())
     }
 
@@ -958,10 +961,11 @@ impl App {
                 .unwrap_or(0);
             self.fleet.detach_donor_record_index_1_based = None;
             self.fleet.detach_last_commissioned = None;
-            self.show_fleet_context_notice(
+            self.show_fleet_context_success(
                 format!(
                     "Detached ships from Fleet #{donor_fleet_number:02} into Fleet #{new_fleet_number:02}."
                 ),
+                true,
             );
         }
         Ok(())
@@ -1070,10 +1074,13 @@ impl App {
         self.fleet.transfer_host_record_index_1_based = None;
         self.fleet.transfer_input.clear();
         self.fleet.transfer_selection = FleetDetachSelection::default();
-        self.show_fleet_context_notice(format!(
-            "Transferred ships from Fleet #{} to Fleet #{}.",
-            donor_fleet_number, host_fleet_number
-        ));
+        self.show_fleet_context_success(
+            format!(
+                "Transferred ships from Fleet #{} to Fleet #{}.",
+                donor_fleet_number, host_fleet_number
+            ),
+            true,
+        );
         Ok(())
     }
 

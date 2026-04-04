@@ -126,6 +126,22 @@ impl App {
         }
     }
 
+    pub(crate) fn show_fleet_context_success(
+        &mut self,
+        message: impl Into<String>,
+        visible_in_fleet_list: bool,
+    ) {
+        if visible_in_fleet_list && self.fleet.command_context == FleetCommandContext::List {
+            self.clear_fleet_menu_prompt();
+            self.clear_command_menu_notice();
+            self.current_screen = ScreenId::FleetList;
+            self.fleet.list_status = None;
+            self.fleet.dismiss_message = None;
+            return;
+        }
+        self.show_fleet_context_notice(message);
+    }
+
     pub(crate) fn show_fleet_prompt_feedback(
         &mut self,
         feedback: PromptFeedback,
@@ -555,10 +571,10 @@ impl App {
                         other => other.to_string(),
                     })?;
                 self.save_game_data().map_err(|err| err.to_string())?;
-                self.show_fleet_context_notice(format!(
-                    "Fleet #{} ROE set to {}.",
-                    row.fleet_number, roe
-                ));
+                self.show_fleet_context_success(
+                    format!("Fleet #{} ROE set to {}.", row.fleet_number, roe),
+                    true,
+                );
             }
             FleetChangeField::Id => {
                 let local_slot = raw
@@ -577,10 +593,13 @@ impl App {
                         other => other.to_string(),
                     })?;
                 self.save_game_data().map_err(|err| err.to_string())?;
-                self.show_fleet_context_notice(format!(
-                    "Fleet #{} renumbered to Fleet #{}.",
-                    row.fleet_number, local_slot
-                ));
+                self.show_fleet_context_success(
+                    format!(
+                        "Fleet #{} renumbered to Fleet #{}.",
+                        row.fleet_number, local_slot
+                    ),
+                    true,
+                );
             }
             FleetChangeField::Speed => {
                 let speed = raw
@@ -610,10 +629,10 @@ impl App {
                         other => other.to_string(),
                     })?;
                 self.save_game_data().map_err(|err| err.to_string())?;
-                self.show_fleet_context_notice(format!(
-                    "Fleet #{} speed set to {}.",
-                    row.fleet_number, speed
-                ));
+                self.show_fleet_context_success(
+                    format!("Fleet #{} speed set to {}.", row.fleet_number, speed),
+                    true,
+                );
             }
         }
         Ok(())
@@ -712,8 +731,14 @@ impl App {
         if !allowed || self.fleet.menu_prompt_input.len() >= max_len {
             return;
         }
-        self.fleet.menu_prompt_input.push(ch);
+        self.fleet.menu_prompt_input.push(match mode {
+            FleetMenuPromptMode::ChangeField => ch.to_ascii_uppercase(),
+            _ => ch,
+        });
         self.fleet.menu_prompt_status = None;
+        if mode == FleetMenuPromptMode::ChangeField {
+            self.submit_fleet_menu_prompt();
+        }
     }
 
     pub fn append_fleet_eta_char(&mut self, ch: char) {
@@ -735,6 +760,7 @@ impl App {
                         .eta_include_system_input
                         .push(ch.to_ascii_uppercase());
                     self.fleet.eta_status = None;
+                    self.submit_fleet_eta();
                 }
             }
             FleetEtaMode::ShowingResult => {}
@@ -1465,6 +1491,9 @@ impl App {
         match key.code {
             KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitMenuPrompt),
             KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceMenuPromptInput),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::Fleet(FleetAction::CancelMenuPrompt)
+            }
             KeyCode::Char(ch)
                 if match mode {
                     Some(FleetMenuPromptMode::ChangeField) => ch.is_ascii_alphabetic(),
@@ -1472,9 +1501,6 @@ impl App {
                 } =>
             {
                 crate::app::Action::Fleet(FleetAction::AppendMenuPromptChar(ch))
-            }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::Fleet(FleetAction::CancelMenuPrompt)
             }
             _ => crate::app::Action::Noop,
         }

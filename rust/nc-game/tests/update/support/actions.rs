@@ -75,6 +75,7 @@ pub(crate) fn submit_fleet_menu_prompt(app: &mut App, fleet_number: Option<u16>)
 }
 
 pub(crate) fn submit_fleet_menu_prompt_value(app: &mut App, value: &str) {
+    let starting_mode = app.fleet.menu_prompt_mode;
     for ch in value.chars() {
         assert_eq!(
             apply_action(
@@ -83,6 +84,11 @@ pub(crate) fn submit_fleet_menu_prompt_value(app: &mut App, value: &str) {
             ),
             AppOutcome::Continue
         );
+    }
+    if starting_mode == Some(nc_game::domains::fleet::state::FleetMenuPromptMode::ChangeField)
+        && value.chars().count() == 1
+    {
+        return;
     }
     assert_eq!(
         apply_action(&mut *app, Action::Fleet(FleetAction::SubmitMenuPrompt)),

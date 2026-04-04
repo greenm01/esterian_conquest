@@ -1494,6 +1494,20 @@ fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetList);
     assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::Fleet(FleetAction::CancelMenuPrompt)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenChangePrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
         app.handle_key(key(KeyCode::Char('r'))),
         Action::Fleet(FleetAction::AppendMenuPromptChar('r'))
     );
@@ -1502,10 +1516,6 @@ fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
             &mut app,
             Action::Fleet(FleetAction::AppendMenuPromptChar('r'))
         ),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetList);
@@ -1536,11 +1546,20 @@ fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet list should render roe change notice");
+        .expect("fleet list should render updated roe value");
     assert!(
-        line_containing(&terminal, "ROE set to 0.").contains("COMMAND <- Fleet #"),
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("│  0│") && line.contains("Grd/Blkd")),
         "{:#?}",
         terminal.lines
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("ROE set to 0."))
     );
 }
 
@@ -1588,9 +1607,20 @@ fn fleet_list_order_success_returns_to_list() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet list should render order notice");
+        .expect("fleet list should render updated order state");
     assert!(
-        line_containing(&terminal, "Applied move to Fleet #").contains("COMMAND <-"),
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Move") && line.contains("(14,09)")),
+        "{:#?}",
+        terminal.lines
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Applied move to Fleet #")),
         "{:#?}",
         terminal.lines
     );
@@ -1634,12 +1664,111 @@ fn fleet_eta_result_dismiss_returns_to_fleet_list_when_launched_from_list() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        app.fleet.eta_mode,
+        nc_game::screen::FleetEtaMode::ConfirmingSystemEntry
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('y'))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(
+        app.fleet.eta_mode,
+        nc_game::screen::FleetEtaMode::ShowingResult
+    );
+    assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+}
+
+#[test]
+fn fleet_list_transfer_cancel_stays_in_fleet_flow() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let donor = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_destroyer_count(0);
+    donor.set_troop_transport_count(2);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    let host = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    host.set_battleship_count(0);
+    host.set_cruiser_count(0);
+    host.set_destroyer_count(1);
+    host.set_troop_transport_count(0);
+    host.set_army_count(0);
+    host.set_scout_count(0);
+    host.set_etac_count(0);
+    host.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert_eq!(
+        app.fleet.menu_prompt_mode,
+        Some(nc_game::domains::fleet::state::FleetMenuPromptMode::TransferHost)
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::Fleet(FleetAction::CancelMenuPrompt)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    submit_fleet_menu_prompt(&mut app, Some(3));
+    assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::Fleet(FleetAction::CancelTransfer)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::CancelTransfer)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetList);
