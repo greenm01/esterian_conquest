@@ -35,13 +35,16 @@ pub(super) fn process_build_completion(
             let build_item_kind = ProductionItemKind::from_raw(build_kind);
             let decrement = build_count.min(production_rate_u8);
             let new_count = build_count.saturating_sub(decrement);
+            let points_spent = u32::from(decrement);
 
             if new_count > 0 {
+                let current_stored =
+                    game_data.planets.records[planet_idx].stored_production_points();
+                game_data.planets.records[planet_idx]
+                    .set_stored_production_points(current_stored.saturating_sub(points_spent));
                 game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
                 continue;
             }
-
-            let points_spent = u32::from(decrement);
 
             if build_item_kind.requires_stardock() {
                 let has_open_stardock_slot = (0..crate::STARDOCK_SLOT_COUNT).any(|stardock_slot| {
@@ -72,6 +75,9 @@ pub(super) fn process_build_completion(
                 _ => {}
             }
 
+            let current_stored = game_data.planets.records[planet_idx].stored_production_points();
+            game_data.planets.records[planet_idx]
+                .set_stored_production_points(current_stored.saturating_sub(points_spent));
             game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
 
             match build_item_kind {

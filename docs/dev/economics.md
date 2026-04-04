@@ -144,6 +144,13 @@ completion, not tax revenue.
 Yearly tax revenue is added to each planet’s stored production pool. This is
 separate from the empire’s Total Available Points view.
 
+When maintenance processes a build queue, the planet spends from that stored
+pool by the number of build points actually applied that year. If a build cost
+is larger than the planet’s current per-turn build capacity, only that yearly
+processed amount is deducted and the remaining cost stays queued for later
+turns. If a build is blocked and no work is applied, stored production is not
+consumed.
+
 ## Special Cases
 
 ### Homeworlds
@@ -156,6 +163,10 @@ economically frozen. Normal-planet economy policy does not apply to them.
 ## Unit Build Completion
 
 When a build queue finishes, units are dispatched:
+
+- build spending is applied during maintenance from Stored Production Points
+- partial progress carries the remaining build cost into later turns
+- blocked builds remain queued and do not consume stored production that year
 
 ### Ships and Starbases (Stardock)
 Destroyers, cruisers, battleships, scouts, transports, ETACs, and starbases

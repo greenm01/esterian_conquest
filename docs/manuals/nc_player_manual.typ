@@ -439,7 +439,7 @@ planet can only spend up to 1x its Present Production per turn. See
 
 === Stored Production Points
 
-Tax revenue that you do not spend accumulates as Stored Production Points on each planet. This reserve is what allows starbase worlds to execute large builds --- up to 5x Present Production --- in a single turn.
+Tax revenue that you do not spend accumulates as Stored Production Points on each planet. This reserve is what allows starbase worlds to execute large builds --- up to 5x Present Production --- in a single turn. When maintenance processes a build queue, the points actually spent that year are deducted from the planet's reserve; unfinished builds keep their remaining cost for later turns.
 
 === Newly Colonized Planets
 
@@ -598,7 +598,7 @@ Fleet Command controls your ships in space. Mission (*O*) assigns missions 0--15
 
 === Building and Commissioning
 
-Each planet has a *10-slot build queue*, and all builds complete in a single maintenance turn. Ships and starbases, upon completion, move to *Stardock* --- a holding area on the planet where they sit idle and vulnerable until commissioned. Ships are commissioned into numbered fleets, while starbases are commissioned individually and managed through their own Starbase Command submenu. Armies and ground batteries, by contrast, deploy directly to the planet surface and do not pass through stardock.
+Each planet has a *10-slot build queue*. During maintenance, a planet processes as many queued build points as its current per-turn build capacity allows. Small orders may finish in one maintenance turn, while larger ones can stay queued across multiple years until the remaining cost reaches zero. Ships and starbases, upon completion, move to *Stardock* --- a holding area on the planet where they sit idle and vulnerable until commissioned. Ships are commissioned into numbered fleets, while starbases are commissioned individually and managed through their own Starbase Command submenu. Armies and ground batteries, by contrast, deploy directly to the planet surface and do not pass through stardock.
 
 A planet without a starbase can spend up to its Present Production in a single turn. A planet with an orbiting starbase can spend up to *5x* its Present Production, drawing from Stored Production Points (see @economy).
 
@@ -737,7 +737,9 @@ Per-turn build capacity is:
 ]
 
 Stored Production Points let a planet spend up to that per-turn cap while
-drawing on previously saved production.
+drawing on previously saved production. Maintenance deducts only the build
+points actually processed that year; any remaining build cost stays queued for
+later turns, and blocked builds do not consume stored production.
 
 #pagebreak()
 
