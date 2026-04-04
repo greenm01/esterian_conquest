@@ -131,7 +131,7 @@ It currently:
 
 - creates a fresh engine-backed `sysop new-game` campaign
 - uses a fixed default map seed for reproducible placement
-- supports `--year`, `--players`, `--seed`, and `--turn`
+- supports `--players`, `--seed`, and `--turn`
 - names all twelve empires and assigns them varied tax rates
 - gives player 1 a large owned-colony footprint plus a much larger fleet roster
 - stages empty and loaded troop transports at Aurora Prime for load/unload testing
@@ -157,12 +157,6 @@ Explicit-seed example:
 
 ```bash
 python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --seed 1515
-```
-
-Explicit-year example:
-
-```bash
-python3 scripts/setup_player1_tui_stress_game.py /tmp/ec-player1-ui --force --players 12 --year 3012 --seed 1515
 ```
 
 Use this when you want:

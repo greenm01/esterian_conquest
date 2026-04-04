@@ -2775,6 +2775,58 @@ fn fleet_list_transport_error_uses_slap_a_key_footer_and_consumes_next_key() {
 }
 
 #[test]
+fn fleet_list_load_quantity_prompt_keeps_scrollbar_gutter() {
+    let fixture_dir = PathBuf::from("/tmp/ec-player1-ui");
+    assert!(
+        fixture_dir.join("ncgame.db").exists(),
+        "expected direct stress fixture at /tmp/ec-player1-ui"
+    );
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list load quantity prompt should render");
+    let right_border_col = terminal
+        .line(1)
+        .chars()
+        .position(|ch| ch == '┐')
+        .expect("fleet list should have a right border");
+    let scrollbar_col = (1..=22).find_map(|row| {
+        terminal
+            .line(row)
+            .chars()
+            .nth(right_border_col + 1)
+            .filter(|ch| matches!(ch, '^' | '|' | '#' | 'v'))
+            .map(|_| right_border_col + 1)
+    });
+    assert!(right_border_col < 79);
+    assert_eq!(scrollbar_col, Some(right_border_col + 1));
+    assert!(line_containing(&terminal, "COMMAND <- How many armies to load?").contains("<Q> ->"));
+}
+
+#[test]
 fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

@@ -12,7 +12,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_DIR = REPO_ROOT / "rust"
 DEFAULT_SEED = 1515
-DEFAULT_YEAR = 3000
 DEFAULT_RELAY_URL = "ws://localhost:8080"
 DEFAULT_SERVER_HOST = "localhost"
 DEFAULT_SERVER_PORT = 22
@@ -117,12 +116,6 @@ def main() -> None:
         help="Player count for this stress template. Supported range: 4-12. Default: 12.",
     )
     parser.add_argument(
-        "--year",
-        type=int,
-        default=DEFAULT_YEAR,
-        help=f"Starting campaign year for the engine-backed new-game setup. Default: {DEFAULT_YEAR}.",
-    )
-    parser.add_argument(
         "--turn",
         type=int,
         default=1,
@@ -168,8 +161,6 @@ def main() -> None:
         raise SystemExit("--turn must be >= 1")
     if not 4 <= args.players <= len(PLAYER_SPECS):
         raise SystemExit(f"--players must be between 4 and {len(PLAYER_SPECS)}")
-    if not 0 <= args.year <= 65535:
-        raise SystemExit("--year must be between 0 and 65535")
     if args.seed < 0:
         raise SystemExit("--seed must be >= 0")
     if args.hosted_claim_player is not None:
@@ -191,8 +182,6 @@ def main() -> None:
         str(target),
         "--players",
         str(args.players),
-        "--year",
-        str(args.year),
         "--seed",
         str(args.seed),
     )
@@ -206,8 +195,8 @@ def main() -> None:
 
     print()
     print(f"Created player-1 TUI stress game at {target}")
-    print(f"Start year: {args.year}")
-    print(f"Current year: {args.year + args.turn - 1}")
+    print("Start year: 3000")
+    print(f"Current year: {3000 + args.turn - 1}")
     print(f"Turn: {args.turn}")
     print(f"Players: {args.players}")
     print(f"Seed: {args.seed}")

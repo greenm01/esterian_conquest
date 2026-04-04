@@ -63,6 +63,8 @@ python3 scripts/run_client.py /tmp/ec-player1-ui --player 1 --refresh-from-dat
 ### `--turn`
 
 `--turn` controls how many Rust maintenance cycles are applied after seeding.
+The stress fixture always starts from year `3000`, so use `--turn` to advance
+into later years.
 
 - `--turn 1`: seeded baseline, no maintenance run
 - `--turn 4`: seeded baseline plus three `maint-rust` passes

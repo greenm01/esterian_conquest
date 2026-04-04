@@ -1679,7 +1679,7 @@ fn format_selected_fleet_numbers(
 
 fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
     let id_width = fleet_id_column_width(max_fleet_number);
-    let ships_width = 71usize.saturating_sub(id_width + 8 + 15 + 8 + 3 + 4 + 3 + 3);
+    let ships_width = 69usize.saturating_sub(id_width + 8 + 15 + 8 + 3 + 4 + 3 + 3);
     [
         TableColumn::right("ID", id_width),
         TableColumn::left("Location", 8),
@@ -1695,7 +1695,7 @@ fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
 
 fn group_selection_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
     let id_width = fleet_id_column_width(max_fleet_number);
-    let ships_width = 70usize.saturating_sub(id_width + 3 + 8 + 15 + 8 + 3 + 4 + 3);
+    let ships_width = 69usize.saturating_sub(id_width + 3 + 8 + 15 + 8 + 3 + 4 + 3);
     [
         TableColumn::right("ID", id_width),
         TableColumn::center("Sel", 3),
