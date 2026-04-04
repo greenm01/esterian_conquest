@@ -88,6 +88,7 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
             eta_label: "0".to_string(),
             list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
+            loaded_armies: 0,
             order_label: "Patrol".to_string(),
             composition_label: "SC=1".to_string(),
             table_composition_label: "SC".to_string(),

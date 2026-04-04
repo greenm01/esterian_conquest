@@ -11,6 +11,10 @@ use crate::theme::classic;
 
 pub struct EmpireProfileScreen;
 
+const EMPIRE_PROFILE_LEFT_COL: usize = LEFT_WINDOW_PAD_COL;
+const EMPIRE_PROFILE_UNITS_RIGHT_COL: usize = 38 + LEFT_WINDOW_PAD_COL;
+const EMPIRE_PROFILE_STATS_RIGHT_COL: usize = 40 + LEFT_WINDOW_PAD_COL;
+
 impl EmpireProfileScreen {
     pub fn new() -> Self {
         Self
@@ -121,7 +125,7 @@ impl EmpireProfileScreen {
         );
         buffer.write_text(
             8,
-            38,
+            EMPIRE_PROFILE_UNITS_RIGHT_COL,
             "SHIPS & OTHER UNITS IN STARDOCK",
             classic::menu_hotkey_style(),
         );
@@ -185,7 +189,7 @@ impl EmpireProfileScreen {
         draw_aligned_detail_line_at(
             &mut buffer,
             16,
-            0,
+            EMPIRE_PROFILE_LEFT_COL,
             unit_label_width,
             "Armies",
             " : ",
@@ -194,7 +198,7 @@ impl EmpireProfileScreen {
         draw_aligned_detail_line_at(
             &mut buffer,
             17,
-            0,
+            EMPIRE_PROFILE_LEFT_COL,
             unit_label_width,
             "Ground Batteries",
             " : ",
@@ -246,14 +250,14 @@ fn write_stat_pair(
     draw_aligned_detail_pair_at(
         buffer,
         row,
-        LEFT_WINDOW_PAD_COL,
+        EMPIRE_PROFILE_LEFT_COL,
         DetailField {
             label_width: left_label_width,
             label: left_label,
             separator: " : ",
             value: left_value,
         },
-        40,
+        EMPIRE_PROFILE_STATS_RIGHT_COL,
         DetailField {
             label_width: right_label_width,
             label: right_label,
@@ -276,14 +280,14 @@ fn write_unit_line(
     draw_aligned_detail_pair_at(
         buffer,
         row,
-        0,
+        EMPIRE_PROFILE_LEFT_COL,
         DetailField {
             label_width,
             label,
             separator: " : ",
             value: &active_text,
         },
-        38,
+        EMPIRE_PROFILE_UNITS_RIGHT_COL,
         DetailField {
             label_width,
             label,

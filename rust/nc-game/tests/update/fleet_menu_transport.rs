@@ -2409,6 +2409,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             eta_label: "0".to_string(),
             list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
+            loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "CA=1".to_string(),
             table_composition_label: "CA".to_string(),
@@ -2424,6 +2425,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             eta_label: "0".to_string(),
             list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
+            loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "DD=1".to_string(),
             table_composition_label: "DD".to_string(),
@@ -2439,6 +2441,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             eta_label: "0".to_string(),
             list_eta_label: "0".to_string(),
             rules_of_engagement: 6,
+            loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "BB=1".to_string(),
             table_composition_label: "BB".to_string(),
@@ -2479,6 +2482,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         eta_label: "3000".to_string(),
         list_eta_label: "0".to_string(),
         rules_of_engagement: 6,
+        loaded_armies: 3,
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "DD=1".to_string(),
         table_composition_label: "DD".to_string(),
@@ -2508,10 +2512,13 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(buffer.plain_line(2).contains("│Spd│"));
     assert!(buffer.plain_line(2).contains("ETA"));
     assert!(buffer.plain_line(2).contains("ROE"));
+    assert!(buffer.plain_line(2).contains("AR"));
     assert!(buffer.plain_line(2).contains("Ships"));
+    assert!(buffer.plain_line(2).contains("ROE│AR│Ships"));
     assert!(buffer.plain_line(4).contains("Grd/Blkd"));
     assert!(buffer.plain_line(4).contains("(16,13)"));
     assert!(buffer.plain_line(4).contains("│  2│"));
+    assert!(buffer.plain_line(4).contains("│ 3│"));
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
@@ -2601,6 +2608,7 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
         eta_label: "N/A".to_string(),
         list_eta_label: "X".to_string(),
         rules_of_engagement: 6,
+        loaded_armies: 0,
         order_label: "Move fleet to Sector (0,0)".to_string(),
         composition_label: "DD=1".to_string(),
         table_composition_label: "DD".to_string(),
@@ -2759,6 +2767,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         eta_label: "1".to_string(),
         list_eta_label: "1".to_string(),
         rules_of_engagement: 6,
+        loaded_armies: 0,
         order_label: "Move fleet to Sector (19,13)".to_string(),
         composition_label: "CA=1".to_string(),
         table_composition_label: "CA".to_string(),

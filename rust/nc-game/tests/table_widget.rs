@@ -358,6 +358,10 @@ fn empire_profile_aligns_armies_and_ground_batteries_with_active_duty_list() {
         .find(':')
         .expect("ground batteries colon");
 
+    assert!(buffer.plain_line(8).starts_with(' '));
+    assert!(buffer.plain_line(9).starts_with(' '));
+    assert!(buffer.plain_line(16).starts_with(' '));
+    assert!(buffer.plain_line(17).starts_with(' '));
     assert_eq!(armies_colon, destroyers_colon);
     assert_eq!(batteries_colon, destroyers_colon);
 }

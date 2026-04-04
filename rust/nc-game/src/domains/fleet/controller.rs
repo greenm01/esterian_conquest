@@ -896,6 +896,7 @@ impl App {
                 eta_label: fleet_eta_label(&self.game_data, idx),
                 list_eta_label: fleet_list_eta_label(&self.game_data, idx),
                 rules_of_engagement: fleet.rules_of_engagement(),
+                loaded_armies: fleet.army_count(),
                 order_label: fleet.standing_order_summary(),
                 composition_label: fleet.ship_composition_summary(),
                 table_composition_label: fleet.ship_composition_table_summary(),
