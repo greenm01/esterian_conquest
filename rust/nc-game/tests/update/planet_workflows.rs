@@ -847,10 +847,67 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
         terminal.line(15).trim_end(),
         " You have spent 0 out of 50 points.  You have 50 points left to spend."
     );
+    assert_eq!(terminal.lines[17].trim_end(), " Building: 0   Docked: 0");
+}
+
+#[test]
+fn repeated_same_kind_build_submissions_merge_into_one_player_visible_total() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
     assert_eq!(
-        terminal.lines[17].trim_end(),
-        " Build queue: [0/10]   Stardock: [0/10]"
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
     );
+
+    app.open_planet_build_specify();
+    app.append_planet_build_unit_char('1');
+    app.submit_planet_build_unit();
+    app.append_planet_build_quantity_char('2');
+    app.submit_planet_build_quantity()
+        .expect("first build quantity should submit");
+
+    app.open_planet_build_specify();
+    app.append_planet_build_unit_char('1');
+    app.submit_planet_build_unit();
+    app.append_planet_build_quantity_char('3');
+    app.submit_planet_build_quantity()
+        .expect("second build quantity should submit");
+
+    let planet_idx = app
+        .game_data
+        .planet_record_index_at_coords([16, 13])
+        .expect("current build planet should exist");
+    let planet = &app.game_data.planets.records[planet_idx];
+    assert_eq!(planet.build_kind_raw(0), 1);
+    assert_eq!(planet.build_count_raw(0), 25);
+    assert!((1..10).all(|slot| planet.build_count_raw(slot) == 0));
+    assert!((1..10).all(|slot| planet.build_kind_raw(slot) == 0));
+
+    app.open_planet_build_menu();
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(terminal.line(17).trim_end(), " Building: 5   Docked: 0");
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenCurrentBuildPlanetInfo)
+        ),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(line_containing(&terminal, "Building").contains("5-DD"));
 }
 
 #[test]
@@ -1892,8 +1949,8 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
         line_containing(&terminal, "Stored Production Points").contains('0'),
         "stored points line should show zero"
     );
-    let build_queue_line = line_containing(&terminal, "Build Queue");
-    let stardock_line = line_containing(&terminal, "Stardock");
+    let build_queue_line = line_containing(&terminal, "Building");
+    let stardock_line = line_containing(&terminal, "Docked");
     assert!(build_queue_line.contains("Nothing"));
     assert!(stardock_line.contains("Nothing"));
     assert_eq!(
@@ -1966,10 +2023,8 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
         committed_points: 10,
         available_points: 40,
         points_left: 30,
-        queue_used: 1,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 1,
+        docked_count: 0,
     };
     let orders = vec![PlanetBuildOrder {
         kind: ProductionItemKind::Destroyer,
@@ -2015,10 +2070,8 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
         committed_points: 10,
         available_points: 40,
         points_left: 30,
-        queue_used: 1,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 1,
+        docked_count: 0,
     };
     let orders = vec![PlanetBuildOrder {
         kind: ProductionItemKind::Destroyer,
@@ -2071,10 +2124,8 @@ fn planet_build_specify_renders_success_as_notice_not_error() {
         committed_points: 10,
         available_points: 40,
         points_left: 30,
-        queue_used: 1,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 1,
+        docked_count: 0,
     };
     let orders = vec![PlanetBuildOrder {
         kind: ProductionItemKind::Destroyer,

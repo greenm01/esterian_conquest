@@ -145,7 +145,7 @@ fn apply_planet_action(
             )?;
             game_data.append_planet_build_order(
                 planet.planet_record_index_1_based,
-                *points_remaining_raw,
+                u32::from(*points_remaining_raw),
                 *kind_raw,
             )?;
         }

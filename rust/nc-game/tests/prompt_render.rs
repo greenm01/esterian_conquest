@@ -584,10 +584,8 @@ fn build_menu_inline_abort_uses_standard_confirm_layout() {
         committed_points: 50,
         available_points: 50,
         points_left: 0,
-        queue_used: 2,
-        queue_capacity: 10,
-        stardock_used: 3,
-        stardock_capacity: 10,
+        building_count: 2,
+        docked_count: 3,
     };
     let orders = vec![
         PlanetBuildOrder {

@@ -639,10 +639,10 @@ fn build_menu_review_shortcut_opens_owned_planet_info_with_build_queue_and_retur
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
 
     app.render(&mut terminal).expect("render succeeds");
-    let build_queue_line = line_containing(&terminal, "Build Queue");
-    assert!(build_queue_line.contains("Build Queue"));
-    assert!(build_queue_line.contains("5DD"));
-    assert!(line_containing(&terminal, "Stardock").contains("2DD"));
+    let build_queue_line = line_containing(&terminal, "Building");
+    assert!(build_queue_line.contains("Building"));
+    assert!(build_queue_line.contains("1-DD"));
+    assert!(line_containing(&terminal, "Docked").contains("2-DD"));
 
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
@@ -678,15 +678,15 @@ fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
     let planet = &mut app.game_data.planets.records[planet_idx];
 
     for (slot, (points, kind_raw)) in [
-        (10u8, 1u8),
-        (20, 2),
-        (30, 3),
-        (40, 4),
-        (50, 5),
-        (60, 6),
-        (70, 7),
-        (80, 8),
-        (90, 9),
+        (50u8, 1u8),
+        (120, 2),
+        (225, 3),
+        (60, 4),
+        (25, 5),
+        (120, 6),
+        (140, 7),
+        (16, 8),
+        (250, 9),
     ]
     .into_iter()
     .enumerate()
@@ -721,9 +721,9 @@ fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
 
     app.render(&mut terminal).expect("render succeeds");
 
-    let build_queue_line = line_containing(&terminal, "Build Queue");
+    let build_queue_line = line_containing(&terminal, "Building");
     for token in [
-        "10DD", "20CA", "30BB", "40SC", "50TT", "60ET", "70GB", "80AR", "90SB",
+        "10-DD", "8-CA", "5-BB", "4-SC", "5-TT", "6-ET", "7-GB", "8-AR", "5-SB",
     ] {
         assert!(
             build_queue_line.contains(token),
@@ -731,8 +731,8 @@ fn planet_info_compact_queue_and_docked_summaries_fit_with_full_entries() {
         );
     }
 
-    let docked_line = line_containing(&terminal, "Stardock");
-    for token in ["1DD", "2CA", "3BB", "4SC", "5TT", "6SB"] {
+    let docked_line = line_containing(&terminal, "Docked");
+    for token in ["1-DD", "2-CA", "3-BB", "4-SC", "5-TT", "6-SB"] {
         assert!(
             docked_line.contains(token),
             "missing {token} in {docked_line}"

@@ -323,6 +323,105 @@ fn append_planet_build_order_still_uses_all_ten_queue_slots() {
 }
 
 #[test]
+fn append_planet_build_order_merges_into_matching_kind_before_using_empty_slot() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_build_count_raw(0, 10);
+    planet.set_build_kind_raw(0, 1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.append_planet_build_order(1, 15, 1).unwrap();
+
+    assert_eq!(data.planets.records[0].build_count_raw(0), 25);
+    assert_eq!(data.planets.records[0].build_kind_raw(0), 1);
+    assert!((1..10).all(|slot| data.planets.records[0].build_count_raw(slot) == 0));
+}
+
+#[test]
+fn append_planet_build_order_spills_same_kind_across_records_without_truncation() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_build_count_raw(0, 250);
+    planet.set_build_kind_raw(0, 1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.append_planet_build_order(1, 20, 1).unwrap();
+
+    assert_eq!(data.planets.records[0].build_count_raw(0), u8::MAX);
+    assert_eq!(data.planets.records[0].build_kind_raw(0), 1);
+    assert_eq!(data.planets.records[0].build_count_raw(1), 15);
+    assert_eq!(data.planets.records[0].build_kind_raw(1), 1);
+}
+
+#[test]
+fn append_planet_build_order_does_not_partially_write_when_capacity_is_exhausted() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    for slot in 0..10 {
+        planet.set_build_count_raw(slot, u8::MAX);
+        planet.set_build_kind_raw(slot, 1);
+    }
+
+    let original = planet.clone();
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let error = data.append_planet_build_order(1, 1, 1).unwrap_err();
+
+    assert_eq!(
+        error,
+        GameStateMutationError::PlanetBuildQueueFull { index_1_based: 1 }
+    );
+    assert_eq!(data.planets.records[0], original);
+}
+
+#[test]
 fn commission_ship_reuses_lowest_available_owned_fleet_number() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);

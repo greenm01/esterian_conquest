@@ -30,10 +30,8 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
         committed_points: 10,
         available_points: 50,
         points_left: 40,
-        queue_used: 2,
-        queue_capacity: 10,
-        stardock_used: 3,
-        stardock_capacity: 10,
+        building_count: 5,
+        docked_count: 3,
     };
 
     let buffer = screen
@@ -57,10 +55,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
         " You have spent 10 out of 50 points.  You have 40 points left to spend."
     );
     assert_eq!(buffer.plain_line(16), "");
-    assert_eq!(
-        buffer.plain_line(17),
-        " Build queue: [2/10]   Stardock: [3/10]"
-    );
+    assert_eq!(buffer.plain_line(17), " Building: 5   Docked: 3");
 }
 
 #[test]
@@ -85,10 +80,8 @@ fn build_list_renders_queue_columns_without_dock() {
         committed_points: 10,
         available_points: 50,
         points_left: 40,
-        queue_used: 2,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 2,
+        docked_count: 0,
     };
 
     let rows = vec![
@@ -167,10 +160,8 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
         committed_points: 10,
         available_points: 50,
         points_left: 40,
-        queue_used: 2,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 2,
+        docked_count: 0,
     };
 
     let rows = vec![PlanetBuildListRow {
@@ -237,10 +228,8 @@ fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
         committed_points: 0,
         available_points: 50,
         points_left: 50,
-        queue_used: 0,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 0,
+        docked_count: 0,
     };
 
     let buffer = screen
@@ -308,10 +297,8 @@ fn build_list_delete_qty_prompt_renders_all_as_default() {
         committed_points: 10,
         available_points: 50,
         points_left: 40,
-        queue_used: 2,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 2,
+        docked_count: 0,
     };
     let rows = vec![PlanetBuildListRow {
         kind: ProductionItemKind::Destroyer,
@@ -418,10 +405,8 @@ fn build_specify_table_is_centered_and_footer_tracks_table_inset() {
         committed_points: 0,
         available_points: 50,
         points_left: 50,
-        queue_used: 0,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 0,
+        docked_count: 0,
     };
 
     let buffer = screen
@@ -496,10 +481,8 @@ fn build_specify_title_shows_current_points_left_after_partial_commit() {
         committed_points: 20,
         available_points: 50,
         points_left: 30,
-        queue_used: 0,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 0,
+        docked_count: 0,
     };
 
     let buffer = screen
@@ -531,10 +514,8 @@ fn build_quantity_prompt_keeps_points_left_visible_in_title_row() {
         committed_points: 20,
         available_points: 50,
         points_left: 30,
-        queue_used: 0,
-        queue_capacity: 10,
-        stardock_used: 0,
-        stardock_capacity: 10,
+        building_count: 0,
+        docked_count: 0,
     };
 
     let unit = BuildUnitSpec {

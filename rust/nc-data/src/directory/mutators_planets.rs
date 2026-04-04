@@ -266,7 +266,7 @@ impl CoreGameData {
     pub fn append_planet_build_order(
         &mut self,
         record_index_1_based: usize,
-        points_remaining_raw: u8,
+        points_remaining_raw: u32,
         kind_raw: u8,
     ) -> Result<(), GameStateMutationError> {
         if points_remaining_raw == 0 || kind_raw == 0 {
@@ -295,13 +295,55 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingPlanetRecord {
                 index_1_based: record_index_1_based,
             })?;
-        let slot = (0..10)
-            .find(|&s| record.build_count_raw(s) == 0 && record.build_kind_raw(s) == 0)
-            .ok_or(GameStateMutationError::PlanetBuildQueueFull {
+        let existing_capacity = (0..10)
+            .filter_map(|slot| {
+                if record.build_kind_raw(slot) != kind_raw {
+                    return None;
+                }
+                let current = u32::from(record.build_count_raw(slot));
+                if current == 0 {
+                    return None;
+                }
+                Some(u32::from(u8::MAX).saturating_sub(current))
+            })
+            .sum::<u32>();
+        let empty_slots = (0..10)
+            .filter(|&slot| record.build_count_raw(slot) == 0 && record.build_kind_raw(slot) == 0)
+            .count();
+        let total_capacity = existing_capacity
+            .saturating_add((empty_slots as u32).saturating_mul(u32::from(u8::MAX)));
+        if points_remaining_raw > total_capacity {
+            return Err(GameStateMutationError::PlanetBuildQueueFull {
                 index_1_based: record_index_1_based,
-            })?;
-        record.set_build_count_raw(slot, points_remaining_raw);
-        record.set_build_kind_raw(slot, kind_raw);
+            });
+        }
+
+        let mut remaining = points_remaining_raw;
+        for slot in 0..10 {
+            if remaining == 0 || record.build_kind_raw(slot) != kind_raw {
+                continue;
+            }
+            let current = u32::from(record.build_count_raw(slot));
+            if current == 0 {
+                continue;
+            }
+            let add_here = remaining.min(u32::from(u8::MAX).saturating_sub(current));
+            record.set_build_count_raw(slot, (current + add_here) as u8);
+            remaining -= add_here;
+        }
+
+        for slot in 0..10 {
+            if remaining == 0 {
+                break;
+            }
+            if record.build_count_raw(slot) != 0 || record.build_kind_raw(slot) != 0 {
+                continue;
+            }
+            let add_here = remaining.min(u32::from(u8::MAX));
+            record.set_build_count_raw(slot, add_here as u8);
+            record.set_build_kind_raw(slot, kind_raw);
+            remaining -= add_here;
+        }
         Ok(())
     }
     pub fn replace_planet_build_queue_with_single_order(

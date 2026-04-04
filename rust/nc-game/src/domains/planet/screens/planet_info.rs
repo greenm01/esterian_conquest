@@ -4,6 +4,7 @@ use nc_data::{
     build_player_starmap_projection_from_snapshots,
 };
 use nc_engine::yearly_tax_revenue;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -11,7 +12,8 @@ use crate::screen::layout::{
     draw_dismiss_prompt_padded, draw_title_bar_padded, new_playfield,
 };
 use crate::screen::{
-    CommandMenu, PlanetBuildOrder, PlayfieldBuffer, ScreenFrame, format_sector_coords_zero_padded,
+    CommandMenu, PlayfieldBuffer, ScreenFrame, build_quantity_from_points,
+    format_sector_coords_zero_padded,
 };
 
 pub struct PlanetInfoScreen;
@@ -67,7 +69,7 @@ impl PlanetInfoScreen {
             "Space Forces",
             "Status",
         ]);
-        let bottom_label_width = aligned_label_width(["Build Queue", "Stardock"]);
+        let bottom_label_width = aligned_label_width(["Building", "Docked"]);
 
         let mut buffer = new_playfield();
         draw_title_bar_padded(&mut buffer, 0, "INFO ABOUT A PLANET:");
@@ -154,7 +156,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             17,
             bottom_label_width,
-            "Build Queue",
+            "Building",
             ": ",
             &format_build_queue_summary(planet),
         );
@@ -162,7 +164,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             18,
             bottom_label_width,
-            "Stardock",
+            "Docked",
             ": ",
             &format_stardock_summary(planet),
         );
@@ -348,15 +350,16 @@ fn intel_efficiency_label(current: Option<u8>, potential: Option<u16>) -> String
 }
 
 fn format_stardock_summary(planet: &nc_data::PlanetRecord) -> String {
-    let mut parts = Vec::new();
+    let mut counts_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
     for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
         let count = u32::from(planet.stardock_count_raw(slot));
-        if count == 0 {
+        let kind_raw = planet.stardock_kind_raw(slot);
+        if count == 0 || kind_raw == 0 {
             continue;
         }
-        let kind = planet.stardock_item_kind_current_known(slot);
-        parts.push(format!("{count}{}", compact_unit_code(kind)));
+        *counts_by_kind.entry(kind_raw).or_default() += count;
     }
+    let parts = ordered_compact_summary_parts(counts_by_kind);
     if parts.is_empty() {
         "Nothing".to_string()
     } else {
@@ -365,35 +368,45 @@ fn format_stardock_summary(planet: &nc_data::PlanetRecord) -> String {
 }
 
 fn format_build_queue_summary(planet: &nc_data::PlanetRecord) -> String {
-    let orders: Vec<PlanetBuildOrder> = (0..10)
-        .filter_map(|slot| {
-            let points = planet.build_count_raw(slot);
-            let kind_raw = planet.build_kind_raw(slot);
-            if points == 0 || kind_raw == 0 {
-                None
-            } else {
-                Some(PlanetBuildOrder {
-                    kind: ProductionItemKind::from_raw(kind_raw),
-                    points_remaining: points,
-                })
-            }
-        })
-        .collect();
-    if orders.is_empty() {
+    let mut counts_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
+    for slot in 0..10 {
+        let points = u32::from(planet.build_count_raw(slot));
+        let kind_raw = planet.build_kind_raw(slot);
+        if points == 0 || kind_raw == 0 {
+            continue;
+        }
+        let kind = ProductionItemKind::from_raw(kind_raw);
+        *counts_by_kind.entry(kind_raw).or_default() += build_quantity_from_points(kind, points);
+    }
+    let parts = ordered_compact_summary_parts(counts_by_kind);
+    if parts.is_empty() {
         "Nothing".to_string()
     } else {
-        orders
-            .into_iter()
-            .map(|order| {
-                format!(
-                    "{}{}",
-                    order.points_remaining,
-                    compact_unit_code(order.kind)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ")
+        parts.join(", ")
     }
+}
+
+fn ordered_compact_summary_parts(counts_by_kind: BTreeMap<u8, u32>) -> Vec<String> {
+    let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
+    for kind_raw in counts_by_kind.keys() {
+        if !ordered_kind_raws.contains(kind_raw) {
+            ordered_kind_raws.push(*kind_raw);
+        }
+    }
+    ordered_kind_raws
+        .into_iter()
+        .filter_map(|kind_raw| {
+            let count = counts_by_kind.get(&kind_raw).copied().unwrap_or(0);
+            if count == 0 {
+                return None;
+            }
+            Some(format!(
+                "{}-{}",
+                count,
+                compact_unit_code(ProductionItemKind::from_raw(kind_raw))
+            ))
+        })
+        .collect()
 }
 
 fn format_owned_orbit_summary(frame: &ScreenFrame<'_>, coords: [u8; 2]) -> String {
@@ -559,4 +572,3 @@ pub fn parse_planet_coords(input: &str) -> Option<[u8; 2]> {
     let y = parts[1].parse::<u8>().ok()?;
     Some([x, y])
 }
-use std::collections::BTreeSet;

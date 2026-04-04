@@ -3,8 +3,8 @@ use crate::app::state::App;
 use crate::screen::{
     CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow, PlanetCommissionView,
-    PlanetListSort, ScreenId, build_unit_spec, build_unit_spec_by_kind, format_fleet_number,
-    format_sector_coords, format_sector_coords_table, max_quantity,
+    PlanetListSort, ScreenId, build_quantity_from_points, build_unit_spec, build_unit_spec_by_kind,
+    format_fleet_number, format_sector_coords, format_sector_coords_table, max_quantity,
 };
 use crossterm::event::KeyCode;
 use nc_data::{
@@ -1078,13 +1078,13 @@ impl App {
         let points = qty.saturating_mul(unit.cost);
         match self.game_data.append_planet_build_order(
             planet_record,
-            points.min(u32::from(u8::MAX)) as u8,
+            points,
             production_item_kind_raw(kind),
         ) {
             Ok(()) => {}
             Err(GameStateMutationError::PlanetBuildQueueFull { .. }) => {
                 self.planet.build_quantity_status =
-                    Some("Build queue is full (10 orders maximum).".to_string());
+                    Some("Build queue is full for this planet.".to_string());
                 return Ok(());
             }
             Err(e) => return Err(e.into()),
@@ -1495,10 +1495,8 @@ impl App {
                     committed_points: 0,
                     available_points: 0,
                     points_left: 0,
-                    queue_used: 0,
-                    queue_capacity: 10,
-                    stardock_used: 0,
-                    stardock_capacity: nc_data::STARDOCK_SLOT_COUNT,
+                    building_count: 0,
+                    docked_count: 0,
                 });
             }
         };
@@ -1513,24 +1511,23 @@ impl App {
             .records
             .get(row.planet_record_index_1_based - 1)
             .ok_or("planet record missing")?;
-        let queue_capacity: usize = 10;
-        let queue_used = (0..queue_capacity)
-            .filter(|&s| record.build_count_raw(s) != 0 || record.build_kind_raw(s) != 0)
-            .count();
-        let stardock_capacity: usize = nc_data::STARDOCK_SLOT_COUNT;
-        let stardock_open_now = self
-            .game_data
-            .planet_open_stardock_slots_now(row.planet_record_index_1_based)?;
-        let stardock_used = stardock_capacity.saturating_sub(stardock_open_now);
+        let building_count = (0..10)
+            .map(|slot| {
+                let points = u32::from(record.build_count_raw(slot));
+                let kind = ProductionItemKind::from_raw(record.build_kind_raw(slot));
+                build_quantity_from_points(kind, points)
+            })
+            .sum::<u32>();
+        let docked_count = (0..nc_data::STARDOCK_SLOT_COUNT)
+            .map(|slot| u32::from(record.stardock_count_raw(slot)))
+            .sum::<u32>();
         Ok(PlanetBuildMenuView {
             row,
             committed_points,
             available_points,
             points_left,
-            queue_used,
-            queue_capacity,
-            stardock_used,
-            stardock_capacity,
+            building_count,
+            docked_count,
         })
     }
 
@@ -1623,9 +1620,8 @@ impl App {
                 continue;
             }
             let kind = ProductionItemKind::from_raw(kind_raw);
-            let cost = u32::from(build_unit_spec_by_kind(kind).map(|u| u.cost).unwrap_or(1));
-            let qty = if cost > 0 { points / cost } else { 0 };
-            *queue_qty_by_kind.entry(kind_raw).or_default() += qty.max(1);
+            let qty = build_quantity_from_points(kind, points);
+            *queue_qty_by_kind.entry(kind_raw).or_default() += qty;
         }
 
         let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];

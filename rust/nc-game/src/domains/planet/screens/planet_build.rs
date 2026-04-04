@@ -91,15 +91,8 @@ pub struct PlanetBuildMenuView {
     pub committed_points: u32,
     pub available_points: u32,
     pub points_left: u32,
-    /// Number of occupied build-queue slots (0..=10).
-    pub queue_used: usize,
-    /// Total build-queue capacity (always 10).
-    pub queue_capacity: usize,
-    /// Number of stardock slots currently occupied by built or pending
-    /// ships/starbases (0..=10). Armies and batteries excluded.
-    pub stardock_used: usize,
-    /// Total stardock capacity (always 10).
-    pub stardock_capacity: usize,
+    pub building_count: u32,
+    pub docked_count: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -325,11 +318,8 @@ impl PlanetBuildScreen {
                 lower_block_row + 4,
                 LEFT_WINDOW_PAD_COL,
                 &format!(
-                    "Build queue: [{}/{}]   Stardock: [{}/{}]",
-                    view.queue_used,
-                    view.queue_capacity,
-                    view.stardock_used,
-                    view.stardock_capacity,
+                    "Building: {}   Docked: {}",
+                    view.building_count, view.docked_count,
                 ),
                 classic::status_value_style(),
             );
@@ -1047,6 +1037,20 @@ pub fn infer_quantity(order: PlanetBuildOrder, cost: u32) -> Option<u32> {
         Some(points / cost)
     } else {
         None
+    }
+}
+
+pub fn build_quantity_from_points(kind: ProductionItemKind, points: u32) -> u32 {
+    if points == 0 {
+        return 0;
+    }
+    let cost = build_unit_spec_by_kind(kind)
+        .map(|unit| unit.cost)
+        .unwrap_or(1);
+    if cost == 0 {
+        points
+    } else {
+        (points / cost).max(1)
     }
 }
 

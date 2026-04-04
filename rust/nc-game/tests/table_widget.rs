@@ -846,10 +846,8 @@ fn planet_build_specify_screen_uses_split_table() {
         committed_points: 10,
         available_points: 50,
         points_left: 40,
-        queue_used: 2,
-        queue_capacity: 10,
-        stardock_used: 3,
-        stardock_capacity: 10,
+        building_count: 2,
+        docked_count: 3,
     };
     let orders = vec![PlanetBuildOrder {
         kind: ProductionItemKind::Destroyer,

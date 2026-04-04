@@ -94,7 +94,8 @@ pub(crate) use crate::domains::messaging::screens::message_compose::{
 pub use crate::domains::planet::screens::planet_build::{
     BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, build_kind_count_label, build_kind_name, build_order_summary,
-    build_unit_spec, build_unit_spec_by_kind, infer_quantity, max_quantity,
+    build_quantity_from_points, build_unit_spec, build_unit_spec_by_kind, infer_quantity,
+    max_quantity,
 };
 pub use crate::domains::planet::screens::planet_commission::{
     PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow,
