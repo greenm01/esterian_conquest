@@ -29,34 +29,34 @@ impl StarmapScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             0,
             "This function sends the entire map of the galaxy to you non-stop.",
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             3,
             0,
             "It is intended to allow you to capture the map to a text file.",
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             5,
             0,
             "Turn on your telnet client screen capture now.",
             classic::status_value_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             6,
             0,
             "Press E to export printable map files, Q to abort, or slap a key",
             classic::body_style(),
         );
-        buffer.write_text(7, 0, "to begin the text dump.", classic::body_style());
+        buffer.write_text_clipped(7, 0, "to begin the text dump.", classic::body_style());
         let mut last_content_row = 7;
         if let Some(status) = export_status {
-            buffer.write_text(9, 0, status, classic::status_value_style());
+            buffer.write_text_clipped(9, 0, status, classic::status_value_style());
             last_content_row = 9;
         }
         draw_dismiss_prompt(
@@ -72,8 +72,8 @@ impl StarmapScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
-        buffer.write_text(3, 0, "Text dump complete.", classic::body_style());
-        buffer.write_text(
+        buffer.write_text_clipped(3, 0, "Text dump complete.", classic::body_style());
+        buffer.write_text_clipped(
             5,
             0,
             "Turn off screen capture in your telnet client now.",
@@ -99,7 +99,7 @@ impl StarmapScreen {
             .enumerate()
         {
             let screen_row = STARMAP_DUMP_START_ROW + row;
-            buffer.write_text(screen_row, 0, line, classic::body_style());
+            buffer.write_text_clipped(screen_row, 0, line, classic::body_style());
             last_content_row = screen_row;
         }
         draw_dismiss_prompt(

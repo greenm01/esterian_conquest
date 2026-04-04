@@ -99,21 +99,21 @@ pub fn render_first_time_reserved_prompt(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "RESERVED PLAYER:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         "This player seat is reserved for you.",
         classic::body_style(),
     );
     if let Some(alias) = reserved_alias {
-        buffer.write_text(
+        buffer.write_text_clipped(
             4,
             LEFT_WINDOW_PAD_COL,
             &format!("Reserved caller alias: \"{alias}\"."),
             classic::body_style(),
         );
     }
-    buffer.write_text(
+    buffer.write_text_clipped(
         6,
         LEFT_WINDOW_PAD_COL,
         "You may name your empire now and finish first-time setup.",
@@ -142,19 +142,19 @@ pub fn render_first_time_join_name(
     let mut buffer = new_playfield();
     let last_content_row = if rename_mode {
         draw_title_bar_padded(&mut buffer, 0, "FIRST LOGIN:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             "This empire is already joined, and this is your first login.",
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             3,
             LEFT_WINDOW_PAD_COL,
             &format!("Your empire is currently named \"{current_empire_name}\"."),
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             5,
             LEFT_WINDOW_PAD_COL,
             "Enter a new empire name (up to 20 characters).",
@@ -163,21 +163,21 @@ pub fn render_first_time_join_name(
         5
     } else if reserved_mode {
         draw_title_bar_padded(&mut buffer, 0, "RESERVED PLAYER:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             "This player seat is reserved for you.",
             classic::body_style(),
         );
         if let Some(alias) = reserved_alias {
-            buffer.write_text(
+            buffer.write_text_clipped(
                 3,
                 LEFT_WINDOW_PAD_COL,
                 &format!("Reserved caller alias: \"{alias}\"."),
                 classic::body_style(),
             );
         }
-        buffer.write_text(
+        buffer.write_text_clipped(
             5,
             LEFT_WINDOW_PAD_COL,
             "Enter the name of your empire (up to 20 characters).",
@@ -186,7 +186,7 @@ pub fn render_first_time_join_name(
         5
     } else if hosted_invite_mode {
         draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             "Enter the name of your empire (up to 20 characters).",
@@ -194,7 +194,7 @@ pub fn render_first_time_join_name(
         );
         let mut last_content_row = 2;
         if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
-            buffer.write_text(
+            buffer.write_text_clipped(
                 4,
                 LEFT_WINDOW_PAD_COL,
                 &format!("Invite code: {invite_code}"),
@@ -207,7 +207,7 @@ pub fn render_first_time_join_name(
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
         crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
-        buffer.write_text(
+        buffer.write_text_clipped(
             4,
             LEFT_WINDOW_PAD_COL,
             "Enter the name of your empire (up to 20 characters).",
@@ -249,13 +249,13 @@ pub fn render_first_time_join_name_confirm(
     let mut buffer = new_playfield();
     if rename_mode {
         draw_title_bar_padded(&mut buffer, 0, "FIRST LOGIN:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             "Would you like to rename your empire? (This is your only chance.)",
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             4,
             LEFT_WINDOW_PAD_COL,
             "Press N or Esc to keep the current empire name.",
@@ -263,13 +263,13 @@ pub fn render_first_time_join_name_confirm(
         );
     } else if reserved_mode {
         draw_title_bar_padded(&mut buffer, 0, "RESERVED PLAYER:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             "This reserved seat will join as the empire shown below.",
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             4,
             LEFT_WINDOW_PAD_COL,
             "Press N or Esc to go back and edit it before joining.",
@@ -280,14 +280,14 @@ pub fn render_first_time_join_name_confirm(
         .is_some()
     {
         draw_title_bar_padded(&mut buffer, 0, "JOIN GAME:");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             "Press N or Esc to go back and edit it before joining.",
             classic::body_style(),
         );
         if let Some(invite_code) = hosted_invite_code.filter(|value| !value.trim().is_empty()) {
-            buffer.write_text(
+            buffer.write_text_clipped(
                 4,
                 LEFT_WINDOW_PAD_COL,
                 &format!("Invite code: {invite_code}"),
@@ -298,13 +298,13 @@ pub fn render_first_time_join_name_confirm(
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
         crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
-        buffer.write_text(
+        buffer.write_text_clipped(
             4,
             LEFT_WINDOW_PAD_COL,
             "Enter the name of your empire (up to 20 characters).",
             classic::body_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             5,
             LEFT_WINDOW_PAD_COL,
             "Press N or Esc to go back and edit it before joining.",
@@ -357,13 +357,13 @@ pub fn render_preloaded_first_login_rename_prompt(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "FIRST LOGIN:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         "This empire is already joined, and this is your first login.",
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         4,
         LEFT_WINDOW_PAD_COL,
         &format!("Your empire is currently named \"{empire_name}\"."),
@@ -385,31 +385,31 @@ pub fn render_first_time_join_summary(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "JOIN COMPLETE:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         &format!("Commander, you are \"{empire_name}\", (Empire #{empire_id})"),
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         4,
         LEFT_WINDOW_PAD_COL,
         &format!("The year is: {year} A.D."),
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         6,
         LEFT_WINDOW_PAD_COL,
         "Last year on: NEVER",
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         8,
         LEFT_WINDOW_PAD_COL,
         "You have 60 minutes left to play.",
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         10,
         LEFT_WINDOW_PAD_COL,
         "Autopilot is off.",
@@ -422,13 +422,13 @@ pub fn render_first_time_join_summary(
 pub fn render_first_time_join_no_pending() -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "JOIN COMPLETE:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         "You have no reports pending.",
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         4,
         LEFT_WINDOW_PAD_COL,
         "You have no messages pending.",
@@ -448,7 +448,7 @@ pub fn render_first_time_homeworld_name(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "HOMEWORLD NAMING:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -457,7 +457,7 @@ pub fn render_first_time_homeworld_name(
         ),
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         3,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -467,7 +467,7 @@ pub fn render_first_time_homeworld_name(
         classic::body_style(),
     );
     if is_preloaded_first_login {
-        buffer.write_text(
+        buffer.write_text_clipped(
             5,
             LEFT_WINDOW_PAD_COL,
             "This joined empire still needs its first homeworld name.",
@@ -504,7 +504,7 @@ pub fn render_first_time_homeworld_confirm(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "HOMEWORLD NAMING:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -513,7 +513,7 @@ pub fn render_first_time_homeworld_confirm(
         ),
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         3,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -523,14 +523,14 @@ pub fn render_first_time_homeworld_confirm(
         classic::body_style(),
     );
     if is_preloaded_first_login {
-        buffer.write_text(
+        buffer.write_text_clipped(
             5,
             LEFT_WINDOW_PAD_COL,
             "This joined empire still needs its first homeworld name.",
             classic::body_style(),
         );
     }
-    buffer.write_text(
+    buffer.write_text_clipped(
         if is_preloaded_first_login { 6 } else { 5 },
         LEFT_WINDOW_PAD_COL,
         "Press N or Esc to go back and edit the homeworld name.",
@@ -554,7 +554,7 @@ pub fn render_colony_world_name(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "WORLD NAMING:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -563,7 +563,7 @@ pub fn render_colony_world_name(
         ),
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         3,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -598,7 +598,7 @@ pub fn render_colony_world_confirm(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar_padded(&mut buffer, 0, "WORLD NAMING:");
-    buffer.write_text(
+    buffer.write_text_clipped(
         2,
         LEFT_WINDOW_PAD_COL,
         &format!(
@@ -607,7 +607,7 @@ pub fn render_colony_world_confirm(
         ),
         classic::body_style(),
     );
-    buffer.write_text(
+    buffer.write_text_clipped(
         4,
         LEFT_WINDOW_PAD_COL,
         "Press N or Esc to go back and edit the world name.",
@@ -640,7 +640,7 @@ impl FirstTimeEmpiresScreen {
         let mut last_content_row = 0usize;
         for (idx, row) in rows.iter().take(visible_rows).enumerate() {
             let render_row = start_row + idx;
-            buffer.write_text(render_row, LEFT_WINDOW_PAD_COL, row, classic::body_style());
+            buffer.write_text_clipped(render_row, LEFT_WINDOW_PAD_COL, row, classic::body_style());
             last_content_row = render_row;
         }
         let last_content_row = if rows.is_empty() { 0 } else { last_content_row };

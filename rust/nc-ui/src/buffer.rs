@@ -189,6 +189,22 @@ impl PlayfieldBuffer {
         col.saturating_sub(start_col)
     }
 
+    pub fn write_spans_clipped(
+        &mut self,
+        row: usize,
+        mut col: usize,
+        spans: &[StyledSpan<'_>],
+    ) -> usize {
+        let start_col = col;
+        for span in spans {
+            if col >= self.width {
+                break;
+            }
+            col += self.write_text_clipped(row, col, span.text, span.style);
+        }
+        col.saturating_sub(start_col)
+    }
+
     pub fn set_cursor(&mut self, column: u16, row: u16) {
         assert!(
             usize::from(column) < self.width,

@@ -398,7 +398,7 @@ pub fn draw_status_line_at_col(
     label: &str,
     value: &str,
 ) {
-    buffer.write_spans(
+    buffer.write_spans_clipped(
         row,
         col,
         &[
@@ -562,7 +562,7 @@ pub fn draw_notice_line_padded(buffer: &mut PlayfieldBuffer, row: usize, value: 
 }
 
 pub fn draw_notice_line_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usize, value: &str) {
-    buffer.write_spans(
+    buffer.write_spans_clipped(
         row,
         col,
         &[
@@ -587,7 +587,7 @@ pub fn draw_alert_line_at_col(
     label: &str,
     value: &str,
 ) {
-    buffer.write_spans(
+    buffer.write_spans_clipped(
         row,
         col,
         &[
@@ -617,7 +617,7 @@ pub fn draw_message_line_at_col(
     label: &str,
     value: &str,
 ) {
-    buffer.write_spans(
+    buffer.write_spans_clipped(
         row,
         col,
         &[
@@ -717,7 +717,7 @@ pub fn draw_wrapped_notice_at_col(
         if idx == 0 {
             draw_notice_line_at_col(buffer, start_row + idx, col, &line);
         } else {
-            buffer.write_spans(
+            buffer.write_spans_clipped(
                 start_row + idx,
                 col,
                 &[
@@ -778,7 +778,7 @@ pub fn draw_wrapped_alert_at_col(
         if idx == 0 {
             draw_alert_line_at_col(buffer, start_row + idx, col, label, &line);
         } else {
-            buffer.write_spans(
+            buffer.write_spans_clipped(
                 start_row + idx,
                 col,
                 &[
@@ -839,7 +839,7 @@ pub fn draw_wrapped_message_at_col(
         if idx == 0 {
             draw_message_line_at_col(buffer, start_row + idx, col, label, &line);
         } else {
-            buffer.write_spans(
+            buffer.write_spans_clipped(
                 start_row + idx,
                 col,
                 &[

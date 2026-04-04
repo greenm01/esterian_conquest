@@ -143,7 +143,7 @@ impl MessageComposeScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar_padded(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             LEFT_WINDOW_PAD_COL,
             &format!("To: {recipient_label}"),
@@ -178,13 +178,13 @@ impl MessageComposeScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(
+        buffer.write_text_clipped(
             1,
             0,
             &format!("To: {recipient_label}"),
             classic::status_value_style(),
         );
-        buffer.write_text(
+        buffer.write_text_clipped(
             2,
             0,
             &format!("Subject: {subject}"),
@@ -210,7 +210,7 @@ impl MessageComposeScreen {
         let total_rows = wrapped.len().max(cursor_row + 1);
         let start = visible_window_start(total_rows, visible, cursor_row);
         for (idx, segment) in wrapped.iter().skip(start).take(visible).enumerate() {
-            buffer.write_text(
+            buffer.write_text_clipped(
                 first_body_row + idx,
                 0,
                 &segment.text,
@@ -218,9 +218,9 @@ impl MessageComposeScreen {
             );
         }
         if let Some(status) = status {
-            buffer.write_text(status_row, 0, status, classic::status_value_style());
+            buffer.write_text_clipped(status_row, 0, status, classic::status_value_style());
         }
-        buffer.write_text(
+        buffer.write_text_clipped(
             chars_row,
             0,
             &format!("Chars: {}/{}", body.chars().count(), COMPOSE_BODY_LIMIT),
@@ -370,7 +370,7 @@ impl MessageComposeScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(3, 0, status, classic::status_value_style());
+        buffer.write_text_clipped(3, 0, status, classic::status_value_style());
         draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(3));
         Ok(buffer)
     }

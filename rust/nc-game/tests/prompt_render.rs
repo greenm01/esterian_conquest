@@ -10,14 +10,17 @@ use nc_game::screen::PlanetCommissionPickerRow;
 use nc_game::screen::PlanetCommissionScreen;
 use nc_game::screen::PlanetMenuScreen;
 use nc_game::screen::PlayfieldBuffer;
+use nc_game::screen::StarmapScreen;
 use nc_game::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
     dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
     draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
     draw_inline_planet_info_prompt, draw_plain_prompt, draw_prompt_error_after,
-    draw_prompt_feedback_after, draw_table_command_prompt, table_dismiss_prompt_row,
+    draw_prompt_feedback_after, draw_status_line, draw_table_command_prompt,
+    table_dismiss_prompt_row,
 };
+use nc_game::screen::render_first_time_join_name;
 use nc_game::theme::classic;
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
@@ -216,6 +219,66 @@ fn draw_prompt_feedback_after_renders_notice_hanger() {
     assert!((0..PLAYFIELD_HEIGHT).any(|row| {
         row_text(&buffer, row).contains("Notice: Applied move to Fleet #2 for sector [14,9].")
     }));
+}
+
+#[test]
+fn draw_status_line_clips_long_value_without_panicking() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_status_line(
+        &mut buffer,
+        5,
+        "Selected fleets: ",
+        "01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16",
+    );
+    let line = row_text(&buffer, 5);
+    assert_eq!(line.len(), PLAYFIELD_WIDTH);
+    assert!(line.contains("Selected fleets: "));
+}
+
+#[test]
+fn message_compose_subject_clips_long_recipient_without_panicking() {
+    let mut screen = MessageComposeScreen::new();
+    let buffer = screen
+        .render_subject(
+            "Empire 01 An extraordinarily long recipient empire label that exceeds the row width",
+            "",
+            Some("Status text that is also long enough to exercise the wrapped prompt feedback path."),
+        )
+        .expect("subject prompt renders");
+    assert!(row_text(&buffer, 2).contains("To: Empire 01"));
+}
+
+#[test]
+fn starmap_prompt_clips_long_export_status_without_panicking() {
+    let mut screen = StarmapScreen::new();
+    let buffer = screen
+        .render_prompt(
+            ScreenGeometry::local_default(),
+            Some(
+                "Export path is extremely long and should not overflow the playfield even when the message is far wider than the terminal row.",
+            ),
+        )
+        .expect("starmap prompt renders");
+    assert!(row_text(&buffer, 9).contains("Export path is"));
+}
+
+#[test]
+fn first_time_join_name_clips_long_invite_code_without_panicking() {
+    let buffer = render_first_time_join_name(
+        false,
+        false,
+        true,
+        Some(
+            "this-is-a-very-long-hosted-invite-code-that-should-be-clipped-before-it-can-overflow-the-screen@relay.example.com",
+        ),
+        None,
+        "",
+        "",
+        None,
+        false,
+    )
+    .expect("join name renders");
+    assert!(row_text(&buffer, 4).contains("Invite code: "));
 }
 
 #[test]

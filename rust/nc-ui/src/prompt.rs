@@ -108,7 +108,7 @@ pub fn draw_command_prompt_at_col(
     buffer.fill_row(row, classic::prompt_style());
     let suffix = "-> ";
     if keys == "SLAP A KEY" {
-        buffer.write_spans(
+        buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -120,10 +120,10 @@ pub fn draw_command_prompt_at_col(
         let suffix_col = buffer.width().saturating_sub(suffix.chars().count() + 1);
         let slap_col = suffix_col.saturating_sub(slap_width);
         write_slap_a_key(buffer, row, slap_col);
-        let _ = buffer.write_text(row, suffix_col, suffix, classic::prompt_style());
+        let _ = buffer.write_text_clipped(row, suffix_col, suffix, classic::prompt_style());
     } else {
         let prefix_col = col
-            + buffer.write_spans(
+            + buffer.write_spans_clipped(
                 row,
                 col,
                 &[
@@ -132,9 +132,9 @@ pub fn draw_command_prompt_at_col(
                 ],
             );
         let mut cursor_col = write_command_rail_tokens(buffer, row, prefix_col, keys);
-        cursor_col += buffer.write_text(row, cursor_col, " -> ", classic::prompt_style());
-        if cursor_col < buffer.width() {
-            buffer.set_cursor(cursor_col as u16, row as u16);
+        cursor_col += buffer.write_text_clipped(row, cursor_col, " -> ", classic::prompt_style());
+        if buffer.width() > 0 {
+            buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
         }
     }
 }
@@ -156,7 +156,7 @@ pub fn draw_command_line_text_at_col(
     text: &str,
 ) {
     buffer.fill_row(row, classic::prompt_style());
-    buffer.write_spans(
+    buffer.write_spans_clipped(
         row,
         col,
         &[
@@ -185,7 +185,7 @@ pub fn draw_command_line_prompt_text_at_col(
 ) {
     buffer.fill_row(row, classic::prompt_style());
     let prefix = col
-        + buffer.write_spans(
+        + buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -195,8 +195,8 @@ pub fn draw_command_line_prompt_text_at_col(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && cursor_col < buffer.width() {
-        buffer.set_cursor(cursor_col as u16, row as u16);
+    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+        buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
 }
 
@@ -258,7 +258,7 @@ pub fn draw_command_line_default_input_with_cancel_at_col(
 ) {
     buffer.fill_row(row, classic::prompt_style());
     let mut cursor_col = col
-        + buffer.write_spans(
+        + buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -268,7 +268,7 @@ pub fn draw_command_line_default_input_with_cancel_at_col(
         );
     cursor_col = write_prompt_markup(buffer, row, cursor_col, prompt);
     if !default.is_empty() {
-        cursor_col += buffer.write_spans(
+        cursor_col += buffer.write_spans_clipped(
             row,
             cursor_col,
             &[
@@ -309,7 +309,7 @@ pub fn draw_table_command_bar_at_col(
 ) -> usize {
     buffer.fill_row(row, classic::prompt_style());
     let mut cursor_col = col
-        + buffer.write_spans(
+        + buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -319,7 +319,7 @@ pub fn draw_table_command_bar_at_col(
         );
     cursor_col = write_command_rail_tokens(buffer, row, cursor_col, hotkeys_markup);
     if let Some(default) = default {
-        cursor_col += buffer.write_spans(
+        cursor_col += buffer.write_spans_clipped(
             row,
             cursor_col,
             &[
@@ -372,7 +372,7 @@ pub fn draw_table_command_prompt_at_col(
 ) -> usize {
     buffer.fill_row(row, classic::prompt_style());
     let prefix = col
-        + buffer.write_spans(
+        + buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -382,8 +382,8 @@ pub fn draw_table_command_prompt_at_col(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && cursor_col < buffer.width() {
-        buffer.set_cursor(cursor_col as u16, row as u16);
+    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+        buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
     cursor_col
 }
@@ -401,8 +401,8 @@ pub fn draw_plain_prompt_at_col(
     buffer.fill_row(row, classic::prompt_style());
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, col, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && cursor_col < buffer.width() {
-        buffer.set_cursor(cursor_col as u16, row as u16);
+    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+        buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
     cursor_col
 }
@@ -476,17 +476,17 @@ fn write_live_input_clipped(
 }
 
 fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
-    let after_open = col + buffer.write_text(row, col, "(", classic::prompt_hotkey_style());
+    let after_open = col + buffer.write_text_clipped(row, col, "(", classic::prompt_hotkey_style());
     let after_text = after_open
-        + buffer.write_text(
+        + buffer.write_text_clipped(
             row,
             after_open,
             "slap a ",
             classic::prompt_notice_action_style(),
         );
-    let after_key =
-        after_text + buffer.write_text(row, after_text, "key", classic::prompt_hotkey_style());
-    after_key + buffer.write_text(row, after_key, ")", classic::prompt_hotkey_style())
+    let after_key = after_text
+        + buffer.write_text_clipped(row, after_text, "key", classic::prompt_hotkey_style());
+    after_key + buffer.write_text_clipped(row, after_key, ")", classic::prompt_hotkey_style())
 }
 
 fn write_command_rail_tokens(
@@ -499,7 +499,7 @@ fn write_command_rail_tokens(
     let mut first = true;
     for token in tokens.split_whitespace() {
         if !first {
-            col += buffer.write_text(row, col, " ", classic::prompt_style());
+            col += buffer.write_text_clipped(row, col, " ", classic::prompt_style());
         }
         col += write_command_rail_token(buffer, row, col, token);
         first = false;
@@ -517,7 +517,7 @@ fn write_command_rail_token(
         .strip_prefix('<')
         .and_then(|value| value.strip_suffix('>'))
     {
-        buffer.write_spans(
+        buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -530,7 +530,7 @@ fn write_command_rail_token(
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'))
     {
-        buffer.write_spans(
+        buffer.write_spans_clipped(
             row,
             col,
             &[
@@ -540,7 +540,7 @@ fn write_command_rail_token(
             ],
         )
     } else {
-        buffer.write_text(row, col, token, classic::prompt_hotkey_style())
+        buffer.write_text_clipped(row, col, token, classic::prompt_hotkey_style())
     }
 }
 
@@ -558,15 +558,20 @@ fn write_prompt_markup(
     while idx < chars.len() {
         if let Some((phrase_end, key_start, key_end)) = slap_a_key_phrase(&chars, idx) {
             if !plain.is_empty() {
-                col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                col += buffer.write_text_clipped(row, col, &plain, classic::prompt_style());
                 plain.clear();
             }
             if key_start > idx {
                 let prefix = chars[idx..key_start].iter().collect::<String>();
-                col += buffer.write_text(row, col, &prefix, classic::prompt_notice_action_style());
+                col += buffer.write_text_clipped(
+                    row,
+                    col,
+                    &prefix,
+                    classic::prompt_notice_action_style(),
+                );
             }
             let key = chars[key_start..key_end].iter().collect::<String>();
-            col += buffer.write_text(row, col, &key, classic::prompt_hotkey_style());
+            col += buffer.write_text_clipped(row, col, &key, classic::prompt_hotkey_style());
             idx = phrase_end;
             continue;
         }
@@ -577,15 +582,30 @@ fn write_prompt_markup(
             let close_idx = idx + 1 + close_idx;
             if is_prompt_angle_hotkey(&chars[idx + 1..close_idx]) {
                 if !plain.is_empty() {
-                    col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                    col += buffer.write_text_clipped(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col += buffer.write_text(row, col, "<", classic::prompt_angle_delimiter_style());
+                col += buffer.write_text_clipped(
+                    row,
+                    col,
+                    "<",
+                    classic::prompt_angle_delimiter_style(),
+                );
                 if close_idx > idx + 1 {
                     let segment = chars[idx + 1..close_idx].iter().collect::<String>();
-                    col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
+                    col += buffer.write_text_clipped(
+                        row,
+                        col,
+                        &segment,
+                        classic::prompt_hotkey_style(),
+                    );
                 }
-                col += buffer.write_text(row, col, ">", classic::prompt_angle_delimiter_style());
+                col += buffer.write_text_clipped(
+                    row,
+                    col,
+                    ">",
+                    classic::prompt_angle_delimiter_style(),
+                );
                 idx = close_idx + 1;
                 continue;
             }
@@ -597,15 +617,30 @@ fn write_prompt_markup(
             let close_idx = idx + 1 + close_idx;
             if is_prompt_bracket_hotkey(&chars[idx + 1..close_idx]) {
                 if !plain.is_empty() {
-                    col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                    col += buffer.write_text_clipped(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col += buffer.write_text(row, col, "[", classic::prompt_square_delimiter_style());
+                col += buffer.write_text_clipped(
+                    row,
+                    col,
+                    "[",
+                    classic::prompt_square_delimiter_style(),
+                );
                 if close_idx > idx + 1 {
                     let segment = chars[idx + 1..close_idx].iter().collect::<String>();
-                    col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
+                    col += buffer.write_text_clipped(
+                        row,
+                        col,
+                        &segment,
+                        classic::prompt_hotkey_style(),
+                    );
                 }
-                col += buffer.write_text(row, col, "]", classic::prompt_square_delimiter_style());
+                col += buffer.write_text_clipped(
+                    row,
+                    col,
+                    "]",
+                    classic::prompt_square_delimiter_style(),
+                );
                 idx = close_idx + 1;
                 continue;
             }
@@ -619,10 +654,10 @@ fn write_prompt_markup(
             let token = chars[start..idx].iter().collect::<String>();
             if is_prompt_slash_hotkey_token(&chars, start, idx) {
                 if !plain.is_empty() {
-                    col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                    col += buffer.write_text_clipped(row, col, &plain, classic::prompt_style());
                     plain.clear();
                 }
-                col += buffer.write_text(row, col, &token, classic::prompt_hotkey_style());
+                col += buffer.write_text_clipped(row, col, &token, classic::prompt_hotkey_style());
             } else {
                 plain.push_str(&token);
             }
@@ -634,7 +669,7 @@ fn write_prompt_markup(
     }
 
     if !plain.is_empty() {
-        col += buffer.write_text(row, col, &plain, classic::prompt_style());
+        col += buffer.write_text_clipped(row, col, &plain, classic::prompt_style());
     }
 
     col
@@ -829,6 +864,23 @@ mod tests {
     }
 
     #[test]
+    fn command_input_clips_long_prompt_scaffold_without_panicking() {
+        let mut buffer = PlayfieldBuffer::new(40, 25, classic::body_style());
+        draw_command_line_default_input_at(
+            &mut buffer,
+            24,
+            "COMMAND",
+            "Target coordinates for extraordinarily long fleet mission ",
+            "1234567890",
+            "",
+        );
+        let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
+        assert_eq!(cursor_row, 24);
+        assert_eq!(cursor_col as usize, 39);
+        assert!(buffer.plain_line(24).starts_with("COMMAND <- "));
+    }
+
+    #[test]
     fn command_input_can_render_custom_cancel_markup() {
         let mut buffer = buffer();
         draw_command_line_default_input_with_cancel_at(
@@ -852,6 +904,20 @@ mod tests {
         let mut buffer = buffer();
         draw_plain_prompt(&mut buffer, 24, "(slap a key)");
         assert!(buffer.cursor().is_none());
+    }
+
+    #[test]
+    fn plain_prompt_clips_oversized_text_without_panicking() {
+        let mut buffer = PlayfieldBuffer::new(32, 25, classic::body_style());
+        draw_plain_prompt(
+            &mut buffer,
+            24,
+            "This is a very long prompt with <Q> and [Y] choices that should clip safely ->",
+        );
+        let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
+        assert_eq!(cursor_row, 24);
+        assert_eq!(cursor_col as usize, 31);
+        assert!(buffer.plain_line(24).starts_with("This is a very long"));
     }
 
     #[test]
