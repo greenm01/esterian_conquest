@@ -76,7 +76,7 @@ impl App {
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     if let Err(err) = self.validate_merge_source_row(&row) {
-                        self.fleet.list_status = Some(err);
+                        self.show_fleet_list_dismiss_message(err);
                         return;
                     }
                     self.fleet.command_context = FleetCommandContext::List;
@@ -89,7 +89,7 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }
@@ -114,7 +114,7 @@ impl App {
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     if let Err(err) = self.validate_transfer_donor_row(&row) {
-                        self.fleet.list_status = Some(err);
+                        self.show_fleet_list_dismiss_message(err);
                         return;
                     }
                     self.fleet.command_context = FleetCommandContext::List;
@@ -131,7 +131,7 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }
@@ -165,12 +165,12 @@ impl App {
                     if let Err(err) =
                         self.open_fleet_detach_with_selected_record(row.fleet_record_index_1_based)
                     {
-                        self.fleet.list_status = Some(err);
+                        self.show_fleet_list_dismiss_message(err);
                     }
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }

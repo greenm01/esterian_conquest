@@ -52,6 +52,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet.cursor,
             &app.fleet.list_input,
             app.fleet.list_status.as_deref(),
+            app.fleet.list_dismiss_message.as_deref(),
             app.fleet_menu_prompt_label().as_deref(),
             &app.fleet.menu_prompt_default_value,
             &app.fleet.menu_prompt_input,

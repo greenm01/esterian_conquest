@@ -1057,9 +1057,11 @@ mod tests {
     use super::{
         HostedLaunchContext, LOOPBACK_DOOR_HOST, LaunchPlayerBinding, LaunchPlayerBindingSource,
         ParsedLaunchArgs, apply_launch_context, local_exit_lines, resolve_launch_player_binding,
-        select_door_transport, session_lease_ttl_seconds, should_emit_local_exit_attribution,
+        run_interactive_inner, select_door_transport, session_lease_ttl_seconds,
+        should_emit_local_exit_attribution,
     };
     use crate::app::{App, AppConfig, RuntimeConfig, RuntimeSetupOverrides};
+    use crate::domains::fleet::state::FleetCommandContext;
     use crate::domains::startup::state::FirstTimeOnboardingMode;
     use crate::error::{
         HOSTED_ONBOARDING_INVARIANT_EXIT_CODE, HostedOnboardingInvariantError, exit_code_for,
@@ -1067,12 +1069,15 @@ mod tests {
     use crate::screen::ScreenGeometry;
     use crate::screen::ScreenId;
     use crate::terminal::door::DoorTransport;
-    use crate::terminal::{ColorMode, OutputEncoding};
+    use crate::terminal::{ColorMode, OutputEncoding, Terminal};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use nc_compat::import_directory_snapshot;
     use nc_data::{
         BbsGameConfig, CampaignStore, CoreGameData, HostedSeat, HostedSeatStatus, SeatReservation,
     };
+    use std::collections::VecDeque;
     use std::fs;
+    use std::io;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Mutex, OnceLock};
@@ -1194,6 +1199,55 @@ mod tests {
         let mut parsed = parsed_args(false);
         parsed.session_token = Some("session-token".to_string());
         parsed
+    }
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    struct ScriptedTerminal {
+        keys: VecDeque<KeyEvent>,
+        frames: Vec<Vec<String>>,
+    }
+
+    impl ScriptedTerminal {
+        fn new(keys: impl IntoIterator<Item = KeyEvent>) -> Self {
+            Self {
+                keys: keys.into_iter().collect(),
+                frames: Vec::new(),
+            }
+        }
+    }
+
+    impl Terminal for ScriptedTerminal {
+        fn render(
+            &mut self,
+            playfield: &crate::screen::PlayfieldBuffer,
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            self.frames.push(
+                (0..playfield.height())
+                    .map(|row| playfield.plain_line(row))
+                    .collect(),
+            );
+            Ok(())
+        }
+
+        fn dump_text_capture(&mut self, _text: &str) -> Result<(), Box<dyn std::error::Error>> {
+            Ok(())
+        }
+
+        fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
+            self.keys.pop_front().ok_or_else(|| {
+                Box::new(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "end of scripted keys",
+                )) as Box<dyn std::error::Error>
+            })
+        }
+
+        fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+            Ok(())
+        }
     }
 
     #[test]
@@ -1323,6 +1377,80 @@ mod tests {
     #[test]
     fn local_exit_lines_returns_empty() {
         assert_eq!(local_exit_lines(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn interactive_loop_survives_fleet_list_transfer_host_redraw() {
+        let game_dir = temp_first_time_game_copy();
+        let config = AppConfig {
+            game_dir: game_dir.clone(),
+            player_record_index_1_based: 1,
+            export_root: None,
+            queue_dir: None,
+            session_timeout_secs: None,
+            game_config: RuntimeConfig::default(),
+        };
+        let mut app = App::load(config).expect("app should load");
+        app.current_screen = ScreenId::MainMenu;
+
+        let donor = app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+            .expect("fleet #4 should exist");
+        donor.set_current_location_coords_raw([16, 13]);
+        donor.set_standing_order_target_coords_raw([16, 13]);
+        donor.set_battleship_count(0);
+        donor.set_cruiser_count(0);
+        donor.set_destroyer_count(0);
+        donor.set_troop_transport_count(2);
+        donor.set_army_count(0);
+        donor.set_scout_count(0);
+        donor.set_etac_count(0);
+        donor.recompute_max_speed_from_composition();
+
+        let host = app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+            .expect("fleet #3 should exist");
+        host.set_current_location_coords_raw([16, 13]);
+        host.set_standing_order_target_coords_raw([16, 13]);
+        host.set_battleship_count(0);
+        host.set_cruiser_count(0);
+        host.set_destroyer_count(1);
+        host.set_troop_transport_count(0);
+        host.set_army_count(0);
+        host.set_scout_count(0);
+        host.set_etac_count(0);
+        host.recompute_max_speed_from_composition();
+
+        app.open_fleet_menu();
+        app.open_fleet_list();
+        app.fleet.command_context = FleetCommandContext::List;
+
+        let mut terminal =
+            ScriptedTerminal::new([key(KeyCode::Char('t')), key(KeyCode::Char('q'))]);
+
+        run_interactive_inner(&mut app, &mut terminal, None)
+            .expect("interactive loop should stay alive through transfer prompt");
+
+        assert!(
+            terminal
+                .frames
+                .iter()
+                .flatten()
+                .any(|line| line.contains("Transfer To Fleet #")),
+            "{:#?}",
+            terminal.frames
+        );
+        assert_eq!(app.current_screen, ScreenId::FleetList);
+
+        let _ = fs::remove_dir_all(&game_dir);
     }
 
     #[test]

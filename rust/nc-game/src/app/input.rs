@@ -27,6 +27,9 @@ impl App {
             }
             return Action::Noop;
         }
+        if let Some(action) = self.handle_fleet_list_dismiss_latch(key) {
+            return action;
+        }
         if matches!(
             key,
             crossterm::event::KeyEvent {
@@ -356,6 +359,22 @@ impl App {
         Some(Action::Planet(PlanetAction::ClearCommissionDismissKey))
     }
 
+    fn handle_fleet_list_dismiss_latch(&self, key: crossterm::event::KeyEvent) -> Option<Action> {
+        if self.current_screen != ScreenId::FleetList || self.fleet.list_dismiss_message.is_none() {
+            return None;
+        }
+        match key.code {
+            crossterm::event::KeyCode::Modifier(_)
+            | crossterm::event::KeyCode::CapsLock
+            | crossterm::event::KeyCode::NumLock
+            | crossterm::event::KeyCode::ScrollLock
+            | crossterm::event::KeyCode::Null => None,
+            _ => Some(Action::Fleet(
+                crate::domains::fleet::FleetAction::DismissMessage,
+            )),
+        }
+    }
+
     pub(crate) fn active_navigation_guards(&self) -> Vec<&'static str> {
         let mut guards = Vec::new();
         if self.popup_help.is_some() {
@@ -366,6 +385,9 @@ impl App {
         }
         if self.planet.commission_result_dismiss_key.is_some() {
             guards.push("commission_result_dismiss_latch");
+        }
+        if self.fleet.list_dismiss_message.is_some() {
+            guards.push("fleet_list_dismiss_latch");
         }
         if self.inline_planet_transport_prompt_active_on_current_screen() {
             guards.push("planet_transport_prompt");

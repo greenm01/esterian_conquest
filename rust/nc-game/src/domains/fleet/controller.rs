@@ -8,7 +8,7 @@ use crate::app::helpers::{
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetChangeField, FleetCommandContext, FleetMenuPromptMode};
-use crate::screen::layout::{PLAYFIELD_WIDTH, PromptFeedback, wrap_text};
+use crate::screen::layout::PromptFeedback;
 use crate::screen::{CommandMenu, FleetEtaMode, FleetRow, PlanetTransportMode, ScreenId};
 use nc_data::{FleetRecord, Order};
 use std::cmp::Reverse;
@@ -58,6 +58,7 @@ impl App {
         self.clear_fleet_menu_prompt();
         self.fleet.command_context = FleetCommandContext::Menu;
         self.fleet.order_return_to_menu = false;
+        self.fleet.list_dismiss_message = None;
         self.fleet.dismiss_message = None;
         self.current_screen = ScreenId::FleetMenu;
     }
@@ -74,6 +75,10 @@ impl App {
     fn clear_fleet_list_input(&mut self) {
         self.fleet.list_input.clear();
         self.fleet.list_status = None;
+    }
+
+    pub(crate) fn clear_fleet_list_dismiss_message(&mut self) {
+        self.fleet.list_dismiss_message = None;
     }
 
     pub(crate) fn fleet_context_screen(&self) -> ScreenId {
@@ -93,14 +98,22 @@ impl App {
             .ok_or_else(|| "You have no active fleets.".to_string())
     }
 
-    pub(crate) fn fleet_message_fits_inline(&self, message: &str) -> bool {
-        let width = PLAYFIELD_WIDTH.saturating_sub(4);
-        width > 0 && wrap_text(message, width, width).len() <= 1
-    }
-
     pub(crate) fn dismiss_fleet_message(&mut self) {
+        if self.fleet.list_dismiss_message.is_some() {
+            self.fleet.list_dismiss_message = None;
+            self.current_screen = ScreenId::FleetList;
+            return;
+        }
         self.fleet.dismiss_message = None;
         self.current_screen = self.fleet_context_screen();
+    }
+
+    pub(crate) fn show_fleet_list_dismiss_message(&mut self, message: impl Into<String>) {
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::FleetList;
+        self.fleet.list_status = None;
+        self.fleet.dismiss_message = None;
+        self.fleet.list_dismiss_message = Some(message.into());
     }
 
     pub(crate) fn show_fleet_context_notice(&mut self, message: impl Into<String>) {
@@ -112,16 +125,7 @@ impl App {
             }
             FleetCommandContext::List => {
                 self.clear_fleet_menu_prompt();
-                self.clear_command_menu_notice();
-                self.current_screen = ScreenId::FleetList;
-                if self.fleet_message_fits_inline(&message) {
-                    self.fleet.list_status = Some(message);
-                    self.fleet.dismiss_message = None;
-                } else {
-                    self.fleet.list_status = None;
-                    self.fleet.dismiss_message = Some(message);
-                    self.current_screen = ScreenId::FleetMessage;
-                }
+                self.show_fleet_list_dismiss_message(message);
             }
         }
     }
@@ -136,6 +140,7 @@ impl App {
             self.clear_command_menu_notice();
             self.current_screen = ScreenId::FleetList;
             self.fleet.list_status = None;
+            self.fleet.list_dismiss_message = None;
             self.fleet.dismiss_message = None;
             return;
         }
@@ -149,24 +154,12 @@ impl App {
         if self.current_screen == ScreenId::FleetList
             && self.inline_fleet_menu_prompt_active_on_current_screen()
         {
-            let fits_inline = match &feedback {
-                PromptFeedback::Notice(value) => self.fleet_message_fits_inline(value),
-                PromptFeedback::Error(value) => {
-                    self.fleet_message_fits_inline(&format!("Error: {value}"))
-                }
-                PromptFeedback::Warning(value) => {
-                    self.fleet_message_fits_inline(&format!("Warning: {value}"))
-                }
-            };
-            if !fits_inline {
-                self.fleet.dismiss_message = Some(match &feedback {
-                    PromptFeedback::Notice(value) => value.clone(),
-                    PromptFeedback::Error(value) => format!("Error: {value}"),
-                    PromptFeedback::Warning(value) => format!("Warning: {value}"),
-                });
-                self.current_screen = ScreenId::FleetMessage;
-                return None;
-            }
+            self.show_fleet_list_dismiss_message(match &feedback {
+                PromptFeedback::Notice(value) => value.clone(),
+                PromptFeedback::Error(value) => format!("Error: {value}"),
+                PromptFeedback::Warning(value) => format!("Warning: {value}"),
+            });
+            return None;
         }
         Some(feedback)
     }
@@ -351,6 +344,7 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.current_screen = self.fleet_context_screen();
+        self.fleet.list_dismiss_message = None;
         self.fleet.menu_prompt_mode = Some(mode);
         self.fleet.menu_prompt_input.clear();
         self.fleet.menu_prompt_status = None;
@@ -373,6 +367,7 @@ impl App {
                     self.fleet.command_context = FleetCommandContext::List;
                     self.clear_command_menu_notice();
                     self.clear_fleet_list_input();
+                    self.clear_fleet_list_dismiss_message();
                     self.fleet.menu_prompt_context_fleet_record_index_1_based =
                         Some(row.fleet_record_index_1_based);
                     self.fleet.menu_prompt_change_field = None;
@@ -383,7 +378,7 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }
@@ -413,6 +408,7 @@ impl App {
         self.clear_fleet_menu_prompt();
         self.fleet.command_context = FleetCommandContext::List;
         self.fleet.dismiss_message = None;
+        self.fleet.list_dismiss_message = None;
         self.clear_fleet_list_input();
         self.fleet.scroll_offset = 0;
         self.fleet.cursor = 0;
@@ -487,7 +483,7 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }
@@ -516,7 +512,7 @@ impl App {
         {
             let message = "Selected fleet is no longer available.".to_string();
             if self.current_screen == ScreenId::FleetList {
-                self.fleet.list_status = Some(message);
+                self.show_fleet_list_dismiss_message(message);
             } else {
                 self.fleet.menu_prompt_status =
                     self.show_fleet_prompt_feedback(PromptFeedback::error(message));

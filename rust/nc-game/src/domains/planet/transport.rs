@@ -178,12 +178,12 @@ impl App {
                     if let Err(err) = self
                         .open_fleet_transport_quantity_prompt(mode, row.fleet_record_index_1_based)
                     {
-                        self.fleet.list_status = Some(err);
+                        self.show_fleet_list_dismiss_message(err);
                     }
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }

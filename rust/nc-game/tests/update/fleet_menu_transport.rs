@@ -2457,6 +2457,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             "",
             None,
             None,
+            None,
             "",
             "",
             None,
@@ -2495,6 +2496,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
             0,
             0,
             "",
+            None,
             None,
             None,
             "",
@@ -2623,6 +2625,7 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
             "",
             None,
             None,
+            None,
             "",
             "",
             None,
@@ -2696,6 +2699,79 @@ fn fleet_list_load_keeps_confirmation_when_table_does_not_show_army_load_state()
         "{:#?}",
         terminal.lines
     );
+}
+
+#[test]
+fn fleet_list_transport_error_uses_slap_a_key_footer_and_consumes_next_key() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    fleet.set_current_location_coords_raw(home_coords);
+    fleet.set_standing_order_target_coords_raw(home_coords);
+    fleet.set_battleship_count(1);
+    fleet.set_cruiser_count(0);
+    fleet.set_destroyer_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_etac_count(0);
+    fleet.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transport error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("That fleet has no troop transports."));
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Fleet(FleetAction::DismissMessage)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::DismissMessage)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list should render without the dismiss latch");
+    assert!(!line_containing(&terminal, "COMMAND <-").contains("(slap a key)"));
 }
 
 #[test]

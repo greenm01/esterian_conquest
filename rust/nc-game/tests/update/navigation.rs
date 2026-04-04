@@ -1747,6 +1747,15 @@ fn fleet_list_transfer_cancel_stays_in_fleet_flow() {
         app.fleet.menu_prompt_mode,
         Some(nc_game::domains::fleet::state::FleetMenuPromptMode::TransferHost)
     );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transfer host prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
+            .contains("Transfer To Fleet # ["),
+        "{:#?}",
+        terminal.lines
+    );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::Fleet(FleetAction::CancelMenuPrompt)
@@ -1772,6 +1781,94 @@ fn fleet_list_transfer_cancel_stays_in_fleet_flow() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetList);
+}
+
+#[test]
+fn fleet_list_transfer_host_error_uses_slap_a_key_latch_and_preserves_prompt() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let donor = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_destroyer_count(0);
+    donor.set_troop_transport_count(2);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    let host = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    host.set_battleship_count(0);
+    host.set_cruiser_count(0);
+    host.set_destroyer_count(1);
+    host.set_troop_transport_count(0);
+    host.set_army_count(0);
+    host.set_scout_count(0);
+    host.set_etac_count(0);
+    host.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenList));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer));
+    submit_fleet_menu_prompt(&mut app, Some(99));
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert_eq!(
+        app.fleet.menu_prompt_mode,
+        Some(nc_game::domains::fleet::state::FleetMenuPromptMode::TransferHost)
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transfer error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("Fleet #99 is not in your fleet list."));
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('?'))),
+        Action::Fleet(FleetAction::DismissMessage)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::DismissMessage)),
+        AppOutcome::Continue
+    );
+    assert!(app.popup_help.is_none());
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert_eq!(
+        app.fleet.menu_prompt_mode,
+        Some(nc_game::domains::fleet::state::FleetMenuPromptMode::TransferHost)
+    );
+
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transfer host prompt should return after dismiss");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
+            .contains("Transfer To Fleet # [")
+    );
 }
 
 #[test]

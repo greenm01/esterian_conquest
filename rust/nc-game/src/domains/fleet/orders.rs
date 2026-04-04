@@ -41,7 +41,7 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.fleet.list_status = Some(err);
+                    self.show_fleet_list_dismiss_message(err);
                     return;
                 }
             }

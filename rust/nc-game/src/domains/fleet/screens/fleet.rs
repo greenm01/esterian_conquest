@@ -43,6 +43,34 @@ pub fn fleet_list_visible_rows(geometry: ScreenGeometry) -> usize {
     standard_table_visible_rows_for(geometry, 1)
 }
 
+fn truncate_to_width(value: &str, width: usize) -> String {
+    let chars = value.chars().collect::<Vec<_>>();
+    if chars.len() <= width {
+        return value.to_string();
+    }
+    if width == 0 {
+        return String::new();
+    }
+    if width <= 3 {
+        return ".".repeat(width);
+    }
+    let mut truncated = chars.into_iter().take(width - 3).collect::<String>();
+    truncated.push_str("...");
+    truncated
+}
+
+fn fleet_list_dismiss_prompt(geometry: ScreenGeometry, table_col: usize, message: &str) -> String {
+    let prefix = "(slap a key)";
+    let prompt_width = geometry
+        .width()
+        .saturating_sub(table_col + COMMAND_LABEL.chars().count() + 4);
+    if prompt_width <= prefix.chars().count() {
+        return truncate_to_width(prefix, prompt_width);
+    }
+    let message_width = prompt_width.saturating_sub(prefix.chars().count() + 1);
+    format!("{prefix} {}", truncate_to_width(message, message_width))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
     pub fleet_record_index_1_based: usize,
@@ -390,6 +418,7 @@ impl FleetListScreen {
         cursor: usize,
         input: &str,
         status: Option<&str>,
+        dismiss_message: Option<&str>,
         prompt_label: Option<&str>,
         prompt_default: &str,
         prompt_input: &str,
@@ -426,10 +455,17 @@ impl FleetListScreen {
             prompt_status.filter(|feedback| fleet_list_feedback_fits_inline(geometry, *feedback));
         let visible_rows = fleet_list_visible_rows(geometry)
             .saturating_sub(usize::from(prompt_feedback_inline.is_some()));
+        let dismiss_prompt = dismiss_message
+            .map(|message| fleet_list_dismiss_prompt(geometry, TABLE_TEXT_INSET, message));
         let footer = if table_rows.is_empty() {
             TableFooter::CommandText {
                 label: COMMAND_LABEL,
                 text: "You have no active fleets.",
+            }
+        } else if let Some(prompt) = dismiss_prompt.as_deref() {
+            TableFooter::CommandPrompt {
+                label: COMMAND_LABEL,
+                prompt,
             }
         } else if let Some(prompt_label) = prompt_label {
             TableFooter::CommandInput {
