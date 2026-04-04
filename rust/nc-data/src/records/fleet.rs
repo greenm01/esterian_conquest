@@ -411,26 +411,6 @@ impl FleetRecord {
         .collect()
     }
 
-    fn table_ship_composition_codes(&self) -> Vec<&'static str> {
-        assert!(
-            self.army_count() == 0 || self.troop_transport_count() > 0,
-            "fleet armies must be loaded in troop transports"
-        );
-        let loaded_transports = self.troop_transport_count() > 0 && self.army_count() > 0;
-        [
-            ("SC", self.scout_count() > 0),
-            ("BB", self.battleship_count() > 0),
-            ("CA", self.cruiser_count() > 0),
-            ("DD", self.destroyer_count() > 0),
-            ("TT", self.troop_transport_count() > 0 && !loaded_transports),
-            ("TT*", loaded_transports),
-            ("ET", self.etac_count() > 0),
-        ]
-        .into_iter()
-        .filter_map(|(label, present)| present.then_some(label))
-        .collect()
-    }
-
     fn fleet_list_ship_composition_tokens(&self) -> Vec<String> {
         assert!(
             self.army_count() == 0 || self.troop_transport_count() > 0,
@@ -471,12 +451,6 @@ impl FleetRecord {
     }
 
     pub fn ship_composition_table_summary(&self) -> String {
-        let parts = self.table_ship_composition_codes();
-        assert!(!parts.is_empty(), "empty fleet record is not a fleet");
-        parts.join(" ")
-    }
-
-    pub fn ship_composition_fleet_list_summary(&self) -> String {
         let parts = self.fleet_list_ship_composition_tokens();
         assert!(!parts.is_empty(), "empty fleet record is not a fleet");
         parts.join(" ")

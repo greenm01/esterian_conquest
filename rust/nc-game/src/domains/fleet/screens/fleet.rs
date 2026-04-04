@@ -71,7 +71,7 @@ fn fleet_list_dismiss_prompt(geometry: ScreenGeometry, table_col: usize, message
     format!("{prefix} {}", truncate_to_width(message, message_width))
 }
 
-fn fit_fleet_list_ships_summary(summary: &str, width: usize) -> String {
+fn fit_fleet_table_ships_summary(summary: &str, width: usize) -> String {
     if summary.chars().count() <= width {
         return summary.to_string();
     }
@@ -121,8 +121,7 @@ pub struct FleetRow {
     pub loaded_armies: u16,
     pub order_label: String,
     pub composition_label: String,
-    pub table_composition_label: String,
-    pub fleet_list_composition_label: String,
+    pub table_ships_label: String,
 }
 
 pub struct FleetMenuScreen;
@@ -479,7 +478,7 @@ impl FleetListScreen {
                     row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
                     row.loaded_armies.to_string(),
-                    fit_fleet_list_ships_summary(&row.fleet_list_composition_label, ships_width),
+                    fit_fleet_table_ships_summary(&row.table_ships_label, ships_width),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1097,6 +1096,11 @@ impl FleetGroupScreen {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         buffer.fill_row(0, classic::menu_style());
         let max_fleet_number = max_fleet_number(rows);
+        let base_columns = group_selection_columns(max_fleet_number);
+        let ships_width = base_columns
+            .last()
+            .map(|column| column.width)
+            .unwrap_or_default();
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -1113,7 +1117,8 @@ impl FleetGroupScreen {
                     row.current_speed.to_string(),
                     row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
-                    row.table_composition_label.clone(),
+                    row.loaded_armies.to_string(),
+                    fit_fleet_table_ships_summary(&row.table_ships_label, ships_width),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1133,7 +1138,7 @@ impl FleetGroupScreen {
             }
         };
         let columns = resolve_table_columns_for_widget(
-            &group_selection_columns(max_fleet_number),
+            &base_columns,
             &table_rows,
             buffer.width(),
             scrollable,
@@ -1744,9 +1749,9 @@ fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
     ]
 }
 
-fn group_selection_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
+fn group_selection_columns(max_fleet_number: u16) -> [TableColumn<'static>; 10] {
     let id_width = fleet_id_column_width(max_fleet_number);
-    let ships_width = 69usize.saturating_sub(id_width + 3 + 8 + 15 + 8 + 3 + 4 + 3);
+    let ships_width = 69usize.saturating_sub(id_width + 3 + 8 + 15 + 8 + 3 + 4 + 3 + 3);
     [
         TableColumn::right("ID", id_width),
         TableColumn::center("Sel", 3),
@@ -1756,6 +1761,7 @@ fn group_selection_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
         TableColumn::right("Spd", 3),
         TableColumn::right("ETA", 4),
         TableColumn::right("ROE", 3),
+        TableColumn::right("AR", 3),
         TableColumn::left("Ships", ships_width),
     ]
 }

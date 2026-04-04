@@ -922,8 +922,7 @@ impl App {
                 loaded_armies: fleet.army_count(),
                 order_label: fleet.standing_order_summary(),
                 composition_label: fleet.ship_composition_summary(),
-                table_composition_label: fleet.ship_composition_table_summary(),
-                fleet_list_composition_label: fleet.ship_composition_fleet_list_summary(),
+                table_ships_label: fleet.ship_composition_table_summary(),
             })
             .collect::<Vec<_>>();
         rows.sort_by(|left, right| {

@@ -2414,8 +2414,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "CA=1".to_string(),
-            table_composition_label: "CA".to_string(),
-            fleet_list_composition_label: "CA".to_string(),
+            table_ships_label: "CA".to_string(),
         },
         FleetRow {
             fleet_record_index_1_based: 2,
@@ -2431,8 +2430,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "DD=1".to_string(),
-            table_composition_label: "DD".to_string(),
-            fleet_list_composition_label: "DD".to_string(),
+            table_ships_label: "DD".to_string(),
         },
         FleetRow {
             fleet_record_index_1_based: 3,
@@ -2448,8 +2446,7 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "BB=1".to_string(),
-            table_composition_label: "BB".to_string(),
-            fleet_list_composition_label: "BB".to_string(),
+            table_ships_label: "BB".to_string(),
         },
     ];
 
@@ -2491,8 +2488,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         loaded_armies: 3,
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "DD=1".to_string(),
-        table_composition_label: "DD".to_string(),
-        fleet_list_composition_label: "DD".to_string(),
+        table_ships_label: "DD".to_string(),
     }];
 
     let buffer = screen
@@ -2554,8 +2550,7 @@ fn fleet_list_ships_column_shows_sparse_counted_tokens() {
         loaded_armies: 2,
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "SC=2 BB=1 DD=4 AR=2 ET=1".to_string(),
-        table_composition_label: "SC BB DD TT* ET".to_string(),
-        fleet_list_composition_label: "2SC BB 4DD 2TT* ET".to_string(),
+        table_ships_label: "2SC BB 4DD 2TT* ET".to_string(),
     }];
 
     let buffer = screen
@@ -2594,8 +2589,7 @@ fn fleet_list_ships_column_truncates_by_whole_token_with_plus_marker() {
         loaded_armies: 2,
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "SC=2 BB=4 CA=3 DD=5 TT=5 AR=2 ET=1".to_string(),
-        table_composition_label: "SC BB CA DD TT* TT ET".to_string(),
-        fleet_list_composition_label: "2SC 4BB 3CA 5DD 2TT* 3TT ET".to_string(),
+        table_ships_label: "2SC 4BB 3CA 5DD 2TT* 3TT ET".to_string(),
     }];
 
     let buffer = screen
@@ -2703,8 +2697,7 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
         loaded_armies: 0,
         order_label: "Move fleet to Sector (0,0)".to_string(),
         composition_label: "DD=1".to_string(),
-        table_composition_label: "DD".to_string(),
-        fleet_list_composition_label: "DD".to_string(),
+        table_ships_label: "DD".to_string(),
     }];
 
     let buffer = screen
@@ -2883,8 +2876,7 @@ fn fleet_list_load_quantity_prompt_keeps_scrollbar_gutter() {
             loaded_armies: 0,
             order_label: "Hold".to_string(),
             composition_label: "TT".to_string(),
-            table_composition_label: "TT".to_string(),
-            fleet_list_composition_label: "TT".to_string(),
+            table_ships_label: "TT".to_string(),
         })
         .collect::<Vec<_>>();
 
@@ -2997,8 +2989,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         loaded_armies: 0,
         order_label: "Move fleet to Sector (19,13)".to_string(),
         composition_label: "CA=1".to_string(),
-        table_composition_label: "CA".to_string(),
-        fleet_list_composition_label: "CA".to_string(),
+        table_ships_label: "CA".to_string(),
     };
 
     let buffer = screen

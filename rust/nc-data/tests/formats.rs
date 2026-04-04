@@ -243,10 +243,10 @@ fn fleet_table_summary_uses_tt_star_for_loaded_transports_only() {
     record.set_etac_count(0);
     record.set_troop_transport_count(2);
     record.set_army_count(0);
-    assert_eq!(record.ship_composition_table_summary(), "TT");
+    assert_eq!(record.ship_composition_table_summary(), "2TT");
 
     record.set_army_count(2);
-    assert_eq!(record.ship_composition_table_summary(), "TT*");
+    assert_eq!(record.ship_composition_table_summary(), "2TT*");
     assert!(!record.ship_composition_table_summary().contains("TT "));
 }
 
@@ -264,10 +264,7 @@ fn fleet_list_summary_shows_counts_only_when_greater_than_one() {
     record.set_army_count(0);
     record.set_etac_count(1);
 
-    assert_eq!(
-        record.ship_composition_fleet_list_summary(),
-        "2SC BB 4DD ET"
-    );
+    assert_eq!(record.ship_composition_table_summary(), "2SC BB 4DD ET");
 }
 
 #[test]
@@ -284,7 +281,7 @@ fn fleet_list_summary_splits_loaded_and_empty_transports() {
     record.set_army_count(2);
     record.set_etac_count(0);
 
-    assert_eq!(record.ship_composition_fleet_list_summary(), "2TT* 3TT");
+    assert_eq!(record.ship_composition_table_summary(), "2TT* 3TT");
 }
 
 #[test]

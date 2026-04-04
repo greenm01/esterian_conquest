@@ -53,6 +53,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     assert!(header_line.contains("│Spd│"));
     assert!(header_line.contains("ETA"));
     assert!(header_line.contains("ROE"));
+    assert!(header_line.contains("AR"));
     assert!(header_line.contains("Ships"));
     assert!(
         !terminal
@@ -91,8 +92,7 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
             loaded_armies: 0,
             order_label: "Patrol".to_string(),
             composition_label: "SC=1".to_string(),
-            table_composition_label: "SC".to_string(),
-            fleet_list_composition_label: "SC".to_string(),
+            table_ships_label: "SC".to_string(),
         })
         .collect::<Vec<_>>();
     let mut screen = FleetGroupScreen::new();
@@ -134,6 +134,189 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
     assert!(terminal.lines.iter().any(|line| char_at(line) == Some('#')));
     assert!(terminal.lines.iter().any(|line| char_at(line) == Some('v')));
 }
+
+#[test]
+fn fleet_group_order_ships_column_matches_sparse_counted_table_format() {
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 4,
+        coords: [12, 6],
+        target_coords: [12, 6],
+        order_code: 3,
+        current_speed: 0,
+        max_speed: 3,
+        eta_label: "0".to_string(),
+        list_eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Patrol".to_string(),
+        composition_label: "SC=2 BB=1 DD=4 AR=2 ET=1".to_string(),
+        table_ships_label: "2SC BB 4DD 2TT* ET".to_string(),
+    }];
+    let mut screen = FleetGroupScreen::new();
+    let buffer = screen
+        .render(
+            nc_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            &BTreeSet::new(),
+            FleetGroupOrderMode::SelectingFleets,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            3015,
+            None,
+        )
+        .expect("group fleet order screen should render");
+    let mut terminal = CaptureTerminal::new();
+    terminal
+        .render(&buffer)
+        .expect("captured group fleet order screen should render");
+
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("2SC BB 4DD 2TT* ET")),
+        "{:#?}",
+        terminal.lines
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("│ 2│") && line.contains("2SC BB 4DD 2TT* ET")),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
+fn fleet_group_order_ships_column_truncates_by_whole_token_with_plus_marker() {
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 4,
+        coords: [12, 6],
+        target_coords: [12, 6],
+        order_code: 3,
+        current_speed: 0,
+        max_speed: 3,
+        eta_label: "0".to_string(),
+        list_eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 2,
+        order_label: "Patrol".to_string(),
+        composition_label: "SC=2 BB=4 CA=3 DD=5 TT=5 AR=2 ET=1".to_string(),
+        table_ships_label: "2SC 4BB 3CA 5DD 2TT* 3TT ET".to_string(),
+    }];
+    let mut screen = FleetGroupScreen::new();
+    let buffer = screen
+        .render(
+            nc_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            &BTreeSet::new(),
+            FleetGroupOrderMode::SelectingFleets,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            3015,
+            None,
+        )
+        .expect("group fleet order screen should render");
+    let mut terminal = CaptureTerminal::new();
+    terminal
+        .render(&buffer)
+        .expect("captured group fleet order screen should render");
+
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("2SC 4BB 3CA 5DD +")),
+        "{:#?}",
+        terminal.lines
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("2TT* 3TT ET"))
+    );
+}
+
+#[test]
+fn fleet_group_order_ar_column_renders_zero_like_fleet_list() {
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 4,
+        coords: [12, 6],
+        target_coords: [12, 6],
+        order_code: 3,
+        current_speed: 0,
+        max_speed: 3,
+        eta_label: "0".to_string(),
+        list_eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        loaded_armies: 0,
+        order_label: "Patrol".to_string(),
+        composition_label: "SC=1".to_string(),
+        table_ships_label: "SC".to_string(),
+    }];
+    let mut screen = FleetGroupScreen::new();
+    let buffer = screen
+        .render(
+            nc_game::screen::ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            &BTreeSet::new(),
+            FleetGroupOrderMode::SelectingFleets,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            3015,
+            None,
+        )
+        .expect("group fleet order screen should render");
+    let mut terminal = CaptureTerminal::new();
+    terminal
+        .render(&buffer)
+        .expect("captured group fleet order screen should render");
+
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("│  0│") && line.contains("SC")),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
 #[test]
 fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     let fixture_dir = temp_game_copy();
