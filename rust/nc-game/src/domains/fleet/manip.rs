@@ -113,8 +113,8 @@ impl App {
         if self.current_screen == ScreenId::FleetList {
             match self.fleet_selected_list_row() {
                 Ok(row) => {
-                    if let Err(err) = self.validate_transfer_donor_row(&row) {
-                        self.show_fleet_list_dismiss_message(err);
+                    if self.validate_transfer_donor_row(&row).is_err() {
+                        self.show_fleet_list_dismiss_message("Unable to transfer");
                         return;
                     }
                     self.fleet.command_context = FleetCommandContext::List;

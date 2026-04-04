@@ -1872,6 +1872,115 @@ fn fleet_list_transfer_host_error_uses_slap_a_key_latch_and_preserves_prompt() {
 }
 
 #[test]
+fn fleet_list_transfer_donor_validation_uses_short_footer_notice_for_one_ship_fleet() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let donor = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_destroyer_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(1);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenList));
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert!(app.fleet.menu_prompt_mode.is_none());
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transfer donor error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("Unable to transfer"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::DismissMessage)),
+        AppOutcome::Continue
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list should return after dismiss");
+    assert!(!line_containing(&terminal, "COMMAND <-").contains("(slap a key)"));
+}
+
+#[test]
+fn fleet_list_transfer_donor_validation_uses_short_footer_notice_without_host_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let donor = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    donor.set_current_location_coords_raw([1, 1]);
+    donor.set_standing_order_target_coords_raw([1, 1]);
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_destroyer_count(0);
+    donor.set_troop_transport_count(2);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenList));
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert!(app.fleet.menu_prompt_mode.is_none());
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list transfer donor error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("Unable to transfer"));
+}
+
+#[test]
 fn starbase_move_prompt_errors_hang_directly_under_command_line() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut app = App::load(AppConfig {
