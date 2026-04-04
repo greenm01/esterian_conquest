@@ -89,29 +89,21 @@ pub fn provision_key(
     let now = unix_now();
     let expires_at = now + config.key_ttl;
 
-    // The service user shell is constrained to /bin/bash or /bin/sh by the
-    // installer. Use `exec` so the shell is replaced by nc-game; when the
-    // hosted session ends, sshd closes the connection cleanly instead of
-    // dropping the player to an interactive shell prompt.
+    // Build the forced command as one external process invocation. Avoid
+    // shell builtins like `exec` after `env`; sshd should be able to run the
+    // entry portably even when extra logging vars are present.
     let mut command = String::new();
     if let Some(log_file) = config.nc_game_log_file.as_deref() {
-        command.push_str("env ");
+        command.push_str("/usr/bin/env ");
         command.push_str("NC_GAME_LOG_FILE=");
         command.push_str(&shell_quote(&log_file.display().to_string()));
         command.push(' ');
         if let Some(log_level) = config.nc_game_log_level {
             command.push_str("NC_GAME_LOG_LEVEL=");
-            command.push_str(&shell_quote(match log_level {
-                nc_log::LogLevel::Error => "error",
-                nc_log::LogLevel::Warn => "warn",
-                nc_log::LogLevel::Info => "info",
-                nc_log::LogLevel::Debug => "debug",
-                nc_log::LogLevel::Trace => "trace",
-            }));
+            command.push_str(&shell_quote(log_level_name(log_level)));
             command.push(' ');
         }
     }
-    command.push_str("exec ");
     command.push_str(&shell_quote(&config.nc_game_path.display().to_string()));
     command.push_str(" --dir ");
     command.push_str(&shell_quote(&game_dir.display().to_string()));
@@ -401,6 +393,16 @@ fn unix_now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
+}
+
+fn log_level_name(level: nc_log::LogLevel) -> &'static str {
+    match level {
+        nc_log::LogLevel::Error => "error",
+        nc_log::LogLevel::Warn => "warn",
+        nc_log::LogLevel::Info => "info",
+        nc_log::LogLevel::Debug => "debug",
+        nc_log::LogLevel::Trace => "trace",
+    }
 }
 
 fn shell_quote(value: &str) -> String {

@@ -155,8 +155,8 @@ fn command_key_entry_has_command_restriction() {
     assert!(
         provisioned
             .entry
-            .contains(&format!(r#"command="exec '{}'"#, DEFAULT_NC_GAME_PATH)),
-        "entry should exec nc-game directly so ssh exits back to nc-connect"
+            .contains(&format!(r#"command="'{}'"#, DEFAULT_NC_GAME_PATH)),
+        "entry should launch nc-game directly as the forced external command"
     );
     assert!(
         provisioned.entry.contains("--player 2"),
@@ -226,7 +226,14 @@ fn command_key_entry_exports_nc_game_log_env_when_configured() {
             .contains("NC_GAME_LOG_FILE='/var/log/nc-game audit.log'")
     );
     assert!(provisioned.entry.contains("NC_GAME_LOG_LEVEL='trace'"));
-    assert!(provisioned.entry.contains("exec '/usr/local/bin/nc-game'"));
+    assert!(provisioned.entry.contains("/usr/bin/env "));
+    assert!(provisioned.entry.contains("'/usr/local/bin/nc-game'"));
+    assert!(
+        !provisioned.entry.contains(
+            "env NC_GAME_LOG_FILE='/var/log/nc-game audit.log' NC_GAME_LOG_LEVEL='trace' exec"
+        ),
+        "entry should not ask env to launch a literal exec program"
+    );
 }
 
 #[test]
