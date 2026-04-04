@@ -131,12 +131,22 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
         app.current_screen(),
         ScreenId::Startup(StartupPhase::Splash)
     );
+    let mut splash_terminal = CaptureTerminal::new();
+    app.render(&mut splash_terminal)
+        .expect("startup splash should render");
+    assert!(splash_terminal.line(24).starts_with(' '));
+    assert!(
+        splash_terminal
+            .line(24)
+            .contains("View the game introduction? Y/[N] ->")
+    );
 
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
+            assert!(terminal.line(24).starts_with(' '));
             assert!(
                 terminal
                     .lines
@@ -160,6 +170,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let mut results_terminal = CaptureTerminal::new();
     app.render(&mut results_terminal)
         .expect("startup results should render");
+    assert!(results_terminal.line(24).starts_with(' '));
     assert!(results_terminal.lines.iter().any(|line| {
         line.contains("Reports are marked pending, but no review text is available yet.")
     }));
@@ -176,6 +187,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let mut messages_terminal = CaptureTerminal::new();
     app.render(&mut messages_terminal)
         .expect("startup messages should render");
+    assert!(messages_terminal.line(24).starts_with(' '));
     assert!(messages_terminal.lines.iter().any(|line| {
         line.contains("Messages are marked pending, but no review text is available yet.")
     }));
@@ -637,7 +649,7 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
             .iter()
             .any(|line| line.contains(" -> This is a deliberately long startup results line"))
     );
-    assert!(terminal.lines.iter().any(|line| line.starts_with(" -> ")));
+    assert!(terminal.lines.iter().any(|line| line.starts_with("  -> ")));
     assert!(
         terminal
             .lines
@@ -703,7 +715,7 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
             .iter()
             .any(|line| line.contains(" -> Line one"))
     );
-    assert!(terminal.lines.iter().any(|line| line.trim_end() == " ->"));
+    assert!(terminal.lines.iter().any(|line| line.trim_end() == "  ->"));
     assert!(
         terminal
             .lines
@@ -754,13 +766,13 @@ fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
         terminal
             .lines
             .iter()
-            .any(|line| line.starts_with(" ->   Stardate 11 / 3003"))
+            .any(|line| line.starts_with("  ->   Stardate 11 / 3003"))
     );
     assert!(
         terminal
             .lines
             .iter()
-            .any(|line| line.starts_with(" ->     Fleet 7 arrived"))
+            .any(|line| line.starts_with("  ->     Fleet 7 arrived"))
     );
 }
 

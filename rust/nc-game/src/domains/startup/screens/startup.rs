@@ -16,6 +16,16 @@ fn is_star_decoration(ch: char) -> bool {
 
 const SPLASH_RNG_TAG: u64 = 0xEC15_5350_4C41_5348;
 
+const STARTUP_LEFT_COL: usize = LEFT_WINDOW_PAD_COL;
+
+fn startup_content_width() -> usize {
+    PLAYFIELD_WIDTH.saturating_sub(STARTUP_LEFT_COL)
+}
+
+fn centered_startup_col(content_width: usize) -> usize {
+    STARTUP_LEFT_COL + startup_content_width().saturating_sub(content_width) / 2
+}
+
 /// Split a text line into styled spans, highlighting specific phrases.
 fn highlighted_spans<'a>(
     line: &'a str,
@@ -420,7 +430,7 @@ pub fn render_game_intro_page(
         let y = row + text_start_row;
         last_content_row = y;
         if is_tribute {
-            buffer.write_text(y, 1, line, classic::intro_tribute_style());
+            buffer.write_text(y, STARTUP_LEFT_COL, line, classic::intro_tribute_style());
         } else if INTRO_ACCENT_PHRASES.iter().any(|p| line.contains(p)) {
             let spans = highlighted_spans(
                 line,
@@ -428,9 +438,9 @@ pub fn render_game_intro_page(
                 classic::body_style(),
                 classic::intro_accent_style(),
             );
-            buffer.write_spans(y, 1, &spans);
+            buffer.write_spans(y, STARTUP_LEFT_COL, &spans);
         } else {
-            buffer.write_text(y, 1, line, classic::body_style());
+            buffer.write_text(y, STARTUP_LEFT_COL, line, classic::body_style());
         }
     }
     let prompt = if intro_page + 1 < INTRO_PAGES.len() {
@@ -441,7 +451,7 @@ pub fn render_game_intro_page(
     draw_plain_prompt_at_col(
         &mut buffer,
         dismiss_prompt_row_for(geometry, last_content_row),
-        0,
+        STARTUP_LEFT_COL,
         prompt,
     );
     Ok(buffer)
@@ -461,7 +471,7 @@ fn render_splash(
             .map(|line| line.len())
             .max()
             .unwrap_or(0);
-        let logo_left = 80usize.saturating_sub(logo_width) / 2;
+        let logo_left = centered_startup_col(logo_width);
         let block_height = NOSTRIAN_CONQUEST_LOGO.len() + 4 + 1;
         let start_row = centered_row(0, last_body_row_for(geometry), block_height);
 
@@ -499,7 +509,7 @@ fn render_splash(
         draw_plain_prompt_at_col(
             &mut buffer,
             command_line_row_for(geometry),
-            0,
+            STARTUP_LEFT_COL,
             "View the game introduction? Y/[N] -> ",
         );
     } else {
@@ -511,8 +521,8 @@ fn render_splash(
             .map(|line| line.len())
             .max()
             .unwrap_or(0);
-        let logo_left = 80usize.saturating_sub(logo_width) / 2;
-        let logo_pad: String = " ".repeat(logo_left);
+        let logo_left = centered_startup_col(logo_width);
+        let logo_pad: String = " ".repeat(logo_left.saturating_sub(STARTUP_LEFT_COL));
         for line in &NOSTRIAN_CONQUEST_LOGO {
             transcript.push(format!("{logo_pad}{line}"));
         }
@@ -535,7 +545,12 @@ fn render_splash(
         } else {
             "(slap a key)"
         };
-        draw_plain_prompt_at_col(&mut buffer, command_line_row_for(geometry), 0, prompt);
+        draw_plain_prompt_at_col(
+            &mut buffer,
+            command_line_row_for(geometry),
+            STARTUP_LEFT_COL,
+            prompt,
+        );
     }
 
     Ok(buffer)
@@ -552,7 +567,7 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
         }
         return wrap_review_text_preserving_spacing(
             empty_notice,
-            PLAYFIELD_WIDTH.saturating_sub(ITEM_PREFIX.len()),
+            startup_content_width().saturating_sub(ITEM_PREFIX.len()),
         )
         .into_iter()
         .map(|line| format!("{ITEM_PREFIX}{line}"))
@@ -560,7 +575,7 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
     }
 
     let mut rows = Vec::new();
-    let max_width = PLAYFIELD_WIDTH.saturating_sub(ITEM_PREFIX.len());
+    let max_width = startup_content_width().saturating_sub(ITEM_PREFIX.len());
     for line in lines.iter() {
         if line.trim().is_empty() {
             rows.push(ITEM_PREFIX.trim_end().to_string());
@@ -645,7 +660,7 @@ fn render_review_transcript(
                     week_raw.to_string()
                 };
 
-                let mut col = 0;
+                let mut col = STARTUP_LEFT_COL;
                 if stardate_pos > 0 {
                     col += buffer.write_text(y, col, &line[..stardate_pos], line_style);
                 }
@@ -673,7 +688,7 @@ fn render_review_transcript(
                     buffer.write_text(y, col, &line[value_end..], line_style);
                 }
             } else {
-                buffer.write_text(y, 0, line, line_style);
+                buffer.write_text(y, STARTUP_LEFT_COL, line, line_style);
             }
         },
     );

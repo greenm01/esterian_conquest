@@ -1005,6 +1005,7 @@ fn startup_intro_page_24_row_door_keeps_slap_a_key_prompt_without_cursor() {
     .expect("startup intro renders on 24-row door");
 
     assert_eq!(buffer.height(), 24);
-    assert_eq!(row_text(&buffer, 16).trim_end(), "(slap a key)");
+    assert_eq!(row_text(&buffer, 16).trim_end(), " (slap a key)");
+    assert!(row_text(&buffer, 16).starts_with(' '));
     assert!(buffer.cursor().is_none());
 }
