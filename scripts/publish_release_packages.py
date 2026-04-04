@@ -101,6 +101,14 @@ def capture(argv: list[str], *, cwd: Path | None = None) -> str:
     return run(argv, cwd=cwd, capture_output=True).stdout
 
 
+def load_version() -> str:
+    cargo_toml = (REPO_ROOT / "rust" / "nc-game" / "Cargo.toml").read_text(encoding="utf-8")
+    match = re.search(r'(?m)^version = "([^"]+)"$', cargo_toml)
+    if match is None:
+        raise SystemExit("could not parse version from rust/nc-game/Cargo.toml")
+    return match.group(1)
+
+
 def list_release_assets(release_tag: str) -> list[str]:
     output = capture(
         ["gh", "release", "view", release_tag, "--json", "assets", "--jq", ".assets[].name"]
