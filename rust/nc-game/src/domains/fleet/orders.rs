@@ -1841,7 +1841,10 @@ impl App {
                 .fleets
                 .records
                 .get(row.fleet_record_index_1_based - 1)
-                .map(|fleet| fleet.current_speed())
+                .map(|fleet| {
+                    let speed = fleet.current_speed();
+                    if speed == 0 { fleet.max_speed() } else { speed }
+                })
                 .unwrap_or(row.current_speed);
             self.game_data.set_fleet_order(
                 row.fleet_record_index_1_based,

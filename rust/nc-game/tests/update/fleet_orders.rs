@@ -1246,6 +1246,101 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
 }
 
 #[test]
+fn fleet_order_from_stopped_fleet_uses_max_speed() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[1].set_current_speed(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_order_target(&mut app, [14, 9]);
+    confirm_fleet_order(&mut app, true);
+
+    let persisted = latest_runtime_state(&fixture_dir);
+    assert_eq!(persisted.game_data.fleets.records[1].standing_order_code_raw(), 1);
+    assert_eq!(
+        persisted.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [14, 9]
+    );
+    assert_eq!(persisted.game_data.fleets.records[1].current_speed(), 3);
+    assert_eq!(
+        persisted.game_data.fleets.records[1].current_speed(),
+        persisted.game_data.fleets.records[1].max_speed()
+    );
+}
+
+#[test]
+fn fleet_order_preserves_explicit_nonzero_speed() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.fleets.records[1].set_current_speed(1);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(2));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    enter_fleet_order_target(&mut app, [14, 9]);
+    confirm_fleet_order(&mut app, true);
+
+    let persisted = latest_runtime_state(&fixture_dir);
+    assert_eq!(persisted.game_data.fleets.records[1].standing_order_code_raw(), 1);
+    assert_eq!(
+        persisted.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [14, 9]
+    );
+    assert_eq!(persisted.game_data.fleets.records[1].current_speed(), 1);
+    assert_eq!(persisted.game_data.fleets.records[1].max_speed(), 3);
+}
+
+#[test]
 fn fleet_order_screen_uses_compact_summary_and_eta_confirm() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
