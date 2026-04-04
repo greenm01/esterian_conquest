@@ -87,7 +87,7 @@ fn campaign_settings_round_trip_and_update_runtime_policy_bytes() {
 }
 
 #[test]
-fn session_leases_allow_same_identity_pending_retry_and_expire() {
+fn session_leases_allow_same_identity_retries_and_expire() {
     let (root, store, _) = seeded_store("nc-data-session-leases");
     store
         .save_campaign_settings(&CampaignSettings::new("friday-night", "Friday Night EC"))
@@ -120,13 +120,26 @@ fn session_leases_allow_same_identity_pending_retry_and_expire() {
         .expect("activate lease");
     assert_eq!(active.state, nc_data::SessionLeaseState::Active);
 
-    let err = store
+    let retried_active = store
         .create_pending_session_lease("token-4", 2, "npub-player-1", 121, 60)
-        .expect_err("active lease for the same seat should still fail");
+        .expect("same-identity active retry should replace the old lease");
+    assert_eq!(retried_active.session_token, "token-4");
+    assert_eq!(
+        retried_active.state,
+        nc_data::SessionLeaseState::PendingSsh
+    );
+    assert!(matches!(
+        store.load_session_lease("token-2", 121),
+        Err(nc_data::SessionLeaseError::InvalidToken)
+    ));
+
+    let err = store
+        .create_pending_session_lease("token-5", 2, "npub-player-2", 122, 60)
+        .expect_err("foreign retry against a replaced live seat should still fail");
     assert!(matches!(err, nc_data::SessionLeaseError::SeatBusy { .. }));
 
     let heartbeated = store
-        .heartbeat_session_lease("token-2", 150, 60)
+        .heartbeat_session_lease("token-4", 150, 60)
         .expect("heartbeat lease");
     assert_eq!(heartbeated.expires_at_unix_seconds, 210);
     assert!(

@@ -472,6 +472,65 @@ fn full_pipeline_same_identity_pending_retry_replaces_bootstrap_lease() {
 }
 
 #[test]
+fn full_pipeline_same_identity_active_retry_replaces_live_lease() {
+    let dir = temp_dir("active_retry");
+    let game_dir = dir.join("retry-game");
+    fs::create_dir_all(&game_dir).unwrap();
+    let gate_keys = Keys::generate();
+    let player_keys = Keys::generate();
+    let player_hex = player_keys.public_key().to_hex();
+    let entry = hosted_game_entry(
+        &game_dir,
+        "retry-game",
+        "Retry Game",
+        vec![claimed_seat(1, "velvet-mountain", &player_hex)],
+    );
+
+    let ssh_pubkey = "ssh-ed25519 AAAA111111111111111111111111111111111111111111111111111 retry";
+    let store = CampaignStore::open_default_in_dir(&game_dir).unwrap();
+
+    let first_event =
+        signed_session_request_event(&player_keys, &gate_keys, "", Some("retry-game"), ssh_pubkey);
+    let first_req = parse_session_request(&first_event).expect("first request should parse");
+    let first_seat = match route(&first_req, std::slice::from_ref(&entry)) {
+        RoutingDecision::Provisioned(seat) => seat,
+        other => panic!("expected Provisioned, got {other:?}"),
+    };
+    assert!(!first_seat.first_claim);
+    let first_lease = store
+        .create_pending_session_lease("session-a", 1, &player_hex, 100, 60)
+        .expect("first pending lease should succeed");
+    assert_eq!(first_lease.session_token, "session-a");
+    let first_live = store
+        .activate_session_lease("session-a", 101, 60)
+        .expect("activate first lease");
+    assert_eq!(first_live.state, nc_data::SessionLeaseState::Active);
+
+    let second_event =
+        signed_session_request_event(&player_keys, &gate_keys, "", Some("retry-game"), ssh_pubkey);
+    let second_req = parse_session_request(&second_event).expect("second request should parse");
+    let second_seat = match route(&second_req, &[entry]) {
+        RoutingDecision::Provisioned(seat) => seat,
+        other => panic!("expected Provisioned, got {other:?}"),
+    };
+    assert!(!second_seat.first_claim);
+    let second_lease = store
+        .create_pending_session_lease("session-b", 1, &player_hex, 110, 60)
+        .expect("same-identity active retry should succeed");
+    assert_eq!(second_lease.session_token, "session-b");
+    assert_eq!(second_lease.state, nc_data::SessionLeaseState::PendingSsh);
+
+    assert!(matches!(
+        store.load_session_lease("session-a", 110),
+        Err(nc_data::SessionLeaseError::InvalidToken)
+    ));
+    let live = store
+        .load_session_lease("session-b", 110)
+        .expect("replacement lease should load");
+    assert_eq!(live.player_record_index_1_based, 1);
+}
+
+#[test]
 fn full_pipeline_finds_live_identity_session_across_hosted_games() {
     let dir = temp_dir("identity_busy");
     let game_a_dir = dir.join("game-a");

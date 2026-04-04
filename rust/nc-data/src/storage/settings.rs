@@ -375,10 +375,12 @@ impl CampaignStore {
                     format!("unknown session lease state: {existing_state_raw}"),
                 )));
             };
-            let retryable_pending = existing_state == SessionLeaseState::PendingSsh
-                && existing_npub == player_npub
+            let retryable_same_identity = matches!(
+                existing_state,
+                SessionLeaseState::PendingSsh | SessionLeaseState::Active
+            ) && existing_npub == player_npub
                 && existing_token != session_token;
-            if retryable_pending {
+            if retryable_same_identity {
                 tx.execute(
                     "DELETE FROM active_sessions WHERE session_token = ?1",
                     [existing_token],
