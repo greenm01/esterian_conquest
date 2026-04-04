@@ -527,16 +527,16 @@ fn render_splash(
             transcript.push(format!("{logo_pad}{line}"));
         }
         transcript.push(String::new());
-        transcript.push(format!("{}{ATTRIBUTION}", " ".repeat(logo_left)));
+        transcript.push(format!("{logo_pad}{ATTRIBUTION}"));
         transcript.push(String::new());
-        transcript.push(format!("{}{}", " ".repeat(logo_left), version_title()));
+        transcript.push(format!("{logo_pad}{}", version_title()));
         transcript.push(String::new());
         // Append intro pages up to the current splash page.
         let intro_index = splash_page - 1;
         for page_idx in 0..=intro_index.min(INTRO_PAGES.len().saturating_sub(1)) {
             transcript.push(String::new());
             for line in INTRO_PAGES[page_idx] {
-                transcript.push(format!(" {line}"));
+                transcript.push((*line).to_string());
             }
         }
         render_review_transcript(geometry, &mut buffer, &transcript);

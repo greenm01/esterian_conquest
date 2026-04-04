@@ -141,6 +141,25 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
             .contains("View the game introduction? Y/[N] ->")
     );
 
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
+    let mut splash_intro_terminal = CaptureTerminal::new();
+    app.render(&mut splash_intro_terminal)
+        .expect("startup splash intro should render");
+    assert!(splash_intro_terminal.line(24).starts_with(' '));
+    assert!(
+        splash_intro_terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Beyond the mapped frontiers"))
+    );
+
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             let mut terminal = CaptureTerminal::new();
