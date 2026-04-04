@@ -170,6 +170,25 @@ impl App {
     }
 
     pub fn open_fleet_transport_prompt(&mut self, mode: PlanetTransportMode) {
+        if self.current_screen == ScreenId::FleetList {
+            match self.fleet_selected_list_row() {
+                Ok(row) => {
+                    self.fleet.command_context =
+                        crate::domains::fleet::state::FleetCommandContext::List;
+                    if let Err(err) = self
+                        .open_fleet_transport_quantity_prompt(mode, row.fleet_record_index_1_based)
+                    {
+                        self.fleet.list_status = Some(err);
+                    }
+                    return;
+                }
+                Err(err) => {
+                    self.fleet.list_status = Some(err);
+                    return;
+                }
+            }
+        }
+        self.fleet.command_context = crate::domains::fleet::state::FleetCommandContext::Menu;
         self.command_return_menu = CommandMenu::Fleet;
         self.planet.transport_mode = Some(mode);
         self.planet.transport_selected_planet_record = None;
@@ -838,7 +857,10 @@ impl App {
     }
 
     pub fn submit_planet_transport_qty(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let inline_fleet_menu_mode = if self.current_screen == ScreenId::FleetMenu {
+        let inline_fleet_menu_mode = if matches!(
+            self.current_screen,
+            ScreenId::FleetMenu | ScreenId::FleetList
+        ) {
             match self.fleet.menu_prompt_mode {
                 Some(FleetMenuPromptMode::TransportQuantity(mode)) => Some(mode),
                 _ => None,
@@ -857,7 +879,9 @@ impl App {
         let mode = match self.current_screen {
             ScreenId::PlanetTransportFleetSelect(mode)
             | ScreenId::PlanetTransportQuantityPrompt(mode) => mode,
-            ScreenId::FleetMenu => inline_fleet_menu_mode.ok_or("transport mode missing")?,
+            ScreenId::FleetMenu | ScreenId::FleetList => {
+                inline_fleet_menu_mode.ok_or("transport mode missing")?
+            }
             ScreenId::PlanetMenu => inline_planet_menu_mode.ok_or("transport mode missing")?,
             _ => return Ok(()),
         };
@@ -939,20 +963,16 @@ impl App {
             self.planet.transport_selected_fleet_record = None;
             self.planet.transport_fleet_first = false;
             self.clear_fleet_menu_prompt();
-            self.show_command_menu_notice(
-                CommandMenu::Fleet,
-                match mode {
-                    PlanetTransportMode::Load => format!(
-                        "Loaded {qty} armies from {} [{:02},{:02}] onto Fleet #{}.",
-                        planet_name, coords[0], coords[1], fleet_number
-                    ),
-                    PlanetTransportMode::Unload => format!(
-                        "Unloaded {qty} armies from Fleet #{} to {} [{:02},{:02}].",
-                        fleet_number, planet_name, coords[0], coords[1]
-                    ),
-                },
-            );
-            self.return_to_command_menu();
+            self.show_fleet_context_notice(match mode {
+                PlanetTransportMode::Load => format!(
+                    "Loaded {qty} armies from {} [{:02},{:02}] onto Fleet #{}.",
+                    planet_name, coords[0], coords[1], fleet_number
+                ),
+                PlanetTransportMode::Unload => format!(
+                    "Unloaded {qty} armies from Fleet #{} to {} [{:02},{:02}].",
+                    fleet_number, planet_name, coords[0], coords[1]
+                ),
+            });
             return Ok(());
         }
         if inline_planet_menu {

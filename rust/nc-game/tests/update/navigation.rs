@@ -1400,6 +1400,252 @@ fn starbase_help_uses_move_wording_not_hauling() {
 }
 
 #[test]
+fn planet_build_list_help_mentions_delete_hotkey() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    app.current_screen = ScreenId::PlanetBuildList;
+    apply_action(&mut app, Action::OpenPopupHelp);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet build list help should render");
+    assert!(
+        line_containing(&terminal, "delete highlighted build order").contains("D/Enter"),
+        "planet build list helper should advertise the delete hotkey"
+    );
+}
+
+#[test]
+fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    app.current_screen = ScreenId::FleetList;
+    apply_action(&mut app, Action::OpenPopupHelp);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list help should render");
+    assert!(
+        line_containing(&terminal, "review highlighted fleet").contains("Enter"),
+        "fleet list helper should advertise Enter review"
+    );
+    assert!(
+        line_containing(&terminal, "order, change, ETA, or detach selected fleet")
+            .contains("O/C/E/D"),
+        "fleet list helper should advertise O/C/E/D row actions"
+    );
+    assert!(
+        line_containing(
+            &terminal,
+            "merge, transfer, load, or unload from selected fleet"
+        )
+        .contains("M/T/L/U"),
+        "fleet list helper should advertise M/T/L/U row actions"
+    );
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("R") && line.contains("review highlighted fleet")),
+        "fleet list helper should not advertise a redundant R review hotkey"
+    );
+}
+
+#[test]
+fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenChangePrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('r'))),
+        Action::Fleet(FleetAction::AppendMenuPromptChar('r'))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMenuPromptChar('r'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Backspace)),
+        Action::Fleet(FleetAction::BackspaceMenuPromptInput)
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('0'))),
+        Action::Fleet(FleetAction::AppendMenuPromptChar('0'))
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMenuPromptChar('0'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Fleet(FleetAction::SubmitMenuPrompt)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMenuPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list should render roe change notice");
+    assert!(
+        line_containing(&terminal, "ROE set to 0.").contains("COMMAND <- Fleet #"),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
+fn fleet_list_order_success_returns_to_list() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    enter_fleet_order_target(&mut app, [14, 9]);
+    confirm_fleet_order(&mut app, true);
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list should render order notice");
+    assert!(
+        line_containing(&terminal, "Applied move to Fleet #").contains("COMMAND <-"),
+        "{:#?}",
+        terminal.lines
+    );
+}
+
+#[test]
+fn fleet_eta_result_dismiss_returns_to_fleet_list_when_launched_from_list() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+    for ch in ['1', '0', ',', '1', '3'] {
+        assert_eq!(
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+}
+
+#[test]
 fn starbase_move_prompt_errors_hang_directly_under_command_line() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut app = App::load(AppConfig {

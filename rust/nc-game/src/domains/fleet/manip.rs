@@ -1,5 +1,6 @@
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
+use crate::domains::fleet::state::{FleetCommandContext, FleetMenuPromptMode};
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FleetDetachClass, FleetDetachMode, FleetRow, FleetTransferMode, ScreenId,
@@ -60,19 +61,36 @@ impl App {
             .map_err(|err| err.to_string())?;
         self.save_game_data().map_err(|err| err.to_string())?;
         self.fleet.merge_source_record_index_1_based = None;
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            format!(
-                "Fleet #{} ordered to join Fleet #{}.",
-                source_fleet_number, host_fleet_number
-            ),
-        );
-        self.clear_fleet_menu_prompt();
-        self.current_screen = ScreenId::FleetMenu;
+        self.show_fleet_context_notice(format!(
+            "Fleet #{} ordered to join Fleet #{}.",
+            source_fleet_number, host_fleet_number
+        ));
         Ok(())
     }
 
     pub fn open_fleet_merge(&mut self) {
+        if self.current_screen == ScreenId::FleetList {
+            match self.fleet_selected_list_row() {
+                Ok(row) => {
+                    if let Err(err) = self.validate_merge_source_row(&row) {
+                        self.fleet.list_status = Some(err);
+                        return;
+                    }
+                    self.fleet.command_context = FleetCommandContext::List;
+                    self.fleet.merge_source_record_index_1_based =
+                        Some(row.fleet_record_index_1_based);
+                    self.open_fleet_menu_prompt(
+                        FleetMenuPromptMode::MergeHost,
+                        self.merge_host_default_value(),
+                    );
+                    return;
+                }
+                Err(err) => {
+                    self.fleet.list_status = Some(err);
+                    return;
+                }
+            }
+        }
         let Some(default_fleet_number) = self.eligible_merge_source_fleet_number() else {
             self.show_command_menu_notice(
                 CommandMenu::Fleet,
@@ -80,14 +98,41 @@ impl App {
             );
             return;
         };
+        self.fleet.command_context = FleetCommandContext::Menu;
         self.fleet.merge_source_record_index_1_based = None;
         self.open_fleet_menu_prompt(
-            crate::domains::fleet::state::FleetMenuPromptMode::MergeSource,
+            FleetMenuPromptMode::MergeSource,
             default_fleet_number.to_string(),
         );
     }
 
     pub fn open_fleet_transfer(&mut self) {
+        if self.current_screen == ScreenId::FleetList {
+            match self.fleet_selected_list_row() {
+                Ok(row) => {
+                    if let Err(err) = self.validate_transfer_donor_row(&row) {
+                        self.fleet.list_status = Some(err);
+                        return;
+                    }
+                    self.fleet.command_context = FleetCommandContext::List;
+                    self.fleet.transfer_status = None;
+                    self.fleet.transfer_input.clear();
+                    self.fleet.transfer_donor_record_index_1_based =
+                        Some(row.fleet_record_index_1_based);
+                    self.fleet.transfer_host_record_index_1_based = None;
+                    self.fleet.transfer_selection = FleetDetachSelection::default();
+                    self.open_fleet_menu_prompt(
+                        FleetMenuPromptMode::TransferHost,
+                        self.transfer_host_default_value(),
+                    );
+                    return;
+                }
+                Err(err) => {
+                    self.fleet.list_status = Some(err);
+                    return;
+                }
+            }
+        }
         if self.eligible_transfer_donor_fleet_number().is_none() {
             self.show_command_menu_notice(
                 CommandMenu::Fleet,
@@ -95,13 +140,14 @@ impl App {
             );
             return;
         }
+        self.fleet.command_context = FleetCommandContext::Menu;
         self.fleet.transfer_status = None;
         self.fleet.transfer_input.clear();
         self.fleet.transfer_donor_record_index_1_based = None;
         self.fleet.transfer_host_record_index_1_based = None;
         self.fleet.transfer_selection = FleetDetachSelection::default();
         self.open_fleet_menu_prompt(
-            crate::domains::fleet::state::FleetMenuPromptMode::TransferDonor,
+            FleetMenuPromptMode::TransferDonor,
             self.eligible_transfer_donor_fleet_number()
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
@@ -109,17 +155,35 @@ impl App {
     }
 
     pub fn open_fleet_detach(&mut self) {
+        if self.current_screen == ScreenId::FleetList {
+            match self.fleet_selected_list_row() {
+                Ok(row) => {
+                    self.fleet.command_context = FleetCommandContext::List;
+                    if let Err(err) =
+                        self.open_fleet_detach_with_selected_record(row.fleet_record_index_1_based)
+                    {
+                        self.fleet.list_status = Some(err);
+                    }
+                    return;
+                }
+                Err(err) => {
+                    self.fleet.list_status = Some(err);
+                    return;
+                }
+            }
+        }
         if self.fleet_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
         }
+        self.fleet.command_context = FleetCommandContext::Menu;
         self.fleet.detach_status = None;
         self.fleet.detach_last_commissioned = None;
         self.fleet.detach_input.clear();
         self.fleet.detach_selection = FleetDetachSelection::default();
         self.fleet.detach_donor_speed = None;
         self.open_fleet_menu_prompt(
-            crate::domains::fleet::state::FleetMenuPromptMode::DetachFleet,
+            FleetMenuPromptMode::DetachFleet,
             self.largest_owned_fleet_number_by_ship_total()
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
@@ -145,7 +209,7 @@ impl App {
         self.fleet.transfer_selection = FleetDetachSelection::default();
         if donor_record_index_1_based == host_fleet_record_index_1_based {
             self.fleet.transfer_status = Some("Choose a different destination fleet.".to_string());
-            self.open_fleet_menu();
+            self.current_screen = self.fleet_context_screen();
             return;
         }
         self.current_screen = ScreenId::FleetTransfer;
@@ -243,7 +307,7 @@ impl App {
                 self.reset_fleet_transfer_staging();
                 self.fleet.transfer_donor_record_index_1_based = None;
                 self.fleet.transfer_host_record_index_1_based = None;
-                self.current_screen = ScreenId::FleetMenu;
+                self.current_screen = self.fleet_context_screen();
             }
             FleetTransferMode::EnteringQuantity(_) => {
                 self.fleet.transfer_mode = FleetTransferMode::ChoosingClass;
@@ -278,7 +342,7 @@ impl App {
                 self.reset_fleet_detach_staging();
                 self.fleet.detach_last_commissioned = None;
                 self.fleet.detach_donor_record_index_1_based = None;
-                self.current_screen = ScreenId::FleetMenu;
+                self.current_screen = self.fleet_context_screen();
             }
             FleetDetachMode::EnteringQuantity(_) | FleetDetachMode::AdjustingDonorSpeed => {
                 self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
@@ -403,11 +467,11 @@ impl App {
             return Ok(());
         }
         let Some(donor_record_index_1_based) = self.fleet.detach_donor_record_index_1_based else {
-            self.current_screen = ScreenId::FleetMenu;
+            self.current_screen = self.fleet_context_screen();
             return Ok(());
         };
         let Some(selected_row) = self.fleet_row_by_record_index(donor_record_index_1_based) else {
-            self.current_screen = ScreenId::FleetMenu;
+            self.current_screen = self.fleet_context_screen();
             return Ok(());
         };
 
@@ -418,7 +482,7 @@ impl App {
             .get(donor_record_index_1_based - 1)
             .is_none()
         {
-            self.current_screen = ScreenId::FleetMenu;
+            self.current_screen = self.fleet_context_screen();
             return Ok(());
         }
 
@@ -894,13 +958,11 @@ impl App {
                 .unwrap_or(0);
             self.fleet.detach_donor_record_index_1_based = None;
             self.fleet.detach_last_commissioned = None;
-            self.show_command_menu_notice(
-                CommandMenu::Fleet,
+            self.show_fleet_context_notice(
                 format!(
                     "Detached ships from Fleet #{donor_fleet_number:02} into Fleet #{new_fleet_number:02}."
                 ),
             );
-            self.current_screen = ScreenId::FleetMenu;
         }
         Ok(())
     }
@@ -1008,13 +1070,10 @@ impl App {
         self.fleet.transfer_host_record_index_1_based = None;
         self.fleet.transfer_input.clear();
         self.fleet.transfer_selection = FleetDetachSelection::default();
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            format!(
-                "Transferred ships from Fleet #{} to Fleet #{}.",
-                donor_fleet_number, host_fleet_number
-            ),
-        );
+        self.show_fleet_context_notice(format!(
+            "Transferred ships from Fleet #{} to Fleet #{}.",
+            donor_fleet_number, host_fleet_number
+        ));
         Ok(())
     }
 

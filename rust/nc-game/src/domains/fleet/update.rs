@@ -23,6 +23,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenTransportUnload => {
             app.open_fleet_transport_prompt(PlanetTransportMode::Unload)
         }
+        FleetAction::DismissMessage => app.dismiss_fleet_message(),
         FleetAction::MoveList(delta) => app.move_fleet_list(delta),
         FleetAction::MoveReview(delta) => app.move_fleet_review(delta),
         FleetAction::MoveGroupOrder(delta) => app.move_fleet_group_order(delta),

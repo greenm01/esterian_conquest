@@ -52,6 +52,10 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.fleet.cursor,
             &app.fleet.list_input,
             app.fleet.list_status.as_deref(),
+            app.fleet_menu_prompt_label().as_deref(),
+            &app.fleet.menu_prompt_default_value,
+            &app.fleet.menu_prompt_input,
+            app.fleet.menu_prompt_status.as_ref(),
         ),
         ScreenId::FleetReview => {
             let rows = if app.fleet.review_return_to_list {
@@ -206,6 +210,12 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 app.fleet.eta_status.as_deref(),
             )
         }
+        ScreenId::FleetMessage => app.fleet_message.render(
+            app.fleet
+                .dismiss_message
+                .as_deref()
+                .unwrap_or("Fleet command completed."),
+        ),
         _ => unreachable!("fleet views called for non-fleet screen"),
     }
 }

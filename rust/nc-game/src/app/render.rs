@@ -57,7 +57,8 @@ impl App {
             | ScreenId::FleetMissionPicker
             | ScreenId::FleetTransfer
             | ScreenId::FleetDetach
-            | ScreenId::FleetEta => domains::fleet::views::render(self)?,
+            | ScreenId::FleetEta
+            | ScreenId::FleetMessage => domains::fleet::views::render(self)?,
 
             ScreenId::StarbaseMenu
             | ScreenId::StarbaseList

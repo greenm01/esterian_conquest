@@ -33,8 +33,27 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("?", "show/hide helper"),
             ],
         )),
-        ScreenId::FleetList
-        | ScreenId::FleetMissionPicker
+        ScreenId::FleetList => Some(table_help(
+            "FLEET COMMANDS",
+            &[
+                ("J/K", "move selection"),
+                ("^U/^D", "page up/down"),
+                ("Enter", "review highlighted fleet"),
+                ("O/C/E/D", "order, change, ETA, or detach selected fleet"),
+                (
+                    "M/T/L/U",
+                    "merge, transfer, load, or unload from selected fleet",
+                ),
+                (
+                    "Type",
+                    "jump to a fleet number when no sub-command prompt is open",
+                ),
+                ("Backspace", "erase typed fleet number"),
+                ("Q/Esc", "return"),
+                ("?", "show/hide helper"),
+            ],
+        )),
+        ScreenId::FleetMissionPicker
         | ScreenId::FleetEta
         | ScreenId::FleetTransfer
         | ScreenId::FleetDetach => Some(table_help(
@@ -61,6 +80,16 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("?", "show/hide helper"),
             ],
         )),
+        ScreenId::PlanetBuildList => Some(table_help(
+            "PLANET COMMANDS",
+            &[
+                ("J/K", "move selection"),
+                ("^U/^D", "page up/down"),
+                ("D/Enter", "delete highlighted build order"),
+                ("Q/Esc", "return"),
+                ("?", "show/hide helper"),
+            ],
+        )),
         ScreenId::PlanetBriefList(_, _)
         | ScreenId::PlanetDatabaseList
         | ScreenId::PlanetCommissionPicker
@@ -69,7 +98,6 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
         | ScreenId::PlanetAutoCommissionReport
         | ScreenId::PlanetTransportPlanetSelect(_)
         | ScreenId::PlanetTransportFleetSelect(_)
-        | ScreenId::PlanetBuildList
         | ScreenId::PlanetBuildChange => Some(table_help(
             "PLANET COMMANDS",
             &[

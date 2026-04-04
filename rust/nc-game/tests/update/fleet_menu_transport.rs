@@ -2453,6 +2453,10 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             0,
             "",
             None,
+            None,
+            "",
+            "",
+            None,
         )
         .expect("fleet list renders");
 
@@ -2488,6 +2492,10 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
             0,
             "",
             None,
+            None,
+            "",
+            "",
+            None,
         )
         .expect("fleet list renders");
 
@@ -2507,7 +2515,10 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
-    assert_eq!(buffer.plain_line(6), " COMMAND <- ? J K ^U ^D <Q> [4] ->");
+    assert_eq!(
+        buffer.plain_line(6),
+        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [4] ->"
+    );
 }
 
 #[test]
@@ -2603,6 +2614,10 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
             0,
             "",
             None,
+            None,
+            "",
+            "",
+            None,
         )
         .expect("fleet list renders");
 
@@ -2636,8 +2651,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [").trim_end(),
-        " COMMAND <- ? J K ^U ^D <Q> [4] ->"
+        line_containing(&terminal, "COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [").trim_end(),
+        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [4] ->"
     );
 
     assert_eq!(
@@ -2647,8 +2662,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [").trim_end(),
-        " COMMAND <- ? J K ^U ^D <Q> [1] -> 1"
+        line_containing(&terminal, "COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [").trim_end(),
+        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [1] -> 1"
     );
 
     assert_eq!(

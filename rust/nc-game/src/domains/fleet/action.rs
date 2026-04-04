@@ -15,6 +15,7 @@ pub enum FleetAction {
     OpenEta,
     OpenTransportLoad,
     OpenTransportUnload,
+    DismissMessage,
     MoveList(i8),
     MoveReview(i8),
     MoveGroupOrder(i8),

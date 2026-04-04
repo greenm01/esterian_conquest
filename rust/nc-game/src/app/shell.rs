@@ -99,7 +99,8 @@ impl App {
             | ScreenId::FleetMissionPicker
             | ScreenId::FleetTransfer
             | ScreenId::FleetDetach
-            | ScreenId::FleetEta => CommandMenu::Fleet,
+            | ScreenId::FleetEta
+            | ScreenId::FleetMessage => CommandMenu::Fleet,
             ScreenId::StarbaseMenu
             | ScreenId::StarbaseList
             | ScreenId::StarbaseReviewSelect

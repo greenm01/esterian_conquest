@@ -115,6 +115,9 @@ impl App {
             }
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
             ScreenId::ThemePicker => self.theme_picker.handle_key(key),
+            ScreenId::FleetMessage => {
+                Action::Fleet(crate::domains::fleet::FleetAction::DismissMessage)
+            }
             ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => {
                 match key.code {
                     crossterm::event::KeyCode::Char(ch) => {
@@ -224,8 +227,20 @@ impl App {
             ScreenId::StarbaseList => self.starbase_list.handle_key(key),
             ScreenId::StarbaseReviewSelect => self.handle_starbase_review_select_key(key),
             ScreenId::StarbaseReview => Action::Starbase(StarbaseAction::OpenReviewSelect),
-            ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
-            ScreenId::FleetList => self.fleet_list.handle_key(key),
+            ScreenId::FleetMenu => {
+                if self.inline_fleet_menu_prompt_active_on_current_screen() {
+                    self.handle_fleet_menu_prompt_key(key)
+                } else {
+                    self.fleet_menu.handle_key(key)
+                }
+            }
+            ScreenId::FleetList => {
+                if self.inline_fleet_menu_prompt_active_on_current_screen() {
+                    self.handle_fleet_menu_prompt_key(key)
+                } else {
+                    self.fleet_list.handle_key(key)
+                }
+            }
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetOrder => self.handle_fleet_order_key(key),
             ScreenId::FleetGroupOrder => self.handle_fleet_group_order_key(key),

@@ -83,7 +83,7 @@ pub use crate::domains::fleet::missions::{
 };
 pub use crate::domains::fleet::screens::fleet::{
     FleetDetachClass, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
-    FleetGroupOrderMode, FleetGroupScreen, FleetListScreen, FleetMenuScreen,
+    FleetGroupOrderMode, FleetGroupScreen, FleetListScreen, FleetMenuScreen, FleetMessageScreen,
     FleetMissionPickerScreen, FleetReviewScreen, FleetRow, FleetSingleOrderMode,
     FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
 };
@@ -180,6 +180,7 @@ pub enum ScreenId {
     FleetTransfer,
     FleetDetach,
     FleetEta,
+    FleetMessage,
     PlanetMenu,
     PlanetBuildMenu,
     PlanetBuildList,

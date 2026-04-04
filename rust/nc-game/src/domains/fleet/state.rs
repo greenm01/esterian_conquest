@@ -35,6 +35,13 @@ pub enum FleetMissionPickerCaller {
     GroupOrder,
     SingleOrderReturnToOrder,
     SingleOrderReturnToMenu,
+    SingleOrderReturnToList,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetCommandContext {
+    Menu,
+    List,
 }
 
 pub struct FleetState {
@@ -93,6 +100,8 @@ pub struct FleetState {
     pub eta_destination_input: String,
     pub eta_include_system_input: String,
     pub eta_status: Option<String>,
+    pub command_context: FleetCommandContext,
+    pub dismiss_message: Option<String>,
 }
 
 impl Default for FleetState {
@@ -153,6 +162,8 @@ impl Default for FleetState {
             eta_destination_input: String::new(),
             eta_include_system_input: String::new(),
             eta_status: None,
+            command_context: FleetCommandContext::Menu,
+            dismiss_message: None,
         }
     }
 }

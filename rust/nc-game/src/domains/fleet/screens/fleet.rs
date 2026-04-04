@@ -10,13 +10,13 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, LEFT_WINDOW_PAD_COL, MenuEntry, PRIMARY_MENU_ROW,
-    PRIMARY_MENU_TITLE_COL, PromptFeedback, dismiss_prompt_row,
+    PRIMARY_MENU_TITLE_COL, PromptFeedback, dismiss_prompt_row, draw_alert_line_at_col,
     draw_command_line_default_input_padded, draw_command_prompt_padded, draw_dismiss_prompt_padded,
     draw_expert_menu_padded, draw_inline_planet_info_prompt_padded, draw_menu_entry,
-    draw_menu_notice_padded, draw_prompt_error_after_padded, draw_prompt_feedback_after_padded,
-    draw_status_line, draw_title_bar_at_col, draw_title_bar_padded, draw_wrapped_message,
-    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows,
-    standard_table_visible_rows_for,
+    draw_menu_notice_padded, draw_notice_line_at_col, draw_prompt_error_after_padded,
+    draw_prompt_feedback_after_padded, draw_status_line, draw_title_bar_at_col,
+    draw_title_bar_padded, draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, standard_table_visible_rows_for, wrap_text,
 };
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TABLE_TEXT_INSET, TableColumn, TableFooter, TableRowState,
@@ -69,6 +69,7 @@ pub struct FleetMissionPickerScreen;
 pub struct FleetTransferScreen;
 pub struct FleetEtaScreen;
 pub struct FleetDetachScreen;
+pub struct FleetMessageScreen;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetSingleOrderMode {
@@ -387,7 +388,11 @@ impl FleetListScreen {
         scroll_offset: usize,
         cursor: usize,
         input: &str,
-        _status: Option<&str>,
+        status: Option<&str>,
+        prompt_label: Option<&str>,
+        prompt_default: &str,
+        prompt_input: &str,
+        prompt_status: Option<&PromptFeedback>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         let max_fleet_number = max_fleet_number(rows);
@@ -415,14 +420,30 @@ impl FleetListScreen {
                     .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
                     .unwrap_or_else(|| format_fleet_number(1, max_fleet_number))
             });
+        let prompt_feedback_inline =
+            prompt_status.filter(|feedback| fleet_list_feedback_fits_inline(geometry, *feedback));
+        let visible_rows = fleet_list_visible_rows(geometry)
+            .saturating_sub(usize::from(prompt_feedback_inline.is_some()));
         let footer = if table_rows.is_empty() {
             TableFooter::CommandText {
                 label: COMMAND_LABEL,
                 text: "You have no active fleets.",
             }
+        } else if let Some(prompt_label) = prompt_label {
+            TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: prompt_label,
+                default: prompt_default,
+                input: prompt_input,
+            }
+        } else if let Some(status) = status {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: status,
+            }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D <Q>",
+                hotkeys_markup: "? J K ^U ^D O C E D M T L U <Q>",
                 default: Some(&default_fleet_number),
                 input,
             }
@@ -439,7 +460,7 @@ impl FleetListScreen {
             &columns,
             &table_rows,
             scroll_offset,
-            fleet_list_visible_rows(geometry),
+            visible_rows,
             classic::status_value_style(),
             classic::status_value_style(),
             if table_rows.is_empty() {
@@ -456,6 +477,33 @@ impl FleetListScreen {
             metrics.bottom_row,
             footer,
         );
+        if let Some(feedback) = prompt_feedback_inline {
+            let status_row =
+                crate::screen::layout::table_prompt_row_for(geometry, metrics.bottom_row) + 1;
+            match feedback {
+                PromptFeedback::Notice(value) => {
+                    draw_notice_line_at_col(&mut buffer, status_row, TABLE_TEXT_INSET, value);
+                }
+                PromptFeedback::Error(value) => {
+                    draw_alert_line_at_col(
+                        &mut buffer,
+                        status_row,
+                        TABLE_TEXT_INSET,
+                        "Error: ",
+                        value,
+                    );
+                }
+                PromptFeedback::Warning(value) => {
+                    draw_alert_line_at_col(
+                        &mut buffer,
+                        status_row,
+                        TABLE_TEXT_INSET,
+                        "Warning: ",
+                        value,
+                    );
+                }
+            }
+        }
         Ok(buffer)
     }
 
@@ -470,6 +518,18 @@ impl FleetListScreen {
             KeyCode::PageUp => Action::Fleet(FleetAction::MoveList(-8)),
             KeyCode::PageDown => Action::Fleet(FleetAction::MoveList(8)),
             KeyCode::Enter => Action::Fleet(FleetAction::OpenReview),
+            KeyCode::Char('o') | KeyCode::Char('O') => Action::Fleet(FleetAction::OpenOrder),
+            KeyCode::Char('c') | KeyCode::Char('C') => Action::Fleet(FleetAction::OpenChangePrompt),
+            KeyCode::Char('e') | KeyCode::Char('E') => Action::Fleet(FleetAction::OpenEta),
+            KeyCode::Char('d') | KeyCode::Char('D') => Action::Fleet(FleetAction::OpenDetach),
+            KeyCode::Char('m') | KeyCode::Char('M') => Action::Fleet(FleetAction::OpenMerge),
+            KeyCode::Char('t') | KeyCode::Char('T') => Action::Fleet(FleetAction::OpenTransfer),
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Fleet(FleetAction::OpenTransportLoad)
+            }
+            KeyCode::Char('u') | KeyCode::Char('U') => {
+                Action::Fleet(FleetAction::OpenTransportUnload)
+            }
             KeyCode::Backspace => Action::Fleet(FleetAction::BackspaceListInput),
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
                 Action::Fleet(FleetAction::AppendListChar(ch))
@@ -479,6 +539,20 @@ impl FleetListScreen {
             }
             _ => Action::Noop,
         }
+    }
+}
+
+impl FleetMessageScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(&mut self, message: &str) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_title_bar_padded(&mut buffer, 0, "FLEET COMMAND:");
+        draw_wrapped_message(&mut buffer, 3, 19, "", message);
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(21));
+        Ok(buffer)
     }
 }
 
@@ -844,6 +918,18 @@ impl FleetEtaScreen {
         }
         Ok(buffer)
     }
+}
+
+fn fleet_list_feedback_fits_inline(geometry: ScreenGeometry, feedback: &PromptFeedback) -> bool {
+    let label = match feedback {
+        PromptFeedback::Notice(_) => "",
+        PromptFeedback::Error(_) => "Error: ",
+        PromptFeedback::Warning(_) => "Warning: ",
+    };
+    let width = geometry
+        .width()
+        .saturating_sub(TABLE_TEXT_INSET + label.len() + 1);
+    width > 0 && wrap_text(feedback.message(), width, width).len() <= 1
 }
 
 impl FleetGroupScreen {

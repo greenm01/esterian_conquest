@@ -4,7 +4,9 @@ use crate::app::helpers::{
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::missions::fleet_record_supports_mission_code;
-use crate::domains::fleet::state::{FleetMenuPromptMode, FleetMissionPickerCaller};
+use crate::domains::fleet::state::{
+    FleetCommandContext, FleetMenuPromptMode, FleetMissionPickerCaller,
+};
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, FleetSingleOrderMode,
@@ -31,6 +33,20 @@ impl App {
     }
 
     pub fn open_fleet_order(&mut self) {
+        if self.current_screen == ScreenId::FleetList {
+            match self.fleet_selected_list_row() {
+                Ok(row) => {
+                    self.fleet.command_context = FleetCommandContext::List;
+                    self.open_fleet_order_with_selected_record(row.fleet_record_index_1_based);
+                    return;
+                }
+                Err(err) => {
+                    self.fleet.list_status = Some(err);
+                    return;
+                }
+            }
+        }
+        self.fleet.command_context = FleetCommandContext::Menu;
         self.fleet.order_status = None;
         self.fleet.order_mission_code = None;
         self.fleet.order_return_to_menu = false;
@@ -52,7 +68,7 @@ impl App {
         self.clear_fleet_menu_prompt();
         self.fleet.order_status = None;
         self.fleet.order_mission_code = None;
-        self.fleet.order_return_to_menu = true;
+        self.fleet.order_return_to_menu = false;
         self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(fleet_record_index_1_based);
@@ -112,10 +128,9 @@ impl App {
                     return;
                 };
                 self.fleet.order_fleet_record_index_1_based = Some(row.fleet_record_index_1_based);
-                self.fleet.mission_picker_caller = Some(if self.fleet.order_return_to_menu {
-                    FleetMissionPickerCaller::SingleOrderReturnToMenu
-                } else {
-                    FleetMissionPickerCaller::SingleOrderReturnToOrder
+                self.fleet.mission_picker_caller = Some(match self.fleet.command_context {
+                    FleetCommandContext::Menu => FleetMissionPickerCaller::SingleOrderReturnToMenu,
+                    FleetCommandContext::List => FleetMissionPickerCaller::SingleOrderReturnToList,
                 });
             }
             ScreenId::FleetGroupOrder => {
@@ -147,6 +162,13 @@ impl App {
                     self.fleet.mission_picker_caller = None;
                     self.fleet.order_return_to_menu = false;
                     self.current_screen = ScreenId::FleetMenu;
+                    return;
+                }
+                Some(FleetMissionPickerCaller::SingleOrderReturnToList) => {
+                    self.fleet.mission_picker_input.clear();
+                    self.fleet.mission_picker_status = None;
+                    self.fleet.mission_picker_caller = None;
+                    self.current_screen = ScreenId::FleetList;
                     return;
                 }
                 None => {}
@@ -958,7 +980,8 @@ impl App {
         self.fleet.mission_picker_input.clear();
         match self.fleet.mission_picker_caller {
             Some(FleetMissionPickerCaller::SingleOrderReturnToOrder)
-            | Some(FleetMissionPickerCaller::SingleOrderReturnToMenu) => {
+            | Some(FleetMissionPickerCaller::SingleOrderReturnToMenu)
+            | Some(FleetMissionPickerCaller::SingleOrderReturnToList) => {
                 self.fleet.order_mission_code = Some(mission_code);
                 self.fleet.mission_picker_status = None;
                 if fleet_group_order_requires_target(mission_code) {
@@ -983,10 +1006,13 @@ impl App {
                     self.current_screen = ScreenId::FleetOrder;
                 } else if let Err(err) = self.apply_fleet_single_order(mission_code, [0, 0], 0, 0) {
                     self.current_screen = ScreenId::FleetMissionPicker;
-                    self.fleet.mission_picker_caller = Some(if self.fleet.order_return_to_menu {
-                        FleetMissionPickerCaller::SingleOrderReturnToMenu
-                    } else {
-                        FleetMissionPickerCaller::SingleOrderReturnToOrder
+                    self.fleet.mission_picker_caller = Some(match self.fleet.command_context {
+                        FleetCommandContext::Menu => {
+                            FleetMissionPickerCaller::SingleOrderReturnToMenu
+                        }
+                        FleetCommandContext::List => {
+                            FleetMissionPickerCaller::SingleOrderReturnToList
+                        }
                     });
                     self.fleet.mission_picker_status = Some(err.to_string());
                 }
@@ -1751,7 +1777,8 @@ impl App {
     pub(crate) fn fleet_mission_picker_enabled_flags(&self) -> Vec<bool> {
         match self.fleet.mission_picker_caller {
             Some(FleetMissionPickerCaller::SingleOrderReturnToOrder)
-            | Some(FleetMissionPickerCaller::SingleOrderReturnToMenu) => {
+            | Some(FleetMissionPickerCaller::SingleOrderReturnToMenu)
+            | Some(FleetMissionPickerCaller::SingleOrderReturnToList) => {
                 let selected = self
                     .fleet_order_selected_row()
                     .map(|row| vec![row])
@@ -1892,7 +1919,7 @@ impl App {
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
             );
-            self.fleet.menu_prompt_status = Some(PromptFeedback::error(
+            self.fleet.menu_prompt_status = self.show_fleet_prompt_feedback(PromptFeedback::error(
                 "Selected fleet is no longer available.",
             ));
             return Ok(());
@@ -1903,24 +1930,21 @@ impl App {
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.fleet.order_return_to_menu = false;
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            if fleet_group_order_requires_target(mission_code) {
-                format!(
-                    "Applied {} to Fleet #{} for sector [{},{}].",
-                    fleet_group_order_label(mission_code),
-                    selected_row.fleet_number,
-                    target[0],
-                    target[1]
-                )
-            } else {
-                format!(
-                    "Applied {} to Fleet #{}.",
-                    fleet_group_order_label(mission_code),
-                    selected_row.fleet_number
-                )
-            },
-        );
+        self.show_fleet_context_notice(if fleet_group_order_requires_target(mission_code) {
+            format!(
+                "Applied {} to Fleet #{} for sector [{},{}].",
+                fleet_group_order_label(mission_code),
+                selected_row.fleet_number,
+                target[0],
+                target[1]
+            )
+        } else {
+            format!(
+                "Applied {} to Fleet #{}.",
+                fleet_group_order_label(mission_code),
+                selected_row.fleet_number
+            )
+        });
         Ok(())
     }
 
@@ -1935,7 +1959,7 @@ impl App {
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
             );
-            self.fleet.menu_prompt_status = Some(PromptFeedback::error(
+            self.fleet.menu_prompt_status = self.show_fleet_prompt_feedback(PromptFeedback::error(
                 "Selected fleet is no longer available.",
             ));
             return Ok(());
@@ -1951,13 +1975,10 @@ impl App {
         self.clear_fleet_order_target_inputs();
         self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.fleet.order_return_to_menu = false;
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            format!(
-                "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
-                selected_row.fleet_number, host.fleet_number
-            ),
-        );
+        self.show_fleet_context_notice(format!(
+            "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
+            selected_row.fleet_number, host.fleet_number
+        ));
         Ok(())
     }
 }

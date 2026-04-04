@@ -18,13 +18,13 @@ use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, FirstTimeEmpiresScreen,
     FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachScreen, FleetEtaScreen, FleetGroupScreen,
-    FleetListScreen, FleetMenuScreen, FleetMissionPickerScreen, FleetReviewScreen,
-    FleetSingleOrderScreen, FleetTransferScreen, GeneralMenuScreen, MainMenuScreen,
-    MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen, PlanetCommissionScreen,
-    PlanetDatabaseScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen, PlanetTaxScreen,
-    PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenGeometry, ScreenId,
-    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
-    ThemePickerScreen,
+    FleetListScreen, FleetMenuScreen, FleetMessageScreen, FleetMissionPickerScreen,
+    FleetReviewScreen, FleetSingleOrderScreen, FleetTransferScreen, GeneralMenuScreen,
+    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildScreen,
+    PlanetCommissionScreen, PlanetDatabaseScreen, PlanetInfoScreen, PlanetListScreen,
+    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen,
+    ScreenGeometry, ScreenId, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
+    StarmapScreen, StartupScreen, ThemePickerScreen,
 };
 use crate::startup::{StartupSequence, StartupSummary};
 
@@ -68,6 +68,7 @@ pub struct App {
     pub fleet_transfer: FleetTransferScreen,
     pub fleet_detach: FleetDetachScreen,
     pub fleet_eta: FleetEtaScreen,
+    pub fleet_message: FleetMessageScreen,
     pub planet_menu: PlanetMenuScreen,
     pub planet_commission: PlanetCommissionScreen,
     pub planet_transport: PlanetTransportScreen,
@@ -203,6 +204,7 @@ impl App {
             fleet_transfer: FleetTransferScreen::new(),
             fleet_detach: FleetDetachScreen::new(),
             fleet_eta: FleetEtaScreen::new(),
+            fleet_message: FleetMessageScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_commission: PlanetCommissionScreen::new(),
             planet_transport: PlanetTransportScreen::new(),
