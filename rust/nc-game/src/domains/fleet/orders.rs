@@ -41,7 +41,12 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }

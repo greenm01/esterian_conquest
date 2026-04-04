@@ -1917,7 +1917,7 @@ fn fleet_list_transfer_donor_validation_uses_short_footer_notice_for_one_ship_fl
         .expect("fleet list transfer donor error should render");
     let command_line = line_containing(&terminal, "COMMAND <-");
     assert!(command_line.contains("(slap a key)"));
-    assert!(command_line.contains("Unable to transfer"));
+    assert!(command_line.contains("Use merge instead"));
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::DismissMessage)),
@@ -2226,8 +2226,56 @@ fn fleet_transfer_source_prompt_rejects_one_ship_fleet() {
             .menu_prompt_status
             .as_ref()
             .map(|feedback| feedback.message()),
-        Some("Fleet #1 has only one ship and is not eligible to transfer any ships.")
+        Some("Use merge instead")
     );
+}
+
+#[test]
+fn fleet_list_detach_single_ship_uses_short_footer_notice() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let donor = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("fleet #4 should exist");
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(0);
+    donor.set_destroyer_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(1);
+    donor.set_etac_count(0);
+    donor.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu));
+    apply_action(&mut app, Action::Fleet(FleetAction::OpenList));
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet list detach donor error should render");
+    let command_line = line_containing(&terminal, "COMMAND <-");
+    assert!(command_line.contains("(slap a key)"));
+    assert!(command_line.contains("Unable to detach"));
 }
 
 #[test]

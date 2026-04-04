@@ -178,12 +178,26 @@ impl App {
                     if let Err(err) = self
                         .open_fleet_transport_quantity_prompt(mode, row.fleet_record_index_1_based)
                     {
-                        self.show_fleet_list_dismiss_message(err);
+                        let message = match mode {
+                            PlanetTransportMode::Load => "Unable to load armies",
+                            PlanetTransportMode::Unload => "Unable to unload armies",
+                        };
+                        let message = if err == "You have no active fleets." {
+                            err
+                        } else {
+                            message.to_string()
+                        };
+                        self.show_fleet_list_dismiss_message(message);
                     }
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }

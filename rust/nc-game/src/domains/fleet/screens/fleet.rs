@@ -21,10 +21,10 @@ use crate::screen::layout::{
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TABLE_TEXT_INSET, TableColumn, TableFooter, TableRowState,
     TableWidthMode, VerticalAlign, draw_table_footer, draw_table_title, fit_table_columns,
-    fit_table_columns_for_widget, fleet_id_column_width, format_fleet_number,
-    layout_standard_table_block, resolve_table_columns_for_widget,
-    resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
-    write_table_window_with_cursor, write_table_window_with_states_at,
+    fleet_id_column_width, format_fleet_number, layout_standard_table_block,
+    resolve_table_columns_for_widget, resolve_table_columns_for_widget_with_footer_floor,
+    table_footer_scaffold_width, write_table_window_with_cursor_at,
+    write_table_window_with_states_at,
 };
 use crate::screen::{
     COMMAND_LABEL, PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
@@ -426,7 +426,6 @@ impl FleetListScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         let max_fleet_number = max_fleet_number(rows);
-        draw_table_title(&mut buffer, 1, 0, "FLEET LIST:");
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -486,15 +485,27 @@ impl FleetListScreen {
                 input,
             }
         };
-        let columns = fit_table_columns_for_widget(
-            &full_columns(max_fleet_number),
-            &table_rows,
+        let columns = full_columns(max_fleet_number);
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            visible_rows,
             Some("FLEET LIST:"),
             Some(footer),
+            table_rows.len() > visible_rows,
+            HorizontalAlign::Left,
+            VerticalAlign::Top,
         );
-        let metrics = write_table_window_with_cursor(
+        draw_table_title(
             &mut buffer,
-            1,
+            layout.table_row,
+            layout.table_col,
+            "FLEET LIST:",
+        );
+        let metrics = write_table_window_with_cursor_at(
+            &mut buffer,
+            layout.table_row,
+            layout.table_col,
             &columns,
             &table_rows,
             scroll_offset,
@@ -511,7 +522,7 @@ impl FleetListScreen {
         draw_table_footer(
             &mut buffer,
             geometry,
-            TABLE_TEXT_INSET,
+            layout.command_col,
             metrics.bottom_row,
             footer,
         );

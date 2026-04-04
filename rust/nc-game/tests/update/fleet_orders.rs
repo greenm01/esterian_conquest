@@ -580,7 +580,7 @@ fn fleet_list_live_eta_projects_years_for_stopped_fleet_after_new_order() {
             line.contains("│ 1│")
                 && line.contains("View")
                 && line.contains(&format!("({:02},{:02})", target[0], target[1]))
-                && line.contains(&format!("│{:>3}│", expected_years))
+                && line.contains(&format!("│{:>4}│", expected_years))
         }),
         "{:#?}",
         terminal.lines

@@ -76,7 +76,12 @@ impl App {
             match self.fleet_selected_list_row() {
                 Ok(row) => {
                     if let Err(err) = self.validate_merge_source_row(&row) {
-                        self.show_fleet_list_dismiss_message(err);
+                        let message = if err == "Selected fleet is no longer available." {
+                            "Fleet unavailable"
+                        } else {
+                            "Unable to merge"
+                        };
+                        self.show_fleet_list_dismiss_message(message);
                         return;
                     }
                     self.fleet.command_context = FleetCommandContext::List;
@@ -89,7 +94,12 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }
@@ -113,8 +123,13 @@ impl App {
         if self.current_screen == ScreenId::FleetList {
             match self.fleet_selected_list_row() {
                 Ok(row) => {
-                    if self.validate_transfer_donor_row(&row).is_err() {
-                        self.show_fleet_list_dismiss_message("Unable to transfer");
+                    if let Err(err) = self.validate_transfer_donor_row(&row) {
+                        let message = if err == "Use merge instead" {
+                            "Use merge instead"
+                        } else {
+                            "Unable to transfer"
+                        };
+                        self.show_fleet_list_dismiss_message(message);
                         return;
                     }
                     self.fleet.command_context = FleetCommandContext::List;
@@ -131,7 +146,12 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }
@@ -165,12 +185,22 @@ impl App {
                     if let Err(err) =
                         self.open_fleet_detach_with_selected_record(row.fleet_record_index_1_based)
                     {
-                        self.show_fleet_list_dismiss_message(err);
+                        let message = if err == "You have no active fleets." {
+                            err
+                        } else {
+                            "Unable to detach".to_string()
+                        };
+                        self.show_fleet_list_dismiss_message(message);
                     }
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }
@@ -230,13 +260,13 @@ impl App {
         self.fleet.detach_status = None;
         self.fleet.detach_last_commissioned = None;
         self.fleet.detach_input.clear();
-        self.fleet.detach_donor_record_index_1_based = Some(fleet_record_index_1_based);
         if self.current_fleet_detach_ship_total(fleet_record_index_1_based) <= 1 {
             return Err(format!(
                 "Fleet #{} has only one ship and is not eligible to detach any ships.",
                 row.fleet_number
             ));
         }
+        self.fleet.detach_donor_record_index_1_based = Some(fleet_record_index_1_based);
         self.reset_fleet_detach_staging();
         self.fleet.detach_mode = FleetDetachMode::ChoosingClass;
         self.current_screen = ScreenId::FleetDetach;

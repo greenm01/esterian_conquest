@@ -1,4 +1,6 @@
 use crate::support::*;
+use nc_game::domains::fleet::screens::fleet::FleetListScreen;
+use nc_game::screen::ScreenGeometry;
 
 fn owned_fleet_mut(
     state: &mut CampaignRuntimeState,
@@ -2516,11 +2518,12 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(buffer.plain_line(2).contains("ROE"));
     assert!(buffer.plain_line(2).contains("AR"));
     assert!(buffer.plain_line(2).contains("Ships"));
-    assert!(buffer.plain_line(2).contains("ROE│AR│Ships"));
+    assert!(buffer.plain_line(2).contains("│ROE│"));
+    assert!(buffer.plain_line(2).contains("│ AR│"));
     assert!(buffer.plain_line(4).contains("Grd/Blkd"));
     assert!(buffer.plain_line(4).contains("(16,13)"));
     assert!(buffer.plain_line(4).contains("│  2│"));
-    assert!(buffer.plain_line(4).contains("│ 3│"));
+    assert!(buffer.plain_line(4).contains("│  3│"));
     assert!(!buffer.plain_line(4).contains("2/6"));
     assert!(buffer.plain_line(4).contains("0"));
     assert!(buffer.plain_line(4).contains("DD"));
@@ -2633,7 +2636,7 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
         .expect("fleet list renders");
 
     assert!(buffer.plain_line(4).contains("Move"));
-    assert!(buffer.plain_line(4).contains("│  X│"));
+    assert!(buffer.plain_line(4).contains("│   X│"));
 }
 
 #[test]
@@ -2756,7 +2759,7 @@ fn fleet_list_transport_error_uses_slap_a_key_footer_and_consumes_next_key() {
         .expect("fleet list transport error should render");
     let command_line = line_containing(&terminal, "COMMAND <-");
     assert!(command_line.contains("(slap a key)"));
-    assert!(command_line.contains("That fleet has no troop transports."));
+    assert!(command_line.contains("Unable to load armies"));
 
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
@@ -2776,38 +2779,45 @@ fn fleet_list_transport_error_uses_slap_a_key_footer_and_consumes_next_key() {
 
 #[test]
 fn fleet_list_load_quantity_prompt_keeps_scrollbar_gutter() {
-    let fixture_dir = PathBuf::from("/tmp/ec-player1-ui");
-    assert!(
-        fixture_dir.join("ncgame.db").exists(),
-        "expected direct stress fixture at /tmp/ec-player1-ui"
-    );
-
-    let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
-        player_record_index_1_based: 1,
-        export_root: None,
-        queue_dir: None,
-        session_timeout_secs: None,
-        game_config: Default::default(),
-    })
-    .expect("app should load");
-    advance_to_main_menu(&mut app);
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenList)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
-        AppOutcome::Continue
-    );
+    let mut fleet_list = FleetListScreen::new();
+    let rows = (0..24)
+        .map(|idx| FleetRow {
+            fleet_record_index_1_based: idx + 1,
+            fleet_number: (24 - idx) as u16,
+            coords: [((idx % 31) + 1) as u8, (((idx * 3) % 31) + 1) as u8],
+            target_coords: [((idx % 31) + 1) as u8, (((idx * 3) % 31) + 1) as u8],
+            order_code: nc_data::Order::HoldPosition.to_raw(),
+            current_speed: 0,
+            max_speed: 9,
+            eta_label: "0".to_string(),
+            list_eta_label: "0".to_string(),
+            rules_of_engagement: 6,
+            loaded_armies: 0,
+            order_label: "Hold".to_string(),
+            composition_label: "TT".to_string(),
+            table_composition_label: "TT".to_string(),
+        })
+        .collect::<Vec<_>>();
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal)
+    let buffer = fleet_list
+        .render(
+            ScreenGeometry::local_default(),
+            &rows,
+            0,
+            0,
+            "",
+            None,
+            None,
+            Some("How many armies to load? "),
+            "1",
+            "",
+            None,
+        )
         .expect("fleet list load quantity prompt should render");
+    terminal
+        .render(&buffer)
+        .expect("capture should record buffer");
     let right_border_col = terminal
         .line(1)
         .chars()

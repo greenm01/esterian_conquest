@@ -378,7 +378,12 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }
@@ -483,7 +488,12 @@ impl App {
                     return;
                 }
                 Err(err) => {
-                    self.show_fleet_list_dismiss_message(err);
+                    let message = if err == "You have no active fleets." {
+                        err
+                    } else {
+                        "Fleet unavailable".to_string()
+                    };
+                    self.show_fleet_list_dismiss_message(message);
                     return;
                 }
             }
@@ -510,7 +520,11 @@ impl App {
             .iter()
             .all(|row| row.fleet_record_index_1_based != fleet_record_index_1_based)
         {
-            let message = "Selected fleet is no longer available.".to_string();
+            let message = if self.current_screen == ScreenId::FleetList {
+                "Fleet unavailable".to_string()
+            } else {
+                "Selected fleet is no longer available.".to_string()
+            };
             if self.current_screen == ScreenId::FleetList {
                 self.show_fleet_list_dismiss_message(message);
             } else {
@@ -1179,10 +1193,7 @@ impl App {
 
     pub(crate) fn validate_transfer_donor_row(&self, row: &FleetRow) -> Result<(), String> {
         if self.fleet_ship_total(row.fleet_record_index_1_based) <= 1 {
-            return Err(format!(
-                "Fleet #{} has only one ship and is not eligible to transfer any ships.",
-                row.fleet_number
-            ));
+            return Err("Use merge instead".to_string());
         }
         let has_host = self.fleet_rows().iter().any(|other| {
             other.fleet_record_index_1_based != row.fleet_record_index_1_based
