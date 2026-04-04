@@ -353,20 +353,41 @@ impl CampaignStore {
         let mut conn = self.connection()?;
         let tx = conn.transaction()?;
         prune_expired_session_leases_tx(&tx, now_unix_seconds)?;
-        let existing_player = tx
+        let existing_lease = tx
             .query_row(
-                "SELECT player_record_index
+                "SELECT session_token, player_npub, state
                  FROM active_sessions
                  WHERE player_record_index = ?1
                  LIMIT 1",
                 [player_record_index_1_based as i64],
-                |row| row.get::<_, i64>(0),
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
             )
             .optional()?;
-        if existing_player.is_some() {
-            return Err(SessionLeaseError::SeatBusy {
-                player_record_index_1_based,
-            });
+        if let Some((existing_token, existing_npub, existing_state_raw)) = existing_lease {
+            let Some(existing_state) = SessionLeaseState::parse(&existing_state_raw) else {
+                return Err(SessionLeaseError::Store(CampaignStoreError::InvalidState(
+                    format!("unknown session lease state: {existing_state_raw}"),
+                )));
+            };
+            let retryable_pending = existing_state == SessionLeaseState::PendingSsh
+                && existing_npub == player_npub
+                && existing_token != session_token;
+            if retryable_pending {
+                tx.execute(
+                    "DELETE FROM active_sessions WHERE session_token = ?1",
+                    [existing_token],
+                )?;
+            } else {
+                return Err(SessionLeaseError::SeatBusy {
+                    player_record_index_1_based,
+                });
+            }
         }
         let expires_at_unix_seconds = now_unix_seconds.saturating_add(ttl_seconds.max(1));
         tx.execute(

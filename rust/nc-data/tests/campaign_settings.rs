@@ -87,7 +87,7 @@ fn campaign_settings_round_trip_and_update_runtime_policy_bytes() {
 }
 
 #[test]
-fn session_leases_enforce_one_live_seat_per_player_and_expire() {
+fn session_leases_allow_same_identity_pending_retry_and_expire() {
     let (root, store, _) = seeded_store("nc-data-session-leases");
     store
         .save_campaign_settings(&CampaignSettings::new("friday-night", "Friday Night EC"))
@@ -97,19 +97,36 @@ fn session_leases_enforce_one_live_seat_per_player_and_expire() {
         .create_pending_session_lease("token-1", 2, "npub-player-1", 100, 60)
         .expect("create pending lease");
     assert_eq!(pending.player_record_index_1_based, 2);
+    assert_eq!(pending.state, nc_data::SessionLeaseState::PendingSsh);
+
+    let retried = store
+        .create_pending_session_lease("token-2", 2, "npub-player-1", 110, 60)
+        .expect("same-identity pending retry should replace the old lease");
+    assert_eq!(retried.session_token, "token-2");
+    assert_eq!(retried.started_at_unix_seconds, 110);
+    assert_eq!(retried.expires_at_unix_seconds, 170);
+    assert!(matches!(
+        store.load_session_lease("token-1", 110),
+        Err(nc_data::SessionLeaseError::InvalidToken)
+    ));
 
     let err = store
-        .create_pending_session_lease("token-2", 2, "npub-player-1", 110, 60)
-        .expect_err("second active lease for the same seat should fail");
+        .create_pending_session_lease("token-3", 2, "npub-player-2", 111, 60)
+        .expect_err("foreign pending lease for the same seat should still fail");
     assert!(matches!(err, nc_data::SessionLeaseError::SeatBusy { .. }));
 
     let active = store
-        .activate_session_lease("token-1", 120, 60)
+        .activate_session_lease("token-2", 120, 60)
         .expect("activate lease");
     assert_eq!(active.state, nc_data::SessionLeaseState::Active);
 
+    let err = store
+        .create_pending_session_lease("token-4", 2, "npub-player-1", 121, 60)
+        .expect_err("active lease for the same seat should still fail");
+    assert!(matches!(err, nc_data::SessionLeaseError::SeatBusy { .. }));
+
     let heartbeated = store
-        .heartbeat_session_lease("token-1", 150, 60)
+        .heartbeat_session_lease("token-2", 150, 60)
         .expect("heartbeat lease");
     assert_eq!(heartbeated.expires_at_unix_seconds, 210);
     assert!(
