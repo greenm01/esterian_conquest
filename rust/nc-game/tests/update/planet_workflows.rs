@@ -127,9 +127,9 @@ fn planet_list_auto_commission_prompt_and_report_return_to_list() {
     assert!(
         line_containing(
             &terminal,
-            "COMMAND <- Commission all ships and starbases? [Y]/N ->",
+            "COMMAND <- Auto-Commission: Commission all ships and starbases? [Y]/N ->",
         )
-        .contains("Commission all ships and starbases? [Y]/N ->"),
+        .contains("Auto-Commission: Commission all ships and starbases? [Y]/N ->"),
         "expected inline auto-commission prompt on planet list"
     );
     assert!(
@@ -308,7 +308,8 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
     app.render(&mut terminal)
         .expect("planet list load prompt should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Load Fleet #").contains("Load Fleet # [3]"),
+        line_containing(&terminal, "COMMAND <- Load Armies: Fleet #")
+            .contains("Load Armies: Fleet # [3]"),
         "expected inline list fleet prompt with selected-planet fleet default"
     );
     assert!(
@@ -324,10 +325,9 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
     app.render(&mut terminal)
         .expect("planet list load quantity prompt should render");
     assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("COMMAND <-") && line.contains("How many armies to load?")),
+        terminal.lines.iter().any(|line| {
+            line.contains("COMMAND <-") && line.contains("Load Armies: How many armies?")
+        }),
         "expected inline quantity prompt on planet list"
     );
     assert!(
@@ -357,8 +357,11 @@ fn planet_list_build_specify_and_transport_stay_on_list_context() {
     app.render(&mut terminal)
         .expect("planet list scorch prompt should render");
     assert!(
-        line_containing(&terminal, "COMMAND <- Are you sure? Y/[N] ->")
-            .contains("Are you sure? Y/[N] ->"),
+        line_containing(
+            &terminal,
+            "COMMAND <- Scorch Planet: Are you sure? Y/[N] ->"
+        )
+        .contains("Scorch Planet: Are you sure? Y/[N] ->"),
         "expected scorch confirm inline on planet list"
     );
     assert!(

@@ -11,6 +11,11 @@ use crate::screen::{
 use nc_data::GameStateMutationError;
 use std::cmp::Reverse;
 
+use crate::domains::planet::screens::planet_list::{
+    PLANET_LIST_LOAD_FLEET_PROMPT, PLANET_LIST_LOAD_QTY_PROMPT, PLANET_LIST_UNLOAD_FLEET_PROMPT,
+    PLANET_LIST_UNLOAD_QTY_PROMPT,
+};
+
 impl App {
     fn planet_transport_visible_rows(&self) -> usize {
         crate::domains::planet::screens::planet_transport::planet_transport_visible_rows(
@@ -88,6 +93,23 @@ impl App {
             }
             PlanetMenuTransportPromptMode::Quantity(PlanetTransportMode::Unload) => {
                 "How many armies to unload? ".to_string()
+            }
+        })
+    }
+
+    pub(crate) fn planet_list_transport_prompt_label(&self) -> Option<String> {
+        Some(match self.planet.transport_prompt_mode? {
+            PlanetMenuTransportPromptMode::Fleet(PlanetTransportMode::Load) => {
+                PLANET_LIST_LOAD_FLEET_PROMPT.to_string()
+            }
+            PlanetMenuTransportPromptMode::Fleet(PlanetTransportMode::Unload) => {
+                PLANET_LIST_UNLOAD_FLEET_PROMPT.to_string()
+            }
+            PlanetMenuTransportPromptMode::Quantity(PlanetTransportMode::Load) => {
+                PLANET_LIST_LOAD_QTY_PROMPT.to_string()
+            }
+            PlanetMenuTransportPromptMode::Quantity(PlanetTransportMode::Unload) => {
+                PLANET_LIST_UNLOAD_QTY_PROMPT.to_string()
             }
         })
     }

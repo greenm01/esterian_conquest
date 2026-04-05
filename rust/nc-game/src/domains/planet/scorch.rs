@@ -1,6 +1,10 @@
 use crate::app::helpers::{is_coordinate_input_char, resolve_default_coords_input};
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
+use crate::domains::planet::screens::planet_list::{
+    PLANET_LIST_SCORCH_CONFIRM_PROMPT, PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT,
+    PLANET_LIST_SCORCH_REALLY_CONFIRM_PROMPT,
+};
 use crate::domains::planet::state::PlanetScorchPromptMode;
 use crate::screen::{CommandMenu, ScreenId, format_sector_coords_default};
 use crossterm::event::KeyCode;
@@ -228,6 +232,17 @@ impl App {
             Some(PlanetScorchPromptMode::Confirm3) => {
                 Some("Are you sure-sure? Last chance to bail! Y/[N] -> ")
             }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn planet_list_scorch_confirm_prompt(&self) -> Option<&'static str> {
+        match self.planet.scorch_prompt_mode {
+            Some(PlanetScorchPromptMode::Confirm1) => Some(PLANET_LIST_SCORCH_CONFIRM_PROMPT),
+            Some(PlanetScorchPromptMode::Confirm2) => {
+                Some(PLANET_LIST_SCORCH_REALLY_CONFIRM_PROMPT)
+            }
+            Some(PlanetScorchPromptMode::Confirm3) => Some(PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT),
             _ => None,
         }
     }

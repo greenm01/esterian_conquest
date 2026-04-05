@@ -11,10 +11,12 @@ use crate::screen::layout::{
 use crate::screen::table::{
     HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
     draw_table_footer, draw_table_title, layout_stacked_table_block,
-    resolve_table_columns_for_widget, write_stacked_table_window_with_states_at,
+    resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
+    write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
-    PlayfieldBuffer, ScreenFrame, format_sector_coords_default, format_sector_coords_table,
+    PlayfieldBuffer, ScreenFrame, build_quantity_from_points, format_sector_coords_default,
+    format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -34,7 +36,7 @@ pub enum PlanetListSort {
 
 pub struct PlanetListScreen;
 
-const BRIEF_COLUMNS: [TableColumn<'static>; 11] = [
+const BRIEF_COLUMNS: [TableColumn<'static>; 12] = [
     TableColumn::left("(XX,YY)", 7),
     TableColumn::left("Planet Name", 11),
     TableColumn::right("Prod", 4),
@@ -42,16 +44,30 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::right("Points", 6),
     TableColumn::right("Rev", 3),
     TableColumn::right("Grow", 4),
-    TableColumn::right("Docked", 6),
+    TableColumn::right("Queue", 6),
+    TableColumn::right("Dock", 6),
     TableColumn::right("SBs", 3),
     TableColumn::right("ARs", 3),
     TableColumn::right("GBs", 3),
 ];
 
-const BRIEF_TOP_HEADER_CELLS: [&str; 11] =
-    ["Coord", "", "Max", "Curr", "Stored", "", "", "", "", "", ""];
+const BRIEF_TOP_HEADER_CELLS: [&str; 12] = [
+    "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
+];
 
 const BRIEF_SORT_PROMPT: &str = "Sort <C>, <L>, <M>, or <Q>? [C] ->";
+pub(crate) const PLANET_LIST_AUTO_COMMISSION_PROMPT: &str =
+    "Auto-Commission: Commission all ships and starbases? [Y]/N -> ";
+pub(crate) const PLANET_LIST_LOAD_FLEET_PROMPT: &str = "Load Armies: Fleet # ";
+pub(crate) const PLANET_LIST_UNLOAD_FLEET_PROMPT: &str = "Unload Armies: Fleet # ";
+pub(crate) const PLANET_LIST_LOAD_QTY_PROMPT: &str = "Load Armies: How many armies? ";
+pub(crate) const PLANET_LIST_UNLOAD_QTY_PROMPT: &str = "Unload Armies: How many armies? ";
+pub(crate) const PLANET_LIST_SCORCH_CONFIRM_PROMPT: &str = "Scorch Planet: Are you sure? Y/[N] -> ";
+pub(crate) const PLANET_LIST_SCORCH_REALLY_CONFIRM_PROMPT: &str =
+    "Scorch Planet: Are you really sure? Y/[N] -> ";
+pub(crate) const PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT: &str =
+    "Scorch Planet: Are you sure-sure? Y/[N] -> ";
+const PLANET_LIST_MAX_QTY_DEFAULT: &str = "255";
 
 impl PlanetListScreen {
     pub fn new() -> Self {
@@ -102,7 +118,7 @@ impl PlanetListScreen {
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
         let footer = TableFooter::TablePrompt(BRIEF_SORT_PROMPT);
-        let columns = resolve_table_columns_for_widget(
+        let columns = resolve_table_columns_for_widget_with_footer_floor(
             &BRIEF_COLUMNS,
             &table_rows,
             buffer.width(),
@@ -110,6 +126,7 @@ impl PlanetListScreen {
             TableWidthMode::Compact,
             Some(brief_list_title(mode)),
             Some(footer),
+            planet_list_footer_floor(frame, mode),
         );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
@@ -165,7 +182,7 @@ impl PlanetListScreen {
         let footer = if auto_commission_prompt {
             TableFooter::CommandPrompt {
                 label: "COMMAND",
-                prompt: "Commission all ships and starbases? [Y]/N -> ",
+                prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
             }
         } else if let Some(prompt) = transport_prompt_label {
             TableFooter::CommandInput {
@@ -194,7 +211,7 @@ impl PlanetListScreen {
                 input,
             }
         };
-        let columns = resolve_table_columns_for_widget(
+        let columns = resolve_table_columns_for_widget_with_footer_floor(
             &BRIEF_COLUMNS,
             &table_rows,
             buffer.width(),
@@ -202,6 +219,7 @@ impl PlanetListScreen {
             TableWidthMode::Compact,
             Some(brief_list_title(mode)),
             Some(footer),
+            planet_list_footer_floor(frame, mode),
         );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
@@ -333,6 +351,87 @@ fn brief_list_table_bottom_row(
     1 + 4 + displayed_rows
 }
 
+fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> usize {
+    match mode {
+        PlanetListMode::Brief => {
+            let max_fleet_default = frame
+                .game_data
+                .fleets
+                .records
+                .iter()
+                .filter(|fleet| {
+                    fleet.owner_empire_raw() as usize == frame.player.record_index_1_based
+                })
+                .map(|fleet| fleet.local_slot_word_raw())
+                .max()
+                .unwrap_or(1)
+                .to_string();
+            [
+                table_footer_scaffold_width(TableFooter::CommandBar {
+                    hotkeys_markup: "? J K S B A C L U X <Q>",
+                    default: Some("00,00"),
+                    input: "",
+                }),
+                table_footer_scaffold_width(TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
+                }),
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_LOAD_FLEET_PROMPT,
+                    default: &max_fleet_default,
+                    input: "",
+                }),
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_UNLOAD_FLEET_PROMPT,
+                    default: &max_fleet_default,
+                    input: "",
+                }),
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_LOAD_QTY_PROMPT,
+                    default: PLANET_LIST_MAX_QTY_DEFAULT,
+                    input: "",
+                }),
+                table_footer_scaffold_width(TableFooter::CommandInput {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_UNLOAD_QTY_PROMPT,
+                    default: PLANET_LIST_MAX_QTY_DEFAULT,
+                    input: "",
+                }),
+                table_footer_scaffold_width(TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_SCORCH_CONFIRM_PROMPT,
+                }),
+                table_footer_scaffold_width(TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_SCORCH_REALLY_CONFIRM_PROMPT,
+                }),
+                table_footer_scaffold_width(TableFooter::CommandPrompt {
+                    label: "COMMAND",
+                    prompt: PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT,
+                }),
+                table_footer_scaffold_width(TableFooter::TablePrompt(BRIEF_SORT_PROMPT)),
+            ]
+            .into_iter()
+            .max()
+            .unwrap_or(0)
+        }
+        PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => [
+            table_footer_scaffold_width(TableFooter::CommandBar {
+                hotkeys_markup: "? J K S <Q>",
+                default: Some("00,00"),
+                input: "",
+            }),
+            table_footer_scaffold_width(TableFooter::TablePrompt(BRIEF_SORT_PROMPT)),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or(0),
+    }
+}
+
 fn brief_list_title(mode: PlanetListMode) -> &'static str {
     match mode {
         PlanetListMode::Brief | PlanetListMode::Stub(_) => "PLANET COMMAND:",
@@ -351,6 +450,7 @@ fn planet_table_rows(frame: &ScreenFrame<'_>, rows: &[EmpirePlanetEconomyRow]) -
                 row.stored_production_points.to_string(),
                 row.yearly_tax_revenue.to_string(),
                 format_signed_growth(row.yearly_growth_delta),
+                queued_build_units(frame, row).to_string(),
                 docked_units(frame, row).to_string(),
                 if row.has_friendly_starbase {
                     "1".to_string()
@@ -377,6 +477,25 @@ fn docked_units(frame: &ScreenFrame<'_>, row: &EmpirePlanetEconomyRow) -> u32 {
         .map(|planet| {
             (0..STARDOCK_SLOT_COUNT)
                 .map(|slot| u32::from(planet.stardock_count_raw(slot)))
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+fn queued_build_units(frame: &ScreenFrame<'_>, row: &EmpirePlanetEconomyRow) -> u32 {
+    frame
+        .game_data
+        .planets
+        .records
+        .get(row.planet_record_index_1_based.saturating_sub(1))
+        .map(|planet| {
+            (0..10)
+                .map(|slot| {
+                    build_quantity_from_points(
+                        nc_data::ProductionItemKind::from_raw(planet.build_kind_raw(slot)),
+                        u32::from(planet.build_count_raw(slot)),
+                    )
+                })
                 .sum()
         })
         .unwrap_or(0)

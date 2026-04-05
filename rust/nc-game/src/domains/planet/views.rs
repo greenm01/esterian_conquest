@@ -31,6 +31,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         _ => None,
     };
     let transport_prompt_label = app.planet_transport_prompt_label();
+    let list_transport_prompt_label = app.planet_list_transport_prompt_label();
     let scorch_planet_prompt_active =
         app.planet.scorch_prompt_mode == Some(PlanetScorchPromptMode::Planet);
     let inline_list_transport = if matches!(app.current_screen, ScreenId::PlanetList(_, _)) {
@@ -52,6 +53,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     } else {
         None
     };
+    let list_scorch_confirm_prompt = app.planet_list_scorch_confirm_prompt();
     let menu_prompt_label = if scorch_planet_prompt_active {
         Some("Scorch Planet XX ")
     } else if matches!(
@@ -271,7 +273,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.auto_commission_prompt_active
                 && mode == crate::screen::PlanetListMode::Brief,
             if mode == crate::screen::PlanetListMode::Brief {
-                transport_prompt_label.as_deref()
+                list_transport_prompt_label.as_deref()
             } else {
                 None
             },
@@ -279,7 +281,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.transport_prompt_input,
             inline_list_transport.map(|(_, summary)| summary.as_str()),
             if mode == crate::screen::PlanetListMode::Brief && !scorch_planet_prompt_active {
-                app.planet_scorch_confirm_prompt()
+                list_scorch_confirm_prompt
             } else {
                 None
             },

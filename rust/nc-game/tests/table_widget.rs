@@ -519,8 +519,13 @@ fn planet_database_24_row_door_keeps_bottom_border_above_command_line() {
 #[test]
 fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns() {
     let mut screen = PlanetListScreen::new();
-    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+    let mut game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
         .expect("load init fixture");
+    let planet = &mut game_data.planets.records[0];
+    planet.set_build_count_raw(0, 5);
+    planet.set_build_kind_raw(0, 1);
+    planet.set_build_count_raw(1, 40);
+    planet.set_build_kind_raw(1, 6);
     let player = joined_player_context();
     let planet_intel_snapshots = BTreeMap::new();
     let owned_planet_years = BTreeMap::new();
@@ -580,17 +585,21 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(2).contains("Max"));
     assert!(buffer.plain_line(2).contains("Curr"));
     assert!(buffer.plain_line(2).contains("Stored"));
-    assert_eq!(buffer.plain_line(2).matches('│').count(), 12);
+    assert!(buffer.plain_line(2).contains("Build"));
+    assert!(buffer.plain_line(2).contains("Star"));
+    assert_eq!(buffer.plain_line(2).matches('│').count(), 13);
     assert!(buffer.plain_line(3).contains("(XX,YY)"));
     assert!(buffer.plain_line(3).contains("Planet Name"));
     assert!(buffer.plain_line(3).contains("Prod"));
     assert!(buffer.plain_line(3).contains("Points"));
-    assert!(buffer.plain_line(3).contains("Docked"));
+    assert!(buffer.plain_line(3).contains("Queue"));
+    assert!(buffer.plain_line(3).contains("Dock"));
     assert!(buffer.plain_line(3).contains("SBs"));
     assert!(buffer.plain_line(3).contains("ARs"));
     assert!(buffer.plain_line(3).contains("GBs"));
     assert!(buffer.plain_line(5).contains("Player 1 HW"));
     assert!(buffer.plain_line(5).contains("165"));
+    assert!(buffer.plain_line(5).contains("3"));
     assert!(buffer.plain_line(5).contains("0"));
     assert_eq!(
         buffer.plain_line(7).find("COMMAND").expect("command col"),
@@ -606,6 +615,172 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
         buffer.row(5)[border_col].style,
         classic::selected_row_style()
     );
+}
+
+#[test]
+fn planet_brief_list_shows_zero_build_queue_when_no_orders_are_queued() {
+    let mut screen = PlanetListScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
+        geometry: ScreenGeometry::local_default(),
+    };
+    let rows = vec![EmpirePlanetEconomyRow {
+        planet_record_index_1_based: 1,
+        coords: [3, 3],
+        planet_name: "Player 1 HW".to_string(),
+        present_production: 100,
+        potential_production: 100,
+        stored_production_points: 165,
+        yearly_tax_revenue: 65,
+        yearly_growth_delta: 0,
+        build_capacity: 100,
+        has_friendly_starbase: false,
+        armies: 10,
+        ground_batteries: 4,
+        is_homeworld_seed: true,
+    }];
+
+    let buffer = screen
+        .render_brief_list(
+            &frame,
+            nc_game::screen::PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            0,
+            0,
+            "",
+            None,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )
+        .expect("render brief list without queued builds");
+
+    let line = buffer.plain_line(5);
+    let cells = line.split('│').collect::<Vec<_>>();
+    assert_eq!(cells[8].trim(), "0");
+}
+
+#[test]
+fn planet_brief_list_keeps_table_width_stable_across_footer_modes() {
+    let mut screen = PlanetListScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
+        geometry: ScreenGeometry::local_default(),
+    };
+    let rows = vec![EmpirePlanetEconomyRow {
+        planet_record_index_1_based: 1,
+        coords: [3, 3],
+        planet_name: "Player 1 HW".to_string(),
+        present_production: 100,
+        potential_production: 100,
+        stored_production_points: 165,
+        yearly_tax_revenue: 65,
+        yearly_growth_delta: 0,
+        build_capacity: 100,
+        has_friendly_starbase: false,
+        armies: 10,
+        ground_batteries: 4,
+        is_homeworld_seed: true,
+    }];
+
+    let command_bar = screen
+        .render_brief_list(
+            &frame,
+            nc_game::screen::PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            0,
+            0,
+            "",
+            None,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )
+        .expect("render brief list command bar");
+    let auto_commission = screen
+        .render_brief_list(
+            &frame,
+            nc_game::screen::PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            0,
+            0,
+            "",
+            None,
+            true,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )
+        .expect("render brief list auto-commission prompt");
+    let load_quantity = screen
+        .render_brief_list(
+            &frame,
+            nc_game::screen::PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            0,
+            0,
+            "",
+            None,
+            false,
+            Some("Load Armies: How many armies? "),
+            "255",
+            "",
+            None,
+            None,
+            None,
+        )
+        .expect("render brief list load quantity prompt");
+
+    let command_bar_right = command_bar
+        .plain_line(1)
+        .rfind('┐')
+        .expect("command bar border");
+    let auto_commission_right = auto_commission
+        .plain_line(1)
+        .rfind('┐')
+        .expect("auto-commission border");
+    let load_quantity_right = load_quantity
+        .plain_line(1)
+        .rfind('┐')
+        .expect("load quantity border");
+
+    assert_eq!(command_bar_right, auto_commission_right);
+    assert_eq!(command_bar_right, load_quantity_right);
 }
 
 #[test]
