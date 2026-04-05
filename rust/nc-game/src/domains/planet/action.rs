@@ -25,7 +25,7 @@ pub enum PlanetAction {
     CloseCommissionDraft,
     DismissCommissionResult(KeyCode),
     ClearCommissionDismissKey,
-    OpenTransportPlanetSelect(PlanetTransportMode),
+    OpenTransportPrompt(PlanetTransportMode),
     SubmitTransportPrompt,
     AppendTransportPromptChar(char),
     BackspaceTransportPromptInput,

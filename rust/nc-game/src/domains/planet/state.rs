@@ -9,7 +9,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetMenuTransportPromptMode {
-    Planet(PlanetTransportMode),
     Fleet(PlanetTransportMode),
     Quantity(PlanetTransportMode),
 }

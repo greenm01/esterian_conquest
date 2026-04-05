@@ -372,12 +372,12 @@ impl Screen for PlanetMenuScreen {
                 Action::Planet(PlanetAction::OpenScorchPrompt)
             }
             KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
-            KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
-                PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Load),
-            ),
-            KeyCode::Char('u') | KeyCode::Char('U') => Action::Planet(
-                PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Unload),
-            ),
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Planet(PlanetAction::OpenTransportPrompt(PlanetTransportMode::Load))
+            }
+            KeyCode::Char('u') | KeyCode::Char('U') => {
+                Action::Planet(PlanetAction::OpenTransportPrompt(PlanetTransportMode::Unload))
+            }
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenTaxPrompt),
             _ => Action::Noop,
         }

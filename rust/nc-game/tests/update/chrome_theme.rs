@@ -1145,10 +1145,10 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Planet(PlanetAction::OpenBuildChange),
         Action::Planet(PlanetAction::OpenBuildAbortPrompt),
         Action::Planet(PlanetAction::OpenBuildSpecify),
-        Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+        Action::Planet(PlanetAction::OpenTransportPrompt(
             nc_game::screen::PlanetTransportMode::Load,
         )),
-        Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+        Action::Planet(PlanetAction::OpenTransportPrompt(
             nc_game::screen::PlanetTransportMode::Unload,
         )),
         Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief)),
