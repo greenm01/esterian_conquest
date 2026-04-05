@@ -4,6 +4,12 @@ mod planets;
 
 use crate::CoreGameData;
 
+pub fn process_autopilot_fleet_orders(
+    game_data: &mut CoreGameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    ai::process_autopilot_fleet_orders(game_data)
+}
+
 pub fn process_autopilot_ai(
     game_data: &mut CoreGameData,
 ) -> Result<(), Box<dyn std::error::Error>> {
