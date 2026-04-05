@@ -4,8 +4,8 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use nc_data::{
-    BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomaticRelation,
-    DiplomacyOverride, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
+    BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
+    DiplomaticRelation, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
     MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
@@ -422,12 +422,9 @@ fn test_view_world_destroyed_in_same_turn_emits_no_success_or_intel() {
     enemy.set_etac_count(0);
     enemy.set_rules_of_engagement(10);
 
-    let events = run_maintenance_turn_with_context(
-        &mut game_data,
-        &[],
-        &mutual_enemy_overrides(1, 2),
-    )
-    .expect("maintenance should succeed");
+    let events =
+        run_maintenance_turn_with_context(&mut game_data, &[], &mutual_enemy_overrides(1, 2))
+            .expect("maintenance should succeed");
 
     assert!(
         !events.planet_intel_events.iter().any(|event| {
@@ -444,7 +441,10 @@ fn test_view_world_destroyed_in_same_turn_emits_no_success_or_intel() {
         "destroyed viewing fleet should not emit viewing success"
     );
     assert!(
-        events.fleet_destroyed_events.iter().any(|event| event.reporting_empire_raw == 1),
+        events
+            .fleet_destroyed_events
+            .iter()
+            .any(|event| event.reporting_empire_raw == 1),
         "destroyed fleet should still generate lost-contact event"
     );
 }
@@ -472,12 +472,9 @@ fn test_scout_system_destroyed_in_same_turn_emits_no_success_or_intel() {
     enemy.set_etac_count(0);
     enemy.set_rules_of_engagement(10);
 
-    let events = run_maintenance_turn_with_context(
-        &mut game_data,
-        &[],
-        &mutual_enemy_overrides(1, 2),
-    )
-    .expect("maintenance should succeed");
+    let events =
+        run_maintenance_turn_with_context(&mut game_data, &[], &mutual_enemy_overrides(1, 2))
+            .expect("maintenance should succeed");
 
     assert!(
         !events.planet_intel_events.iter().any(|event| {
@@ -494,7 +491,10 @@ fn test_scout_system_destroyed_in_same_turn_emits_no_success_or_intel() {
         "destroyed scout fleet should not emit scouting success"
     );
     assert!(
-        events.fleet_destroyed_events.iter().any(|event| event.reporting_empire_raw == 1),
+        events
+            .fleet_destroyed_events
+            .iter()
+            .any(|event| event.reporting_empire_raw == 1),
         "destroyed fleet should still generate lost-contact event"
     );
 }

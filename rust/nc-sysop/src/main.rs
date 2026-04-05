@@ -675,7 +675,9 @@ fn run_maintenance_for_dir(
             )?
         };
         let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
-            .map(|viewer_empire_id| latest_planet_intel_grants_for_viewer(&events, viewer_empire_id))
+            .map(|viewer_empire_id| {
+                latest_planet_intel_grants_for_viewer(&events, viewer_empire_id)
+            })
             .collect::<Vec<_>>();
         extend_maintenance_events(&mut all_events, events);
         for viewer_empire_id in 1..=game_data.conquest.player_count() {

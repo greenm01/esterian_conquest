@@ -81,7 +81,10 @@ fn results_reports_contact_before_destroyed_fleet_notice() {
         .iter()
         .position(|text| text.contains("We lost all contact with the 15th Fleet"))
         .expect("lost-contact report should exist");
-    assert!(contact_idx < identify_idx, "contact should precede identify: {texts:?}");
+    assert!(
+        contact_idx < identify_idx,
+        "contact should precede identify: {texts:?}"
+    );
     assert!(
         identify_idx < destroyed_idx,
         "identify should precede lost-contact: {texts:?}"
@@ -173,7 +176,16 @@ fn results_reports_battle_before_bombard_aftermath() {
         .iter()
         .position(|text| text.contains("We have been bombarded"))
         .expect("bombard report should exist");
-    assert!(contact_idx < identify_idx, "contact should precede identify: {texts:?}");
-    assert!(identify_idx < battle_idx, "identify should precede battle: {texts:?}");
-    assert!(battle_idx < bombard_idx, "battle should precede bombard: {texts:?}");
+    assert!(
+        contact_idx < identify_idx,
+        "contact should precede identify: {texts:?}"
+    );
+    assert!(
+        identify_idx < battle_idx,
+        "identify should precede battle: {texts:?}"
+    );
+    assert!(
+        battle_idx < bombard_idx,
+        "battle should precede bombard: {texts:?}"
+    );
 }

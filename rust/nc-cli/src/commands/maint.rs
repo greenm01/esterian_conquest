@@ -154,7 +154,9 @@ pub fn run_rust_maintenance_with_options(
             )?
         };
         let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
-            .map(|viewer_empire_id| latest_planet_intel_grants_for_viewer(&events, viewer_empire_id))
+            .map(|viewer_empire_id| {
+                latest_planet_intel_grants_for_viewer(&events, viewer_empire_id)
+            })
             .collect::<Vec<_>>();
         all_events.bombard_events.extend(events.bombard_events);
         all_events

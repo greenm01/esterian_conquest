@@ -142,7 +142,10 @@ fn assign_planet_intel_event_weeks(events: &mut MaintenanceEvents) {
                     && matches!(
                         (e.source, mission.kind),
                         (PlanetIntelSource::ViewWorld, Mission::ViewWorld)
-                            | (PlanetIntelSource::ScoutSolarSystem, Mission::ScoutSolarSystem)
+                            | (
+                                PlanetIntelSource::ScoutSolarSystem,
+                                Mission::ScoutSolarSystem
+                            )
                     )
             })
             .and_then(|mission| mission.stardate_week)

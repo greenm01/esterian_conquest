@@ -940,8 +940,7 @@ fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
         } else {
             NarrativePhase::AttackerAftermath
         }
-    } else if text.contains("Viewing mission report:")
-        || text.contains("Scouting mission report:")
+    } else if text.contains("Viewing mission report:") || text.contains("Scouting mission report:")
     {
         if text.contains("completed a long range viewing analysis")
             || text.contains("compiled the following data")
