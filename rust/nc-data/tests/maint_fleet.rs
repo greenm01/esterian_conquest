@@ -4,6 +4,7 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use nc_data::{
+    fleet_motion_state::store_exact_position,
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
     DiplomaticRelation, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
     MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
@@ -1225,6 +1226,69 @@ fn test_join_merge_occurs_without_combat_merge_flag() {
             .iter()
             .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side })
     );
+}
+
+#[test]
+fn test_join_merge_occurs_when_joiner_has_hidden_exact_transit_in_host_sector() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let host_coords = game_data.fleets.records[0].current_location_coords_raw();
+    let host_id = game_data.fleets.records[0].fleet_id();
+
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw(host_coords);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw(host_coords);
+    joiner.set_current_speed(3);
+    joiner.set_movement_state_flag_raw(0x7f);
+    joiner.set_movement_fraction_raw(0);
+    store_exact_position(
+        joiner,
+        [f64::from(host_coords[0]) - 0.4, f64::from(host_coords[1])],
+    );
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.kind == Mission::JoinAnotherFleet
+            && !event.survivor_side
+            && event.fleet_idx == 1
+            && event.coords == host_coords
+    }));
+}
+
+#[test]
+fn test_move_only_arrival_completes_when_hidden_exact_transit_reaches_target_sector() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let target_coords = [20, 20];
+
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw(target_coords);
+    fleet.set_standing_order_kind(Order::MoveOnly);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    fleet.set_movement_state_flag_raw(0x7f);
+    fleet.set_movement_fraction_raw(0);
+    store_exact_position(
+        fleet,
+        [f64::from(target_coords[0]) - 0.4, f64::from(target_coords[1])],
+    );
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    let fleet = &game_data.fleets.records[1];
+    assert_eq!(fleet.current_location_coords_raw(), target_coords);
+    assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(fleet.current_speed(), 0);
+    assert!(events.mission_events.iter().any(|event| {
+        event.fleet_idx == 1
+            && event.kind == Mission::MoveOnly
+            && event.outcome == MissionOutcome::Succeeded
+            && event.location_coords == Some(target_coords)
+    }));
 }
 
 #[test]

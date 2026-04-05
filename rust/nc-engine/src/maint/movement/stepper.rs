@@ -152,10 +152,20 @@ pub(super) fn process_single_fleet_movement(
         return Ok(false);
     }
 
+    let exact_start = {
+        let fleet = &game_data.fleets.records[fleet_idx];
+        if is_at_rest {
+            None
+        } else {
+            decode_exact_position(fleet)
+        }
+    };
     let dx_total = target_x as i32 - current_x as i32;
     let dy_total = target_y as i32 - current_y as i32;
+    let has_unresolved_exact_transit =
+        dx_total == 0 && dy_total == 0 && exact_start.is_some();
 
-    if dx_total == 0 && dy_total == 0 {
+    if dx_total == 0 && dy_total == 0 && !has_unresolved_exact_transit {
         let fleet = &mut game_data.fleets.records[fleet_idx];
         set_fleet_to_local_hold(fleet);
         return Ok(true);
@@ -176,15 +186,9 @@ pub(super) fn process_single_fleet_movement(
         .get(owner_empire_raw.saturating_sub(1) as usize)
         .cloned()
         .unwrap_or_default();
-    let exact_start = {
-        let fleet = &game_data.fleets.records[fleet_idx];
-        if is_at_rest {
-            [f64::from(current_x), f64::from(current_y)]
-        } else {
-            decode_exact_position(fleet).unwrap_or([f64::from(current_x), f64::from(current_y)])
-        }
-    };
-    let use_route_geometry = !visible_hazard_intel_is_empty(&hazard_intel);
+    let exact_start = exact_start.unwrap_or([f64::from(current_x), f64::from(current_y)]);
+    let use_route_geometry =
+        !visible_hazard_intel_is_empty(&hazard_intel) && !has_unresolved_exact_transit;
     let route = if use_route_geometry {
         plan_route_with_intel(game_data, fleet_idx, &hazard_intel)
     } else {
