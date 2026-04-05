@@ -62,7 +62,7 @@ struct Theme {
     shell_label: CellStyle,
     menu: CellStyle,
     menu_hotkey: CellStyle,
-    menu_featured_hotkey: CellStyle,
+    menu_featured_label: CellStyle,
     prompt: CellStyle,
     prompt_angle_delimiter: CellStyle,
     prompt_square_delimiter: CellStyle,
@@ -115,7 +115,7 @@ impl Theme {
             shell_label: require_style("shell_label")?,
             menu: require_style("menu")?,
             menu_hotkey: require_style("menu_hotkey")?,
-            menu_featured_hotkey: optional_style("menu_featured_hotkey", "menu_hotkey")?,
+            menu_featured_label: optional_style("menu_featured_label", "menu")?,
             prompt: require_style("prompt")?,
             prompt_angle_delimiter: optional_style("prompt_angle_delimiter", "prompt")?,
             prompt_square_delimiter: optional_style("prompt_square_delimiter", "prompt")?,
@@ -165,7 +165,7 @@ impl Theme {
         theme.shell_label = mono_bright(theme.shell_label);
         theme.menu = mono_dim(theme.menu);
         theme.menu_hotkey = mono_bright(theme.menu_hotkey);
-        theme.menu_featured_hotkey = mono_bright(theme.menu_featured_hotkey);
+        theme.menu_featured_label = mono_bright(theme.menu_featured_label);
         theme.prompt = mono_dim(theme.prompt);
         theme.prompt_angle_delimiter = mono_dim(theme.prompt_angle_delimiter);
         theme.prompt_square_delimiter = mono_dim(theme.prompt_square_delimiter);
@@ -522,8 +522,8 @@ pub mod classic {
         active_theme().menu_hotkey
     }
 
-    pub fn menu_featured_hotkey_style() -> CellStyle {
-        active_theme().menu_featured_hotkey
+    pub fn menu_featured_label_style() -> CellStyle {
+        active_theme().menu_featured_label
     }
 
     pub fn prompt_style() -> CellStyle {

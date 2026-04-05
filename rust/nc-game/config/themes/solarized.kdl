@@ -32,7 +32,7 @@ style "menu_hotkey" {
     bg "#002b36"
     bold #true
 }
-style "menu_featured_hotkey" {
+style "menu_featured_label" {
     fg "#2aa198"
     bg "#002b36"
     bold #true

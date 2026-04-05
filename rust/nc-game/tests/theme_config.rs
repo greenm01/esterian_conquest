@@ -147,7 +147,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::body_style().fg, GameColor::Rgb(192, 202, 245));
     assert_eq!(classic::menu_style().fg, GameColor::Rgb(192, 202, 245));
     assert_eq!(
-        classic::menu_featured_hotkey_style().fg,
+        classic::menu_featured_label_style().fg,
         GameColor::Rgb(125, 207, 255)
     );
     assert_eq!(classic::prompt_style().fg, GameColor::Rgb(192, 202, 245));
@@ -185,7 +185,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::body_style().fg, GameColor::White);
     assert_eq!(classic::menu_style().fg, GameColor::White);
     assert_eq!(classic::menu_hotkey_style().fg, GameColor::White);
-    assert_eq!(classic::menu_featured_hotkey_style().fg, GameColor::White);
+    assert_eq!(classic::menu_featured_label_style().fg, GameColor::White);
     assert_eq!(classic::prompt_style().fg, GameColor::White);
     assert_eq!(classic::status_label_style().fg, GameColor::White);
     assert_eq!(classic::table_header_style().fg, GameColor::White);
@@ -201,7 +201,7 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::selected_row_style().bg, GameColor::BrightBlack);
     assert!(!classic::body_style().bold);
     assert!(!classic::menu_hotkey_style().bold);
-    assert!(!classic::menu_featured_hotkey_style().bold);
+    assert!(!classic::menu_featured_label_style().bold);
     assert!(!classic::prompt_hotkey_style().bold);
     assert!(!classic::notice_style().bold);
     assert!(!classic::logo_style().bold);

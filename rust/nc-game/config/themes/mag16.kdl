@@ -31,7 +31,7 @@ style "menu_hotkey" {
     bg "black"
     bold #true
 }
-style "menu_featured_hotkey" {
+style "menu_featured_label" {
     fg "bright_cyan"
     bg "black"
     bold #true

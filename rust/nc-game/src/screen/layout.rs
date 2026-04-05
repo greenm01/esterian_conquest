@@ -357,10 +357,11 @@ pub fn draw_menu_entry_styled(
     label: &str,
     featured: bool,
 ) {
-    let hotkey_style = if featured {
-        classic::menu_featured_hotkey_style()
+    let hotkey_style = classic::menu_hotkey_style();
+    let label_style = if featured {
+        classic::menu_featured_label_style()
     } else {
-        classic::menu_hotkey_style()
+        classic::menu_style()
     };
     buffer.write_spans(
         row,
@@ -368,7 +369,7 @@ pub fn draw_menu_entry_styled(
         &[
             StyledSpan::new(hotkey, hotkey_style),
             StyledSpan::new(">", classic::menu_style()),
-            StyledSpan::new(label, classic::menu_style()),
+            StyledSpan::new(label, label_style),
         ],
     );
 }

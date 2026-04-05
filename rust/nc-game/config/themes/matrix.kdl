@@ -48,7 +48,7 @@ style "menu_hotkey" {
     bg "#0D0208"
     bold #true
 }
-style "menu_featured_hotkey" {
+style "menu_featured_label" {
     fg "#339933"
     bg "#0D0208"
     bold #true
