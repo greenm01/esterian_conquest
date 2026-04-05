@@ -911,6 +911,41 @@ fn repeated_same_kind_build_submissions_merge_into_one_player_visible_total() {
 }
 
 #[test]
+fn empty_build_quantity_submission_uses_max_affordable_default() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+
+    app.open_planet_build_specify();
+    app.append_planet_build_unit_char('1');
+    app.submit_planet_build_unit();
+    app.submit_planet_build_quantity()
+        .expect("empty quantity submit should use default max");
+
+    let planet_idx = app
+        .game_data
+        .planet_record_index_at_coords([16, 13])
+        .expect("current build planet should exist");
+    let planet = &app.game_data.planets.records[planet_idx];
+    assert_eq!(planet.build_kind_raw(0), 1);
+    assert_eq!(planet.build_count_raw(0), 50);
+    assert!((1..10).all(|slot| planet.build_count_raw(slot) == 0));
+}
+
+#[test]
 fn build_quantity_from_points_uses_remaining_whole_units_for_partial_orders() {
     assert_eq!(
         nc_game::screen::build_quantity_from_points(ProductionItemKind::Etac, 30),
@@ -2233,7 +2268,7 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
             .plain_line(row)
             .contains("COMMAND <- How many new destroyers to build")
     }));
-    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("[1] <Q> ->")));
+    assert!((0..buffer.height()).any(|row| buffer.plain_line(row).contains("[6] <Q> ->")));
     assert!(!(0..buffer.height()).any(|row| {
         buffer
             .plain_line(row)

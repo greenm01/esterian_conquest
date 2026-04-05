@@ -1035,7 +1035,7 @@ impl App {
         }
 
         let qty = if self.planet.build_quantity_input.trim().is_empty() {
-            1
+            max_qty
         } else {
             match self.planet.build_quantity_input.trim().parse::<u32>() {
                 Ok(value) => value,

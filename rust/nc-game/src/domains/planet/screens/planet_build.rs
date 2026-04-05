@@ -547,6 +547,7 @@ impl PlanetBuildScreen {
             "How many new {} to build (0 - {}) ",
             unit.singular_label, max_qty
         );
+        let default_qty = max_qty.to_string();
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
@@ -555,7 +556,7 @@ impl PlanetBuildScreen {
             TableFooter::CommandInput {
                 label: COMMAND_LABEL,
                 prompt: &prompt,
-                default: "1",
+                default: &default_qty,
                 input,
             },
         );
