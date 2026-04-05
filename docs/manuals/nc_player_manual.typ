@@ -594,7 +594,9 @@ To keep messaging civil, you may send no more than three messages to any single 
 
 === Planet Command
 
-Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. Scorch Earth (*S*) destroys your own factories to deny them to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.
+Planet Command controls your economy and ground operations. Tax (*T*) sets the empire-wide tax rate. From the main Planet Command menu, Scorch Earth (*S*) destroys your own factories to deny them to an invader. Build (*B*) spends production points on ships, defenses, or starbases. Commission (*C*) assigns newly built ships from stardock into active fleets. Load and Unload (*L* / *U*) move armies between the planet surface and troop transports.
+
+The *Planet List* is the fast row-centric operations screen for owned worlds. Once you open it, the highlighted planet becomes the working row for the most common actions: Build (*B*), Auto-Commission (*A*), Commission (*C*), Load / Unload armies (*L* / *U*), and Scorch Earth (*X*). On that screen, *S* is reserved for *Sort*, while *I* or *Enter* opens planet information for the selected row.
 
 === Fleet Command
 
@@ -902,28 +904,28 @@ behavior explanations, examples, and tactical notes, see @missions.
 
 #figure(
   table(
-    columns: (auto, auto, auto, auto, 1fr),
-    align: (right, left, left, left, left),
+    columns: (auto, auto, auto, auto, auto, 1fr),
+    align: (right, left, left, left, left, left),
     inset: 6pt,
     table.header(
-      [No], [Mission], [Class], [Trigger], [Summary],
+      [No], [Abbr], [Mission], [Class], [Trigger], [Summary],
     ),
-    [00], [Hold Position], [Persistent], [Immediate], [Idle standing order; remains at current location.],
-    [01], [Move Fleet], [One-shot], [Arrive], [Travel to target sector, then stop and revert to Hold.],
-    [02], [Seek Home], [One-shot], [Arrive], [Travel to nearest owned world; retarget if it is lost en route.],
-    [03], [Patrol], [Persistent], [Arrive], [Occupy deep-space patrol sector and intercept by ROE.],
-    [04], [Guard Starbase], [Persistent], [Arrive], [Escort a starbase and remain assigned to its defense.],
-    [05], [Blockade], [Persistent], [Arrive], [Guard a world, interfere with launches and hostile access.],
-    [06], [Bombard], [Hostile], [Next maintenance tick], [Ready bombardment destroys stardock contents, defenses, armies, goods, and production.],
-    [07], [Invade], [Hostile], [Next maintenance tick], [Suppress batteries, soften the world, then land armies.],
-    [08], [Blitz], [Hostile], [Next maintenance tick], [Fast direct landing with higher transport and army risk.],
-    [09], [View], [One-shot], [Arrive], [Long-range scan from system edge; reports and reverts to Hold.],
-    [10], [Scout Sector], [One-shot], [Arrive], [Stealth deep-space observation; requires a Scout.],
-    [11], [Scout System], [One-shot], [Arrive], [Spy run into a world; requires a Scout.],
-    [12], [Colonize], [One-shot], [Arrive], [Claim an unowned world with an ETAC; ETAC survives.],
-    [13], [Join Fleet], [Persistent], [Merge], [Chase and merge with a host fleet; abort if host is destroyed.],
-    [14], [Rendezvous], [Persistent], [Merge], [Gather fleets in one sector; lowest Fleet ID becomes host.],
-    [15], [Salvage], [One-shot], [Arrive], [Scrap ships at a world for roughly 50% of build cost.],
+    [00], [Hd], [Hold Position], [Persistent], [Immediate], [Idle standing order; remains at current location.],
+    [01], [Mv], [Move Fleet], [One-shot], [Arrive], [Travel to target sector, then stop and revert to Hold.],
+    [02], [Sk], [Seek Home], [One-shot], [Arrive], [Travel to nearest owned world; retarget if it is lost en route.],
+    [03], [Pa], [Patrol], [Persistent], [Arrive], [Occupy deep-space patrol sector and intercept by ROE.],
+    [04], [Gs], [Guard Starbase], [Persistent], [Arrive], [Escort a starbase and remain assigned to its defense.],
+    [05], [Gb], [Blockade], [Persistent], [Arrive], [Guard a world, interfere with launches and hostile access.],
+    [06], [Bo], [Bombard], [Hostile], [Next maintenance tick], [Ready bombardment destroys stardock contents, defenses, armies, goods, and production.],
+    [07], [In], [Invade], [Hostile], [Next maintenance tick], [Suppress batteries, soften the world, then land armies.],
+    [08], [Bz], [Blitz], [Hostile], [Next maintenance tick], [Fast direct landing with higher transport and army risk.],
+    [09], [Vw], [View], [One-shot], [Arrive], [Long-range scan from system edge; reports and reverts to Hold.],
+    [10], [Ss], [Scout Sector], [One-shot], [Arrive], [Stealth deep-space observation; requires a Scout.],
+    [11], [Sy], [Scout System], [One-shot], [Arrive], [Spy run into a world; requires a Scout.],
+    [12], [Co], [Colonize], [One-shot], [Arrive], [Claim an unowned world with an ETAC; ETAC survives.],
+    [13], [Jn], [Join Fleet], [Persistent], [Merge], [Chase and merge with a host fleet; abort if host is destroyed.],
+    [14], [Rz], [Rendezvous], [Persistent], [Merge], [Gather fleets in one sector; lowest Fleet ID becomes host.],
+    [15], [Sa], [Salvage], [One-shot], [Arrive], [Scrap ships at a world for roughly 50% of build cost.],
   ),
 )
 
