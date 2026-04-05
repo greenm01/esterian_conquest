@@ -338,12 +338,14 @@ fn empire_profile_aligns_armies_and_ground_batteries_with_active_duty_list() {
         .expect("load init fixture");
     let player = joined_player_context();
     let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
     let frame = ScreenFrame {
         game_dir: Path::new("."),
         game_data: &game_data,
         player: &player,
         campaign_seed: 0,
         planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
         geometry: ScreenGeometry::local_default(),
     };
 
@@ -521,12 +523,14 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
         .expect("load init fixture");
     let player = joined_player_context();
     let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
     let frame = ScreenFrame {
         game_dir: Path::new("."),
         game_data: &game_data,
         player: &player,
         campaign_seed: 0,
         planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
         geometry: ScreenGeometry::local_default(),
     };
     let rows = vec![EmpirePlanetEconomyRow {
@@ -676,12 +680,14 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
         .expect("load init fixture");
     let player = joined_player_context();
     let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
     let frame = ScreenFrame {
         game_dir: Path::new("."),
         game_data: &game_data,
         player: &player,
         campaign_seed: 0,
         planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
         geometry: ScreenGeometry::local_default(),
     };
 
@@ -732,12 +738,14 @@ fn rankings_screen_centers_block_and_pins_dismiss_prompt_to_table() {
         .expect("load init fixture");
     let player = joined_player_context();
     let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
     let frame = ScreenFrame {
         game_dir: Path::new("."),
         game_data: &game_data,
         player: &player,
         campaign_seed: 0,
         planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
         geometry: ScreenGeometry::local_default(),
     };
 
@@ -783,12 +791,14 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .expect("load init fixture");
     let player = joined_player_context();
     let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
     let frame = ScreenFrame {
         game_dir: Path::new("."),
         game_data: &game_data,
         player: &player,
         campaign_seed: 0,
         planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
         geometry: ScreenGeometry::local_default(),
     };
 

@@ -266,6 +266,7 @@ pub struct ScreenFrame<'a> {
     pub player: &'a PlayerContext,
     pub campaign_seed: u64,
     pub planet_intel_snapshots: &'a BTreeMap<usize, PlanetIntelSnapshot>,
+    pub owned_planet_years: &'a BTreeMap<usize, u16>,
     pub geometry: ScreenGeometry,
 }
 

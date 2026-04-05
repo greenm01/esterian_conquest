@@ -443,7 +443,7 @@ Tax revenue that you do not spend accumulates as Stored Production Points on eac
 
 === Newly Colonized Planets
 
-A freshly colonized planet starts with Present Production far below its Potential. Growth depends heavily on the tax rate you set, so keep taxes low on new colonies to develop them quickly.
+A freshly colonized planet starts with Present Production far below its Potential and with no Stored Production Points. It does not collect revenue or growth on the same maintenance turn that establishes the colony. Growth begins on later turns, and because tax revenue is credited before growth is applied, a new colony can remain at zero spendable points for multiple turns even at reasonable tax rates. Keep taxes low on new colonies so they develop quickly.
 
 === Conquered Planets
 
@@ -536,7 +536,7 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Missions 10 and 11: Scout Sector / Scout System.* Both require at least one Scout ship, and a fleet consisting of a single Scout is the least likely to be detected. Scout Sector is a passive, stealthy patrol --- unlike Mission 3, the fleet will not engage enemies but instead relies on stealth to observe traffic without being seen. Scout System is an active spy run where the Scout penetrates the system to report on ground batteries, armies, current production, stardock contents, and orbiting fleets. Both revert to Hold Position after reporting.
 
-*Mission 12: Colonize a World.* Requires at least one ETAC (Environmental Transformation And Colonization ship). If the planet is unowned, it is terraformed and claimed. The new colony starts with one garrison army and very low current production, which grows faster under low taxes. The ETAC is not consumed --- it survives and can colonize additional planets. If the planet is already owned, the ETAC aborts, reports the owner's identity and production potential, and waits for new orders.
+*Mission 12: Colonize a World.* Requires at least one ETAC (Environmental Transformation And Colonization ship). If the planet is unowned, it is terraformed and claimed. The new colony starts with one garrison army, no stored production, and very low current production. It does not receive revenue or growth until later maintenance turns, and then develops faster under low taxes. The ETAC is not consumed --- it survives and can colonize additional planets. If the planet is already owned, the ETAC aborts, reports the owner's identity and production potential, and waits for new orders.
 
 *Mission 15: Salvage.* The fleet travels to the specified planet and scraps its ships for approximately *50%* of the original build cost, returned as stored production points on that planet. It reverts to Hold Position after scrapping.
 

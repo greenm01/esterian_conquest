@@ -25,6 +25,10 @@ impl App {
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        self.owned_planet_years = self
+            .planet
+            .campaign_store
+            .latest_owned_planet_years_for_empire(player_record_index_1_based as u8)?;
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
         self.refresh_review_context()?;
         Ok(())
@@ -87,6 +91,10 @@ impl App {
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        self.owned_planet_years = self
+            .planet
+            .campaign_store
+            .latest_owned_planet_years_for_empire(self.player.record_index_1_based as u8)?;
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
         Ok(())
     }
@@ -114,6 +122,10 @@ impl App {
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        self.owned_planet_years = self
+            .planet
+            .campaign_store
+            .latest_owned_planet_years_for_empire(self.player.record_index_1_based as u8)?;
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
         Ok(())
     }

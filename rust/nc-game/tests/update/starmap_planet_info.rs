@@ -536,6 +536,41 @@ fn planet_info_intel_detail_shows_unowned_for_known_zero_owner() {
 }
 
 #[test]
+fn owned_planet_info_detail_shows_owned_since_year() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    let owned_idx = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() as usize == app.player.record_index_1_based)
+        .map(|(idx, _)| idx)
+        .expect("fixture should contain an owned world");
+    app.current_screen = ScreenId::PlanetInfoDetail;
+    app.planet.info_selected = Some(owned_idx);
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Owned Since") && line.contains("Y3000"))
+    );
+}
+
+#[test]
 fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

@@ -218,6 +218,13 @@ pub(super) fn save_runtime_state_internal_tx(
         planet_intel_by_viewer_override,
         &previous_intel,
     )?;
+    super::planet_owned_since::write_owned_planet_year_rows(
+        &tx,
+        snapshot_id,
+        game_data,
+        year,
+        previous_snapshot_id,
+    )?;
     if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
         let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(
             &tx,

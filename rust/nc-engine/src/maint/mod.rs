@@ -258,12 +258,23 @@ pub fn run_maintenance_turn_with_context_and_seed(
     // Apply colonization results to PLANETS.DAT and PLAYER.DAT
     let colonization_events =
         merging::process_colonizations(game_data, &movement_events.colonization_events)?;
+    let newly_colonized_planets = colonization_events
+        .iter()
+        .filter_map(|event| match *event {
+            ColonizationResolvedEvent::Succeeded { planet_idx, .. } => Some(planet_idx),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
 
     // Process build queues and track which planets had activity
     let planets_with_builds = economics::process_build_completion(game_data)?;
 
     // Process planet economic updates for planets that had builds
-    economics::process_planet_economics(game_data, &planets_with_builds)?;
+    economics::process_planet_economics(
+        game_data,
+        &planets_with_builds,
+        &newly_colonized_planets,
+    )?;
 
     // Run autopilot / rogue AI planet economics.
     // Updates factories, armies, and raw[0x0E] for rogue and autopilot-on players.

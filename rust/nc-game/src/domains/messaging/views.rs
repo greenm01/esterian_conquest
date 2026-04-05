@@ -9,6 +9,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         player: &app.player,
         campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
+        owned_planet_years: &app.owned_planet_years,
         geometry: app.screen_geometry,
     };
     match app.current_screen {

@@ -110,6 +110,7 @@ pub struct App {
     pub quit_confirm_open: bool,
     pub popup_help: Option<PopupHelp>,
     pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
+    pub owned_planet_years: BTreeMap<usize, u16>,
     pub planet_scorch_orders: BTreeSet<usize>,
 }
 
@@ -158,6 +159,8 @@ impl App {
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        let owned_planet_years = campaign_store
+            .latest_owned_planet_years_for_empire(config.player_record_index_1_based as u8)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
@@ -252,6 +255,7 @@ impl App {
             quit_confirm_open: false,
             popup_help: None,
             planet_intel_snapshots,
+            owned_planet_years,
             planet_scorch_orders,
         })
     }

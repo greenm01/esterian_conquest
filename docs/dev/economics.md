@@ -156,6 +156,14 @@ consumed.
 ### Homeworlds
 Homeworlds start at full production from turn one.
 
+### Newly Colonized Planets
+Fresh colonies do not receive same-turn revenue or growth on the maintenance
+tick that establishes ownership. They begin with no stored production points,
+then start growing on later maintenance turns according to the normal tax and
+growth formulas. Because yearly tax revenue is credited before yearly growth is
+applied, newly colonized planets can remain at zero spendable production for
+multiple turns even at moderate tax rates.
+
 ### Civil Disorder and Autopilot
 The classic autopilot pass handles disorder. Empires in disorder (**0x00**) are
 economically frozen. Normal-planet economy policy does not apply to them.

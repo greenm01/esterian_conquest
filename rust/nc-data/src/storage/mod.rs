@@ -11,6 +11,7 @@ mod hosted_seats;
 mod intel;
 mod mail;
 mod metadata;
+mod planet_owned_since;
 mod planet_scorch_orders;
 mod report_blocks;
 mod runtime;
@@ -384,10 +385,17 @@ impl CampaignStore {
                  recipient_deleted INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, viewer_empire_id, block_index)
              );
-             CREATE TABLE IF NOT EXISTS planet_scorch_orders (
+            CREATE TABLE IF NOT EXISTS planet_scorch_orders (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  planet_record_index INTEGER NOT NULL,
                  PRIMARY KEY(snapshot_id, planet_record_index)
+             );
+             CREATE TABLE IF NOT EXISTS planet_owned_since (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 owner_empire_id INTEGER NOT NULL,
+                 planet_record_index INTEGER NOT NULL,
+                 acquired_year INTEGER NOT NULL,
+                 PRIMARY KEY(snapshot_id, owner_empire_id, planet_record_index)
              );
              CREATE TABLE IF NOT EXISTS snapshot_players (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,

@@ -45,6 +45,11 @@ impl PlanetInfoScreen {
         let owner_empire_raw = planet.owner_empire_slot_raw();
         let owner_label = owner_summary(frame, owner_empire_raw);
         let state_label = owner_state_summary(frame, owner_empire_raw);
+        let owned_since_label = frame
+            .owned_planet_years
+            .get(&(planet_idx + 1))
+            .map(|year| format!("Y{year}"))
+            .unwrap_or_else(|| "?".to_string());
         let present = planet.present_production_points().unwrap_or(0);
         let potential = planet.potential_production_points();
         let efficiency = if potential == 0 {
@@ -60,6 +65,7 @@ impl PlanetInfoScreen {
             "Planet",
             "Owner",
             "State",
+            "Owned Since",
             "Present Production",
             "Potential Production",
             "Stored Production Points",
@@ -94,68 +100,75 @@ impl PlanetInfoScreen {
             &mut buffer,
             6,
             info_label_width,
+            "Owned Since",
+            &owned_since_label,
+        );
+        draw_aligned_status_line(
+            &mut buffer,
+            7,
+            info_label_width,
             "Present Production",
             &present.to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
-            7,
+            8,
             info_label_width,
             "Potential Production",
             &potential.to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
-            8,
+            9,
             info_label_width,
             "Stored Production Points",
             &planet.stored_production_points().to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
-            9,
+            10,
             info_label_width,
             "Efficiency",
             &format!("{efficiency:.1}%"),
         );
         draw_aligned_status_line(
             &mut buffer,
-            10,
+            11,
             info_label_width,
             "Expected Revenue",
             &format!("{expected_revenue} points"),
         );
         draw_aligned_status_line(
             &mut buffer,
-            12,
+            13,
             info_label_width,
             "Armies",
             &planet.army_count_raw().to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
-            13,
+            14,
             info_label_width,
             "Ground Batteries",
             &planet.ground_batteries_raw().to_string(),
         );
         draw_aligned_status_line(
             &mut buffer,
-            14,
+            15,
             info_label_width,
             "Space Forces",
             &format_owned_orbit_summary(frame, [x, y]),
         );
         draw_aligned_status_line(
             &mut buffer,
-            15,
+            16,
             info_label_width,
             "Status",
             &owned_status_summary(frame, planet_idx, [x, y], planet_scorch_orders),
         );
         draw_aligned_detail_line(
             &mut buffer,
-            17,
+            18,
             bottom_label_width,
             "Building",
             ": ",
@@ -163,13 +176,13 @@ impl PlanetInfoScreen {
         );
         draw_aligned_detail_line(
             &mut buffer,
-            18,
+            19,
             bottom_label_width,
             "Docked",
             ": ",
             &format_stardock_summary(planet),
         );
-        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(18));
+        draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(19));
         Ok(buffer)
     }
 
