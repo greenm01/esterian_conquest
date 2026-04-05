@@ -4,11 +4,11 @@ use crate::app::helpers::{
 };
 use crate::app::state::App;
 use crate::domains::starbase::StarbaseAction;
-use crate::domains::starbase::state::StarbaseMovePromptMode;
+use crate::domains::starbase::state::{StarbaseMovePromptMode, guard_fleet_numbers_for_starbase};
 use crate::screen::{
     CommandMenu, ScreenId, StarbaseRow, format_sector_coords_default, format_sector_coords_table,
 };
-use nc_data::{Order, map_size_for_player_count};
+use nc_data::map_size_for_player_count;
 
 impl App {
     fn starbase_visible_rows(&self) -> usize {
@@ -477,31 +477,13 @@ impl App {
             row.base_id,
             format_sector_coords_table(destination)
         );
-        let guard_fleets = self.guard_fleet_numbers_for_starbase(row.base_id);
+        let guard_fleets =
+            guard_fleet_numbers_for_starbase(&self.game_data, self.player.record_index_1_based, row.base_id);
         if let Some(clause) = format_guard_fleet_clause(&guard_fleets) {
             text.push(' ');
             text.push_str(&clause);
         }
         text
-    }
-
-    fn guard_fleet_numbers_for_starbase(&self, base_id: u8) -> Vec<u16> {
-        let mut fleets = self
-            .game_data
-            .fleets
-            .records
-            .iter()
-            .filter(|fleet| {
-                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
-                    && fleet.standing_order_kind() == Order::GuardStarbase
-                    && fleet.guard_starbase_enable_raw() != 0
-                    && fleet.guard_starbase_index_raw() == base_id
-            })
-            .map(|fleet| fleet.local_slot_word_raw())
-            .collect::<Vec<_>>();
-        fleets.sort_unstable();
-        fleets.dedup();
-        fleets
     }
 }
 

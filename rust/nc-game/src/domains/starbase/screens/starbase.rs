@@ -34,7 +34,8 @@ pub fn starbase_visible_rows(geometry: ScreenGeometry) -> usize {
 pub struct StarbaseRow {
     pub base_record_index_1_based: usize,
     pub base_id: u8,
-    pub escort_label: String,
+    pub escort_list_label: String,
+    pub escort_review_label: String,
     pub coords: [u8; 2],
     pub destination_coords: [u8; 2],
     pub eta_label: String,
@@ -278,7 +279,7 @@ impl StarbaseListScreen {
             .map(|row| {
                 vec![
                     row.base_id.to_string(),
-                    row.escort_label.clone(),
+                    row.escort_list_label.clone(),
                     format!("System{}", format_sector_coords_table(row.coords)),
                     format!(
                         "System{}",
@@ -366,7 +367,7 @@ impl StarbaseReviewScreen {
             .map(|row| {
                 vec![
                     row.base_id.to_string(),
-                    row.escort_label.clone(),
+                    row.escort_list_label.clone(),
                     format!("System{}", format_sector_coords_table(row.coords)),
                     format!(
                         "System{}",
@@ -481,7 +482,7 @@ impl StarbaseReviewScreen {
             )
         };
         draw_status_line(&mut buffer, 7, "ETA:         ", &eta_text);
-        draw_status_line(&mut buffer, 8, "Escort:      ", &row.escort_label);
+        draw_status_line(&mut buffer, 8, "Escort:      ", &row.escort_review_label);
         buffer.write_text(10, 0, &"-".repeat(79), classic::help_panel_style());
         draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row(10));
         Ok(buffer)

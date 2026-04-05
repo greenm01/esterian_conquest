@@ -1346,6 +1346,102 @@ fn starbase_review_matches_verified_v15_review_content() {
 }
 
 #[test]
+fn starbase_list_and_review_ignore_stale_escort_linkage_without_live_guard_orders() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.game_data.fleets.records[0].set_standing_order_kind(nc_data::Order::HoldPosition);
+    runtime.game_data.fleets.records[0].set_standing_order_target_coords_raw([6, 5]);
+    runtime.game_data.fleets.records[0].set_mission_aux_bytes([0, 0]);
+    runtime.game_data.fleets.records[0].set_current_location_coords_raw([6, 5]);
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenList)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase list should render");
+    let list_row = line_containing(&terminal, "System(06,05)");
+    assert!(list_row.contains("N/A"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenReview)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("starbase review should render");
+    assert_eq!(terminal.line(8).trim_end(), " Escort:      N/A");
+}
+
+#[test]
+fn starbase_list_summarizes_multiple_live_guard_fleets_and_review_lists_them() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.game_data.fleets.records[1].set_current_location_coords_raw([6, 5]);
+    runtime.game_data.fleets.records[1].set_standing_order_kind(nc_data::Order::GuardStarbase);
+    runtime.game_data.fleets.records[1].set_standing_order_target_coords_raw([6, 5]);
+    runtime.game_data.fleets.records[1].set_mission_aux_bytes([1, 1]);
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenList)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase list should render");
+    let list_row = line_containing(&terminal, "System(06,05)");
+    assert!(list_row.contains("2 guards"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenReview)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("starbase review should render");
+    assert_eq!(terminal.line(8).trim_end(), " Escort:      Guard Fleets 1 and 2");
+}
+
+#[test]
 fn starbase_list_and_review_show_numeric_transit_eta() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
