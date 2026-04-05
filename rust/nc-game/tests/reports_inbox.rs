@@ -25,8 +25,9 @@ fn visible_mail(sender: u8, recipient: u8, year: u16, subject: &str) -> QueuedPl
     }
 }
 
-fn report_row(block_index: usize, decoded_text: &str) -> ReportBlockRow {
+fn report_row(viewer_empire_id: u8, block_index: usize, decoded_text: &str) -> ReportBlockRow {
     ReportBlockRow {
+        viewer_empire_id,
         block_index,
         decoded_text: decoded_text.to_string(),
         raw_bytes: None,
@@ -52,10 +53,10 @@ fn report_subjects_are_event_first_without_stardate_suffix() {
         &game_data,
         1,
         &[
-            report_row(0, "Stardate: 03/3003\nFleet contact report"),
-            report_row(1, "Stardate: 11/3003\nBombardment complete."),
-            report_row(2, "Stardate: 02/3003\nWe were attacked by enemy forces."),
-            report_row(3, "Starbase 1 is moving to (08,12)."),
+            report_row(0, 0, "Stardate: 03/3003\nFleet contact report"),
+            report_row(0, 1, "Stardate: 11/3003\nBombardment complete."),
+            report_row(0, 2, "Stardate: 02/3003\nWe were attacked by enemy forces."),
+            report_row(0, 3, "Starbase 1 is moving to (08,12)."),
         ],
         &[],
     );
@@ -77,10 +78,10 @@ fn runtime_inbox_items_sort_newest_to_oldest_by_stardate() {
         &game_data,
         1,
         &[
-            report_row(0, "Stardate: 01/3003\nPatrol mission update."),
-            report_row(0, "Stardate: 02/3003\nFleet contact report"),
-            report_row(0, "Stardate: 03/3003\nGeneral command advisory."),
-            report_row(1, "Stardate: 52/3002\nBombardment complete."),
+            report_row(0, 0, "Stardate: 01/3003\nPatrol mission update."),
+            report_row(0, 0, "Stardate: 02/3003\nFleet contact report"),
+            report_row(0, 0, "Stardate: 03/3003\nGeneral command advisory."),
+            report_row(0, 1, "Stardate: 52/3002\nBombardment complete."),
         ],
         &[visible_mail(2, 1, 3003, "Diplomatic")],
     );
@@ -98,6 +99,61 @@ fn runtime_inbox_items_sort_newest_to_oldest_by_stardate() {
             "00/3003 Diplomatic".to_string(),
             "52/3002 Bombard".to_string(),
         ]
+    );
+}
+
+#[test]
+fn runtime_inbox_items_only_include_reports_visible_to_active_viewer() {
+    let game_data = fixture_game_data();
+    let rows = vec![
+        report_row(0, 0, "Stardate: 01/3003\nBroadcast advisory."),
+        report_row(1, 0, "Stardate: 02/3003\nPlayer 1 only report."),
+        report_row(3, 0, "Stardate: 03/3003\nPlayer 3 only report."),
+    ];
+
+    let player_1_items = runtime_inbox_items(&game_data, 1, &rows, &[]);
+    let player_3_items = runtime_inbox_items(&game_data, 3, &rows, &[]);
+
+    let player_1_bodies = player_1_items
+        .iter()
+        .map(|item| item.body_lines.join(" "))
+        .collect::<Vec<_>>();
+    assert_eq!(player_1_bodies.len(), 2);
+    assert!(
+        player_1_bodies
+            .iter()
+            .any(|body| body.contains("Broadcast advisory."))
+    );
+    assert!(
+        player_1_bodies
+            .iter()
+            .any(|body| body.contains("Player 1 only report."))
+    );
+    assert!(
+        !player_1_bodies
+            .iter()
+            .any(|body| body.contains("Player 3 only report."))
+    );
+
+    let player_3_bodies = player_3_items
+        .iter()
+        .map(|item| item.body_lines.join(" "))
+        .collect::<Vec<_>>();
+    assert_eq!(player_3_bodies.len(), 2);
+    assert!(
+        player_3_bodies
+            .iter()
+            .any(|body| body.contains("Broadcast advisory."))
+    );
+    assert!(
+        player_3_bodies
+            .iter()
+            .any(|body| body.contains("Player 3 only report."))
+    );
+    assert!(
+        !player_3_bodies
+            .iter()
+            .any(|body| body.contains("Player 1 only report."))
     );
 }
 
@@ -123,7 +179,7 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
     let items = with_display_ids(runtime_inbox_items(
         &game_data,
         1,
-        &[report_row(0, "Stardate: 03/3003\nFleet contact report")],
+        &[report_row(0, 0, "Stardate: 03/3003\nFleet contact report")],
         &[visible_mail(2, 1, 3003, "Diplomatic")],
     ));
     let mut screen = ReportsScreen::new();
@@ -226,7 +282,7 @@ fn reports_screen_pads_year_and_delete_prompts_one_column_right() {
     let items = with_display_ids(runtime_inbox_items(
         &game_data,
         1,
-        &[report_row(0, "Stardate: 03/3003\nFleet contact report")],
+        &[report_row(0, 0, "Stardate: 03/3003\nFleet contact report")],
         &[visible_mail(2, 1, 3003, "Diplomatic")],
     ));
     let mut screen = ReportsScreen::new();

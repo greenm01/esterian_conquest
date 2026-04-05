@@ -443,6 +443,7 @@ fn build_report_block_rows(blocks: &[ReviewBlockSpec]) -> Vec<ReportBlockRow> {
         .iter()
         .enumerate()
         .map(|(idx, block)| ReportBlockRow {
+            viewer_empire_id: 0,
             block_index: idx,
             decoded_text: normalize_report_block_text(&block.text),
             raw_bytes: None,

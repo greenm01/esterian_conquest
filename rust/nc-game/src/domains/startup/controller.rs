@@ -159,20 +159,18 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         if is_results {
             let block_idx = self.startup_state.results_block;
-            // Find the actual ReportBlockRow for this display index (among
-            // the non-deleted blocks) and soft-delete it.
-            let active_indices: Vec<usize> = self
-                .report_block_rows
-                .iter()
-                .enumerate()
-                .filter(|(_, r)| !r.recipient_deleted)
-                .map(|(i, _)| i)
-                .collect();
-            if let Some(&row_idx) = active_indices.get(block_idx) {
+            let row_idx = self
+                .startup
+                .result_blocks()
+                .get(block_idx)
+                .and_then(|block| block.runtime_report_index);
+            if let Some(row_idx) = row_idx {
                 let bi = self.report_block_rows[row_idx].block_index;
-                self.planet
-                    .campaign_store
-                    .mark_report_block_deleted(self.snapshot_id, bi)?;
+                self.planet.campaign_store.mark_report_block_deleted(
+                    self.snapshot_id,
+                    self.player.record_index_1_based as u8,
+                    bi,
+                )?;
                 self.report_block_rows[row_idx].recipient_deleted = true;
             }
             self.sync_player_review_flags();

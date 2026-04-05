@@ -221,9 +221,11 @@ fn sync_review_flags(
     queued_mail: &[QueuedPlayerMail],
     report_block_rows: &[ReportBlockRow],
 ) -> CoreGameData {
-    let has_results = report_block_rows.iter().any(|row| !row.recipient_deleted);
     for (idx, player) in game_data.player.records.iter_mut().enumerate() {
         let player_empire_id = (idx + 1) as u8;
+        let has_results = report_block_rows
+            .iter()
+            .any(|row| !row.recipient_deleted && row.is_visible_to_viewer(player_empire_id));
         let has_mail = queued_mail
             .iter()
             .any(|mail| mail.is_visible_to_recipient(player_empire_id));

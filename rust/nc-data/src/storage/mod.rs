@@ -25,7 +25,7 @@ pub use settings::{
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ncgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 7;
+const RUNTIME_SCHEMA_VERSION: i64 = 8;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -377,11 +377,12 @@ impl CampaignStore {
              );
              CREATE TABLE IF NOT EXISTS report_blocks (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 viewer_empire_id INTEGER NOT NULL DEFAULT 0,
                  block_index INTEGER NOT NULL,
                  decoded_text TEXT NOT NULL,
                  raw_hex TEXT,
                  recipient_deleted INTEGER NOT NULL DEFAULT 0,
-                 PRIMARY KEY(snapshot_id, block_index)
+                 PRIMARY KEY(snapshot_id, viewer_empire_id, block_index)
              );
              CREATE TABLE IF NOT EXISTS planet_scorch_orders (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,

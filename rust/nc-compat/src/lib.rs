@@ -163,6 +163,7 @@ pub fn decode_report_block_rows(bytes: &[u8]) -> Vec<ReportBlockRow> {
         .into_iter()
         .enumerate()
         .map(|(idx, block)| ReportBlockRow {
+            viewer_empire_id: 0,
             block_index: idx,
             decoded_text: block.decoded_text,
             raw_bytes: block.raw_bytes,

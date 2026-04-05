@@ -11,12 +11,12 @@ use nc_data::{
     PlanetIntelSnapshot, PlanetIntelSource, merge_player_intel_from_runtime,
 };
 use nc_engine::{
-    DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel,
+    DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel, build_results_report_blocks,
     run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
     run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
 };
 
-use crate::commands::reports::{build_rankings_text, build_results_report_blocks};
+use crate::commands::reports::build_rankings_text;
 use crate::commands::runtime::{
     load_runtime_intel_by_viewer, load_runtime_state_preferring_live_directory,
 };

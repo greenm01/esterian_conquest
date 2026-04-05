@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
-use nc_engine::maint::{FleetBattlePerspective, timing::format_report_first_line};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -2313,18 +2313,14 @@ fn generate_report_entries(
 
 /// Build the RESULTS.DAT binary from current game data and maintenance events.
 #[allow(dead_code)]
-pub(crate) fn build_results_dat(
-    game_data: &mut CoreGameData,
-    events: &MaintenanceEvents,
-) -> Vec<u8> {
+pub fn build_results_dat(game_data: &mut CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
     build_results_rows_with_review(game_data, events)
         .into_iter()
         .flat_map(|row| row.raw_bytes.unwrap_or_default())
         .collect()
 }
 
-#[allow(dead_code)]
-pub(crate) fn build_results_report_blocks(
+pub fn build_results_report_blocks(
     game_data: &mut CoreGameData,
     events: &MaintenanceEvents,
 ) -> Vec<ReportBlockRow> {
@@ -2332,7 +2328,9 @@ pub(crate) fn build_results_report_blocks(
 }
 
 struct ResultsReviewPlan {
-    header_record_indexes: Vec<usize>,
+    broadcast_entries: Vec<ReportEntry>,
+    viewer_entries: BTreeMap<u8, Vec<ReportEntry>>,
+    viewers_with_results: BTreeSet<u8>,
 }
 
 fn build_results_rows_with_review(
@@ -2342,11 +2340,91 @@ fn build_results_rows_with_review(
     let result_entries = generate_report_entries(game_data, events);
     let year = game_data.conquest.game_year();
     let ResultsReviewPlan {
-        header_record_indexes,
+        broadcast_entries,
+        viewer_entries,
+        viewers_with_results,
     } = results_review_plan(game_data, &result_entries);
+    let mut rows = build_rows_for_viewer(0, &broadcast_entries, year);
+    for (viewer_empire_id, entries) in viewer_entries {
+        rows.extend(build_rows_for_viewer(viewer_empire_id, &entries, year));
+    }
+    debug_assert!(rows.iter().all(|row| {
+        row.viewer_empire_id == 0 || viewers_with_results.contains(&row.viewer_empire_id)
+    }));
+    rows
+}
 
-    result_entries
-        .into_iter()
+fn results_review_plan(
+    game_data: &mut CoreGameData,
+    result_entries: &[ReportEntry],
+) -> ResultsReviewPlan {
+    let occupied_viewers = occupied_result_viewers(game_data);
+    let mut viewers_with_results = BTreeSet::new();
+    let mut broadcast_entries = Vec::new();
+    let mut viewer_entries = BTreeMap::<u8, Vec<ReportEntry>>::new();
+
+    for entry in result_entries {
+        match entry.target {
+            ReportTarget::Both { recipient } if recipient != 0 => {
+                viewers_with_results.insert(recipient);
+                viewer_entries
+                    .entry(recipient)
+                    .or_default()
+                    .push(clone_report_entry(entry));
+            }
+            ReportTarget::ResultsOnly => {
+                if !occupied_viewers.is_empty() {
+                    viewers_with_results.extend(occupied_viewers.iter().copied());
+                    broadcast_entries.push(clone_report_entry(entry));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for (idx, player) in game_data.player.records.iter_mut().enumerate() {
+        let viewer_empire_id = (idx + 1) as u8;
+        let visible_record_count = visible_report_record_count(
+            &broadcast_entries,
+            viewer_entries.get(&viewer_empire_id),
+        );
+        let has_results = viewers_with_results.contains(&viewer_empire_id) && visible_record_count > 0;
+        player.set_classic_results_review_state_present(has_results);
+        player.set_classic_results_chain_state(
+            has_results,
+            if has_results {
+                visible_record_count as u16
+            } else {
+                0
+            },
+        );
+    }
+
+    ResultsReviewPlan {
+        broadcast_entries,
+        viewer_entries,
+        viewers_with_results,
+    }
+}
+
+fn build_rows_for_viewer(
+    viewer_empire_id: u8,
+    entries: &[ReportEntry],
+    year: u16,
+) -> Vec<ReportBlockRow> {
+    let record_counts = entries
+        .iter()
+        .map(|entry| classic_results_record_count(&entry.text, entry.kind))
+        .collect::<Vec<_>>();
+    let mut header_record_indexes = Vec::with_capacity(record_counts.len());
+    let mut next_header_record_index = 0usize;
+    for record_count in &record_counts {
+        header_record_indexes.push(next_header_record_index);
+        next_header_record_index += *record_count;
+    }
+
+    entries
+        .iter()
         .enumerate()
         .map(|(block_index, entry)| {
             let chain_id = if block_index == 0 {
@@ -2382,7 +2460,7 @@ fn build_results_rows_with_review(
             let mut lines = classic_results_lines(&entry.text);
             lines.push(RESULTS_END_OF_TRANSMISSION.to_string());
             ReportBlockRow {
-                viewer_empire_id: 0,
+                viewer_empire_id,
                 block_index,
                 decoded_text: lines.join("\n"),
                 raw_bytes: Some(raw_bytes),
@@ -2392,50 +2470,36 @@ fn build_results_rows_with_review(
         .collect()
 }
 
-fn results_review_plan(
-    game_data: &mut CoreGameData,
-    result_entries: &[ReportEntry],
-) -> ResultsReviewPlan {
-    let mut recipient_slots = BTreeSet::new();
-    let record_counts = result_entries
+fn occupied_result_viewers(game_data: &CoreGameData) -> Vec<u8> {
+    game_data
+        .player
+        .records
         .iter()
+        .enumerate()
+        .filter_map(|(idx, player)| {
+            (player.owner_mode_raw() == (idx + 1) as u8).then_some((idx + 1) as u8)
+        })
+        .collect()
+}
+
+fn visible_report_record_count(
+    broadcast_entries: &[ReportEntry],
+    viewer_entries: Option<&Vec<ReportEntry>>,
+) -> usize {
+    broadcast_entries
+        .iter()
+        .chain(viewer_entries.into_iter().flat_map(|entries| entries.iter()))
         .map(|entry| classic_results_record_count(&entry.text, entry.kind))
-        .collect::<Vec<_>>();
-    let mut header_record_indexes = Vec::with_capacity(record_counts.len());
-    let mut next_header_record_index = 0usize;
-    for record_count in &record_counts {
-        header_record_indexes.push(next_header_record_index);
-        next_header_record_index += *record_count;
-    }
+        .sum()
+}
 
-    for entry in result_entries {
-        match entry.target {
-            ReportTarget::Both { recipient } if recipient != 0 => {
-                recipient_slots.insert(recipient.saturating_sub(1) as usize);
-            }
-            ReportTarget::ResultsOnly => {
-                for (idx, player) in game_data.player.records.iter().enumerate() {
-                    if player.owner_mode_raw() == (idx + 1) as u8 {
-                        recipient_slots.insert(idx);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let next_free_chain_id = header_record_indexes
-        .last()
-        .map(|index| (index + 1) as u16)
-        .unwrap_or(0);
-    for (idx, player) in game_data.player.records.iter_mut().enumerate() {
-        let has_results = recipient_slots.contains(&idx) && !result_entries.is_empty();
-        player.set_classic_results_review_state_present(has_results);
-        player.set_classic_results_chain_state(has_results, next_free_chain_id);
-    }
-
-    ResultsReviewPlan {
-        header_record_indexes,
+fn clone_report_entry(entry: &ReportEntry) -> ReportEntry {
+    ReportEntry {
+        text: entry.text.clone(),
+        kind: entry.kind,
+        tail: entry.tail,
+        target: entry.target,
+        repeat_next_pointer: entry.repeat_next_pointer,
     }
 }
 
@@ -2453,9 +2517,10 @@ fn results_review_plan(
 ///   1. Empire #1 "Alpha"  — 12 planets, 480 production
 ///   ...
 /// ```
+#[allow(dead_code)]
 pub(crate) fn build_rankings_text(game_data: &CoreGameData) -> String {
     let year = game_data.conquest.game_year();
-    let stardate = nc_engine::maint::timing::format_rankings_stardate(year);
+    let stardate = crate::maint::timing::format_rankings_stardate(year);
     let rows = game_data.empire_production_ranking_rows(EmpireProductionRankingSort::Production);
 
     let mut out = String::new();

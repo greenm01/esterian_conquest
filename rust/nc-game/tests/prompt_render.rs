@@ -268,6 +268,7 @@ fn first_time_join_name_clips_long_invite_code_without_panicking() {
         false,
         false,
         true,
+        false,
         Some(
             "this-is-a-very-long-hosted-invite-code-that-should-be-clipped-before-it-can-overflow-the-screen@relay.example.com",
         ),

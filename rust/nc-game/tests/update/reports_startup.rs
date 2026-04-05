@@ -109,11 +109,10 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 }
 #[test]
-fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
+fn startup_results_only_pending_flags_do_not_route_into_messages() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     clear_runtime_report_blocks(&mut state);
-    state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
@@ -198,18 +197,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
         apply_action(&mut app, Action::Startup(StartupAction::Advance)),
         AppOutcome::Continue
     );
-    assert_eq!(
-        app.current_screen(),
-        ScreenId::Startup(StartupPhase::Messages)
-    );
-
-    let mut messages_terminal = CaptureTerminal::new();
-    app.render(&mut messages_terminal)
-        .expect("startup messages should render");
-    assert!(messages_terminal.line(24).starts_with(' '));
-    assert!(messages_terminal.lines.iter().any(|line| {
-        line.contains("Messages are marked pending, but no review text is available yet.")
-    }));
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     advance_to_main_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);

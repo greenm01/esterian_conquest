@@ -14,7 +14,9 @@ use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{
+    ReportsPreview, has_visible_runtime_messages, has_visible_runtime_reports,
+};
 use crate::screen::{
     CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, FirstTimeEmpiresScreen,
     FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachScreen, FleetEtaScreen, FleetGroupScreen,
@@ -161,7 +163,10 @@ impl App {
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
-            !report_block_rows.is_empty(),
+            has_visible_runtime_reports(
+                config.player_record_index_1_based as u8,
+                &report_block_rows,
+            ),
             has_visible_runtime_messages(config.player_record_index_1_based as u8, &queued_mail),
         );
         let startup_summary = StartupSummary::from_reports(

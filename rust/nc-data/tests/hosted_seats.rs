@@ -233,6 +233,7 @@ fn nuke_hosted_seat_resets_runtime_slice_and_side_data() {
         },
     ];
     let report_block_rows = vec![ReportBlockRow {
+        viewer_empire_id: 0,
         block_index: 0,
         decoded_text: "report".to_string(),
         raw_bytes: None,

@@ -631,6 +631,7 @@ Unread message counts should be high enough to exercise list scrolling and detai
         .into_iter()
         .enumerate()
         .map(|(block_index, decoded_text)| ReportBlockRow {
+            viewer_empire_id: 0,
             block_index,
             decoded_text,
             raw_bytes: None,

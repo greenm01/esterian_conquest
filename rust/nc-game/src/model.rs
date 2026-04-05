@@ -131,16 +131,12 @@ impl MainMenuSummary {
             .get(player_record_index_1_based - 1);
         let pending_results = player_record
             .map(|record| {
-                record.has_classic_results_chain_state()
-                    || record.has_classic_results_review_state()
-                    || record.has_any_classic_review_state()
+                record.has_classic_results_chain_state() || record.has_classic_results_review_state()
             })
             .unwrap_or(false)
             || results_present;
         let pending_messages = player_record
-            .map(|record| {
-                record.has_classic_messages_review_state() || record.has_any_classic_review_state()
-            })
+            .map(|record| record.has_classic_messages_review_state())
             .unwrap_or(false)
             || runtime_messages_present;
 

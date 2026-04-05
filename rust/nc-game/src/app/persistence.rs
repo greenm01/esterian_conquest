@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use nc_data::ReportBlockRow;
 
 use super::state::App;
+use crate::reports::has_visible_runtime_reports;
 
 impl App {
     pub(crate) fn bind_player_record_index_1_based(
@@ -63,6 +64,7 @@ impl App {
             .map(|idx| idx + 1)
             .unwrap_or(0);
         self.report_block_rows.push(ReportBlockRow {
+            viewer_empire_id: self.player.record_index_1_based as u8,
             block_index: next_index,
             decoded_text: text.into(),
             raw_bytes: None,
@@ -117,6 +119,6 @@ impl App {
     }
 
     pub(crate) fn has_active_report_blocks(&self) -> bool {
-        self.report_block_rows.iter().any(|r| !r.recipient_deleted)
+        has_visible_runtime_reports(self.player.record_index_1_based as u8, &self.report_block_rows)
     }
 }

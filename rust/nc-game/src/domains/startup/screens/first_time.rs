@@ -132,6 +132,7 @@ pub fn render_first_time_join_name(
     rename_mode: bool,
     reserved_mode: bool,
     hosted_invite_mode: bool,
+    fixed_player_mode: bool,
     hosted_invite_code: Option<&str>,
     reserved_alias: Option<&str>,
     current_empire_name: &str,
@@ -203,6 +204,15 @@ pub fn render_first_time_join_name(
             last_content_row = 4;
         }
         last_content_row
+    } else if fixed_player_mode {
+        draw_title_bar_padded(&mut buffer, 0, "FIRST TIME SETUP:");
+        buffer.write_text_clipped(
+            2,
+            LEFT_WINDOW_PAD_COL,
+            "Enter the name of your empire (up to 20 characters).",
+            classic::body_style(),
+        );
+        2
     } else {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
@@ -242,6 +252,7 @@ pub fn render_first_time_join_name(
 pub fn render_first_time_join_name_confirm(
     rename_mode: bool,
     reserved_mode: bool,
+    fixed_player_mode: bool,
     hosted_invite_code: Option<&str>,
     empire_name: &str,
     door_mode: bool,
@@ -294,6 +305,14 @@ pub fn render_first_time_join_name_confirm(
                 classic::notice_style(),
             );
         }
+    } else if fixed_player_mode {
+        draw_title_bar_padded(&mut buffer, 0, "FIRST TIME SETUP:");
+        buffer.write_text_clipped(
+            2,
+            LEFT_WINDOW_PAD_COL,
+            "Press N or Esc to go back and edit it before joining.",
+            classic::body_style(),
+        );
     } else {
         draw_title_bar_padded(&mut buffer, 0, "FIRST TIME JOIN:");
         crate::screen::layout::draw_menu_row(&mut buffer, 1, &first_time_row_1(door_mode));
@@ -315,6 +334,8 @@ pub fn render_first_time_join_name_confirm(
         &mut buffer,
         menu_prompt_row(if rename_mode {
             4
+        } else if fixed_player_mode {
+            2
         } else if hosted_invite_code
             .filter(|value| !value.trim().is_empty())
             .is_some()

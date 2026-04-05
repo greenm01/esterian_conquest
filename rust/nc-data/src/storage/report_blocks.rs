@@ -17,13 +17,15 @@ impl CampaignStore {
     pub fn mark_report_block_deleted(
         &self,
         snapshot_id: i64,
+        viewer_empire_id: u8,
         block_index: usize,
     ) -> Result<(), CampaignStoreError> {
         let conn = self.connection()?;
         conn.execute(
             "UPDATE report_blocks SET recipient_deleted = 1
-             WHERE snapshot_id = ?1 AND block_index = ?2",
-            params![snapshot_id, block_index as i64],
+             WHERE snapshot_id = ?1 AND block_index = ?2
+               AND (viewer_empire_id = ?3 OR viewer_empire_id = 0)",
+            params![snapshot_id, block_index as i64, i64::from(viewer_empire_id)],
         )?;
         Ok(())
     }
@@ -32,11 +34,14 @@ impl CampaignStore {
     pub fn mark_all_report_blocks_deleted(
         &self,
         snapshot_id: i64,
+        viewer_empire_id: u8,
     ) -> Result<(), CampaignStoreError> {
         let conn = self.connection()?;
         conn.execute(
-            "UPDATE report_blocks SET recipient_deleted = 1 WHERE snapshot_id = ?1",
-            params![snapshot_id],
+            "UPDATE report_blocks SET recipient_deleted = 1
+             WHERE snapshot_id = ?1
+               AND (viewer_empire_id = ?2 OR viewer_empire_id = 0)",
+            params![snapshot_id, i64::from(viewer_empire_id)],
         )?;
         Ok(())
     }
@@ -72,12 +77,13 @@ pub(super) fn write_report_block_rows(
     rows: &[ReportBlockRow],
 ) -> Result<(), CampaignStoreError> {
     let mut stmt = tx.prepare(
-        "INSERT INTO report_blocks(snapshot_id, block_index, decoded_text, raw_hex, recipient_deleted)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO report_blocks(snapshot_id, viewer_empire_id, block_index, decoded_text, raw_hex, recipient_deleted)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
     )?;
     for row in rows {
         stmt.execute(params![
             snapshot_id,
+            i64::from(row.viewer_empire_id),
             row.block_index as i64,
             &row.decoded_text,
             row.raw_bytes.as_ref().map(|bytes| encode_hex(bytes)),
@@ -100,31 +106,32 @@ pub(super) fn load_report_block_rows_filtered(
     include_deleted: bool,
 ) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
     let sql = if include_deleted {
-        "SELECT block_index, decoded_text, raw_hex, recipient_deleted
+        "SELECT viewer_empire_id, block_index, decoded_text, raw_hex, recipient_deleted
          FROM report_blocks WHERE snapshot_id = ?1
-         ORDER BY block_index"
+         ORDER BY viewer_empire_id, block_index"
     } else {
-        "SELECT block_index, decoded_text, raw_hex, recipient_deleted
+        "SELECT viewer_empire_id, block_index, decoded_text, raw_hex, recipient_deleted
          FROM report_blocks WHERE snapshot_id = ?1 AND recipient_deleted = 0
-         ORDER BY block_index"
+         ORDER BY viewer_empire_id, block_index"
     };
     let mut stmt = conn.prepare(sql)?;
     let rows = stmt.query_map(params![snapshot_id], |row| {
         Ok(ReportBlockRow {
-            block_index: row.get::<_, i64>(0)? as usize,
-            decoded_text: row.get(1)?,
+            viewer_empire_id: row.get::<_, i64>(0)? as u8,
+            block_index: row.get::<_, i64>(1)? as usize,
+            decoded_text: row.get(2)?,
             raw_bytes: row
-                .get::<_, Option<String>>(2)?
+                .get::<_, Option<String>>(3)?
                 .map(|hex| decode_hex(&hex))
                 .transpose()
                 .map_err(|err| {
                     rusqlite::Error::FromSqlConversionFailure(
-                        2,
+                        3,
                         rusqlite::types::Type::Text,
                         Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, err)),
                     )
                 })?,
-            recipient_deleted: row.get::<_, i64>(3)? != 0,
+            recipient_deleted: row.get::<_, i64>(4)? != 0,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)

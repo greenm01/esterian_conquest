@@ -8,11 +8,13 @@ pub mod gate;
 mod merging;
 mod movement;
 pub mod recovery;
+mod results;
 mod retarget;
 mod sanitize;
 pub mod timing;
 
 pub use nc_data::maintenance_types::*;
+pub use results::{build_results_dat, build_results_report_blocks};
 
 use crate::VisibleHazardIntel;
 use nc_data::{CoreGameData, FleetRecord, Order};

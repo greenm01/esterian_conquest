@@ -4,6 +4,7 @@ use nc_data::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 pub struct ReviewBlock {
     pub lines: Vec<String>,
     pub raw_chunked_bytes: Option<Vec<u8>>,
+    pub runtime_report_index: Option<usize>,
     pub runtime_mail_index: Option<usize>,
 }
 
@@ -69,7 +70,7 @@ impl ReportsPreview {
         report_blocks: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
     ) -> Self {
-        let result_blocks = review_blocks_from_rows(report_blocks);
+        let result_blocks = review_blocks_from_rows(viewer_empire_id, report_blocks);
         let message_blocks = runtime_message_blocks(game_data, viewer_empire_id, queued_mail);
         Self {
             results_lines: flatten_block_lines(&result_blocks),
@@ -78,6 +79,15 @@ impl ReportsPreview {
             message_blocks,
         }
     }
+}
+
+pub fn has_visible_runtime_reports(
+    viewer_empire_id: u8,
+    report_blocks: &[ReportBlockRow],
+) -> bool {
+    report_blocks
+        .iter()
+        .any(|row| !row.recipient_deleted && row.is_visible_to_viewer(viewer_empire_id))
 }
 
 pub fn has_visible_runtime_messages(
@@ -99,7 +109,7 @@ pub fn runtime_inbox_items(
     let mut items = report_blocks
         .iter()
         .enumerate()
-        .filter(|(_, row)| !row.recipient_deleted)
+        .filter(|(_, row)| !row.recipient_deleted && row.is_visible_to_viewer(viewer_empire_id))
         .map(|(idx, row)| inbox_item_from_report_row(idx, row, current_year))
         .chain(
             queued_mail
@@ -157,16 +167,18 @@ pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<Stri
 // Conversion: nc-data ReportBlockRow -> nc-game ReviewBlock
 // ---------------------------------------------------------------------------
 
-fn review_blocks_from_rows(rows: &[ReportBlockRow]) -> Vec<ReviewBlock> {
+fn review_blocks_from_rows(viewer_empire_id: u8, rows: &[ReportBlockRow]) -> Vec<ReviewBlock> {
     rows.iter()
-        .filter(|row| !row.recipient_deleted)
-        .map(|row| ReviewBlock {
+        .enumerate()
+        .filter(|(_, row)| !row.recipient_deleted && row.is_visible_to_viewer(viewer_empire_id))
+        .map(|(idx, row)| ReviewBlock {
             lines: row
                 .decoded_text
                 .split('\n')
                 .map(ToOwned::to_owned)
                 .collect(),
             raw_chunked_bytes: row.raw_bytes.clone(),
+            runtime_report_index: Some(idx),
             runtime_mail_index: None,
         })
         .collect()
@@ -191,6 +203,7 @@ fn runtime_message_blocks(
         .map(|(idx, mail)| ReviewBlock {
             lines: runtime_message_lines(game_data, mail),
             raw_chunked_bytes: None,
+            runtime_report_index: None,
             runtime_mail_index: Some(idx),
         })
         .collect()

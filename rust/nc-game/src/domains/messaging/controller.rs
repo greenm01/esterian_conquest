@@ -607,9 +607,11 @@ impl App {
         // Soft-delete all report blocks in SQLite.
         self.planet
             .campaign_store
-            .mark_all_report_blocks_deleted(self.snapshot_id)?;
+            .mark_all_report_blocks_deleted(self.snapshot_id, self.player.record_index_1_based as u8)?;
         for row in &mut self.report_block_rows {
-            row.recipient_deleted = true;
+            if row.is_visible_to_viewer(self.player.record_index_1_based as u8) {
+                row.recipient_deleted = true;
+            }
         }
         for mail in &mut self.queued_mail {
             if mail.is_visible_to_recipient(self.player.record_index_1_based as u8) {

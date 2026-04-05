@@ -1339,6 +1339,80 @@ fn fixed_player_first_time_launch_skips_first_time_menu() {
 }
 
 #[test]
+fn fixed_player_join_name_screen_does_not_render_first_time_menu_rows() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.fixed_player_launch = true;
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::SkipIntro)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fixed player join name should render");
+    assert!(terminal.line(0).contains("FIRST TIME SETUP:"));
+    assert!(!(0..terminal.lines.len()).any(|row| terminal.line(row).contains("uit back to BBS")));
+    assert!(!(0..terminal.lines.len()).any(|row| terminal.line(row).contains("oin this game")));
+}
+
+#[test]
+fn fixed_player_join_confirm_screen_does_not_render_first_time_menu_rows() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    app.startup_state.fixed_player_launch = true;
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::SkipIntro)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fixed player join confirm should render");
+    assert!(terminal.line(0).contains("FIRST TIME SETUP:"));
+    assert!(!(0..terminal.lines.len()).any(|row| terminal.line(row).contains("uit back to BBS")));
+    assert!(!(0..terminal.lines.len()).any(|row| terminal.line(row).contains("oin this game")));
+}
+
+#[test]
 fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
