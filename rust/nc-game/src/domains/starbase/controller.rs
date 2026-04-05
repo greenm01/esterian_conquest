@@ -477,8 +477,11 @@ impl App {
             row.base_id,
             format_sector_coords_table(destination)
         );
-        let guard_fleets =
-            guard_fleet_numbers_for_starbase(&self.game_data, self.player.record_index_1_based, row.base_id);
+        let guard_fleets = guard_fleet_numbers_for_starbase(
+            &self.game_data,
+            self.player.record_index_1_based,
+            row.base_id,
+        );
         if let Some(clause) = format_guard_fleet_clause(&guard_fleets) {
             text.push(' ');
             text.push_str(&clause);

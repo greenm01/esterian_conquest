@@ -555,7 +555,9 @@ fn owned_planet_info_detail_shows_owned_since_year() {
         .records
         .iter()
         .enumerate()
-        .find(|(_, planet)| planet.owner_empire_slot_raw() as usize == app.player.record_index_1_based)
+        .find(|(_, planet)| {
+            planet.owner_empire_slot_raw() as usize == app.player.record_index_1_based
+        })
         .map(|(idx, _)| idx)
         .expect("fixture should contain an owned world");
     app.current_screen = ScreenId::PlanetInfoDetail;

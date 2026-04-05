@@ -81,7 +81,7 @@ impl App {
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity
             | ScreenId::PlanetListSortPrompt(_)
-            | ScreenId::PlanetBriefList(_, _)
+            | ScreenId::PlanetList(_, _)
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseFilterPrompt
             | ScreenId::PlanetInfoDetail => domains::planet::views::render(self)?,

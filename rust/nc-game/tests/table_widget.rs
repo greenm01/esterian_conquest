@@ -558,6 +558,14 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
             0,
             0,
             "",
+            None,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
         )
         .expect("render brief list");
 

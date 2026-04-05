@@ -975,11 +975,9 @@ impl App {
             .iter()
             .map(|row| vec![row.fleet_number.to_string()])
             .collect::<Vec<_>>();
-        let Some(matched) = crate::screen::table_selection::find_typed_jump(
-            &match_rows,
-            0,
-            &self.fleet.list_input,
-        ) else {
+        let Some(matched) =
+            crate::screen::table_selection::find_typed_jump(&match_rows, 0, &self.fleet.list_input)
+        else {
             return false;
         };
         self.fleet.cursor = matched.index;

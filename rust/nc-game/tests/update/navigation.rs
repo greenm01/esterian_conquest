@@ -116,11 +116,12 @@ fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
     assert!(app.planet.brief_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("planet brief list should render");
+    app.render(&mut terminal)
+        .expect("planet brief list should render");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K S <Q>").trim(),
+        line_containing(&terminal, "COMMAND <- ? J K S B A C L U X <Q>").trim(),
         format!(
-            "COMMAND <- ? J K S <Q> [{:02},{:02}] ->",
+            "COMMAND <- ? J K S B A C L U X <Q> [{:02},{:02}] ->",
             target_coords[0], target_coords[1]
         )
     );
@@ -234,6 +235,64 @@ fn auto_commission_prompt_enter_defaults_to_yes() {
 
     let action = app.handle_key(key(KeyCode::Enter));
     assert_eq!(action, Action::Planet(PlanetAction::ConfirmAutoCommission));
+}
+
+#[test]
+fn planet_list_hotkeys_open_direct_row_actions_and_return_to_list() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let list_screen = ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location);
+    assert_eq!(app.current_screen(), list_screen);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('b'))),
+        Action::Planet(PlanetAction::OpenBuildSpecify)
+    );
+    let action = app.handle_key(key(KeyCode::Char('b')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildSpecify);
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), list_screen);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('i'))),
+        Action::Planet(PlanetAction::SubmitBriefInput)
+    );
+    let action = app.handle_key(key(KeyCode::Char('i')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), list_screen);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('x'))),
+        Action::Planet(PlanetAction::OpenScorchPrompt)
+    );
+    let action = app.handle_key(key(KeyCode::Char('x')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), list_screen);
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), list_screen);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('s'))),
+        Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief))
+    );
 }
 
 #[test]
@@ -540,7 +599,7 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetBriefList(PlanetListMode::Brief, PlanetListSort::CurrentProduction)
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::CurrentProduction)
     );
 
     assert_eq!(
@@ -555,7 +614,7 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetBriefList(PlanetListMode::Brief, PlanetListSort::Location)
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
     );
 
     assert_eq!(
@@ -1438,7 +1497,10 @@ fn starbase_list_summarizes_multiple_live_guard_fleets_and_review_lists_them() {
     );
     app.render(&mut terminal)
         .expect("starbase review should render");
-    assert_eq!(terminal.line(8).trim_end(), " Escort:      Guard Fleets 1 and 2");
+    assert_eq!(
+        terminal.line(8).trim_end(),
+        " Escort:      Guard Fleets 1 and 2"
+    );
 }
 
 #[test]
@@ -2797,7 +2859,8 @@ fn returning_login_clears_only_inactivity_auto_enabled_autopilot() {
     state.game_data.player.records[0].set_last_run_year_raw(2997);
     let planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
         .map(|viewer_empire_id| {
-            store.latest_planet_intel_for_viewer(viewer_empire_id)
+            store
+                .latest_planet_intel_for_viewer(viewer_empire_id)
                 .expect("load runtime intel")
                 .into_iter()
                 .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
@@ -2830,7 +2893,10 @@ fn returning_login_clears_only_inactivity_auto_enabled_autopilot() {
     assert_eq!(app.current_autopilot_flag(), 0);
 
     let reloaded = latest_runtime_state(&fixture_dir);
-    assert_eq!(reloaded.game_data.player.records[0].last_run_year_raw(), 3000);
+    assert_eq!(
+        reloaded.game_data.player.records[0].last_run_year_raw(),
+        3000
+    );
     let activity = CampaignStore::open_default_in_dir(&fixture_dir)
         .expect("open campaign store")
         .latest_player_activity_states(reloaded.game_data.conquest.player_count())
@@ -2848,7 +2914,8 @@ fn returning_login_preserves_manual_autopilot() {
     state.game_data.player.records[0].set_last_run_year_raw(2997);
     let planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
         .map(|viewer_empire_id| {
-            store.latest_planet_intel_for_viewer(viewer_empire_id)
+            store
+                .latest_planet_intel_for_viewer(viewer_empire_id)
                 .expect("load runtime intel")
                 .into_iter()
                 .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
@@ -2881,7 +2948,10 @@ fn returning_login_preserves_manual_autopilot() {
     assert_eq!(app.current_autopilot_flag(), 1);
 
     let reloaded = latest_runtime_state(&fixture_dir);
-    assert_eq!(reloaded.game_data.player.records[0].last_run_year_raw(), 3000);
+    assert_eq!(
+        reloaded.game_data.player.records[0].last_run_year_raw(),
+        3000
+    );
     let activity = CampaignStore::open_default_in_dir(&fixture_dir)
         .expect("open campaign store")
         .latest_player_activity_states(reloaded.game_data.conquest.player_count())

@@ -8,10 +8,10 @@ use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, LEFT_WINDOW_PAD_COL, MenuEntry, PRIMARY_MENU_ROW,
     PRIMARY_MENU_TITLE_COL, draw_command_line_default_input_padded,
     draw_command_line_prompt_text_padded, draw_command_prompt_padded, draw_expert_menu_padded,
-    draw_inline_confirm_block_padded,
-    draw_inline_planet_info_prompt_padded, draw_inline_tax_prompt_padded, draw_menu_entry,
-    draw_menu_notice_padded, draw_prompt_error_after_padded, draw_title_bar_at_col,
-    draw_title_bar_padded, menu_prompt_row, new_playfield,
+    draw_inline_confirm_block_padded, draw_inline_planet_info_prompt_padded,
+    draw_inline_tax_prompt_padded, draw_menu_entry, draw_menu_notice_padded,
+    draw_prompt_error_after_padded, draw_title_bar_at_col, draw_title_bar_padded, menu_prompt_row,
+    new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -235,12 +235,7 @@ impl PlanetMenuScreen {
                 tax_notice,
             );
         } else if inline_auto_commission {
-            draw_command_line_prompt_text_padded(
-                &mut buffer,
-                command_row,
-                "COMMAND",
-                "[Y]/N -> ",
-            );
+            draw_command_line_prompt_text_padded(&mut buffer, command_row, "COMMAND", "[Y]/N -> ");
             draw_inline_confirm_block_padded(
                 &mut buffer,
                 command_row,
@@ -385,9 +380,9 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::Planet(PlanetAction::OpenTransportPrompt(PlanetTransportMode::Load))
             }
-            KeyCode::Char('u') | KeyCode::Char('U') => {
-                Action::Planet(PlanetAction::OpenTransportPrompt(PlanetTransportMode::Unload))
-            }
+            KeyCode::Char('u') | KeyCode::Char('U') => Action::Planet(
+                PlanetAction::OpenTransportPrompt(PlanetTransportMode::Unload),
+            ),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenTaxPrompt),
             _ => Action::Noop,
         }

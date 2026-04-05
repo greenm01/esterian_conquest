@@ -1868,10 +1868,7 @@ fn planet_transport_load_prompt_rejects_fleet_not_at_owned_world() {
     );
     submit_planet_transport_prompt_value(&mut app, "2");
     let expected = "That fleet is not at one of your worlds.";
-    assert_eq!(
-        app.planet.transport_status.as_deref(),
-        Some(expected)
-    );
+    assert_eq!(app.planet.transport_status.as_deref(), Some(expected));
 }
 
 #[test]
@@ -2369,7 +2366,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "DD=1".to_string(),
         table_ships_label: "DD".to_string(),
-            join_host_fleet_number: None,
+        join_host_fleet_number: None,
     }];
 
     let buffer = screen
@@ -2432,7 +2429,7 @@ fn fleet_list_ships_column_shows_sparse_counted_tokens() {
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "SC=2 BB=1 DD=4 AR=2 ET=1".to_string(),
         table_ships_label: "2SC BB 4DD 2TT* ET".to_string(),
-            join_host_fleet_number: None,
+        join_host_fleet_number: None,
     }];
 
     let buffer = screen
@@ -2472,7 +2469,7 @@ fn fleet_list_ships_column_truncates_by_whole_token_with_plus_marker() {
         order_label: "Guard/blockade world in System (16,13)".to_string(),
         composition_label: "SC=2 BB=4 CA=3 DD=5 TT=5 AR=2 ET=1".to_string(),
         table_ships_label: "2SC 4BB 3CA 5DD 2TT* 3TT ET".to_string(),
-            join_host_fleet_number: None,
+        join_host_fleet_number: None,
     }];
 
     let buffer = screen
@@ -2581,7 +2578,7 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
         order_label: "Move fleet to Sector (0,0)".to_string(),
         composition_label: "DD=1".to_string(),
         table_ships_label: "DD".to_string(),
-            join_host_fleet_number: None,
+        join_host_fleet_number: None,
     }];
 
     let buffer = screen
@@ -2876,7 +2873,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
         order_label: "Move fleet to Sector (19,13)".to_string(),
         composition_label: "CA=1".to_string(),
         table_ships_label: "CA".to_string(),
-            join_host_fleet_number: None,
+        join_host_fleet_number: None,
     };
 
     let buffer = screen

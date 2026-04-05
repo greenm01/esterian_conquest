@@ -45,7 +45,51 @@ impl App {
         )
     }
 
+    fn planet_build_return_screen(&self) -> ScreenId {
+        if self.planet.build_return_to_list {
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, self.planet.list_sort)
+        } else {
+            ScreenId::PlanetBuildMenu
+        }
+    }
+
     pub fn open_planet_commission_menu(&mut self) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        ) {
+            self.planet.command_context = crate::domains::planet::state::PlanetCommandContext::List;
+            self.clear_command_menu_notice();
+            self.clear_planet_list_status();
+            self.close_planet_tax_prompt();
+            self.close_planet_auto_commission_prompt();
+            self.close_planet_info_prompt();
+            self.clear_planet_commission_draft_state();
+            self.planet.commission_status = None;
+            self.planet.commission_result_title = None;
+            self.planet.commission_result_return_to_picker = false;
+            self.planet.commission_result_dismiss_key = None;
+            self.planet.commission_result_notice = None;
+            self.planet.commission_cursor = 0;
+            self.planet.commission_scroll_offset = 0;
+            self.planet.commission_selected_slots.clear();
+            let Ok(row) = self.current_planet_list_row() else {
+                self.show_planet_context_notice("You do not currently control any planets.");
+                return;
+            };
+            let Some(index) = self.commission_planet_rows().iter().position(|planet| {
+                planet.planet_record_index_1_based == row.planet_record_index_1_based
+            }) else {
+                self.show_planet_context_notice(
+                    "That planet has no ships or starbases waiting in stardock.",
+                );
+                return;
+            };
+            self.planet.commission_index = index;
+            self.load_planet_commission_draft_for_current_planet();
+            self.current_screen = ScreenId::PlanetCommissionDraft;
+            return;
+        }
         self.command_return_menu = CommandMenu::Planet;
         self.close_planet_tax_prompt();
         self.close_planet_auto_commission_prompt();
@@ -118,6 +162,18 @@ impl App {
         if self.current_screen != ScreenId::PlanetCommissionResult {
             return;
         }
+        if self.planet.command_context == crate::domains::planet::state::PlanetCommandContext::List
+        {
+            self.clear_planet_commission_draft_state();
+            self.planet.commission_result_title = None;
+            self.planet.commission_result_return_to_picker = false;
+            self.planet.commission_result_notice = None;
+            self.planet.commission_status = None;
+            self.planet.commission_selected_slots.clear();
+            self.planet.commission_result_dismiss_key = Some(key_code);
+            self.current_screen = self.planet_context_screen();
+            return;
+        }
         let return_to_picker = self.planet.commission_result_return_to_picker;
         self.clear_planet_commission_draft_state();
         self.planet.commission_result_title = None;
@@ -180,7 +236,24 @@ impl App {
     }
 
     pub fn open_planet_build_menu(&mut self) {
+        if self.planet.build_return_to_list
+            && matches!(
+                self.current_screen,
+                ScreenId::PlanetBuildSpecify | ScreenId::PlanetBuildQuantity
+            )
+        {
+            self.planet.build_status = None;
+            self.planet.build_unit_input.clear();
+            self.planet.build_unit_status = None;
+            self.planet.build_unit_notice = None;
+            self.planet.build_quantity_input.clear();
+            self.planet.build_quantity_status = None;
+            self.planet.build_selected_kind = None;
+            self.current_screen = self.planet_build_return_screen();
+            return;
+        }
         self.command_return_menu = CommandMenu::PlanetBuild;
+        self.planet.build_return_to_list = false;
         self.close_planet_build_abort_prompt();
         self.planet.build_status = None;
         self.planet.build_unit_input.clear();
@@ -297,6 +370,24 @@ impl App {
     }
 
     pub fn open_planet_build_specify(&mut self) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        ) {
+            let Ok(row) = self.current_planet_list_row() else {
+                self.show_planet_context_notice("You do not currently control any planets.");
+                return;
+            };
+            let Some(index) = self.build_planet_rows().iter().position(|planet| {
+                planet.planet_record_index_1_based == row.planet_record_index_1_based
+            }) else {
+                self.show_planet_context_notice("No owned planets available for building.");
+                return;
+            };
+            self.planet.build_return_to_list = true;
+            self.planet.build_index = index;
+            self.clear_planet_list_status();
+        }
         if self.build_planet_rows().is_empty() {
             self.open_planet_build_menu();
             return;
@@ -435,6 +526,11 @@ impl App {
         self.clear_planet_commission_draft_state();
         self.planet.commission_status = None;
         self.planet.commission_result_dismiss_key = None;
+        if self.planet.command_context == crate::domains::planet::state::PlanetCommandContext::List
+        {
+            self.current_screen = self.planet_context_screen();
+            return;
+        }
         if self.commission_planet_rows().is_empty() {
             self.open_planet_menu();
             return;
@@ -701,10 +797,7 @@ impl App {
         self.close_planet_auto_commission_prompt();
         let rows = self.build_auto_commission_report_rows(&report);
         if rows.is_empty() {
-            self.show_command_menu_notice(
-                CommandMenu::Planet,
-                "No ships or starbases are waiting in stardock.",
-            );
+            self.show_planet_context_notice("No ships or starbases are waiting in stardock.");
             return Ok(());
         }
         self.planet.auto_commission_report_revealed_rows = rows
@@ -721,11 +814,13 @@ impl App {
         }
         let total_rows = self.planet.auto_commission_report_rows.len();
         if total_rows == 0 {
-            self.open_planet_menu();
+            self.clear_planet_auto_commission_report();
+            self.current_screen = self.planet_context_screen();
             return;
         }
         if self.planet.auto_commission_report_revealed_rows >= total_rows {
-            self.open_planet_menu();
+            self.clear_planet_auto_commission_report();
+            self.current_screen = self.planet_context_screen();
             return;
         }
         self.planet.auto_commission_report_revealed_rows = usize::min(
@@ -975,7 +1070,7 @@ impl App {
 
         if number == 0 {
             self.planet.build_unit_notice = None;
-            self.current_screen = ScreenId::PlanetBuildMenu;
+            self.current_screen = self.planet_build_return_screen();
             return;
         }
 
@@ -1021,11 +1116,19 @@ impl App {
 
     pub fn submit_planet_build_quantity(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(kind) = self.planet.build_selected_kind else {
-            self.current_screen = ScreenId::PlanetBuildSpecify;
+            self.current_screen = if self.planet.build_return_to_list {
+                self.planet_build_return_screen()
+            } else {
+                ScreenId::PlanetBuildSpecify
+            };
             return Ok(());
         };
         let Some(unit) = build_unit_spec_by_kind(kind) else {
-            self.current_screen = ScreenId::PlanetBuildSpecify;
+            self.current_screen = if self.planet.build_return_to_list {
+                self.planet_build_return_screen()
+            } else {
+                ScreenId::PlanetBuildSpecify
+            };
             return Ok(());
         };
         let max_qty = self.current_planet_build_max_quantity_for(kind)?;
@@ -1047,7 +1150,11 @@ impl App {
         };
 
         if qty == 0 {
-            self.current_screen = ScreenId::PlanetBuildSpecify;
+            self.current_screen = if self.planet.build_return_to_list {
+                self.planet_build_return_screen()
+            } else {
+                ScreenId::PlanetBuildSpecify
+            };
             self.planet.build_quantity_input.clear();
             return Ok(());
         }

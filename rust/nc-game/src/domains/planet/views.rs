@@ -33,6 +33,25 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let transport_prompt_label = app.planet_transport_prompt_label();
     let scorch_planet_prompt_active =
         app.planet.scorch_prompt_mode == Some(PlanetScorchPromptMode::Planet);
+    let inline_list_transport = if matches!(app.current_screen, ScreenId::PlanetList(_, _)) {
+        inline_transport.as_ref()
+    } else {
+        None
+    };
+    let inline_list_scorch_summary = if matches!(app.current_screen, ScreenId::PlanetList(_, _))
+        && matches!(
+            app.planet.scorch_prompt_mode,
+            Some(PlanetScorchPromptMode::Confirm1)
+                | Some(PlanetScorchPromptMode::Confirm2)
+                | Some(PlanetScorchPromptMode::Confirm3)
+        ) {
+        app.selected_planet_scorch_name_and_coords()
+            .map(|(name, coords)| {
+                format!("Scorch \"{}\" at {}.", name, format_sector_coords(coords))
+            })
+    } else {
+        None
+    };
     let menu_prompt_label = if scorch_planet_prompt_active {
         Some("Scorch Planet XX ")
     } else if matches!(
@@ -240,7 +259,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.brief_input,
             app.planet.list_sort_status.as_deref(),
         ),
-        ScreenId::PlanetBriefList(mode, sort) => app.planet_list.render_brief_list(
+        ScreenId::PlanetList(mode, sort) => app.planet_list.render_brief_list(
             &frame,
             mode,
             &app.sorted_planet_rows(sort),
@@ -248,6 +267,23 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
             &app.planet.brief_input,
+            app.planet.list_sort_status.as_deref(),
+            app.planet.auto_commission_prompt_active
+                && mode == crate::screen::PlanetListMode::Brief,
+            if mode == crate::screen::PlanetListMode::Brief {
+                transport_prompt_label.as_deref()
+            } else {
+                None
+            },
+            &app.planet.transport_prompt_default_value,
+            &app.planet.transport_prompt_input,
+            inline_list_transport.map(|(_, summary)| summary.as_str()),
+            if mode == crate::screen::PlanetListMode::Brief && !scorch_planet_prompt_active {
+                app.planet_scorch_confirm_prompt()
+            } else {
+                None
+            },
+            inline_list_scorch_summary.as_deref(),
         ),
         ScreenId::PlanetDatabaseList => app.planet_database.render_list(
             frame.geometry,

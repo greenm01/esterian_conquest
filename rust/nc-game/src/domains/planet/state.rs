@@ -14,6 +14,12 @@ pub enum PlanetMenuTransportPromptMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetCommandContext {
+    Menu,
+    List,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetScorchPromptMode {
     Planet,
     Confirm1,
@@ -24,6 +30,7 @@ pub enum PlanetScorchPromptMode {
 pub struct PlanetState {
     pub campaign_store: CampaignStore,
     pub intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
+    pub command_context: PlanetCommandContext,
     pub brief_scroll_offset: usize,
     pub brief_cursor: usize,
     pub brief_input: String,
@@ -77,6 +84,7 @@ pub struct PlanetState {
     pub transport_qty_input: String,
     pub transport_status: Option<String>,
     pub build_index: usize,
+    pub build_return_to_list: bool,
     pub build_status: Option<String>,
     pub build_unit_input: String,
     pub build_unit_status: Option<String>,
@@ -113,6 +121,7 @@ impl PlanetState {
         Self {
             campaign_store,
             intel_snapshots,
+            command_context: PlanetCommandContext::Menu,
             brief_scroll_offset: 0,
             brief_cursor: 0,
             brief_input: String::new(),
@@ -166,6 +175,7 @@ impl PlanetState {
             transport_qty_input: String::new(),
             transport_status: None,
             build_index: 0,
+            build_return_to_list: false,
             build_status: None,
             build_unit_input: String::new(),
             build_unit_status: None,

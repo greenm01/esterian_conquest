@@ -7,6 +7,29 @@ use crossterm::event::KeyCode;
 
 impl App {
     pub fn open_planet_scorch_prompt(&mut self) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        ) {
+            self.planet.command_context = crate::domains::planet::state::PlanetCommandContext::List;
+            let Ok(row) = self.current_planet_list_row() else {
+                self.show_planet_context_notice("No owned planets available.");
+                return;
+            };
+            self.clear_command_menu_notice();
+            self.clear_planet_list_status();
+            self.close_planet_auto_commission_prompt();
+            self.close_planet_tax_prompt();
+            self.close_planet_info_prompt();
+            self.clear_planet_transport_prompt();
+            self.open_planet_scorch_prompt_mode(
+                PlanetScorchPromptMode::Confirm1,
+                None,
+                Some(row.planet_record_index_1_based),
+            );
+            self.current_screen = self.planet_context_screen();
+            return;
+        }
         let Some(default_coords) = self.default_planet_scorch_coords() else {
             self.show_command_menu_notice(CommandMenu::Planet, "No owned planets available.");
             return;
@@ -25,7 +48,10 @@ impl App {
     }
 
     pub(crate) fn inline_planet_scorch_prompt_active_on_current_screen(&self) -> bool {
-        self.current_screen == ScreenId::PlanetMenu && self.planet.scorch_prompt_mode.is_some()
+        matches!(
+            self.current_screen,
+            ScreenId::PlanetMenu | ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        ) && self.planet.scorch_prompt_mode.is_some()
     }
 
     pub(crate) fn handle_planet_scorch_prompt_key(
@@ -110,7 +136,7 @@ impl App {
 
     pub(crate) fn cancel_planet_scorch_prompt(&mut self) {
         self.clear_planet_scorch_prompt();
-        self.current_screen = ScreenId::PlanetMenu;
+        self.current_screen = self.planet_context_screen();
     }
 
     pub(crate) fn submit_planet_scorch_prompt(&mut self) -> Result<(), String> {
@@ -163,13 +189,11 @@ impl App {
                 self.planet_scorch_orders.insert(planet_record_index);
                 self.save_game_data().map_err(|err| err.to_string())?;
                 self.clear_planet_scorch_prompt();
-                self.show_command_menu_notice(
-                    CommandMenu::Planet,
-                    format!("Planet \"{planet_name}\" is scorched!"),
-                );
+                self.show_planet_context_notice(format!("Planet \"{planet_name}\" is scorched!"));
+                return Ok(());
             }
         }
-        self.current_screen = ScreenId::PlanetMenu;
+        self.current_screen = self.planet_context_screen();
         Ok(())
     }
 
@@ -274,7 +298,7 @@ impl App {
         Ok(record_index + 1)
     }
 
-    fn selected_planet_scorch_name_and_coords(&self) -> Option<(String, [u8; 2])> {
+    pub(crate) fn selected_planet_scorch_name_and_coords(&self) -> Option<(String, [u8; 2])> {
         let record_index = self.planet.scorch_selected_planet_record?;
         let planet = self.game_data.planets.records.get(record_index - 1)?;
         Some((planet.status_or_name_summary(), planet.coords_raw()))

@@ -2,6 +2,7 @@ use crate::app::helpers::{
     is_coordinate_input_char, resolve_default_coords_input, sync_scroll_to_cursor,
 };
 use crate::app::state::App;
+use crate::domains::planet::state::PlanetCommandContext;
 use crate::domains::planet::{KnownOwnerLabelStyle, PlanetAction, known_owner_label};
 use crate::screen::{
     CommandMenu, PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode,
@@ -26,13 +27,42 @@ impl App {
         }
     }
 
+    pub(crate) fn planet_context_screen(&self) -> ScreenId {
+        match self.planet.command_context {
+            PlanetCommandContext::Menu => ScreenId::PlanetMenu,
+            PlanetCommandContext::List => {
+                ScreenId::PlanetList(PlanetListMode::Brief, self.planet.list_sort)
+            }
+        }
+    }
+
+    pub(crate) fn clear_planet_list_status(&mut self) {
+        self.planet.list_sort_status = None;
+    }
+
+    pub(crate) fn show_planet_context_notice(&mut self, message: impl Into<String>) {
+        match self.planet.command_context {
+            PlanetCommandContext::Menu => {
+                self.show_command_menu_notice(CommandMenu::Planet, message)
+            }
+            PlanetCommandContext::List => {
+                self.clear_command_menu_notice();
+                self.planet.list_sort_status = Some(message.into());
+                self.current_screen = self.planet_context_screen();
+            }
+        }
+    }
+
     pub fn open_planet_menu(&mut self) {
         self.clear_command_menu_notice();
+        self.clear_planet_list_status();
         self.close_planet_auto_commission_prompt();
         self.clear_planet_auto_commission_report();
         self.close_planet_tax_prompt();
         self.clear_planet_scorch_prompt();
         self.clear_planet_transport_prompt();
+        self.planet.command_context = PlanetCommandContext::Menu;
+        self.planet.build_return_to_list = false;
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;
     }
@@ -57,18 +87,22 @@ impl App {
 
     pub fn open_planet_auto_commission_prompt(&mut self) {
         if self.commission_planet_rows().is_empty() {
-            self.show_command_menu_notice(
-                CommandMenu::Planet,
-                "No ships or starbases are waiting in stardock.",
-            );
+            self.show_planet_context_notice("No ships or starbases are waiting in stardock.");
             return;
+        }
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetList(PlanetListMode::Brief, _)
+        ) {
+            self.planet.command_context = PlanetCommandContext::List;
+            self.clear_planet_list_status();
         }
         self.clear_command_menu_notice();
         self.close_planet_tax_prompt();
         self.close_planet_info_prompt();
         self.clear_planet_auto_commission_report();
         self.planet.auto_commission_prompt_active = true;
-        self.current_screen = ScreenId::PlanetMenu;
+        self.current_screen = self.planet_context_screen();
     }
 
     pub fn close_planet_auto_commission_prompt(&mut self) {
@@ -149,7 +183,7 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.planet.list_sort_status = None;
+        self.clear_planet_list_status();
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
     }
 
@@ -164,31 +198,34 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.planet.list_sort = sort;
-        self.planet.list_sort_status = None;
+        self.clear_planet_list_status();
         self.planet.brief_scroll_offset = 0;
         self.planet.brief_cursor = 0;
         self.planet.brief_input.clear();
         self.current_screen = match mode {
             PlanetListMode::Brief | PlanetListMode::BuildSelect => {
+                if mode == PlanetListMode::Brief {
+                    self.planet.command_context = PlanetCommandContext::List;
+                }
                 self.select_planet_brief_origin_row(mode, sort);
-                ScreenId::PlanetBriefList(mode, sort)
+                ScreenId::PlanetList(mode, sort)
             }
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
 
     pub fn close_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
-        self.planet.list_sort_status = None;
+        self.clear_planet_list_status();
         self.current_screen = match mode {
             PlanetListMode::Brief | PlanetListMode::BuildSelect => {
-                ScreenId::PlanetBriefList(mode, self.planet.list_sort)
+                ScreenId::PlanetList(mode, self.planet.list_sort)
             }
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
 
     pub fn scroll_planet_brief(&mut self, delta: i8) {
-        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(_, sort) = self.current_screen else {
             return;
         };
         let total = self.sorted_planet_rows(sort).len();
@@ -201,7 +238,7 @@ impl App {
     }
 
     pub fn move_planet_brief_cursor(&mut self, delta: i8) {
-        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(_, sort) = self.current_screen else {
             return;
         };
         let total = self.sorted_planet_rows(sort).len();
@@ -217,10 +254,11 @@ impl App {
             self.planet.brief_cursor,
             visible_rows,
         );
+        self.clear_planet_list_status();
     }
 
     pub fn append_planet_brief_char(&mut self, ch: char) {
-        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(_, sort) = self.current_screen else {
             return;
         };
         if self.planet.brief_input.len() < 16 && is_coordinate_input_char(ch) {
@@ -228,21 +266,21 @@ impl App {
             if self.sync_planet_brief_cursor_to_input(sort) {
                 self.planet.brief_input.clear();
             }
-            self.planet.list_sort_status = None;
+            self.clear_planet_list_status();
         }
     }
 
     pub fn backspace_planet_brief_input(&mut self) {
-        let ScreenId::PlanetBriefList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(_, sort) = self.current_screen else {
             return;
         };
         self.planet.brief_input.pop();
         let _ = self.sync_planet_brief_cursor_to_input(sort);
-        self.planet.list_sort_status = None;
+        self.clear_planet_list_status();
     }
 
     pub fn submit_planet_brief_input(&mut self) {
-        let ScreenId::PlanetBriefList(mode, sort) = self.current_screen else {
+        let ScreenId::PlanetList(mode, sort) = self.current_screen else {
             return;
         };
         let rows = self.sorted_planet_rows(sort);
@@ -261,7 +299,7 @@ impl App {
                 PlanetListMode::Brief => {
                     let _ = self.open_planet_info_detail_at_coords(
                         coords,
-                        Some(ScreenId::PlanetBriefList(mode, sort)),
+                        Some(ScreenId::PlanetList(mode, sort)),
                     );
                 }
                 PlanetListMode::BuildSelect => {
@@ -299,7 +337,7 @@ impl App {
             PlanetListMode::Brief => {
                 let _ = self.open_planet_info_detail_at_coords(
                     coords,
-                    Some(ScreenId::PlanetBriefList(mode, sort)),
+                    Some(ScreenId::PlanetList(mode, sort)),
                 );
             }
             PlanetListMode::BuildSelect => {
@@ -737,16 +775,35 @@ impl App {
         Ok(())
     }
 
+    pub(crate) fn current_planet_list_row(
+        &self,
+    ) -> Result<nc_data::EmpirePlanetEconomyRow, String> {
+        let ScreenId::PlanetList(_, sort) = self.current_screen else {
+            return Err("Planet list is not active.".to_string());
+        };
+        self.sorted_planet_rows(sort)
+            .get(self.planet.brief_cursor)
+            .cloned()
+            .ok_or_else(|| "You do not currently control any planets.".to_string())
+    }
+
     pub(crate) fn inline_planet_tax_active_on_current_screen(&self) -> bool {
         self.planet.tax_prompt_active && self.current_screen == ScreenId::PlanetMenu
     }
 
     pub(crate) fn inline_planet_transport_prompt_active_on_current_screen(&self) -> bool {
-        self.current_screen == ScreenId::PlanetMenu && self.planet.transport_prompt_mode.is_some()
+        matches!(
+            self.current_screen,
+            ScreenId::PlanetMenu | ScreenId::PlanetList(PlanetListMode::Brief, _)
+        ) && self.planet.transport_prompt_mode.is_some()
     }
 
     pub(crate) fn inline_planet_auto_commission_active_on_current_screen(&self) -> bool {
-        self.planet.auto_commission_prompt_active && self.current_screen == ScreenId::PlanetMenu
+        self.planet.auto_commission_prompt_active
+            && matches!(
+                self.current_screen,
+                ScreenId::PlanetMenu | ScreenId::PlanetList(PlanetListMode::Brief, _)
+            )
     }
 
     pub(crate) fn inline_planet_build_abort_active_on_current_screen(&self) -> bool {
@@ -811,7 +868,9 @@ impl App {
                 world.known_owner_empire_id,
                 world.known_owner_empire_name.as_deref(),
                 KnownOwnerLabelStyle::Database,
-                world.known_owner_empire_id.and_then(|id| self.game_data.empire_campaign_state(id)),
+                world
+                    .known_owner_empire_id
+                    .and_then(|id| self.game_data.empire_campaign_state(id)),
             );
             let year_label = intel_snapshot
                 .and_then(|snapshot| snapshot.last_intel_year)

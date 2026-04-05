@@ -67,7 +67,8 @@ impl App {
         default_value: impl Into<String>,
     ) {
         self.clear_command_menu_notice();
-        self.current_screen = ScreenId::PlanetMenu;
+        self.clear_planet_list_status();
+        self.current_screen = self.planet_context_screen();
         self.planet.transport_prompt_mode = Some(mode);
         self.planet.transport_prompt_input.clear();
         self.planet.transport_prompt_default_value = default_value.into();
@@ -92,6 +93,43 @@ impl App {
     }
 
     pub fn open_planet_transport_prompt(&mut self, mode: PlanetTransportMode) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        ) {
+            self.planet.command_context = crate::domains::planet::state::PlanetCommandContext::List;
+            self.close_planet_tax_prompt();
+            self.close_planet_info_prompt();
+            self.close_planet_auto_commission_prompt();
+            self.clear_command_menu_notice();
+            self.clear_planet_list_status();
+            let Ok(planet) = self.current_planet_list_row() else {
+                self.show_planet_context_notice("You do not currently control any planets.");
+                return;
+            };
+            let eligible_fleets =
+                self.planet_transport_eligible_fleet_rows_for_planet(mode, &planet);
+            let Some(default_fleet_number) =
+                eligible_fleets.first().map(|fleet| fleet.fleet_number)
+            else {
+                self.show_planet_context_notice(match mode {
+                    PlanetTransportMode::Load => "No fleets at that planet can take more armies.",
+                    PlanetTransportMode::Unload => "No fleets at that planet have loaded armies.",
+                });
+                return;
+            };
+            self.planet.transport_mode = Some(mode);
+            self.planet.transport_selected_planet_record = Some(planet.planet_record_index_1_based);
+            self.planet.transport_selected_fleet_record = None;
+            self.planet.transport_fleet_first = false;
+            self.planet.transport_qty_input.clear();
+            self.planet.transport_status = None;
+            self.open_planet_transport_menu_prompt(
+                PlanetMenuTransportPromptMode::Fleet(mode),
+                default_fleet_number.to_string(),
+            );
+            return;
+        }
         self.command_return_menu = CommandMenu::Planet;
         self.close_planet_tax_prompt();
         self.close_planet_info_prompt();
@@ -103,17 +141,14 @@ impl App {
         self.planet.transport_qty_input.clear();
         self.planet.transport_status = None;
         let Some(default_fleet_number) = self.default_fleet_transport_fleet_number(mode) else {
-            self.show_command_menu_notice(
-                CommandMenu::Planet,
-                match mode {
-                    PlanetTransportMode::Load => {
-                        "No planets have armies and troop transports ready to load."
-                    }
-                    PlanetTransportMode::Unload => {
-                        "No fleets have loaded armies ready to unload onto planets with free capacity."
-                    }
-                },
-            );
+            self.show_planet_context_notice(match mode {
+                PlanetTransportMode::Load => {
+                    "No planets have armies and troop transports ready to load."
+                }
+                PlanetTransportMode::Unload => {
+                    "No fleets have loaded armies ready to unload onto planets with free capacity."
+                }
+            });
             return;
         };
         self.open_planet_transport_menu_prompt(
@@ -430,7 +465,7 @@ impl App {
                 self.planet.transport_selected_planet_record = None;
                 self.planet.transport_selected_fleet_record = None;
                 self.planet.transport_qty_input.clear();
-                self.current_screen = ScreenId::PlanetMenu;
+                self.current_screen = self.planet_context_screen();
             }
             PlanetMenuTransportPromptMode::Quantity(mode) => {
                 let default_fleet = self
@@ -692,6 +727,14 @@ impl App {
                 Some(PlanetMenuTransportPromptMode::Quantity(mode)) => Some(mode),
                 _ => None,
             }
+        } else if matches!(
+            self.current_screen,
+            ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _)
+        ) {
+            match self.planet.transport_prompt_mode {
+                Some(PlanetMenuTransportPromptMode::Quantity(mode)) => Some(mode),
+                _ => None,
+            }
         } else {
             None
         };
@@ -701,7 +744,10 @@ impl App {
             ScreenId::FleetMenu | ScreenId::FleetList => {
                 inline_fleet_menu_mode.ok_or("transport mode missing")?
             }
-            ScreenId::PlanetMenu => inline_planet_menu_mode.ok_or("transport mode missing")?,
+            ScreenId::PlanetMenu
+            | ScreenId::PlanetList(crate::screen::PlanetListMode::Brief, _) => {
+                inline_planet_menu_mode.ok_or("transport mode missing")?
+            }
             _ => return Ok(()),
         };
         let inline_fleet_menu = inline_fleet_menu_mode == Some(mode);
@@ -804,20 +850,16 @@ impl App {
             self.planet.transport_selected_fleet_record = None;
             self.planet.transport_mode = None;
             self.clear_planet_transport_prompt();
-            self.show_command_menu_notice(
-                CommandMenu::Planet,
-                match mode {
-                    PlanetTransportMode::Load => format!(
-                        "Loaded {qty} armies from {} [{:02},{:02}] onto Fleet #{}.",
-                        planet_name, coords[0], coords[1], fleet_number
-                    ),
-                    PlanetTransportMode::Unload => format!(
-                        "Unloaded {qty} armies from Fleet #{} to {} [{:02},{:02}].",
-                        fleet_number, planet_name, coords[0], coords[1]
-                    ),
-                },
-            );
-            self.current_screen = ScreenId::PlanetMenu;
+            self.show_planet_context_notice(match mode {
+                PlanetTransportMode::Load => format!(
+                    "Loaded {qty} armies from {} [{:02},{:02}] onto Fleet #{}.",
+                    planet_name, coords[0], coords[1], fleet_number
+                ),
+                PlanetTransportMode::Unload => format!(
+                    "Unloaded {qty} armies from Fleet #{} to {} [{:02},{:02}].",
+                    fleet_number, planet_name, coords[0], coords[1]
+                ),
+            });
             return Ok(());
         }
         self.planet.transport_status = None;

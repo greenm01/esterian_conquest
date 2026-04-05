@@ -90,7 +90,7 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("?", "show/hide helper"),
             ],
         )),
-        ScreenId::PlanetBriefList(_, _)
+        ScreenId::PlanetList(_, _)
         | ScreenId::PlanetDatabaseList
         | ScreenId::PlanetCommissionPicker
         | ScreenId::PlanetCommissionMenu

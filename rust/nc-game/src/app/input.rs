@@ -282,7 +282,7 @@ impl App {
             ScreenId::PlanetListSortPrompt(mode) => {
                 self.planet_list.handle_sort_prompt_key(key, mode)
             }
-            ScreenId::PlanetBriefList(mode, _) => self.planet_list.handle_brief_key(key, mode),
+            ScreenId::PlanetList(mode, _) => self.planet_list.handle_brief_key(key, mode),
             ScreenId::Starmap if self.starmap_state.capture_complete => {
                 self.starmap.handle_complete_key(key)
             }

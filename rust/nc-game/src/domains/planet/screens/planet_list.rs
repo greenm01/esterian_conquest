@@ -67,7 +67,7 @@ impl PlanetListScreen {
         scroll_offset: usize,
         cursor: usize,
         input: &str,
-        _status: Option<&str>,
+        status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         if let PlanetListMode::Stub(message) = mode {
             let mut buffer = new_playfield_for(frame.geometry);
@@ -77,8 +77,23 @@ impl PlanetListScreen {
             return Ok(buffer);
         }
 
-        let mut buffer =
-            self.render_brief_list(frame, mode, rows, sort, scroll_offset, cursor, input)?;
+        let mut buffer = self.render_brief_list(
+            frame,
+            mode,
+            rows,
+            sort,
+            scroll_offset,
+            cursor,
+            input,
+            status,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )?;
         let table_rows = planet_table_rows(frame, rows);
         let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
         let displayed_rows = table_rows
@@ -116,6 +131,7 @@ impl PlanetListScreen {
         Ok(buffer)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render_brief_list(
         &mut self,
         frame: &ScreenFrame<'_>,
@@ -125,6 +141,14 @@ impl PlanetListScreen {
         scroll_offset: usize,
         cursor: usize,
         input: &str,
+        status: Option<&str>,
+        auto_commission_prompt: bool,
+        transport_prompt_label: Option<&str>,
+        transport_prompt_default: &str,
+        transport_prompt_input: &str,
+        _transport_summary: Option<&str>,
+        scorch_prompt_label: Option<&str>,
+        _scorch_summary: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
         let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
@@ -138,10 +162,37 @@ impl PlanetListScreen {
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
             .unwrap_or_else(|| "00,00".to_string());
-        let footer = TableFooter::CommandBar {
-            hotkeys_markup: "? J K S <Q>",
-            default: Some(&default_coords),
-            input,
+        let footer = if auto_commission_prompt {
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: "Commission all ships and starbases? [Y]/N -> ",
+            }
+        } else if let Some(prompt) = transport_prompt_label {
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt,
+                default: transport_prompt_default,
+                input: transport_prompt_input,
+            }
+        } else if let Some(prompt) = scorch_prompt_label {
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt,
+            }
+        } else if let Some(status) = status {
+            TableFooter::CommandText {
+                label: "COMMAND",
+                text: status,
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: match mode {
+                    PlanetListMode::Brief => "? J K S B A C L U X <Q>",
+                    PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => "? J K S <Q>",
+                },
+                default: Some(&default_coords),
+                input,
+            }
         };
         let columns = resolve_table_columns_for_widget(
             &BRIEF_COLUMNS,
@@ -230,6 +281,31 @@ impl PlanetListScreen {
             KeyCode::PageDown => Action::Planet(PlanetAction::MoveBrief(5)),
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 Action::Planet(PlanetAction::OpenListSortPrompt(mode))
+            }
+            KeyCode::Char('b') | KeyCode::Char('B') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenBuildSpecify)
+            }
+            KeyCode::Char('a') | KeyCode::Char('A') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
+            }
+            KeyCode::Char('c') | KeyCode::Char('C') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenCommissionMenu)
+            }
+            KeyCode::Char('l') | KeyCode::Char('L') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenTransportPrompt(
+                    crate::screen::PlanetTransportMode::Load,
+                ))
+            }
+            KeyCode::Char('u') | KeyCode::Char('U') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenTransportPrompt(
+                    crate::screen::PlanetTransportMode::Unload,
+                ))
+            }
+            KeyCode::Char('x') | KeyCode::Char('X') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenScorchPrompt)
+            }
+            KeyCode::Char('i') | KeyCode::Char('I') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::SubmitBriefInput)
             }
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitBriefInput),
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceBriefInput),

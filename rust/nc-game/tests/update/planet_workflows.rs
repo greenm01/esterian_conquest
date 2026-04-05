@@ -93,6 +93,284 @@ fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
 }
 
 #[test]
+fn planet_list_auto_commission_prompt_and_report_return_to_list() {
+    let fixture_dir = temp_game_with_auto_commission_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+
+    app.render(&mut terminal)
+        .expect("planet list auto-commission prompt should render");
+    assert!(
+        line_containing(
+            &terminal,
+            "COMMAND <- Commission all ships and starbases? [Y]/N ->",
+        )
+        .contains("Commission all ships and starbases? [Y]/N ->"),
+        "expected inline auto-commission prompt on planet list"
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Automatically commission all ships and starbases")),
+        "planet list should not render a post-footer auto-commission notice"
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::ConfirmAutoCommission)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetAutoCommissionReport);
+
+    while app.current_screen() == ScreenId::PlanetAutoCommissionReport {
+        assert_eq!(
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AdvanceAutoCommissionReport)
+            ),
+            AppOutcome::Continue
+        );
+    }
+
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+}
+
+#[test]
+fn planet_list_commission_opens_direct_draft_for_selected_planet_and_returns_to_list() {
+    let fixture_dir = temp_game_with_auto_commission_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let mut rows = app
+        .game_data
+        .empire_planet_economy_rows(app.player.record_index_1_based);
+    rows.sort_by_key(|row| row.coords);
+    let target_cursor = rows
+        .iter()
+        .position(|row| {
+            let planet = &app.game_data.planets.records[row.planet_record_index_1_based - 1];
+            (0..nc_data::STARDOCK_SLOT_COUNT).any(|slot| {
+                planet.stardock_count_raw(slot) > 0 && planet.stardock_kind_raw(slot) != 0
+            })
+        })
+        .expect("fixture should have a planet with stardock units");
+    app.planet.brief_cursor = target_cursor;
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionDraft);
+
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+}
+
+#[test]
+fn planet_list_build_specify_and_transport_stay_on_list_context() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    let extra_planet = &mut state.game_data.planets.records[extra_owned_idx];
+    extra_planet.set_owner_empire_slot_raw(1);
+    extra_planet.set_army_count_raw(9);
+    let extra_coords = extra_planet.coords_raw();
+
+    for fleet in state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+    {
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.recompute_max_speed_from_composition();
+    }
+
+    let load_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 3)
+        .expect("fleet #3 should exist");
+    load_fleet.set_current_location_coords_raw(extra_coords);
+    load_fleet.set_troop_transport_count(5);
+    load_fleet.set_army_count(0);
+    load_fleet.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let mut rows = app
+        .game_data
+        .empire_planet_economy_rows(app.player.record_index_1_based);
+    rows.sort_by_key(|row| row.coords);
+    let target_cursor = rows
+        .iter()
+        .position(|row| row.coords == extra_coords)
+        .expect("extra owned planet should appear in planet list");
+    app.planet.brief_cursor = target_cursor;
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildSpecify)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildSpecify);
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenTransportPrompt(
+                nc_game::screen::PlanetTransportMode::Load,
+            )),
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+
+    app.render(&mut terminal)
+        .expect("planet list load prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Load Fleet #").contains("Load Fleet # [3]"),
+        "expected inline list fleet prompt with selected-planet fleet default"
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Load Planet") && !line.contains("Planet:")),
+        "list flow should not ask for a planet or render a hanger summary"
+    );
+
+    submit_planet_transport_prompt(&mut app, None);
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet list load quantity prompt should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("COMMAND <-") && line.contains("How many armies to load?")),
+        "expected inline quantity prompt on planet list"
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Planet:") && !line.contains("Fleet 03")),
+        "planet list should not render a post-footer transport summary"
+    );
+
+    let action = app.handle_key(key(KeyCode::Char('q')));
+    assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenScorchPrompt)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location)
+    );
+    terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet list scorch prompt should render");
+    assert!(
+        line_containing(&terminal, "COMMAND <- Are you sure? Y/[N] ->")
+            .contains("Are you sure? Y/[N] ->"),
+        "expected scorch confirm inline on planet list"
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Scorch \"")),
+        "planet list should not render a post-footer scorch summary"
+    );
+}
+
+#[test]
 fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -1152,7 +1430,7 @@ fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetBriefList(
+        ScreenId::PlanetList(
             PlanetListMode::BuildSelect,
             PlanetListSort::CurrentProduction
         )
@@ -1194,7 +1472,7 @@ fn build_menu_planet_list_selects_build_target_and_returns_to_build_menu() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetBriefList(
+        ScreenId::PlanetList(
             PlanetListMode::BuildSelect,
             PlanetListSort::CurrentProduction
         )

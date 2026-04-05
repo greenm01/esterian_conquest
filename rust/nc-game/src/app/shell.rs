@@ -127,8 +127,8 @@ impl App {
             | ScreenId::PlanetAutoCommissionReport
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Brief)
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_))
-            | ScreenId::PlanetBriefList(PlanetListMode::Brief, _)
-            | ScreenId::PlanetBriefList(PlanetListMode::Stub(_), _)
+            | ScreenId::PlanetList(PlanetListMode::Brief, _)
+            | ScreenId::PlanetList(PlanetListMode::Stub(_), _)
             | ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)
@@ -139,7 +139,7 @@ impl App {
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity
             | ScreenId::PlanetListSortPrompt(PlanetListMode::BuildSelect)
-            | ScreenId::PlanetBriefList(PlanetListMode::BuildSelect, _) => CommandMenu::PlanetBuild,
+            | ScreenId::PlanetList(PlanetListMode::BuildSelect, _) => CommandMenu::PlanetBuild,
             ScreenId::Startup(_)
             | ScreenId::FirstTimeMenu
             | ScreenId::FirstTimeEmpires

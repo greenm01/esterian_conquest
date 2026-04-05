@@ -193,7 +193,7 @@ pub enum ScreenId {
     PlanetCommissionResult,
     PlanetAutoCommissionReport,
     PlanetListSortPrompt(PlanetListMode),
-    PlanetBriefList(PlanetListMode, PlanetListSort),
+    PlanetList(PlanetListMode, PlanetListSort),
     PlanetTransportPlanetSelect(PlanetTransportMode),
     PlanetTransportFleetSelect(PlanetTransportMode),
     PlanetTransportQuantityPrompt(PlanetTransportMode),
