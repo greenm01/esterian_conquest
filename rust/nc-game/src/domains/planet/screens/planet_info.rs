@@ -205,6 +205,9 @@ impl PlanetInfoScreen {
             world.known_owner_empire_id,
             world.known_owner_empire_name.as_deref(),
             KnownOwnerLabelStyle::Detail,
+            world
+                .known_owner_empire_id
+                .and_then(|id| frame.game_data.empire_campaign_state(id)),
         );
         let info_label_width = aligned_label_width([
             "Coordinates",

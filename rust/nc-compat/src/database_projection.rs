@@ -326,6 +326,18 @@ fn apply_intel_grant_row(
             Some(intel_year),
             Some(intel_year),
         ),
+        PlanetIntelSource::ColonizeBlockedByOwner => (
+            template_current_production(template_record),
+            template_word_1e(template_record),
+            None,
+            None,
+            Some(intel_year),
+            Some(intel_year),
+        ),
+        PlanetIntelSource::CivilDisorderContact => {
+            apply_civil_disorder_contact_row(record, template_record, planet.owner_empire_slot_raw(), current_game_year);
+            return;
+        }
         PlanetIntelSource::AssaultSuccess => (
             template_current_production(template_record),
             template_word_1e(template_record),
@@ -351,6 +363,23 @@ fn apply_intel_grant_row(
         seen_year,
         scout_year,
     );
+}
+
+fn apply_civil_disorder_contact_row(
+    record: &mut DatabaseRecord,
+    template_record: Option<&DatabaseRecord>,
+    owner_slot: u8,
+    current_game_year: u16,
+) {
+    if let Some(template_record) = template_record {
+        record.copy_from(template_record);
+    } else {
+        record.set_unknown_planet();
+    }
+    record.raw[0x15] = owner_slot;
+    set_year_word(record, 0x16, Some(current_game_year));
+    set_year_word(record, 0x18, Some(current_game_year));
+    set_year_word(record, 0x27, Some(current_game_year));
 }
 
 fn apply_visible_row(

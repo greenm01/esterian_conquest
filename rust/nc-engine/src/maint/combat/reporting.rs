@@ -11,6 +11,7 @@ use super::state::{
 
 pub(super) fn push_contact_event_for_task_force(
     scout_contact_events: &mut Vec<ScoutContactEvent>,
+    planet_intel_events: &mut Vec<PlanetIntelEvent>,
     game_data: &CoreGameData,
     coords: [u8; 2],
     task_force: &TaskForce,
@@ -38,6 +39,13 @@ pub(super) fn push_contact_event_for_task_force(
             large_vessels,
             stardate_week: None,
         });
+        push_civil_disorder_contact_intel(
+            planet_intel_events,
+            game_data,
+            coords,
+            fleet.owner_empire_raw(),
+            target_task_force.empire,
+        );
     }
 
     for base in game_data.bases.records.iter().filter(|base| {
@@ -57,7 +65,54 @@ pub(super) fn push_contact_event_for_task_force(
             large_vessels,
             stardate_week: None,
         });
+        push_civil_disorder_contact_intel(
+            planet_intel_events,
+            game_data,
+            coords,
+            task_force.empire,
+            target_task_force.empire,
+        );
     }
+}
+
+fn push_civil_disorder_contact_intel(
+    planet_intel_events: &mut Vec<PlanetIntelEvent>,
+    game_data: &CoreGameData,
+    coords: [u8; 2],
+    viewer_empire_raw: u8,
+    target_empire_raw: u8,
+) {
+    if viewer_empire_raw == 0
+        || target_empire_raw == 0
+        || game_data.empire_campaign_state(target_empire_raw)
+            != Some(nc_data::CampaignState::CivilDisorder)
+    {
+        return;
+    }
+    let Some((planet_idx, _planet)) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| {
+            planet.coords_raw() == coords && planet.owner_empire_slot_raw() == target_empire_raw
+        })
+    else {
+        return;
+    };
+    if planet_intel_events.iter().any(|event| {
+        event.planet_idx == planet_idx
+            && event.viewer_empire_raw == viewer_empire_raw
+            && event.source == PlanetIntelSource::CivilDisorderContact
+    }) {
+        return;
+    }
+    push_planet_intel(
+        planet_intel_events,
+        planet_idx,
+        viewer_empire_raw,
+        PlanetIntelSource::CivilDisorderContact,
+    );
 }
 
 pub(super) fn single_named_fleet_number(

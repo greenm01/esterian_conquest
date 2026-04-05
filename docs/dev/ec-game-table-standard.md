@@ -172,6 +172,7 @@ shows, not the chrome:
 - the same one-row bordered header standard applies
 - `(X,Y)` and `(00,00)` formatting still apply
 - command-bar behavior follows the same `COMMANDS ... ->` grammar
+- the owner column uses `ICD` for worlds known to belong to an empire in civil disorder
 
 ## Split Tables
 

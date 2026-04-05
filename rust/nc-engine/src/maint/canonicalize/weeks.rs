@@ -138,13 +138,20 @@ fn assign_planet_intel_event_weeks(events: &mut MaintenanceEvents) {
             .find(|mission| {
                 mission.owner_empire_raw == e.viewer_empire_raw
                     && mission.fleet_idx == e.source_fleet_idx.unwrap_or(usize::MAX)
-                    && mission.outcome == MissionOutcome::Succeeded
+                    && matches!(
+                        mission.outcome,
+                        MissionOutcome::Succeeded | MissionOutcome::Failed
+                    )
                     && matches!(
                         (e.source, mission.kind),
                         (PlanetIntelSource::ViewWorld, Mission::ViewWorld)
                             | (
                                 PlanetIntelSource::ScoutSolarSystem,
                                 Mission::ScoutSolarSystem
+                            )
+                            | (
+                                PlanetIntelSource::ColonizeBlockedByOwner,
+                                Mission::ColonizeWorld
                             )
                     )
             })

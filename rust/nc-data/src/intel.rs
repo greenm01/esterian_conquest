@@ -261,12 +261,11 @@ fn snapshot_from_runtime_grant(
 ) -> PlanetIntelSnapshot {
     let compat_year = year.saturating_sub(1);
 
-    snapshot.known_name = Some(planet.status_or_name_summary());
-    snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
-    snapshot.known_potential_production = Some(planet.potential_production_points());
-
     match source {
         PlanetIntelSource::ScoutSolarSystem => {
+            snapshot.known_name = Some(planet.status_or_name_summary());
+            snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
+            snapshot.known_potential_production = Some(planet.potential_production_points());
             let orbit_presence = orbit_presence(game_data, planet.coords_raw());
             snapshot.known_armies = Some(planet.army_count_raw());
             snapshot.known_ground_batteries = Some(planet.ground_batteries_raw());
@@ -284,6 +283,9 @@ fn snapshot_from_runtime_grant(
             snapshot.scout_year = Some(compat_year);
         }
         PlanetIntelSource::AssaultSuccess => {
+            snapshot.known_name = Some(planet.status_or_name_summary());
+            snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
+            snapshot.known_potential_production = Some(planet.potential_production_points());
             snapshot.known_armies = Some(planet.army_count_raw());
             snapshot.known_ground_batteries = Some(planet.ground_batteries_raw());
             snapshot.last_intel_year = Some(compat_year);
@@ -291,11 +293,31 @@ fn snapshot_from_runtime_grant(
             snapshot.scout_year = Some(compat_year);
         }
         PlanetIntelSource::ViewWorld => {
+            snapshot.known_name = Some(planet.status_or_name_summary());
+            snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
+            snapshot.known_potential_production = Some(planet.potential_production_points());
+            snapshot.last_intel_year = Some(compat_year);
+            snapshot.seen_year = Some(compat_year);
+            snapshot.scout_year = Some(compat_year);
+        }
+        PlanetIntelSource::ColonizeBlockedByOwner => {
+            snapshot.known_name = Some(planet.status_or_name_summary());
+            snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
+            snapshot.known_potential_production = Some(planet.potential_production_points());
+            snapshot.last_intel_year = Some(compat_year);
+            snapshot.seen_year = Some(compat_year);
+            snapshot.scout_year = Some(compat_year);
+        }
+        PlanetIntelSource::CivilDisorderContact => {
+            snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
             snapshot.last_intel_year = Some(compat_year);
             snapshot.seen_year = Some(compat_year);
             snapshot.scout_year = Some(compat_year);
         }
         PlanetIntelSource::AssaultFailure => {
+            snapshot.known_name = Some(planet.status_or_name_summary());
+            snapshot.known_owner_empire_id = Some(planet.owner_empire_slot_raw());
+            snapshot.known_potential_production = Some(planet.potential_production_points());
             snapshot.last_intel_year = Some(year);
             snapshot.seen_year = Some(year);
             snapshot.scout_year = Some(0);

@@ -811,6 +811,7 @@ impl App {
                 world.known_owner_empire_id,
                 world.known_owner_empire_name.as_deref(),
                 KnownOwnerLabelStyle::Database,
+                world.known_owner_empire_id.and_then(|id| self.game_data.empire_campaign_state(id)),
             );
             let year_label = intel_snapshot
                 .and_then(|snapshot| snapshot.last_intel_year)

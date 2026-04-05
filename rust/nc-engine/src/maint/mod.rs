@@ -250,6 +250,10 @@ pub fn run_maintenance_turn_with_context_and_seed(
     mission_retarget_events.extend(retarget::refresh_join_host_targets(game_data));
     mission_retarget_events.extend(retarget::refresh_guard_starbase_targets(game_data));
 
+    // Autopilot fleet recall: idle fleets in deep space get SeekHome before
+    // movement so they can start heading home this turn.
+    economics::process_autopilot_fleet_orders(game_data)?;
+
     // Process fleet orders; collect side-effect events
     let mut movement_events =
         movement::process_fleet_movement(game_data, visible_hazards_by_empire)?;
@@ -391,11 +395,33 @@ pub fn run_maintenance_turn_with_context_and_seed(
         }
     }
 
+    let blocked_colonization_intel_events = colonization_events
+        .iter()
+        .filter_map(|event| match *event {
+            ColonizationResolvedEvent::BlockedByOwner {
+                fleet_idx,
+                planet_idx,
+                colonizer_empire_raw,
+                ..
+            } => Some(PlanetIntelEvent {
+                planet_idx,
+                viewer_empire_raw: colonizer_empire_raw,
+                source: nc_data::PlanetIntelSource::ColonizeBlockedByOwner,
+                source_fleet_idx: Some(fleet_idx),
+                observed_snapshot: None,
+                stardate_week: None,
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
     let events = MaintenanceEvents {
         bombard_events: assault_events.bombard_events,
         planet_intel_events: {
             let mut events = movement_events.planet_intel_events;
+            events.extend(fleet_battle_phase_events.planet_intel_events);
             events.extend(assault_events.planet_intel_events);
+            events.extend(blocked_colonization_intel_events);
             events
         },
         ownership_change_events: assault_events.ownership_change_events,

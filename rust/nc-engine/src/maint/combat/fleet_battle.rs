@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     CoreGameData, DiplomacyOverride, DiplomaticRelation, EncounterDispositionEvent,
     EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError,
-    MissionEvent, MissionOutcome, Order, ScoutContactEvent, StarbaseDestroyedEvent,
+    MissionEvent, MissionOutcome, Order, PlanetIntelEvent, ScoutContactEvent,
+    StarbaseDestroyedEvent,
 };
 
 use super::exchange::{
@@ -335,6 +336,7 @@ pub(crate) struct FleetBattlePhaseEvents {
     pub fleet_destroyed_events: Vec<FleetDestroyedEvent>,
     pub starbase_destroyed_events: Vec<StarbaseDestroyedEvent>,
     pub scout_contact_events: Vec<ScoutContactEvent>,
+    pub planet_intel_events: Vec<PlanetIntelEvent>,
     pub encounter_disposition_events: Vec<EncounterDispositionEvent>,
     pub mission_events: Vec<MissionEvent>,
 }
@@ -390,6 +392,7 @@ pub(crate) fn process_fleet_battles(
                 }
                 push_contact_event_for_task_force(
                     &mut events.scout_contact_events,
+                    &mut events.planet_intel_events,
                     game_data,
                     coords,
                     left,
@@ -397,6 +400,7 @@ pub(crate) fn process_fleet_battles(
                 );
                 push_contact_event_for_task_force(
                     &mut events.scout_contact_events,
+                    &mut events.planet_intel_events,
                     game_data,
                     coords,
                     right,

@@ -257,6 +257,12 @@ fn test_colonization_emits_blocked_event_for_occupied_world() {
             && event.outcome == MissionOutcome::Failed
             && event.planet_idx == Some(13)
     }));
+    assert!(events.planet_intel_events.iter().any(|event| {
+        event.planet_idx == 13
+            && event.viewer_empire_raw == 1
+            && event.source == PlanetIntelSource::ColonizeBlockedByOwner
+            && event.source_fleet_idx == Some(0)
+    }));
     let target = &game_data.planets.records[13];
     assert_eq!(target.owner_empire_slot_raw(), 2);
     assert_eq!(target.planet_name(), "TargetPrime");

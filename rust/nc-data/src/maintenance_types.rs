@@ -90,6 +90,8 @@ pub struct AssaultReportEvent {
 pub enum PlanetIntelSource {
     ScoutSolarSystem,
     ViewWorld,
+    ColonizeBlockedByOwner,
+    CivilDisorderContact,
     AssaultSuccess,
     AssaultFailure,
 }
