@@ -31,6 +31,11 @@ style "menu_hotkey" {
     bg "black"
     bold #true
 }
+style "menu_featured_hotkey" {
+    fg "bright_cyan"
+    bg "black"
+    bold #true
+}
 style "prompt" {
     fg "white"
     bg "black"

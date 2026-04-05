@@ -199,11 +199,26 @@ pub struct MenuEntry<'a> {
     pub col: usize,
     pub hotkey: &'a str,
     pub label: &'a str,
+    pub featured: bool,
 }
 
 impl<'a> MenuEntry<'a> {
     pub const fn new(col: usize, hotkey: &'a str, label: &'a str) -> Self {
-        Self { col, hotkey, label }
+        Self {
+            col,
+            hotkey,
+            label,
+            featured: false,
+        }
+    }
+
+    pub const fn featured(col: usize, hotkey: &'a str, label: &'a str) -> Self {
+        Self {
+            col,
+            hotkey,
+            label,
+            featured: true,
+        }
     }
 }
 
@@ -239,7 +254,7 @@ pub fn draw_title_bar_at_col(buffer: &mut PlayfieldBuffer, row: usize, col: usiz
 pub fn draw_menu_row(buffer: &mut PlayfieldBuffer, row: usize, entries: &[MenuEntry<'_>]) {
     buffer.fill_row(row, classic::menu_style());
     for entry in entries {
-        draw_menu_entry(buffer, row, entry.col, entry.hotkey, entry.label);
+        draw_menu_entry_item(buffer, row, *entry);
     }
 }
 
@@ -253,13 +268,7 @@ pub fn draw_command_center(
 ) {
     draw_title_bar_at_col(buffer, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, title);
     for entry in top_row_entries {
-        draw_menu_entry(
-            buffer,
-            PRIMARY_MENU_ROW,
-            entry.col,
-            entry.hotkey,
-            entry.label,
-        );
+        draw_menu_entry_item(buffer, PRIMARY_MENU_ROW, *entry);
     }
     for (idx, row_entries) in rows.iter().enumerate() {
         draw_menu_row(buffer, PRIMARY_MENU_ROW + idx + 1, row_entries);
@@ -282,13 +291,7 @@ pub fn draw_command_center_padded(
 ) {
     draw_title_bar_at_col(buffer, PRIMARY_MENU_ROW, PRIMARY_MENU_TITLE_COL, title);
     for entry in top_row_entries {
-        draw_menu_entry(
-            buffer,
-            PRIMARY_MENU_ROW,
-            entry.col,
-            entry.hotkey,
-            entry.label,
-        );
+        draw_menu_entry_item(buffer, PRIMARY_MENU_ROW, *entry);
     }
     for (idx, row_entries) in rows.iter().enumerate() {
         draw_menu_row(buffer, PRIMARY_MENU_ROW + idx + 1, row_entries);
@@ -332,11 +335,38 @@ pub fn draw_menu_entry(
     hotkey: &str,
     label: &str,
 ) {
+    draw_menu_entry_styled(buffer, row, col, hotkey, label, false);
+}
+
+pub fn draw_menu_entry_item(buffer: &mut PlayfieldBuffer, row: usize, entry: MenuEntry<'_>) {
+    draw_menu_entry_styled(
+        buffer,
+        row,
+        entry.col,
+        entry.hotkey,
+        entry.label,
+        entry.featured,
+    );
+}
+
+pub fn draw_menu_entry_styled(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    hotkey: &str,
+    label: &str,
+    featured: bool,
+) {
+    let hotkey_style = if featured {
+        classic::menu_featured_hotkey_style()
+    } else {
+        classic::menu_hotkey_style()
+    };
     buffer.write_spans(
         row,
         col,
         &[
-            StyledSpan::new(hotkey, classic::menu_hotkey_style()),
+            StyledSpan::new(hotkey, hotkey_style),
             StyledSpan::new(">", classic::menu_style()),
             StyledSpan::new(label, classic::menu_style()),
         ],

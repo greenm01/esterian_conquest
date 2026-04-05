@@ -12,7 +12,7 @@ use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, LEFT_WINDOW_PAD_COL, MenuEntry, PRIMARY_MENU_ROW,
     PRIMARY_MENU_TITLE_COL, PromptFeedback, dismiss_prompt_row, draw_alert_line_at_col,
     draw_command_line_default_input_padded, draw_command_prompt_padded, draw_dismiss_prompt_padded,
-    draw_expert_menu_padded, draw_inline_planet_info_prompt_padded, draw_menu_entry,
+    draw_expert_menu_padded, draw_inline_planet_info_prompt_padded, draw_menu_entry_item,
     draw_menu_notice_padded, draw_notice_line_at_col, draw_prompt_error_after_padded,
     draw_prompt_feedback_after_padded, draw_status_line, draw_title_bar_at_col,
     draw_title_bar_padded, draw_wrapped_message, last_body_row, menu_prompt_row, new_playfield,
@@ -207,7 +207,7 @@ const ROW_2: [MenuEntry<'static>; 4] = [
 
 const ROW_3: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_1, "X", "pert Mode"),
-    MenuEntry::new(FLEET_COL_2, "F", "leet List"),
+    MenuEntry::featured(FLEET_COL_2, "F", "leet List"),
     MenuEntry::new(FLEET_COL_3, "D", "etach Ships"),
     MenuEntry::new(FLEET_COL_4, "L", "oad TTs w/Armies"),
 ];
@@ -300,13 +300,7 @@ impl FleetMenuScreen {
             "FLEET COMMAND CENTER:",
         );
         for entry in TOP_ROW {
-            draw_menu_entry(
-                &mut buffer,
-                PRIMARY_MENU_ROW,
-                entry.col,
-                entry.hotkey,
-                entry.label,
-            );
+            draw_menu_entry_item(&mut buffer, PRIMARY_MENU_ROW, entry);
         }
         for (row_idx, row) in [
             ROW_1.as_slice(),
@@ -315,17 +309,11 @@ impl FleetMenuScreen {
             ROW_4.as_slice(),
         ]
         .into_iter()
-        .enumerate()
+            .enumerate()
         {
             buffer.fill_row(PRIMARY_MENU_ROW + row_idx + 1, classic::menu_style());
             for entry in row {
-                draw_menu_entry(
-                    &mut buffer,
-                    PRIMARY_MENU_ROW + row_idx + 1,
-                    entry.col,
-                    entry.hotkey,
-                    entry.label,
-                );
+                draw_menu_entry_item(&mut buffer, PRIMARY_MENU_ROW + row_idx + 1, *entry);
             }
         }
         let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 4);

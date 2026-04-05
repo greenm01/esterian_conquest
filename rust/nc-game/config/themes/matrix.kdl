@@ -48,6 +48,11 @@ style "menu_hotkey" {
     bg "#0D0208"
     bold #true
 }
+style "menu_featured_hotkey" {
+    fg "#339933"
+    bg "#0D0208"
+    bold #true
+}
 style "prompt" {
     fg "#55ff55"
     bg "#0D0208"

@@ -9,7 +9,7 @@ use crate::screen::layout::{
     PRIMARY_MENU_TITLE_COL, draw_command_line_default_input_padded,
     draw_command_line_prompt_text_padded, draw_command_prompt_padded, draw_expert_menu_padded,
     draw_inline_confirm_block_padded, draw_inline_planet_info_prompt_padded,
-    draw_inline_tax_prompt_padded, draw_menu_entry, draw_menu_notice_padded,
+    draw_inline_tax_prompt_padded, draw_menu_entry_item, draw_menu_notice_padded,
     draw_prompt_error_after_padded, draw_title_bar_at_col, draw_title_bar_padded, menu_prompt_row,
     new_playfield,
 };
@@ -38,7 +38,7 @@ const ROW_1: [MenuEntry<'static>; 4] = [
 const ROW_2: [MenuEntry<'static>; 4] = [
     MenuEntry::new(PLANET_COL_1, "Q", "uit: Main Menu"),
     MenuEntry::new(PLANET_COL_2, "A", "UTO-COMMISSION"),
-    MenuEntry::new(PLANET_COL_3, "P", "lanet List"),
+    MenuEntry::featured(PLANET_COL_3, "P", "lanet List"),
     MenuEntry::new(PLANET_COL_4, "L", "oad TTs w/Armies"),
 ];
 
@@ -189,13 +189,7 @@ impl PlanetMenuScreen {
             "PLANET COMMANDS:",
         );
         for entry in TOP_ROW {
-            draw_menu_entry(
-                &mut buffer,
-                PRIMARY_MENU_ROW,
-                entry.col,
-                entry.hotkey,
-                entry.label,
-            );
+            draw_menu_entry_item(&mut buffer, PRIMARY_MENU_ROW, entry);
         }
         for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice()]
             .into_iter()
@@ -206,13 +200,7 @@ impl PlanetMenuScreen {
                 if entry.hotkey.trim().is_empty() {
                     continue;
                 }
-                draw_menu_entry(
-                    &mut buffer,
-                    PRIMARY_MENU_ROW + row_idx + 1,
-                    entry.col,
-                    entry.hotkey,
-                    entry.label,
-                );
+                draw_menu_entry_item(&mut buffer, PRIMARY_MENU_ROW + row_idx + 1, *entry);
             }
         }
         let command_row = menu_prompt_row(PRIMARY_MENU_ROW + 3);
