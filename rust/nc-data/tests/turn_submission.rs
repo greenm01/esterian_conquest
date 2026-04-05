@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use nc_compat::import_directory_snapshot;
 use nc_data::{
     CampaignStore, DiplomaticRelation, Order, PlanetPlayerInputValidationError, TurnSubmission,
 };
@@ -325,6 +326,70 @@ message to=2 subject="Scout" body="Watch the lane."
     let state = store.load_latest_runtime_state().unwrap().unwrap();
     assert_eq!(state.game_data.player.records[0].tax_rate(), 37);
     assert_eq!(state.queued_mail.len(), 1);
+
+    cleanup_dir(&dir);
+}
+
+#[test]
+fn turn_submission_runtime_helper_clears_inactivity_auto_enabled_autopilot() {
+    let dir = fixture_copy("nc-data-submit-turn-autopilot");
+    let store = CampaignStore::open_default_in_dir(&dir).unwrap();
+    import_directory_snapshot(&store, &dir).unwrap();
+
+    let mut state = store.load_latest_runtime_state().unwrap().unwrap();
+    state.game_data.join_player(1, "Codex Dominion").unwrap();
+    state
+        .game_data
+        .rename_player_homeworld(1, "Codex Prime")
+        .unwrap();
+    state.game_data.player.records[0].set_autopilot_flag(1);
+    state.game_data.player.records[0].set_last_run_year_raw(2997);
+    let planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            store.latest_planet_intel_for_viewer(viewer_empire_id)
+                .unwrap()
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<std::collections::BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let mut player_activity_states = store
+        .latest_player_activity_states(state.game_data.conquest.player_count())
+        .unwrap();
+    player_activity_states[0].last_participation_year = 2997;
+    player_activity_states[0].inactivity_autopilot_pending_clear = true;
+    store
+        .save_runtime_state_structured_with_intel_and_activity(
+            &state.game_data,
+            &state.planet_scorch_orders,
+            &state.report_block_rows,
+            &state.queued_mail,
+            &planet_intel_by_viewer,
+            &player_activity_states,
+        )
+        .unwrap();
+
+    let path = dir.join("turn.kdl");
+    fs::write(
+        &path,
+        r#"
+turn player=1 year=3000
+tax rate=37
+"#,
+    )
+    .unwrap();
+
+    TurnSubmission::submit_kdl_file_to_campaign_dir(&dir, 1, &path, false).unwrap();
+
+    let state = store.load_latest_runtime_state().unwrap().unwrap();
+    assert_eq!(state.game_data.player.records[0].tax_rate(), 37);
+    assert_eq!(state.game_data.player.records[0].autopilot_flag(), 0);
+    assert_eq!(state.game_data.player.records[0].last_run_year_raw(), 2997);
+    let activity = store
+        .latest_player_activity_states(state.game_data.conquest.player_count())
+        .unwrap();
+    assert_eq!(activity[0].last_participation_year, 3000);
+    assert!(!activity[0].inactivity_autopilot_pending_clear);
 
     cleanup_dir(&dir);
 }

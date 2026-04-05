@@ -4,7 +4,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{OptionalExtension, params};
 
-use super::{CampaignRuntimeState, CampaignStore, CampaignStoreError, PlanetIntelSnapshot};
+use super::{
+    CampaignRuntimeState, CampaignStore, CampaignStoreError, PlanetIntelSnapshot,
+    PlayerActivityState,
+};
 use crate::{
     CoreGameData, QueuedPlayerMail, ReportBlockRow, derive_campaign_seed_from_runtime,
     generate_campaign_seed,
@@ -76,6 +79,7 @@ impl CampaignStore {
             None,
             None,
             None,
+            None,
         )
     }
 
@@ -93,6 +97,7 @@ impl CampaignStore {
             planet_scorch_orders,
             report_block_rows,
             queued_mail,
+            None,
             None,
             None,
             Some((player_record_index_1_based, player_npub)),
@@ -134,6 +139,51 @@ impl CampaignStore {
             Some(planet_intel_by_viewer),
             campaign_seed,
             None,
+            None,
+        )
+    }
+
+    pub fn save_runtime_state_structured_with_intel_and_activity(
+        &self,
+        game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
+        report_block_rows: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+        planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+        player_activity_states: &[PlayerActivityState],
+    ) -> Result<i64, CampaignStoreError> {
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            Some(planet_intel_by_viewer),
+            None,
+            Some(player_activity_states),
+            None,
+        )
+    }
+
+    pub fn save_runtime_state_structured_with_intel_activity_and_claim_hosted_seat(
+        &self,
+        game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
+        report_block_rows: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+        planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+        player_activity_states: &[PlayerActivityState],
+        player_record_index_1_based: usize,
+        player_npub: &str,
+    ) -> Result<i64, CampaignStoreError> {
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            Some(planet_intel_by_viewer),
+            None,
+            Some(player_activity_states),
+            Some((player_record_index_1_based, player_npub)),
         )
     }
 
@@ -145,6 +195,7 @@ impl CampaignStore {
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
         campaign_seed_override: Option<u64>,
+        player_activity_override: Option<&[PlayerActivityState]>,
         hosted_claim: Option<(usize, &str)>,
     ) -> Result<i64, CampaignStoreError> {
         let year = game_data.conquest.game_year();
@@ -159,6 +210,7 @@ impl CampaignStore {
             queued_mail,
             planet_intel_by_viewer_override,
             campaign_seed_override,
+            player_activity_override,
             hosted_claim,
         )?;
         tx.commit()?;
@@ -175,6 +227,7 @@ pub(super) fn save_runtime_state_internal_tx(
     queued_mail: &[QueuedPlayerMail],
     planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
     campaign_seed_override: Option<u64>,
+    player_activity_override: Option<&[PlayerActivityState]>,
     hosted_claim: Option<(usize, &str)>,
 ) -> Result<i64, CampaignStoreError> {
     let campaign_seed = super::metadata::load_campaign_seed_tx(&tx)?
@@ -224,6 +277,13 @@ pub(super) fn save_runtime_state_internal_tx(
         game_data,
         year,
         previous_snapshot_id,
+    )?;
+    super::player_activity::write_player_activity_rows(
+        &tx,
+        snapshot_id,
+        game_data,
+        previous_snapshot_id,
+        player_activity_override,
     )?;
     if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
         let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(

@@ -5,7 +5,7 @@ use crate::{
     CampaignRuntimeState, CampaignStore, CampaignStoreError, CoreGameData,
     DEFAULT_CAMPAIGN_DB_NAME, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
     TurnSubmission, TurnSubmissionError, TurnSubmissionReport, derive_campaign_seed_from_runtime,
-    load_mail_queue, merge_player_intel_from_runtime,
+    load_mail_queue, merge_player_intel_from_runtime, record_submitted_turn_participation,
 };
 
 pub(super) fn submit_turn_kdl_file(
@@ -31,12 +31,21 @@ pub(super) fn submit_turn_kdl_file(
     let mut state = load_or_seed_runtime_state(dir, &store)?;
     let report = submission.apply_to(&mut state.game_data, &mut state.queued_mail)?;
     let planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
-    store.save_runtime_state_structured_with_intel(
+    let mut player_activity_states =
+        store.latest_player_activity_states(state.game_data.conquest.player_count())?;
+    record_submitted_turn_participation(
+        &mut state.game_data,
+        player_record_index_1_based,
+        submission.year,
+        &mut player_activity_states,
+    );
+    store.save_runtime_state_structured_with_intel_and_activity(
         &state.game_data,
         &state.planet_scorch_orders,
         &state.report_block_rows,
         &state.queued_mail,
         &planet_intel_by_viewer,
+        &player_activity_states,
     )?;
     Ok(report)
 }

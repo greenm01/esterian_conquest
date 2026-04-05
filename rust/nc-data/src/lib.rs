@@ -25,6 +25,7 @@ pub mod maintenance_types;
 mod map_dimensions;
 mod map_export;
 mod player_mail;
+mod player_activity;
 mod records;
 mod report_blocks;
 mod rng;
@@ -74,6 +75,11 @@ pub use player_mail::{
     clear_mail_queue, load_mail_queue, queued_message_count_for_sender_recipient_year,
     save_mail_queue, validate_queue_message_limit,
 };
+pub use player_activity::{
+    DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, apply_inactivity_autopilot_policy,
+    clear_inactivity_autopilot_pending, default_player_activity_states,
+    record_interactive_participation, record_submitted_turn_participation,
+};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::fleet::{FleetDat, FleetRecord, Order};
@@ -94,7 +100,7 @@ pub use storage::{
     ClaimHostedSeatError, DEFAULT_CAMPAIGN_DB_NAME, DEFAULT_CAMPAIGN_THEME_KEY,
     DEFAULT_MAINTENANCE_INTERVAL_MINUTES, HostedPublishJob, HostedPublishJobKind,
     HostedPublishJobStatus, HostedSeat, HostedSeatStatus, IntelTier, PlanetIntelSnapshot,
-    SessionLease, SessionLeaseError, SessionLeaseState,
+    PlayerActivityState, SessionLease, SessionLeaseError, SessionLeaseState,
 };
 pub use support::{ParseError, decode_real48, encode_real48};
 pub use turns::{

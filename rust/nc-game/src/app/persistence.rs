@@ -25,6 +25,10 @@ impl App {
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        self.player_activity_states = self
+            .planet
+            .campaign_store
+            .latest_player_activity_states(self.game_data.conquest.player_count())?;
         self.owned_planet_years = self
             .planet
             .campaign_store
@@ -48,6 +52,10 @@ impl App {
         self.report_block_rows = runtime_state.report_block_rows;
         self.queued_mail = runtime_state.queued_mail;
         self.planet_scorch_orders = runtime_state.planet_scorch_orders;
+        self.player_activity_states = self
+            .planet
+            .campaign_store
+            .latest_player_activity_states(self.game_data.conquest.player_count())?;
         Ok(())
     }
 
@@ -77,12 +85,30 @@ impl App {
     }
 
     pub(crate) fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let new_snapshot_id = self.planet.campaign_store.save_runtime_state_structured(
-            &self.game_data,
-            &self.planet_scorch_orders,
-            &self.report_block_rows,
-            &self.queued_mail,
-        )?;
+        let planet_intel_by_viewer = (1..=self.game_data.conquest.player_count())
+            .map(|viewer_empire_id| {
+                self.planet
+                    .campaign_store
+                    .latest_planet_intel_for_viewer(viewer_empire_id)
+                    .map(|snapshots| {
+                        snapshots
+                            .into_iter()
+                            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                            .collect::<BTreeMap<_, _>>()
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let new_snapshot_id = self
+            .planet
+            .campaign_store
+            .save_runtime_state_structured_with_intel_and_activity(
+                &self.game_data,
+                &self.planet_scorch_orders,
+                &self.report_block_rows,
+                &self.queued_mail,
+                &planet_intel_by_viewer,
+                &self.player_activity_states,
+            )?;
         self.snapshot_id = new_snapshot_id;
         self.planet_intel_snapshots = self
             .planet
@@ -96,6 +122,10 @@ impl App {
             .campaign_store
             .latest_owned_planet_years_for_empire(self.player.record_index_1_based as u8)?;
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
+        self.player_activity_states = self
+            .planet
+            .campaign_store
+            .latest_player_activity_states(self.game_data.conquest.player_count())?;
         Ok(())
     }
 
@@ -103,14 +133,29 @@ impl App {
         &mut self,
         player_npub: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let planet_intel_by_viewer = (1..=self.game_data.conquest.player_count())
+            .map(|viewer_empire_id| {
+                self.planet
+                    .campaign_store
+                    .latest_planet_intel_for_viewer(viewer_empire_id)
+                    .map(|snapshots| {
+                        snapshots
+                            .into_iter()
+                            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                            .collect::<BTreeMap<_, _>>()
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let new_snapshot_id = self
             .planet
             .campaign_store
-            .save_runtime_state_structured_and_claim_hosted_seat(
+            .save_runtime_state_structured_with_intel_activity_and_claim_hosted_seat(
                 &self.game_data,
                 &self.planet_scorch_orders,
                 &self.report_block_rows,
                 &self.queued_mail,
+                &planet_intel_by_viewer,
+                &self.player_activity_states,
                 self.player.record_index_1_based,
                 player_npub,
             )?;
@@ -127,6 +172,10 @@ impl App {
             .campaign_store
             .latest_owned_planet_years_for_empire(self.player.record_index_1_based as u8)?;
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
+        self.player_activity_states = self
+            .planet
+            .campaign_store
+            .latest_player_activity_states(self.game_data.conquest.player_count())?;
         Ok(())
     }
 

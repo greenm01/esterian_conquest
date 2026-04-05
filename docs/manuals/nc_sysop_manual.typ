@@ -825,6 +825,12 @@ inactivity-related state in `ncgame.db`. BBS door campaigns do not use a
 separate inactivity block in `config.kdl`; caller idle handling belongs to the
 BBS software.
 
+For Rust-hosted and direct DB-only campaigns, the default inactivity autopilot
+threshold is `3` turns. Set `inactivity_autopilot_after_turns=0` if you want
+that policy disabled. A player is treated as active for the year by either
+reaching the live `nc-game` menus or successfully applying a `submit-turn`
+file.
+
 == Reserving Seats
 
 To reserve empire slots for specific BBS users, edit the per-game BBS

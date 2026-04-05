@@ -2789,6 +2789,108 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
 }
 
 #[test]
+fn returning_login_clears_only_inactivity_auto_enabled_autopilot() {
+    let fixture_dir = temp_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.player.records[0].set_autopilot_flag(1);
+    state.game_data.player.records[0].set_last_run_year_raw(2997);
+    let planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            store.latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let mut player_activity_states = store
+        .latest_player_activity_states(state.game_data.conquest.player_count())
+        .expect("load player activity");
+    player_activity_states[0].last_participation_year = 2997;
+    player_activity_states[0].inactivity_autopilot_pending_clear = true;
+    save_runtime_state_with_intel_and_activity(
+        &fixture_dir,
+        &state,
+        &planet_intel_by_viewer,
+        &player_activity_states,
+    );
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(app.current_autopilot_flag(), 0);
+
+    let reloaded = latest_runtime_state(&fixture_dir);
+    assert_eq!(reloaded.game_data.player.records[0].last_run_year_raw(), 3000);
+    let activity = CampaignStore::open_default_in_dir(&fixture_dir)
+        .expect("open campaign store")
+        .latest_player_activity_states(reloaded.game_data.conquest.player_count())
+        .expect("load player activity");
+    assert_eq!(activity[0].last_participation_year, 3000);
+    assert!(!activity[0].inactivity_autopilot_pending_clear);
+}
+
+#[test]
+fn returning_login_preserves_manual_autopilot() {
+    let fixture_dir = temp_game_copy();
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.game_data.player.records[0].set_autopilot_flag(1);
+    state.game_data.player.records[0].set_last_run_year_raw(2997);
+    let planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            store.latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let mut player_activity_states = store
+        .latest_player_activity_states(state.game_data.conquest.player_count())
+        .expect("load player activity");
+    player_activity_states[0].last_participation_year = 2997;
+    player_activity_states[0].inactivity_autopilot_pending_clear = false;
+    save_runtime_state_with_intel_and_activity(
+        &fixture_dir,
+        &state,
+        &planet_intel_by_viewer,
+        &player_activity_states,
+    );
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(app.current_autopilot_flag(), 1);
+
+    let reloaded = latest_runtime_state(&fixture_dir);
+    assert_eq!(reloaded.game_data.player.records[0].last_run_year_raw(), 3000);
+    let activity = CampaignStore::open_default_in_dir(&fixture_dir)
+        .expect("open campaign store")
+        .latest_player_activity_states(reloaded.game_data.conquest.player_count())
+        .expect("load player activity");
+    assert_eq!(activity[0].last_participation_year, 3000);
+    assert!(!activity[0].inactivity_autopilot_pending_clear);
+}
+
+#[test]
 fn apply_action_clamps_enemies_scroll_to_visible_window() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

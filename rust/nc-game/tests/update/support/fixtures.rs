@@ -225,14 +225,33 @@ pub(crate) fn save_runtime_state_with_intel(
     state: &CampaignRuntimeState,
     planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
 ) {
+    let player_activity_states = CampaignStore::open_default_in_dir(root)
+        .expect("open campaign store")
+        .latest_player_activity_states(state.game_data.conquest.player_count())
+        .expect("load player activity");
+    save_runtime_state_with_intel_and_activity(
+        root,
+        state,
+        planet_intel_by_viewer,
+        &player_activity_states,
+    );
+}
+
+pub(crate) fn save_runtime_state_with_intel_and_activity(
+    root: &Path,
+    state: &CampaignRuntimeState,
+    planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+    player_activity_states: &[nc_data::PlayerActivityState],
+) {
     CampaignStore::open_default_in_dir(root)
         .expect("open campaign store")
-        .save_runtime_state_structured_with_intel(
+        .save_runtime_state_structured_with_intel_and_activity(
             &state.game_data,
             &state.planet_scorch_orders,
             &state.report_block_rows,
             &state.queued_mail,
             planet_intel_by_viewer,
+            player_activity_states,
         )
         .expect("save runtime state");
 }

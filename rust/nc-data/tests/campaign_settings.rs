@@ -228,3 +228,30 @@ fn campaign_settings_can_coexist_with_hosted_seats() {
 
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn campaign_settings_new_defaults_inactivity_autopilot_to_three_turns() {
+    let settings = CampaignSettings::new("friday-night", "Friday Night EC");
+    assert_eq!(settings.inactivity_autopilot_after_turns, 3);
+}
+
+#[test]
+fn latest_player_activity_states_derives_from_last_run_year_when_sidecar_missing() {
+    let (root, store, mut game_data) = seeded_store("nc-data-settings-activity-derive");
+    game_data.player.records[0].set_last_run_year_raw(2998);
+    store
+        .save_runtime_state_structured(&game_data, &BTreeSet::new(), &[], &[])
+        .expect("save runtime state");
+
+    let conn = rusqlite::Connection::open(root.join("ncgame.db")).expect("open sqlite db");
+    conn.execute("DELETE FROM player_activity", [])
+        .expect("delete player activity");
+
+    let activity = store
+        .latest_player_activity_states(game_data.conquest.player_count())
+        .expect("load player activity");
+    assert_eq!(activity[0].last_participation_year, 2998);
+    assert!(!activity[0].inactivity_autopilot_pending_clear);
+
+    let _ = fs::remove_dir_all(root);
+}

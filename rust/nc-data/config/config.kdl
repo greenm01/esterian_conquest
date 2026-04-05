@@ -30,7 +30,7 @@ inactivity {
     // Purge a player after this many inactive turns (0–100).
     purge_after_turns 0
     // Put a player on autopilot after this many inactive turns (0–100).
-    autopilot_after_turns 0
+    autopilot_after_turns 3
 }
 
 // Optional BBS/dropfile seat reservations by caller alias.

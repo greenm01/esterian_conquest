@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 
 use nc_data::{
     BbsGameConfig, CampaignSettings, CampaignStore, MaintenanceEvents, PlanetIntelSnapshot,
-    SeatReservation, generate_campaign_seed, latest_planet_intel_grants_for_viewer,
-    merge_player_intel_from_runtime,
+    SeatReservation, apply_inactivity_autopilot_policy, generate_campaign_seed,
+    latest_planet_intel_grants_for_viewer, merge_player_intel_from_runtime,
 };
 use nc_engine::{
     VisibleHazardIntel, build_results_report_blocks, build_seeded_new_game,
@@ -661,9 +661,17 @@ fn run_maintenance_for_dir(
         runtime_state.snapshot_id,
         game_data.conquest.player_count(),
     )?;
+    let mut player_activity_states =
+        store.latest_player_activity_states(game_data.conquest.player_count())?;
     let mut all_events = MaintenanceEvents::default();
 
     for turn in 1..=turns {
+        let inactivity_threshold = game_data.setup.autopilot_inactive_turns_raw();
+        apply_inactivity_autopilot_policy(
+            &mut game_data,
+            inactivity_threshold,
+            &mut player_activity_states,
+        );
         let visible_hazards = visible_hazards_from_snapshots(&game_data, &planet_intel_by_viewer);
         let events = if visible_hazards.is_empty() {
             run_maintenance_turn_with_seed(&mut game_data, campaign_seed)?
@@ -698,12 +706,13 @@ fn run_maintenance_for_dir(
     }
 
     let report_block_rows = build_results_report_blocks(&mut game_data, &all_events);
-    store.save_runtime_state_structured_with_intel(
+    store.save_runtime_state_structured_with_intel_and_activity(
         &game_data,
         &runtime_state.planet_scorch_orders,
         &report_block_rows,
         &runtime_state.queued_mail,
         &planet_intel_by_viewer,
+        &player_activity_states,
     )?;
 
     if update_schedule {

@@ -11,6 +11,39 @@ use crate::screen::{
 use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
+    fn record_returning_player_participation_once(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if self.player.classic_login_state != ClassicLoginState::ReturningPlayer {
+            return Ok(());
+        }
+        let player_idx = self.player.record_index_1_based.saturating_sub(1);
+        let current_year = self.game_data.conquest.game_year();
+        let Some(activity_state) = self.player_activity_states.get(player_idx).copied() else {
+            return Ok(());
+        };
+        let last_run_year = self
+            .game_data
+            .player
+            .records
+            .get(player_idx)
+            .map(|player| player.last_run_year_raw())
+            .unwrap_or(0);
+        if last_run_year == current_year
+            && activity_state.last_participation_year == current_year
+            && !activity_state.inactivity_autopilot_pending_clear
+        {
+            return Ok(());
+        }
+        nc_data::record_interactive_participation(
+            &mut self.game_data,
+            self.player.record_index_1_based,
+            &mut self.player_activity_states,
+        );
+        self.save_game_data()?;
+        Ok(())
+    }
+
     pub fn enter_unbound_bbs_first_time_mode(&mut self) {
         self.startup_state.unbound_bbs_caller = true;
         self.startup_state.fixed_player_launch = false;
@@ -1503,6 +1536,9 @@ impl App {
                     ScreenId::FirstTimePreloadedRenamePrompt
                 }
                 crate::model::ClassicLoginState::ReturningPlayer => {
+                    if let Err(err) = self.record_returning_player_participation_once() {
+                        tracing::error!(error = %err, "failed to record returning-player participation");
+                    }
                     self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
                 }
             },

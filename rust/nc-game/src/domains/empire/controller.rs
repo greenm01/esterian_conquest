@@ -81,6 +81,10 @@ impl App {
         let player = &mut self.game_data.player.records[self.player.record_index_1_based - 1];
         let next = if player.autopilot_flag() == 0 { 1 } else { 0 };
         player.set_autopilot_flag(next);
+        nc_data::clear_inactivity_autopilot_pending(
+            self.player.record_index_1_based,
+            &mut self.player_activity_states,
+        );
         self.save_game_data()?;
         Ok(())
     }

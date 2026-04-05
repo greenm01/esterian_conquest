@@ -3,6 +3,7 @@ use rusqlite::{OptionalExtension, params};
 use super::{CampaignStore, CampaignStoreError};
 use crate::SeatReservation;
 use crate::bbs_config::validate_reservations as validate_shared_reservations;
+use crate::DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS;
 
 pub const DEFAULT_CAMPAIGN_THEME_KEY: &str = "tokyo_night";
 pub const DEFAULT_MAINTENANCE_INTERVAL_MINUTES: u32 = 24 * 60;
@@ -61,7 +62,7 @@ impl CampaignSettings {
             session_local_timeout: false,
             session_remote_timeout: true,
             inactivity_purge_after_turns: 0,
-            inactivity_autopilot_after_turns: 0,
+            inactivity_autopilot_after_turns: DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS,
             maintenance_enabled: false,
             maintenance_interval_minutes: DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
             maintenance_next_due_unix_seconds: None,

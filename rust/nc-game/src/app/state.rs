@@ -2,7 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::path::PathBuf;
 
-use nc_data::{CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
+use nc_data::{
+    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, QueuedPlayerMail,
+    ReportBlockRow,
+};
 
 use crate::app::help::PopupHelp;
 use crate::app::runtime_config::RuntimeConfig;
@@ -106,6 +109,7 @@ pub struct App {
     pub campaign_seed: u64,
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
+    pub player_activity_states: Vec<PlayerActivityState>,
     pub command_menu_notice: Option<String>,
     pub quit_confirm_open: bool,
     pub popup_help: Option<PopupHelp>,
@@ -159,6 +163,8 @@ impl App {
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        let player_activity_states =
+            campaign_store.latest_player_activity_states(game_data.conquest.player_count())?;
         let owned_planet_years = campaign_store
             .latest_owned_planet_years_for_empire(config.player_record_index_1_based as u8)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
@@ -251,6 +257,7 @@ impl App {
             campaign_seed,
             report_block_rows,
             queued_mail,
+            player_activity_states,
             command_menu_notice: None,
             quit_confirm_open: false,
             popup_help: None,

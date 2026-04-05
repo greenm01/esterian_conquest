@@ -205,6 +205,52 @@ fn nc_sysop_maint_runs_rust_maintenance() {
 }
 
 #[test]
+fn nc_sysop_maint_enables_autopilot_after_three_missed_turns() {
+    let target = unique_temp_dir("nc-sysop-maint-autopilot");
+
+    run_nc_sysop(&[
+        "new-game",
+        target.to_str().expect("utf-8 path"),
+        "--seed",
+        "1515",
+    ]);
+
+    let store = CampaignStore::open_default_in_dir(&target).expect("open campaign store");
+    let runtime = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime snapshot should exist");
+    let mut game_data = runtime.game_data;
+    game_data.join_player(1, "Codex Dominion").unwrap();
+    game_data.rename_player_homeworld(1, "Codex Prime").unwrap();
+    store
+        .save_runtime_state_structured(
+            &game_data,
+            &runtime.planet_scorch_orders,
+            &runtime.report_block_rows,
+            &runtime.queued_mail,
+        )
+        .expect("save joined runtime");
+
+    let stdout = run_nc_sysop(&["maint", target.to_str().expect("utf-8 path"), "4"]);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let runtime = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime snapshot should exist");
+    assert_eq!(runtime.game_data.conquest.game_year(), 3004);
+    assert_eq!(runtime.game_data.player.records[0].autopilot_flag(), 1);
+    let activity = store
+        .latest_player_activity_states(runtime.game_data.conquest.player_count())
+        .expect("load player activity");
+    assert_eq!(activity[0].last_participation_year, 3000);
+    assert!(activity[0].inactivity_autopilot_pending_clear);
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn nc_sysop_new_game_rejects_year_flag() {
     let target = unique_temp_dir("nc-sysop-new-game-year");
 
