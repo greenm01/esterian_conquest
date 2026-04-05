@@ -959,12 +959,13 @@ fn generate_report_entries(
         }) {
             continue;
         }
-        let enemy_list = event
-            .enemy_empires_raw
-            .iter()
-            .map(|empire| classic_empire_clause(game_data, *empire))
-            .collect::<Vec<_>>()
-            .join(", ");
+        let enemy_list = join_report_parts(
+            &event
+                .enemy_empires_raw
+                .iter()
+                .map(|empire| classic_empire_clause(game_data, *empire))
+                .collect::<Vec<_>>(),
+        );
         let [x, y] = event.coords;
         let source =
             owned_fleet_source_clause(event.reporting_fleet_number, &format!("System({x},{y})"));
@@ -1255,7 +1256,18 @@ fn generate_report_entries(
     }
 
     // ----- Scout contact events -----
+    let mut seen_contacts: std::collections::HashSet<(u8, u8, [u8; 2])> =
+        std::collections::HashSet::new();
     for event in &events.scout_contact_events {
+        if event.small_vessels == 0 && event.medium_vessels == 0 && event.large_vessels == 0 {
+            continue;
+        }
+        if !matches!(event.source, ContactReportSource::Starbase(_)) {
+            let contact_key = (event.viewer_empire_raw, event.target_empire_raw, event.coords);
+            if !seen_contacts.insert(contact_key) {
+                continue;
+            }
+        }
         let [x, y] = event.coords;
         let size_summary = contact_size_summary(event);
         match event.source {
@@ -1490,11 +1502,12 @@ fn generate_report_entries(
             // Sort by fleet number for stable, predictable output.
             fleet_entries.sort_by_key(|&(_, fleet_number, _, _)| fleet_number);
             let [x, y] = coords;
-            let fleet_list = fleet_entries
-                .iter()
-                .map(|(_, fleet_number, label, _)| format!("Fleet {} ({})", fleet_number, label))
-                .collect::<Vec<_>>()
-                .join(", ");
+            let fleet_list = join_report_parts(
+                &fleet_entries
+                    .iter()
+                    .map(|(_, fleet_number, label, _)| format!("Fleet {} ({})", fleet_number, label))
+                    .collect::<Vec<_>>(),
+            );
             let disposition_text = fleet_abort_disposition_text(disposition);
             let source = "From your Fleet Command Center:".to_string();
             // Use the earliest stardate_week among the group for the header.
@@ -1752,12 +1765,9 @@ fn generate_report_entries(
                 source_clause.clone(),
                 " Scouting mission report: We have arrived at our destination and are beginning to scout this sector.".to_string(),
             ),
-            (Mission::ScoutSector, MissionOutcome::Succeeded) => (
-                0x07,
-                RESULTS_TAIL_SCOUTING,
-                source_clause.clone(),
-                " Scouting mission report: We are continuing to scout this sector.".to_string(),
-            ),
+            (Mission::ScoutSector, MissionOutcome::Succeeded) => {
+                continue;
+            }
             (Mission::ScoutSector, MissionOutcome::Aborted) => {
                 (
                     0x07,
