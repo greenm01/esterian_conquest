@@ -2812,8 +2812,8 @@ fn maint_rust_join_merge_generates_join_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("Join mission report"));
-    assert!(text.contains("From your 2nd Fleet, located in"));
-    assert!(text.contains("now merging"));
+    // Report is from the host fleet's perspective.
+    assert!(text.contains("has merged with us") || text.contains("have merged with us"));
 
     cleanup_dir(&target);
 }

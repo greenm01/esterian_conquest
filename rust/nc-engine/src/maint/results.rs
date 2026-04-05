@@ -2418,31 +2418,60 @@ fn generate_report_entries(
     }
 
     // ----- Fleet merge events -----
-    // Join events: one report per absorbed fleet.
-    for event in events
-        .fleet_merge_events
-        .iter()
-        .filter(|e| e.kind == Mission::JoinAnotherFleet)
+    // Join events: one consolidated report per host fleet.
     {
-        let [x, y] = event.coords;
-        let source = owned_fleet_source_clause(
-            Some(event.absorbed_fleet_number),
-            &format!("System({x},{y})"),
-        );
-        let body = format!(
-            " Join mission report: We have joined the {} and are now merging with them.",
-            fleet_label(event.host_fleet_number)
-        );
-        let header = report_header(&source, event.stardate_week, year);
-        entries.push(ReportEntry {
-            text: format!("{header}{body}"),
-            kind: 0x05,
-            tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both {
-                recipient: event.owner_empire_raw,
-            },
-            repeat_next_pointer: false,
-        });
+        let mut join_groups: std::collections::BTreeMap<(u8, [u8; 2], u8), Vec<u8>> =
+            std::collections::BTreeMap::new();
+        let mut join_meta: std::collections::HashMap<(u8, [u8; 2], u8), Option<u8>> =
+            std::collections::HashMap::new();
+        for event in events
+            .fleet_merge_events
+            .iter()
+            .filter(|e| e.kind == Mission::JoinAnotherFleet)
+        {
+            let key = (event.owner_empire_raw, event.coords, event.host_fleet_number);
+            join_groups
+                .entry(key)
+                .or_default()
+                .push(event.absorbed_fleet_number);
+            join_meta.entry(key).or_insert(event.stardate_week);
+        }
+        for (key, absorbed_numbers) in &join_groups {
+            let (owner_empire_raw, coords, host_fleet_number) = *key;
+            let [x, y] = coords;
+            let stardate_week = join_meta[key];
+            let source = owned_fleet_source_clause(
+                Some(host_fleet_number),
+                &format!("System({x},{y})"),
+            );
+            let fleet_list = absorbed_numbers
+                .iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<_>>();
+            let body = if fleet_list.len() == 1 {
+                format!(
+                    " Join mission report: Fleet {} has merged with us.",
+                    fleet_list[0]
+                )
+            } else {
+                format!(
+                    " Join mission report: Fleets {} have merged with us.",
+                    join_report_parts(
+                        &fleet_list.iter().map(|s| s.clone()).collect::<Vec<_>>()
+                    )
+                )
+            };
+            let header = report_header(&source, stardate_week, year);
+            entries.push(ReportEntry {
+                text: format!("{header}{body}"),
+                kind: 0x05,
+                tail: RESULTS_TAIL_FLEET,
+                target: ReportTarget::Both {
+                    recipient: owner_empire_raw,
+                },
+                repeat_next_pointer: false,
+            });
+        }
     }
 
     // Rendezvous events: one consolidated report per survivor fleet.
