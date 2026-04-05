@@ -361,6 +361,7 @@ impl CoreGameData {
             },
         )?;
         reset_motion_state_for_new_orders(fleet);
+        fleet.set_current_speed(fleet.max_speed());
         fleet.set_standing_order_kind(Order::JoinAnotherFleet);
         fleet.set_standing_order_target_coords_raw(host_coords);
         fleet.set_join_host_fleet_id_raw(host_fleet_id);

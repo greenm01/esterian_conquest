@@ -347,9 +347,7 @@ impl FleetRecord {
             Order::ScoutSector => format!("Scout Sector ({x},{y})"),
             Order::ScoutSolarSystem => format!("Scout solar system ({x},{y})"),
             Order::ColonizeWorld => format!("Colonize world in System ({x},{y})"),
-            Order::JoinAnotherFleet => {
-                format!("Join another fleet at raw target ({x},{y})")
-            }
+            Order::JoinAnotherFleet => "Join another fleet".to_string(),
             Order::RendezvousSector => format!("Rendezvous at Sector ({x},{y})"),
             Order::Salvage => format!("Salvage at Sector ({x},{y})"),
             Order::Unknown(code) => {

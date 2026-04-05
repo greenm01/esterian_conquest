@@ -455,12 +455,17 @@ fn mission_location_phrase(kind: Mission, coords: [u8; 2]) -> String {
     }
 }
 
-fn contact_size_summary(event: &nc_data::ScoutContactEvent) -> String {
-    contact_size_summary_from_counts(
+fn contact_fleet_description(event: &nc_data::ScoutContactEvent) -> String {
+    let summary = contact_size_summary_from_counts(
         event.small_vessels,
         event.medium_vessels,
         event.large_vessels,
-    )
+    );
+    if event.small_vessels == 0 && event.medium_vessels == 0 && event.large_vessels == 0 {
+        summary
+    } else {
+        format!("{summary} of unknown type")
+    }
 }
 
 fn contact_size_summary_from_counts(
@@ -667,6 +672,24 @@ fn fleet_force_summary(losses: ShipLosses, loaded_armies: u32) -> String {
     }
 }
 
+fn fleet_force_summary_with_starbases(
+    losses: ShipLosses,
+    loaded_armies: u32,
+    starbases: u32,
+) -> String {
+    let ship_summary = fleet_force_summary(losses, loaded_armies);
+    if starbases > 0 {
+        let sb = unit_count_text(starbases, "starbase", "starbases");
+        if ship_summary == "no ships" {
+            sb
+        } else {
+            format!("{ship_summary} and {sb}")
+        }
+    } else {
+        ship_summary
+    }
+}
+
 fn unit_count_text(count: u32, singular: &str, plural: &str) -> String {
     if count == 1 {
         format!("1 {singular}")
@@ -691,6 +714,25 @@ fn join_report_parts(parts: &[String]) -> String {
 
 fn planet_defense_summary(batteries: u8, armies: u8) -> String {
     format!("{batteries} ground battery(ies) and {armies} army(ies)")
+}
+
+fn bombardment_production_damage_sentence(stored_goods_destroyed: u32, factories_destroyed: u16) -> String {
+    if stored_goods_destroyed == 0 && factories_destroyed == 0 {
+        String::new()
+    } else {
+        let mut parts = Vec::new();
+        if factories_destroyed > 0 {
+            parts.push(unit_count_text(
+                factories_destroyed as u32,
+                "factory",
+                "factories",
+            ));
+        }
+        if stored_goods_destroyed > 0 {
+            parts.push(format!("{stored_goods_destroyed} stored production"));
+        }
+        format!(" Bombardment also destroyed {}.", join_report_parts(&parts))
+    }
 }
 
 fn stardock_scan_summary(planet: &nc_data::PlanetRecord) -> String {
@@ -1044,8 +1086,12 @@ fn generate_report_entries(
             event.attacker_empire_raw,
         )
         .unwrap_or_else(|| empire_label(game_data, event.attacker_empire_raw));
+        let production_damage = bombardment_production_damage_sentence(
+            event.stored_goods_destroyed,
+            event.factories_destroyed,
+        );
         let body = format!(
-            " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.",
+            " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.{}",
             attacker,
             ship_loss_summary(event.attacker_initial),
             planet_defense_summary(
@@ -1054,6 +1100,7 @@ fn generate_report_entries(
             ),
             event.defender_battery_losses,
             event.defender_army_losses,
+            production_damage,
         );
         entries.push(ReportEntry {
             text: format!("{header}{body}"),
@@ -1105,8 +1152,11 @@ fn generate_report_entries(
             .unwrap_or_default();
         let friendly_initial =
             fleet_force_summary(event.friendly_initial, event.friendly_loaded_armies_initial);
-        let enemy_initial =
-            fleet_force_summary(event.enemy_initial, event.enemy_loaded_armies_initial);
+        let enemy_initial = fleet_force_summary_with_starbases(
+            event.enemy_initial,
+            event.enemy_loaded_armies_initial,
+            event.enemy_initial_starbases,
+        );
         let body = if matches!(event.perspective, FleetBattlePerspective::Intercepted) {
             format!(
                 "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {} {} {}",
@@ -1378,7 +1428,7 @@ fn generate_report_entries(
     // ----- Scout contact events -----
     for event in &events.scout_contact_events {
         let [x, y] = event.coords;
-        let size_summary = contact_size_summary(event);
+        let fleet_description = contact_fleet_description(event);
         match event.source {
             ContactReportSource::FleetMission(kind) => {
                 let label = mission_report_label(kind);
@@ -1391,11 +1441,11 @@ fn generate_report_entries(
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It is {enemy}. Their fleet contains {size_summary} of unknown type."
+                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It is {enemy}. Their fleet contains {fleet_description}."
                     )
                 } else {
                     format!(
-                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It belongs to {}. Their fleet contains {size_summary} of unknown type.",
+                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It belongs to {}. Their fleet contains {fleet_description}.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
@@ -1418,11 +1468,11 @@ fn generate_report_entries(
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {size_summary} of unknown type."
+                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {fleet_description}."
                     )
                 } else {
                     format!(
-                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type.",
+                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {fleet_description}.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
@@ -1445,11 +1495,11 @@ fn generate_report_entries(
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " We have located and identified an alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {size_summary} of unknown type. We are alerting all fleets in the area."
+                        " We have located and identified an alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {fleet_description}. We are alerting all fleets in the area."
                     )
                 } else {
                     format!(
-                        " We have located and identified an alien fleet in System({x},{y}). It is {}. Their fleet contains {size_summary} of unknown type. We are alerting all fleets in the area.",
+                        " We have located and identified an alien fleet in System({x},{y}). It is {}. Their fleet contains {fleet_description}. We are alerting all fleets in the area.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
@@ -1824,18 +1874,24 @@ fn generate_report_entries(
                 });
                 let body = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
-                        format!(
-                            " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies. We are holding our position and are awaiting new orders.",
-                            planet.planet_name(),
-                            bombard_event
-                                .map(|e| planet_defense_summary(e.defender_batteries_initial, e.defender_armies_initial))
-                                .unwrap_or_else(|| "unknown defenses".to_string()),
-                            bombard_event
-                                .map(|e| friendly_losses_sentence(e.attacker_losses))
-                                .unwrap_or_else(|| "We suffered no ship losses.".to_string()),
-                            bombard_event.map(|e| e.defender_battery_losses).unwrap_or(0),
-                            bombard_event.map(|e| e.defender_army_losses).unwrap_or(0),
-                        )
+                        {
+                            let production_damage = bombard_event
+                                .map(|e| bombardment_production_damage_sentence(e.stored_goods_destroyed, e.factories_destroyed))
+                                .unwrap_or_default();
+                            format!(
+                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies.{} We are holding our position and are awaiting new orders.",
+                                planet.planet_name(),
+                                bombard_event
+                                    .map(|e| planet_defense_summary(e.defender_batteries_initial, e.defender_armies_initial))
+                                    .unwrap_or_else(|| "unknown defenses".to_string()),
+                                bombard_event
+                                    .map(|e| friendly_losses_sentence(e.attacker_losses))
+                                    .unwrap_or_else(|| "We suffered no ship losses.".to_string()),
+                                bombard_event.map(|e| e.defender_battery_losses).unwrap_or(0),
+                                bombard_event.map(|e| e.defender_army_losses).unwrap_or(0),
+                                production_damage,
+                            )
+                        }
                     } else {
                         format!(" Bombardment mission report: We have concluded our bombing run and are awaiting new orders.")
                     }
@@ -2122,16 +2178,21 @@ fn generate_report_entries(
                             classic_empire_clause(game_data, target_empire_raw)
                         )
                     };
+                    let size_summary = contact_size_summary_from_counts(
+                        small_vessels,
+                        medium_vessels,
+                        large_vessels,
+                    );
+                    let fleet_desc = if small_vessels == 0 && medium_vessels == 0 && large_vessels == 0 {
+                        size_summary
+                    } else {
+                        format!("{size_summary} of unknown type")
+                    };
                     format!(
-                        "{prefix} We have located and identified the alien fleet in System({},{}) {} Their fleet contains {} of unknown type. In accordance to our ROE, we are avoiding this enemy fleet...",
+                        "{prefix} We have located and identified the alien fleet in System({},{}) {} Their fleet contains {fleet_desc}. In accordance to our ROE, we are avoiding this enemy fleet...",
                         coords[0],
                         coords[1],
                         enemy,
-                        contact_size_summary_from_counts(
-                            small_vessels,
-                            medium_vessels,
-                            large_vessels
-                        )
                     )
                 },
             ),
@@ -2161,7 +2222,7 @@ fn generate_report_entries(
                     format!(
                         "{prefix} We successfully intercepted {}. Alien force contained {}. In accordance to our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
-                        ship_loss_summary(enemy_initial),
+                        fleet_force_summary(enemy_initial, 0),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
                         ship_loss_summary(losses_sustained),

@@ -93,6 +93,7 @@ fn fleet_group_order_scrollbar_renders_just_right_of_table_border() {
             order_label: "Patrol".to_string(),
             composition_label: "SC=1".to_string(),
             table_ships_label: "SC".to_string(),
+            join_host_fleet_number: None,
         })
         .collect::<Vec<_>>();
     let mut screen = FleetGroupScreen::new();
@@ -152,6 +153,7 @@ fn fleet_group_order_ships_column_matches_sparse_counted_table_format() {
         order_label: "Patrol".to_string(),
         composition_label: "SC=2 BB=1 DD=4 AR=2 ET=1".to_string(),
         table_ships_label: "2SC BB 4DD 2TT* ET".to_string(),
+            join_host_fleet_number: None,
     }];
     let mut screen = FleetGroupScreen::new();
     let buffer = screen
@@ -216,6 +218,7 @@ fn fleet_group_order_ships_column_truncates_by_whole_token_with_plus_marker() {
         order_label: "Patrol".to_string(),
         composition_label: "SC=2 BB=4 CA=3 DD=5 TT=5 AR=2 ET=1".to_string(),
         table_ships_label: "2SC 4BB 3CA 5DD 2TT* 3TT ET".to_string(),
+            join_host_fleet_number: None,
     }];
     let mut screen = FleetGroupScreen::new();
     let buffer = screen
@@ -278,6 +281,7 @@ fn fleet_group_order_ar_column_renders_zero_like_fleet_list() {
         order_label: "Patrol".to_string(),
         composition_label: "SC=1".to_string(),
         table_ships_label: "SC".to_string(),
+            join_host_fleet_number: None,
     }];
     let mut screen = FleetGroupScreen::new();
     let buffer = screen

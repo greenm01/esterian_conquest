@@ -902,23 +902,43 @@ impl App {
     }
 
     pub(crate) fn fleet_rows(&self) -> Vec<FleetRow> {
+        let fleet_number_by_id: std::collections::HashMap<u8, u16> = self
+            .active_owned_fleet_records()
+            .map(|(_, fleet)| (fleet.fleet_id(), fleet.local_slot_word_raw()))
+            .collect();
         let mut rows = self
             .active_owned_fleet_records()
-            .map(|(idx, fleet)| FleetRow {
-                fleet_record_index_1_based: idx + 1,
-                fleet_number: fleet.local_slot_word_raw(),
-                coords: fleet.current_location_coords_raw(),
-                target_coords: fleet.standing_order_target_coords_raw(),
-                order_code: fleet.standing_order_code_raw(),
-                current_speed: fleet.current_speed(),
-                max_speed: fleet.max_speed(),
-                eta_label: fleet_eta_label(&self.game_data, idx),
-                list_eta_label: fleet_list_eta_label(&self.game_data, idx),
-                rules_of_engagement: fleet.rules_of_engagement(),
-                loaded_armies: fleet.army_count(),
-                order_label: fleet.standing_order_summary(),
-                composition_label: fleet.ship_composition_summary(),
-                table_ships_label: fleet.ship_composition_table_summary(),
+            .map(|(idx, fleet)| {
+                let join_host_fleet_number =
+                    if fleet.standing_order_kind() == nc_data::Order::JoinAnotherFleet {
+                        fleet_number_by_id
+                            .get(&fleet.join_host_fleet_id_raw())
+                            .copied()
+                    } else {
+                        None
+                    };
+                let order_label = if let Some(host_num) = join_host_fleet_number {
+                    format!("Join Fleet #{host_num}")
+                } else {
+                    fleet.standing_order_summary()
+                };
+                FleetRow {
+                    fleet_record_index_1_based: idx + 1,
+                    fleet_number: fleet.local_slot_word_raw(),
+                    coords: fleet.current_location_coords_raw(),
+                    target_coords: fleet.standing_order_target_coords_raw(),
+                    order_code: fleet.standing_order_code_raw(),
+                    current_speed: fleet.current_speed(),
+                    max_speed: fleet.max_speed(),
+                    eta_label: fleet_eta_label(&self.game_data, idx),
+                    list_eta_label: fleet_list_eta_label(&self.game_data, idx),
+                    rules_of_engagement: fleet.rules_of_engagement(),
+                    loaded_armies: fleet.army_count(),
+                    order_label,
+                    composition_label: fleet.ship_composition_summary(),
+                    table_ships_label: fleet.ship_composition_table_summary(),
+                    join_host_fleet_number,
+                }
             })
             .collect::<Vec<_>>();
         rows.sort_by(|left, right| {

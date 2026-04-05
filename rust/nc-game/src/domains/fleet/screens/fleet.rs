@@ -122,6 +122,7 @@ pub struct FleetRow {
     pub order_label: String,
     pub composition_label: String,
     pub table_ships_label: String,
+    pub join_host_fleet_number: Option<u16>,
 }
 
 pub struct FleetMenuScreen;
@@ -473,7 +474,7 @@ impl FleetListScreen {
                     format_fleet_number(row.fleet_number, max_fleet_number),
                     format_sector_coords_table(row.coords),
                     fleet_table_order_label(row.order_code).to_string(),
-                    fleet_list_target_label(row.target_coords),
+                    fleet_row_target_label(row),
                     row.current_speed.to_string(),
                     row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
@@ -1113,7 +1114,7 @@ impl FleetGroupScreen {
                     },
                     format_sector_coords_table(row.coords),
                     fleet_table_order_label(row.order_code).to_string(),
-                    fleet_list_target_label(row.target_coords),
+                    fleet_row_target_label(row),
                     row.current_speed.to_string(),
                     row.list_eta_label.clone(),
                     row.rules_of_engagement.to_string(),
@@ -1807,6 +1808,14 @@ pub(crate) fn fleet_table_order_label(order_code: u8) -> &'static str {
         nc_data::Order::RendezvousSector => "Rendez",
         nc_data::Order::Salvage => "Salvage",
         nc_data::Order::Unknown(_) => "Unknown",
+    }
+}
+
+fn fleet_row_target_label(row: &FleetRow) -> String {
+    if let Some(host_num) = row.join_host_fleet_number {
+        format!("Flt #{host_num}")
+    } else {
+        fleet_list_target_label(row.target_coords)
     }
 }
 

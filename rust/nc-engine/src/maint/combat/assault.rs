@@ -398,6 +398,8 @@ pub(crate) fn process_planetary_assaults(
                 );
                 let pre_armies = game_data.planets.records[planet_idx].army_count_raw();
                 let pre_batteries = game_data.planets.records[planet_idx].ground_batteries_raw();
+                let pre_stored_goods = game_data.planets.records[planet_idx].stored_goods_raw();
+                let pre_factories = game_data.planets.records[planet_idx].factories_word_raw();
 
                 let before = state.clone();
                 let mut after = state.clone();
@@ -418,6 +420,7 @@ pub(crate) fn process_planetary_assaults(
                     scalar_hits_with_critical(attacker_exchange),
                 );
                 clear_arrival_and_hold(game_data, &winner_fleets);
+                let post_planet = &game_data.planets.records[planet_idx];
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
@@ -425,17 +428,19 @@ pub(crate) fn process_planetary_assaults(
                         game_data,
                         &winner_fleets,
                     ),
-                    defender_empire_raw: game_data.planets.records[planet_idx]
-                        .owner_empire_slot_raw(),
+                    defender_empire_raw: post_planet.owner_empire_slot_raw(),
                     attacker_initial: ship_counts_from_state(&before),
                     defender_batteries_initial: pre_batteries,
                     defender_armies_initial: pre_armies,
                     attacker_losses: ship_losses_from_states(&before, &after),
-                    defender_battery_losses: pre_batteries.saturating_sub(
-                        game_data.planets.records[planet_idx].ground_batteries_raw(),
-                    ),
+                    defender_battery_losses: pre_batteries
+                        .saturating_sub(post_planet.ground_batteries_raw()),
                     defender_army_losses: pre_armies
-                        .saturating_sub(game_data.planets.records[planet_idx].army_count_raw()),
+                        .saturating_sub(post_planet.army_count_raw()),
+                    stored_goods_destroyed: pre_stored_goods
+                        .saturating_sub(post_planet.stored_goods_raw()),
+                    factories_destroyed: pre_factories
+                        .saturating_sub(post_planet.factories_word_raw()),
                     stardate_week: None,
                 });
                 for &fleet_idx in &winner_fleets {

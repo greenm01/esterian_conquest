@@ -120,6 +120,7 @@ mod tests {
             friendly_loaded_armies_initial: 0,
             friendly_losses: ShipLosses::default(),
             enemy_initial: ShipLosses::default(),
+            enemy_initial_starbases: 0,
             enemy_loaded_armies_initial: 0,
             enemy_losses: ShipLosses::default(),
             stardate_week: None,

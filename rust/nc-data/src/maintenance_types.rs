@@ -38,6 +38,10 @@ pub struct BombardEvent {
     pub defender_battery_losses: u8,
     /// Observed defender army losses.
     pub defender_army_losses: u8,
+    /// Stored goods destroyed by bombardment spillover.
+    pub stored_goods_destroyed: u32,
+    /// Factories destroyed by bombardment spillover.
+    pub factories_destroyed: u16,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }
@@ -152,6 +156,8 @@ pub struct FleetBattleEvent {
     pub friendly_losses: ShipLosses,
     /// Initial observed hostile composition across opposing forces.
     pub enemy_initial: ShipLosses,
+    /// Initial enemy starbases participating in the battle.
+    pub enemy_initial_starbases: u32,
     /// Loaded armies aboard the opposing force at battle start.
     pub enemy_loaded_armies_initial: u32,
     /// Observed hostile losses across the opposing forces.

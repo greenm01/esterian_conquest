@@ -126,6 +126,7 @@ fn results_reports_battle_before_bombard_aftermath() {
             destroyers: 1,
             ..ShipLosses::default()
         },
+        enemy_initial_starbases: 0,
         enemy_loaded_armies_initial: 0,
         enemy_losses: ShipLosses {
             destroyers: 1,
@@ -147,6 +148,8 @@ fn results_reports_battle_before_bombard_aftermath() {
         attacker_losses: ShipLosses::default(),
         defender_battery_losses: 2,
         defender_army_losses: 3,
+        stored_goods_destroyed: 0,
+        factories_destroyed: 0,
         stardate_week: Some(2),
     });
 
@@ -207,6 +210,7 @@ fn results_reports_named_hostile_fleet_with_empire_local_slot() {
                     cruisers: 1,
                     ..ShipLosses::default()
                 },
+                enemy_initial_starbases: 0,
                 enemy_loaded_armies_initial: 0,
                 enemy_losses: ShipLosses::default(),
                 stardate_week: Some(2),

@@ -948,6 +948,7 @@ pub(crate) fn process_fleet_battles(
                     .unwrap_or(0),
                 friendly_losses,
                 enemy_initial: ship_counts_from_state(&enemy_before),
+                enemy_initial_starbases: enemy_before.counts[IDX_SB],
                 enemy_loaded_armies_initial,
                 enemy_losses,
                 stardate_week: None,
