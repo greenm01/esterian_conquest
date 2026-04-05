@@ -2,7 +2,7 @@ use crate::app::helpers::{
     is_coordinate_input_char, resolve_default_coords_input, sync_scroll_to_cursor,
 };
 use crate::app::state::App;
-use crate::domains::planet::PlanetAction;
+use crate::domains::planet::{KnownOwnerLabelStyle, PlanetAction, known_owner_label};
 use crate::screen::{
     CommandMenu, PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode,
     PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListMode, PlanetListSort,
@@ -801,10 +801,11 @@ impl App {
             let intel_snapshot = self
                 .planet_intel_snapshots
                 .get(&world.planet_record_index_1_based);
-            let owner_label = world
-                .known_owner_empire_id
-                .map(|id| format!("#{}", id))
-                .unwrap_or_else(|| "?".to_string());
+            let owner_label = known_owner_label(
+                world.known_owner_empire_id,
+                world.known_owner_empire_name.as_deref(),
+                KnownOwnerLabelStyle::Database,
+            );
             let year_label = intel_snapshot
                 .and_then(|snapshot| snapshot.last_intel_year)
                 .map(|year| year.to_string())

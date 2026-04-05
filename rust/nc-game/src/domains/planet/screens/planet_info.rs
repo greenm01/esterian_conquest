@@ -7,6 +7,7 @@ use nc_engine::yearly_tax_revenue;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::app::Action;
+use crate::domains::planet::{KnownOwnerLabelStyle, known_owner_label};
 use crate::screen::layout::{
     aligned_label_width, dismiss_prompt_row, draw_aligned_detail_line, draw_aligned_status_line,
     draw_dismiss_prompt_padded, draw_title_bar_padded, new_playfield,
@@ -187,15 +188,11 @@ impl PlanetInfoScreen {
             .into_iter()
             .find(|world| world.planet_record_index_1_based == planet_idx + 1)
             .ok_or("planet intel detail missing")?;
-        let owner_label = world
-            .known_owner_empire_name
-            .clone()
-            .or_else(|| {
-                world
-                    .known_owner_empire_id
-                    .map(|id| format!("Empire #{id}"))
-            })
-            .unwrap_or_else(|| "?".to_string());
+        let owner_label = known_owner_label(
+            world.known_owner_empire_id,
+            world.known_owner_empire_name.as_deref(),
+            KnownOwnerLabelStyle::Detail,
+        );
         let info_label_width = aligned_label_width([
             "Coordinates",
             "Planet",

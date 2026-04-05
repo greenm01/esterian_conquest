@@ -469,6 +469,73 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
 }
 
 #[test]
+fn planet_info_intel_detail_shows_unowned_for_known_zero_owner() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    let (planet_idx, coords) = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| {
+            planet.owner_empire_slot_raw() as usize != app.player.record_index_1_based
+        })
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain a non-owned world");
+
+    app.planet_intel_snapshots.insert(
+        planet_idx + 1,
+        nc_data::PlanetIntelSnapshot {
+            planet_record_index_1_based: planet_idx + 1,
+            intel_tier: nc_data::IntelTier::Partial,
+            compat_is_orbit_seed: false,
+            last_intel_year: Some(3000),
+            seen_year: Some(3000),
+            scout_year: Some(3000),
+            known_name: Some("?".to_string()),
+            known_owner_empire_id: Some(0),
+            known_potential_production: Some(76),
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: None,
+            known_current_production: None,
+            known_stored_points: None,
+            known_docked_summary: None,
+            known_orbit_summary: None,
+            compat_word_1e: None,
+        },
+    );
+    app.current_screen = ScreenId::PlanetInfoDetail;
+    app.planet.info_selected = Some(planet_idx);
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Owner") && line.contains("Unowned"))
+    );
+    assert!(!terminal.lines.iter().any(|line| line.contains("Empire #0")));
+}
+
+#[test]
 fn main_menu_planet_info_prompt_renders_inline_command_and_message() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

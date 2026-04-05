@@ -1664,6 +1664,83 @@ fn planet_database_filters_and_sorts_with_independent_f_and_s_prompts() {
 }
 
 #[test]
+fn planet_database_renders_unowned_and_unknown_owner_rows_distinctly() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    let sample_worlds = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .take(2)
+        .map(|(idx, planet)| (idx + 1, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sample_worlds.len(),
+        2,
+        "fixture should contain non-owned worlds"
+    );
+
+    app.planet_intel_snapshots.insert(
+        sample_worlds[0].0,
+        PlanetIntelSnapshot {
+            planet_record_index_1_based: sample_worlds[0].0,
+            intel_tier: IntelTier::Partial,
+            compat_is_orbit_seed: false,
+            last_intel_year: Some(3000),
+            seen_year: Some(3000),
+            scout_year: Some(3000),
+            known_name: Some("Known Unowned".to_string()),
+            known_owner_empire_id: Some(0),
+            known_potential_production: Some(76),
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: None,
+            known_current_production: None,
+            known_stored_points: None,
+            known_docked_summary: None,
+            known_orbit_summary: None,
+            compat_word_1e: None,
+        },
+    );
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(&terminal, "Known Unowned").contains("Unowned"),
+        "{}",
+        line_containing(&terminal, "Known Unowned")
+    );
+    let unknown_coords = format!(
+        "({:02},{:02})",
+        sample_worlds[1].1[0], sample_worlds[1].1[1]
+    );
+    assert!(
+        line_containing(&terminal, &unknown_coords).contains("?"),
+        "{}",
+        line_containing(&terminal, &unknown_coords)
+    );
+    assert!(!terminal.lines.iter().any(|line| line.contains("#0")));
+}
+
+#[test]
 fn planet_menu_tax_prompt_renders_inline_command_and_warning_stack() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
