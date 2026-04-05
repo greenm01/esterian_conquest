@@ -12,8 +12,8 @@ use super::exchange::{
     resolve_withdrawal_exchange, rule_threshold_satisfied,
 };
 use super::reporting::{
-    mission_kind_for_order, preferred_reporting_fleet_index, push_contact_event_for_task_force,
-    report_perspective_for_mission, single_named_fleet_id,
+    loaded_armies_for_fleet_indices, mission_kind_for_order, preferred_reporting_fleet_index,
+    push_contact_event_for_task_force, report_perspective_for_mission, single_named_fleet_id,
 };
 use super::retreat::{
     apply_roe_retreat_to_task_force, clear_empty_withdrawn_fleets, dominant_empire_after_battle,
@@ -369,6 +369,15 @@ pub(crate) fn process_fleet_battles(
         let original_states: HashMap<u8, FleetCombatState> = task_forces
             .iter()
             .map(|tf| (tf.empire, tf.state.clone()))
+            .collect();
+        let original_loaded_armies: HashMap<u8, u32> = task_forces
+            .iter()
+            .map(|tf| {
+                (
+                    tf.empire,
+                    loaded_armies_for_fleet_indices(game_data, &tf.fleet_indices),
+                )
+            })
             .collect();
 
         for (i, left) in task_forces.iter().enumerate() {
@@ -896,6 +905,11 @@ pub(crate) fn process_fleet_battles(
                 }
             }
             let enemy_losses = ship_losses_from_states(&enemy_before, &enemy_after);
+            let enemy_loaded_armies_initial = task_forces
+                .iter()
+                .filter(|tf| tf.empire != empire)
+                .map(|tf| original_loaded_armies.get(&tf.empire).copied().unwrap_or(0))
+                .sum();
             let enemy_empires_raw = task_forces
                 .iter()
                 .filter(|tf| {
@@ -928,23 +942,19 @@ pub(crate) fn process_fleet_battles(
                 primary_enemy_fleet_id,
                 held_field: dominant_empire == Some(empire),
                 friendly_initial: ship_counts_from_state(before),
+                friendly_loaded_armies_initial: original_loaded_armies
+                    .get(&empire)
+                    .copied()
+                    .unwrap_or(0),
                 friendly_losses,
                 enemy_initial: ship_counts_from_state(&enemy_before),
+                enemy_loaded_armies_initial,
                 enemy_losses,
                 stardate_week: None,
             });
 
             if !tf_has_any_units(after_tf) && !after_tf.fleet_indices.is_empty() {
-                let fleet_id = after_tf
-                    .fleet_indices
-                    .first()
-                    .map(|idx| game_data.fleets.records[*idx].fleet_id())
-                    .unwrap_or(0);
-                let friendly_armies = after_tf
-                    .fleet_indices
-                    .iter()
-                    .map(|idx| game_data.fleets.records[*idx].army_count() as u32)
-                    .sum();
+                let fleet_id = reporting_fleet_id.unwrap_or(0);
                 let primary_enemy_empire_raw = task_forces
                     .iter()
                     .filter(|tf| tf.empire != empire)
@@ -961,9 +971,13 @@ pub(crate) fn process_fleet_battles(
                     coords,
                     was_intercepting: matches!(after_tf.role, BattleRole::Attacker),
                     friendly_initial: ship_counts_from_state(before),
+                    friendly_loaded_armies_initial: original_loaded_armies
+                        .get(&empire)
+                        .copied()
+                        .unwrap_or(0),
                     enemy_initial: ship_counts_from_state(&enemy_before),
+                    enemy_loaded_armies_initial,
                     enemy_losses,
-                    friendly_armies,
                     primary_enemy_empire_raw,
                     primary_enemy_fleet_id,
                     stardate_week: None,

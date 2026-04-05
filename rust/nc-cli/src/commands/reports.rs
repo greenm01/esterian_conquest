@@ -615,6 +615,52 @@ fn ship_loss_summary(losses: ShipLosses) -> String {
     }
 }
 
+fn fleet_force_summary(losses: ShipLosses, loaded_armies: u32) -> String {
+    let mut parts = Vec::new();
+    if losses.battleships > 0 {
+        parts.push(unit_count_text(
+            losses.battleships,
+            "battleship",
+            "battleships",
+        ));
+    }
+    if losses.cruisers > 0 {
+        parts.push(unit_count_text(losses.cruisers, "cruiser", "cruisers"));
+    }
+    if losses.destroyers > 0 {
+        parts.push(unit_count_text(
+            losses.destroyers,
+            "destroyer",
+            "destroyers",
+        ));
+    }
+    if losses.scouts > 0 {
+        parts.push(unit_count_text(losses.scouts, "scout ship", "scout ships"));
+    }
+    if losses.transports > 0 {
+        let transport_summary = unit_count_text(
+            losses.transports,
+            "troop transport ship",
+            "troop transport ships",
+        );
+        if loaded_armies > 0 {
+            parts.push(format!(
+                "{transport_summary} carrying {loaded_armies} armies"
+            ));
+        } else {
+            parts.push(transport_summary);
+        }
+    }
+    if losses.etacs > 0 {
+        parts.push(unit_count_text(losses.etacs, "ETAC ship", "ETAC ships"));
+    }
+    if parts.is_empty() {
+        "no ships".to_string()
+    } else {
+        join_report_parts(&parts)
+    }
+}
+
 fn unit_count_text(count: u32, singular: &str, plural: &str) -> String {
     if count == 1 {
         format!("1 {singular}")
@@ -895,7 +941,19 @@ fn generate_report_entries(
     }
 
     // ----- Fleet battle events -----
+    let destroyed_fleet_report_keys: BTreeSet<(u8, u8)> = events
+        .fleet_destroyed_events
+        .iter()
+        .filter_map(|event| {
+            (event.fleet_id != 0).then_some((event.reporting_empire_raw, event.fleet_id))
+        })
+        .collect();
     for event in &events.fleet_battle_events {
+        if event.reporting_fleet_id.is_some_and(|fleet_id| {
+            destroyed_fleet_report_keys.contains(&(event.reporting_empire_raw, fleet_id))
+        }) {
+            continue;
+        }
         let enemy_list = event
             .enemy_empires_raw
             .iter()
@@ -919,8 +977,10 @@ fn generate_report_entries(
             .reporting_mission
             .map(mission_report_prefix)
             .unwrap_or_default();
-        let friendly_initial = ship_loss_summary(event.friendly_initial);
-        let enemy_initial = ship_loss_summary(event.enemy_initial);
+        let friendly_initial =
+            fleet_force_summary(event.friendly_initial, event.friendly_loaded_armies_initial);
+        let enemy_initial =
+            fleet_force_summary(event.enemy_initial, event.enemy_loaded_armies_initial);
         let body = if matches!(event.perspective, FleetBattlePerspective::Intercepted) {
             format!(
                 "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {} {} {}",
@@ -965,14 +1025,13 @@ fn generate_report_entries(
         let source = "From your Fleet Command Center:";
         let header = report_header(source, event.stardate_week, year);
         let body = format!(
-            " We lost all contact with the {} shortly after it {} {} in System({x},{y}). Records show the {} was composed of {} and carried {} armies. According to a burnt flight recorder we recovered, the alien force initially contained {}. The flight recorder recorded alien ship casualties of {}.",
+            " We lost all contact with the {} shortly after it {} {} in System({x},{y}). Records show the {} was composed of {}. According to a burnt flight recorder we recovered, the alien force initially contained {}. The flight recorder recorded alien ship casualties of {}.",
             fleet_label(event.fleet_id),
             verb,
             enemy,
             fleet_label(event.fleet_id),
-            ship_loss_summary(event.friendly_initial),
-            event.friendly_armies,
-            ship_loss_summary(event.enemy_initial),
+            fleet_force_summary(event.friendly_initial, event.friendly_loaded_armies_initial),
+            fleet_force_summary(event.enemy_initial, event.enemy_loaded_armies_initial),
             ship_loss_summary(event.enemy_losses),
         );
         entries.push(ReportEntry {

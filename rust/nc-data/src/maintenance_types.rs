@@ -140,10 +140,14 @@ pub struct FleetBattleEvent {
     pub held_field: bool,
     /// Initial composition of the reporting force.
     pub friendly_initial: ShipLosses,
+    /// Loaded armies aboard the reporting force at battle start.
+    pub friendly_loaded_armies_initial: u32,
     /// Exact losses suffered by the reporting empire.
     pub friendly_losses: ShipLosses,
     /// Initial observed hostile composition across opposing forces.
     pub enemy_initial: ShipLosses,
+    /// Loaded armies aboard the opposing force at battle start.
+    pub enemy_loaded_armies_initial: u32,
     /// Observed hostile losses across the opposing forces.
     pub enemy_losses: ShipLosses,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
@@ -163,12 +167,14 @@ pub struct FleetDestroyedEvent {
     pub was_intercepting: bool,
     /// Initial composition of the lost fleet.
     pub friendly_initial: ShipLosses,
+    /// Loaded armies aboard the lost fleet at battle start.
+    pub friendly_loaded_armies_initial: u32,
     /// Initial observed hostile composition.
     pub enemy_initial: ShipLosses,
+    /// Loaded armies aboard the hostile force at battle start.
+    pub enemy_loaded_armies_initial: u32,
     /// Observed hostile losses before contact was lost.
     pub enemy_losses: ShipLosses,
-    /// Armies carried by the lost fleet.
-    pub friendly_armies: u32,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
     /// Hostile fleet ID if one specific enemy fleet can be named.

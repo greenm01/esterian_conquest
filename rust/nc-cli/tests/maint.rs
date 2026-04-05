@@ -76,6 +76,23 @@ fn logical_result_reports(records: &[&[u8]]) -> Vec<(u8, Vec<String>)> {
     reports
 }
 
+fn zero_all_fleets(game_data: &mut CoreGameData) {
+    for fleet in &mut game_data.fleets.records {
+        let current = fleet.current_location_coords_raw();
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(current);
+        fleet.set_current_speed(0);
+        fleet.set_rules_of_engagement(10);
+        fleet.set_destroyer_count(0);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(0);
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.set_etac_count(0);
+    }
+}
+
 fn configure_dominant_invalidated_invade_directory(target: &std::path::Path) {
     let mut game_data = CoreGameData::load(target).expect("fixture should load");
     let coords = [15, 13];
@@ -317,7 +334,11 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("We successfully intercepted") || text.contains("We were attacked by"));
+    assert!(
+        text.contains("We successfully intercepted")
+            || text.contains("We were attacked by")
+            || text.contains("We lost all contact")
+    );
     assert!(text.contains("<end of transmission>"));
     assert!(text.contains("System("));
     assert!(text.contains("Alien force contained"));
@@ -715,7 +736,11 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("We successfully intercepted") || text.contains("We were attacked by"));
+    assert!(
+        text.contains("We successfully intercepted")
+            || text.contains("We were attacked by")
+            || text.contains("We lost all contact")
+    );
     assert!(text.contains("We lost all contact") || text.contains("held the field"));
 
     let diplomacy_sidecar = target.join("diplomacy.kdl");
@@ -820,7 +845,11 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar_for_large_games() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("We successfully intercepted") || text.contains("We were attacked by"));
+    assert!(
+        text.contains("We successfully intercepted")
+            || text.contains("We were attacked by")
+            || text.contains("We lost all contact")
+    );
 
     let diplomacy_sidecar = target.join("diplomacy.kdl");
     assert!(
@@ -1131,14 +1160,119 @@ fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
 
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    zero_all_fleets(&mut game_data);
+
+    let battle_coords = [10u8, 10u8];
+    {
+        let f = &mut game_data.fleets.records[0];
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::ScoutSector);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_destroyer_count(1);
+        f.set_troop_transport_count(2);
+        f.set_army_count(0);
+        f.set_scout_count(0);
+        f.set_etac_count(0);
+    }
+    {
+        let f = &mut game_data.fleets.records[4];
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::MoveOnly);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_battleship_count(50);
+        f.set_cruiser_count(50);
+        f.set_destroyer_count(50);
+    }
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
     let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("We lost all contact with the"));
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("We lost all contact with the 1st Fleet"));
     assert!(text.contains("Fleet Command Center"));
     assert!(text.contains("flight recorder"));
+    assert!(text.contains("1 destroyer and 2 troop transport ships."));
+    assert!(!text.contains("carrying 0 armies"));
+    assert!(!text.contains("Scout mission report: We were attacked by"));
+    assert!(!text.contains("Scout mission report: We successfully intercepted"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_clauses() {
+    let target = unique_temp_dir("nc-cli-maint-rust-battle-loaded-armies");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    zero_all_fleets(&mut game_data);
+
+    let battle_coords = [11u8, 11u8];
+    {
+        let f = &mut game_data.fleets.records[0];
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::MoveOnly);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_destroyer_count(3);
+        f.set_troop_transport_count(2);
+        f.set_army_count(2);
+    }
+    {
+        let f = &mut game_data.fleets.records[4];
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::HoldPosition);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(0);
+        f.set_destroyer_count(1);
+        f.set_troop_transport_count(2);
+        f.set_army_count(0);
+    }
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let records = results_records(&results);
+    let report_texts = logical_result_reports(&records)
+        .into_iter()
+        .map(|(_, lines)| lines.join(" "))
+        .collect::<Vec<_>>();
+    assert!(
+        report_texts
+            .iter()
+            .any(|report| report.contains("From your 1st Fleet, located in System(11,11):"))
+    );
+    assert!(
+        report_texts.iter().any(|report| report.contains(
+            "Our force contained 3 destroyers and 2 troop transport ships carrying 2 armies."
+        )),
+        "expected friendly force summary with loaded armies, got: {report_texts:?}"
+    );
+    assert!(report_texts.iter().any(|report| {
+        report.contains("Alien force contained 1 destroyer and 2 troop transport ships.")
+    }));
+    assert!(
+        !report_texts
+            .iter()
+            .any(|report| report.contains("carrying 0 armies"))
+    );
+    assert!(
+        !report_texts
+            .iter()
+            .any(|report| report.contains("lost all contact with the 1st Fleet"))
+    );
 
     cleanup_dir(&target);
 }

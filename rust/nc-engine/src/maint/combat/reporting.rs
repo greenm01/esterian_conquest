@@ -109,6 +109,17 @@ pub(super) fn preferred_reporting_fleet_index(
         .min_by_key(|idx| game_data.fleets.records[*idx].fleet_id())
 }
 
+pub(super) fn loaded_armies_for_fleet_indices(
+    game_data: &CoreGameData,
+    fleet_indices: &[usize],
+) -> u32 {
+    fleet_indices
+        .iter()
+        .filter_map(|idx| game_data.fleets.records.get(*idx))
+        .map(|fleet| fleet.army_count() as u32)
+        .sum()
+}
+
 pub(super) fn report_perspective_for_mission(
     mission: Option<Mission>,
     role: BattleRole,
