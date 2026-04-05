@@ -272,11 +272,10 @@ fn nc_sysop_maint_scopes_runtime_reports_and_intel_per_viewer() {
     assert!(runtime.report_block_rows.iter().any(
         |row| row.viewer_empire_id == 4 && row.decoded_text.contains("Viewing mission report")
     ));
-    assert!(
-        !player_4_reports
-            .iter()
-            .any(|text| text.contains(&format!("System({},{})", player_1_coords[0], player_1_coords[1])))
-    );
+    assert!(!player_4_reports.iter().any(|text| text.contains(&format!(
+        "System({},{})",
+        player_1_coords[0], player_1_coords[1]
+    ))));
 
     let player_1_intel = store
         .latest_planet_intel_for_viewer(1)

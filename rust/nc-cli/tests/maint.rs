@@ -1244,9 +1244,11 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
         .into_iter()
         .map(|(_, lines)| lines.join(" "))
         .collect::<Vec<_>>();
-    assert!(report_texts
-        .iter()
-        .any(|report| report.contains("From your 1st Fleet, located in System(11,11):")));
+    assert!(
+        report_texts
+            .iter()
+            .any(|report| report.contains("From your 1st Fleet, located in System(11,11):"))
+    );
     assert!(
         report_texts.iter().any(|report| report.contains(
             "Our force contained 3 destroyers and 2 troop transport ships carrying 2 armies."
@@ -1256,9 +1258,11 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
     assert!(report_texts.iter().any(|report| {
         report.contains("Alien force contained 1 destroyer and 2 troop transport ships.")
     }));
-    assert!(!report_texts
-        .iter()
-        .any(|report| report.contains("carrying 0 armies")));
+    assert!(
+        !report_texts
+            .iter()
+            .any(|report| report.contains("carrying 0 armies"))
+    );
     cleanup_dir(&target);
 }
 
@@ -1297,13 +1301,15 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(game_data
-        .bases
-        .records
-        .iter()
-        .all(|base| !(base.coords_raw() == starbase_coords
-            && base.owner_empire_raw() == 1
-            && base.active_flag_raw() != 0)));
+    assert!(
+        game_data
+            .bases
+            .records
+            .iter()
+            .all(|base| !(base.coords_raw() == starbase_coords
+                && base.owner_empire_raw() == 1
+                && base.active_flag_raw() != 0))
+    );
 
     cleanup_dir(&target);
 }

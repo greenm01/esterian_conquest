@@ -81,9 +81,11 @@ pub(super) fn process_fleet_merging(
                             host_fleet_id_raw: game_data.fleets.records[survivor_idx].fleet_id(),
                             absorbed_fleet_id_raw: game_data.fleets.records[fi].fleet_id(),
                             host_fleet_number: game_data.fleets.records[survivor_idx]
-                                .local_slot_word_raw() as u8,
+                                .local_slot_word_raw()
+                                as u8,
                             absorbed_fleet_number: game_data.fleets.records[fi]
-                                .local_slot_word_raw() as u8,
+                                .local_slot_word_raw()
+                                as u8,
                             coords,
                             survivor_side: true,
                             stardate_week: None,

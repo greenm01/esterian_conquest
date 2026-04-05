@@ -116,10 +116,7 @@ fn derive_player_activity_rows(
     )?;
     let mut states = default_player_activity_states(player_count);
     for row in stmt.query_map(params![snapshot_id], |row| {
-        Ok((
-            row.get::<_, i64>(0)? as usize,
-            row.get::<_, i64>(1)? as u16,
-        ))
+        Ok((row.get::<_, i64>(0)? as usize, row.get::<_, i64>(1)? as u16))
     })? {
         let (player_record_index_1_based, last_run_year) = row?;
         if let Some(state) = states.get_mut(player_record_index_1_based.saturating_sub(1)) {
@@ -146,7 +143,8 @@ fn normalize_activity_states(
     let player_count = game_data.player.records.len() as u8;
     let mut normalized = default_player_activity_states(player_count);
     for state in states {
-        if let Some(slot) = normalized.get_mut(state.player_record_index_1_based.saturating_sub(1)) {
+        if let Some(slot) = normalized.get_mut(state.player_record_index_1_based.saturating_sub(1))
+        {
             *slot = *state;
         }
     }

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::maint::{timing::format_report_first_line, FleetBattlePerspective};
+use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
@@ -296,11 +296,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -1450,7 +1446,11 @@ fn generate_report_entries(
         // Deduplicate fleet-source contacts; starbase contacts always pass through
         // as they carry unique intelligence about the starbase's detection.
         if !matches!(event.source, ContactReportSource::Starbase(_)) {
-            let contact_key = (event.viewer_empire_raw, event.target_empire_raw, event.coords);
+            let contact_key = (
+                event.viewer_empire_raw,
+                event.target_empire_raw,
+                event.coords,
+            );
             if !seen_contacts.insert(contact_key) {
                 continue;
             }
@@ -1692,7 +1692,9 @@ fn generate_report_entries(
             let fleet_list = join_report_parts(
                 &fleet_entries
                     .iter()
-                    .map(|(_, fleet_number, label, _)| format!("Fleet {} ({})", fleet_number, label))
+                    .map(|(_, fleet_number, label, _)| {
+                        format!("Fleet {} ({})", fleet_number, label)
+                    })
                     .collect::<Vec<_>>(),
             );
             let disposition_text = fleet_abort_disposition_text(disposition);
@@ -2240,16 +2242,15 @@ fn generate_report_entries(
                         medium_vessels,
                         large_vessels,
                     );
-                    let fleet_desc = if small_vessels == 0 && medium_vessels == 0 && large_vessels == 0 {
-                        size_summary
-                    } else {
-                        format!("{size_summary} of unknown type")
-                    };
+                    let fleet_desc =
+                        if small_vessels == 0 && medium_vessels == 0 && large_vessels == 0 {
+                            size_summary
+                        } else {
+                            format!("{size_summary} of unknown type")
+                        };
                     format!(
                         "{prefix} We have located and identified the alien fleet in System({},{}) {} Their fleet contains {fleet_desc}. In accordance to our ROE, we are avoiding this enemy fleet...",
-                        coords[0],
-                        coords[1],
-                        enemy,
+                        coords[0], coords[1], enemy,
                     )
                 },
             ),
@@ -2311,16 +2312,8 @@ fn generate_report_entries(
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
                     format!(
                         "{prefix} We attempted to disengage from {} but were intercepted by {} and suffered pursuit fire. We withdrew toward System({},{}) after suffering losses of {}. {}",
-                        classic_enemy_reference(
-                            game_data,
-                            target_fleet_number,
-                            target_empire_raw
-                        ),
-                        classic_enemy_reference(
-                            game_data,
-                            target_fleet_number,
-                            target_empire_raw
-                        ),
+                        classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
+                        classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
                         ship_loss_summary(losses_sustained),
@@ -2362,7 +2355,9 @@ fn generate_report_entries(
                 coords,
                 reason,
             } => {
-                let order_name = nc_data::Order::from_raw(order_code_raw).display_label().to_lowercase();
+                let order_name = nc_data::Order::from_raw(order_code_raw)
+                    .display_label()
+                    .to_lowercase();
                 (
                     owner_empire_raw,
                     owned_fleet_source_clause_from_idx(
@@ -2459,7 +2454,11 @@ fn generate_report_entries(
             .iter()
             .filter(|e| e.kind == Mission::JoinAnotherFleet)
         {
-            let key = (event.owner_empire_raw, event.coords, event.host_fleet_number);
+            let key = (
+                event.owner_empire_raw,
+                event.coords,
+                event.host_fleet_number,
+            );
             join_groups
                 .entry(key)
                 .or_default()
@@ -2470,10 +2469,8 @@ fn generate_report_entries(
             let (owner_empire_raw, coords, host_fleet_number) = *key;
             let [x, y] = coords;
             let stardate_week = join_meta[key];
-            let source = owned_fleet_source_clause(
-                Some(host_fleet_number),
-                &format!("System({x},{y})"),
-            );
+            let source =
+                owned_fleet_source_clause(Some(host_fleet_number), &format!("System({x},{y})"));
             let fleet_list = absorbed_numbers
                 .iter()
                 .map(|n| n.to_string())
@@ -2486,9 +2483,7 @@ fn generate_report_entries(
             } else {
                 format!(
                     " Join mission report: Fleets {} have merged with us.",
-                    join_report_parts(
-                        &fleet_list.iter().map(|s| s.clone()).collect::<Vec<_>>()
-                    )
+                    join_report_parts(&fleet_list.iter().map(|s| s.clone()).collect::<Vec<_>>())
                 )
             };
             let header = report_header(&source, stardate_week, year);
@@ -2522,7 +2517,11 @@ fn generate_report_entries(
             .iter()
             .filter(|e| e.kind == Mission::RendezvousSector && e.survivor_side)
         {
-            let key = (event.owner_empire_raw, event.coords, event.host_fleet_number);
+            let key = (
+                event.owner_empire_raw,
+                event.coords,
+                event.host_fleet_number,
+            );
             rendezvous_groups
                 .entry(key)
                 .or_default()
@@ -2536,10 +2535,8 @@ fn generate_report_entries(
             let (owner_empire_raw, coords, host_fleet_number) = *key;
             let [x, y] = coords;
             let (host_fleet_idx, stardate_week) = rendezvous_meta[key];
-            let source = owned_fleet_source_clause(
-                Some(host_fleet_number),
-                &format!("Sector({x},{y})"),
-            );
+            let source =
+                owned_fleet_source_clause(Some(host_fleet_number), &format!("Sector({x},{y})"));
             let absorbed_list = absorbed_numbers
                 .iter()
                 .map(|n| format!("the {}", fleet_label(*n)))

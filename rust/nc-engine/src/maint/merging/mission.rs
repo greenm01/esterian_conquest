@@ -100,8 +100,8 @@ pub(super) fn process_mission_fleet_merging(
                 absorbed_fleet_id_raw: absorbed_id,
                 host_fleet_number: game_data.fleets.records[survivor_idx].local_slot_word_raw()
                     as u8,
-                absorbed_fleet_number: game_data.fleets.records[absorbed_idx]
-                    .local_slot_word_raw() as u8,
+                absorbed_fleet_number: game_data.fleets.records[absorbed_idx].local_slot_word_raw()
+                    as u8,
                 coords,
                 survivor_side: false,
                 stardate_week: None,
@@ -114,8 +114,8 @@ pub(super) fn process_mission_fleet_merging(
                 absorbed_fleet_id_raw: absorbed_id,
                 host_fleet_number: game_data.fleets.records[survivor_idx].local_slot_word_raw()
                     as u8,
-                absorbed_fleet_number: game_data.fleets.records[absorbed_idx]
-                    .local_slot_word_raw() as u8,
+                absorbed_fleet_number: game_data.fleets.records[absorbed_idx].local_slot_word_raw()
+                    as u8,
                 coords,
                 survivor_side: true,
                 stardate_week: None,
@@ -137,7 +137,8 @@ pub(super) fn process_join_host_updates(
 ) -> Vec<JoinMissionHostEvent> {
     let mut absorbed_to_host = std::collections::HashMap::new();
     for event in merge_events {
-        if event.absorbed_fleet_id_raw != 0 && event.absorbed_fleet_id_raw != event.host_fleet_id_raw
+        if event.absorbed_fleet_id_raw != 0
+            && event.absorbed_fleet_id_raw != event.host_fleet_id_raw
         {
             absorbed_to_host.insert(event.absorbed_fleet_id_raw, event.host_fleet_id_raw);
         }

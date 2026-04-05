@@ -4,10 +4,10 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use nc_data::{
-    fleet_motion_state::store_exact_position,
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
     DiplomaticRelation, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
     MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
+    fleet_motion_state::store_exact_position,
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
 use std::path::Path;
@@ -1288,7 +1288,10 @@ fn test_move_only_arrival_completes_when_hidden_exact_transit_reaches_target_sec
     fleet.set_movement_fraction_raw(0);
     store_exact_position(
         fleet,
-        [f64::from(target_coords[0]) - 0.4, f64::from(target_coords[1])],
+        [
+            f64::from(target_coords[0]) - 0.4,
+            f64::from(target_coords[1]),
+        ],
     );
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");

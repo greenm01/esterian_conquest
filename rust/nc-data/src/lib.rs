@@ -24,8 +24,8 @@ mod intel;
 pub mod maintenance_types;
 mod map_dimensions;
 mod map_export;
-mod player_mail;
 mod player_activity;
+mod player_mail;
 mod records;
 mod report_blocks;
 mod rng;
@@ -70,15 +70,15 @@ pub use map_export::{
     PlayerMapExportData, PlayerMapExportFile, STARMAP_CSV_FILE_NAME, STARMAP_DETAILS_CSV_FILE_NAME,
     STARMAP_TEXT_FILE_NAME, build_player_map_export_data,
 };
-pub use player_mail::{
-    MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, QueuedPlayerMail, append_mail_queue,
-    clear_mail_queue, load_mail_queue, queued_message_count_for_sender_recipient_year,
-    save_mail_queue, validate_queue_message_limit,
-};
 pub use player_activity::{
     DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, apply_inactivity_autopilot_policy,
     clear_inactivity_autopilot_pending, default_player_activity_states,
     record_interactive_participation, record_submitted_turn_participation,
+};
+pub use player_mail::{
+    MAX_QUEUED_MESSAGES_PER_RECIPIENT_PER_YEAR, QueuedPlayerMail, append_mail_queue,
+    clear_mail_queue, load_mail_queue, queued_message_count_for_sender_recipient_year,
+    save_mail_queue, validate_queue_message_limit,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

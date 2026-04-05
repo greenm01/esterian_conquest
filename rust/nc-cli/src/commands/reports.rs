@@ -5,7 +5,7 @@ use nc_data::{
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
-use nc_engine::maint::{timing::format_report_first_line, FleetBattlePerspective};
+use nc_engine::maint::{FleetBattlePerspective, timing::format_report_first_line};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -295,11 +295,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -1263,7 +1259,11 @@ fn generate_report_entries(
             continue;
         }
         if !matches!(event.source, ContactReportSource::Starbase(_)) {
-            let contact_key = (event.viewer_empire_raw, event.target_empire_raw, event.coords);
+            let contact_key = (
+                event.viewer_empire_raw,
+                event.target_empire_raw,
+                event.coords,
+            );
             if !seen_contacts.insert(contact_key) {
                 continue;
             }
@@ -1505,7 +1505,9 @@ fn generate_report_entries(
             let fleet_list = join_report_parts(
                 &fleet_entries
                     .iter()
-                    .map(|(_, fleet_number, label, _)| format!("Fleet {} ({})", fleet_number, label))
+                    .map(|(_, fleet_number, label, _)| {
+                        format!("Fleet {} ({})", fleet_number, label)
+                    })
                     .collect::<Vec<_>>(),
             );
             let disposition_text = fleet_abort_disposition_text(disposition);
@@ -2049,16 +2051,8 @@ fn generate_report_entries(
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
                     format!(
                         "{prefix} We attempted to disengage from {} but were intercepted by {} and suffered pursuit fire. We withdrew toward System({},{}) after suffering losses of {}. {}",
-                        classic_enemy_reference(
-                            game_data,
-                            target_fleet_number,
-                            target_empire_raw
-                        ),
-                        classic_enemy_reference(
-                            game_data,
-                            target_fleet_number,
-                            target_empire_raw
-                        ),
+                        classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
+                        classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
                         ship_loss_summary(losses_sustained),
@@ -2089,7 +2083,9 @@ fn generate_report_entries(
                 coords,
                 reason,
             } => {
-                let order_name = nc_data::Order::from_raw(order_code_raw).display_label().to_lowercase();
+                let order_name = nc_data::Order::from_raw(order_code_raw)
+                    .display_label()
+                    .to_lowercase();
                 (
                     owner_empire_raw,
                     owned_fleet_source_clause_from_idx(
@@ -2186,7 +2182,11 @@ fn generate_report_entries(
             .iter()
             .filter(|e| e.kind == Mission::JoinAnotherFleet)
         {
-            let key = (event.owner_empire_raw, event.coords, event.host_fleet_number);
+            let key = (
+                event.owner_empire_raw,
+                event.coords,
+                event.host_fleet_number,
+            );
             join_groups
                 .entry(key)
                 .or_default()
@@ -2197,10 +2197,8 @@ fn generate_report_entries(
             let (owner_empire_raw, coords, host_fleet_number) = *key;
             let [x, y] = coords;
             let stardate_week = join_meta[key];
-            let source = owned_fleet_source_clause(
-                Some(host_fleet_number),
-                &format!("System({x},{y})"),
-            );
+            let source =
+                owned_fleet_source_clause(Some(host_fleet_number), &format!("System({x},{y})"));
             let fleet_list = absorbed_numbers
                 .iter()
                 .map(|n| n.to_string())
@@ -2247,7 +2245,11 @@ fn generate_report_entries(
             .iter()
             .filter(|e| e.kind == Mission::RendezvousSector && e.survivor_side)
         {
-            let key = (event.owner_empire_raw, event.coords, event.host_fleet_number);
+            let key = (
+                event.owner_empire_raw,
+                event.coords,
+                event.host_fleet_number,
+            );
             rendezvous_groups
                 .entry(key)
                 .or_default()
@@ -2261,10 +2263,8 @@ fn generate_report_entries(
             let (owner_empire_raw, coords, host_fleet_number) = *key;
             let [x, y] = coords;
             let (host_fleet_idx, stardate_week) = rendezvous_meta[key];
-            let source = owned_fleet_source_clause(
-                Some(host_fleet_number),
-                &format!("Sector({x},{y})"),
-            );
+            let source =
+                owned_fleet_source_clause(Some(host_fleet_number), &format!("Sector({x},{y})"));
             let absorbed_list = absorbed_numbers
                 .iter()
                 .map(|n| format!("the {}", fleet_label(*n)))

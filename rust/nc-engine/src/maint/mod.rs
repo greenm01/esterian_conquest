@@ -280,11 +280,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
     let planets_with_builds = economics::process_build_completion(game_data)?;
 
     // Process planet economic updates for planets that had builds
-    economics::process_planet_economics(
-        game_data,
-        &planets_with_builds,
-        &newly_colonized_planets,
-    )?;
+    economics::process_planet_economics(game_data, &planets_with_builds, &newly_colonized_planets)?;
 
     // Run autopilot / rogue AI planet economics.
     // Updates factories, armies, and raw[0x0E] for rogue and autopilot-on players.
@@ -471,13 +467,11 @@ fn restore_scout_orders_and_generate_on_station_observations(
         .mission_events
         .iter()
         .filter(|e| {
-            matches!(
-                e.kind,
-                Mission::ScoutSector | Mission::ScoutSolarSystem
-            ) && matches!(
-                e.outcome,
-                MissionOutcome::Succeeded | MissionOutcome::Arrived
-            )
+            matches!(e.kind, Mission::ScoutSector | Mission::ScoutSolarSystem)
+                && matches!(
+                    e.outcome,
+                    MissionOutcome::Succeeded | MissionOutcome::Arrived
+                )
         })
         .map(|e| (e.fleet_idx, e.kind))
         .collect();

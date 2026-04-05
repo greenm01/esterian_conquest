@@ -393,8 +393,7 @@ pub(crate) fn process_planetary_assaults(
         match winner_class {
             MissionClass::Bombard => {
                 let coords = game_data.planets.records[planet_idx].coords_raw();
-                let defender_empire =
-                    game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                let defender_empire = game_data.planets.records[planet_idx].owner_empire_slot_raw();
                 let pre_armies = game_data.planets.records[planet_idx].army_count_raw();
                 let pre_batteries = game_data.planets.records[planet_idx].ground_batteries_raw();
                 let pre_stored_goods = game_data.planets.records[planet_idx].stored_goods_raw();
@@ -496,8 +495,7 @@ pub(crate) fn process_planetary_assaults(
                     attacker_losses: ship_losses_from_states(&before, &fleet_state),
                     defender_battery_losses: pre_batteries
                         .saturating_sub(post_planet.ground_batteries_raw()),
-                    defender_army_losses: pre_armies
-                        .saturating_sub(post_planet.army_count_raw()),
+                    defender_army_losses: pre_armies.saturating_sub(post_planet.army_count_raw()),
                     breakthrough,
                     stardock_items_destroyed: pre_stardock_items.saturating_sub(
                         (0..STARDOCK_SLOT_COUNT)

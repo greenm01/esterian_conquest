@@ -162,8 +162,7 @@ pub(super) fn process_single_fleet_movement(
     };
     let dx_total = target_x as i32 - current_x as i32;
     let dy_total = target_y as i32 - current_y as i32;
-    let has_unresolved_exact_transit =
-        dx_total == 0 && dy_total == 0 && exact_start.is_some();
+    let has_unresolved_exact_transit = dx_total == 0 && dy_total == 0 && exact_start.is_some();
 
     if dx_total == 0 && dy_total == 0 && !has_unresolved_exact_transit {
         let fleet = &mut game_data.fleets.records[fleet_idx];

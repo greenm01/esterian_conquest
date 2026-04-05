@@ -55,8 +55,8 @@ pub fn record_interactive_participation(
         .get_mut(player_record_index_1_based.saturating_sub(1))
     {
         player.set_last_run_year_raw(current_year);
-        if let Some(state) = player_activity_states
-            .get_mut(player_record_index_1_based.saturating_sub(1))
+        if let Some(state) =
+            player_activity_states.get_mut(player_record_index_1_based.saturating_sub(1))
         {
             state.last_participation_year = current_year;
             if state.inactivity_autopilot_pending_clear {
@@ -94,7 +94,8 @@ pub fn clear_inactivity_autopilot_pending(
     player_record_index_1_based: usize,
     player_activity_states: &mut [PlayerActivityState],
 ) {
-    if let Some(state) = player_activity_states.get_mut(player_record_index_1_based.saturating_sub(1))
+    if let Some(state) =
+        player_activity_states.get_mut(player_record_index_1_based.saturating_sub(1))
     {
         state.inactivity_autopilot_pending_clear = false;
     }

@@ -5,9 +5,7 @@ use nc_data::{
     PlanetIntelEvent, PlanetIntelSource, build_player_starmap_projection_from_snapshots,
     latest_planet_intel_grants_for_viewer, merge_player_intel_from_runtime,
 };
-use nc_engine::{
-    GameStateBuilder, run_maintenance_turn, visible_hazard_intel_from_snapshots,
-};
+use nc_engine::{GameStateBuilder, run_maintenance_turn, visible_hazard_intel_from_snapshots};
 
 #[test]
 fn sqlite_style_intel_persists_when_compat_database_row_disappears() {

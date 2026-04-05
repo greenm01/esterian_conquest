@@ -12,8 +12,7 @@ pub(super) fn process_planet_economics(
         // Conquered planets need ~2 turns before producing for the new owner.
         let countdown = game_data.planets.records[planet_idx].conversion_countdown_raw();
         if countdown > 0 {
-            game_data.planets.records[planet_idx]
-                .set_conversion_countdown_raw(countdown - 1);
+            game_data.planets.records[planet_idx].set_conversion_countdown_raw(countdown - 1);
             continue;
         }
         let owner_empire = game_data.planets.records[planet_idx].owner_empire_slot_raw();

@@ -99,10 +99,7 @@ fn load_owned_planet_year_rows(
     let rows = if let Some(owner_empire_id) = owner_empire_id {
         stmt.query_map(params![snapshot_id, i64::from(owner_empire_id)], |row| {
             Ok((
-                (
-                    row.get::<_, i64>(0)? as u8,
-                    row.get::<_, i64>(1)? as usize,
-                ),
+                (row.get::<_, i64>(0)? as u8, row.get::<_, i64>(1)? as usize),
                 row.get::<_, i64>(2)? as u16,
             ))
         })?
@@ -110,10 +107,7 @@ fn load_owned_planet_year_rows(
     } else {
         stmt.query_map(params![snapshot_id], |row| {
             Ok((
-                (
-                    row.get::<_, i64>(0)? as u8,
-                    row.get::<_, i64>(1)? as usize,
-                ),
+                (row.get::<_, i64>(0)? as u8, row.get::<_, i64>(1)? as usize),
                 row.get::<_, i64>(2)? as u16,
             ))
         })?

@@ -335,7 +335,12 @@ fn apply_intel_grant_row(
             Some(intel_year),
         ),
         PlanetIntelSource::CivilDisorderContact => {
-            apply_civil_disorder_contact_row(record, template_record, planet.owner_empire_slot_raw(), current_game_year);
+            apply_civil_disorder_contact_row(
+                record,
+                template_record,
+                planet.owner_empire_slot_raw(),
+                current_game_year,
+            );
             return;
         }
         PlanetIntelSource::AssaultSuccess => (

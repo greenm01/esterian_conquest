@@ -81,9 +81,7 @@ fn assess_empire_posture(
     let player = &game_data.player.records[player_idx];
     let enemy_count = (1..=player_count)
         .filter(|&e| e != owner_slot)
-        .filter(|&e| {
-            player.diplomatic_relation_toward(e) == Some(DiplomaticRelation::Enemy)
-        })
+        .filter(|&e| player.diplomatic_relation_toward(e) == Some(DiplomaticRelation::Enemy))
         .count();
 
     let high_threat = enemy_count >= 2;
@@ -134,11 +132,9 @@ fn autopilot_fleet_orders(game_data: &mut CoreGameData, owner_slot: u8) {
 
         let fleet = &mut game_data.fleets.records[fleet_idx];
         let max_speed = fleet.max_speed();
-        let target = nearest_owned_planet_coords(
-            fleet.current_location_coords_raw(),
-            &owned_planet_coords,
-        )
-        .unwrap_or(fleet.current_location_coords_raw());
+        let target =
+            nearest_owned_planet_coords(fleet.current_location_coords_raw(), &owned_planet_coords)
+                .unwrap_or(fleet.current_location_coords_raw());
         reset_motion_state_for_new_orders(fleet);
         fleet.set_current_speed(max_speed);
         fleet.set_standing_order_kind(Order::SeekHome);
@@ -159,11 +155,7 @@ fn nearest_owned_planet_coords(from: [u8; 2], candidates: &[[u8; 2]]) -> Option<
 
 // ── Build queue ─────────────────────────────────────────────────────────
 
-fn autopilot_build_queue(
-    game_data: &mut CoreGameData,
-    owner_slot: u8,
-    posture: &EmpirePosture,
-) {
+fn autopilot_build_queue(game_data: &mut CoreGameData, owner_slot: u8, posture: &EmpirePosture) {
     let has_starbase_at: std::collections::HashSet<[u8; 2]> = game_data
         .bases
         .records
@@ -215,8 +207,7 @@ fn autopilot_build_queue(
         } else {
             // High development: full defense.
             let armies = ((potential / 10).max(2) as u16 * threat_multiplier).min(255) as u8;
-            let batteries =
-                ((potential / 20).max(1) as u16 * threat_multiplier).min(255) as u8;
+            let batteries = ((potential / 20).max(1) as u16 * threat_multiplier).min(255) as u8;
             (armies, batteries, present >= 30)
         };
 

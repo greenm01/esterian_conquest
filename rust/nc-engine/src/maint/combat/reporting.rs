@@ -89,14 +89,15 @@ fn push_civil_disorder_contact_intel(
     {
         return;
     }
-    let Some((planet_idx, _planet)) = game_data
-        .planets
-        .records
-        .iter()
-        .enumerate()
-        .find(|(_, planet)| {
-            planet.coords_raw() == coords && planet.owner_empire_slot_raw() == target_empire_raw
-        })
+    let Some((planet_idx, _planet)) =
+        game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.coords_raw() == coords && planet.owner_empire_slot_raw() == target_empire_raw
+            })
     else {
         return;
     };

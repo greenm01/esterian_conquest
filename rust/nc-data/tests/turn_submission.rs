@@ -346,7 +346,8 @@ fn turn_submission_runtime_helper_clears_inactivity_auto_enabled_autopilot() {
     state.game_data.player.records[0].set_last_run_year_raw(2997);
     let planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
         .map(|viewer_empire_id| {
-            store.latest_planet_intel_for_viewer(viewer_empire_id)
+            store
+                .latest_planet_intel_for_viewer(viewer_empire_id)
                 .unwrap()
                 .into_iter()
                 .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))

@@ -693,7 +693,7 @@ fn combat_reports_enemy_fleet_by_empire_local_slot() {
         .expect("maintenance should succeed");
 
     assert!(events.scout_contact_events.iter().any(|event| {
-            event.viewer_empire_raw == 1
+        event.viewer_empire_raw == 1
             && event.target_empire_raw == 2
             && event.target_fleet_number == Some(hostile_fleet_number)
     }));
