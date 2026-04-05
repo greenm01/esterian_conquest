@@ -1,0 +1,17 @@
+[package]
+name = "nc-dash"
+version = "1.0.0-beta.2"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[[bin]]
+name = "nc-dash"
+path = "src/main.rs"
+
+[dependencies]
+crossterm = "0.28"
+nc-data = { path = "../nc-data" }
+nc-engine = { path = "../nc-engine" }
+nc-ui = { path = "../nc-ui" }
+nc-log = { path = "../nc-log" }
+tracing = "0.1"
