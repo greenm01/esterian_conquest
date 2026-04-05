@@ -716,21 +716,32 @@ fn planet_defense_summary(batteries: u8, armies: u8) -> String {
     format!("{batteries} ground battery(ies) and {armies} army(ies)")
 }
 
-fn bombardment_production_damage_sentence(stored_goods_destroyed: u32, factories_destroyed: u16) -> String {
-    if stored_goods_destroyed == 0 && factories_destroyed == 0 {
+fn bombardment_collateral_damage_sentence(
+    stardock_items_destroyed: u32,
+    stored_goods_destroyed: u32,
+    factories_destroyed: u16,
+) -> String {
+    let mut parts = Vec::new();
+    if stardock_items_destroyed > 0 {
+        parts.push(unit_count_text(
+            stardock_items_destroyed,
+            "stardock item",
+            "stardock items",
+        ));
+    }
+    if factories_destroyed > 0 {
+        parts.push(unit_count_text(
+            factories_destroyed as u32,
+            "factory",
+            "factories",
+        ));
+    }
+    if stored_goods_destroyed > 0 {
+        parts.push(format!("{stored_goods_destroyed} stored production"));
+    }
+    if parts.is_empty() {
         String::new()
     } else {
-        let mut parts = Vec::new();
-        if factories_destroyed > 0 {
-            parts.push(unit_count_text(
-                factories_destroyed as u32,
-                "factory",
-                "factories",
-            ));
-        }
-        if stored_goods_destroyed > 0 {
-            parts.push(format!("{stored_goods_destroyed} stored production"));
-        }
         format!(" Bombardment also destroyed {}.", join_report_parts(&parts))
     }
 }
@@ -1086,14 +1097,15 @@ fn generate_report_entries(
             event.attacker_empire_raw,
         )
         .unwrap_or_else(|| empire_label(game_data, event.attacker_empire_raw));
-        let production_damage = bombardment_production_damage_sentence(
+        let production_damage = bombardment_collateral_damage_sentence(
+            event.stardock_items_destroyed,
             event.stored_goods_destroyed,
             event.factories_destroyed,
         );
         let body = format!(
             " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.{}",
             attacker,
-            ship_loss_summary(event.attacker_initial),
+            fleet_force_summary(event.attacker_initial, 0),
             planet_defense_summary(
                 event.defender_batteries_initial,
                 event.defender_armies_initial
@@ -1888,10 +1900,10 @@ fn generate_report_entries(
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         {
                             let production_damage = bombard_event
-                                .map(|e| bombardment_production_damage_sentence(e.stored_goods_destroyed, e.factories_destroyed))
+                                .map(|e| bombardment_collateral_damage_sentence(e.stardock_items_destroyed, e.stored_goods_destroyed, e.factories_destroyed))
                                 .unwrap_or_default();
                             format!(
-                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies.{} We are holding our position and are awaiting new orders.",
+                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies.{} We are maintaining bombardment position and will continue next turn.",
                                 planet.planet_name(),
                                 bombard_event
                                     .map(|e| planet_defense_summary(e.defender_batteries_initial, e.defender_armies_initial))

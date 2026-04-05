@@ -926,7 +926,7 @@ fn generate_report_entries(
         let body = format!(
             " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.",
             attacker,
-            ship_loss_summary(event.attacker_initial),
+            fleet_force_summary(event.attacker_initial, 0),
             planet_defense_summary(
                 event.defender_batteries_initial,
                 event.defender_armies_initial
@@ -1694,7 +1694,7 @@ fn generate_report_entries(
                 let body = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         format!(
-                            " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies. We are holding our position and are awaiting new orders.",
+                            " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies. We are maintaining bombardment position and will continue next turn.",
                             planet.planet_name(),
                             bombard_event
                                 .map(|e| planet_defense_summary(e.defender_batteries_initial, e.defender_armies_initial))

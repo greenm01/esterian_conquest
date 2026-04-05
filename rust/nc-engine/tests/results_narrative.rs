@@ -148,6 +148,7 @@ fn results_reports_battle_before_bombard_aftermath() {
         attacker_losses: ShipLosses::default(),
         defender_battery_losses: 2,
         defender_army_losses: 3,
+        stardock_items_destroyed: 0,
         stored_goods_destroyed: 0,
         factories_destroyed: 0,
         stardate_week: Some(2),

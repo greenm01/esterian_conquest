@@ -175,7 +175,11 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
 
     let attacker = &game_data.fleets.records[2];
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
-    assert_eq!(attacker.standing_order_code_raw(), 0);
+    // Bombardment persists: fleet keeps BombardWorld order for next turn.
+    assert_eq!(
+        attacker.standing_order_code_raw(),
+        nc_data::Order::BombardWorld.to_raw()
+    );
     assert_eq!(attacker.current_speed(), 0);
     assert_eq!(attacker.cruiser_count(), 0);
     assert_eq!(attacker.destroyer_count(), 0);

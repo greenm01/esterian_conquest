@@ -38,6 +38,8 @@ pub struct BombardEvent {
     pub defender_battery_losses: u8,
     /// Observed defender army losses.
     pub defender_army_losses: u8,
+    /// Stardock items destroyed by bombardment.
+    pub stardock_items_destroyed: u32,
     /// Stored goods destroyed by bombardment spillover.
     pub stored_goods_destroyed: u32,
     /// Factories destroyed by bombardment spillover.

@@ -44,6 +44,17 @@ fn clear_arrival_and_hold(game_data: &mut CoreGameData, fleet_indices: &[usize])
     }
 }
 
+/// Keep a bombarding fleet on station with its BombardWorld order so it
+/// re-executes next turn. Speed is zeroed but transit_ready_flag stays 0x80.
+fn hold_bombardment_station(game_data: &mut CoreGameData, fleet_indices: &[usize]) {
+    for &idx in fleet_indices {
+        let fleet = &mut game_data.fleets.records[idx];
+        fleet.set_current_speed(0);
+        fleet.set_transit_ready_flag_raw(0x80);
+        nc_data::fleet_motion_state::clear_exact_position(fleet);
+    }
+}
+
 fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, order: Order) -> bool {
     let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
         return false;
@@ -400,6 +411,9 @@ pub(crate) fn process_planetary_assaults(
                 let pre_batteries = game_data.planets.records[planet_idx].ground_batteries_raw();
                 let pre_stored_goods = game_data.planets.records[planet_idx].stored_goods_raw();
                 let pre_factories = game_data.planets.records[planet_idx].factories_word_raw();
+                let pre_stardock_items: u32 = (0..STARDOCK_SLOT_COUNT)
+                    .map(|s| game_data.planets.records[planet_idx].stardock_count_raw(s) as u32)
+                    .sum();
 
                 let before = state.clone();
                 let mut after = state.clone();
@@ -419,7 +433,7 @@ pub(crate) fn process_planetary_assaults(
                     &mut game_data.planets.records[planet_idx],
                     scalar_hits_with_critical(attacker_exchange),
                 );
-                clear_arrival_and_hold(game_data, &winner_fleets);
+                hold_bombardment_station(game_data, &winner_fleets);
                 let post_planet = &game_data.planets.records[planet_idx];
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
@@ -437,6 +451,11 @@ pub(crate) fn process_planetary_assaults(
                         .saturating_sub(post_planet.ground_batteries_raw()),
                     defender_army_losses: pre_armies
                         .saturating_sub(post_planet.army_count_raw()),
+                    stardock_items_destroyed: pre_stardock_items.saturating_sub(
+                        (0..STARDOCK_SLOT_COUNT)
+                            .map(|s| post_planet.stardock_count_raw(s) as u32)
+                            .sum::<u32>(),
+                    ),
                     stored_goods_destroyed: pre_stored_goods
                         .saturating_sub(post_planet.stored_goods_raw()),
                     factories_destroyed: pre_factories
