@@ -662,6 +662,7 @@ pub(crate) fn process_planetary_assaults(
                         planet.set_ownership_status_raw(2);
                         planet.set_army_count_raw(attacker_survivors.min(255) as u8);
                         planet.set_ground_batteries_raw(0);
+                        planet.set_conversion_countdown_raw(2);
                         events
                             .ownership_change_events
                             .push(PlanetOwnershipChangeEvent {
@@ -904,6 +905,7 @@ pub(crate) fn process_planetary_assaults(
                     planet.set_ownership_status_raw(2);
                     planet.set_army_count_raw(attacker_survivors.min(255) as u8);
                     planet.set_ground_batteries_raw(batteries);
+                    planet.set_conversion_countdown_raw(2);
                     events
                         .ownership_change_events
                         .push(PlanetOwnershipChangeEvent {

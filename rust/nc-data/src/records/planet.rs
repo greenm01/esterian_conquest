@@ -359,6 +359,15 @@ impl PlanetRecord {
         self.raw[0x5C] = value;
     }
 
+    /// Conversion countdown for conquered planets. While > 0, the planet does
+    /// not produce revenue or growth for the new owner. Decremented each turn.
+    pub fn conversion_countdown_raw(&self) -> u8 {
+        self.raw[0x5E]
+    }
+    pub fn set_conversion_countdown_raw(&mut self, value: u8) {
+        self.raw[0x5E] = value;
+    }
+
     pub fn status_or_name_summary(&self) -> String {
         let len = self.string_len() as usize;
         let text = &self.status_or_name_bytes()[..len.min(self.status_or_name_bytes().len())];
