@@ -1,10 +1,11 @@
 use super::super::{
     ColonizationEvent, DiplomaticEscalationEvent, Mission, MissionEvent, MissionOutcome,
-    MovementEvents, PlanetIntelEvent, PlanetIntelSource,
+    MovementEvents, PendingObservationEvent, PlanetIntelEvent, PlanetIntelSource,
 };
 use super::salvage::queue_salvage_resolution;
 use super::stepper::set_fleet_to_deep_space_hold;
 use crate::{CoreGameData, Order};
+use nc_data::build_runtime_planet_intel_snapshot;
 
 fn queue_local_intrusion_escalation(
     movement_events: &mut MovementEvents,
@@ -53,28 +54,37 @@ pub(super) fn handle_fleet_arrival(
             });
         }
         Order::ScoutSolarSystem => {
-            if let Some(planet_idx) = game_data
+            let planet_idx = game_data
                 .planets
                 .records
                 .iter()
-                .position(|planet| planet.coords_raw() == coords)
-            {
-                movement_events.planet_intel_events.push(PlanetIntelEvent {
+                .position(|planet| planet.coords_raw() == coords);
+            let intel_event = planet_idx.map(|planet_idx| PlanetIntelEvent {
+                planet_idx,
+                viewer_empire_raw: owner_empire,
+                source: PlanetIntelSource::ScoutSolarSystem,
+                source_fleet_idx: Some(fleet_idx),
+                observed_snapshot: build_runtime_planet_intel_snapshot(
+                    game_data,
+                    owner_empire,
+                    game_data.conquest.game_year(),
                     planet_idx,
-                    viewer_empire_raw: owner_empire,
-                    source: PlanetIntelSource::ScoutSolarSystem,
-                });
-            }
-            movement_events.mission_events.push(MissionEvent {
-                fleet_idx,
-                owner_empire_raw: owner_empire,
-                kind: Mission::ScoutSolarSystem,
-                outcome: MissionOutcome::Succeeded,
-                planet_idx: None,
-                location_coords: Some(coords),
-                target_coords: Some(coords),
+                    PlanetIntelSource::ScoutSolarSystem,
+                ),
                 stardate_week: None,
             });
+            movement_events
+                .pending_observation_events
+                .push(PendingObservationEvent {
+                    fleet_idx,
+                    owner_empire_raw: owner_empire,
+                    kind: Mission::ScoutSolarSystem,
+                    outcome: MissionOutcome::Succeeded,
+                    planet_idx,
+                    location_coords: coords,
+                    target_coords: coords,
+                    intel_event,
+                });
         }
         Order::ViewWorld => {
             let planet_idx = game_data
@@ -82,28 +92,36 @@ pub(super) fn handle_fleet_arrival(
                 .records
                 .iter()
                 .position(|planet| planet.coords_raw() == coords);
-            if let Some(planet_idx) = planet_idx {
-                movement_events.planet_intel_events.push(PlanetIntelEvent {
-                    planet_idx,
-                    viewer_empire_raw: owner_empire,
-                    source: PlanetIntelSource::ViewWorld,
-                });
-            }
-            movement_events.mission_events.push(MissionEvent {
-                fleet_idx,
-                owner_empire_raw: owner_empire,
-                kind: Mission::ViewWorld,
-                outcome: if planet_idx.is_some() {
-                    MissionOutcome::Succeeded
-                } else {
-                    MissionOutcome::Failed
-                },
+            let intel_event = planet_idx.map(|planet_idx| PlanetIntelEvent {
                 planet_idx,
-                location_coords: Some(coords),
-                target_coords: Some(coords),
+                viewer_empire_raw: owner_empire,
+                source: PlanetIntelSource::ViewWorld,
+                source_fleet_idx: Some(fleet_idx),
+                observed_snapshot: build_runtime_planet_intel_snapshot(
+                    game_data,
+                    owner_empire,
+                    game_data.conquest.game_year(),
+                    planet_idx,
+                    PlanetIntelSource::ViewWorld,
+                ),
                 stardate_week: None,
             });
-            set_fleet_to_deep_space_hold(&mut game_data.fleets.records[fleet_idx]);
+            movement_events
+                .pending_observation_events
+                .push(PendingObservationEvent {
+                    fleet_idx,
+                    owner_empire_raw: owner_empire,
+                    kind: Mission::ViewWorld,
+                    outcome: if planet_idx.is_some() {
+                        MissionOutcome::Succeeded
+                    } else {
+                        MissionOutcome::Failed
+                    },
+                    planet_idx,
+                    location_coords: coords,
+                    target_coords: coords,
+                    intel_event,
+                });
         }
         Order::Salvage => {
             let planet_idx = game_data
@@ -273,4 +291,8 @@ pub(super) fn handle_fleet_arrival(
     }
 
     Ok(())
+}
+
+pub(super) fn set_view_world_completion_hold(fleet: &mut nc_data::FleetRecord) {
+    set_fleet_to_deep_space_hold(fleet);
 }

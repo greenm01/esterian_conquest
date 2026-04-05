@@ -213,6 +213,9 @@ pub(super) fn push_planet_intel(
         planet_idx,
         viewer_empire_raw,
         source,
+        source_fleet_idx: None,
+        observed_snapshot: None,
+        stardate_week: None,
     });
 }
 

@@ -95,3 +95,7 @@ pub(super) fn process_fleet_movement(
 
     Ok(movement_events)
 }
+
+pub(super) fn set_view_world_completion_hold(fleet: &mut nc_data::FleetRecord) {
+    arrivals::set_view_world_completion_hold(fleet);
+}

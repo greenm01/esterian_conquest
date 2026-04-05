@@ -4,7 +4,8 @@ use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
-    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
+    PlanetIntelEvent, PlanetIntelSnapshot, PlanetIntelSource, PlanetPlayerInputValidationError,
+    PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -885,6 +886,129 @@ fn report_header(source_clause: &str, week: Option<u8>, year: u16) -> String {
     format_report_first_line(source_clause, week.unwrap_or(1), year)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum NarrativePhase {
+    MovementPrelude,
+    IntelObservation,
+    ContactPrelude,
+    ContactIdentify,
+    BattleResolution,
+    DefenderAftermath,
+    AttackerAftermath,
+    CombatFollowOn,
+    Generic,
+}
+
+fn stardate_week_from_report_text(text: &str) -> u8 {
+    text.split("Stardate: ")
+        .nth(1)
+        .and_then(|rest| rest.split('/').next())
+        .and_then(|week| week.trim().parse::<u8>().ok())
+        .unwrap_or(1)
+}
+
+fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
+    if text.contains("Sensor contact shows an alien fleet") {
+        NarrativePhase::ContactPrelude
+    } else if text.contains("We have located and identified the alien fleet")
+        || text.contains("we are avoiding this enemy fleet")
+    {
+        NarrativePhase::ContactIdentify
+    } else if text.contains("We lost all contact")
+        || text.contains("We successfully intercepted")
+        || text.contains("We were attacked by")
+        || text.contains("We attempted to disengage")
+    {
+        NarrativePhase::BattleResolution
+    } else if text.contains("We have been bombarded")
+        || text.contains("We have been invaded and captured")
+    {
+        NarrativePhase::DefenderAftermath
+    } else if text.contains("Bombardment mission report:")
+        || text.contains("Invasion mission report:")
+        || text.contains("Blitz mission report:")
+    {
+        if text.contains("preparing for bombardment")
+            || text.contains("preparing to begin the invasion")
+            || text.contains("preparing to launch the assault")
+        {
+            NarrativePhase::MovementPrelude
+        } else if text.contains("Hostile action stripped us")
+            || text.contains("Enemy ground batteries prevented a landing")
+        {
+            NarrativePhase::CombatFollowOn
+        } else {
+            NarrativePhase::AttackerAftermath
+        }
+    } else if text.contains("Viewing mission report:")
+        || text.contains("Scouting mission report:")
+    {
+        if text.contains("completed a long range viewing analysis")
+            || text.contains("compiled the following data")
+        {
+            NarrativePhase::IntelObservation
+        } else if text.contains("We were attacked before")
+            || text.contains("forced us to break off")
+            || text.contains("Hostile action forced us to abort")
+        {
+            NarrativePhase::CombatFollowOn
+        } else if text.contains("Sensor contact shows") {
+            NarrativePhase::ContactPrelude
+        } else if text.contains("We have located and identified") {
+            NarrativePhase::ContactIdentify
+        } else {
+            NarrativePhase::MovementPrelude
+        }
+    } else if text.contains("Move mission report:")
+        || text.contains("Guard Starbase mission report:")
+        || text.contains("Guard/Blockade World mission report:")
+        || text.contains("Patrol mission report:")
+        || text.contains("Seek-Home mission report:")
+        || text.contains("Rendezvous mission report:")
+        || text.contains("Colonization mission report:")
+        || text.contains("Salvage mission report:")
+    {
+        if text.contains("Hostile action forced") {
+            NarrativePhase::CombatFollowOn
+        } else {
+            NarrativePhase::MovementPrelude
+        }
+    } else {
+        NarrativePhase::Generic
+    }
+}
+
+fn matching_planet_intel_event<'a>(
+    events: &'a MaintenanceEvents,
+    event: &nc_data::MissionEvent,
+) -> Option<&'a PlanetIntelEvent> {
+    let source = match event.kind {
+        Mission::ViewWorld => PlanetIntelSource::ViewWorld,
+        Mission::ScoutSolarSystem => PlanetIntelSource::ScoutSolarSystem,
+        _ => return None,
+    };
+    events.planet_intel_events.iter().find(|intel_event| {
+        intel_event.viewer_empire_raw == event.owner_empire_raw
+            && intel_event.source == source
+            && intel_event.source_fleet_idx == Some(event.fleet_idx)
+    })
+}
+
+fn owner_clause_from_snapshot(snapshot: &PlanetIntelSnapshot, game_data: &CoreGameData) -> String {
+    match snapshot.known_owner_empire_id {
+        Some(0) => "unowned".to_string(),
+        Some(owner) => format!("owned by {}", classic_empire_clause(game_data, owner)),
+        None => "of unknown ownership".to_string(),
+    }
+}
+
+fn stardock_scan_summary_from_snapshot(snapshot: &PlanetIntelSnapshot) -> String {
+    match snapshot.known_docked_summary.as_deref() {
+        None | Some("Nothing") => "The planet's stardock appears to be empty.".to_string(),
+        Some(summary) => format!("Scanning the planet's stardock, we detected {summary}."),
+    }
+}
+
 /// Generate all player-visible report entries from a completed maintenance turn.
 ///
 /// Each entry carries:
@@ -1658,23 +1782,33 @@ fn generate_report_entries(
                 ),
             ),
             (Mission::ViewWorld, MissionOutcome::Succeeded) => {
-                let body = if let Some(planet_idx) = event.planet_idx {
-                    if let Some(planet) = game_data.planets.records.get(planet_idx) {
-                        let owner_clause = if planet.owner_empire_slot_raw() == 0 {
-                            "unowned".to_string()
-                        } else {
-                            format!(
-                                "owned by {}",
-                                classic_empire_clause(
-                                    game_data,
-                                    planet.owner_empire_slot_raw(),
-                                )
-                            )
-                        };
+                let body = if let Some(intel_event) = matching_planet_intel_event(events, event) {
+                    if let Some(snapshot) = intel_event.observed_snapshot.as_ref() {
                         format!(
-                            " Viewing mission report: We have entered System({x},{y}) and have completed a long range viewing analysis of the world found within. The world is {owner_clause} and has a potential of {} points. Until ordered otherwise, we will be moving out of the solar system.",
-                            planet.potential_production_points_current_known(),
+                            " Viewing mission report: We have entered System({x},{y}) and have completed a long range viewing analysis of the world found within. The world is {} and has a potential of {} points. Until ordered otherwise, we will be moving out of the solar system.",
+                            owner_clause_from_snapshot(snapshot, game_data),
+                            snapshot.known_potential_production.unwrap_or(0),
                         )
+                    } else if let Some(planet_idx) = event.planet_idx {
+                        if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                            let owner_clause = if planet.owner_empire_slot_raw() == 0 {
+                                "unowned".to_string()
+                            } else {
+                                format!(
+                                    "owned by {}",
+                                    classic_empire_clause(
+                                        game_data,
+                                        planet.owner_empire_slot_raw(),
+                                    )
+                                )
+                            };
+                            format!(
+                                " Viewing mission report: We have entered System({x},{y}) and have completed a long range viewing analysis of the world found within. The world is {owner_clause} and has a potential of {} points. Until ordered otherwise, we will be moving out of the solar system.",
+                                planet.potential_production_points_current_known(),
+                            )
+                        } else {
+                            format!(" Viewing mission report: We have entered System({x},{y}) and completed a long range viewing analysis.")
+                        }
                     } else {
                         format!(" Viewing mission report: We have entered System({x},{y}) and completed a long range viewing analysis.")
                     }
@@ -1783,39 +1917,69 @@ fn generate_report_entries(
                 )
             }
             (Mission::ScoutSolarSystem, MissionOutcome::Succeeded) => {
-                if let Some(planet) = game_data
-                    .planets
-                    .records
-                    .iter()
-                    .find(|planet| planet.coords_raw() == [x, y])
-                {
-                    let owner = if planet.owner_empire_slot_raw() == 0 {
-                        "Unowned world".to_string()
+                if let Some(intel_event) = matching_planet_intel_event(events, event) {
+                    if let Some(snapshot) = intel_event.observed_snapshot.as_ref() {
+                        let owner = match snapshot.known_owner_empire_id {
+                            Some(0) => "Unowned world".to_string(),
+                            Some(owner) => classic_empire_clause(game_data, owner),
+                            None => "Unknown".to_string(),
+                        };
+                        let body = format!(
+                            " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
+                            snapshot.known_name.as_deref().unwrap_or("Unknown"),
+                            owner,
+                            snapshot.known_potential_production.unwrap_or(0),
+                            snapshot.known_current_production.unwrap_or(snapshot.known_potential_production.unwrap_or(0) as u8),
+                            snapshot.known_stored_points.unwrap_or(0),
+                            snapshot.known_armies.unwrap_or(0),
+                            snapshot.known_ground_batteries.unwrap_or(0),
+                            stardock_scan_summary_from_snapshot(snapshot),
+                        );
+                        (
+                            0x0Bu8,
+                            RESULTS_TAIL_SCOUTING,
+                            source_clause.clone(),
+                            body,
+                        )
+                    } else if let Some(planet) = game_data
+                        .planets
+                        .records
+                        .iter()
+                        .find(|planet| planet.coords_raw() == [x, y])
+                    {
+                        let owner = if planet.owner_empire_slot_raw() == 0 {
+                            "Unowned world".to_string()
+                        } else {
+                            classic_empire_clause(game_data, planet.owner_empire_slot_raw())
+                        };
+                        let stardock_summary = stardock_scan_summary(planet);
+                        let body = format!(
+                            " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
+                            planet.planet_name(),
+                            owner,
+                            planet.potential_production_points(),
+                            planet
+                                .present_production_points_current_known()
+                                .unwrap_or_else(|| planet.potential_production_points()),
+                            planet.stored_goods_raw(),
+                            planet.army_count_raw(),
+                            planet.ground_batteries_raw(),
+                            stardock_summary,
+                        );
+                        (
+                            0x0Bu8,
+                            RESULTS_TAIL_SCOUTING,
+                            source_clause.clone(),
+                            body,
+                        )
                     } else {
-                        classic_empire_clause(game_data, planet.owner_empire_slot_raw())
-                    };
-                    let stardock_summary = stardock_scan_summary(planet);
-                    let body = format!(
-                        " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
-                        planet.planet_name(),
-                        owner,
-                        planet.potential_production_points(),
-                        planet
-                            .present_production_points_current_known()
-                            .unwrap_or_else(|| planet.potential_production_points()),
-                        planet.stored_goods_raw(),
-                        planet.army_count_raw(),
-                        planet.ground_batteries_raw(),
-                        stardock_summary,
-                    );
-                    // Extended orbit report: 11 records (kind=0x0B) per
-                    // original ECMAINT, verified from shipped corpus logs.
-                    (
-                        0x0Bu8,
-                        RESULTS_TAIL_SCOUTING,
-                        source_clause.clone(),
-                        body,
-                    )
+                        (
+                            0x07,
+                            RESULTS_TAIL_SCOUTING,
+                            source_clause.clone(),
+                            " Scouting mission report: We have arrived at our destination and are beginning to scout this solar system.".to_string(),
+                        )
+                    }
                 } else {
                     (
                         0x07,
@@ -2373,6 +2537,12 @@ fn generate_report_entries(
         });
     }
 
+    entries.sort_by_key(|entry| {
+        (
+            stardate_week_from_report_text(&entry.text),
+            narrative_phase_for_report_text(&entry.text),
+        )
+    });
     entries
 }
 

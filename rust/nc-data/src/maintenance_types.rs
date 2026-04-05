@@ -2,7 +2,7 @@
 
 use crate::{
     DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,
-    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
+    PlanetIntelSnapshot, PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -87,7 +87,7 @@ pub enum PlanetIntelSource {
 }
 
 /// A classic planet-database refresh for one player's view of one planet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetIntelEvent {
     /// Planet index (into PLANETS.DAT records) whose intel should be refreshed.
     pub planet_idx: usize,
@@ -95,6 +95,12 @@ pub struct PlanetIntelEvent {
     pub viewer_empire_raw: u8,
     /// Mission/combat family that produced this refresh.
     pub source: PlanetIntelSource,
+    /// Source fleet index when one specific fleet observation produced this refresh.
+    pub source_fleet_idx: Option<usize>,
+    /// Observed snapshot captured when the intel was earned.
+    pub observed_snapshot: Option<PlanetIntelSnapshot>,
+    /// Week of year (1–52) when this intel was acquired; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A combat-triggered planet ownership change.

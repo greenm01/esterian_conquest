@@ -8,7 +8,7 @@ use crate::usage::print_maintenance_usage;
 use nc_compat::import_directory_snapshot;
 use nc_data::{
     CampaignStore, CoreGameData, DiplomacyOverride, DiplomaticRelation, MaintenanceEvents,
-    PlanetIntelSnapshot, PlanetIntelSource, merge_player_intel_from_runtime,
+    PlanetIntelSnapshot, latest_planet_intel_grants_for_viewer, merge_player_intel_from_runtime,
 };
 use nc_engine::{
     DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel, build_results_report_blocks,
@@ -154,7 +154,7 @@ pub fn run_rust_maintenance_with_options(
             )?
         };
         let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
-            .map(|viewer_empire_id| collect_planet_intel_grants(&events, viewer_empire_id))
+            .map(|viewer_empire_id| latest_planet_intel_grants_for_viewer(&events, viewer_empire_id))
             .collect::<Vec<_>>();
         all_events.bombard_events.extend(events.bombard_events);
         all_events
@@ -571,18 +571,6 @@ fn visible_hazards_from_snapshots(
                 viewer_idx as u8,
             )
         })
-        .collect()
-}
-
-fn collect_planet_intel_grants(
-    events: &MaintenanceEvents,
-    viewer_empire_id: u8,
-) -> BTreeMap<usize, PlanetIntelSource> {
-    events
-        .planet_intel_events
-        .iter()
-        .filter(|event| event.viewer_empire_raw == viewer_empire_id)
-        .map(|event| (event.planet_idx + 1, event.source))
         .collect()
 }
 

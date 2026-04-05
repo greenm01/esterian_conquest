@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use nc_compat::{DatabaseDat, merge_player_intel_from_compat};
 use nc_data::{
-    PlanetIntelSource, build_player_starmap_projection_from_snapshots,
+    PlanetIntelEvent, PlanetIntelSource, build_player_starmap_projection_from_snapshots,
     merge_player_intel_from_runtime,
 };
 use nc_engine::{GameStateBuilder, visible_hazard_intel_from_snapshots};
@@ -146,7 +146,17 @@ fn runtime_intel_merges_scouted_worlds_without_compat_database() {
         .set_guard_starbase(1, 4, [9, 2], 1, 1)
         .expect("guard starbase should seed");
 
-    let grants = BTreeMap::from([(5usize, PlanetIntelSource::ScoutSolarSystem)]);
+    let grants = BTreeMap::from([(
+        5usize,
+        PlanetIntelEvent {
+            planet_idx: 4,
+            viewer_empire_raw: 1,
+            source: PlanetIntelSource::ScoutSolarSystem,
+            source_fleet_idx: None,
+            observed_snapshot: None,
+            stardate_week: Some(22),
+        },
+    )]);
     let known =
         merge_player_intel_from_runtime(&game_data, 1, 3004, Some(&BTreeMap::new()), Some(&grants));
     let known_world = known.get(&5).expect("scouted world should be stored");

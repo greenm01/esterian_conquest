@@ -145,6 +145,18 @@ pub(super) fn remap_movement_event_fleet_indices_after_removal(
             }
             None => false,
         });
+    movement_events
+        .pending_observation_events
+        .retain_mut(|event| match remap(event.fleet_idx) {
+            Some(new_idx) => {
+                event.fleet_idx = new_idx;
+                if let Some(intel_event) = event.intel_event.as_mut() {
+                    intel_event.source_fleet_idx = Some(new_idx);
+                }
+                true
+            }
+            None => false,
+        });
 }
 
 fn fleet_salvage_value(fleet: &nc_data::FleetRecord) -> u32 {

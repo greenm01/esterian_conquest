@@ -5,10 +5,10 @@
 
 use nc_data::{
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomaticRelation,
-    GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome, MissionRetargetEvent, Order,
-    PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
+    DiplomacyOverride, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
+    MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
 };
-use nc_engine::run_maintenance_turn;
+use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
 use std::path::Path;
 
 /// Helper to load a fixture directory.
@@ -58,6 +58,21 @@ fn configured_delayed_hostile_arrival_state(
     fleet.raw[0x19] = 0x81;
 
     (game_data, target_idx, target_coords)
+}
+
+fn mutual_enemy_overrides(left: u8, right: u8) -> [DiplomacyOverride; 2] {
+    [
+        DiplomacyOverride {
+            from_empire_raw: left,
+            to_empire_raw: right,
+            relation: DiplomaticRelation::Enemy,
+        },
+        DiplomacyOverride {
+            from_empire_raw: right,
+            to_empire_raw: left,
+            relation: DiplomaticRelation::Enemy,
+        },
+    ]
 }
 
 #[test]
@@ -332,11 +347,13 @@ fn test_scout_system_arrival_emits_success_event() {
         events.planet_intel_events[0].source,
         PlanetIntelSource::ScoutSolarSystem
     );
+    assert_eq!(events.planet_intel_events[0].source_fleet_idx, Some(0));
+    assert!(events.planet_intel_events[0].observed_snapshot.is_some());
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ScoutSolarSystem
             && event.outcome == MissionOutcome::Succeeded
-            && event.planet_idx.is_none()
+            && event.planet_idx == Some(13)
     }));
     assert_eq!(
         game_data.fleets.records[0].current_location_coords_raw(),
@@ -363,6 +380,8 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
         events.planet_intel_events[0].source,
         PlanetIntelSource::ViewWorld
     );
+    assert_eq!(events.planet_intel_events[0].source_fleet_idx, Some(0));
+    assert!(events.planet_intel_events[0].observed_snapshot.is_some());
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ViewWorld
@@ -377,6 +396,106 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
     assert_eq!(
         game_data.fleets.records[0].tuple_c_payload_raw(),
         [0x81, 0x00, 0x00, 0x00, 0x00]
+    );
+}
+
+#[test]
+fn test_view_world_destroyed_in_same_turn_emits_no_success_or_intel() {
+    let (mut game_data, target_idx, target_coords) =
+        configured_delayed_hostile_arrival_state(Order::ViewWorld, (0, 0, 1, 0, 0, 0, 0));
+    game_data.planets.records[target_idx].set_owner_empire_slot_raw(2);
+    game_data.planets.records[target_idx].set_ownership_status_raw(2);
+
+    let enemy = &mut game_data.fleets.records[1];
+    enemy.set_owner_empire_raw(2);
+    enemy.set_fleet_id_word_raw(9);
+    enemy.set_current_location_coords_raw(target_coords);
+    enemy.set_standing_order_kind(Order::HoldPosition);
+    enemy.set_standing_order_target_coords_raw(target_coords);
+    enemy.set_current_speed(0);
+    enemy.set_battleship_count(8);
+    enemy.set_cruiser_count(8);
+    enemy.set_destroyer_count(8);
+    enemy.set_scout_count(0);
+    enemy.set_troop_transport_count(0);
+    enemy.set_army_count(0);
+    enemy.set_etac_count(0);
+    enemy.set_rules_of_engagement(10);
+
+    let events = run_maintenance_turn_with_context(
+        &mut game_data,
+        &[],
+        &mutual_enemy_overrides(1, 2),
+    )
+    .expect("maintenance should succeed");
+
+    assert!(
+        !events.planet_intel_events.iter().any(|event| {
+            event.viewer_empire_raw == 1 && event.source == PlanetIntelSource::ViewWorld
+        }),
+        "destroyed viewing fleet should not emit intel"
+    );
+    assert!(
+        !events.mission_events.iter().any(|event| {
+            event.fleet_idx == 0
+                && event.kind == Mission::ViewWorld
+                && event.outcome == MissionOutcome::Succeeded
+        }),
+        "destroyed viewing fleet should not emit viewing success"
+    );
+    assert!(
+        events.fleet_destroyed_events.iter().any(|event| event.reporting_empire_raw == 1),
+        "destroyed fleet should still generate lost-contact event"
+    );
+}
+
+#[test]
+fn test_scout_system_destroyed_in_same_turn_emits_no_success_or_intel() {
+    let (mut game_data, target_idx, target_coords) =
+        configured_delayed_hostile_arrival_state(Order::ScoutSolarSystem, (0, 0, 1, 0, 0, 0, 1));
+    game_data.planets.records[target_idx].set_owner_empire_slot_raw(2);
+    game_data.planets.records[target_idx].set_ownership_status_raw(2);
+
+    let enemy = &mut game_data.fleets.records[1];
+    enemy.set_owner_empire_raw(2);
+    enemy.set_fleet_id_word_raw(9);
+    enemy.set_current_location_coords_raw(target_coords);
+    enemy.set_standing_order_kind(Order::HoldPosition);
+    enemy.set_standing_order_target_coords_raw(target_coords);
+    enemy.set_current_speed(0);
+    enemy.set_battleship_count(8);
+    enemy.set_cruiser_count(8);
+    enemy.set_destroyer_count(8);
+    enemy.set_scout_count(0);
+    enemy.set_troop_transport_count(0);
+    enemy.set_army_count(0);
+    enemy.set_etac_count(0);
+    enemy.set_rules_of_engagement(10);
+
+    let events = run_maintenance_turn_with_context(
+        &mut game_data,
+        &[],
+        &mutual_enemy_overrides(1, 2),
+    )
+    .expect("maintenance should succeed");
+
+    assert!(
+        !events.planet_intel_events.iter().any(|event| {
+            event.viewer_empire_raw == 1 && event.source == PlanetIntelSource::ScoutSolarSystem
+        }),
+        "destroyed scout fleet should not emit intel"
+    );
+    assert!(
+        !events.mission_events.iter().any(|event| {
+            event.fleet_idx == 0
+                && event.kind == Mission::ScoutSolarSystem
+                && event.outcome == MissionOutcome::Succeeded
+        }),
+        "destroyed scout fleet should not emit scouting success"
+    );
+    assert!(
+        events.fleet_destroyed_events.iter().any(|event| event.reporting_empire_raw == 1),
+        "destroyed fleet should still generate lost-contact event"
     );
 }
 

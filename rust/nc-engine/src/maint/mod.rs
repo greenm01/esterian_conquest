@@ -34,9 +34,22 @@ struct ColonizationEvent {
 struct MovementEvents {
     colonization_events: Vec<ColonizationEvent>,
     planet_intel_events: Vec<PlanetIntelEvent>,
+    pending_observation_events: Vec<PendingObservationEvent>,
     mission_events: Vec<MissionEvent>,
     salvage_events: Vec<SalvageResolvedEvent>,
     diplomatic_escalation_events: Vec<DiplomaticEscalationEvent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PendingObservationEvent {
+    fleet_idx: usize,
+    owner_empire_raw: u8,
+    kind: Mission,
+    outcome: MissionOutcome,
+    planet_idx: Option<usize>,
+    location_coords: [u8; 2],
+    target_coords: [u8; 2],
+    intel_event: Option<PlanetIntelEvent>,
 }
 
 /// Run a single turn of maintenance processing.
@@ -232,7 +245,8 @@ pub fn run_maintenance_turn_with_context_and_seed(
     mission_retarget_events.extend(retarget::refresh_guard_starbase_targets(game_data));
 
     // Process fleet orders; collect side-effect events
-    let movement_events = movement::process_fleet_movement(game_data, visible_hazards_by_empire)?;
+    let mut movement_events =
+        movement::process_fleet_movement(game_data, visible_hazards_by_empire)?;
     merge_events.extend(merging::process_mission_fleet_merging(game_data)?);
 
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
@@ -293,6 +307,12 @@ pub fn run_maintenance_turn_with_context_and_seed(
 
     // Normalize CONQUEST.DAT header fields
     campaign::process_conquest_header(game_data, should_accumulate_conquest)?;
+
+    finalize_pending_observation_events(
+        game_data,
+        &mut movement_events,
+        &fleet_battle_phase_events.mission_events,
+    );
 
     let mut mission_events = movement_events.mission_events;
     mission_events.extend(fleet_battle_phase_events.mission_events);
@@ -396,6 +416,47 @@ fn fleet_has_presence(fleet: &FleetRecord) -> bool {
         || fleet.troop_transport_count() > 0
         || fleet.army_count() > 0
         || fleet.etac_count() > 0
+}
+
+fn finalize_pending_observation_events(
+    game_data: &mut CoreGameData,
+    movement_events: &mut MovementEvents,
+    combat_mission_events: &[MissionEvent],
+) {
+    let pending_events = std::mem::take(&mut movement_events.pending_observation_events);
+    for pending in pending_events {
+        let Some(fleet) = game_data.fleets.records.get_mut(pending.fleet_idx) else {
+            continue;
+        };
+        if !fleet_has_presence(fleet) {
+            continue;
+        }
+        let mission_aborted = combat_mission_events.iter().any(|event| {
+            event.fleet_idx == pending.fleet_idx
+                && event.owner_empire_raw == pending.owner_empire_raw
+                && event.kind == pending.kind
+                && event.outcome == MissionOutcome::Aborted
+        });
+        if mission_aborted {
+            continue;
+        }
+        if pending.kind == Mission::ViewWorld && pending.outcome == MissionOutcome::Succeeded {
+            movement::set_view_world_completion_hold(fleet);
+        }
+        if let Some(intel_event) = pending.intel_event {
+            movement_events.planet_intel_events.push(intel_event);
+        }
+        movement_events.mission_events.push(MissionEvent {
+            fleet_idx: pending.fleet_idx,
+            owner_empire_raw: pending.owner_empire_raw,
+            kind: pending.kind,
+            outcome: pending.outcome,
+            planet_idx: pending.planet_idx,
+            location_coords: Some(pending.location_coords),
+            target_coords: Some(pending.target_coords),
+            stardate_week: None,
+        });
+    }
 }
 
 fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {

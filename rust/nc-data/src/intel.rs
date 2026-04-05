@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
-use crate::{CoreGameData, PlanetIntelSource, ProductionItemKind};
+use crate::{CoreGameData, PlanetIntelEvent, PlanetIntelSource, ProductionItemKind};
 
 pub fn merge_player_intel_from_runtime(
     game_data: &CoreGameData,
     viewer_empire_id: u8,
     year: u16,
     previous: Option<&BTreeMap<usize, PlanetIntelSnapshot>>,
-    current_turn_grants: Option<&BTreeMap<usize, PlanetIntelSource>>,
+    current_turn_grants: Option<&BTreeMap<usize, PlanetIntelEvent>>,
 ) -> BTreeMap<usize, PlanetIntelSnapshot> {
     game_data
         .planets
@@ -79,6 +79,60 @@ pub fn merge_player_intel_from_runtime(
         .collect()
 }
 
+pub fn build_runtime_planet_intel_snapshot(
+    game_data: &CoreGameData,
+    viewer_empire_id: u8,
+    year: u16,
+    planet_idx: usize,
+    source: PlanetIntelSource,
+) -> Option<PlanetIntelSnapshot> {
+    let planet = game_data.planets.records.get(planet_idx)?;
+    Some(snapshot_from_runtime_grant(
+        PlanetIntelSnapshot {
+            planet_record_index_1_based: planet_idx + 1,
+            intel_tier: IntelTier::Unknown,
+            compat_is_orbit_seed: false,
+            last_intel_year: None,
+            seen_year: None,
+            scout_year: None,
+            known_name: None,
+            known_owner_empire_id: None,
+            known_potential_production: None,
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: None,
+            known_current_production: None,
+            known_stored_points: None,
+            known_docked_summary: None,
+            known_orbit_summary: None,
+            compat_word_1e: None,
+        },
+        game_data,
+        planet,
+        source,
+        viewer_empire_id,
+        year,
+    ))
+}
+
+pub fn latest_planet_intel_grants_for_viewer(
+    events: &crate::MaintenanceEvents,
+    viewer_empire_id: u8,
+) -> BTreeMap<usize, PlanetIntelEvent> {
+    let mut grants = BTreeMap::new();
+    for event in events
+        .planet_intel_events
+        .iter()
+        .filter(|event| event.viewer_empire_raw == viewer_empire_id)
+    {
+        let entry = grants.entry(event.planet_idx + 1).or_insert_with(|| event.clone());
+        if event.stardate_week.unwrap_or(0) >= entry.stardate_week.unwrap_or(0) {
+            *entry = event.clone();
+        }
+    }
+    grants
+}
+
 pub(crate) fn infer_intel_tier_from_snapshot(
     viewer_empire_id: u8,
     snapshot: &PlanetIntelSnapshot,
@@ -113,7 +167,7 @@ fn snapshot_from_runtime(
     planet: &crate::PlanetRecord,
     viewer_empire_id: u8,
     year: u16,
-    current_turn_grant: Option<&PlanetIntelSource>,
+    current_turn_grant: Option<&PlanetIntelEvent>,
 ) -> PlanetIntelSnapshot {
     let owner_empire_id = planet.owner_empire_slot_raw();
     if owner_empire_id == viewer_empire_id {
@@ -161,12 +215,37 @@ fn snapshot_from_runtime(
         compat_word_1e: None,
     };
 
-    if let Some(source) = current_turn_grant.copied() {
-        snapshot = snapshot_from_runtime_grant(snapshot, game_data, planet, source, year);
+    if let Some(grant) = current_turn_grant {
+        snapshot = snapshot_from_turn_grant(
+            snapshot,
+            game_data,
+            planet,
+            viewer_empire_id,
+            year,
+            grant,
+        );
     }
 
     snapshot.intel_tier = infer_intel_tier_from_snapshot(viewer_empire_id, &snapshot);
     snapshot
+}
+
+fn snapshot_from_turn_grant(
+    snapshot: PlanetIntelSnapshot,
+    game_data: &CoreGameData,
+    planet: &crate::PlanetRecord,
+    viewer_empire_id: u8,
+    year: u16,
+    grant: &PlanetIntelEvent,
+) -> PlanetIntelSnapshot {
+    if let Some(observed) = &grant.observed_snapshot {
+        let mut snapshot = observed.clone();
+        snapshot.planet_record_index_1_based = grant.planet_idx + 1;
+        snapshot.intel_tier = infer_intel_tier_from_snapshot(viewer_empire_id, &snapshot);
+        return snapshot;
+    }
+
+    snapshot_from_runtime_grant(snapshot, game_data, planet, grant.source, viewer_empire_id, year)
 }
 
 fn snapshot_from_runtime_grant(
@@ -174,6 +253,7 @@ fn snapshot_from_runtime_grant(
     game_data: &CoreGameData,
     planet: &crate::PlanetRecord,
     source: PlanetIntelSource,
+    viewer_empire_id: u8,
     year: u16,
 ) -> PlanetIntelSnapshot {
     let compat_year = year.saturating_sub(1);
@@ -219,6 +299,7 @@ fn snapshot_from_runtime_grant(
         }
     }
 
+    snapshot.intel_tier = infer_intel_tier_from_snapshot(viewer_empire_id, &snapshot);
     snapshot
 }
 

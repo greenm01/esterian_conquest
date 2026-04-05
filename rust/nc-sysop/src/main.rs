@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 
 use nc_data::{
     BbsGameConfig, CampaignSettings, CampaignStore, MaintenanceEvents, PlanetIntelSnapshot,
-    PlanetIntelSource, SeatReservation, generate_campaign_seed, merge_player_intel_from_runtime,
+    SeatReservation, generate_campaign_seed, latest_planet_intel_grants_for_viewer,
+    merge_player_intel_from_runtime,
 };
 use nc_engine::{
     VisibleHazardIntel, build_results_report_blocks, build_seeded_new_game,
@@ -674,7 +675,7 @@ fn run_maintenance_for_dir(
             )?
         };
         let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
-            .map(|viewer_empire_id| collect_planet_intel_grants(&events, viewer_empire_id))
+            .map(|viewer_empire_id| latest_planet_intel_grants_for_viewer(&events, viewer_empire_id))
             .collect::<Vec<_>>();
         extend_maintenance_events(&mut all_events, events);
         for viewer_empire_id in 1..=game_data.conquest.player_count() {
@@ -793,18 +794,6 @@ fn visible_hazards_from_snapshots(
                 viewer_idx as u8,
             )
         })
-        .collect()
-}
-
-fn collect_planet_intel_grants(
-    events: &MaintenanceEvents,
-    viewer_empire_id: u8,
-) -> BTreeMap<usize, PlanetIntelSource> {
-    events
-        .planet_intel_events
-        .iter()
-        .filter(|event| event.viewer_empire_raw == viewer_empire_id)
-        .map(|event| (event.planet_idx + 1, event.source))
         .collect()
 }
 

@@ -1,4 +1,5 @@
 use crate::CoreGameData;
+use nc_data::PlanetIntelSource;
 
 use super::super::{
     MaintenanceEvents, Mission, MissionEvent, MissionOutcome,
@@ -11,6 +12,7 @@ pub(super) fn assign_event_weeks(events: &mut MaintenanceEvents, game_data: &Cor
     assign_assault_event_weeks(events);
     assign_bombard_event_weeks(events);
     assign_scout_contact_weeks(events);
+    assign_planet_intel_event_weeks(events);
     assign_ownership_change_weeks(events);
     assign_fleet_merge_weeks(events);
     assign_colonization_weeks(events);
@@ -122,6 +124,36 @@ fn assign_scout_contact_weeks(events: &mut MaintenanceEvents) {
         if e.stardate_week.is_none() {
             e.stardate_week = Some(2);
         }
+    }
+}
+
+fn assign_planet_intel_event_weeks(events: &mut MaintenanceEvents) {
+    for e in &mut events.planet_intel_events {
+        if e.stardate_week.is_some() {
+            continue;
+        }
+        e.stardate_week = events
+            .mission_events
+            .iter()
+            .find(|mission| {
+                mission.owner_empire_raw == e.viewer_empire_raw
+                    && mission.fleet_idx == e.source_fleet_idx.unwrap_or(usize::MAX)
+                    && mission.outcome == MissionOutcome::Succeeded
+                    && matches!(
+                        (e.source, mission.kind),
+                        (PlanetIntelSource::ViewWorld, Mission::ViewWorld)
+                            | (PlanetIntelSource::ScoutSolarSystem, Mission::ScoutSolarSystem)
+                    )
+            })
+            .and_then(|mission| mission.stardate_week)
+            .or_else(|| {
+                events
+                    .assault_report_events
+                    .iter()
+                    .find(|assault| assault.planet_idx == e.planet_idx)
+                    .and_then(|assault| assault.stardate_week)
+            })
+            .or(Some(2));
     }
 }
 
