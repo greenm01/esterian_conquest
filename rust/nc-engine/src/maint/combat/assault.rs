@@ -12,7 +12,9 @@ use super::exchange::{
     GROUND_AS_BATTERY, apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange,
     scalar_hits_with_critical,
 };
-use super::reporting::{mission_kind_for_fleet, preferred_reporting_fleet_id, push_planet_intel};
+use super::reporting::{
+    mission_kind_for_fleet, preferred_reporting_fleet_number, push_planet_intel,
+};
 use super::retreat::set_fleet_to_hold_current_position;
 use super::state::{
     FleetCombatState, IDX_BB, IDX_CA, IDX_DD, fleet_state_from_records, planet_idx_at_coords,
@@ -419,7 +421,10 @@ pub(crate) fn process_planetary_assaults(
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
-                    attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
+                    attacker_fleet_number: preferred_reporting_fleet_number(
+                        game_data,
+                        &winner_fleets,
+                    ),
                     defender_empire_raw: game_data.planets.records[planet_idx]
                         .owner_empire_slot_raw(),
                     attacker_initial: ship_counts_from_state(&before),
@@ -612,7 +617,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
-                            attacker_fleet_id: preferred_reporting_fleet_id(
+                            attacker_fleet_number: preferred_reporting_fleet_number(
                                 game_data,
                                 &winner_fleets,
                             ),
@@ -654,7 +659,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
-                            attacker_fleet_id: preferred_reporting_fleet_id(
+                            attacker_fleet_number: preferred_reporting_fleet_number(
                                 game_data,
                                 &winner_fleets,
                             ),
@@ -697,7 +702,10 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::InvadeWorld,
-                        attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
+                        attacker_fleet_number: preferred_reporting_fleet_number(
+                            game_data,
+                            &winner_fleets,
+                        ),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
@@ -851,7 +859,10 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::BlitzWorld,
-                        attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
+                        attacker_fleet_number: preferred_reporting_fleet_number(
+                            game_data,
+                            &winner_fleets,
+                        ),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
@@ -889,7 +900,10 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::BlitzWorld,
-                        attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
+                        attacker_fleet_number: preferred_reporting_fleet_number(
+                            game_data,
+                            &winner_fleets,
+                        ),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,

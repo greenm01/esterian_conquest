@@ -13,7 +13,7 @@ use super::exchange::{
 };
 use super::reporting::{
     loaded_armies_for_fleet_indices, mission_kind_for_order, preferred_reporting_fleet_index,
-    push_contact_event_for_task_force, report_perspective_for_mission, single_named_fleet_id,
+    push_contact_event_for_task_force, report_perspective_for_mission, single_named_fleet_number,
 };
 use super::retreat::{
     apply_roe_retreat_to_task_force, clear_empty_withdrawn_fleets, dominant_empire_after_battle,
@@ -855,10 +855,10 @@ pub(crate) fn process_fleet_battles(
                 .max_by_key(|other| other.state.total_combat_as())
                 .map(|other| other.empire)
                 .unwrap_or(0);
-            let target_fleet_id = task_forces
+            let target_fleet_number = task_forces
                 .iter()
                 .find(|other| other.empire == target_empire_raw)
-                .and_then(|other| single_named_fleet_id(game_data, &other.fleet_indices));
+                .and_then(|other| single_named_fleet_number(game_data, &other.fleet_indices));
             for &idx in &tf.fleet_indices {
                 events
                     .encounter_disposition_events
@@ -868,7 +868,7 @@ pub(crate) fn process_fleet_battles(
                         mission: mission_kind_for_order(pre_encounter_orders.get(&idx).copied()),
                         coords,
                         target_empire_raw,
-                        target_fleet_id,
+                        target_fleet_number,
                         enemy_initial: ship_counts_from_state(&enemy_before),
                         retreat_target_coords: game_data.fleets.records[idx]
                             .standing_order_target_coords_raw(),
@@ -922,24 +922,24 @@ pub(crate) fn process_fleet_battles(
                 .collect();
             let reporting_fleet_idx =
                 preferred_reporting_fleet_index(game_data, &after_tf.fleet_indices);
-            let reporting_fleet_id = reporting_fleet_idx
-                .map(|idx| game_data.fleets.records[idx].fleet_id())
-                .filter(|fleet_id| *fleet_id != 0);
+            let reporting_fleet_number = reporting_fleet_idx
+                .map(|idx| game_data.fleets.records[idx].local_slot_word_raw() as u8)
+                .filter(|fleet_number| *fleet_number != 0);
             let reporting_mission = reporting_fleet_idx
                 .and_then(|idx| mission_kind_for_order(pre_encounter_orders.get(&idx).copied()));
-            let primary_enemy_fleet_id = task_forces
+            let primary_enemy_fleet_number = task_forces
                 .iter()
                 .filter(|tf| tf.empire != empire && tf.state.has_units())
                 .max_by_key(|tf| tf.state.total_combat_as())
-                .and_then(|tf| single_named_fleet_id(game_data, &tf.fleet_indices));
+                .and_then(|tf| single_named_fleet_number(game_data, &tf.fleet_indices));
             events.fleet_battle_events.push(FleetBattleEvent {
                 reporting_empire_raw: empire,
-                reporting_fleet_id,
+                reporting_fleet_number,
                 reporting_mission,
                 perspective: report_perspective_for_mission(reporting_mission, after_tf.role),
                 coords,
                 enemy_empires_raw,
-                primary_enemy_fleet_id,
+                primary_enemy_fleet_number,
                 held_field: dominant_empire == Some(empire),
                 friendly_initial: ship_counts_from_state(before),
                 friendly_loaded_armies_initial: original_loaded_armies
@@ -954,20 +954,20 @@ pub(crate) fn process_fleet_battles(
             });
 
             if !tf_has_any_units(after_tf) && !after_tf.fleet_indices.is_empty() {
-                let fleet_id = reporting_fleet_id.unwrap_or(0);
+                let fleet_number = reporting_fleet_number.unwrap_or(0);
                 let primary_enemy_empire_raw = task_forces
                     .iter()
                     .filter(|tf| tf.empire != empire)
                     .max_by_key(|tf| tf.state.total_combat_as())
                     .map(|tf| tf.empire);
-                let primary_enemy_fleet_id = task_forces
+                let primary_enemy_fleet_number = task_forces
                     .iter()
                     .filter(|tf| tf.empire != empire)
                     .max_by_key(|tf| tf.state.total_combat_as())
-                    .and_then(|tf| single_named_fleet_id(game_data, &tf.fleet_indices));
+                    .and_then(|tf| single_named_fleet_number(game_data, &tf.fleet_indices));
                 events.fleet_destroyed_events.push(FleetDestroyedEvent {
                     reporting_empire_raw: empire,
-                    fleet_id,
+                    fleet_number,
                     coords,
                     was_intercepting: matches!(after_tf.role, BattleRole::Attacker),
                     friendly_initial: ship_counts_from_state(before),
@@ -979,7 +979,7 @@ pub(crate) fn process_fleet_battles(
                     enemy_loaded_armies_initial,
                     enemy_losses,
                     primary_enemy_empire_raw,
-                    primary_enemy_fleet_id,
+                    primary_enemy_fleet_number,
                     stardate_week: None,
                 });
             }
@@ -991,11 +991,11 @@ pub(crate) fn process_fleet_battles(
                     .filter(|tf| tf.empire != empire)
                     .max_by_key(|tf| tf.state.total_combat_as())
                     .map(|tf| tf.empire);
-                let primary_enemy_fleet_id = task_forces
+                let primary_enemy_fleet_number = task_forces
                     .iter()
                     .filter(|tf| tf.empire != empire)
                     .max_by_key(|tf| tf.state.total_combat_as())
-                    .and_then(|tf| single_named_fleet_id(game_data, &tf.fleet_indices));
+                    .and_then(|tf| single_named_fleet_number(game_data, &tf.fleet_indices));
                 if let Some(lost_ids) = destroyed_starbases_by_empire.get(&empire) {
                     for &starbase_id in lost_ids {
                         events
@@ -1007,7 +1007,7 @@ pub(crate) fn process_fleet_battles(
                                 enemy_initial: ship_counts_from_state(&enemy_before),
                                 enemy_losses,
                                 primary_enemy_empire_raw,
-                                primary_enemy_fleet_id,
+                                primary_enemy_fleet_number,
                                 stardate_week: None,
                             });
                     }

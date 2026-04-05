@@ -185,6 +185,12 @@ pub fn run_maintenance_turn_with_context_and_seed(
 
     let initial_campaign_outlook = game_data.campaign_outlook();
     let initial_campaign_outcome = game_data.campaign_outcome();
+    let fleet_number_by_id: std::collections::HashMap<u8, u8> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|fleet| (fleet.fleet_id(), fleet.local_slot_word_raw() as u8))
+        .collect();
 
     // InvadeWorld execution: a InvadeWorld fleet that had raw[0x19]==0x80 at start of turn
     // executes this turn. Snapshot indices now, before movement mutates raw[0x19].
@@ -314,7 +320,8 @@ pub fn run_maintenance_turn_with_context_and_seed(
         &blitz_ready,
     )?;
 
-    let join_host_events = merging::process_join_host_updates(game_data, &merge_events);
+    let join_host_events =
+        merging::process_join_host_updates(game_data, &merge_events, &fleet_number_by_id);
 
     // Normalize CONQUEST.DAT header fields
     campaign::process_conquest_header(game_data, should_accumulate_conquest)?;

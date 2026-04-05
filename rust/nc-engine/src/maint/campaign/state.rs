@@ -82,7 +82,7 @@ pub(super) fn apply_civil_disorder_fleet_defections(
             to_remove[fleet_idx] = true;
             events.push(FleetDefectionEvent {
                 reporting_empire_raw: empire_raw,
-                fleet_id: fleet.fleet_id(),
+                fleet_number: fleet.local_slot_word_raw() as u8,
                 stardate_week: None,
             });
         }

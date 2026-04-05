@@ -52,8 +52,10 @@ pub(super) fn process_mission_fleet_merging(
             fleet_idx: joiner_idx,
             owner_empire_raw: joiner_owner,
             kind: Mission::JoinAnotherFleet,
-            host_fleet_id: game_data.fleets.records[host_idx].fleet_id(),
-            absorbed_fleet_id: joiner_fleet_id,
+            host_fleet_id_raw: game_data.fleets.records[host_idx].fleet_id(),
+            absorbed_fleet_id_raw: joiner_fleet_id,
+            host_fleet_number: game_data.fleets.records[host_idx].local_slot_word_raw() as u8,
+            absorbed_fleet_number: game_data.fleets.records[joiner_idx].local_slot_word_raw() as u8,
             coords: joiner_coords,
             survivor_side: false,
             stardate_week: None,
@@ -94,8 +96,12 @@ pub(super) fn process_mission_fleet_merging(
                 fleet_idx: absorbed_idx,
                 owner_empire_raw,
                 kind: Mission::RendezvousSector,
-                host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
-                absorbed_fleet_id: absorbed_id,
+                host_fleet_id_raw: game_data.fleets.records[survivor_idx].fleet_id(),
+                absorbed_fleet_id_raw: absorbed_id,
+                host_fleet_number: game_data.fleets.records[survivor_idx].local_slot_word_raw()
+                    as u8,
+                absorbed_fleet_number: game_data.fleets.records[absorbed_idx]
+                    .local_slot_word_raw() as u8,
                 coords,
                 survivor_side: false,
                 stardate_week: None,
@@ -104,8 +110,12 @@ pub(super) fn process_mission_fleet_merging(
                 fleet_idx: survivor_idx,
                 owner_empire_raw,
                 kind: Mission::RendezvousSector,
-                host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
-                absorbed_fleet_id: absorbed_id,
+                host_fleet_id_raw: game_data.fleets.records[survivor_idx].fleet_id(),
+                absorbed_fleet_id_raw: absorbed_id,
+                host_fleet_number: game_data.fleets.records[survivor_idx].local_slot_word_raw()
+                    as u8,
+                absorbed_fleet_number: game_data.fleets.records[absorbed_idx]
+                    .local_slot_word_raw() as u8,
                 coords,
                 survivor_side: true,
                 stardate_week: None,
@@ -123,11 +133,13 @@ pub(super) fn process_mission_fleet_merging(
 pub(super) fn process_join_host_updates(
     game_data: &mut CoreGameData,
     merge_events: &[FleetMergeEvent],
+    fleet_number_by_id: &std::collections::HashMap<u8, u8>,
 ) -> Vec<JoinMissionHostEvent> {
     let mut absorbed_to_host = std::collections::HashMap::new();
     for event in merge_events {
-        if event.absorbed_fleet_id != 0 && event.absorbed_fleet_id != event.host_fleet_id {
-            absorbed_to_host.insert(event.absorbed_fleet_id, event.host_fleet_id);
+        if event.absorbed_fleet_id_raw != 0 && event.absorbed_fleet_id_raw != event.host_fleet_id_raw
+        {
+            absorbed_to_host.insert(event.absorbed_fleet_id_raw, event.host_fleet_id_raw);
         }
     }
 
@@ -177,8 +189,8 @@ pub(super) fn process_join_host_updates(
             events.push(JoinMissionHostEvent::Retargeted {
                 fleet_idx,
                 owner_empire_raw: fleet.owner_empire_raw(),
-                previous_host_fleet_id: host_id,
-                new_host_fleet_id: new_host_id,
+                previous_host_fleet_number: fleet_number_by_id.get(&host_id).copied().unwrap_or(0),
+                new_host_fleet_number: fleet_number_by_id.get(&new_host_id).copied().unwrap_or(0),
                 coords: fleet.current_location_coords_raw(),
             });
             continue;
@@ -198,7 +210,7 @@ pub(super) fn process_join_host_updates(
             events.push(JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
                 owner_empire_raw: fleet.owner_empire_raw(),
-                destroyed_host_fleet_id: host_id,
+                destroyed_host_fleet_number: fleet_number_by_id.get(&host_id).copied().unwrap_or(0),
                 coords,
             });
         }

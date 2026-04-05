@@ -63,8 +63,12 @@ pub(super) fn process_fleet_merging(
                         fleet_idx: fi,
                         owner_empire_raw: owner,
                         kind,
-                        host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
-                        absorbed_fleet_id: game_data.fleets.records[fi].fleet_id(),
+                        host_fleet_id_raw: game_data.fleets.records[survivor_idx].fleet_id(),
+                        absorbed_fleet_id_raw: game_data.fleets.records[fi].fleet_id(),
+                        host_fleet_number: game_data.fleets.records[survivor_idx]
+                            .local_slot_word_raw() as u8,
+                        absorbed_fleet_number: game_data.fleets.records[fi].local_slot_word_raw()
+                            as u8,
                         coords,
                         survivor_side: false,
                         stardate_week: None,
@@ -74,8 +78,12 @@ pub(super) fn process_fleet_merging(
                             fleet_idx: survivor_idx,
                             owner_empire_raw: owner,
                             kind,
-                            host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
-                            absorbed_fleet_id: game_data.fleets.records[fi].fleet_id(),
+                            host_fleet_id_raw: game_data.fleets.records[survivor_idx].fleet_id(),
+                            absorbed_fleet_id_raw: game_data.fleets.records[fi].fleet_id(),
+                            host_fleet_number: game_data.fleets.records[survivor_idx]
+                                .local_slot_word_raw() as u8,
+                            absorbed_fleet_number: game_data.fleets.records[fi]
+                                .local_slot_word_raw() as u8,
                             coords,
                             survivor_side: true,
                             stardate_week: None,

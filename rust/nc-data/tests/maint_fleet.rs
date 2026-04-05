@@ -714,11 +714,12 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
             event,
             JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
-                destroyed_host_fleet_id,
+                destroyed_host_fleet_number,
                 coords,
                 ..
             } if *fleet_idx == 1
-                && *destroyed_host_fleet_id == host_id
+                && *destroyed_host_fleet_number
+                    == game_data.fleets.records[0].local_slot_word_raw() as u8
                 && *coords == abandoned_coords
         )
     }));
@@ -1401,8 +1402,8 @@ fn test_rendezvous_merge_emits_survivor_absorption_event() {
     assert!(events.fleet_merge_events.iter().any(|event| {
         event.kind == Mission::RendezvousSector
             && event.survivor_side
-            && event.host_fleet_id == survivor_id
-            && event.absorbed_fleet_id == absorbed_id
+            && event.host_fleet_id_raw == survivor_id
+            && event.absorbed_fleet_id_raw == absorbed_id
     }));
 }
 

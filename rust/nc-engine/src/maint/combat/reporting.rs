@@ -18,20 +18,21 @@ pub(super) fn push_contact_event_for_task_force(
 ) {
     let (small_vessels, medium_vessels, large_vessels) =
         vessel_size_summary(&target_task_force.state);
-    let target_fleet_id = single_named_fleet_id(game_data, &target_task_force.fleet_indices);
+    let target_fleet_number =
+        single_named_fleet_number(game_data, &target_task_force.fleet_indices);
 
     for &idx in &task_force.fleet_indices {
         let fleet = &game_data.fleets.records[idx];
         let source = contact_reporting_kind(fleet.standing_order_kind())
             .map(ContactReportSource::FleetMission)
-            .unwrap_or(ContactReportSource::Fleet(fleet.fleet_id()));
+            .unwrap_or(ContactReportSource::Fleet(fleet.local_slot_word_raw() as u8));
         scout_contact_events.push(ScoutContactEvent {
             viewer_empire_raw: fleet.owner_empire_raw(),
             source,
-            reporting_fleet_id: Some(fleet.fleet_id()),
+            reporting_fleet_number: Some(fleet.local_slot_word_raw() as u8),
             coords,
             target_empire_raw: target_task_force.empire,
-            target_fleet_id,
+            target_fleet_number,
             small_vessels,
             medium_vessels,
             large_vessels,
@@ -47,10 +48,10 @@ pub(super) fn push_contact_event_for_task_force(
         scout_contact_events.push(ScoutContactEvent {
             viewer_empire_raw: task_force.empire,
             source: ContactReportSource::Starbase(base.base_id_raw()),
-            reporting_fleet_id: None,
+            reporting_fleet_number: None,
             coords,
             target_empire_raw: target_task_force.empire,
-            target_fleet_id,
+            target_fleet_number,
             small_vessels,
             medium_vessels,
             large_vessels,
@@ -59,7 +60,7 @@ pub(super) fn push_contact_event_for_task_force(
     }
 }
 
-pub(super) fn single_named_fleet_id(
+pub(super) fn single_named_fleet_number(
     game_data: &CoreGameData,
     fleet_indices: &[usize],
 ) -> Option<u8> {
@@ -74,8 +75,8 @@ pub(super) fn single_named_fleet_id(
                 || fleet.troop_transport_count() > 0
                 || fleet.etac_count() > 0
         })
-        .map(|fleet| fleet.fleet_id())
-        .filter(|fleet_id| *fleet_id != 0)
+        .map(|fleet| fleet.local_slot_word_raw() as u8)
+        .filter(|fleet_number| *fleet_number != 0)
         .collect::<Vec<_>>();
 
     if named_fleets.len() == 1 {
@@ -85,15 +86,15 @@ pub(super) fn single_named_fleet_id(
     }
 }
 
-pub(super) fn preferred_reporting_fleet_id(
+pub(super) fn preferred_reporting_fleet_number(
     game_data: &CoreGameData,
     fleet_indices: &[usize],
 ) -> Option<u8> {
     fleet_indices
         .iter()
         .filter_map(|idx| game_data.fleets.records.get(*idx))
-        .map(|fleet| fleet.fleet_id())
-        .filter(|fleet_id| *fleet_id != 0)
+        .map(|fleet| fleet.local_slot_word_raw() as u8)
+        .filter(|fleet_number| *fleet_number != 0)
         .min()
 }
 
@@ -105,8 +106,8 @@ pub(super) fn preferred_reporting_fleet_index(
         .iter()
         .copied()
         .filter(|idx| game_data.fleets.records.get(*idx).is_some())
-        .filter(|idx| game_data.fleets.records[*idx].fleet_id() != 0)
-        .min_by_key(|idx| game_data.fleets.records[*idx].fleet_id())
+        .filter(|idx| game_data.fleets.records[*idx].local_slot_word_raw() != 0)
+        .min_by_key(|idx| game_data.fleets.records[*idx].local_slot_word_raw())
 }
 
 pub(super) fn loaded_armies_for_fleet_indices(

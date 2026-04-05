@@ -109,12 +109,12 @@ mod tests {
         let mut events = MaintenanceEvents::default();
         events.fleet_battle_events.push(FleetBattleEvent {
             reporting_empire_raw: 1,
-            reporting_fleet_id: Some(1),
+            reporting_fleet_number: Some(1),
             reporting_mission: Some(Mission::GuardBlockadeWorld),
             perspective: crate::maint::FleetBattlePerspective::Intercepted,
             coords: [5, 5],
             enemy_empires_raw: vec![2],
-            primary_enemy_fleet_id: Some(5),
+            primary_enemy_fleet_number: Some(5),
             held_field: true,
             friendly_initial: ShipLosses::default(),
             friendly_loaded_armies_initial: 0,

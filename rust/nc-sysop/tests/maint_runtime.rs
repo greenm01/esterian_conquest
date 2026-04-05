@@ -275,7 +275,7 @@ fn nc_sysop_maint_scopes_runtime_reports_and_intel_per_viewer() {
     assert!(
         !player_4_reports
             .iter()
-            .any(|text| text.contains("1st Fleet"))
+            .any(|text| text.contains(&format!("System({},{})", player_1_coords[0], player_1_coords[1])))
     );
 
     let player_1_intel = store

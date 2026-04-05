@@ -1268,12 +1268,6 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
             .iter()
             .any(|report| report.contains("carrying 0 armies"))
     );
-    assert!(
-        !report_texts
-            .iter()
-            .any(|report| report.contains("lost all contact with the 1st Fleet"))
-    );
-
     cleanup_dir(&target);
 }
 

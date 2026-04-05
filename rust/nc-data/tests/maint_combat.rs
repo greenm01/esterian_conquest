@@ -394,6 +394,7 @@ fn hostile_contact_with_roe_zero_triggers_withdrawal_exchange() {
     hostile.set_troop_transport_count(0);
     hostile.set_etac_count(0);
     hostile.set_rules_of_engagement(0);
+    let hostile_fleet_number = hostile.local_slot_word_raw() as u8;
 
     let diplomacy = mutual_enemy_overrides(1, 2);
     let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
@@ -411,10 +412,13 @@ fn hostile_contact_with_roe_zero_triggers_withdrawal_exchange() {
                 mission: Some(Mission::PatrolSector),
                 coords: event_coords,
                 target_empire_raw,
-                target_fleet_id: Some(5),
+                target_fleet_number,
                 reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
                 ..
-            } if *owner_empire_raw == 1 && *event_coords == coords && *target_empire_raw == 2
+            } if *owner_empire_raw == 1
+                && *event_coords == coords
+                && *target_empire_raw == 2
+                && *target_fleet_number == Some(hostile_fleet_number)
         )
     }));
 }
@@ -607,6 +611,7 @@ fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
     hostile.set_troop_transport_count(0);
     hostile.set_etac_count(0);
     hostile.set_rules_of_engagement(10);
+    let hostile_fleet_number = hostile.local_slot_word_raw() as u8;
 
     let diplomacy = mutual_enemy_overrides(1, 2);
     let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
@@ -627,13 +632,60 @@ fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
                 owner_empire_raw,
                 mission: Some(Mission::PatrolSector),
                 coords: event_coords,
-                target_fleet_id: Some(5),
+                target_fleet_number,
                 retreat_target_coords,
                 ..
             } if *owner_empire_raw == 1
                 && *event_coords == coords
+                && *target_fleet_number == Some(hostile_fleet_number)
                 && *retreat_target_coords == retreat_target
         )
+    }));
+}
+
+#[test]
+fn combat_reports_enemy_fleet_by_empire_local_slot() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [8, 8];
+
+    let left = &mut game_data.fleets.records[0];
+    left.set_current_location_coords_raw(coords);
+    left.set_standing_order_kind(Order::MoveOnly);
+    left.set_standing_order_target_coords_raw([9, 8]);
+    left.set_destroyer_count(1);
+    left.set_cruiser_count(0);
+    left.set_battleship_count(0);
+    left.set_scout_count(0);
+    left.set_troop_transport_count(0);
+    left.set_etac_count(0);
+    left.set_rules_of_engagement(10);
+
+    let right = &mut game_data.fleets.records[4];
+    right.set_current_location_coords_raw(coords);
+    right.set_standing_order_kind(Order::MoveOnly);
+    right.set_standing_order_target_coords_raw([7, 8]);
+    right.set_local_slot_word_raw(2);
+    right.set_destroyer_count(3);
+    right.set_cruiser_count(0);
+    right.set_battleship_count(0);
+    right.set_scout_count(0);
+    right.set_troop_transport_count(0);
+    right.set_etac_count(0);
+    right.set_rules_of_engagement(10);
+    let hostile_fleet_number = right.local_slot_word_raw() as u8;
+
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert!(events.scout_contact_events.iter().any(|event| {
+            event.viewer_empire_raw == 1
+            && event.target_empire_raw == 2
+            && event.target_fleet_number == Some(hostile_fleet_number)
+    }));
+    assert!(events.fleet_battle_events.iter().any(|event| {
+        event.reporting_empire_raw == 1
+            && event.primary_enemy_fleet_number == Some(hostile_fleet_number)
     }));
 }
 

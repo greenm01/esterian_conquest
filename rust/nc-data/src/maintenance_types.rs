@@ -22,8 +22,8 @@ pub struct BombardEvent {
     pub planet_idx: usize,
     /// Attacking fleet's owner_empire_raw (1-based player index).
     pub attacker_empire_raw: u8,
-    /// Attacking fleet ID when one specific fleet can be named.
-    pub attacker_fleet_id: Option<u8>,
+    /// Attacking fleet number when one specific fleet can be named.
+    pub attacker_fleet_number: Option<u8>,
     /// Defending empire that should receive the bombardment report, if any.
     pub defender_empire_raw: u8,
     /// Initial attacking fleet composition observed by both sides.
@@ -47,8 +47,8 @@ pub struct BombardEvent {
 pub struct AssaultReportEvent {
     /// Fleet mission kind that produced the assault.
     pub kind: Mission,
-    /// Attacking fleet ID when one specific fleet can be named.
-    pub attacker_fleet_id: Option<u8>,
+    /// Attacking fleet number when one specific fleet can be named.
+    pub attacker_fleet_number: Option<u8>,
     /// Planet index (into PLANETS.DAT records) that was attacked.
     pub planet_idx: usize,
     /// Acting empire that should receive the attacker-side report.
@@ -130,8 +130,8 @@ pub enum FleetBattlePerspective {
 pub struct FleetBattleEvent {
     /// Empire that should receive this battle report.
     pub reporting_empire_raw: u8,
-    /// Reporting fleet ID when one specific fleet can be named.
-    pub reporting_fleet_id: Option<u8>,
+    /// Reporting fleet number when one specific fleet can be named.
+    pub reporting_fleet_number: Option<u8>,
     /// Reporting fleet mission context when one classic mission-family label applies.
     pub reporting_mission: Option<Mission>,
     /// Whether the report should read as "we were attacked" or "we intercepted".
@@ -140,8 +140,8 @@ pub struct FleetBattleEvent {
     pub coords: [u8; 2],
     /// Hostile empires this side encountered.
     pub enemy_empires_raw: Vec<u8>,
-    /// Primary hostile fleet ID when one specific enemy fleet can be named.
-    pub primary_enemy_fleet_id: Option<u8>,
+    /// Primary hostile fleet number when one specific enemy fleet can be named.
+    pub primary_enemy_fleet_number: Option<u8>,
     /// Whether the reporting empire held the field after the battle.
     pub held_field: bool,
     /// Initial composition of the reporting force.
@@ -165,8 +165,8 @@ pub struct FleetBattleEvent {
 pub struct FleetDestroyedEvent {
     /// Empire that receives the destruction report.
     pub reporting_empire_raw: u8,
-    /// Fleet id that was lost.
-    pub fleet_id: u8,
+    /// Player-visible fleet number that was lost.
+    pub fleet_number: u8,
     /// Coordinates of the loss.
     pub coords: [u8; 2],
     /// Whether the fleet was attacking/intercepting or was attacked.
@@ -183,8 +183,8 @@ pub struct FleetDestroyedEvent {
     pub enemy_losses: ShipLosses,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
-    /// Hostile fleet ID if one specific enemy fleet can be named.
-    pub primary_enemy_fleet_id: Option<u8>,
+    /// Hostile fleet number if one specific enemy fleet can be named.
+    pub primary_enemy_fleet_number: Option<u8>,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }
@@ -204,8 +204,8 @@ pub struct StarbaseDestroyedEvent {
     pub enemy_losses: ShipLosses,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
-    /// Hostile fleet ID if one specific enemy fleet can be named.
-    pub primary_enemy_fleet_id: Option<u8>,
+    /// Hostile fleet number if one specific enemy fleet can be named.
+    pub primary_enemy_fleet_number: Option<u8>,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }
@@ -225,14 +225,14 @@ pub struct ScoutContactEvent {
     pub viewer_empire_raw: u8,
     /// Fleet or starbase source that made the contact.
     pub source: ContactReportSource,
-    /// Fleet ID of the reporting fleet when the source is a fleet.
-    pub reporting_fleet_id: Option<u8>,
+    /// Fleet number of the reporting fleet when the source is a fleet.
+    pub reporting_fleet_number: Option<u8>,
     /// Coordinates where the contact occurred.
     pub coords: [u8; 2],
     /// Empire that was detected.
     pub target_empire_raw: u8,
-    /// Target fleet ID when one specific hostile fleet can be named.
-    pub target_fleet_id: Option<u8>,
+    /// Target fleet number when one specific hostile fleet can be named.
+    pub target_fleet_number: Option<u8>,
     /// Aggregate "small vessel" count in the detected force.
     pub small_vessels: u32,
     /// Aggregate "medium vessel" count in the detected force.
@@ -252,10 +252,14 @@ pub struct FleetMergeEvent {
     pub owner_empire_raw: u8,
     /// Kind of merge-producing mission.
     pub kind: Mission,
-    /// Host fleet ID that remained after the merge.
-    pub host_fleet_id: u8,
-    /// Fleet ID that was absorbed/merged away.
-    pub absorbed_fleet_id: u8,
+    /// Structural fleet ID of the surviving host, for internal remap logic.
+    pub host_fleet_id_raw: u8,
+    /// Structural fleet ID of the absorbed fleet, for internal remap logic.
+    pub absorbed_fleet_id_raw: u8,
+    /// Host fleet number that remained after the merge.
+    pub host_fleet_number: u8,
+    /// Fleet number that was absorbed/merged away.
+    pub absorbed_fleet_number: u8,
     /// Coordinates where the merge occurred.
     pub coords: [u8; 2],
     /// Whether this is the survivor-side "absorbing" report.
@@ -273,10 +277,10 @@ pub enum JoinMissionHostEvent {
         fleet_idx: usize,
         /// Empire that owned the joining fleet.
         owner_empire_raw: u8,
-        /// Previous host fleet ID.
-        previous_host_fleet_id: u8,
-        /// New surviving host fleet ID.
-        new_host_fleet_id: u8,
+        /// Previous host fleet number.
+        previous_host_fleet_number: u8,
+        /// New surviving host fleet number.
+        new_host_fleet_number: u8,
         /// Current location of the joining fleet.
         coords: [u8; 2],
     },
@@ -286,8 +290,8 @@ pub enum JoinMissionHostEvent {
         fleet_idx: usize,
         /// Empire that owned the joining fleet.
         owner_empire_raw: u8,
-        /// Destroyed host fleet ID.
-        destroyed_host_fleet_id: u8,
+        /// Destroyed host fleet number.
+        destroyed_host_fleet_number: u8,
         /// Current location of the joining fleet.
         coords: [u8; 2],
     },
@@ -376,7 +380,7 @@ pub enum EncounterDispositionEvent {
         mission: Option<Mission>,
         coords: [u8; 2],
         target_empire_raw: u8,
-        target_fleet_id: Option<u8>,
+        target_fleet_number: Option<u8>,
         small_vessels: u32,
         medium_vessels: u32,
         large_vessels: u32,
@@ -390,7 +394,7 @@ pub enum EncounterDispositionEvent {
         mission: Option<Mission>,
         coords: [u8; 2],
         target_empire_raw: u8,
-        target_fleet_id: Option<u8>,
+        target_fleet_number: Option<u8>,
         enemy_initial: ShipLosses,
         retreat_target_coords: [u8; 2],
         losses_sustained: ShipLosses,
@@ -408,7 +412,7 @@ pub enum EncounterDispositionEvent {
         mission: Option<Mission>,
         coords: [u8; 2],
         target_empire_raw: u8,
-        target_fleet_id: Option<u8>,
+        target_fleet_number: Option<u8>,
         enemy_initial: ShipLosses,
         retreat_target_coords: [u8; 2],
         losses_sustained: ShipLosses, // What the withdrawing fleet lost
@@ -520,7 +524,7 @@ pub struct CampaignOutcomeEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FleetDefectionEvent {
     pub reporting_empire_raw: u8,
-    pub fleet_id: u8,
+    pub fleet_number: u8,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }
