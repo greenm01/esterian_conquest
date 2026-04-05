@@ -409,13 +409,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
 }
 
 fn fleet_has_presence(fleet: &FleetRecord) -> bool {
-    fleet.scout_count() > 0
-        || fleet.battleship_count() > 0
-        || fleet.cruiser_count() > 0
-        || fleet.destroyer_count() > 0
-        || fleet.troop_transport_count() > 0
-        || fleet.army_count() > 0
-        || fleet.etac_count() > 0
+    fleet.has_any_force()
 }
 
 fn finalize_pending_observation_events(

@@ -125,7 +125,9 @@ pub fn latest_planet_intel_grants_for_viewer(
         .iter()
         .filter(|event| event.viewer_empire_raw == viewer_empire_id)
     {
-        let entry = grants.entry(event.planet_idx + 1).or_insert_with(|| event.clone());
+        let entry = grants
+            .entry(event.planet_idx + 1)
+            .or_insert_with(|| event.clone());
         if event.stardate_week.unwrap_or(0) >= entry.stardate_week.unwrap_or(0) {
             *entry = event.clone();
         }
@@ -216,14 +218,8 @@ fn snapshot_from_runtime(
     };
 
     if let Some(grant) = current_turn_grant {
-        snapshot = snapshot_from_turn_grant(
-            snapshot,
-            game_data,
-            planet,
-            viewer_empire_id,
-            year,
-            grant,
-        );
+        snapshot =
+            snapshot_from_turn_grant(snapshot, game_data, planet, viewer_empire_id, year, grant);
     }
 
     snapshot.intel_tier = infer_intel_tier_from_snapshot(viewer_empire_id, &snapshot);
@@ -245,7 +241,14 @@ fn snapshot_from_turn_grant(
         return snapshot;
     }
 
-    snapshot_from_runtime_grant(snapshot, game_data, planet, grant.source, viewer_empire_id, year)
+    snapshot_from_runtime_grant(
+        snapshot,
+        game_data,
+        planet,
+        grant.source,
+        viewer_empire_id,
+        year,
+    )
 }
 
 fn snapshot_from_runtime_grant(
@@ -406,7 +409,7 @@ fn viewer_has_fleet_presence(
     game_data.fleets.records.iter().any(|fleet| {
         fleet.owner_empire_raw() == viewer_empire_id
             && fleet.current_location_coords_raw() == coords
-            && fleet_has_any_force(fleet)
+            && fleet.has_any_force()
     })
 }
 
@@ -446,16 +449,6 @@ fn refresh_visible_snapshot_from_runtime(
     }
 
     refreshed
-}
-
-fn fleet_has_any_force(fleet: &crate::FleetRecord) -> bool {
-    fleet.scout_count() > 0
-        || fleet.battleship_count() > 0
-        || fleet.cruiser_count() > 0
-        || fleet.destroyer_count() > 0
-        || fleet.troop_transport_count() > 0
-        || fleet.army_count() > 0
-        || fleet.etac_count() > 0
 }
 
 fn snapshot_fingerprint_matches(left: &PlanetIntelSnapshot, right: &PlanetIntelSnapshot) -> bool {
@@ -573,7 +566,7 @@ fn orbit_presence(game_data: &CoreGameData, coords: [u8; 2]) -> OrbitPresence {
         .fleets
         .records
         .iter()
-        .filter(|fleet| fleet.current_location_coords_raw() == coords && fleet_has_any_force(fleet))
+        .filter(|fleet| fleet.current_location_coords_raw() == coords && fleet.has_any_force())
         .count() as u32;
     let starbase_count = game_data
         .bases

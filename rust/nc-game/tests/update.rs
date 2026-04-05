@@ -3,6 +3,8 @@ mod support;
 
 #[path = "update/chrome_theme.rs"]
 mod chrome_theme;
+#[path = "update/fleet_active_filter.rs"]
+mod fleet_active_filter;
 #[path = "update/fleet_detach.rs"]
 mod fleet_detach;
 #[path = "update/fleet_menu_transport.rs"]

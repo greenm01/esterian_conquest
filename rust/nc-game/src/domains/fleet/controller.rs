@@ -45,6 +45,22 @@ fn fleet_is_combat_only_fallback_candidate(fleet: &FleetRecord) -> bool {
 }
 
 impl App {
+    fn active_owned_fleet_records(&self) -> impl Iterator<Item = (usize, &FleetRecord)> + '_ {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, fleet)| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                    && fleet.has_any_force()
+            })
+    }
+
+    fn active_owned_fleets(&self) -> impl Iterator<Item = &FleetRecord> + '_ {
+        self.active_owned_fleet_records().map(|(_, fleet)| fleet)
+    }
+
     fn fleet_list_visible_rows(&self) -> usize {
         crate::domains::fleet::screens::fleet::fleet_list_visible_rows(self.screen_geometry)
     }
@@ -178,21 +194,13 @@ impl App {
     }
 
     pub(crate) fn strongest_owned_fleet_number(&self) -> Option<u16> {
-        self.game_data
-            .fleets
-            .records
-            .iter()
-            .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+        self.active_owned_fleets()
             .max_by_key(|fleet| fleet_strength_key(fleet))
             .map(|fleet| fleet.local_slot_word_raw())
     }
 
     pub(crate) fn largest_owned_fleet_number_by_ship_total(&self) -> Option<u16> {
-        self.game_data
-            .fleets
-            .records
-            .iter()
-            .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+        self.active_owned_fleets()
             .max_by_key(|fleet| {
                 (
                     u32::from(fleet.battleship_count())
@@ -229,6 +237,7 @@ impl App {
                     .get(*record_index_1_based - 1)
                     .is_some_and(|fleet| {
                         fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                            && fleet.has_any_force()
                             && fleet_is_idle_hold(fleet)
                     })
             });
@@ -236,13 +245,7 @@ impl App {
 
     pub(crate) fn order_prompt_default_fleet_number(&mut self) -> Option<u16> {
         self.prune_recently_commissioned_fleet_records();
-        let owned = self
-            .game_data
-            .fleets
-            .records
-            .iter()
-            .filter(|fleet| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
-            .collect::<Vec<_>>();
+        let owned = self.active_owned_fleets().collect::<Vec<_>>();
 
         if let Some(fleet_number) = self
             .fleet
@@ -900,14 +903,7 @@ impl App {
 
     pub(crate) fn fleet_rows(&self) -> Vec<FleetRow> {
         let mut rows = self
-            .game_data
-            .fleets
-            .records
-            .iter()
-            .enumerate()
-            .filter(|(_, fleet)| {
-                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
-            })
+            .active_owned_fleet_records()
             .map(|(idx, fleet)| FleetRow {
                 fleet_record_index_1_based: idx + 1,
                 fleet_number: fleet.local_slot_word_raw(),

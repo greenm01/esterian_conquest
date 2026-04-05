@@ -415,7 +415,7 @@ fn format_owned_orbit_summary(frame: &ScreenFrame<'_>, coords: [u8; 2]) -> Strin
         .filter(|fleet| {
             fleet.current_location_coords_raw() == coords
                 && fleet.owner_empire_raw() as usize == frame.player.record_index_1_based
-                && fleet_has_any_force(fleet)
+                && fleet.has_any_force()
         })
         .count();
     let starbase_count = frame
@@ -453,16 +453,6 @@ fn format_owned_orbit_summary(frame: &ScreenFrame<'_>, coords: [u8; 2]) -> Strin
     } else {
         parts.join(", ")
     }
-}
-
-fn fleet_has_any_force(fleet: &nc_data::FleetRecord) -> bool {
-    fleet.scout_count() > 0
-        || fleet.battleship_count() > 0
-        || fleet.cruiser_count() > 0
-        || fleet.destroyer_count() > 0
-        || fleet.troop_transport_count() > 0
-        || fleet.army_count() > 0
-        || fleet.etac_count() > 0
 }
 
 fn compact_unit_code(kind: nc_data::ProductionItemKind) -> &'static str {

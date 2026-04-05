@@ -218,6 +218,17 @@ impl FleetRecord {
             self.set_current_speed(max_speed);
         }
     }
+
+    pub fn has_any_force(&self) -> bool {
+        self.scout_count() > 0
+            || self.battleship_count() > 0
+            || self.cruiser_count() > 0
+            || self.destroyer_count() > 0
+            || self.troop_transport_count() > 0
+            || self.army_count() > 0
+            || self.etac_count() > 0
+    }
+
     pub fn mission_param_bytes(&self) -> &[u8] {
         &self.raw[0x1F..=0x21]
     }

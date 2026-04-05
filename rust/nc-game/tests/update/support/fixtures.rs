@@ -335,7 +335,7 @@ pub(crate) fn strongest_owned_fleet_number(root: &Path) -> u16 {
         .fleets
         .records
         .iter()
-        .filter(|fleet| fleet.owner_empire_raw() == 1)
+        .filter(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
         .max_by_key(|fleet| {
             (
                 fleet.battleship_count(),

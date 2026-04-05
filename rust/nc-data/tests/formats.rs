@@ -214,6 +214,23 @@ fn round_trip_initialized_fleets_dat() {
 }
 
 #[test]
+fn fleet_has_any_force_tracks_ship_transport_army_and_etac_presence() {
+    let mut record = FleetRecord::new_zeroed();
+    assert!(!record.has_any_force());
+
+    record.set_army_count(1);
+    assert!(record.has_any_force());
+    record.set_army_count(0);
+
+    record.set_troop_transport_count(1);
+    assert!(record.has_any_force());
+    record.set_troop_transport_count(0);
+
+    record.set_etac_count(1);
+    assert!(record.has_any_force());
+}
+
+#[test]
 #[should_panic(expected = "empty fleet record is not a fleet")]
 fn empty_fleet_record_panics_when_rendering_ship_composition() {
     let mut record = FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT"))
