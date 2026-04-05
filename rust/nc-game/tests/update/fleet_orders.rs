@@ -1174,6 +1174,72 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
 }
 
 #[test]
+fn fleet_order_allows_rendezvous_sector_from_fleet_command() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let rendezvous_target = [10, 13];
+    state.game_data.fleets.records[1].set_standing_order_kind(nc_data::Order::RendezvousSector);
+    state.game_data.fleets.records[1].set_standing_order_target_coords_raw(rendezvous_target);
+    save_runtime_state(&fixture_dir, &state);
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_order_mission_picker_from_fleet_menu(&mut app, Some(1));
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('4'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("rendezvous target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", rendezvous_target[0]))
+    );
+
+    enter_fleet_order_target(&mut app, rendezvous_target);
+    confirm_fleet_order(&mut app, true);
+
+    let state = latest_runtime_state(&fixture_dir);
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    assert_eq!(ordered_fleet.standing_order_kind(), nc_data::Order::RendezvousSector);
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), rendezvous_target);
+}
+
+#[test]
 fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -4773,6 +4839,100 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         ordered_fleet.fleet_id()
     );
     assert_eq!(ordered_fleet.standing_order_target_coords_raw(), [16, 13]);
+}
+
+#[test]
+fn fleet_group_order_persists_rendezvous_target_for_selected_fleets() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let rendezvous_target = state.game_data.fleets.records[0].current_location_coords_raw();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveGroupOrder(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('4'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet group rendezvous target prompt should render");
+    assert!(
+        line_containing(&terminal, "Target XX [")
+            .contains(&format!("Target XX [{:02}] <Q> ->", rendezvous_target[0]))
+    );
+
+    enter_fleet_group_order_target(&mut app, rendezvous_target);
+    confirm_fleet_group_order(&mut app, true);
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        state
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| {
+                fleet.owner_empire_raw() == 1
+                    && fleet.standing_order_kind() == nc_data::Order::RendezvousSector
+                    && fleet.standing_order_target_coords_raw() == rendezvous_target
+            })
+            .count(),
+        2
+    );
 }
 
 #[test]

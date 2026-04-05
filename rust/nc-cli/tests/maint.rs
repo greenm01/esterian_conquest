@@ -2876,6 +2876,30 @@ fn maint_rust_join_contact_uses_join_report_label() {
 }
 
 #[test]
+fn maint_rust_rendezvous_contact_uses_rendezvous_report_label() {
+    let target = unique_temp_dir("nc-cli-maint-rust-rendezvous-contact");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Rendezvous mission report"));
+    assert!(text.contains("Sensor contact") || text.contains("contact shows"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_guard_contact_uses_guard_report_label() {
     let target = unique_temp_dir("nc-cli-maint-rust-guard-contact");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);

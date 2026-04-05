@@ -1315,6 +1315,95 @@ fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
 }
 
 #[test]
+fn test_rendezvous_merge_occurs_when_arrival_completes_from_hidden_exact_transit() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
+
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw(coords);
+    joiner.set_standing_order_kind(Order::RendezvousSector);
+    joiner.set_standing_order_target_coords_raw(coords);
+    joiner.set_current_speed(3);
+    joiner.set_movement_state_flag_raw(0x7f);
+    joiner.set_movement_fraction_raw(0);
+    store_exact_position(joiner, [f64::from(coords[0]) - 0.4, f64::from(coords[1])]);
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.kind == Mission::RendezvousSector
+            && !event.survivor_side
+            && event.fleet_idx == 1
+            && event.coords == coords
+    }));
+}
+
+#[test]
+fn test_rendezvous_merge_occurs_same_turn_when_fleet_arrives_at_assigned_sector() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
+
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw([coords[0].saturating_sub(1), coords[1]]);
+    joiner.set_standing_order_kind(Order::RendezvousSector);
+    joiner.set_standing_order_target_coords_raw(coords);
+    joiner.set_current_speed(3);
+    joiner.raw[0x0d] = 0x80;
+    joiner.raw[0x0f] = 0;
+    joiner.raw[0x19] = 0x80;
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.kind == Mission::RendezvousSector
+            && !event.survivor_side
+            && event.fleet_idx == 1
+            && event.coords == coords
+    }));
+}
+
+#[test]
+fn test_rendezvous_host_selection_uses_lowest_structural_fleet_id() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+
+    game_data.fleets.records[0].set_local_slot_word_raw(9);
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
+    let survivor_id = game_data.fleets.records[0].fleet_id();
+
+    game_data.fleets.records[1].set_local_slot_word_raw(1);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[1].set_standing_order_target_coords_raw(coords);
+
+    run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    let survivor = game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.fleet_id() == survivor_id)
+        .expect("lowest structural fleet id should remain the rendezvous host");
+    assert_eq!(survivor.local_slot_word_raw(), 9);
+    assert_eq!(survivor.standing_order_kind(), Order::RendezvousSector);
+    assert_eq!(survivor.standing_order_target_coords_raw(), coords);
+}
+
+#[test]
 fn test_rendezvous_does_not_merge_before_reaching_its_assigned_sector() {
     let mut game_data = load_fixture("ecmaint-post");
     game_data.player.records[0].raw[0x00] = 0x00;
