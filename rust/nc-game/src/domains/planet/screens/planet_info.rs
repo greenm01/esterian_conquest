@@ -502,7 +502,15 @@ fn owned_status_summary(
     {
         return "Regular planet - starbase present".to_string();
     }
-    "Regular planet - factories fully functional".to_string()
+    let present = planet.present_production_points().unwrap_or(0);
+    let potential = planet.potential_production_points();
+    if present == 0 && potential > 0 {
+        "Regular planet - factories destroyed".to_string()
+    } else if present < potential {
+        "Regular planet - factories damaged".to_string()
+    } else {
+        "Regular planet - factories fully functional".to_string()
+    }
 }
 
 fn owner_summary(frame: &ScreenFrame<'_>, owner_empire_raw: u8) -> String {

@@ -2401,7 +2401,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(buffer.plain_line(2).contains("Ships"));
     assert!(buffer.plain_line(2).contains("│ROE│"));
     assert!(buffer.plain_line(2).contains("│ AR│"));
-    assert!(buffer.plain_line(4).contains("Grd/Blkd"));
+    assert!(buffer.plain_line(4).contains("Guard/Blkd"));
     assert!(buffer.plain_line(4).contains("(16,13)"));
     assert!(buffer.plain_line(4).contains("│  2│"));
     assert!(buffer.plain_line(4).contains("│  3│"));

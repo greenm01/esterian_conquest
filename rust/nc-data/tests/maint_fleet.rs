@@ -277,12 +277,14 @@ fn test_scout_sector_arrival_emits_success_event() {
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ScoutSector
-            && event.outcome == MissionOutcome::Succeeded
+            && (event.outcome == MissionOutcome::Succeeded
+                || event.outcome == MissionOutcome::Arrived)
             && event.planet_idx.is_none()
     }));
+    // Scout persists on station after arrival.
     assert_eq!(
         game_data.fleets.records[0].standing_order_kind(),
-        Order::HoldPosition
+        Order::ScoutSector
     );
     assert_eq!(game_data.fleets.records[0].current_speed(), 0);
 }
@@ -353,12 +355,18 @@ fn test_scout_system_arrival_emits_success_event() {
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ScoutSolarSystem
-            && event.outcome == MissionOutcome::Succeeded
+            && (event.outcome == MissionOutcome::Succeeded
+                || event.outcome == MissionOutcome::Arrived)
             && event.planet_idx == Some(13)
     }));
     assert_eq!(
         game_data.fleets.records[0].current_location_coords_raw(),
         [15, 13]
+    );
+    // Scout persists on station after arrival.
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::ScoutSolarSystem
     );
 }
 

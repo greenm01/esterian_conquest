@@ -812,7 +812,7 @@ fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> Stri
             target[0], target[1]
         ),
         FleetOrderValidationError::InvalidJoinHost => {
-            "the selected host fleet is invalid".to_string()
+            "the target fleet no longer exists or does not belong to this empire".to_string()
         }
         FleetOrderValidationError::InvalidGuardStarbase => {
             "the selected starbase linkage is invalid".to_string()
@@ -1690,6 +1690,13 @@ fn generate_report_entries(
         }
     }
 
+    let rendezvous_merged_fleet_indices: std::collections::HashSet<usize> = events
+        .fleet_merge_events
+        .iter()
+        .filter(|e| e.kind == Mission::RendezvousSector)
+        .map(|e| e.fleet_idx)
+        .collect();
+
     for (ev_idx, event) in events.mission_events.iter().enumerate() {
         // Skip events already handled by the batched-abort pre-pass.
         if batched_abort_indices.contains(&ev_idx) {
@@ -1712,12 +1719,17 @@ fn generate_report_entries(
                 source_clause.clone(),
                 " Move mission report: We have arrived at our destination and are awaiting new orders.".to_string(),
             ),
-            (Mission::RendezvousSector, MissionOutcome::Arrived) => (
-                0x05,
-                RESULTS_TAIL_FLEET,
-                source_clause.clone(),
-                " Rendezvous mission report: We have arrived at the our rendezvous point and are waiting for more fleets to arrive.".to_string(),
-            ),
+            (Mission::RendezvousSector, MissionOutcome::Arrived) => {
+                if rendezvous_merged_fleet_indices.contains(&event.fleet_idx) {
+                    continue;
+                }
+                (
+                    0x05,
+                    RESULTS_TAIL_FLEET,
+                    source_clause.clone(),
+                    " Rendezvous mission report: We have arrived at our rendezvous point and are waiting for more fleets to arrive.".to_string(),
+                )
+            }
             (Mission::GuardStarbase, MissionOutcome::Arrived) => {
                 let starbase_text = game_data
                     .bases
@@ -1933,11 +1945,17 @@ fn generate_report_entries(
                 ),
             ),
             (Mission::InvadeWorld, _) | (Mission::BlitzWorld, _) => continue,
-            (Mission::ScoutSector, MissionOutcome::Succeeded) => (
+            (Mission::ScoutSector, MissionOutcome::Arrived) => (
                 0x07,
                 RESULTS_TAIL_SCOUTING,
                 source_clause.clone(),
                 " Scouting mission report: We have arrived at our destination and are beginning to scout this sector.".to_string(),
+            ),
+            (Mission::ScoutSector, MissionOutcome::Succeeded) => (
+                0x07,
+                RESULTS_TAIL_SCOUTING,
+                source_clause.clone(),
+                " Scouting mission report: We are continuing to scout this sector.".to_string(),
             ),
             (Mission::ScoutSector, MissionOutcome::Aborted) => {
                 (
@@ -1950,7 +1968,8 @@ fn generate_report_entries(
                     ),
                 )
             }
-            (Mission::ScoutSolarSystem, MissionOutcome::Succeeded) => {
+            (Mission::ScoutSolarSystem, MissionOutcome::Arrived)
+            | (Mission::ScoutSolarSystem, MissionOutcome::Succeeded) => {
                 if let Some(intel_event) = matching_planet_intel_event(events, event) {
                     if let Some(snapshot) = intel_event.observed_snapshot.as_ref() {
                         let owner = match snapshot.known_owner_empire_id {
@@ -2290,21 +2309,24 @@ fn generate_report_entries(
             nc_data::InvalidPlayerStateEvent::FleetMission {
                 fleet_idx,
                 owner_empire_raw,
+                order_code_raw,
                 coords,
                 reason,
-                ..
-            } => (
-                owner_empire_raw,
-                owned_fleet_source_clause_from_idx(
-                    game_data,
-                    fleet_idx,
-                    &format!("Sector({},{})", coords[0], coords[1]),
-                ),
-                format!(
-                    " Maintenance canceled this fleet's orders because {}. The fleet is holding position and awaiting new orders.",
-                    fleet_order_validation_reason_text(reason)
-                ),
-            ),
+            } => {
+                let order_name = nc_data::Order::from_raw(order_code_raw).display_label().to_lowercase();
+                (
+                    owner_empire_raw,
+                    owned_fleet_source_clause_from_idx(
+                        game_data,
+                        fleet_idx,
+                        &format!("Sector({},{})", coords[0], coords[1]),
+                    ),
+                    format!(
+                        " Maintenance canceled this fleet's {order_name} order because {}. The fleet is holding position and awaiting new orders.",
+                        fleet_order_validation_reason_text(reason)
+                    ),
+                )
+            }
             nc_data::InvalidPlayerStateEvent::FleetInput {
                 fleet_idx,
                 owner_empire_raw,
@@ -2377,41 +2399,21 @@ fn generate_report_entries(
     }
 
     // ----- Fleet merge events -----
-    for event in &events.fleet_merge_events {
+    // Join events: one report per absorbed fleet.
+    for event in events
+        .fleet_merge_events
+        .iter()
+        .filter(|e| e.kind == Mission::JoinAnotherFleet)
+    {
         let [x, y] = event.coords;
-        let (source, body) = match event.kind {
-            Mission::JoinAnotherFleet => (
-                owned_fleet_source_clause(
-                    Some(event.absorbed_fleet_number),
-                    &format!("System({x},{y})"),
-                ),
-                format!(
-                    " Join mission report: We have joined the {} and are now merging with them.",
-                    fleet_label(event.host_fleet_number)
-                ),
-            ),
-            Mission::RendezvousSector if event.survivor_side => (
-                owned_fleet_source_clause(
-                    Some(event.host_fleet_number),
-                    &format!("Sector({x},{y})")
-                ),
-                format!(
-                    " Rendezvous mission report: We have arrived at the our rendezvous point and are absorbing the {}.",
-                    fleet_label(event.absorbed_fleet_number)
-                ),
-            ),
-            Mission::RendezvousSector => (
-                owned_fleet_source_clause(
-                    Some(event.absorbed_fleet_number),
-                    &format!("Sector({x},{y})"),
-                ),
-                format!(
-                    " Rendezvous mission report: We have arrived at the our rendezvous point and are merging with the {}.",
-                    fleet_label(event.host_fleet_number)
-                ),
-            ),
-            _ => continue,
-        };
+        let source = owned_fleet_source_clause(
+            Some(event.absorbed_fleet_number),
+            &format!("System({x},{y})"),
+        );
+        let body = format!(
+            " Join mission report: We have joined the {} and are now merging with them.",
+            fleet_label(event.host_fleet_number)
+        );
         let header = report_header(&source, event.stardate_week, year);
         entries.push(ReportEntry {
             text: format!("{header}{body}"),
@@ -2422,6 +2424,70 @@ fn generate_report_entries(
             },
             repeat_next_pointer: false,
         });
+    }
+
+    // Rendezvous events: one consolidated report per survivor fleet.
+    {
+        let rendezvous_arrived: std::collections::HashSet<usize> = events
+            .mission_events
+            .iter()
+            .filter(|e| e.kind == Mission::RendezvousSector && e.outcome == MissionOutcome::Arrived)
+            .map(|e| e.fleet_idx)
+            .collect();
+
+        let mut rendezvous_groups: std::collections::BTreeMap<(u8, [u8; 2], u8), Vec<u8>> =
+            std::collections::BTreeMap::new();
+        let mut rendezvous_meta: std::collections::HashMap<(u8, [u8; 2], u8), (usize, Option<u8>)> =
+            std::collections::HashMap::new();
+        for event in events
+            .fleet_merge_events
+            .iter()
+            .filter(|e| e.kind == Mission::RendezvousSector && e.survivor_side)
+        {
+            let key = (event.owner_empire_raw, event.coords, event.host_fleet_number);
+            rendezvous_groups
+                .entry(key)
+                .or_default()
+                .push(event.absorbed_fleet_number);
+            rendezvous_meta
+                .entry(key)
+                .or_insert((event.fleet_idx, event.stardate_week));
+        }
+
+        for (key, absorbed_numbers) in &rendezvous_groups {
+            let (owner_empire_raw, coords, host_fleet_number) = *key;
+            let [x, y] = coords;
+            let (host_fleet_idx, stardate_week) = rendezvous_meta[key];
+            let source = owned_fleet_source_clause(
+                Some(host_fleet_number),
+                &format!("Sector({x},{y})"),
+            );
+            let absorbed_list = absorbed_numbers
+                .iter()
+                .map(|n| format!("the {}", fleet_label(*n)))
+                .collect::<Vec<_>>();
+            let absorbed_text = join_report_parts(&absorbed_list);
+            let arrived_this_turn = rendezvous_arrived.contains(&host_fleet_idx);
+            let body = if arrived_this_turn {
+                format!(
+                    " Rendezvous mission report: We have arrived at our rendezvous point and are absorbing {absorbed_text}."
+                )
+            } else {
+                format!(
+                    " Rendezvous mission report: We are on station at our rendezvous point and are absorbing {absorbed_text}."
+                )
+            };
+            let header = report_header(&source, stardate_week, year);
+            entries.push(ReportEntry {
+                text: format!("{header}{body}"),
+                kind: 0x05,
+                tail: RESULTS_TAIL_FLEET,
+                target: ReportTarget::Both {
+                    recipient: owner_empire_raw,
+                },
+                repeat_next_pointer: false,
+            });
+        }
     }
 
     // ----- Join host events -----

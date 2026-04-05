@@ -46,7 +46,7 @@ pub(super) fn handle_fleet_arrival(
                 fleet_idx,
                 owner_empire_raw: owner_empire,
                 kind: Mission::ScoutSector,
-                outcome: MissionOutcome::Succeeded,
+                outcome: MissionOutcome::Arrived,
                 planet_idx: None,
                 location_coords: Some(coords),
                 target_coords: Some(coords),

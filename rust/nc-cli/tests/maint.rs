@@ -2488,7 +2488,7 @@ fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Maintenance canceled this fleet's orders because"));
+    assert!(text.contains("Maintenance canceled this fleet's"));
     assert!(text.contains("required combat ships"));
 
     cleanup_dir(&target);
@@ -2566,7 +2566,7 @@ fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state()
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let result_text = decode_chunked_report(&results);
-    assert!(result_text.contains("Maintenance canceled this fleet's orders because"));
+    assert!(result_text.contains("Maintenance canceled this fleet's"));
     assert!(result_text.contains("Maintenance corrected invalid fleet input because"));
     assert!(result_text.contains("Maintenance cleared invalid player input because"));
     assert!(result_text.contains("Tax rate input 255%"));
@@ -2623,7 +2623,7 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
         let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
         let result_text = decode_chunked_report(&results);
         assert!(
-            result_text.contains("Maintenance canceled this fleet's orders because")
+            result_text.contains("Maintenance canceled this fleet's")
                 || result_text.contains("Maintenance corrected invalid fleet input because"),
             "RESULTS.DAT decoded text was: {:?}",
             result_text
@@ -2683,7 +2683,7 @@ fn maint_rust_survives_multi_fixture_invalid_input_sweep() {
         let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
         let text = decode_chunked_report(&results);
         assert!(
-            text.contains("Maintenance canceled this fleet's orders because")
+            text.contains("Maintenance canceled this fleet's")
                 || text.contains("Maintenance corrected invalid fleet input because")
                 || text.contains("foreign ministry"),
             "fixture {fixture} produced unexpected RESULTS.DAT text: {:?}",

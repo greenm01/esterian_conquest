@@ -332,6 +332,8 @@ pub fn run_maintenance_turn_with_context_and_seed(
         &fleet_battle_phase_events.mission_events,
     );
 
+    restore_scout_orders_and_generate_on_station_observations(game_data, &mut movement_events);
+
     let mut mission_events = movement_events.mission_events;
     mission_events.extend(fleet_battle_phase_events.mission_events);
     mission_events.extend(assault_events.mission_events);
@@ -428,6 +430,112 @@ pub fn run_maintenance_turn_with_context_and_seed(
 
 fn fleet_has_presence(fleet: &FleetRecord) -> bool {
     fleet.has_any_force()
+}
+
+/// Restore scout orders for fleets that arrived this turn (they were set to
+/// HoldPosition by the stepper to avoid interfering with combat resolution).
+/// Also generate per-turn observation reports for scout fleets already on station
+/// from a previous turn.
+fn restore_scout_orders_and_generate_on_station_observations(
+    game_data: &mut CoreGameData,
+    movement_events: &mut MovementEvents,
+) {
+    // Collect scout arrivals: fleet_idx → mission kind.
+    let scout_arrivals: std::collections::HashMap<usize, Mission> = movement_events
+        .mission_events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e.kind,
+                Mission::ScoutSector | Mission::ScoutSolarSystem
+            ) && matches!(
+                e.outcome,
+                MissionOutcome::Succeeded | MissionOutcome::Arrived
+            )
+        })
+        .map(|e| (e.fleet_idx, e.kind))
+        .collect();
+
+    // Restore scout orders for fleets that just arrived and survived combat.
+    for (&fleet_idx, &kind) in &scout_arrivals {
+        let Some(fleet) = game_data.fleets.records.get_mut(fleet_idx) else {
+            continue;
+        };
+        if !fleet.has_any_force() {
+            continue;
+        }
+        let order = match kind {
+            Mission::ScoutSector => Order::ScoutSector,
+            Mission::ScoutSolarSystem => Order::ScoutSolarSystem,
+            _ => continue,
+        };
+        fleet.set_standing_order_kind(order);
+    }
+
+    // Generate per-turn observations for scouts already on station from previous turns.
+    for (fleet_idx, fleet) in game_data.fleets.records.iter().enumerate() {
+        if !fleet.has_any_force() {
+            continue;
+        }
+        if scout_arrivals.contains_key(&fleet_idx) {
+            continue;
+        }
+        let order = fleet.standing_order_kind();
+        let coords = fleet.current_location_coords_raw();
+        let target = fleet.standing_order_target_coords_raw();
+        if coords != target {
+            continue;
+        }
+        let owner_empire_raw = fleet.owner_empire_raw();
+        match order {
+            Order::ScoutSector => {
+                movement_events.mission_events.push(MissionEvent {
+                    fleet_idx,
+                    owner_empire_raw,
+                    kind: Mission::ScoutSector,
+                    outcome: MissionOutcome::Succeeded,
+                    planet_idx: None,
+                    location_coords: Some(coords),
+                    target_coords: Some(coords),
+                    stardate_week: None,
+                });
+            }
+            Order::ScoutSolarSystem => {
+                let planet_idx = game_data
+                    .planets
+                    .records
+                    .iter()
+                    .position(|planet| planet.coords_raw() == coords);
+                if let Some(planet_idx) = planet_idx {
+                    movement_events.planet_intel_events.push(PlanetIntelEvent {
+                        planet_idx,
+                        viewer_empire_raw: owner_empire_raw,
+                        source: nc_data::PlanetIntelSource::ScoutSolarSystem,
+                        source_fleet_idx: Some(fleet_idx),
+                        observed_snapshot: nc_data::build_runtime_planet_intel_snapshot(
+                            game_data,
+                            owner_empire_raw,
+                            game_data.conquest.game_year(),
+                            planet_idx,
+                            nc_data::PlanetIntelSource::ScoutSolarSystem,
+                        ),
+                        stardate_week: None,
+                    });
+                }
+                movement_events.mission_events.push(MissionEvent {
+                    fleet_idx,
+                    owner_empire_raw,
+                    kind: Mission::ScoutSolarSystem,
+                    outcome: MissionOutcome::Succeeded,
+                    planet_idx,
+                    location_coords: Some(coords),
+                    target_coords: Some(coords),
+                    stardate_week: None,
+                });
+            }
+            _ => {}
+        }
+    }
 }
 
 fn finalize_pending_observation_events(

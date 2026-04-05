@@ -1542,7 +1542,7 @@ fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("│  0│") && line.contains("Grd/Blkd")),
+            .any(|line| line.contains("│  0│") && line.contains("Guard/Blkd")),
         "{:#?}",
         terminal.lines
     );
