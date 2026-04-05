@@ -605,9 +605,10 @@ impl App {
 
     pub fn delete_reviewables(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Soft-delete all report blocks in SQLite.
-        self.planet
-            .campaign_store
-            .mark_all_report_blocks_deleted(self.snapshot_id, self.player.record_index_1_based as u8)?;
+        self.planet.campaign_store.mark_all_report_blocks_deleted(
+            self.snapshot_id,
+            self.player.record_index_1_based as u8,
+        )?;
         for row in &mut self.report_block_rows {
             if row.is_visible_to_viewer(self.player.record_index_1_based as u8) {
                 row.recipient_deleted = true;

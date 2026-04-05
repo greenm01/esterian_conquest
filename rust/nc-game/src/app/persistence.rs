@@ -119,6 +119,9 @@ impl App {
     }
 
     pub(crate) fn has_active_report_blocks(&self) -> bool {
-        has_visible_runtime_reports(self.player.record_index_1_based as u8, &self.report_block_rows)
+        has_visible_runtime_reports(
+            self.player.record_index_1_based as u8,
+            &self.report_block_rows,
+        )
     }
 }

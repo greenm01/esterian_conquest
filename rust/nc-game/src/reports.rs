@@ -81,10 +81,7 @@ impl ReportsPreview {
     }
 }
 
-pub fn has_visible_runtime_reports(
-    viewer_empire_id: u8,
-    report_blocks: &[ReportBlockRow],
-) -> bool {
+pub fn has_visible_runtime_reports(viewer_empire_id: u8, report_blocks: &[ReportBlockRow]) -> bool {
     report_blocks
         .iter()
         .any(|row| !row.recipient_deleted && row.is_visible_to_viewer(viewer_empire_id))

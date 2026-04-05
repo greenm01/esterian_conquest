@@ -1282,7 +1282,10 @@ fn fleet_order_from_stopped_fleet_uses_max_speed() {
     confirm_fleet_order(&mut app, true);
 
     let persisted = latest_runtime_state(&fixture_dir);
-    assert_eq!(persisted.game_data.fleets.records[1].standing_order_code_raw(), 1);
+    assert_eq!(
+        persisted.game_data.fleets.records[1].standing_order_code_raw(),
+        1
+    );
     assert_eq!(
         persisted.game_data.fleets.records[1].standing_order_target_coords_raw(),
         [14, 9]
@@ -1331,7 +1334,10 @@ fn fleet_order_preserves_explicit_nonzero_speed() {
     confirm_fleet_order(&mut app, true);
 
     let persisted = latest_runtime_state(&fixture_dir);
-    assert_eq!(persisted.game_data.fleets.records[1].standing_order_code_raw(), 1);
+    assert_eq!(
+        persisted.game_data.fleets.records[1].standing_order_code_raw(),
+        1
+    );
     assert_eq!(
         persisted.game_data.fleets.records[1].standing_order_target_coords_raw(),
         [14, 9]

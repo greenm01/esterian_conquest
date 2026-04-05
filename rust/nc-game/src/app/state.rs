@@ -14,9 +14,7 @@ use crate::domains::starbase::StarbaseState;
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext};
-use crate::reports::{
-    ReportsPreview, has_visible_runtime_messages, has_visible_runtime_reports,
-};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages, has_visible_runtime_reports};
 use crate::screen::{
     CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, FirstTimeEmpiresScreen,
     FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachScreen, FleetEtaScreen, FleetGroupScreen,
