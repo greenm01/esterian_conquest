@@ -754,6 +754,14 @@ fn planet_input_validation_reason_text(reason: PlanetPlayerInputValidationError)
         PlanetPlayerInputValidationError::InvalidBuildKind(kind) => {
             format!("the build queue contains unknown item kind {kind:#04x}")
         }
+        PlanetPlayerInputValidationError::InvalidBuildPointsForKind {
+            kind_raw,
+            points_remaining_raw,
+        } => {
+            format!(
+                "the build queue stores invalid points {points_remaining_raw} for item kind {kind_raw:#04x}"
+            )
+        }
         PlanetPlayerInputValidationError::MissingBuildKindForCount => {
             "a build queue slot had points remaining but no build kind".to_string()
         }
@@ -2384,11 +2392,10 @@ fn results_review_plan(
 
     for (idx, player) in game_data.player.records.iter_mut().enumerate() {
         let viewer_empire_id = (idx + 1) as u8;
-        let visible_record_count = visible_report_record_count(
-            &broadcast_entries,
-            viewer_entries.get(&viewer_empire_id),
-        );
-        let has_results = viewers_with_results.contains(&viewer_empire_id) && visible_record_count > 0;
+        let visible_record_count =
+            visible_report_record_count(&broadcast_entries, viewer_entries.get(&viewer_empire_id));
+        let has_results =
+            viewers_with_results.contains(&viewer_empire_id) && visible_record_count > 0;
         player.set_classic_results_review_state_present(has_results);
         player.set_classic_results_chain_state(
             has_results,
@@ -2488,7 +2495,11 @@ fn visible_report_record_count(
 ) -> usize {
     broadcast_entries
         .iter()
-        .chain(viewer_entries.into_iter().flat_map(|entries| entries.iter()))
+        .chain(
+            viewer_entries
+                .into_iter()
+                .flat_map(|entries| entries.iter()),
+        )
         .map(|entry| classic_results_record_count(&entry.text, entry.kind))
         .sum()
 }

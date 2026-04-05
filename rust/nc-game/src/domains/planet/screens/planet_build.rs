@@ -1050,7 +1050,7 @@ pub fn build_quantity_from_points(kind: ProductionItemKind, points: u32) -> u32 
     if cost == 0 {
         points
     } else {
-        (points / cost).max(1)
+        ((points.saturating_sub(1)) / cost) + 1
     }
 }
 

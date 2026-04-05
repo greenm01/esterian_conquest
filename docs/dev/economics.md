@@ -162,10 +162,12 @@ economically frozen. Normal-planet economy policy does not apply to them.
 
 ## Unit Build Completion
 
-When a build queue finishes, units are dispatched:
+When maintenance applies build spending, completed units are dispatched:
 
 - build spending is applied during maintenance from Stored Production Points
 - partial progress carries the remaining build cost into later turns
+- units appear as enough points are applied to complete them, even if other
+  units from the same order remain queued
 - blocked builds remain queued and do not consume stored production that year
 
 ### Ships and Starbases (Stardock)

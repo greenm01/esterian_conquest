@@ -147,6 +147,10 @@ pub enum FleetPlayerInputValidationError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetPlayerInputValidationError {
     InvalidBuildKind(u8),
+    InvalidBuildPointsForKind {
+        kind_raw: u8,
+        points_remaining_raw: u32,
+    },
     MissingBuildKindForCount,
     MissingBuildCountForKind,
     InvalidStardockKind(u8),

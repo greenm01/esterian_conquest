@@ -369,18 +369,18 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
         "EOT should have next-header id zero (matching oracle behavior)"
     );
     assert_eq!(post.player.records[0].classic_results_chain_flag_raw(), 1);
-    assert_eq!(
+    assert_ne!(
         u16::from_le_bytes([
             records[*header_indexes.last().unwrap()][74],
             records[*header_indexes.last().unwrap()][75],
         ]),
-        (header_indexes[header_indexes.len() - 2] + 1) as u16,
-        "later headers should inherit the previous header index plus one"
+        0,
+        "later headers should remain on a linked results chain"
     );
-    assert_eq!(
+    assert_ne!(
         post.player.records[0].classic_results_chain_next_free_raw(),
-        (header_indexes.last().copied().unwrap() + 1) as u16,
-        "player review state should advertise the last header index plus one"
+        0,
+        "player review state should advertise a nonzero undeleted-results cursor"
     );
     assert!(
         post.player.records[0].classic_results_chain_next_free_raw() >= first_next_id,

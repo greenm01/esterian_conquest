@@ -20,7 +20,7 @@ pub(super) fn process_build_completion(
                     game_data.planets.records[planet_idx].coords_raw(),
                 ),
         );
-        let production_rate_u8 = spend_capacity.min(255) as u8;
+        let mut remaining_spend_capacity = u32::from(spend_capacity);
 
         let mut had_builds = false;
         for slot in 0..10 {
@@ -30,45 +30,45 @@ pub(super) fn process_build_completion(
                 continue;
             }
             had_builds = true;
-
-            let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
-            let build_item_kind = ProductionItemKind::from_raw(build_kind);
-            let decrement = build_count.min(production_rate_u8);
-            let new_count = build_count.saturating_sub(decrement);
-            let points_spent = u32::from(decrement);
-
-            if new_count > 0 {
-                let current_stored =
-                    game_data.planets.records[planet_idx].stored_production_points();
-                game_data.planets.records[planet_idx]
-                    .set_stored_production_points(current_stored.saturating_sub(points_spent));
-                game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
+            if remaining_spend_capacity == 0 {
                 continue;
             }
 
-            if build_item_kind.requires_stardock() {
-                let has_open_stardock_slot = (0..crate::STARDOCK_SLOT_COUNT).any(|stardock_slot| {
-                    game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot) == 0
-                });
-                if !has_open_stardock_slot {
-                    continue;
-                }
-            }
+            let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
+            let build_item_kind = ProductionItemKind::from_raw(build_kind);
+            let decrement = u32::from(build_count).min(remaining_spend_capacity);
+            let new_count = u32::from(build_count).saturating_sub(decrement) as u8;
+            let completed_qty = completed_unit_count(build_item_kind, build_count, new_count);
 
             match build_item_kind {
                 ProductionItemKind::Army => {
-                    let qty = ((points_spent / 2).max(1)).min(u32::from(u8::MAX)) as u8;
                     let current = game_data.planets.records[planet_idx].army_count_raw();
-                    let free_capacity = u8::MAX.saturating_sub(current);
-                    if qty > free_capacity {
+                    let free_capacity = u32::from(u8::MAX.saturating_sub(current));
+                    if completed_qty > free_capacity {
                         continue;
                     }
                 }
                 ProductionItemKind::GroundBattery => {
-                    let qty = ((points_spent / 20).max(1)).min(u32::from(u8::MAX)) as u8;
                     let current = game_data.planets.records[planet_idx].ground_batteries_raw();
-                    let free_capacity = u8::MAX.saturating_sub(current);
-                    if qty > free_capacity {
+                    let free_capacity = u32::from(u8::MAX.saturating_sub(current));
+                    if completed_qty > free_capacity {
+                        continue;
+                    }
+                }
+                ProductionItemKind::Starbase => {
+                    let open_slots =
+                        open_stardock_slot_count(&game_data.planets.records[planet_idx]);
+                    if completed_qty > open_slots as u32 {
+                        continue;
+                    }
+                }
+                kind if kind.requires_stardock() => {
+                    if completed_qty > 0
+                        && !can_store_ship_completion(
+                            &game_data.planets.records[planet_idx],
+                            build_kind,
+                        )
+                    {
                         continue;
                     }
                 }
@@ -77,36 +77,41 @@ pub(super) fn process_build_completion(
 
             let current_stored = game_data.planets.records[planet_idx].stored_production_points();
             game_data.planets.records[planet_idx]
-                .set_stored_production_points(current_stored.saturating_sub(points_spent));
+                .set_stored_production_points(current_stored.saturating_sub(decrement));
             game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
+            remaining_spend_capacity = remaining_spend_capacity.saturating_sub(decrement);
 
             match build_item_kind {
                 ProductionItemKind::Army => {
-                    let qty = ((points_spent / 2).max(1)).min(u32::from(u8::MAX)) as u8;
                     let current = game_data.planets.records[planet_idx].army_count_raw();
-                    game_data.planets.records[planet_idx].set_army_count_raw(current + qty);
+                    game_data.planets.records[planet_idx]
+                        .set_army_count_raw(current.saturating_add(completed_qty as u8));
                 }
                 ProductionItemKind::GroundBattery => {
-                    let qty = ((points_spent / 20).max(1)).min(u32::from(u8::MAX)) as u8;
                     let current = game_data.planets.records[planet_idx].ground_batteries_raw();
-                    game_data.planets.records[planet_idx].set_ground_batteries_raw(current + qty);
+                    game_data.planets.records[planet_idx]
+                        .set_ground_batteries_raw(current.saturating_add(completed_qty as u8));
                 }
-                _ => {
-                    for stardock_slot in 0..crate::STARDOCK_SLOT_COUNT {
-                        let existing_kind =
-                            game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot);
-                        if existing_kind == 0 {
-                            game_data.planets.records[planet_idx]
-                                .set_stardock_kind_raw(stardock_slot, build_kind);
-                            game_data.planets.records[planet_idx]
-                                .set_stardock_count_raw(stardock_slot, 3);
-                            break;
-                        }
-                    }
+                ProductionItemKind::Starbase => {
+                    add_starbases_to_stardock(
+                        &mut game_data.planets.records[planet_idx],
+                        build_kind,
+                        completed_qty,
+                    );
                 }
+                kind if kind.requires_stardock() => {
+                    add_ships_to_stardock(
+                        &mut game_data.planets.records[planet_idx],
+                        build_kind,
+                        completed_qty,
+                    )?;
+                }
+                _ => {}
             }
 
-            game_data.planets.records[planet_idx].set_build_kind_raw(slot, 0);
+            if new_count == 0 {
+                game_data.planets.records[planet_idx].set_build_kind_raw(slot, 0);
+            }
         }
 
         if had_builds {
@@ -115,4 +120,73 @@ pub(super) fn process_build_completion(
     }
 
     Ok(planets_with_builds)
+}
+
+fn completed_unit_count(kind: ProductionItemKind, old_remaining: u8, new_remaining: u8) -> u32 {
+    let Some(cost) = kind.build_cost() else {
+        return 0;
+    };
+    ceil_div(u32::from(old_remaining), cost)
+        .saturating_sub(ceil_div(u32::from(new_remaining), cost))
+}
+
+fn ceil_div(value: u32, divisor: u32) -> u32 {
+    if value == 0 {
+        0
+    } else {
+        ((value - 1) / divisor) + 1
+    }
+}
+
+fn open_stardock_slot_count(planet: &nc_data::PlanetRecord) -> usize {
+    (0..crate::STARDOCK_SLOT_COUNT)
+        .filter(|&slot| planet.stardock_kind_raw(slot) == 0)
+        .count()
+}
+
+fn can_store_ship_completion(planet: &nc_data::PlanetRecord, kind_raw: u8) -> bool {
+    (0..crate::STARDOCK_SLOT_COUNT).any(|slot| {
+        let existing_kind = planet.stardock_kind_raw(slot);
+        existing_kind == 0 || existing_kind == kind_raw
+    })
+}
+
+fn add_ships_to_stardock(
+    planet: &mut nc_data::PlanetRecord,
+    kind_raw: u8,
+    qty: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if qty == 0 {
+        return Ok(());
+    }
+    for slot in 0..crate::STARDOCK_SLOT_COUNT {
+        if planet.stardock_kind_raw(slot) == kind_raw {
+            let current = planet.stardock_count_raw(slot);
+            planet.set_stardock_count_raw(slot, current.saturating_add(qty as u16));
+            return Ok(());
+        }
+    }
+    for slot in 0..crate::STARDOCK_SLOT_COUNT {
+        if planet.stardock_kind_raw(slot) == 0 {
+            planet.set_stardock_kind_raw(slot, kind_raw);
+            planet.set_stardock_count_raw(slot, qty as u16);
+            return Ok(());
+        }
+    }
+    Err("stardock has no room for completed ships".into())
+}
+
+fn add_starbases_to_stardock(planet: &mut nc_data::PlanetRecord, kind_raw: u8, qty: u32) {
+    let mut remaining = qty;
+    for slot in 0..crate::STARDOCK_SLOT_COUNT {
+        if remaining == 0 {
+            break;
+        }
+        if planet.stardock_kind_raw(slot) != 0 {
+            continue;
+        }
+        planet.set_stardock_kind_raw(slot, kind_raw);
+        planet.set_stardock_count_raw(slot, 1);
+        remaining -= 1;
+    }
 }

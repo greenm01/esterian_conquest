@@ -81,12 +81,42 @@ fn partial_build_consumes_only_yearly_spend_before_revenue_credit() {
     assert_eq!(planet.build_count_raw(0), 50);
     assert_eq!(planet.build_kind_raw(0), 1);
     assert_eq!(planet.stored_production_points(), 150);
+    assert_eq!(planet.stardock_kind_raw(0), 1);
+    assert_eq!(planet.stardock_count_raw(0), 20);
 
     run_maintenance_turn(&mut game).expect("second maintenance should succeed");
     let planet = &game.planets.records[0];
     assert_eq!(planet.build_count_raw(0), 0);
     assert_eq!(planet.build_kind_raw(0), 0);
     assert_eq!(planet.stored_production_points(), 150);
+    assert_eq!(planet.stardock_kind_raw(0), 1);
+    assert_eq!(planet.stardock_count_raw(0), 30);
+}
+
+#[test]
+fn multiple_build_slots_share_one_planet_spend_budget_per_turn() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_player_mode_raw(0x01);
+
+    let mut planet = owned_planet_with_present_production(1, 100, 50, 200, 10, 4);
+    planet.set_build_count_raw(0, 25);
+    planet.set_build_kind_raw(0, 1);
+    planet.set_build_count_raw(1, 40);
+    planet.set_build_kind_raw(1, 6);
+
+    let mut game = multi_planet_game(player, vec![planet], vec![]);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 0);
+    assert_eq!(planet.build_kind_raw(0), 0);
+    assert_eq!(planet.build_count_raw(1), 15);
+    assert_eq!(planet.build_kind_raw(1), 6);
+    assert_eq!(planet.stored_production_points(), 175);
+    assert_eq!(planet.stardock_kind_raw(0), 1);
+    assert_eq!(planet.stardock_count_raw(0), 5);
+    assert_eq!(planet.stardock_kind_raw(1), 6);
+    assert_eq!(planet.stardock_count_raw(1), 1);
 }
 
 #[test]

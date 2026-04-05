@@ -47,6 +47,21 @@ impl ProductionItemKind {
                 | Self::Starbase
         )
     }
+
+    pub fn build_cost(self) -> Option<u32> {
+        match self {
+            Self::Destroyer => Some(5),
+            Self::Cruiser => Some(15),
+            Self::Battleship => Some(45),
+            Self::Scout => Some(15),
+            Self::Transport => Some(5),
+            Self::Etac => Some(20),
+            Self::GroundBattery => Some(20),
+            Self::Army => Some(2),
+            Self::Starbase => Some(50),
+            Self::Unknown(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

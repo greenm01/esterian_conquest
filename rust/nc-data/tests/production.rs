@@ -394,7 +394,7 @@ fn maintenance_ship_build_stays_queued_when_stardock_is_full() {
     planet.set_build_count_raw(0, 100);
     planet.set_build_kind_raw(0, 1);
     for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
-        planet.set_stardock_kind_raw(slot, 1);
+        planet.set_stardock_kind_raw(slot, 2);
         planet.set_stardock_count_raw(slot, 1);
     }
 
@@ -405,7 +405,7 @@ fn maintenance_ship_build_stays_queued_when_stardock_is_full() {
     assert_eq!(planet.build_count_raw(0), 100);
     assert_eq!(planet.build_kind_raw(0), 1);
     for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
-        assert_eq!(planet.stardock_kind_raw(slot), 1);
+        assert_eq!(planet.stardock_kind_raw(slot), 2);
         assert_eq!(planet.stardock_count_raw(slot), 1);
     }
 }
@@ -433,6 +433,56 @@ fn maintenance_starbase_build_stays_queued_when_stardock_is_full() {
         assert_eq!(planet.stardock_kind_raw(slot), 1);
         assert_eq!(planet.stardock_count_raw(slot), 1);
     }
+}
+
+#[test]
+fn maintenance_exact_ship_quantities_arrive_in_stardock() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
+    planet.set_build_count_raw(0, 10);
+    planet.set_build_kind_raw(0, 1);
+    planet.set_build_count_raw(1, 40);
+    planet.set_build_kind_raw(1, 6);
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 0);
+    assert_eq!(planet.build_kind_raw(0), 0);
+    assert_eq!(planet.build_count_raw(1), 0);
+    assert_eq!(planet.build_kind_raw(1), 0);
+    assert_eq!(planet.stardock_kind_raw(0), 1);
+    assert_eq!(planet.stardock_count_raw(0), 2);
+    assert_eq!(planet.stardock_kind_raw(1), 6);
+    assert_eq!(planet.stardock_count_raw(1), 2);
+}
+
+#[test]
+fn maintenance_starbases_arrive_one_per_stardock_slot() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
+    planet.set_build_count_raw(0, 50);
+    planet.set_build_kind_raw(0, 9);
+    planet.set_build_count_raw(1, 50);
+    planet.set_build_kind_raw(1, 9);
+    planet.set_build_count_raw(2, 50);
+    planet.set_build_kind_raw(2, 9);
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    for slot in 0..2 {
+        assert_eq!(planet.stardock_kind_raw(slot), 9);
+        assert_eq!(planet.stardock_count_raw(slot), 1);
+    }
+    assert_eq!(planet.build_count_raw(2), 50);
+    assert_eq!(planet.build_kind_raw(2), 9);
 }
 
 #[test]

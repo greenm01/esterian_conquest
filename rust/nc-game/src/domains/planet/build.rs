@@ -1059,16 +1059,17 @@ impl App {
 
         let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
 
-        // Armies and ground batteries go directly to the planet — no stardock needed.
-        // For all other kinds (ships, starbases), each queued order will need one
-        // stardock slot on completion. Warn and cap if the stardock is full.
+        // Armies and batteries do not use stardock. For stardock-requiring kinds,
+        // the quantity cap above already accounts for queue and stardock capacity.
         let needs_stardock = !matches!(
             kind,
             ProductionItemKind::Army | ProductionItemKind::GroundBattery
         );
         if needs_stardock {
-            let free = self.game_data.planet_free_stardock_slots(planet_record)?;
-            if free == 0 {
+            let capacity = self
+                .game_data
+                .planet_additional_build_points_capacity(planet_record, kind)?;
+            if capacity == 0 {
                 self.planet.build_quantity_status =
                     Some("Stardock is full — commission ships first to free space.".to_string());
                 return Ok(());
@@ -1562,7 +1563,10 @@ impl App {
     ) -> Result<u32, Box<dyn std::error::Error>> {
         let view = self.current_planet_build_view()?;
         let unit = build_unit_spec_by_kind(kind).ok_or("unit spec missing")?;
-        let mut max_qty = max_quantity(view.points_left, unit.cost);
+        let queue_capacity = self
+            .game_data
+            .planet_additional_build_points_capacity(view.row.planet_record_index_1_based, kind)?;
+        let mut max_qty = max_quantity(view.points_left.min(queue_capacity), unit.cost);
         match kind {
             ProductionItemKind::Army => {
                 let free = self

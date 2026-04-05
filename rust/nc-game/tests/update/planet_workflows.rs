@@ -911,6 +911,68 @@ fn repeated_same_kind_build_submissions_merge_into_one_player_visible_total() {
 }
 
 #[test]
+fn build_quantity_from_points_uses_remaining_whole_units_for_partial_orders() {
+    assert_eq!(
+        nc_game::screen::build_quantity_from_points(ProductionItemKind::Etac, 30),
+        2
+    );
+    assert_eq!(
+        nc_game::screen::build_quantity_from_points(ProductionItemKind::Destroyer, 12),
+        3
+    );
+}
+
+#[test]
+fn starbase_build_quantity_is_capped_by_remaining_stardock_slots() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let planet_idx = state
+        .game_data
+        .planet_record_index_at_coords([16, 13])
+        .expect("current build planet should exist");
+    let planet = &mut state.game_data.planets.records[planet_idx];
+    planet.set_stored_production_points(500);
+    for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
+        if slot < nc_data::STARDOCK_SLOT_COUNT - 1 {
+            planet.set_stardock_kind_raw(slot, 1);
+            planet.set_stardock_count_raw(slot, 1);
+        } else {
+            planet.set_stardock_kind_raw(slot, 0);
+            planet.set_stardock_count_raw(slot, 0);
+        }
+    }
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+
+    app.open_planet_build_specify();
+    app.append_planet_build_unit_char('7');
+    app.submit_planet_build_unit();
+    app.append_planet_build_quantity_char('2');
+    app.submit_planet_build_quantity()
+        .expect("quantity prompt should stay in app flow");
+
+    assert_eq!(
+        app.planet.build_quantity_status.as_deref(),
+        Some("Enter a quantity from 0 to 1.")
+    );
+}
+
+#[test]
 fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     let fixture_dir = temp_joined_empty_empire_copy();
     let mut app = App::load(AppConfig {

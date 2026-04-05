@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nc_data::{CampaignStore, DiplomaticRelation, Order, TurnSubmission};
+use nc_data::{
+    CampaignStore, DiplomaticRelation, Order, PlanetPlayerInputValidationError, TurnSubmission,
+};
 use nc_engine::build_seeded_initialized_game;
 
 static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -59,7 +61,7 @@ diplomacy to=2 relation="enemy"
 planet record={planet_record_index_1_based} {{
   rename name="New Aurora"
   clear_build_queue
-  build points=4 kind="scout"
+  build points=15 kind="scout"
   commission slot=1
 }}
 fleet record={fleet_record_index_1_based} {{
@@ -96,7 +98,7 @@ message to=2 subject="Border" body="Holding lane."
     );
     assert_eq!(
         data.planets.records[planet_record_index_1_based - 1].build_count_raw(0),
-        4
+        15
     );
     assert_eq!(
         data.planets.records[planet_record_index_1_based - 1].build_kind_raw(0),
@@ -208,6 +210,50 @@ fleet record={} {{
         data.fleets.records[fleet_indexes[1] - 1].standing_order_kind(),
         second_order_before
     );
+}
+
+#[test]
+fn turn_submission_rejects_non_multiple_ship_build_points() {
+    let mut data = build_seeded_initialized_game(4, 3000, 1515).unwrap();
+    let planet_record_index_1_based = data
+        .planets
+        .records
+        .iter()
+        .position(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|idx| idx + 1)
+        .unwrap();
+
+    let submission = TurnSubmission::parse_kdl_str(&format!(
+        r#"
+turn player=1 year=3000
+planet record={planet_record_index_1_based} {{
+  build points=14 kind="scout"
+}}
+"#
+    ))
+    .unwrap();
+
+    let err = submission
+        .apply_to(&mut data, &mut Vec::new())
+        .expect_err("invalid build points should fail");
+
+    match err {
+        nc_data::TurnSubmissionError::Mutation(
+            nc_data::GameStateMutationError::InvalidPlanetPlayerInput {
+                planet_index_1_based,
+                reason:
+                    PlanetPlayerInputValidationError::InvalidBuildPointsForKind {
+                        kind_raw,
+                        points_remaining_raw,
+                    },
+            },
+        ) => {
+            assert_eq!(planet_index_1_based, planet_record_index_1_based);
+            assert_eq!(kind_raw, 4);
+            assert_eq!(points_remaining_raw, 14);
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
 }
 
 #[test]

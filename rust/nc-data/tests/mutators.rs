@@ -316,9 +316,9 @@ fn append_planet_build_order_still_uses_all_ten_queue_slots() {
         conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
     };
 
-    data.append_planet_build_order(1, 2, 4).unwrap();
+    data.append_planet_build_order(1, 15, 4).unwrap();
 
-    assert_eq!(data.planets.records[0].build_count_raw(9), 2);
+    assert_eq!(data.planets.records[0].build_count_raw(9), 15);
     assert_eq!(data.planets.records[0].build_kind_raw(9), 4);
 }
 
@@ -412,13 +412,81 @@ fn append_planet_build_order_does_not_partially_write_when_capacity_is_exhausted
         conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
     };
 
-    let error = data.append_planet_build_order(1, 1, 1).unwrap_err();
+    let error = data.append_planet_build_order(1, 2, 8).unwrap_err();
 
     assert_eq!(
         error,
         GameStateMutationError::PlanetBuildQueueFull { index_1_based: 1 }
     );
     assert_eq!(data.planets.records[0], original);
+}
+
+#[test]
+fn append_planet_build_order_rejects_non_multiple_ship_points() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let error = data.append_planet_build_order(1, 14, 4).unwrap_err();
+    assert_eq!(
+        error,
+        GameStateMutationError::InvalidPlanetPlayerInput {
+            planet_index_1_based: 1,
+            reason: PlanetPlayerInputValidationError::InvalidBuildPointsForKind {
+                kind_raw: 4,
+                points_remaining_raw: 14,
+            },
+        }
+    );
+}
+
+#[test]
+fn append_planet_build_order_spills_starbases_one_per_queue_slot() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.append_planet_build_order(1, 150, 9).unwrap();
+
+    assert_eq!(data.planets.records[0].build_count_raw(0), 50);
+    assert_eq!(data.planets.records[0].build_kind_raw(0), 9);
+    assert_eq!(data.planets.records[0].build_count_raw(1), 50);
+    assert_eq!(data.planets.records[0].build_kind_raw(1), 9);
+    assert_eq!(data.planets.records[0].build_count_raw(2), 50);
+    assert_eq!(data.planets.records[0].build_kind_raw(2), 9);
+    assert!((3..10).all(|slot| data.planets.records[0].build_count_raw(slot) == 0));
 }
 
 #[test]
