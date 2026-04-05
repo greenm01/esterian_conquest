@@ -2160,6 +2160,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nc-dash"
+version = "1.0.0-beta.2"
+dependencies = [
+ "crossterm 0.28.1",
+ "nc-data",
+ "nc-engine",
+ "nc-log",
+ "nc-ui",
+ "tracing",
+]
+
+[[package]]
 name = "nc-data"
 version = "1.0.0-beta.2"
 dependencies = [
@@ -2194,7 +2206,7 @@ dependencies = [
 
 [[package]]
 name = "nc-gate"
-version = "0.1.0"
+version = "1.0.0-beta.2"
 dependencies = [
  "base64",
  "kdl",
@@ -2223,7 +2235,7 @@ dependencies = [
 
 [[package]]
 name = "nc-log"
-version = "0.1.0"
+version = "1.0.0-beta.2"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -2231,7 +2243,7 @@ dependencies = [
 
 [[package]]
 name = "nc-nostr"
-version = "0.1.0"
+version = "1.0.0-beta.2"
 dependencies = [
  "nostr-sdk",
  "rand 0.8.5",

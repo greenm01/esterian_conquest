@@ -1754,6 +1754,50 @@ fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
 }
 
 #[test]
+fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    app.current_screen = ScreenId::PlanetList(PlanetListMode::Brief, PlanetListSort::Location);
+    apply_action(&mut app, Action::OpenPopupHelp);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet list help should render");
+    assert!(
+        line_containing(&terminal, "review highlighted planet").contains("I/Enter"),
+        "planet list helper should advertise I/Enter review"
+    );
+    assert!(
+        line_containing(
+            &terminal,
+            "build, auto-commission, or commission selected planet"
+        )
+        .contains("B/A/C"),
+        "planet list helper should advertise B/A/C row actions"
+    );
+    assert!(
+        line_containing(&terminal, "load, unload, or scorch selected planet").contains("L/U/X"),
+        "planet list helper should advertise L/U/X row actions"
+    );
+    assert!(
+        line_containing(&terminal, "sort the planet list").contains("S"),
+        "planet list helper should advertise S sort"
+    );
+    assert!(
+        line_containing(&terminal, "jump to planet coordinates").contains("Type"),
+        "planet list helper should advertise typed coordinate jumps"
+    );
+}
+
+#[test]
 fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

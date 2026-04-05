@@ -1,5 +1,5 @@
 use crate::screen::help::{MenuHelpTopic, help_lines, menu_help_spec, render_help_popup};
-use crate::screen::{PlayfieldBuffer, ScreenId};
+use crate::screen::{PlanetListMode, PlayfieldBuffer, ScreenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PopupHelp {
@@ -86,6 +86,27 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("J/K", "move selection"),
                 ("^U/^D", "page up/down"),
                 ("D/Enter", "delete highlighted build order"),
+                ("Q/Esc", "return"),
+                ("?", "show/hide helper"),
+            ],
+        )),
+        ScreenId::PlanetList(PlanetListMode::Brief, _) => Some(table_help(
+            "PLANET COMMANDS",
+            &[
+                ("J/K", "move selection"),
+                ("^U/^D", "page up/down"),
+                ("I/Enter", "review highlighted planet"),
+                (
+                    "B/A/C",
+                    "build, auto-commission, or commission selected planet",
+                ),
+                ("L/U/X", "load, unload, or scorch selected planet"),
+                ("S", "sort the planet list"),
+                (
+                    "Type",
+                    "jump to planet coordinates when no sub-command prompt is open",
+                ),
+                ("Backspace", "erase typed coordinate input"),
                 ("Q/Esc", "return"),
                 ("?", "show/hide helper"),
             ],
