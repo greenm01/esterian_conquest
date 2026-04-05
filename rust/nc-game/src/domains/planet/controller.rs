@@ -225,7 +225,9 @@ impl App {
         };
         if self.planet.brief_input.len() < 16 && is_coordinate_input_char(ch) {
             self.planet.brief_input.push(ch);
-            self.sync_planet_brief_cursor_to_input(sort);
+            if self.sync_planet_brief_cursor_to_input(sort) {
+                self.planet.brief_input.clear();
+            }
             self.planet.list_sort_status = None;
         }
     }
@@ -235,7 +237,7 @@ impl App {
             return;
         };
         self.planet.brief_input.pop();
-        self.sync_planet_brief_cursor_to_input(sort);
+        let _ = self.sync_planet_brief_cursor_to_input(sort);
         self.planet.list_sort_status = None;
     }
 
@@ -358,7 +360,9 @@ impl App {
         if accepts_input && self.planet.database_input.len() < 16 && allow_char {
             self.planet.database_input.push(ch);
             if self.current_screen == ScreenId::PlanetDatabaseList {
-                self.sync_planet_database_cursor_to_input();
+                if self.sync_planet_database_cursor_to_input() {
+                    self.planet.database_input.clear();
+                }
             }
             self.planet.database_status = None;
         }
@@ -382,7 +386,7 @@ impl App {
         }
         self.planet.database_input.pop();
         if self.current_screen == ScreenId::PlanetDatabaseList {
-            self.sync_planet_database_cursor_to_input();
+            let _ = self.sync_planet_database_cursor_to_input();
         }
         self.planet.database_status = None;
     }
@@ -648,48 +652,50 @@ impl App {
         }
     }
 
-    fn sync_planet_brief_cursor_to_input(&mut self, sort: PlanetListSort) {
+    fn sync_planet_brief_cursor_to_input(&mut self, sort: PlanetListSort) -> bool {
         let rows = self.sorted_planet_rows(sort);
         let match_rows = rows
             .iter()
             .map(|row| vec![crate::screen::format_sector_coords_table(row.coords)])
             .collect::<Vec<_>>();
-        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+        let Some(matched) = crate::screen::table_selection::find_typed_jump(
             &match_rows,
             0,
             &self.planet.brief_input,
         ) else {
-            return;
+            return false;
         };
-        self.planet.brief_cursor = index;
+        self.planet.brief_cursor = matched.index;
         let visible_rows = self.planet_brief_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.brief_scroll_offset,
             self.planet.brief_cursor,
             visible_rows,
         );
+        matched.is_terminal_exact_match
     }
 
-    fn sync_planet_database_cursor_to_input(&mut self) {
+    fn sync_planet_database_cursor_to_input(&mut self) -> bool {
         let rows = self.planet_database_rows();
         let match_rows = rows
             .iter()
             .map(|row| vec![crate::screen::format_sector_coords_table(row.coords)])
             .collect::<Vec<_>>();
-        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+        let Some(matched) = crate::screen::table_selection::find_typed_jump(
             &match_rows,
             0,
             &self.planet.database_input,
         ) else {
-            return;
+            return false;
         };
-        self.planet.database_cursor = index;
+        self.planet.database_cursor = matched.index;
         let visible_rows = self.planet_database_visible_rows();
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
             visible_rows,
         );
+        matched.is_terminal_exact_match
     }
 
     pub fn backspace_planet_info_input(&mut self) {
@@ -983,14 +989,13 @@ impl App {
         use crossterm::event::KeyCode;
 
         match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => {
+            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
                 crate::app::Action::Planet(PlanetAction::ConfirmAutoCommission)
             }
             KeyCode::Char('q')
             | KeyCode::Char('Q')
             | KeyCode::Char('n')
             | KeyCode::Char('N')
-            | KeyCode::Enter
             | KeyCode::Esc => crate::app::Action::Planet(PlanetAction::CloseAutoCommissionPrompt),
             _ => crate::app::Action::Noop,
         }

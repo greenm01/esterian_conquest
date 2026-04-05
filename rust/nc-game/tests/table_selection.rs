@@ -1,4 +1,6 @@
-use nc_game::screen::table_selection::{find_typed_jump_index, selection_key_matches};
+use nc_game::screen::table_selection::{
+    TypedJumpMatch, find_typed_jump, find_typed_jump_index, selection_key_matches,
+};
 
 #[test]
 fn numeric_jump_matches_zero_padded_prefixes() {
@@ -42,4 +44,35 @@ fn jump_can_target_non_first_selection_column() {
     ];
 
     assert_eq!(find_typed_jump_index(&rows, 1, "mon"), Some(1));
+}
+
+#[test]
+fn terminal_exact_match_only_clears_when_no_longer_prefix_exists() {
+    let rows = vec![
+        vec!["09".to_string()],
+        vec!["12".to_string()],
+        vec!["123".to_string()],
+    ];
+
+    assert_eq!(
+        find_typed_jump(&rows, 0, "1"),
+        Some(TypedJumpMatch {
+            index: 1,
+            is_terminal_exact_match: false,
+        })
+    );
+    assert_eq!(
+        find_typed_jump(&rows, 0, "12"),
+        Some(TypedJumpMatch {
+            index: 1,
+            is_terminal_exact_match: false,
+        })
+    );
+    assert_eq!(
+        find_typed_jump(&rows, 0, "123"),
+        Some(TypedJumpMatch {
+            index: 2,
+            is_terminal_exact_match: true,
+        })
+    );
 }

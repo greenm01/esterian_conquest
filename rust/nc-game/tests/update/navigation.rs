@@ -76,6 +76,116 @@ fn planet_brief_list_accepts_wrapped_coordinate_input() {
 }
 
 #[test]
+fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
+
+    let mut rows = app.game_data.empire_planet_economy_rows(1);
+    rows.sort_by_key(|row| row.coords);
+    let match_rows = rows
+        .iter()
+        .map(|row| vec![nc_game::screen::format_sector_coords_table(row.coords)])
+        .collect::<Vec<_>>();
+    let (target_coords, input) = rows
+        .iter()
+        .find_map(|row| {
+            let input = format!("{},{}", row.coords[0], row.coords[1]);
+            nc_game::screen::table_selection::find_typed_jump(&match_rows, 0, &input)
+                .filter(|matched| matched.is_terminal_exact_match)
+                .map(|_| (row.coords, input))
+        })
+        .expect("fixture should have a terminal coordinate jump");
+
+    for ch in input.chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(action, Action::Planet(PlanetAction::AppendBriefChar(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+
+    assert!(app.planet.brief_input.is_empty());
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet brief list should render");
+    assert_eq!(
+        line_containing(&terminal, "COMMAND <- ? J K S <Q>").trim(),
+        format!(
+            "COMMAND <- ? J K S <Q> [{:02},{:02}] ->",
+            target_coords[0], target_coords[1]
+        )
+    );
+}
+
+#[test]
+fn planet_database_terminal_typed_jump_clears_footer_input() {
+    let root = temp_game_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_database();
+
+    let mut coords_rows = nc_data::build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        &app.planet_intel_snapshots,
+        1,
+    )
+    .worlds
+    .into_iter()
+    .map(|world| world.coords)
+    .collect::<Vec<_>>();
+    coords_rows.sort();
+    let match_rows = coords_rows
+        .iter()
+        .map(|coords| vec![nc_game::screen::format_sector_coords_table(*coords)])
+        .collect::<Vec<_>>();
+    let (target_coords, input) = coords_rows
+        .iter()
+        .find_map(|coords| {
+            let input = format!("{},{}", coords[0], coords[1]);
+            nc_game::screen::table_selection::find_typed_jump(&match_rows, 0, &input)
+                .filter(|matched| matched.is_terminal_exact_match)
+                .map(|_| (*coords, input))
+        })
+        .expect("fixture should have a terminal database coordinate jump");
+
+    for ch in input.chars() {
+        let action = app.handle_key(key(KeyCode::Char(ch)));
+        assert_eq!(action, Action::Planet(PlanetAction::AppendDatabaseChar(ch)));
+        assert_eq!(apply_action(&mut app, action), AppOutcome::Continue);
+    }
+
+    assert!(app.planet.database_input.is_empty());
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet database list should render");
+    assert_eq!(
+        line_containing(&terminal, "COMMAND <- ? J K ^U ^D F S <Q>").trim(),
+        format!(
+            "COMMAND <- ? J K ^U ^D F S <Q> [{:02},{:02}] ->",
+            target_coords[0], target_coords[1]
+        )
+    );
+}
+
+#[test]
 fn fleet_list_keeps_selector_input_numeric_only() {
     let root = temp_game_copy();
     let config = AppConfig {
@@ -97,6 +207,33 @@ fn fleet_list_keeps_selector_input_numeric_only() {
     assert_eq!(app.handle_key(key(KeyCode::Char('{'))), Action::Noop);
     assert_eq!(app.handle_key(key(KeyCode::Char(','))), Action::Noop);
     assert_eq!(app.handle_key(key(KeyCode::Char(' '))), Action::Noop);
+}
+
+#[test]
+fn auto_commission_prompt_enter_defaults_to_yes() {
+    let root = temp_game_with_auto_commission_copy();
+    let config = AppConfig {
+        game_dir: root,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: GameConfig::default(),
+    };
+    let mut app = App::load(config).expect("load app");
+    advance_to_main_menu(&mut app);
+    app.open_planet_menu();
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert!(app.planet.auto_commission_prompt_active);
+
+    let action = app.handle_key(key(KeyCode::Enter));
+    assert_eq!(action, Action::Planet(PlanetAction::ConfirmAutoCommission));
 }
 
 #[test]

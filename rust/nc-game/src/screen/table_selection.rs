@@ -1,17 +1,59 @@
-pub fn find_typed_jump_index(
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypedJumpMatch {
+    pub index: usize,
+    pub is_terminal_exact_match: bool,
+}
+
+pub fn find_typed_jump(
     rows: &[Vec<String>],
     selection_col: usize,
     input: &str,
-) -> Option<usize> {
+) -> Option<TypedJumpMatch> {
     let raw_input = input.trim();
     if raw_input.is_empty() {
         return None;
     }
 
-    rows.iter().position(|row| {
-        row.get(selection_col)
-            .is_some_and(|cell| selection_key_matches(cell, raw_input))
+    let normalized_input = normalize_for_match(raw_input);
+    if normalized_input.is_empty() {
+        return None;
+    }
+
+    let mut index = None;
+    let mut matched_cell_exact = false;
+    let mut has_longer_prefix_match = false;
+
+    for (row_index, row) in rows.iter().enumerate() {
+        let Some(cell) = row.get(selection_col) else {
+            continue;
+        };
+        let normalized_cell = normalize_for_match(cell);
+        if normalized_cell.is_empty() || !normalized_cell.starts_with(&normalized_input) {
+            continue;
+        }
+
+        if index.is_none() {
+            index = Some(row_index);
+            matched_cell_exact = normalized_cell == normalized_input;
+        }
+
+        if normalized_cell.len() > normalized_input.len() {
+            has_longer_prefix_match = true;
+        }
+    }
+
+    index.map(|index| TypedJumpMatch {
+        index,
+        is_terminal_exact_match: matched_cell_exact && !has_longer_prefix_match,
     })
+}
+
+pub fn find_typed_jump_index(
+    rows: &[Vec<String>],
+    selection_col: usize,
+    input: &str,
+) -> Option<usize> {
+    find_typed_jump(rows, selection_col, input).map(|matched| matched.index)
 }
 
 pub fn selection_key_matches(cell: &str, raw_input: &str) -> bool {

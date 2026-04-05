@@ -271,7 +271,9 @@ impl App {
             return;
         }
         self.messaging.inbox_id_input.push(ch);
-        self.sync_inbox_cursor_to_id_input();
+        if self.sync_inbox_cursor_to_id_input() {
+            self.messaging.inbox_id_input.clear();
+        }
         self.messaging.inbox_feedback = None;
     }
 
@@ -280,7 +282,7 @@ impl App {
             return;
         }
         self.messaging.inbox_id_input.pop();
-        self.sync_inbox_cursor_to_id_input();
+        let _ = self.sync_inbox_cursor_to_id_input();
         self.messaging.inbox_feedback = None;
     }
 
@@ -459,26 +461,27 @@ impl App {
             .min(preview_total.saturating_sub(preview_visible));
     }
 
-    fn sync_inbox_cursor_to_id_input(&mut self) {
+    fn sync_inbox_cursor_to_id_input(&mut self) -> bool {
         let rows = self
             .filtered_inbox_display_items()
             .iter()
             .map(|item| vec![format!("{:02}", item.display_id)])
             .collect::<Vec<_>>();
-        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+        let Some(matched) = crate::screen::table_selection::find_typed_jump(
             &rows,
             0,
             &self.messaging.inbox_id_input,
         ) else {
-            return;
+            return false;
         };
-        self.messaging.inbox_cursor = index;
+        self.messaging.inbox_cursor = matched.index;
         sync_scroll_to_cursor(
             &mut self.messaging.inbox_scroll_offset,
             self.messaging.inbox_cursor,
             INBOX_VISIBLE_ROWS,
         );
         self.messaging.inbox_preview_scroll = 0;
+        matched.is_terminal_exact_match
     }
 
     fn clear_inbox_filter_feedback(&mut self) {

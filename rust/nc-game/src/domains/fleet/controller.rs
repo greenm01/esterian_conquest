@@ -723,7 +723,9 @@ impl App {
             return;
         }
         self.fleet.list_input.push(ch);
-        self.sync_fleet_list_cursor_to_input();
+        if self.sync_fleet_list_cursor_to_input() {
+            self.clear_fleet_list_input();
+        }
         self.fleet.list_status = None;
     }
 
@@ -732,7 +734,7 @@ impl App {
             return;
         }
         self.fleet.list_input.pop();
-        self.sync_fleet_list_cursor_to_input();
+        let _ = self.sync_fleet_list_cursor_to_input();
         self.fleet.list_status = None;
     }
 
@@ -964,29 +966,30 @@ impl App {
             .and_then(|idx| self.fleet_row_by_record_index(idx))
     }
 
-    fn sync_fleet_list_cursor_to_input(&mut self) {
+    fn sync_fleet_list_cursor_to_input(&mut self) -> bool {
         let ScreenId::FleetList = self.current_screen else {
-            return;
+            return false;
         };
         let rows = self.fleet_list_rows();
         let match_rows = rows
             .iter()
             .map(|row| vec![row.fleet_number.to_string()])
             .collect::<Vec<_>>();
-        let Some(index) = crate::screen::table_selection::find_typed_jump_index(
+        let Some(matched) = crate::screen::table_selection::find_typed_jump(
             &match_rows,
             0,
             &self.fleet.list_input,
         ) else {
-            return;
+            return false;
         };
-        self.fleet.cursor = index;
+        self.fleet.cursor = matched.index;
         let visible_rows = self.fleet_list_visible_rows();
         sync_scroll_to_cursor(
             &mut self.fleet.scroll_offset,
             self.fleet.cursor,
             visible_rows,
         );
+        matched.is_terminal_exact_match
     }
 
     pub fn cancel_fleet_menu_prompt(&mut self) {

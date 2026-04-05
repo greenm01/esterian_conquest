@@ -2836,11 +2836,12 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
         apply_action(&mut app, Action::Fleet(FleetAction::AppendListChar('1'))),
         AppOutcome::Continue
     );
+    assert!(app.fleet.list_input.is_empty());
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
         line_containing(&terminal, "COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [").trim_end(),
-        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [1] -> 1"
+        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [1] ->"
     );
 
     assert_eq!(

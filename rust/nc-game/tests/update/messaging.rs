@@ -625,6 +625,7 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
         ),
         AppOutcome::Continue
     );
+    assert!(app.messaging.inbox_id_input.is_empty());
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("inbox should render");
@@ -634,7 +635,8 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
             .contains("Type: All | Year: All | Focus: Inbox")
     );
     assert!(terminal.line(1).starts_with('┌'));
-    assert!(terminal.line(24).contains("<TAB> <Q> [03] -> 3"));
+    assert!(terminal.line(24).contains("<TAB> <Q> [03] ->"));
+    assert!(!terminal.line(24).contains("-> 3"));
     assert!(terminal.lines.iter().any(|line| line.contains("Alpha")));
     assert!(
         terminal
