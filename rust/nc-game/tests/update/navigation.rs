@@ -170,15 +170,6 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::Startup(StartupPhase::Splash)
-    );
-
-    assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        app.current_screen(),
         ScreenId::Startup(StartupPhase::LoginSummary)
     );
 
@@ -253,7 +244,7 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.current_screen(), ScreenId::FleetList);
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
         AppOutcome::Continue
