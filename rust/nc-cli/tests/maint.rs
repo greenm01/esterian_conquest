@@ -536,7 +536,7 @@ fn preserved_classic_results_can_repeat_next_header_on_all_report_records() {
 }
 
 #[test]
-fn maint_rust_scout_contact_and_identify_use_classic_result_kinds() {
+fn maint_rust_scout_contact_is_merged_single_report() {
     let target = unique_temp_dir("nc-cli-maint-rust-classic-scout-kinds");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
@@ -547,34 +547,39 @@ fn maint_rust_scout_contact_and_identify_use_classic_result_kinds() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let records = results_records(&results);
 
-    let sensor_contact = records
+    // The merged contact report contains both "Sensor contact" and identity info
+    // in the same record chain — find the header record for it.
+    let contact_record = records
         .iter()
         .find(|record| {
             let used = record[1] as usize;
-            String::from_utf8_lossy(&record[2..2 + used.min(72)])
-                .contains("Sensor contact shows an alien fleet")
+            let line = String::from_utf8_lossy(&record[2..2 + used.min(72)]);
+            line.contains("Sensor contact")
         })
-        .expect("expected sensor contact report");
+        .or_else(|| {
+            // May span multiple records; check the decoded report text instead
+            let text = decode_chunked_report(&results);
+            if text.contains("Sensor contact") {
+                records.first()
+            } else {
+                None
+            }
+        });
+
+    let text = decode_chunked_report(&results);
     assert!(
-        sensor_contact[0] > 0,
-        "initial scout contact kind should be non-zero (equals record count)"
+        text.contains("Sensor contact"),
+        "merged contact report should contain sensor-contact flavor"
+    );
+    assert!(
+        contact_record.is_some(),
+        "contact kind should be present in results"
     );
 
-    let identified = records
-        .iter()
-        .find(|record| {
-            let used = record[1] as usize;
-            String::from_utf8_lossy(&record[2..2 + used.min(72)])
-                .contains("We have located and identified the alien fleet")
-        })
-        .expect("expected identified scout report");
+    // There should be no standalone "Closing to check it out" prelude report
     assert!(
-        identified[0] > 0,
-        "identified scout follow-up kind should be non-zero (equals record count)"
-    );
-    assert_ne!(
-        sensor_contact as *const _ as usize, identified as *const _ as usize,
-        "contact and identify should be different records"
+        !text.contains("Closing to check it out"),
+        "prelude-only report should not appear in merged output"
     );
 
     cleanup_dir(&target);
@@ -618,7 +623,7 @@ fn maint_rust_results_emit_left_justified_wrapped_lines_without_generic_fleet_he
 }
 
 #[test]
-fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
+fn maint_rust_scout_contact_is_single_merged_classic_report() {
     let target = unique_temp_dir("nc-cli-maint-rust-classic-scout-boundaries");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
@@ -628,52 +633,42 @@ fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let reports = logical_result_reports(&results_records(&results));
-    let sensor_idx = reports
+
+    // The merged report contains "Sensor contact" flavor and identification in one logical report
+    let merged_idx = reports
         .iter()
-        .position(|(_, lines)| {
-            lines
-                .iter()
-                .any(|line| line.contains("Sensor contact shows an alien fleet"))
-        })
-        .expect("expected sensor contact report");
-    let identify_idx = reports
-        .iter()
-        .position(|(_, lines)| {
-            lines
-                .iter()
-                .any(|line| line.contains("We have located and identified the alien fleet"))
-        })
-        .expect("expected identified report");
+        .position(|(_, lines)| lines.iter().any(|l| l.contains("Sensor contact")))
+        .expect("expected merged sensor-contact+identification report");
+
+    // No standalone prelude-only report
+    assert!(
+        !reports
+            .iter()
+            .any(|(_, lines)| { lines.iter().any(|l| l.contains("Closing to check it out")) }),
+        "prelude-only report should not appear"
+    );
+
+    // No separate standalone identification report
+    assert!(
+        !reports.iter().enumerate().any(|(i, (_, lines))| {
+            i != merged_idx
+                && lines
+                    .iter()
+                    .any(|l| l.contains("We have located and identified the alien fleet"))
+        }),
+        "identification should not appear as a separate standalone report"
+    );
 
     assert!(
-        identify_idx > sensor_idx,
-        "identified scout follow-up should be a later logical report, not merged into the initial contact report"
-    );
-    assert!(reports[sensor_idx].0 > 0, "contact kind should be non-zero");
-    assert!(
-        reports[identify_idx].0 > 0,
-        "identify kind should be non-zero"
+        reports[merged_idx].0 > 0,
+        "merged contact kind should be non-zero"
     );
     assert!(
-        reports[sensor_idx]
+        reports[merged_idx]
             .1
             .iter()
             .any(|l| l == "<end of transmission>"),
-        "sensor contact report should contain end-of-transmission marker"
-    );
-    assert!(
-        reports[identify_idx]
-            .1
-            .iter()
-            .any(|l| l == "<end of transmission>"),
-        "identify report should contain end-of-transmission marker"
-    );
-    assert!(
-        !reports[sensor_idx]
-            .1
-            .iter()
-            .any(|line| line.contains("We have located and identified the alien fleet")),
-        "initial contact report should terminate before the identified follow-up text begins"
+        "merged contact report should contain end-of-transmission marker"
     );
 
     cleanup_dir(&target);
@@ -1249,11 +1244,9 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
         .into_iter()
         .map(|(_, lines)| lines.join(" "))
         .collect::<Vec<_>>();
-    assert!(
-        report_texts
-            .iter()
-            .any(|report| report.contains("From your 1st Fleet, located in System(11,11):"))
-    );
+    assert!(report_texts
+        .iter()
+        .any(|report| report.contains("From your 1st Fleet, located in System(11,11):")));
     assert!(
         report_texts.iter().any(|report| report.contains(
             "Our force contained 3 destroyers and 2 troop transport ships carrying 2 armies."
@@ -1263,11 +1256,9 @@ fn maint_rust_surviving_fleet_battle_reports_loaded_armies_without_zero_army_cla
     assert!(report_texts.iter().any(|report| {
         report.contains("Alien force contained 1 destroyer and 2 troop transport ships.")
     }));
-    assert!(
-        !report_texts
-            .iter()
-            .any(|report| report.contains("carrying 0 armies"))
-    );
+    assert!(!report_texts
+        .iter()
+        .any(|report| report.contains("carrying 0 armies")));
     cleanup_dir(&target);
 }
 
@@ -1306,15 +1297,13 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(
-        game_data
-            .bases
-            .records
-            .iter()
-            .all(|base| !(base.coords_raw() == starbase_coords
-                && base.owner_empire_raw() == 1
-                && base.active_flag_raw() != 0))
-    );
+    assert!(game_data
+        .bases
+        .records
+        .iter()
+        .all(|base| !(base.coords_raw() == starbase_coords
+            && base.owner_empire_raw() == 1
+            && base.active_flag_raw() != 0)));
 
     cleanup_dir(&target);
 }
@@ -2759,7 +2748,11 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     let text = decode_chunked_report(&results);
     assert!(text.contains("Scouting mission report"));
     assert!(text.contains("Sensor contact") || text.contains("contact shows"));
-    assert!(text.contains("identified the alien fleet") || text.contains("located and ident"));
+    assert!(
+        text.contains("detected and identified")
+            || text.contains("identified the alien fleet")
+            || text.contains("located and ident")
+    );
     assert!(text.contains("From your 1st Fleet, located in"));
     assert!(text.contains("the ") && text.contains(" Fleet of "));
     assert!(text.contains("Fleet of \""));

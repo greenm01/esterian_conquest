@@ -287,6 +287,15 @@ mission outcome. Hostile contact detection happens during the battle phase.
 The contact event family is mission-aware so all reports share one detection
 path.
 
+Fleet contact events emit a **single merged report** that combines the sensor
+contact flavor with the fleet identification inline:
+`"Sensor contact — detected and identified an alien fleet in {location}.
+It is {enemy}. Their fleet contains {size_summary} of unknown type."`
+This replaces the classic two-report prelude+identify pattern.
+`ContactReportSource::Starbase` reports and `EncounterDispositionEvent`
+reports (`Retreated`, `PursuitFire`) carry distinct information and remain
+as separate reports.
+
 ### Recipient Scoping and Loss Reporting
 
 We prefer recipient-scoped maintenance events. Bombardment, battle, and

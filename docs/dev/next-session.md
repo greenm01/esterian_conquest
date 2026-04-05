@@ -69,6 +69,13 @@ Keep this file short. Historical detail belongs in
   sysops can now run `nc-sysop nostr publish --dir ...` and
   `nc-sysop nostr verify --dir ...`, and seat reissue/claim now attempt to
   republish the game's public `30500` metadata automatically.
+- **Fleet contact reports merged into a single report** (fixed):
+  the old two-report pattern (a "Sensor contact shows..." prelude followed by
+  a separate identify report) was replaced with one merged report:
+  `"Sensor contact — detected and identified an alien fleet in {location}.
+  It is {enemy}. Their fleet contains {size_summary} of unknown type."`
+  This applies to `FleetMission` and `Fleet` contact sources; Starbase and
+  `EncounterDispositionEvent` reports are unchanged.
 
 ## Biggest Blockers
 

@@ -5,7 +5,7 @@ use nc_data::{
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
-use nc_engine::maint::{FleetBattlePerspective, timing::format_report_first_line};
+use nc_engine::maint::{timing::format_report_first_line, FleetBattlePerspective};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn classic_results_lines_wrap_body_without_leading_indent() {
-        let text = "From your 13th Fleet, located in System(24,14)         Stardate: 52/3011 Sensor contact shows an alien fleet in System(24,14) traveling at a translight speed of 5. Closing to check it out...";
+        let text = "From your 13th Fleet, located in System(24,14)         Stardate: 52/3011 Sensor contact \u{2014} detected and identified an alien fleet in System(24,14). It is the 5th Fleet of \"Enemy\", (Empire #2). Their fleet contains 2 small vessel(s) of unknown type.";
         let lines = classic_results_lines(text);
         assert_eq!(
             lines[0],
@@ -243,11 +243,11 @@ mod tests {
         );
         assert_eq!(
             lines[1],
-            "Sensor contact shows an alien fleet in System(24,14) traveling at a"
+            "Sensor contact \u{2014} detected and identified an alien fleet in"
         );
         assert_eq!(
             lines[2],
-            "translight speed of 5. Closing to check it out..."
+            "System(24,14). It is the 5th Fleet of \"Enemy\", (Empire #2). Their fleet"
         );
         assert!(lines.iter().all(|line| line.chars().count() <= 72));
         assert!(lines[1].starts_with("Sensor"));
@@ -295,7 +295,11 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 { 0 } else { line_count + 1 }
+    if line_count == 0 {
+        0
+    } else {
+        line_count + 1
+    }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -1260,34 +1264,22 @@ fn generate_report_entries(
                 let location = mission_location_phrase(kind, event.coords);
                 let source = owned_fleet_source_clause(event.reporting_fleet_number, &location);
                 let header = report_header(&source, event.stardate_week, year);
-                let contact_body = format!(
-                    " {label}: Sensor contact shows an alien fleet in {location}. Closing to check it out..."
-                );
-                entries.push(ReportEntry {
-                    text: format!("{header}{contact_body}"),
-                    kind: 0x05,
-                    tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both {
-                        recipient: event.viewer_empire_raw,
-                    },
-                    repeat_next_pointer: false,
-                });
-                let identified_body = if let Some(enemy) = known_hostile_fleet_label(
+                let body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
                     event.target_fleet_number,
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " {label}: We have located and identified the alien fleet in {location}. It is {enemy}. Their fleet contains {size_summary} of unknown type."
+                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It is {enemy}. Their fleet contains {size_summary} of unknown type."
                     )
                 } else {
                     format!(
-                        " {label}: We have located and identified the alien fleet in {location}. It belongs to {}. Their fleet contains {size_summary} of unknown type.",
+                        " {label}: Sensor contact \u{2014} detected and identified an alien fleet in {location}. It belongs to {}. Their fleet contains {size_summary} of unknown type.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
                 entries.push(ReportEntry {
-                    text: format!("{header}{identified_body}"),
+                    text: format!("{header}{body}"),
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both {
@@ -1299,34 +1291,22 @@ fn generate_report_entries(
             ContactReportSource::Fleet(fleet_id) => {
                 let source = owned_fleet_source_clause(Some(fleet_id), &format!("System({x},{y})"));
                 let header = report_header(&source, event.stardate_week, year);
-                let contact_body = format!(
-                    " Sensor contact shows an alien fleet in System({x},{y}). Closing to check it out..."
-                );
-                entries.push(ReportEntry {
-                    text: format!("{header}{contact_body}"),
-                    kind: 0x05,
-                    tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both {
-                        recipient: event.viewer_empire_raw,
-                    },
-                    repeat_next_pointer: false,
-                });
-                let identified_body = if let Some(enemy) = known_hostile_fleet_label(
+                let body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
                     event.target_fleet_number,
                     event.target_empire_raw,
                 ) {
                     format!(
-                        " We have located and identified the alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {size_summary} of unknown type."
+                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It is {enemy}. Their fleet contains {size_summary} of unknown type."
                     )
                 } else {
                     format!(
-                        " We have located and identified the alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type.",
+                        " Sensor contact \u{2014} detected and identified an alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type.",
                         classic_empire_clause(game_data, event.target_empire_raw),
                     )
                 };
                 entries.push(ReportEntry {
-                    text: format!("{header}{identified_body}"),
+                    text: format!("{header}{body}"),
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both {

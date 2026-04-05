@@ -71,23 +71,15 @@ fn results_reports_contact_before_destroyed_fleet_notice() {
     let texts = viewer_report_texts(1, &rows);
     let contact_idx = texts
         .iter()
-        .position(|text| text.contains("Sensor contact shows an alien fleet"))
-        .expect("contact report should exist");
-    let identify_idx = texts
-        .iter()
-        .position(|text| text.contains("We have located and identified"))
-        .unwrap_or_else(|| panic!("identify report should exist: {texts:?}"));
+        .position(|text| text.contains("Sensor contact"))
+        .expect("merged contact report should exist");
     let destroyed_idx = texts
         .iter()
         .position(|text| text.contains("We lost all contact with the 15th Fleet"))
         .expect("lost-contact report should exist");
     assert!(
-        contact_idx < identify_idx,
-        "contact should precede identify: {texts:?}"
-    );
-    assert!(
-        identify_idx < destroyed_idx,
-        "identify should precede lost-contact: {texts:?}"
+        contact_idx < destroyed_idx,
+        "contact should precede lost-contact: {texts:?}"
     );
 }
 
@@ -162,12 +154,8 @@ fn results_reports_battle_before_bombard_aftermath() {
     let texts = viewer_report_texts(1, &rows);
     let contact_idx = texts
         .iter()
-        .position(|text| text.contains("Sensor contact shows an alien fleet"))
-        .expect("contact report should exist");
-    let identify_idx = texts
-        .iter()
-        .position(|text| text.contains("We have located and identified"))
-        .unwrap_or_else(|| panic!("identify report should exist: {texts:?}"));
+        .position(|text| text.contains("Sensor contact"))
+        .expect("merged contact report should exist");
     let battle_idx = texts
         .iter()
         .position(|text| text.contains("We successfully intercepted"))
@@ -177,12 +165,8 @@ fn results_reports_battle_before_bombard_aftermath() {
         .position(|text| text.contains("We have been bombarded"))
         .expect("bombard report should exist");
     assert!(
-        contact_idx < identify_idx,
-        "contact should precede identify: {texts:?}"
-    );
-    assert!(
-        identify_idx < battle_idx,
-        "identify should precede battle: {texts:?}"
+        contact_idx < battle_idx,
+        "contact should precede battle: {texts:?}"
     );
     assert!(
         battle_idx < bombard_idx,
@@ -233,7 +217,9 @@ fn results_reports_named_hostile_fleet_with_empire_local_slot() {
 
     let texts = viewer_report_texts(1, &rows);
     assert!(
-        texts.iter().any(|text| text.contains("2nd Fleet") && !text.contains("5th Fleet")),
+        texts
+            .iter()
+            .any(|text| text.contains("2nd Fleet") && !text.contains("5th Fleet")),
         "hostile fleet references should use empire-local fleet numbers: {texts:?}"
     );
 }
