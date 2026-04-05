@@ -90,6 +90,22 @@ fn reduce_stardock(planet: &mut nc_data::PlanetRecord, mut hits: u32) -> u32 {
     hits
 }
 
+/// Suppression damage: hits only go through stardock and batteries.
+/// Armies, stored goods, and factories are shielded.
+fn apply_planet_suppression_damage(planet: &mut nc_data::PlanetRecord, mut hits: u32) {
+    hits = reduce_stardock(planet, hits);
+    let battery_loss = hits.min(planet.ground_batteries_raw() as u32) as u8;
+    planet.set_ground_batteries_raw(planet.ground_batteries_raw().saturating_sub(battery_loss));
+}
+
+/// Soften damage during invasion: only targets armies.
+/// Factories and stored goods are preserved to keep the planet valuable for capture.
+fn apply_planet_soften_damage(planet: &mut nc_data::PlanetRecord, hits: u32) {
+    let army_loss = hits.min(planet.army_count_raw() as u32) as u8;
+    planet.set_army_count_raw(planet.army_count_raw().saturating_sub(army_loss));
+}
+
+/// Full bombardment cascade: stardock -> batteries -> armies -> stored goods -> factories.
 fn apply_planet_bombardment_damage(planet: &mut nc_data::PlanetRecord, mut hits: u32) {
     hits = reduce_stardock(planet, hits);
 
@@ -376,37 +392,9 @@ pub(crate) fn process_planetary_assaults(
 
         match winner_class {
             MissionClass::Bombard => {
-                let state = fleet_state_from_records(game_data, &winner_fleets, 0);
-                let attack_as = bombard_attack_as(&state);
-                let planet = &game_data.planets.records[planet_idx];
-                let coords = planet.coords_raw();
-                let defense_as = planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY;
-                let attacker_exchange = resolve_space_exchange(
-                    campaign_seed,
-                    battle_year,
-                    coords,
-                    COMBAT_KIND_BOMBARD,
-                    1,
-                    winner_empire,
-                    planet.owner_empire_slot_raw(),
-                    attack_as,
-                    defense_as.max(1),
-                    state.is_mixed(),
-                    false,
-                );
-                let defender_exchange = resolve_space_exchange(
-                    campaign_seed,
-                    battle_year,
-                    coords,
-                    COMBAT_KIND_BOMBARD,
-                    1,
-                    planet.owner_empire_slot_raw(),
-                    winner_empire,
-                    defense_as,
-                    attack_as.max(1),
-                    false,
-                    false,
-                );
+                let coords = game_data.planets.records[planet_idx].coords_raw();
+                let defender_empire =
+                    game_data.planets.records[planet_idx].owner_empire_slot_raw();
                 let pre_armies = game_data.planets.records[planet_idx].army_count_raw();
                 let pre_batteries = game_data.planets.records[planet_idx].ground_batteries_raw();
                 let pre_stored_goods = game_data.planets.records[planet_idx].stored_goods_raw();
@@ -415,24 +403,83 @@ pub(crate) fn process_planetary_assaults(
                     .map(|s| game_data.planets.records[planet_idx].stardock_count_raw(s) as u32)
                     .sum();
 
-                let before = state.clone();
-                let mut after = state.clone();
-                apply_hits_to_fleet(
-                    &mut after,
-                    defender_exchange.hits,
-                    u32::from(defender_exchange.critical),
-                );
-                super::fleet_battle::distribute_fleet_losses(
-                    game_data,
-                    &winner_fleets,
-                    &before,
-                    &after,
-                );
+                let before = fleet_state_from_records(game_data, &winner_fleets, 0);
+                let mut fleet_state = before.clone();
+                let mut breakthrough = false;
 
-                apply_planet_bombardment_damage(
-                    &mut game_data.planets.records[planet_idx],
-                    scalar_hits_with_critical(attacker_exchange),
-                );
+                // Three-round bombardment: rounds 1-2 suppression, round 3 breakthrough if batteries cleared.
+                for round in 1..=3u32 {
+                    let attack_as = bombard_attack_as(&fleet_state);
+                    if attack_as == 0 {
+                        break; // fleet has no bombardment capability left
+                    }
+                    let batteries_at_round_start =
+                        game_data.planets.records[planet_idx].ground_batteries_raw();
+                    let is_breakthrough = round == 3 && batteries_at_round_start == 0;
+                    if is_breakthrough {
+                        breakthrough = true;
+                    }
+
+                    let defense_as = batteries_at_round_start as u32 * GROUND_AS_BATTERY;
+                    let attacker_exchange = resolve_space_exchange(
+                        campaign_seed,
+                        battle_year,
+                        coords,
+                        COMBAT_KIND_BOMBARD,
+                        round,
+                        winner_empire,
+                        defender_empire,
+                        attack_as,
+                        defense_as.max(1),
+                        fleet_state.is_mixed(),
+                        false,
+                    );
+
+                    // Batteries fire back each round they exist.
+                    if defense_as > 0 {
+                        let defender_exchange = resolve_space_exchange(
+                            campaign_seed,
+                            battle_year,
+                            coords,
+                            COMBAT_KIND_BOMBARD,
+                            round,
+                            defender_empire,
+                            winner_empire,
+                            defense_as,
+                            attack_as.max(1),
+                            false,
+                            false,
+                        );
+                        let mut next_state = fleet_state.clone();
+                        apply_hits_to_fleet(
+                            &mut next_state,
+                            defender_exchange.hits,
+                            u32::from(defender_exchange.critical),
+                        );
+                        super::fleet_battle::distribute_fleet_losses(
+                            game_data,
+                            &winner_fleets,
+                            &fleet_state,
+                            &next_state,
+                        );
+                        fleet_state = fleet_state_from_records(game_data, &winner_fleets, 0);
+                    }
+
+                    // Apply planet damage: suppression or breakthrough.
+                    let hits = scalar_hits_with_critical(attacker_exchange);
+                    if is_breakthrough {
+                        apply_planet_bombardment_damage(
+                            &mut game_data.planets.records[planet_idx],
+                            hits,
+                        );
+                    } else {
+                        apply_planet_suppression_damage(
+                            &mut game_data.planets.records[planet_idx],
+                            hits,
+                        );
+                    }
+                }
+
                 hold_bombardment_station(game_data, &winner_fleets);
                 let post_planet = &game_data.planets.records[planet_idx];
                 events.bombard_events.push(BombardEvent {
@@ -446,11 +493,12 @@ pub(crate) fn process_planetary_assaults(
                     attacker_initial: ship_counts_from_state(&before),
                     defender_batteries_initial: pre_batteries,
                     defender_armies_initial: pre_armies,
-                    attacker_losses: ship_losses_from_states(&before, &after),
+                    attacker_losses: ship_losses_from_states(&before, &fleet_state),
                     defender_battery_losses: pre_batteries
                         .saturating_sub(post_planet.ground_batteries_raw()),
                     defender_army_losses: pre_armies
                         .saturating_sub(post_planet.army_count_raw()),
+                    breakthrough,
                     stardock_items_destroyed: pre_stardock_items.saturating_sub(
                         (0..STARDOCK_SLOT_COUNT)
                             .map(|s| post_planet.stardock_count_raw(s) as u32)
@@ -558,7 +606,9 @@ pub(crate) fn process_planetary_assaults(
                         game_data.planets.records[planet_idx].army_count_raw() as u32,
                         0,
                     );
-                    apply_planet_bombardment_damage(
+                    // Soften targets armies only — factories and stored goods are
+                    // preserved so the captured planet retains its production value.
+                    apply_planet_soften_damage(
                         &mut game_data.planets.records[planet_idx],
                         scalar_hits_with_critical(soft_exchange),
                     );

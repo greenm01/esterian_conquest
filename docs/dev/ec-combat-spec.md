@@ -138,16 +138,34 @@ unmodified **9** is a critical hit, forcing at least one real loss.
 3. Auxiliaries (**SC, TT, ET**) are screened until the combat line collapses.
 4. Target selection favors the lowest **DS** first.
 
-### Bombardment Priority
-1. Stardock contents (docked ships).
-2. Ground batteries.
-3. Armies.
-4. Stored goods and factories.
+### Bombardment Resolution (Per Turn)
+
+Each bombardment turn resolves three sequential exchanges (rounds). Ground
+batteries act as the planet's shield wall --- while they stand, they draw
+orbital fire and shoot back, protecting armies, production, and industry.
+
+1. **Round 1 (Suppression):** Attacker fires at stardock contents, then
+   batteries. Batteries fire back. Armies, goods, and factories are shielded.
+2. **Round 2 (Suppression):** Same targeting. Batteries fire back again with
+   whatever survives round 1.
+3. **Round 3 (Breakthrough or continued suppression):** If batteries reached
+   zero before this round, attacker hits cascade into armies, stored goods,
+   and factories. If batteries still remain, this round is another suppression
+   exchange --- batteries continue to shield everything behind them and fire
+   back.
+
+The attacker must commit enough firepower over enough turns to grind through
+the battery shield before reaching anything valuable. A small raiding fleet
+may take several turns of three-round suppression before breaking through,
+while a heavy bombardment fleet can clear batteries and break through in the
+same turn.
 
 ### Invasion Priority
-1. Orbital suppression (Batteries).
-2. Softening fire (Armies, goods, factories).
-3. Landing battle (Armies).
+1. **Orbital suppression:** Ships exchange fire with batteries (1 exchange).
+2. **Softening fire:** If batteries cleared, orbital fire targets armies only.
+   Factories and stored goods are not damaged during invasion --- the goal is
+   to capture the planet with its production intact.
+3. **Landing battle:** Armies vs armies. Defender wins ties.
 
 ## Fleet Combat Sequence
 

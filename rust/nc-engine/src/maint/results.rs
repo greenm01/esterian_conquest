@@ -1899,11 +1899,17 @@ fn generate_report_entries(
                 let body = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         {
-                            let production_damage = bombard_event
+                            let collateral = bombard_event
                                 .map(|e| bombardment_collateral_damage_sentence(e.stardock_items_destroyed, e.stored_goods_destroyed, e.factories_destroyed))
                                 .unwrap_or_default();
+                            let breakthrough = bombard_event.is_some_and(|e| e.breakthrough);
+                            let status = if breakthrough {
+                                " We broke through planetary defenses and struck the world's infrastructure."
+                            } else {
+                                " Planetary batteries absorbed our bombardment. The world's infrastructure remains shielded."
+                            };
                             format!(
-                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies.{} We are maintaining bombardment position and will continue next turn.",
+                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies.{}{} We are maintaining bombardment position and will continue next turn.",
                                 planet.planet_name(),
                                 bombard_event
                                     .map(|e| planet_defense_summary(e.defender_batteries_initial, e.defender_armies_initial))
@@ -1913,7 +1919,8 @@ fn generate_report_entries(
                                     .unwrap_or_else(|| "We suffered no ship losses.".to_string()),
                                 bombard_event.map(|e| e.defender_battery_losses).unwrap_or(0),
                                 bombard_event.map(|e| e.defender_army_losses).unwrap_or(0),
-                                production_damage,
+                                if breakthrough { &collateral } else { "" },
+                                status,
                             )
                         }
                     } else {

@@ -38,6 +38,8 @@ pub struct BombardEvent {
     pub defender_battery_losses: u8,
     /// Observed defender army losses.
     pub defender_army_losses: u8,
+    /// Whether the bombardment broke through to armies/production (batteries cleared).
+    pub breakthrough: bool,
     /// Stardock items destroyed by bombardment.
     pub stardock_items_destroyed: u32,
     /// Stored goods destroyed by bombardment spillover.

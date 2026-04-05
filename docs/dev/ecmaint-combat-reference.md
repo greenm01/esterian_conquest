@@ -282,6 +282,17 @@ Definitive Field Mappings (Heavy Bombardment Discovery):
   - `0x5A`: **Ground Batteries**.
 - This completely replaces earlier hypotheses about `0x0E` or `0x58` modulating "resistance" in vague ways. The planet defense block is explicitly named and structured.
 
+### Rust Model Divergence
+
+The Rust bombardment model deliberately diverges from the original single-cascade
+behavior observed above. In the original engine, one bombardment pass could
+destroy armies, 92% of factories, and 100% of stored goods in a single action.
+The Rust model uses a three-round-per-turn structure where ground batteries
+shield vulnerable targets during rounds 1--2 and only allow breakthrough damage
+in round 3 if batteries have been eliminated. This improves game balance by
+making batteries a meaningful defensive investment and giving defenders time to
+respond. See [ec-combat-spec.md](ec-combat-spec.md) for the canonical Rust rules.
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:

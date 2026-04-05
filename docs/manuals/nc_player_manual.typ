@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 2),
+  date: datetime(year: 2026, month: 4, day: 5),
 )
 
 #set page(
@@ -73,7 +73,7 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 4, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 5, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
 ]
@@ -485,7 +485,11 @@ A fleet that refuses engagement or breaks off mid-battle does not escape cleanly
 
 === Planetary Combat
 
-When fleets attack planets through bombardment, invasion, or blitz, different rules apply. Ground batteries are the planet's anti-orbital weapon. Armies defend the surface and are bombardment targets, but they do not exchange orbital fire with ships in orbit. Bombardment follows a strict targeting priority: stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Only combat ships --- destroyers, cruisers, and battleships --- contribute bombardment firepower. Scouts, transports, and ETACs do not.
+When fleets attack planets through bombardment, invasion, or blitz, different rules apply. Ground batteries are the planet's shield wall --- while they stand, they draw orbital fire and shoot back, protecting armies, production, and industry behind them. Only combat ships --- destroyers, cruisers, and battleships --- contribute bombardment firepower. Scouts, transports, and ETACs do not.
+
+Each bombardment turn resolves three rounds of fire. In rounds 1 and 2, your ships trade fire with the planet's batteries. Hits land on stardock contents first, then batteries, but armies, stored goods, and factories are shielded. In round 3, if all batteries have been destroyed, your remaining firepower breaks through to armies, stored goods, and factories. If batteries still stand, round 3 is another suppression exchange and the planet's vulnerable assets survive another turn.
+
+This means a well-defended planet takes sustained bombardment over multiple turns before you touch its production. Build batteries to buy time; bring heavy fleets to break through faster.
 
 See @missions for the detailed mechanics of bombardment, invasion, and blitz missions. The exact bombardment weights, batteries-only return-fire rule, and combat tables are in @appendix-combat.
 
@@ -556,9 +560,9 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 #admonition("IMPORTANT")[Hostile missions require the fleet to be *in orbit at the start of maintenance* to execute. A fleet that arrives at the target world this turn will carry out its assault *next turn*. This one-turn delay is a critical tactical consideration --- defend accordingly.]
 
-*Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Bombardment hits stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Ground batteries fire back at the bombarding fleet; armies do not. Use bombardment to soften up a world before invasion, or to deny resources to an enemy by destroying production and stardock contents.
+*Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Each turn your fleet bombards, the engine runs three rounds of fire. In rounds 1 and 2, your ships exchange fire with ground batteries --- hits destroy stardock contents first, then batteries, but armies, stored goods, and factories are shielded behind the battery wall. In round 3, if batteries have been eliminated, your firepower breaks through to armies, stored goods, and finally factories. If batteries still stand after round 2, round 3 is another suppression exchange and the planet's production survives. Bombardment persists each turn until you issue new orders. Use it to grind down a world's defenses before invasion, or to deny resources to an enemy over time.
 
-*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed, though even a failed suppression still damages the planet. Once batteries are gone, surviving combat ships inflict bombardment-style damage on armies and industry. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. The invasion inflicts significant factory damage, and conquered planets need approximately two turns before they are fully converted to your production.
+*Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed. Once batteries are gone, surviving combat ships fire on the defending armies to soften resistance before landing. Unlike bombardment, invasion softening targets armies only --- factories and stored goods are preserved because the goal is to capture the planet with its production intact. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. Conquered planets need approximately two turns before they are fully converted to your production.
 
 *Mission 8: Blitz a World.* Transports drop armies immediately in a fast assault that bypasses the full orbital suppression sequence. Escorting combat ships provide brief cover fire, but surviving batteries fire directly on descending transports, causing heavy losses. Landed armies fight defenders immediately, and the defender receives a defensive bonus. If you take the planet, surviving ground batteries transfer intact to your control. The blitz preserves factories but carries high risk to your armies and transports --- a 2:1 army advantage or better is recommended. Choose blitz when the planet has few or no batteries and you want to preserve its industry, or when speed matters more than casualties.
 
@@ -874,8 +878,18 @@ Planetary return fire is:
   )
 ]
 
-Ground combat in invasion and blitz uses the same CRT framework, with defender
-ties winning by default.
+Each bombardment turn runs three rounds:
+- *Rounds 1--2 (Suppression):* Attacker hits target stardock contents, then
+  batteries. Batteries fire back each round. Armies, stored goods, and
+  factories are shielded.
+- *Round 3 (Breakthrough):* If batteries reached zero before this round,
+  attacker hits cascade into armies, stored goods, and factories. If batteries
+  still stand, round 3 is another suppression exchange.
+
+Invasion uses one suppression exchange against batteries. If batteries are
+cleared, the softening pass targets armies only --- factories and stored goods
+are not damaged during invasion. Ground combat in invasion and blitz uses the
+same CRT framework, with defender ties winning by default.
 
 #pagebreak()
 
