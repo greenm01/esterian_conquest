@@ -295,7 +295,7 @@ impl CoreGameData {
                 max: fleet.max_speed(),
             });
         }
-        if !fleet_has_combat_ships(fleet) && fleet.rules_of_engagement() != 0 {
+        if fleet_is_support_only(fleet) && fleet.rules_of_engagement() != 0 {
             return Err(
                 FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
                     roe: fleet.rules_of_engagement(),
@@ -391,7 +391,7 @@ impl CoreGameData {
                 reason: FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { roe },
             });
         }
-        if !fleet_has_combat_ships(fleet) && roe != 0 {
+        if fleet_is_support_only(fleet) && roe != 0 {
             return Err(GameStateMutationError::InvalidFleetPlayerInput {
                 fleet_index_1_based,
                 reason: FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { roe },

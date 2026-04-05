@@ -744,7 +744,9 @@ fn fleet_player_input_validation_reason_text(reason: FleetPlayerInputValidationE
             format!("rules of engagement {roe} was outside the valid 0-10 range")
         }
         FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { roe } => {
-            format!("non-combat fleet used ROE {roe}; non-combat fleets must use ROE 0")
+            format!(
+                "fleet with only scouts, transports, and ETACs used ROE {roe}; support-only fleets must use ROE 0"
+            )
         }
     }
 }

@@ -569,6 +569,7 @@ fn build_commissioned_fleet(
     fleet.set_troop_transport_count(draft.transports);
     fleet.set_etac_count(draft.etacs);
     fleet.recompute_max_speed_from_composition();
+    normalize_fleet_roe_for_composition(&mut fleet);
 
     game_data.fleets.records.push(fleet);
     Ok(CommissionResult::Fleet {

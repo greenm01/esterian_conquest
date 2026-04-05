@@ -585,7 +585,7 @@ impl App {
                                     ..
                                 },
                             ..
-                        } => "Non-combat fleets must use ROE 0.".to_string(),
+                        } => "Support-only fleets must use ROE 0.".to_string(),
                         nc_data::GameStateMutationError::InvalidFleetPlayerInput {
                             reason:
                                 nc_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },

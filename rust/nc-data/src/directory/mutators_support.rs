@@ -57,6 +57,16 @@ pub(super) fn fleet_has_combat_ships(record: &FleetRecord) -> bool {
     record.destroyer_count() > 0 || record.cruiser_count() > 0 || record.battleship_count() > 0
 }
 
+pub(super) fn fleet_is_support_only(record: &FleetRecord) -> bool {
+    !fleet_has_combat_ships(record) && total_starships(record) > 0
+}
+
+pub(super) fn normalize_fleet_roe_for_composition(record: &mut FleetRecord) {
+    if fleet_is_support_only(record) {
+        record.set_rules_of_engagement(0);
+    }
+}
+
 pub(super) fn rebuild_owner_fleet_chain(
     records: &mut [FleetRecord],
     player: &mut PlayerRecord,

@@ -159,6 +159,30 @@ fn non_combat_fleet_roe_is_reset_to_zero() {
 }
 
 #[test]
+fn mixed_fleet_roe_is_not_reset_to_zero() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_destroyer_count(1);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+    fleet.set_rules_of_engagement(6);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert!(!events.invalid_player_state_events.iter().any(|event| {
+        matches!(
+            event,
+            InvalidPlayerStateEvent::FleetInput { fleet_idx: 0, .. }
+        )
+    }));
+    assert_eq!(game_data.fleets.records[0].rules_of_engagement(), 6);
+}
+
+#[test]
 fn fleet_speed_is_clamped_to_current_maximum() {
     let mut game_data = load_fixture("ecmaint-post");
     let fleet = &mut game_data.fleets.records[0];

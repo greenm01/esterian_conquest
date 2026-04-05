@@ -288,6 +288,44 @@ fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
     assert_eq!(fleet.destroyer_count(), 2);
     assert_eq!(fleet.current_location_coords_raw(), [6, 5]);
     assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(fleet.rules_of_engagement(), 6);
+}
+
+#[test]
+fn commission_support_only_fleet_starts_at_roe_zero() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_stardock_kind_raw(0, 4);
+    planet.set_stardock_count_raw(0, 2);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data.commission_planet_stardock_slot(1, 1, 0).unwrap();
+    assert_eq!(
+        result,
+        CommissionResult::Fleet {
+            fleet_record_index_1_based: 1
+        }
+    );
+    let fleet = &data.fleets.records[0];
+    assert_eq!(fleet.scout_count(), 2);
+    assert_eq!(fleet.rules_of_engagement(), 0);
 }
 
 #[test]
@@ -2043,6 +2081,31 @@ fn set_fleet_rules_of_engagement_rejects_non_combat_value() {
 }
 
 #[test]
+fn set_fleet_rules_of_engagement_allows_mixed_fleet_value() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+    let fleet = &mut data.fleets.records[0];
+    fleet.set_destroyer_count(1);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+
+    data.set_fleet_rules_of_engagement(1, 1, 6).unwrap();
+
+    assert_eq!(data.fleets.records[0].rules_of_engagement(), 6);
+}
+
+#[test]
 fn set_stored_diplomatic_relation_rejects_self_target() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
@@ -2454,6 +2517,58 @@ fn detach_ships_creates_new_fleet_and_preserves_donor_order() {
 }
 
 #[test]
+fn detach_ships_clamps_support_only_new_fleet_to_roe_zero() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_current_location_coords_raw([24, 14]);
+    donor.set_destroyer_count(1);
+    donor.set_troop_transport_count(1);
+    donor.set_army_count(1);
+    donor.set_scout_count(1);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(3);
+    donor.set_rules_of_engagement(6);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat {
+            records: vec![donor],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data
+        .detach_ships_to_new_fleet(
+            1,
+            1,
+            FleetDetachSelection {
+                scouts: 1,
+                ..FleetDetachSelection::default()
+            },
+            None,
+            6,
+        )
+        .unwrap();
+
+    assert_eq!(result.new_fleet_record_index_1_based, 2);
+    assert_eq!(data.fleets.records[0].rules_of_engagement(), 6);
+    assert_eq!(data.fleets.records[1].scout_count(), 1);
+    assert_eq!(data.fleets.records[1].rules_of_engagement(), 0);
+}
+
+#[test]
 fn detach_ships_requires_valid_post_split_donor_speed() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);
@@ -2572,4 +2687,62 @@ fn transfer_ships_between_fleets_moves_counts_and_preserves_both_fleets() {
     assert_eq!(host.destroyer_count(), 1);
     assert_eq!(host.troop_transport_count(), 1);
     assert_eq!(host.army_count(), 1);
+}
+
+#[test]
+fn transfer_ships_clamps_support_only_resulting_fleet_to_roe_zero() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_current_location_coords_raw([24, 14]);
+    donor.set_destroyer_count(1);
+    donor.set_scout_count(1);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(3);
+    donor.set_rules_of_engagement(6);
+
+    let mut host = FleetRecord::new_zeroed();
+    host.set_owner_empire_raw(1);
+    host.set_local_slot_word_raw(2);
+    host.set_fleet_id_word_raw(2);
+    host.set_current_location_coords_raw([24, 14]);
+    host.set_destroyer_count(1);
+    host.recompute_max_speed_from_composition();
+    host.set_current_speed(6);
+    host.set_rules_of_engagement(6);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat {
+            records: vec![donor, host],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.transfer_ships_between_fleets(
+        1,
+        1,
+        2,
+        FleetDetachSelection {
+            destroyers: 1,
+            ..FleetDetachSelection::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(data.fleets.records[0].scout_count(), 1);
+    assert_eq!(data.fleets.records[0].rules_of_engagement(), 0);
+    assert_eq!(data.fleets.records[1].destroyer_count(), 2);
+    assert_eq!(data.fleets.records[1].rules_of_engagement(), 6);
 }

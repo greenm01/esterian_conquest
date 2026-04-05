@@ -118,6 +118,7 @@ impl CoreGameData {
             }
             donor_after.set_current_speed(requested);
         }
+        normalize_fleet_roe_for_composition(&mut donor_after);
 
         let mut new_fleet = FleetRecord::new_zeroed();
         new_fleet.set_owner_empire_raw(owner_empire);
@@ -143,6 +144,7 @@ impl CoreGameData {
         new_fleet.set_etac_count(selection.etacs);
         new_fleet.recompute_max_speed_from_composition();
         new_fleet.set_current_speed(0);
+        normalize_fleet_roe_for_composition(&mut new_fleet);
 
         self.fleets.records[donor_fleet_record_index_1_based - 1] = donor_after;
         self.fleets.records.push(new_fleet);
@@ -332,6 +334,8 @@ impl CoreGameData {
         if host_after.current_speed() > host_after.max_speed() {
             host_after.set_current_speed(host_after.max_speed());
         }
+        normalize_fleet_roe_for_composition(&mut donor_after);
+        normalize_fleet_roe_for_composition(&mut host_after);
 
         self.fleets.records[donor_fleet_record_index_1_based - 1] = donor_after;
         self.fleets.records[host_fleet_record_index_1_based - 1] = host_after;

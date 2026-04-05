@@ -4966,6 +4966,56 @@ fn fleet_change_success_returns_to_menu_with_notice() {
 }
 
 #[test]
+fn fleet_change_roe_rejects_support_only_fleet_with_updated_message() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 4)
+        .expect("player 1 fleet #4 should exist");
+    fleet.set_destroyer_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+    fleet.recompute_max_speed_from_composition();
+    fleet.set_current_speed(0);
+    fleet.set_rules_of_engagement(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_change_value_prompt_from_fleet_menu(&mut app, Some(4), 'R');
+    submit_fleet_menu_prompt_value(&mut app, "6");
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(
+        line_containing(&terminal, "Support-only fleets must use ROE 0.")
+            .contains("Support-only fleets must use ROE 0.")
+    );
+    assert_eq!(app.current_fleet_roe_by_id(4), Some(0));
+}
+
+#[test]
 fn fleet_change_id_updates_visible_fleet_number_inline() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
