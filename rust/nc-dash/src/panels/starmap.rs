@@ -1,6 +1,11 @@
 //! Center panel: sector grid, crosshair, axis labels, status line.
 
-use nc_data::{DiplomaticRelation, IntelTier, PlanetIntelSnapshot};
+use std::collections::BTreeMap;
+
+use nc_data::{
+    DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
+    build_player_starmap_projection_from_snapshots,
+};
 use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
@@ -21,6 +26,17 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     ) as usize;
 
     let player_empire = app.player_record_index_1_based as u8;
+    let snapshot_map = app
+        .planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>();
+    let projection = build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        &snapshot_map,
+        player_empire,
+    );
 
     // Column axis numbers.
     for col_idx in 0..map_size {
@@ -43,10 +59,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             if screen_col + CELL_WIDTH > right_div { break; }
             let is_v_crosshair = col_x == app.crosshair_x;
 
-            let planet = planet_snapshot_at(app, [col_x, row_y]);
+            let planet = projection_world_at(&projection, [col_x, row_y]);
 
             let (sym, base_style) = if let Some(snapshot) = planet {
-                marker_for_snapshot(app, player_empire, snapshot)
+                marker_for_world(app, player_empire, snapshot)
             } else {
                 ('·', theme::dim_style())
             };
@@ -72,8 +88,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let status_row = grid_start + map_size;
     let cx = app.crosshair_x;
     let cy = app.crosshair_y;
-    let status = if let Some(snapshot) = planet_snapshot_at(app, [cx, cy]) {
-        format_snapshot_status(app, [cx, cy], snapshot)
+    let status = if let Some(world) = projection_world_at(&projection, [cx, cy]) {
+        format_world_status(app, [cx, cy], world, snapshot_map.get(&world.planet_record_index_1_based))
     } else {
         format!("Sector ({:02},{:02}) — uncharted", cx, cy)
     };
@@ -82,25 +98,19 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     buf.write_text_clipped(status_row, map_start_col + 1, &truncated, theme::value_style());
 }
 
-fn planet_snapshot_at(app: &DashApp, coords: [u8; 2]) -> Option<&PlanetIntelSnapshot> {
-    app.planet_intel_snapshots.iter().find(|snapshot| {
-        snapshot.intel_tier != IntelTier::Unknown
-            && app
-                .game_data
-                .planets
-                .records
-                .get(snapshot.planet_record_index_1_based.saturating_sub(1))
-                .map(|planet| planet.coords_raw() == coords)
-                .unwrap_or(false)
-    })
+fn projection_world_at(
+    projection: &PlayerStarmapProjection,
+    coords: [u8; 2],
+) -> Option<&PlayerStarmapWorld> {
+    projection.worlds.iter().find(|world| world.coords == coords)
 }
 
-fn marker_for_snapshot(
+fn marker_for_world(
     app: &DashApp,
     viewer_empire_id: u8,
-    snapshot: &PlanetIntelSnapshot,
+    world: &PlayerStarmapWorld,
 ) -> (char, CellStyle) {
-    match snapshot.known_owner_empire_id {
+    match world.known_owner_empire_id {
         Some(owner) if owner == viewer_empire_id => ('■', theme::friendly_style()),
         Some(0) => ('○', theme::dim_style()),
         Some(owner) => {
@@ -129,12 +139,17 @@ fn marker_for_snapshot(
                 }
             }
         }
-        None => ('·', theme::dim_style()),
+        None => ('○', theme::dim_style()),
     }
 }
 
-fn format_snapshot_status(app: &DashApp, coords: [u8; 2], snapshot: &PlanetIntelSnapshot) -> String {
-    let owner = match snapshot.known_owner_empire_id {
+fn format_world_status(
+    app: &DashApp,
+    coords: [u8; 2],
+    world: &PlayerStarmapWorld,
+    snapshot: Option<&PlanetIntelSnapshot>,
+) -> String {
+    let owner = match world.known_owner_empire_id {
         Some(0) => String::from("Unowned"),
         Some(owner) => app
             .game_data
@@ -155,38 +170,38 @@ fn format_snapshot_status(app: &DashApp, coords: [u8; 2], snapshot: &PlanetIntel
         "Sector ({:02},{:02}) {} O:{} Pot:{} Seen:{} AR:{} GB:{} SB:{} Curr:{} Pts:{} Scout:{}",
         coords[0],
         coords[1],
-        snapshot.known_name.as_deref().unwrap_or("?"),
+        world.known_name.as_deref().unwrap_or("?"),
         owner,
-        snapshot
+        world
             .known_potential_production
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
         snapshot
-            .seen_year
+            .and_then(|row| row.last_intel_year)
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
-        snapshot
+        world
             .known_armies
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
-        snapshot
+        world
             .known_ground_batteries
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
-        snapshot
+        world
             .known_starbase_count
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
-        snapshot
+        world
             .known_current_production
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
-        snapshot
+        world
             .known_stored_points
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
         snapshot
-            .scout_year
+            .and_then(|row| row.scout_year)
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
     )
