@@ -1,4 +1,4 @@
-use nc_ui::modal::{render_modal_box, ModalTheme};
+use nc_ui::modal::{render_modal_box, wrap_formatted_help_lines, ModalTheme};
 use nc_ui::theme::classic;
 
 use crate::screen::PlayfieldBuffer;
@@ -220,10 +220,11 @@ pub fn help_lines(lines: &[&str]) -> Vec<String> {
 }
 
 pub fn render_help_popup(buffer: &mut PlayfieldBuffer, title: &str, lines: &[String]) {
+    let wrapped = wrap_formatted_help_lines(lines, buffer.width().saturating_sub(12));
     render_modal_box(
         buffer,
         title,
-        lines,
+        &wrapped.lines,
         ModalTheme {
             body_style: classic::help_panel_style(),
             pad_style: classic::help_panel_style(),

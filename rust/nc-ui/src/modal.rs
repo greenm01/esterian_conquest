@@ -166,6 +166,70 @@ pub fn render_modal_box(
     popup
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WrappedHelpLines {
+    pub lines: Vec<String>,
+    pub content_width: usize,
+}
+
+pub fn wrap_formatted_help_lines(lines: &[String], max_content_width: usize) -> WrappedHelpLines {
+    if lines.is_empty() || max_content_width == 0 {
+        return WrappedHelpLines {
+            lines: Vec::new(),
+            content_width: 0,
+        };
+    }
+
+    let parsed = lines
+        .iter()
+        .map(|line| {
+            line.split_once(" : ").map(|(command, description)| {
+                (command.trim_end().to_string(), description.to_string())
+            })
+        })
+        .collect::<Vec<_>>();
+    let natural_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    let target_width = natural_width.min(max_content_width);
+    let command_width = parsed
+        .iter()
+        .filter_map(|row| row.as_ref().map(|(command, _)| command.chars().count()))
+        .max()
+        .unwrap_or(0);
+    let description_width = target_width.saturating_sub(command_width + 3).max(1);
+    let mut wrapped = Vec::new();
+
+    for (line, parsed_row) in lines.iter().zip(parsed.iter()) {
+        if let Some((command, description)) = parsed_row {
+            let segments = wrap_text_to_width(description, description_width);
+            if segments.is_empty() {
+                wrapped.push(format!("{command:<command_width$} : "));
+                continue;
+            }
+            for (idx, segment) in segments.iter().enumerate() {
+                let command_text = if idx == 0 { command.as_str() } else { "" };
+                wrapped.push(format!("{command_text:<command_width$} : {segment}"));
+            }
+        } else {
+            wrapped.extend(wrap_text_to_width(line, target_width));
+        }
+    }
+
+    let content_width = wrapped
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+
+    WrappedHelpLines {
+        lines: wrapped,
+        content_width,
+    }
+}
+
 pub fn write_modal_lines(
     buffer: &mut PlayfieldBuffer,
     popup: Rect,
@@ -206,6 +270,66 @@ where
     rows.into_iter()
         .map(|(command, description)| format!("{command:<command_width$} : {description}"))
         .collect()
+}
+
+fn wrap_text_to_width(text: &str, max_width: usize) -> Vec<String> {
+    if max_width == 0 {
+        return Vec::new();
+    }
+
+    let words = text.split_whitespace().collect::<Vec<_>>();
+    if words.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+
+    for word in words {
+        for segment in split_long_word(word, max_width) {
+            if current.is_empty() {
+                current.push_str(&segment);
+                continue;
+            }
+
+            let candidate_width = current.chars().count() + 1 + segment.chars().count();
+            if candidate_width <= max_width {
+                current.push(' ');
+                current.push_str(&segment);
+            } else {
+                lines.push(std::mem::take(&mut current));
+                current.push_str(&segment);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        lines.push(current);
+    }
+
+    lines
+}
+
+fn split_long_word(word: &str, max_width: usize) -> Vec<String> {
+    if word.chars().count() <= max_width {
+        return vec![word.to_string()];
+    }
+
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+
+    for ch in word.chars() {
+        if current.chars().count() == max_width {
+            chunks.push(std::mem::take(&mut current));
+        }
+        current.push(ch);
+    }
+
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+
+    chunks
 }
 
 fn clip_to_width(text: &str, max_width: usize) -> String {
@@ -250,5 +374,41 @@ mod tests {
         assert!(popup.y > parent.y);
         assert!(popup.x + popup.width < parent.x + parent.width);
         assert!(popup.y + popup.height < parent.y + parent.height);
+    }
+
+    #[test]
+    fn wrap_formatted_help_lines_wraps_descriptions_and_aligns_continuations() {
+        let lines = vec![String::from(
+            "Enter : Open the selected planet detail popup from the current map sector",
+        )];
+
+        let wrapped = wrap_formatted_help_lines(&lines, 30);
+
+        assert_eq!(
+            wrapped.lines,
+            vec![
+                String::from("Enter : Open the selected"),
+                String::from("      : planet detail popup"),
+                String::from("      : from the current map"),
+                String::from("      : sector"),
+            ]
+        );
+        assert_eq!(wrapped.content_width, 29);
+    }
+
+    #[test]
+    fn wrap_formatted_help_lines_preserves_plain_lines() {
+        let lines = vec![String::from("Plain helper prose still wraps when needed")];
+
+        let wrapped = wrap_formatted_help_lines(&lines, 18);
+
+        assert_eq!(
+            wrapped.lines,
+            vec![
+                String::from("Plain helper"),
+                String::from("prose still wraps"),
+                String::from("when needed"),
+            ]
+        );
     }
 }

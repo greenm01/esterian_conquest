@@ -1,18 +1,25 @@
 //! ? overlay: keyboard reference, centered on screen.
 
-use nc_ui::modal::format_help_rows;
+use nc_ui::modal::{format_help_rows, wrap_formatted_help_lines};
 use nc_ui::table::TableFooter;
 use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{DashApp, HelpContext};
-use crate::overlays::frame::{draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let lines = help_lines(app.help_context);
-    let frame = draw_overlay_frame(buf, "HELP", 76, lines.len() + 5, TableFooter::Dismiss);
+    let wrapped = wrap_formatted_help_lines(&lines, buf.width().saturating_sub(6));
+    let frame = draw_overlay_frame_for_body(
+        buf,
+        "HELP",
+        wrapped.content_width,
+        wrapped.lines.len(),
+        TableFooter::Dismiss,
+    );
 
-    for (idx, line) in lines.iter().enumerate().take(frame.body_height) {
+    for (idx, line) in wrapped.lines.iter().enumerate().take(frame.body_height) {
         write_clipped(
             buf,
             frame.body_row + idx,
