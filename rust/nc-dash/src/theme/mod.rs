@@ -1,72 +1,113 @@
 //! Dashboard color theme — delegates to nc-ui theme system.
 
 use nc_ui::table::TableRenderTheme;
+use nc_ui::theme::classic;
 use nc_ui::{CellStyle, GameColor};
 
+fn on_body(style: CellStyle) -> CellStyle {
+    CellStyle::new(style.fg, body_style().bg, style.bold)
+}
+
 pub fn body_style() -> CellStyle {
-    nc_ui::theme::classic::body_style()
+    classic::body_style()
 }
 
 pub fn empire_slot_color(slot: u8) -> GameColor {
-    nc_ui::theme::classic::empire_slot_color(slot)
+    classic::empire_slot_color(slot)
 }
 
 pub fn empire_slot_style(slot: u8) -> CellStyle {
-    nc_ui::theme::classic::empire_slot_style(slot)
+    classic::empire_slot_style(slot)
 }
 
 pub fn empire_slot_style_on(slot: u8, bg: GameColor, bold: bool) -> CellStyle {
-    nc_ui::theme::classic::empire_slot_style_on(slot, bg, bold)
+    classic::empire_slot_style_on(slot, bg, bold)
 }
 
 pub fn border_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightBlack, GameColor::Black, false)
+    classic::table_chrome_style()
 }
 
 pub fn header_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightCyan, GameColor::Black, false)
+    classic::shell_label_style()
 }
 
 pub fn footer_style() -> CellStyle {
-    CellStyle::new(GameColor::Cyan, GameColor::Black, false)
+    classic::prompt_style()
 }
 
 pub fn title_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightWhite, GameColor::Black, true)
+    classic::shell_title_style()
 }
 
 pub fn section_title_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightCyan, GameColor::Black, false)
+    classic::table_header_style()
 }
 
 pub fn label_style() -> CellStyle {
-    CellStyle::new(GameColor::White, GameColor::Black, false)
+    classic::status_label_style()
 }
 
 pub fn value_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightWhite, GameColor::Black, false)
+    classic::status_value_style()
 }
 
 pub fn alert_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightYellow, GameColor::Black, true)
+    on_body(classic::alert_style())
 }
 
 pub fn dim_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightBlack, GameColor::Black, false)
+    classic::disabled_row_style()
 }
 
 pub fn enemy_style() -> CellStyle {
-    CellStyle::new(GameColor::Red, GameColor::Black, false)
+    on_body(classic::error_style())
 }
 
 pub fn friendly_style() -> CellStyle {
-    CellStyle::new(GameColor::Green, GameColor::Black, false)
+    on_body(classic::notice_style())
 }
 
 pub fn icd_style() -> CellStyle {
-    CellStyle::new(GameColor::Yellow, GameColor::Black, false)
+    on_body(classic::alert_style())
+}
+
+pub fn map_crosshair_style() -> CellStyle {
+    classic::map_crosshair_style()
+}
+
+pub fn map_center_style() -> CellStyle {
+    classic::map_center_style()
 }
 
 pub fn table_theme() -> TableRenderTheme {
     TableRenderTheme::classic()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dash_default_styles_use_active_theme_background() {
+        let expected_bg = body_style().bg;
+        let styles = [
+            border_style(),
+            header_style(),
+            footer_style(),
+            title_style(),
+            section_title_style(),
+            label_style(),
+            value_style(),
+            alert_style(),
+            dim_style(),
+            enemy_style(),
+            friendly_style(),
+            icd_style(),
+        ];
+
+        for style in styles {
+            assert_eq!(style.bg, expected_bg);
+        }
+    }
 }

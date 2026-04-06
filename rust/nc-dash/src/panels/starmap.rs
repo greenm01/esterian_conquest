@@ -3,10 +3,10 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    CoreGameData, DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection,
-    PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
+    build_player_starmap_projection_from_snapshots, CoreGameData, DiplomaticRelation,
+    PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
 };
-use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
+use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
 use crate::layout::{self, MapWidgetFrame};
@@ -90,26 +90,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             };
 
             let (left, mid, right, cell_style) = if is_h_crosshair && is_v_crosshair {
-                (
-                    ' ',
-                    sym,
-                    ' ',
-                    CellStyle::new(GameColor::BrightWhite, GameColor::BrightBlack, true),
-                )
+                (' ', sym, ' ', theme::map_center_style())
             } else if is_h_crosshair {
-                (
-                    ' ',
-                    sym,
-                    ' ',
-                    CellStyle::new(GameColor::BrightRed, GameColor::Black, false),
-                )
+                (' ', sym, ' ', theme::map_crosshair_style())
             } else if is_v_crosshair {
-                (
-                    ' ',
-                    sym,
-                    ' ',
-                    CellStyle::new(GameColor::BrightRed, GameColor::Black, false),
-                )
+                (' ', sym, ' ', theme::map_crosshair_style())
             } else {
                 (' ', sym, ' ', base_style)
             };

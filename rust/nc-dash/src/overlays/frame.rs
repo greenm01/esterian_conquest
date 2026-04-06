@@ -1,8 +1,8 @@
 //! Shared centered modal shell for dashboard overlays.
 
 use crate::app::state::ActiveOverlay;
-use nc_ui::modal::{ModalTheme, draw_modal_frame};
-use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
+use nc_ui::modal::{draw_modal_frame, ModalTheme};
+use nc_ui::table::{draw_table_footer_in_span, table_footer_scaffold_width, TableFooter};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::theme;
@@ -164,11 +164,32 @@ mod tests {
         );
 
         assert!(buffer.plain_line(frame.footer_row).contains("COMMAND <- "));
-        assert!(
-            !buffer
-                .plain_line(frame.footer_row.saturating_sub(1))
-                .contains("COMMAND <- ")
+        assert!(!buffer
+            .plain_line(frame.footer_row.saturating_sub(1))
+            .contains("COMMAND <- "));
+    }
+
+    #[test]
+    fn overlay_border_and_title_use_themed_background() {
+        let mut buffer = PlayfieldBuffer::new(40, 20, theme::body_style());
+        draw_overlay_frame(
+            &mut buffer,
+            "TEST",
+            18,
+            8,
+            TableFooter::CommandBar {
+                hotkeys_markup: "? <Q>",
+                default: None,
+                input: "",
+            },
         );
+
+        let expected_bg = theme::body_style().bg;
+        let top_row = buffer.row(6).iter().map(|cell| cell.ch).collect::<String>();
+        let left = top_row.find('┌').expect("modal left border");
+
+        assert_eq!(buffer.row(6)[left].style.bg, expected_bg);
+        assert_eq!(buffer.row(6)[left + 3].style.bg, expected_bg);
     }
 
     #[test]
