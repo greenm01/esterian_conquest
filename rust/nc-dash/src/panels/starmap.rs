@@ -23,22 +23,19 @@ pub(crate) enum StarmapMarkerKind {
     Unknown,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PlanetJumpDirection {
+    Backward,
+    Forward,
+}
+
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let map_size =
         nc_data::map_size_for_player_count(app.game_data.conquest.player_count()) as usize;
 
     let player_empire = app.player_record_index_1_based as u8;
-    let snapshot_map = app
-        .planet_intel_snapshots
-        .iter()
-        .cloned()
-        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-        .collect::<BTreeMap<_, _>>();
-    let projection = build_player_starmap_projection_from_snapshots(
-        &app.game_data,
-        &snapshot_map,
-        player_empire,
-    );
+    let snapshot_map = snapshot_map_for_app(app);
+    let projection = projection_for_snapshot_map(app, &snapshot_map);
 
     // Column axis numbers.
     for col_idx in 0..map_size {
@@ -134,6 +131,15 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     );
 }
 
+pub(crate) fn jump_planet_target_for_app(
+    app: &DashApp,
+    current: [u8; 2],
+    direction: PlanetJumpDirection,
+) -> Option<[u8; 2]> {
+    let projection = projection_for_snapshot_map(app, &snapshot_map_for_app(app));
+    jump_planet_target_coords(projection.map_width, &projection.worlds, current, direction)
+}
+
 fn projection_world_at(
     projection: &PlayerStarmapProjection,
     coords: [u8; 2],
@@ -142,6 +148,60 @@ fn projection_world_at(
         .worlds
         .iter()
         .find(|world| world.coords == coords)
+}
+
+fn snapshot_map_for_app(app: &DashApp) -> BTreeMap<usize, PlanetIntelSnapshot> {
+    app.planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>()
+}
+
+fn projection_for_snapshot_map(
+    app: &DashApp,
+    snapshot_map: &BTreeMap<usize, PlanetIntelSnapshot>,
+) -> PlayerStarmapProjection {
+    build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        snapshot_map,
+        app.player_record_index_1_based as u8,
+    )
+}
+
+fn jump_planet_target_coords(
+    map_size: u8,
+    worlds: &[PlayerStarmapWorld],
+    current: [u8; 2],
+    direction: PlanetJumpDirection,
+) -> Option<[u8; 2]> {
+    let mut coords = worlds.iter().map(|world| world.coords).collect::<Vec<_>>();
+    if coords.is_empty() {
+        return None;
+    }
+    coords.sort_by_key(|coords| screen_order_index(*coords, map_size));
+    coords.dedup();
+
+    let current_index = screen_order_index(current, map_size);
+    match direction {
+        PlanetJumpDirection::Forward => coords
+            .iter()
+            .copied()
+            .find(|coords| screen_order_index(*coords, map_size) > current_index)
+            .or_else(|| coords.first().copied()),
+        PlanetJumpDirection::Backward => coords
+            .iter()
+            .rev()
+            .copied()
+            .find(|coords| screen_order_index(*coords, map_size) < current_index)
+            .or_else(|| coords.last().copied()),
+    }
+}
+
+fn screen_order_index(coords: [u8; 2], map_size: u8) -> usize {
+    let y_rank = usize::from(map_size.saturating_sub(coords[1]));
+    let x_rank = usize::from(coords[0].saturating_sub(1));
+    y_rank * usize::from(map_size) + x_rank
 }
 
 pub(crate) fn marker_kind_for_world(
@@ -311,6 +371,65 @@ mod tests {
         assert_eq!(owner_label(&game_data, None), "?");
         assert_eq!(known_u16(None), "?");
         assert_eq!(known_u8(None), "?");
+    }
+
+    #[test]
+    fn planet_jump_moves_in_wrapped_screen_order() {
+        let worlds = vec![make_world([2, 5]), make_world([4, 4]), make_world([1, 1])];
+
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [1, 5], PlanetJumpDirection::Forward),
+            Some([2, 5])
+        );
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [2, 5], PlanetJumpDirection::Forward),
+            Some([4, 4])
+        );
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [4, 4], PlanetJumpDirection::Backward),
+            Some([2, 5])
+        );
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [5, 1], PlanetJumpDirection::Forward),
+            Some([2, 5])
+        );
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [1, 5], PlanetJumpDirection::Backward),
+            Some([1, 1])
+        );
+    }
+
+    #[test]
+    fn planet_jump_stays_on_single_world() {
+        let worlds = vec![make_world([3, 3])];
+
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [3, 3], PlanetJumpDirection::Forward),
+            Some([3, 3])
+        );
+        assert_eq!(
+            jump_planet_target_coords(5, &worlds, [1, 1], PlanetJumpDirection::Backward),
+            Some([3, 3])
+        );
+    }
+
+    fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {
+        PlayerStarmapWorld {
+            planet_record_index_1_based: 1,
+            coords,
+            intel_tier: IntelTier::Unknown,
+            known_name: None,
+            known_owner_empire_id: None,
+            known_owner_empire_name: None,
+            known_potential_production: None,
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: None,
+            known_current_production: None,
+            known_stored_points: None,
+            known_docked_summary: None,
+            known_orbit_summary: None,
+        }
     }
 }
 

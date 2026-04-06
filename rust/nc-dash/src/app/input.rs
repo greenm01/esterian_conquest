@@ -20,6 +20,8 @@ pub enum Action {
     MoveCrosshairDown,
     MoveCrosshairLeft,
     MoveCrosshairRight,
+    JumpPlanetBackward,
+    JumpPlanetForward,
     GotoCoords,
     ToggleAutopilot,
     SetTaxRate,
@@ -86,6 +88,8 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
             PanelFocus::Map => Action::MoveCrosshairRight,
             _ => Action::None,
         },
+        KeyCode::Char('[') if focus == PanelFocus::Map => Action::JumpPlanetBackward,
+        KeyCode::Char(']') if focus == PanelFocus::Map => Action::JumpPlanetForward,
         KeyCode::PageUp => Action::PageUp,
         KeyCode::PageDown => Action::PageDown,
         KeyCode::Home => Action::Home,
@@ -95,5 +99,46 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         KeyCode::Char('g') | KeyCode::Char('G') if focus == PanelFocus::Map => Action::GotoCoords,
 
         _ => Action::None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bracket_keys_jump_planets_only_on_map_without_overlay() {
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::JumpPlanetBackward
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::JumpPlanetForward
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE),
+                PanelFocus::Planets,
+                ActiveOverlay::None,
+            ),
+            Action::None
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::PlanetList,
+            ),
+            Action::None
+        );
     }
 }

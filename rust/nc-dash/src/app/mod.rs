@@ -5,13 +5,14 @@ pub mod render;
 pub mod state;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use input::{Action, key_to_action};
-use nc_ui::Terminal;
+use input::{key_to_action, Action};
 use nc_ui::table_selection;
+use nc_ui::Terminal;
 use state::{ActiveOverlay, DashApp, HelpContext};
 
-use crate::inbox::{DashInboxItemSource, project_inbox_items};
+use crate::inbox::{project_inbox_items, DashInboxItemSource};
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
+use crate::panels::starmap;
 
 impl DashApp {
     /// Run the main event loop.
@@ -76,6 +77,12 @@ impl DashApp {
                     self.crosshair_x += 1;
                 }
             }
+            Action::JumpPlanetBackward => {
+                self.jump_crosshair_to_planet(starmap::PlanetJumpDirection::Backward);
+            }
+            Action::JumpPlanetForward => {
+                self.jump_crosshair_to_planet(starmap::PlanetJumpDirection::Forward);
+            }
             Action::ScrollUp => self.scroll_up(),
             Action::ScrollDown => self.scroll_down(),
             Action::PageUp => {
@@ -96,11 +103,20 @@ impl DashApp {
         }
     }
 
+    fn jump_crosshair_to_planet(&mut self, direction: starmap::PlanetJumpDirection) {
+        if let Some(target) = starmap::jump_planet_target_for_app(
+            self,
+            [self.crosshair_x, self.crosshair_y],
+            direction,
+        ) {
+            self.crosshair_x = target[0];
+            self.crosshair_y = target[1];
+        }
+    }
+
     fn scroll_up(&mut self) {
         use state::PanelFocus::*;
         match self.focus {
-            Planets => self.planets_scroll = self.planets_scroll.saturating_sub(1),
-            Fleets => self.fleets_scroll = self.fleets_scroll.saturating_sub(1),
             Diplomacy => self.diplomacy_scroll = self.diplomacy_scroll.saturating_sub(1),
             _ => {}
         }
@@ -109,8 +125,6 @@ impl DashApp {
     fn scroll_down(&mut self) {
         use state::PanelFocus::*;
         match self.focus {
-            Planets => self.planets_scroll += 1,
-            Fleets => self.fleets_scroll += 1,
             Diplomacy => self.diplomacy_scroll += 1,
             _ => {}
         }
@@ -119,8 +133,6 @@ impl DashApp {
     fn scroll_home(&mut self) {
         use state::PanelFocus::*;
         match self.focus {
-            Planets => self.planets_scroll = 0,
-            Fleets => self.fleets_scroll = 0,
             Diplomacy => self.diplomacy_scroll = 0,
             _ => {}
         }
@@ -130,8 +142,6 @@ impl DashApp {
         // End scrolling: set to a large number; render will clamp.
         use state::PanelFocus::*;
         match self.focus {
-            Planets => self.planets_scroll = usize::MAX,
-            Fleets => self.fleets_scroll = usize::MAX,
             Diplomacy => self.diplomacy_scroll = usize::MAX,
             _ => {}
         }

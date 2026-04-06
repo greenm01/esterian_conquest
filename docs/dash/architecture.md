@@ -47,7 +47,7 @@ Three-column layout with header and footer bars:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ NOSTRIAN CONQUEST              Foo1           Y3012   Planets:12  Fleets:8  Autopilot:OFF  Tax:40% │
+│ NOSTRIAN CONQUEST              Foo1           Y3012                  Autopilot:OFF  Tax:40% │
 ├────────────────────┬──────────────────────────────────────────────────────────┬────────────────────┤
 │ ECONOMY            │    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 │ KNOWN GALAXY       │
 │  Treasury:     820 │ 18  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  My       ■    5   │
@@ -56,20 +56,19 @@ Three-column layout with header and footer bars:
 │  Growth:       +12 │ 15  ·  ·  ·  ·  ·  ·  ·  ●  ·  |  ·  ·  ◊  ·  ·  ·  ·  · │  ICD      ◊    2   │
 ├────────────────────┤ 14  ·  ·  ·  ·  ■  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Unch     ·   22   │
 │ MY PLANETS         │ 13  ·  ·  ·  ·  ·  ·  ·  ·  ·  ○  ·  ·  ·  ·  ·  ·  ·  · ├────────────────────┤
-│ Foo★ (01,09)  123  │ 12  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ●  ·  ·  ·  ·  ·  · │ DIPLOMACY          │
-│ Hom★ (09,09)   98  │ 11  ·  ·  ■  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo2    Neutral   │
-│ Col  (12,07)   45  │ 10  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo3    Enemy     │
-│ Col  (05,14)   22  │ 09 ─·──·──·──·──·──·──·──·──·──O──·──·──·──·──·──·──·──· │  Foo4    Enemy     │
-│ Col  (03,11)    8  │ 08  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ●  ·  ·  ·  · │  Foo5    Neutral   │
-│ New  (18,02)    3  │ 07  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo6    Neutral   │
-├────────────────────┤ 06  ·  ·  ·  ·  ·  ·  ○  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo7    Enemy     │
-│ ACTIVE FLEETS      │ 05  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo8    Neutral   │
-│ #1   (09,13)   Pa  │ 04  ·  ·  ·  ■  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · ├────────────────────┤
-│ #3   (15,13)   Bo  │ 03  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │ REPORTS  (5R, 2M)  │
-│ #5   (12,08)   Mv  │ 02  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  3rd Flt intercept │
-│ #7   (09,09)   Hd  │ 01  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  7th Flt bombarded │
-│ SB1  (09,09)   Gs  │    Sector (10,09) ■ Colony A — 45 prod, 10 AR, 4 RB      │  SB 1 lost         │
-│ #9   (04,05)   Mv  │                                                          │  Bombard rpt       │
+│  Total Worlds:  12 │ 12  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ●  ·  ·  ·  ·  ·  · │ DIPLOMACY          │
+│  Active Docks:   3 │ 11  ·  ·  ■  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo2    Neutral   │
+│  Starbases:      2 │ 10  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo3    Enemy     │
+│  Total Armies:  34 │ 09 ─·──·──·──·──·──·──·──·──·──O──·──·──·──·──·──·──·──· │  Foo4    Enemy     │
+│  Grnd Batteries:12 │ 08  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ●  ·  ·  ·  · │  Foo5    Neutral   │
+├────────────────────┤ 07  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo6    Neutral   │
+│ ACTIVE FLEETS      │ 06  ·  ·  ·  ·  ·  ·  ○  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo7    Enemy     │
+│  Total Fleets:   8 │ 05  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  Foo8    Neutral   │
+│  Total Ships:   84 │ 04  ·  ·  ·  ■  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · ├────────────────────┤
+│  In Transit:     3 │ 03  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │ REPORTS  (5R, 2M)  │
+│  Hostile:        2 │ 02  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  3rd Flt intercept │
+│  Defensive:      2 │ 01  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  7th Flt bombarded │
+│  Idle:           1 │    Sector (10,09) ■ Colony A — 45 prod, 10 AR, 4 RB      │  SB 1 lost         │
 ├────────────────────┴──────────────────────────────────────────────────────────┴────────────────────┤
 │ P:Planets  F:Fleets  I:Intel  R:Inbox  D:Diplomacy  A:Autopilot  X:Tax  S:Settings  Q:Quit  ?      │
 └────────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -95,8 +94,7 @@ divider or the outer frame border.
 
 - **Left:** "NOSTRIAN CONQUEST" branding.
 - **Center:** Empire name.
-- **Right:** Game year, planet count, fleet count, autopilot status
-  (`AP:ON` / `AP:OFF` — bright/dim), tax rate.
+- **Right:** Game year, autopilot status (`AP:ON` / `AP:OFF` — bright/dim), tax rate.
 
 All status fields are spelled out — no abbreviations. Right-justified
 up to the border. Autopilot indicator rendered in a bright warning color
@@ -144,44 +142,18 @@ Three stacked sections, all visible simultaneously:
   Revenue (this turn's tax income), Growth (net production change
   per turn). The player sees his spending power, capacity gap, and
   whether the empire is growing or stagnating.
-- **My Planets:** Scrollable, one-line-per-planet format:
-  `Hom (09,09)  98` — 3-char name abbreviation (first 3 chars of planet
-  name), coordinates (dim cyan), present production (colored: green =
-  healthy, yellow = underdeveloped, red = damaged/zero). Planets with
-  a starbase show a `★` indicator for quick identification of 5x build
-  capacity. Full name shown in detail popup and status line. Selecting
-  highlights on starmap.
-- **Active Fleets:** Scrollable, one-line-per-entry, same layout:
-  `#1  (09,13) Pa` — fleet number or `SB1` for starbases, coordinates
-  (dim cyan), short-form order (uses `fleet_table_order_label` helpers
-  from nc-game, colored: green = defensive, yellow = transit, red =
-  hostile). Starbases appear alongside fleets. Selecting highlights on
-  starmap.
+- **My Planets:** Summary of planetary assets:
+  Total Worlds, Active Docks (planets with items in stardock), Starbases
+  (active owned starbases), Total Armies, Grnd Batteries. A "Vulnerable"
+  count appears in red if any owned worlds have 0 armies and 0 batteries.
+- **Active Fleets:** Summary of space assets and their current postures:
+  Total Fleets, Total Ships, In Transit (moving or seeking), Hostile
+  (bombarding or invading), Defensive (patrolling or guarding), Idle (holding).
 
-Both lists use matching single-line format for visual consistency and
-maximum density. Color carries meaning — the player scans by color
-without needing labels.
+Both lists use a matching `key: value` format for visual consistency and
+maximum density.
 
-**Two-letter order abbreviations for fleet list and dashboard panels:**
 
-| Code | Order | Color |
-|------|-------|-------|
-| Hd | Hold Position | dim (idle) |
-| Mv | Move Fleet | yellow (transit) |
-| Sk | Seek Home | yellow (transit) |
-| Pa | Patrol Sector | green (defensive) |
-| Gs | Guard Starbase | green (defensive) |
-| Gb | Guard/Blockade | green (defensive) |
-| Bo | Bombard World | red (hostile) |
-| In | Invade World | red (hostile) |
-| Bz | Blitz World | red (hostile) |
-| Vw | View World | cyan (recon) |
-| Ss | Scout Sector | cyan (recon) |
-| Sy | Scout System | cyan (recon) |
-| Co | Colonize World | bright (expansion) |
-| Jn | Join Fleet | yellow (transit) |
-| Rz | Rendezvous | yellow (transit) |
-| Sa | Salvage | dim (utility) |
 
 ### Center (variable width)
 
@@ -352,6 +324,8 @@ makes them feel like focused work windows rather than full mode switches.
 ### Map Navigation (when map is focused)
 
 - **Arrow keys, h/j/k/l:** Move crosshair.
+- **[ / ]:** Jump to the previous or next planet in wrapped screen order.
+  These keys wrap across map edges; ordinary crosshair movement does not.
 - **G:** Go-to — enter coordinates to jump crosshair.
 - **Home:** Center crosshair on homeworld.
 - **1-9:** Jump crosshair to fleet by number.
@@ -687,8 +661,8 @@ nc-dash/
     panels/
       mod.rs             ← panel trait, focus management
       economy.rs         ← left: treasury, production, revenue, growth
-      planets.rs         ← left: owned planet list (3-char abbrev)
-      fleets.rs          ← left: active fleet + starbase list
+      planets.rs         ← left: owned planet summary stats
+      fleets.rs          ← left: active fleet summary stats
       starmap.rs         ← center: sector grid, crosshair, axis labels
       known_galaxy.rs    ← right: world counts by category
       diplomacy.rs       ← right: empire list, color-coded status
@@ -751,8 +725,7 @@ Guidelines:
 ### Phase 3: Side Panels
 
 - Left: Economy (treasury, production, revenue, growth), My Planets
-  (3-char abbrev, coords, production), Active Fleets + starbases
-  (ID, coords, 2-letter order).
+  (summary stats), Active Fleets (summary stats).
 - Right: Known Galaxy (world counts), Diplomacy (empire list, color-coded),
   Reports (pending inbox summary).
 - Tab focus cycling, scrolling within focused panel.

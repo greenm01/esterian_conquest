@@ -1,8 +1,8 @@
 //! ? overlay: keyboard reference, centered on screen.
 
-use nc_ui::PlayfieldBuffer;
 use nc_ui::modal::format_help_rows;
 use nc_ui::table::TableFooter;
+use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{DashApp, HelpContext};
 use crate::overlays::frame::{draw_overlay_frame, write_clipped};
@@ -52,10 +52,11 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             String::new(),
             String::from("DASHBOARD"),
             String::new(),
-            format_help_rows([
-                ("Tab / Shift+Tab", "Cycle dashboard focus"),
-            ])
-            .join("\n"),
+            format_help_rows([("Tab / Shift+Tab", "Cycle dashboard focus")]).join("\n"),
+            String::new(),
+            String::from("MAP"),
+            String::new(),
+            format_help_rows([("[ / ]", "Jump to previous or next planet on the map")]).join("\n"),
         ],
         HelpContext::PlanetList => overlay_help_blocks(
             "PLANET LIST",
@@ -75,7 +76,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             &[
                 ("O / C / M / T", "Order, change, merge, or transfer"),
                 ("I / Enter", "Review highlighted fleet"),
-                ("Fleet / SB ID", "Typed jump; exact match clears the footer input"),
+                (
+                    "Fleet / SB ID",
+                    "Typed jump; exact match clears the footer input",
+                ),
                 ("Q / Esc", "Close this overlay"),
                 ("?", "Show this helper"),
             ],
@@ -101,7 +105,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 ("C", "Compose a message"),
                 ("Tab", "Switch list and preview focus"),
                 ("Enter", "Toggle preview focus when the jump field is empty"),
-                ("Visible ID", "Typed jump; exact match clears the footer input"),
+                (
+                    "Visible ID",
+                    "Typed jump; exact match clears the footer input",
+                ),
                 ("Q / Esc", "Close this overlay"),
                 ("?", "Show this helper"),
             ],
@@ -169,7 +176,12 @@ mod tests {
         let lines = help_lines(HelpContext::Global);
 
         assert!(lines.iter().any(|line| line.contains("GLOBAL HOTKEYS")));
-        assert!(lines.iter().any(|line| line.contains("Planet, Fleet, Intel, Inbox overlays")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("Planet, Fleet, Intel, Inbox overlays")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("Jump to previous or next planet")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));
     }
 }
