@@ -58,6 +58,17 @@ pub enum ActiveOverlay {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelpContext {
+    Global,
+    PlanetList,
+    FleetList,
+    IntelDatabase,
+    Inbox,
+    Diplomacy,
+    Settings,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InboxFocus {
     List,
     Preview,
@@ -84,6 +95,7 @@ impl InboxFilter {
 pub struct ListOverlayState {
     pub selected: usize,
     pub scroll: usize,
+    pub jump_input: String,
 }
 
 #[derive(Debug, Clone)]
@@ -133,6 +145,8 @@ pub struct DashApp {
     // Dashboard navigation
     pub focus: PanelFocus,
     pub overlay: ActiveOverlay,
+    pub help_return_overlay: ActiveOverlay,
+    pub help_context: HelpContext,
     pub autopilot_on: bool,
 
     // Starmap crosshair (1-based sector coords)
@@ -187,6 +201,8 @@ impl DashApp {
             startup_sequence,
             focus: PanelFocus::Map,
             overlay: ActiveOverlay::None,
+            help_return_overlay: ActiveOverlay::None,
+            help_context: HelpContext::Global,
             autopilot_on: false,
             crosshair_x: 1,
             crosshair_y: 1,

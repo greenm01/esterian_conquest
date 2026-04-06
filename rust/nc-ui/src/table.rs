@@ -585,7 +585,12 @@ pub fn write_table_window_with_theme_at<'a>(
         start_col,
         buffer.width().saturating_sub(start_col),
     );
-    buffer.write_text(area.row, area.col, &table_top_border(columns), theme.chrome_style);
+    buffer.write_text(
+        area.row,
+        area.col,
+        &table_top_border(columns),
+        theme.chrome_style,
+    );
     write_table_header_at(
         buffer,
         area.row + 1,
@@ -761,6 +766,60 @@ pub fn draw_table_title(
     )
 }
 
+pub fn draw_table_footer_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    footer: TableFooter<'_>,
+) -> usize {
+    match footer {
+        TableFooter::Dismiss => shared_prompt::draw_plain_prompt_at_col(
+            buffer,
+            row,
+            col,
+            "(slap a key)",
+        ),
+        TableFooter::CommandBar {
+            hotkeys_markup,
+            default,
+            input,
+        } => shared_prompt::draw_table_command_bar_in_span(
+            buffer,
+            row,
+            col,
+            width,
+            hotkeys_markup,
+            default,
+            input,
+        ),
+        TableFooter::CommandText { label, text } => {
+            shared_prompt::draw_command_line_text_in_span(buffer, row, col, width, label, text);
+            col + width
+        }
+        TableFooter::CommandPrompt { label, prompt } => {
+            shared_prompt::draw_command_line_prompt_text_in_span(
+                buffer, row, col, width, label, prompt,
+            );
+            col + width
+        }
+        TableFooter::CommandInput {
+            label,
+            prompt,
+            default,
+            input,
+        } => {
+            shared_prompt::draw_command_line_default_input_with_cancel_in_span(
+                buffer, row, col, width, label, prompt, default, input, "<Q> -> ",
+            );
+            col + width
+        }
+        TableFooter::TablePrompt(prompt) => {
+            shared_prompt::draw_table_command_prompt_in_span(buffer, row, col, width, prompt)
+        }
+    }
+}
+
 pub fn write_stacked_table_window_with_states<'a>(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
@@ -871,7 +930,12 @@ pub fn write_stacked_table_window_with_theme_at<'a>(
         start_col,
         buffer.width().saturating_sub(start_col),
     );
-    buffer.write_text(area.row, area.col, &table_top_border(columns), theme.chrome_style);
+    buffer.write_text(
+        area.row,
+        area.col,
+        &table_top_border(columns),
+        theme.chrome_style,
+    );
     write_table_row_at(
         buffer,
         area.row + 1,
@@ -1017,6 +1081,47 @@ fn table_block_minimum_width(
     width
 }
 
+pub fn draw_scrollbar_at(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    col: usize,
+    visible_rows: usize,
+    total_rows: usize,
+    scroll_offset: usize,
+    theme: TableRenderTheme,
+) {
+    if total_rows <= visible_rows || visible_rows == 0 || col >= buffer.width() {
+        return;
+    }
+
+    let displayed_rows = usize::min(visible_rows, total_rows.saturating_sub(scroll_offset));
+    if displayed_rows < 3 {
+        return;
+    }
+
+    let last_row = start_row + displayed_rows - 1;
+    let track_top = start_row + 1;
+    let track_bottom = last_row.saturating_sub(1);
+
+    buffer.write_text(start_row, col, "^", theme.chrome_style);
+    buffer.write_text(last_row, col, "v", theme.chrome_style);
+
+    for row in track_top..=track_bottom {
+        buffer.write_text(row, col, "|", theme.scroll_track_style);
+    }
+
+    let max_offset = total_rows.saturating_sub(visible_rows);
+    let thumb_top = track_top;
+    let thumb_bottom = track_bottom;
+    let thumb_span = thumb_bottom.saturating_sub(thumb_top);
+    let thumb_row = if max_offset == 0 || thumb_span == 0 {
+        thumb_top
+    } else {
+        thumb_top + (scroll_offset * thumb_span) / max_offset
+    };
+    buffer.write_text(thumb_row, col, "#", theme.scrollbar_thumb_style);
+}
+
 fn write_scroll_indicator(
     buffer: &mut PlayfieldBuffer,
     area: TableArea,
@@ -1046,27 +1151,15 @@ fn write_scroll_indicator(
         col > right_border_col,
         "scrollbar must render strictly to the right of the table border"
     );
-    let last_row = area.row + displayed_rows - 1;
-    let track_top = area.row + 1;
-    let track_bottom = last_row.saturating_sub(1);
-
-    buffer.write_text(area.row, col, "^", theme.chrome_style);
-    buffer.write_text(last_row, col, "v", theme.chrome_style);
-
-    for row in track_top..=track_bottom {
-        buffer.write_text(row, col, "|", theme.scroll_track_style);
-    }
-
-    let max_offset = total_rows.saturating_sub(visible_rows);
-    let thumb_top = track_top;
-    let thumb_bottom = track_bottom;
-    let thumb_span = thumb_bottom.saturating_sub(thumb_top);
-    let thumb_row = if max_offset == 0 || thumb_span == 0 {
-        thumb_top
-    } else {
-        thumb_top + (scroll_offset * thumb_span) / max_offset
-    };
-    buffer.write_text(thumb_row, col, "#", theme.scrollbar_thumb_style);
+    draw_scrollbar_at(
+        buffer,
+        area.row,
+        col,
+        visible_rows,
+        total_rows,
+        scroll_offset,
+        theme,
+    );
 }
 
 fn header_cells<'a>(columns: &'a [TableColumn<'a>]) -> Vec<&'a str> {

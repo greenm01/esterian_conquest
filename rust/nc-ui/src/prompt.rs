@@ -167,6 +167,33 @@ pub fn draw_command_line_text_at_col(
     );
 }
 
+pub fn draw_command_line_text_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    label: &str,
+    text: &str,
+) {
+    fill_prompt_span(buffer, row, col, width);
+    let mut cursor_col = col;
+    cursor_col += write_spans_clipped_to_span(
+        buffer,
+        row,
+        cursor_col,
+        col + width,
+        &[
+            StyledSpan::new(label, classic::title_style()),
+            StyledSpan::new(" <- ", classic::prompt_style()),
+            StyledSpan::new(text, classic::prompt_style()),
+        ],
+    );
+    if buffer.width() > 0 && width > 0 {
+        let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
+        buffer.set_cursor(clamped as u16, row as u16);
+    }
+}
+
 pub fn draw_command_line_prompt_text_at(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -197,6 +224,34 @@ pub fn draw_command_line_prompt_text_at_col(
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
     if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
         buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
+    }
+}
+
+pub fn draw_command_line_prompt_text_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    label: &str,
+    prompt: &str,
+) {
+    fill_prompt_span(buffer, row, col, width);
+    let prefix = col
+        + write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            col + width,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup_in_span(buffer, row, prefix, col + width, &prompt);
+    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+        let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
+        buffer.set_cursor(clamped as u16, row as u16);
     }
 }
 
@@ -289,6 +344,56 @@ pub fn draw_command_line_default_input_with_cancel_at_col(
     );
 }
 
+pub fn draw_command_line_default_input_with_cancel_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+    cancel_markup: &str,
+) {
+    fill_prompt_span(buffer, row, col, width);
+    let span_end = col + width;
+    let mut cursor_col = col
+        + write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            span_end,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
+    cursor_col = write_prompt_markup_in_span(buffer, row, cursor_col, span_end, prompt);
+    if !default.is_empty() {
+        cursor_col += write_spans_clipped_to_span(
+            buffer,
+            row,
+            cursor_col,
+            span_end,
+            &[
+                StyledSpan::new("[", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(default, classic::prompt_hotkey_style()),
+                StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(" ", classic::prompt_style()),
+            ],
+        );
+    }
+    cursor_col = write_prompt_markup_in_span(buffer, row, cursor_col, span_end, cancel_markup);
+    let _ = write_live_input_clipped_to_span(
+        buffer,
+        row,
+        cursor_col,
+        span_end,
+        input,
+        classic::prompt_hotkey_style(),
+    );
+}
+
 pub fn draw_table_command_bar_at(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -356,6 +461,75 @@ pub fn draw_table_command_bar_at_col(
     }
 }
 
+pub fn draw_table_command_bar_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
+    fill_prompt_span(buffer, row, col, width);
+    let span_end = col + width;
+    let mut cursor_col = col
+        + write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            span_end,
+            &[
+                StyledSpan::new(COMMAND_LABEL, classic::title_style()),
+                StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
+            ],
+        );
+    cursor_col = write_command_rail_tokens_in_span(buffer, row, cursor_col, span_end, hotkeys_markup);
+    if let Some(default) = default {
+        cursor_col += write_spans_clipped_to_span(
+            buffer,
+            row,
+            cursor_col,
+            span_end,
+            &[
+                StyledSpan::new(" ", classic::prompt_style()),
+                StyledSpan::new(DEFAULT_OPEN, classic::prompt_square_delimiter_style()),
+                StyledSpan::new(default, classic::prompt_hotkey_style()),
+                StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(COMMAND_ARROW_SUFFIX, classic::prompt_style()),
+            ],
+        );
+        write_live_input_clipped_to_span(
+            buffer,
+            row,
+            cursor_col,
+            span_end,
+            input,
+            classic::prompt_hotkey_style(),
+        )
+    } else {
+        let written = write_text_clipped_to_span(
+            buffer,
+            row,
+            cursor_col,
+            span_end,
+            COMMAND_ARROW_SUFFIX,
+            classic::prompt_style(),
+        );
+        let final_cursor_col = if COMMAND_ARROW_SUFFIX.chars().count() > written {
+            span_end.saturating_sub(1)
+        } else {
+            cursor_col + written
+        };
+        if buffer.width() > 0 && width > 0 {
+            let clamped = final_cursor_col.min(span_end - 1).min(buffer.width() - 1);
+            buffer.set_cursor(clamped as u16, row as u16);
+            clamped
+        } else {
+            final_cursor_col
+        }
+    }
+}
+
 pub fn draw_table_command_prompt_at(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -386,6 +560,36 @@ pub fn draw_table_command_prompt_at_col(
         buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
     cursor_col
+}
+
+pub fn draw_table_command_prompt_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    prompt: &str,
+) -> usize {
+    fill_prompt_span(buffer, row, col, width);
+    let prefix = col
+        + write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            col + width,
+            &[
+                StyledSpan::new(COMMAND_LABEL, classic::title_style()),
+                StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
+            ],
+        );
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup_in_span(buffer, row, prefix, col + width, &prompt);
+    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+        let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
+        buffer.set_cursor(clamped as u16, row as u16);
+        clamped
+    } else {
+        cursor_col
+    }
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
@@ -439,12 +643,78 @@ fn ensure_cursor_gap(prompt: &str) -> String {
     }
 }
 
+fn fill_prompt_span(buffer: &mut PlayfieldBuffer, row: usize, col: usize, width: usize) {
+    if width == 0 || row >= buffer.height() || col >= buffer.width() {
+        return;
+    }
+    buffer.fill_rect(row, col, width.min(buffer.width().saturating_sub(col)), 1, classic::prompt_style());
+}
+
+fn write_text_clipped_to_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    span_end: usize,
+    text: &str,
+    style: crate::buffer::CellStyle,
+) -> usize {
+    if row >= buffer.height() || col >= span_end || col >= buffer.width() || text.is_empty() {
+        return 0;
+    }
+    let clip_width = span_end
+        .saturating_sub(col)
+        .min(buffer.width().saturating_sub(col));
+    let clipped: String = text.chars().take(clip_width).collect();
+    buffer.write_text(row, col, &clipped, style)
+}
+
+fn write_spans_clipped_to_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    mut col: usize,
+    span_end: usize,
+    spans: &[StyledSpan<'_>],
+) -> usize {
+    let start = col;
+    for span in spans {
+        if col >= span_end || col >= buffer.width() {
+            break;
+        }
+        col += write_text_clipped_to_span(buffer, row, col, span_end, span.text, span.style);
+    }
+    col.saturating_sub(start)
+}
+
 fn command_rail_width(tokens: &str) -> usize {
     tokens
         .split_whitespace()
         .map(|token| token.chars().count())
         .sum::<usize>()
         + tokens.split_whitespace().count().saturating_sub(1)
+}
+
+fn write_live_input_clipped_to_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    span_end: usize,
+    input: &str,
+    style: crate::buffer::CellStyle,
+) -> usize {
+    if buffer.width() == 0 || span_end == 0 {
+        return col;
+    }
+    let max_col = span_end.saturating_sub(1).min(buffer.width() - 1);
+    if col >= span_end || col >= buffer.width() {
+        buffer.set_cursor(max_col as u16, row as u16);
+        return max_col;
+    }
+
+    let written = write_text_clipped_to_span(buffer, row, col, span_end, input, style);
+    let input_width = input.chars().count();
+    let cursor_col = if input_width > written { max_col } else { col + written };
+    buffer.set_cursor(cursor_col.min(max_col) as u16, row as u16);
+    cursor_col.min(max_col)
 }
 
 fn write_live_input_clipped(
@@ -507,6 +777,25 @@ fn write_command_rail_tokens(
     col
 }
 
+fn write_command_rail_tokens_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    start_col: usize,
+    span_end: usize,
+    tokens: &str,
+) -> usize {
+    let mut col = start_col;
+    let mut first = true;
+    for token in tokens.split_whitespace() {
+        if !first {
+            col += write_text_clipped_to_span(buffer, row, col, span_end, " ", classic::prompt_style());
+        }
+        col += write_command_rail_token_in_span(buffer, row, col, span_end, token);
+        first = false;
+    }
+    col
+}
+
 fn write_command_rail_token(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -541,6 +830,48 @@ fn write_command_rail_token(
         )
     } else {
         buffer.write_text_clipped(row, col, token, classic::prompt_hotkey_style())
+    }
+}
+
+fn write_command_rail_token_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    span_end: usize,
+    token: &str,
+) -> usize {
+    if let Some(inner) = token
+        .strip_prefix('<')
+        .and_then(|value| value.strip_suffix('>'))
+    {
+        write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            span_end,
+            &[
+                StyledSpan::new("<", classic::prompt_angle_delimiter_style()),
+                StyledSpan::new(inner, classic::prompt_hotkey_style()),
+                StyledSpan::new(">", classic::prompt_angle_delimiter_style()),
+            ],
+        )
+    } else if let Some(inner) = token
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+    {
+        write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            span_end,
+            &[
+                StyledSpan::new("[", classic::prompt_square_delimiter_style()),
+                StyledSpan::new(inner, classic::prompt_hotkey_style()),
+                StyledSpan::new("]", classic::prompt_square_delimiter_style()),
+            ],
+        )
+    } else {
+        write_text_clipped_to_span(buffer, row, col, span_end, token, classic::prompt_hotkey_style())
     }
 }
 
@@ -675,6 +1006,152 @@ fn write_prompt_markup(
     col
 }
 
+fn write_prompt_markup_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    start_col: usize,
+    span_end: usize,
+    text: &str,
+) -> usize {
+    let chars: Vec<char> = text.chars().collect();
+    let mut col = start_col;
+    let mut plain = String::new();
+    let mut idx = 0usize;
+
+    while idx < chars.len() {
+        if let Some((phrase_end, key_start, key_end)) = slap_a_key_phrase(&chars, idx) {
+            if !plain.is_empty() {
+                col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                plain.clear();
+            }
+            if key_start > idx {
+                let prefix = chars[idx..key_start].iter().collect::<String>();
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    &prefix,
+                    classic::prompt_notice_action_style(),
+                );
+            }
+            let key = chars[key_start..key_end].iter().collect::<String>();
+            col += write_text_clipped_to_span(buffer, row, col, span_end, &key, classic::prompt_hotkey_style());
+            idx = phrase_end;
+            continue;
+        }
+
+        if chars[idx] == '<'
+            && let Some(close_idx) = chars[idx + 1..].iter().position(|&ch| ch == '>')
+        {
+            let close_idx = idx + 1 + close_idx;
+            if is_prompt_angle_hotkey(&chars[idx + 1..close_idx]) {
+                if !plain.is_empty() {
+                    col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                    plain.clear();
+                }
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    "<",
+                    classic::prompt_angle_delimiter_style(),
+                );
+                if close_idx > idx + 1 {
+                    let segment = chars[idx + 1..close_idx].iter().collect::<String>();
+                    col += write_text_clipped_to_span(
+                        buffer,
+                        row,
+                        col,
+                        span_end,
+                        &segment,
+                        classic::prompt_hotkey_style(),
+                    );
+                }
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    ">",
+                    classic::prompt_angle_delimiter_style(),
+                );
+                idx = close_idx + 1;
+                continue;
+            }
+        }
+
+        if chars[idx] == '['
+            && let Some(close_idx) = chars[idx + 1..].iter().position(|&ch| ch == ']')
+        {
+            let close_idx = idx + 1 + close_idx;
+            if is_prompt_bracket_hotkey(&chars[idx + 1..close_idx]) {
+                if !plain.is_empty() {
+                    col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                    plain.clear();
+                }
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    "[",
+                    classic::prompt_square_delimiter_style(),
+                );
+                if close_idx > idx + 1 {
+                    let segment = chars[idx + 1..close_idx].iter().collect::<String>();
+                    col += write_text_clipped_to_span(
+                        buffer,
+                        row,
+                        col,
+                        span_end,
+                        &segment,
+                        classic::prompt_hotkey_style(),
+                    );
+                }
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    "]",
+                    classic::prompt_square_delimiter_style(),
+                );
+                idx = close_idx + 1;
+                continue;
+            }
+        }
+
+        if chars[idx].is_ascii_alphanumeric() {
+            let start = idx;
+            while idx < chars.len() && chars[idx].is_ascii_alphanumeric() {
+                idx += 1;
+            }
+            let token = chars[start..idx].iter().collect::<String>();
+            if is_prompt_slash_hotkey_token(&chars, start, idx) {
+                if !plain.is_empty() {
+                    col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                    plain.clear();
+                }
+                col += write_text_clipped_to_span(buffer, row, col, span_end, &token, classic::prompt_hotkey_style());
+            } else {
+                plain.push_str(&token);
+            }
+            continue;
+        }
+
+        plain.push(chars[idx]);
+        idx += 1;
+    }
+
+    if !plain.is_empty() {
+        col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+    }
+
+    col
+}
+
 fn is_prompt_slash_hotkey_token(chars: &[char], start: usize, end: usize) -> bool {
     let token_len = end.saturating_sub(start);
     token_len > 0
@@ -718,10 +1195,11 @@ mod tests {
         command_line_default_input_scaffold_width,
         command_line_default_input_scaffold_width_with_cancel, command_line_default_input_width,
         command_line_default_input_width_with_cancel, draw_command_line_default_input_at,
-        draw_command_line_default_input_with_cancel_at, draw_command_line_prompt_text_at,
+        draw_command_line_default_input_with_cancel_at,
+        draw_command_line_default_input_with_cancel_in_span, draw_command_line_prompt_text_at,
         draw_command_prompt_at, draw_plain_prompt, draw_right_aligned_footer_text,
-        draw_table_command_bar_at, table_command_bar_scaffold_width, table_command_bar_width,
-        table_command_prompt_width,
+        draw_table_command_bar_at, draw_table_command_bar_in_span,
+        table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
     use crate::buffer::PlayfieldBuffer;
     use crate::theme::classic;
@@ -755,6 +1233,45 @@ mod tests {
         let mut buffer = buffer();
         draw_table_command_bar_at(&mut buffer, 24, "J K ^U ^D <N> <Q>", None, "");
         assert!(buffer.plain_line(24).starts_with("COMMAND <- "));
+    }
+
+    #[test]
+    fn command_bar_in_span_does_not_write_outside_assigned_width() {
+        let mut buffer = buffer();
+        draw_table_command_bar_in_span(
+            &mut buffer,
+            12,
+            10,
+            24,
+            "? J K ^U ^D <Q>",
+            Some("12,03"),
+            "1",
+        );
+
+        let line = buffer.plain_line(12);
+        assert_eq!(&line[..10], "          ");
+        assert!(line[10..].contains("COMMAND <- "));
+        assert_eq!(buffer.row(12)[9].ch, ' ');
+    }
+
+    #[test]
+    fn default_input_in_span_keeps_cursor_inside_span() {
+        let mut buffer = buffer();
+        draw_command_line_default_input_with_cancel_in_span(
+            &mut buffer,
+            13,
+            8,
+            18,
+            "COMMAND",
+            "Fleet # ",
+            "03",
+            "123456789",
+            "<Q> -> ",
+        );
+
+        let cursor = buffer.cursor().expect("cursor should be set");
+        assert!(usize::from(cursor.0) < 26);
+        assert_eq!(usize::from(cursor.1), 13);
     }
 
     #[test]

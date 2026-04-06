@@ -2,8 +2,8 @@
 
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{
-    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns, table_render_width,
-    write_table_window_with_theme_at,
+    TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    table_render_width, write_table_window_with_theme_at,
 };
 
 use crate::app::state::DashApp;
@@ -11,7 +11,7 @@ use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::panels::fleets::order_abbrev;
 use crate::theme;
 
-const FOOTER: &str = "COMMAND <- ? J K ^U ^D O C M T I <Q> ->";
+pub(crate) const HOTKEYS: &str = "? J K ^U ^D O C M T I <Q>";
 const COLUMNS: [TableColumn<'static>; 9] = [
     TableColumn::right("ID", 4),
     TableColumn::left("Location", 8),
@@ -25,6 +25,72 @@ const COLUMNS: [TableColumn<'static>; 9] = [
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
+    let rows = table_rows(app);
+    let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
+    let selected_default = rows
+        .get(selected)
+        .and_then(|row| row.first())
+        .map(String::as_str);
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default,
+        input: &app.fleet_overlay.jump_input,
+    };
+
+    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(10));
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &rows,
+        buf.width().saturating_sub(12),
+        false,
+        TableWidthMode::Compact,
+    );
+    let body_width = table_render_width(&columns)
+        .max("You have no active fleets or starbases.".chars().count() + 4);
+    let frame = draw_overlay_frame_for_body(
+        buf,
+        "FLEET LIST",
+        body_width,
+        desired_visible_rows + 4,
+        footer,
+    );
+    let visible_rows = frame.body_height.saturating_sub(4);
+    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, visible_rows, rows.len());
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
+    let metrics = write_table_window_with_theme_at(
+        buf,
+        frame.body_row,
+        table_col,
+        &columns,
+        &rows,
+        scroll,
+        visible_rows,
+        theme::table_theme(),
+        rows.get(selected).map(|_| selected),
+        0,
+        None,
+    );
+
+    if rows.is_empty() {
+        write_clipped(
+            buf,
+            metrics.bottom_row.saturating_sub(1),
+            frame.body_col,
+            frame.body_width,
+            "You have no active fleets or starbases.",
+            theme::dim_style(),
+        );
+    }
+}
+
+pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
+    table_rows(app)
+        .into_iter()
+        .filter_map(|row| row.first().cloned().map(|cell| vec![cell]))
+        .collect()
+}
+
+fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
     let owner_slot = app.player_record_index_1_based as u8;
     let mut rows = Vec::new();
 
@@ -62,51 +128,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         ]);
     }
 
-    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(10));
-    let columns = resolve_table_columns(
-        &COLUMNS,
-        &rows,
-        buf.width().saturating_sub(12),
-        false,
-        TableWidthMode::Compact,
-    );
-    let body_width =
-        table_render_width(&columns).max("You have no active fleets or starbases.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body(
-        buf,
-        "FLEET LIST",
-        body_width,
-        desired_visible_rows + 4,
-        FOOTER,
-    );
-    let visible_rows = frame.body_height.saturating_sub(4);
-    let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
-    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, visible_rows, rows.len());
-    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
-    let metrics = write_table_window_with_theme_at(
-        buf,
-        frame.body_row,
-        table_col,
-        &columns,
-        &rows,
-        scroll,
-        visible_rows,
-        theme::table_theme(),
-        rows.get(selected).map(|_| selected),
-        0,
-        None,
-    );
-
-    if rows.is_empty() {
-        write_clipped(
-            buf,
-            metrics.bottom_row.saturating_sub(1),
-            frame.body_col,
-            frame.body_width,
-            "You have no active fleets or starbases.",
-            theme::dim_style(),
-        );
-    }
+    rows
 }
 
 fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {

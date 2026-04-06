@@ -44,7 +44,12 @@ pub struct DashInboxItem {
 }
 
 impl DashInboxItem {
-    pub fn matches_filter(&self, filter: InboxFilter, current_year_only: bool, current_year: u16) -> bool {
+    pub fn matches_filter(
+        &self,
+        filter: InboxFilter,
+        current_year_only: bool,
+        current_year: u16,
+    ) -> bool {
         if current_year_only && self.year != current_year {
             return false;
         }

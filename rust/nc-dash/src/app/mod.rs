@@ -5,11 +5,13 @@ pub mod render;
 pub mod state;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use state::{ActiveOverlay, DashApp};
 use input::{Action, key_to_action};
 use nc_ui::Terminal;
+use nc_ui::table_selection;
+use state::{ActiveOverlay, DashApp, HelpContext};
 
 use crate::inbox::{DashInboxItemSource, project_inbox_items};
+use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 
 impl DashApp {
     /// Run the main event loop.
@@ -40,13 +42,18 @@ impl DashApp {
             Action::FocusNext => self.focus = self.focus.next(),
             Action::FocusPrev => self.focus = self.focus.prev(),
             Action::ToggleAutopilot => self.autopilot_on = !self.autopilot_on,
-            Action::OpenOverlay(overlay) => self.overlay = overlay,
-            Action::CloseOverlay => self.overlay = ActiveOverlay::None,
+            Action::OpenOverlay(overlay) => {
+                if overlay == ActiveOverlay::Help {
+                    self.help_context = HelpContext::Global;
+                    self.help_return_overlay = ActiveOverlay::None;
+                }
+                self.overlay = overlay;
+            }
+            Action::CloseOverlay => self.close_active_overlay(),
             Action::MoveCrosshairUp => {
                 // Up arrow → higher Y (row 18 at top of screen).
-                let map_size = nc_data::map_size_for_player_count(
-                    self.game_data.conquest.player_count(),
-                );
+                let map_size =
+                    nc_data::map_size_for_player_count(self.game_data.conquest.player_count());
                 if self.crosshair_y < map_size {
                     self.crosshair_y += 1;
                 }
@@ -63,9 +70,8 @@ impl DashApp {
                 }
             }
             Action::MoveCrosshairRight => {
-                let map_size = nc_data::map_size_for_player_count(
-                    self.game_data.conquest.player_count(),
-                );
+                let map_size =
+                    nc_data::map_size_for_player_count(self.game_data.conquest.player_count());
                 if self.crosshair_x < map_size {
                     self.crosshair_x += 1;
                 }
@@ -73,10 +79,14 @@ impl DashApp {
             Action::ScrollUp => self.scroll_up(),
             Action::ScrollDown => self.scroll_down(),
             Action::PageUp => {
-                for _ in 0..10 { self.scroll_up(); }
+                for _ in 0..10 {
+                    self.scroll_up();
+                }
             }
             Action::PageDown => {
-                for _ in 0..10 { self.scroll_down(); }
+                for _ in 0..10 {
+                    self.scroll_down();
+                }
             }
             Action::Home => self.scroll_home(),
             Action::End => self.scroll_end(),
@@ -131,53 +141,171 @@ impl DashApp {
         match self.overlay {
             ActiveOverlay::None => false,
             ActiveOverlay::PlanetList => {
-                if key.code == KeyCode::Esc {
-                    self.overlay = ActiveOverlay::None;
+                if self.handle_overlay_close_or_help(key, HelpContext::PlanetList) {
                     return true;
                 }
-                handle_list_overlay_key(key, &mut self.planet_overlay, 1_000);
+                self.handle_planet_overlay_key(key);
                 true
             }
             ActiveOverlay::FleetList => {
-                if key.code == KeyCode::Esc {
-                    self.overlay = ActiveOverlay::None;
+                if self.handle_overlay_close_or_help(key, HelpContext::FleetList) {
                     return true;
                 }
-                handle_list_overlay_key(key, &mut self.fleet_overlay, 1_000);
+                self.handle_fleet_overlay_key(key);
                 true
             }
             ActiveOverlay::IntelDatabase => {
-                if key.code == KeyCode::Esc {
-                    self.overlay = ActiveOverlay::None;
+                if self.handle_overlay_close_or_help(key, HelpContext::IntelDatabase) {
                     return true;
                 }
-                handle_list_overlay_key(key, &mut self.intel_overlay, 10_000);
+                self.handle_intel_overlay_key(key);
                 true
             }
             ActiveOverlay::Diplomacy => {
-                if key.code == KeyCode::Esc {
-                    self.overlay = ActiveOverlay::None;
+                if self.handle_overlay_close_or_help(key, HelpContext::Diplomacy) {
                     return true;
                 }
                 handle_list_overlay_key(key, &mut self.diplomacy_overlay, 10_000);
                 true
             }
             ActiveOverlay::Inbox => {
-                if key.code == KeyCode::Esc {
-                    self.overlay = ActiveOverlay::None;
+                if self.handle_overlay_close_or_help(key, HelpContext::Inbox) {
                     return true;
                 }
                 self.handle_inbox_overlay_key(key);
                 true
             }
             ActiveOverlay::Settings | ActiveOverlay::Help => {
-                if matches!(key.code, KeyCode::Esc | KeyCode::Char('?')) {
-                    self.overlay = ActiveOverlay::None;
+                let context = match self.overlay {
+                    ActiveOverlay::Settings => HelpContext::Settings,
+                    ActiveOverlay::Help => self.help_context,
+                    _ => HelpContext::Global,
+                };
+                if self.handle_overlay_close_or_help(key, context) {
                     return true;
                 }
                 true
             }
         }
+    }
+
+    fn handle_overlay_close_or_help(&mut self, key: KeyEvent, help_context: HelpContext) -> bool {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                self.close_active_overlay();
+                true
+            }
+            KeyCode::Char('?') if self.overlay == ActiveOverlay::Help => {
+                self.close_active_overlay();
+                true
+            }
+            KeyCode::Char('?') => {
+                self.help_return_overlay = self.overlay;
+                self.help_context = help_context;
+                self.overlay = ActiveOverlay::Help;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn close_active_overlay(&mut self) {
+        if self.overlay == ActiveOverlay::Help {
+            self.overlay = self.help_return_overlay;
+            self.help_return_overlay = ActiveOverlay::None;
+            self.help_context = HelpContext::Global;
+        } else {
+            self.overlay = ActiveOverlay::None;
+        }
+    }
+
+    fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char(ch)
+                if self.planet_overlay.jump_input.len() < 16
+                    && table_selection::is_coordinate_input_char(ch) =>
+            {
+                self.planet_overlay.jump_input.push(ch);
+                if self.sync_planet_overlay_cursor_to_input() {
+                    self.planet_overlay.jump_input.clear();
+                }
+            }
+            KeyCode::Backspace => {
+                self.planet_overlay.jump_input.pop();
+            }
+            _ => handle_list_overlay_key(key, &mut self.planet_overlay, 1_000),
+        }
+    }
+
+    fn handle_fleet_overlay_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char(ch)
+                if self.fleet_overlay.jump_input.len() < 8 && ch.is_ascii_alphanumeric() =>
+            {
+                self.fleet_overlay.jump_input.push(ch);
+                if self.sync_fleet_overlay_cursor_to_input() {
+                    self.fleet_overlay.jump_input.clear();
+                }
+            }
+            KeyCode::Backspace => {
+                self.fleet_overlay.jump_input.pop();
+            }
+            _ => handle_list_overlay_key(key, &mut self.fleet_overlay, 1_000),
+        }
+    }
+
+    fn handle_intel_overlay_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char(ch)
+                if self.intel_overlay.jump_input.len() < 16
+                    && table_selection::is_coordinate_input_char(ch) =>
+            {
+                self.intel_overlay.jump_input.push(ch);
+                if self.sync_intel_overlay_cursor_to_input() {
+                    self.intel_overlay.jump_input.clear();
+                }
+            }
+            KeyCode::Backspace => {
+                self.intel_overlay.jump_input.pop();
+            }
+            _ => handle_list_overlay_key(key, &mut self.intel_overlay, 10_000),
+        }
+    }
+
+    fn sync_planet_overlay_cursor_to_input(&mut self) -> bool {
+        let rows = planet_list::selection_rows(self);
+        let Some(matched) =
+            table_selection::find_typed_jump(&rows, 0, &self.planet_overlay.jump_input)
+        else {
+            return false;
+        };
+        self.planet_overlay.selected = matched.index;
+        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, matched.index, 1_000);
+        matched.is_terminal_exact_match
+    }
+
+    fn sync_fleet_overlay_cursor_to_input(&mut self) -> bool {
+        let rows = fleet_list::selection_rows(self);
+        let Some(matched) =
+            table_selection::find_typed_jump(&rows, 0, &self.fleet_overlay.jump_input)
+        else {
+            return false;
+        };
+        self.fleet_overlay.selected = matched.index;
+        sync_scroll_to_cursor(&mut self.fleet_overlay.scroll, matched.index, 1_000);
+        matched.is_terminal_exact_match
+    }
+
+    fn sync_intel_overlay_cursor_to_input(&mut self) -> bool {
+        let rows = intel_database::selection_rows(self);
+        let Some(matched) =
+            table_selection::find_typed_jump(&rows, 0, &self.intel_overlay.jump_input)
+        else {
+            return false;
+        };
+        self.intel_overlay.selected = matched.index;
+        sync_scroll_to_cursor(&mut self.intel_overlay.scroll, matched.index, 10_000);
+        matched.is_terminal_exact_match
     }
 
     fn handle_inbox_overlay_key(&mut self, key: KeyEvent) {
@@ -195,114 +323,119 @@ impl DashApp {
             return;
         }
 
-        let state = &mut self.inbox_overlay;
         match key.code {
             KeyCode::Tab => {
-                state.focus = match state.focus {
+                self.inbox_overlay.focus = match self.inbox_overlay.focus {
                     state::InboxFocus::List => state::InboxFocus::Preview,
                     state::InboxFocus::Preview => state::InboxFocus::List,
                 };
             }
             KeyCode::Char('a') | KeyCode::Char('A') => {
-                state.filter = state::InboxFilter::All;
-                state.selected = 0;
-                state.scroll = 0;
+                self.inbox_overlay.filter = state::InboxFilter::All;
+                self.inbox_overlay.selected = 0;
+                self.inbox_overlay.scroll = 0;
             }
             KeyCode::Char('r') | KeyCode::Char('R') => {
-                state.filter = state::InboxFilter::Reports;
-                state.selected = 0;
-                state.scroll = 0;
+                self.inbox_overlay.filter = state::InboxFilter::Reports;
+                self.inbox_overlay.selected = 0;
+                self.inbox_overlay.scroll = 0;
             }
             KeyCode::Char('m') | KeyCode::Char('M') => {
-                state.filter = state::InboxFilter::Messages;
-                state.selected = 0;
-                state.scroll = 0;
+                self.inbox_overlay.filter = state::InboxFilter::Messages;
+                self.inbox_overlay.selected = 0;
+                self.inbox_overlay.scroll = 0;
             }
             KeyCode::Char('y') | KeyCode::Char('Y') => {
-                state.current_year_only = !state.current_year_only;
-                state.selected = 0;
-                state.scroll = 0;
+                self.inbox_overlay.current_year_only = !self.inbox_overlay.current_year_only;
+                self.inbox_overlay.selected = 0;
+                self.inbox_overlay.scroll = 0;
             }
             KeyCode::Char('d') | KeyCode::Char('D') => {
-                state.delete_confirm = true;
+                self.inbox_overlay.delete_confirm = true;
             }
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                state.jump_input.push(ch);
-                if let Ok(index) = state.jump_input.parse::<usize>() {
-                    if index > 0 {
-                        state.selected = index - 1;
-                        if state.selected < state.scroll {
-                            state.scroll = state.selected;
-                        }
-                    }
+                self.inbox_overlay.jump_input.push(ch);
+                if self.sync_inbox_overlay_cursor_to_input() {
+                    self.inbox_overlay.jump_input.clear();
                 }
             }
             KeyCode::Backspace => {
-                state.jump_input.pop();
+                self.inbox_overlay.jump_input.pop();
             }
-            KeyCode::Up | KeyCode::Char('k') => match state.focus {
+            KeyCode::Up | KeyCode::Char('k') => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    state.selected = state.selected.saturating_sub(1);
-                    if state.selected < state.scroll {
-                        state.scroll = state.selected;
+                    self.inbox_overlay.selected = self.inbox_overlay.selected.saturating_sub(1);
+                    if self.inbox_overlay.selected < self.inbox_overlay.scroll {
+                        self.inbox_overlay.scroll = self.inbox_overlay.selected;
                     }
                 }
                 state::InboxFocus::Preview => {
-                    state.preview_scroll = state.preview_scroll.saturating_sub(1);
+                    self.inbox_overlay.preview_scroll =
+                        self.inbox_overlay.preview_scroll.saturating_sub(1);
                 }
             },
-            KeyCode::Down | KeyCode::Char('j') => match state.focus {
+            KeyCode::Down | KeyCode::Char('j') => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    state.selected += 1;
+                    self.inbox_overlay.selected += 1;
                 }
                 state::InboxFocus::Preview => {
-                    state.preview_scroll += 1;
+                    self.inbox_overlay.preview_scroll += 1;
                 }
             },
-            KeyCode::PageUp => match state.focus {
+            KeyCode::PageUp => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    state.selected = state.selected.saturating_sub(10);
-                    state.scroll = state.scroll.saturating_sub(10);
+                    self.inbox_overlay.selected = self.inbox_overlay.selected.saturating_sub(10);
+                    self.inbox_overlay.scroll = self.inbox_overlay.scroll.saturating_sub(10);
                 }
                 state::InboxFocus::Preview => {
-                    state.preview_scroll = state.preview_scroll.saturating_sub(10);
+                    self.inbox_overlay.preview_scroll =
+                        self.inbox_overlay.preview_scroll.saturating_sub(10);
                 }
             },
-            KeyCode::PageDown => match state.focus {
+            KeyCode::PageDown => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    state.selected += 10;
+                    self.inbox_overlay.selected += 10;
                 }
                 state::InboxFocus::Preview => {
-                    state.preview_scroll += 10;
+                    self.inbox_overlay.preview_scroll += 10;
                 }
             },
-            KeyCode::Home => match state.focus {
+            KeyCode::Home => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    state.selected = 0;
-                    state.scroll = 0;
+                    self.inbox_overlay.selected = 0;
+                    self.inbox_overlay.scroll = 0;
                 }
                 state::InboxFocus::Preview => {
-                    state.preview_scroll = 0;
+                    self.inbox_overlay.preview_scroll = 0;
                 }
             },
             KeyCode::End => {
-                if matches!(state.focus, state::InboxFocus::List) {
-                    state.selected = usize::MAX / 4;
-                    state.scroll = state.selected.saturating_sub(5);
+                if matches!(self.inbox_overlay.focus, state::InboxFocus::List) {
+                    self.inbox_overlay.selected = usize::MAX / 4;
+                    self.inbox_overlay.scroll = self.inbox_overlay.selected.saturating_sub(5);
                 } else {
-                    state.preview_scroll = usize::MAX / 4;
+                    self.inbox_overlay.preview_scroll = usize::MAX / 4;
                 }
             }
             _ => {}
         }
     }
+
+    fn sync_inbox_overlay_cursor_to_input(&mut self) -> bool {
+        let rows = inbox::selection_rows(self);
+        let Some(matched) =
+            table_selection::find_typed_jump(&rows, 0, &self.inbox_overlay.jump_input)
+        else {
+            return false;
+        };
+        self.inbox_overlay.selected = matched.index;
+        sync_scroll_to_cursor(&mut self.inbox_overlay.scroll, matched.index, 10);
+        self.inbox_overlay.preview_scroll = 0;
+        matched.is_terminal_exact_match
+    }
 }
 
-fn handle_list_overlay_key(
-    key: KeyEvent,
-    state: &mut state::ListOverlayState,
-    end_marker: usize,
-) {
+fn handle_list_overlay_key(key: KeyEvent, state: &mut state::ListOverlayState, end_marker: usize) {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
             state.selected = state.selected.saturating_sub(1);
@@ -329,6 +462,14 @@ fn handle_list_overlay_key(
             state.scroll = end_marker.saturating_sub(10);
         }
         _ => {}
+    }
+}
+
+fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize) {
+    if cursor < *scroll_offset {
+        *scroll_offset = cursor;
+    } else if cursor >= scroll_offset.saturating_add(visible) {
+        *scroll_offset = cursor + 1 - visible;
     }
 }
 

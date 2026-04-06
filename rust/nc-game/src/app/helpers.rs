@@ -23,7 +23,7 @@ pub(crate) fn center_scroll_to_cursor(
 }
 
 pub(crate) fn is_coordinate_input_char(ch: char) -> bool {
-    ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']' | '{' | '}')
+    nc_ui::table_selection::is_coordinate_input_char(ch)
 }
 
 pub(crate) fn resolve_default_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {

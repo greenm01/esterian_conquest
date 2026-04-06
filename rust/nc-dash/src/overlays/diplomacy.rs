@@ -1,6 +1,7 @@
 //! D overlay: centered diplomacy and leaderboard table.
 
 use nc_ui::PlayfieldBuffer;
+use nc_ui::table::{TableFooter, draw_scrollbar_at};
 
 use crate::app::state::DashApp;
 use crate::diplomacy_view::{
@@ -9,7 +10,7 @@ use crate::diplomacy_view::{
 use crate::overlays::frame::{draw_hline, draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-const FOOTER: &str = "COMMAND <- ? J K ^U ^D D S I <Q> ->";
+const HOTKEYS: &str = "? J K ^U ^D D S I <Q>";
 const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
@@ -44,13 +45,18 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| b.production.cmp(&a.production));
     let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(8));
-    let body_width = HEADER.chars().count();
+    let body_width = HEADER.chars().count() + 1;
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: None,
+        input: "",
+    };
     let frame = draw_overlay_frame_for_body(
         buf,
         "DIPLOMACY",
         body_width,
         desired_visible_rows + 2,
-        FOOTER,
+        footer,
     );
 
     write_clipped(
@@ -94,12 +100,22 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             buf,
             row,
             frame.body_col,
-            frame.body_width,
+            frame.body_width.saturating_sub(1),
             absolute_idx + 1,
             row_data,
             row_style,
         );
     }
+
+    draw_scrollbar_at(
+        buf,
+        list_start,
+        frame.body_col + frame.body_width.saturating_sub(1),
+        max_rows,
+        rows.len(),
+        scroll,
+        theme::table_theme(),
+    );
 }
 
 #[derive(Debug, Clone)]

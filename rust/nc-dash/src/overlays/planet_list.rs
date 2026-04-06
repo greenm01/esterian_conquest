@@ -1,20 +1,19 @@
 //! P overlay: dashboard-sized planet management table.
 
 use nc_data::{
-    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta,
-    yearly_tax_revenue,
+    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
 };
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{
-    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns, table_render_width,
-    write_stacked_table_window_with_theme_at,
+    TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    table_render_width, write_stacked_table_window_with_theme_at,
 };
 
 use crate::app::state::DashApp;
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-const FOOTER: &str = "COMMAND <- ? J K ^U ^D B A C L U X S I T <Q> ->";
+pub(crate) const HOTKEYS: &str = "? J K ^U ^D B A C L U X S I T <Q>";
 const TOP_HEADERS: [&str; 12] = [
     "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
 ];
@@ -34,42 +33,18 @@ const COLUMNS: [TableColumn<'static>; 12] = [
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let owner_slot = app.player_record_index_1_based as u8;
-    let player_tax_rate = app
-        .game_data
-        .player
-        .records
-        .get(app.player_record_index_1_based.saturating_sub(1))
-        .map(|player| player.tax_rate())
-        .unwrap_or(0);
-    let planets = app
-        .game_data
-        .planets
-        .records
-        .iter()
-        .filter(|planet| planet.owner_empire_slot_raw() == owner_slot)
-        .collect::<Vec<_>>();
-
-    let starbase_coords = app
-        .game_data
-        .bases
-        .records
-        .iter()
-        .filter(|base| base.owner_empire_raw() == owner_slot && base.active_flag_raw() != 0)
-        .map(|base| base.coords_raw())
-        .collect::<std::collections::BTreeSet<_>>();
-
-    let rows = planets
-        .iter()
-        .map(|planet| {
-            format_planet_row_cells(
-                planet,
-                starbase_coords.contains(&planet.coords_raw()),
-                player_tax_rate,
-            )
-        })
-        .collect::<Vec<_>>();
-    let desired_visible_rows = planets.len().clamp(1, buf.height().saturating_sub(11));
+    let rows = table_rows(app);
+    let selected = app.planet_overlay.selected.min(rows.len().saturating_sub(1));
+    let selected_default = rows
+        .get(selected)
+        .and_then(|row| row.first())
+        .map(String::as_str);
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default,
+        input: &app.planet_overlay.jump_input,
+    };
+    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(11));
     let columns = resolve_table_columns(
         &COLUMNS,
         &rows,
@@ -77,21 +52,22 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         false,
         TableWidthMode::Compact,
     );
-    let body_width =
-        table_render_width(&columns).max("You do not currently control any planets.".chars().count() + 4);
+    let body_width = table_render_width(&columns)
+        .max("You do not currently control any planets.".chars().count() + 4);
     let frame = draw_overlay_frame_for_body(
         buf,
         "PLANET LIST",
         body_width,
         desired_visible_rows + 5,
-        FOOTER,
+        footer,
     );
-    let selected = app
-        .planet_overlay
-        .selected
-        .min(planets.len().saturating_sub(1));
     let visible_rows = frame.body_height.saturating_sub(5);
-    let scroll = clamp_scroll(app.planet_overlay.scroll, selected, visible_rows, planets.len());
+    let scroll = clamp_scroll(
+        app.planet_overlay.scroll,
+        selected,
+        visible_rows,
+        rows.len(),
+    );
     let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
     let metrics = write_stacked_table_window_with_theme_at(
         buf,
@@ -108,7 +84,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         None,
     );
 
-    if planets.is_empty() {
+    if rows.is_empty() {
         write_clipped(
             buf,
             metrics.bottom_row.saturating_sub(1),
@@ -118,6 +94,46 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             theme::dim_style(),
         );
     }
+}
+
+pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
+    table_rows(app)
+        .into_iter()
+        .filter_map(|row| row.first().cloned().map(|cell| vec![cell]))
+        .collect()
+}
+
+fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
+    let owner_slot = app.player_record_index_1_based as u8;
+    let player_tax_rate = app
+        .game_data
+        .player
+        .records
+        .get(app.player_record_index_1_based.saturating_sub(1))
+        .map(|player| player.tax_rate())
+        .unwrap_or(0);
+    let starbase_coords = app
+        .game_data
+        .bases
+        .records
+        .iter()
+        .filter(|base| base.owner_empire_raw() == owner_slot && base.active_flag_raw() != 0)
+        .map(|base| base.coords_raw())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    app.game_data
+        .planets
+        .records
+        .iter()
+        .filter(|planet| planet.owner_empire_slot_raw() == owner_slot)
+        .map(|planet| {
+            format_planet_row_cells(
+                planet,
+                starbase_coords.contains(&planet.coords_raw()),
+                player_tax_rate,
+            )
+        })
+        .collect()
 }
 
 fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {

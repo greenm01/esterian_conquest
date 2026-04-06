@@ -5,18 +5,16 @@ use std::collections::BTreeMap;
 use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{
-    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns, table_render_width,
-    write_stacked_table_window_with_theme_at,
+    TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    table_render_width, write_stacked_table_window_with_theme_at,
 };
 
 use crate::app::state::DashApp;
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-const FOOTER: &str = "COMMAND <- ? J K ^U ^D S I <Q> ->";
-const TOP_HEADERS: [&str; 11] = [
-    "Coord", "", "", "", "", "", "", "", "Curr", "", "",
-];
+pub(crate) const HOTKEYS: &str = "? J K ^U ^D S I <Q>";
+const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
 const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
     TableColumn::left("Planet Name", 11),
@@ -32,25 +30,17 @@ const COLUMNS: [TableColumn<'static>; 11] = [
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let snapshot_map = app
-        .planet_intel_snapshots
-        .iter()
-        .cloned()
-        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-        .collect::<BTreeMap<_, _>>();
-    let projection = build_player_starmap_projection_from_snapshots(
-        &app.game_data,
-        &snapshot_map,
-        app.player_record_index_1_based as u8,
-    );
-    let rows = projection
-        .worlds
-        .iter()
-        .map(|world| {
-            let snapshot = snapshot_map.get(&world.planet_record_index_1_based);
-            format_intel_row(app, world, snapshot)
-        })
-        .collect::<Vec<_>>();
+    let rows = table_rows(app);
+    let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
+    let selected_default = rows
+        .get(selected)
+        .and_then(|row| row.first())
+        .map(String::as_str);
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default,
+        input: &app.intel_overlay.jump_input,
+    };
     let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(11));
     let columns = resolve_table_columns(
         &COLUMNS,
@@ -59,16 +49,16 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         false,
         TableWidthMode::Compact,
     );
-    let body_width = table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
+    let body_width =
+        table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
     let frame = draw_overlay_frame_for_body(
         buf,
         "TOTAL PLANET DATABASE",
         body_width,
         desired_visible_rows + 5,
-        FOOTER,
+        footer,
     );
     let visible_rows = frame.body_height.saturating_sub(5);
-    let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
     let scroll = clamp_scroll(app.intel_overlay.scroll, selected, visible_rows, rows.len());
     let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
     let metrics = write_stacked_table_window_with_theme_at(
@@ -96,6 +86,35 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             theme::dim_style(),
         );
     }
+}
+
+pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
+    table_rows(app)
+        .into_iter()
+        .filter_map(|row| row.first().cloned().map(|cell| vec![cell]))
+        .collect()
+}
+
+fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
+    let snapshot_map = app
+        .planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>();
+    let projection = build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        &snapshot_map,
+        app.player_record_index_1_based as u8,
+    );
+    projection
+        .worlds
+        .iter()
+        .map(|world| {
+            let snapshot = snapshot_map.get(&world.planet_record_index_1_based);
+            format_intel_row(app, world, snapshot)
+        })
+        .collect()
 }
 
 fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {

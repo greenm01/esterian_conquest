@@ -2,6 +2,7 @@
 
 use crate::app::state::ActiveOverlay;
 use nc_ui::modal::{ModalTheme, draw_modal_frame};
+use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::theme;
@@ -43,7 +44,7 @@ pub fn draw_overlay_frame(
     title: &str,
     preferred_width: usize,
     preferred_height: usize,
-    footer: &str,
+    footer: TableFooter<'_>,
 ) -> OverlayFrame {
     let popup = draw_modal_frame(
         buf,
@@ -69,14 +70,12 @@ pub fn draw_overlay_frame(
     }
     buf.set_cell(divider_row, inner_left.saturating_sub(1), '├', chrome);
     buf.set_cell(divider_row, inner_right + 1, '┤', chrome);
-    write_strict_span(
+    draw_table_footer_in_span(
         buf,
         footer_row,
         popup.x as usize + 2,
         popup.width.saturating_sub(4) as usize,
         footer,
-        theme::footer_style(),
-        "overlay footer",
     );
 
     OverlayFrame {
@@ -93,10 +92,10 @@ pub fn draw_overlay_frame_for_body(
     title: &str,
     body_width: usize,
     body_height: usize,
-    footer: &str,
+    footer: TableFooter<'_>,
 ) -> OverlayFrame {
     let preferred_width =
-        (body_width.max(footer.chars().count()) + 4).max(title.chars().count() + 6);
+        (body_width.max(table_footer_scaffold_width(footer)) + 4).max(title.chars().count() + 6);
     let preferred_height = body_height + 4;
     draw_overlay_frame(buf, title, preferred_width, preferred_height, footer)
 }
@@ -113,7 +112,11 @@ mod tests {
             "PLANET LIST",
             80,
             20,
-            "COMMAND <- ? J K <Q> ->",
+            TableFooter::CommandBar {
+                hotkeys_markup: "? J K <Q>",
+                default: None,
+                input: "",
+            },
         );
 
         assert!(frame.footer_row < buffer.height());
@@ -134,7 +137,11 @@ mod tests {
             "FLEET LIST",
             72,
             14,
-            "COMMAND <- ? J K ^U ^D O C M T I <Q> ->",
+            TableFooter::CommandBar {
+                hotkeys_markup: "? J K ^U ^D O C M T I <Q>",
+                default: None,
+                input: "",
+            },
         );
 
         assert_eq!(frame.body_width, 72);
@@ -142,15 +149,25 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "overlay footer overruns its widget span")]
-    fn overlay_footer_panics_when_it_overruns_modal_footer_row() {
+    fn overlay_footer_renders_inside_modal_footer_row() {
         let mut buffer = PlayfieldBuffer::new(40, 20, theme::body_style());
-        let _ = draw_overlay_frame(
+        let frame = draw_overlay_frame(
             &mut buffer,
             "TEST",
             18,
             8,
-            "COMMAND <- this footer is far too wide for the popup ->",
+            TableFooter::CommandBar {
+                hotkeys_markup: "? J K ^U ^D <Q>",
+                default: Some("12,03"),
+                input: "1",
+            },
+        );
+
+        assert!(buffer.plain_line(frame.footer_row).contains("COMMAND <- "));
+        assert!(
+            !buffer
+                .plain_line(frame.footer_row.saturating_sub(1))
+                .contains("COMMAND <- ")
         );
     }
 
@@ -205,39 +222,6 @@ pub fn write_clipped(
     }
     let clipped: String = text.chars().take(width).collect();
     buf.write_text_clipped(row, col, &clipped, style);
-}
-
-pub fn write_strict_span(
-    buf: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    width: usize,
-    text: &str,
-    style: CellStyle,
-    context: &str,
-) {
-    let text_width = text.chars().count();
-    assert!(
-        row < buf.height(),
-        "{context} row {row} is outside buffer height {}",
-        buf.height()
-    );
-    assert!(
-        col < buf.width(),
-        "{context} col {col} is outside buffer width {}",
-        buf.width()
-    );
-    assert!(
-        col + width <= buf.width(),
-        "{context} span overruns buffer width: end {} exceeds {}",
-        col + width,
-        buf.width()
-    );
-    assert!(
-        text_width <= width,
-        "{context} overruns its widget span: text width {text_width} exceeds allowed width {width}"
-    );
-    buf.write_text(row, col, text, style);
 }
 
 pub fn draw_hline(
