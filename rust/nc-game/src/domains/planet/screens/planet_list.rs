@@ -204,8 +204,8 @@ impl PlanetListScreen {
         } else {
             TableFooter::CommandBar {
                 hotkeys_markup: match mode {
-                    PlanetListMode::Brief => "? J K S B A C L U X <Q>",
-                    PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => "? J K S <Q>",
+                    PlanetListMode::Brief => "? S B A C L U X <Q>",
+                    PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => "? S <Q>",
                 },
                 default: Some(&default_coords),
                 input,
@@ -368,7 +368,7 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                 .to_string();
             [
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "? J K S B A C L U X <Q>",
+                    hotkeys_markup: "? S B A C L U X <Q>",
                     default: Some("00,00"),
                     input: "",
                 }),
@@ -420,7 +420,7 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
         }
         PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => [
             table_footer_scaffold_width(TableFooter::CommandBar {
-                hotkeys_markup: "? J K S <Q>",
+                hotkeys_markup: "? S <Q>",
                 default: Some("00,00"),
                 input: "",
             }),

@@ -237,7 +237,7 @@ fn reports_screen_themes_status_labels_and_highlights_focused_pane_border() {
     assert!(
         inbox_buffer
             .plain_line(24)
-            .contains("COMMAND <- ? J K ^U ^D")
+            .contains("COMMAND <- ? M R A Y D")
     );
     assert!(inbox_buffer.plain_line(24).contains("<Q> [01] ->"));
     assert!(inbox_buffer.plain_line(24).starts_with(" COMMAND <-"));

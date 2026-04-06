@@ -509,7 +509,7 @@ impl FleetListScreen {
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D O C E D M T L U <Q>",
+                hotkeys_markup: "? O C E D M T L U <Q>",
                 default: Some(&default_fleet_number),
                 input,
             }
@@ -1121,7 +1121,7 @@ impl FleetGroupScreen {
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D SPACE <Q>",
+                hotkeys_markup: "? SPACE <Q>",
                 default: None,
                 input: "",
             }
@@ -1496,7 +1496,7 @@ impl FleetMissionPickerScreen {
             .map(|option| option.code.to_string())
             .unwrap_or_else(|| "1".to_string());
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "? J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: Some(&default),
             input,
         };
@@ -1504,7 +1504,7 @@ impl FleetMissionPickerScreen {
             .iter()
             .map(|option| {
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "? J K ^U ^D <Q>",
+                    hotkeys_markup: "? <Q>",
                     default: Some(&option.code.to_string()),
                     input: "",
                 })

@@ -425,8 +425,8 @@ fn theme_picker_opens_from_main_menu_applies_selection_and_stays_open() {
         .find('┌')
         .expect("theme picker table col");
     assert_eq!(title_col, border_col + 1);
-    let command_line = line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q>");
-    assert!(command_line.contains("COMMAND <- ? J K ^U ^D <Q>"));
+    let command_line = line_containing(&terminal, "COMMAND <- ? <Q>");
+    assert!(command_line.contains("COMMAND <- ? <Q>"));
     let command_col = command_line
         .find("COMMAND")
         .expect("theme picker command col");

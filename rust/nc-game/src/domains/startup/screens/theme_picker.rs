@@ -72,7 +72,7 @@ impl ThemePickerScreen {
             .get(cursor.min(rows.len().saturating_sub(1)))
             .map(|row| row.display_name.as_str());
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "? J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: default_theme,
             input,
         };
@@ -80,7 +80,7 @@ impl ThemePickerScreen {
             .iter()
             .map(|row| {
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "? J K ^U ^D <Q>",
+                    hotkeys_markup: "? <Q>",
                     default: Some(row.display_name.as_str()),
                     input: "",
                 })

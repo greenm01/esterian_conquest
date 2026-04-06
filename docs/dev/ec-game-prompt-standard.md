@@ -44,6 +44,9 @@ Read it together with:
 - On classic primary menus, `H` is an implicit alias for the same popup help
   even when it is not repeated in the visible rail.
 - Command rails never list `ENTER`.
+- Command rails also do not list generic navigation keys such as `J/K`,
+  arrows, `^U/^D`, `PgUp/PgDn`, or map movement keys. Those belong in `?`
+  helper popups, not in the rail.
 
 ## Standard Grammar
 
@@ -205,8 +208,8 @@ COMMAND <- Delete how many Destroyers? <A>ll or 1-2 <Q> ->
 ```text
 MAIN COMMAND <- ? X V C G P F T I B D <Q> ->
 GENERAL COMMAND <- ? X V I A S P M C R D O E <Q> ->
-MAP COMMAND <- ? HJKL 1 2 3 4 6 7 8 9 <Q> ->
-COMMANDS <- J K ^U ^D <Q> [03,03] ->
+MAP COMMAND <- ? <Q> ->
+COMMANDS <- ? <Q> [03,03] ->
 ```
 
 This document does not change the prompt-replacement table rows described in

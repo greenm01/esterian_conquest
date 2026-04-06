@@ -2407,7 +2407,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
     assert!(buffer.plain_line(4).contains("DD"));
     assert_eq!(
         buffer.plain_line(6),
-        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [4] ->"
+        " COMMAND <- ? O C E D M T L U <Q> [4] ->"
     );
 }
 
@@ -2825,8 +2825,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal).expect("fleet list should render");
     assert!(terminal.line(4).contains("│ 4│"));
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [").trim_end(),
-        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [4] ->"
+        line_containing(&terminal, "COMMAND <- ? O C E D M T L U <Q> [").trim_end(),
+        " COMMAND <- ? O C E D M T L U <Q> [4] ->"
     );
 
     assert_eq!(
@@ -2837,8 +2837,8 @@ fn fleet_list_sorts_descending_and_typed_fleet_number_opens_review() {
     app.render(&mut terminal)
         .expect("fleet list should render typed fleet input");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [").trim_end(),
-        " COMMAND <- ? J K ^U ^D O C E D M T L U <Q> [1] ->"
+        line_containing(&terminal, "COMMAND <- ? O C E D M T L U <Q> [").trim_end(),
+        " COMMAND <- ? O C E D M T L U <Q> [1] ->"
     );
 
     assert_eq!(

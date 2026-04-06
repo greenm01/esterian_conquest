@@ -90,7 +90,7 @@ impl EnemiesScreen {
                 .map(String::as_str)
                 .unwrap_or("");
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D <Q>",
+                hotkeys_markup: "? <Q>",
                 default: Some(default_empire),
                 input,
             }

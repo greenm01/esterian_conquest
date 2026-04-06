@@ -135,7 +135,7 @@ impl PlanetDatabaseScreen {
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D F S <Q>",
+                hotkeys_markup: "? F S <Q>",
                 default: Some(&default),
                 input,
             }

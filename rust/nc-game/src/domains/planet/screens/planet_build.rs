@@ -389,7 +389,7 @@ impl PlanetBuildScreen {
                     delete_qty_input
                 )
             })
-            .unwrap_or_else(|| "J K ^U ^D D <Q> -> ".to_string());
+            .unwrap_or_else(|| "? D <Q> -> ".to_string());
         let footer = if confirming {
             TableFooter::CommandPrompt {
                 label: COMMAND_LABEL,
@@ -408,7 +408,7 @@ impl PlanetBuildScreen {
         } else {
             TableFooter::CommandPrompt {
                 label: COMMAND_LABEL,
-                prompt: "? J K ^U ^D D <Q> -> ",
+                prompt: "? D <Q> -> ",
             }
         };
         let columns = fit_table_columns_for_widget(
@@ -597,7 +597,7 @@ impl PlanetBuildScreen {
         } else {
             TableFooter::CommandPrompt {
                 label: COMMAND_LABEL,
-                prompt: "? J K ^U ^D <Q> -> ",
+                prompt: "? <Q> -> ",
             }
         };
         let columns = fit_table_columns_for_widget(

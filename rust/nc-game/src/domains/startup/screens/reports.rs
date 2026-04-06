@@ -167,7 +167,7 @@ impl ReportsScreen {
         match prompt_mode {
             InboxPromptMode::Normal => {
                 let prompt = format!(
-                    "? J K ^U ^D M R A Y D <TAB> <Q> [{}] -> ",
+                    "? M R A Y D <TAB> <Q> [{}] -> ",
                     selected_id_label(items, cursor)
                 );
                 draw_command_line_prompt_text_padded(

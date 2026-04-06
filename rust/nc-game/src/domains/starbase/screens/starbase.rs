@@ -291,7 +291,7 @@ impl StarbaseListScreen {
             })
             .collect::<Vec<_>>();
         let footer = TableFooter::CommandBar {
-            hotkeys_markup: "? J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: None,
             input: "",
         };
@@ -384,13 +384,13 @@ impl StarbaseReviewScreen {
             .unwrap_or_else(|| "1".to_string());
         let footer = if rows.is_empty() {
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D <Q>",
+                hotkeys_markup: "? <Q>",
                 default: None,
                 input: "",
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D <Q>",
+                hotkeys_markup: "? <Q>",
                 default: Some(&default_base),
                 input,
             }
@@ -399,7 +399,7 @@ impl StarbaseReviewScreen {
             .iter()
             .map(|row| {
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "? J K ^U ^D <Q>",
+                    hotkeys_markup: "? <Q>",
                     default: Some(&row.base_id.to_string()),
                     input: "",
                 })

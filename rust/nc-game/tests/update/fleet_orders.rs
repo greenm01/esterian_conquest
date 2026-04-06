@@ -32,7 +32,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         .expect("fleet group order screen should render");
     let top_border_line = line_containing(&terminal, "┌");
     let header_line = line_containing(&terminal, "│ID");
-    let command_line = line_containing(&terminal, "COMMAND <- ? J K ^U ^D SPACE <Q>");
+    let command_line = line_containing(&terminal, "COMMAND <- ? SPACE <Q>");
     let table_left = top_border_line
         .chars()
         .position(|ch| ch == '┌')
@@ -374,9 +374,9 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     );
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
-    let prompt = line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [");
+    let prompt = line_containing(&terminal, "COMMAND <- ? <Q> [");
     assert_eq!(prompt.find("COMMAND"), Some(left_padding + 1));
-    assert!(prompt.contains("COMMAND <- ? J K ^U ^D <Q> ["));
+    assert!(prompt.contains("COMMAND <- ? <Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -439,9 +439,9 @@ fn fleet_order_prompt_opens_mission_picker_and_q_returns_to_order_prompt() {
         terminal.line(0).find("FLEET MISSION ORDERS:"),
         Some(left_padding + 1)
     );
-    let prompt = line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q> [");
+    let prompt = line_containing(&terminal, "COMMAND <- ? <Q> [");
     assert_eq!(prompt.find("COMMAND"), Some(left_padding + 1));
-    assert!(prompt.contains("COMMAND <- ? J K ^U ^D <Q> ["));
+    assert!(prompt.contains("COMMAND <- ? <Q> ["));
     assert!(prompt.contains("->"));
 
     assert_eq!(
@@ -3203,7 +3203,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
-    assert!(line_containing(&terminal, "COMMAND <- ? J K ^U ^D <Q>").contains("COMMAND"));
+    assert!(line_containing(&terminal, "COMMAND <- ? <Q>").contains("COMMAND"));
     assert!(
         terminal
             .lines
@@ -4704,7 +4704,7 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group order should render normal command line");
-    assert!(line_containing(&terminal, "COMMAND <- ? J K ^U ^D SPACE <Q>").contains("COMMAND"));
+    assert!(line_containing(&terminal, "COMMAND <- ? SPACE <Q>").contains("COMMAND"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
         !terminal
@@ -4823,7 +4823,7 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet group join should return to normal command line");
-    assert!(line_containing(&terminal, "COMMAND <- ? J K ^U ^D SPACE <Q>").contains("COMMAND"));
+    assert!(line_containing(&terminal, "COMMAND <- ? SPACE <Q>").contains("COMMAND"));
     assert!(!terminal.lines.iter().any(|line| line.contains("Applied ")));
     assert!(
         !terminal

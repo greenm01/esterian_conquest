@@ -119,9 +119,9 @@ fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
     app.render(&mut terminal)
         .expect("planet brief list should render");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K S B A C L U X <Q>").trim(),
+        line_containing(&terminal, "COMMAND <- ? S B A C L U X <Q>").trim(),
         format!(
-            "COMMAND <- ? J K S B A C L U X <Q> [{:02},{:02}] ->",
+            "COMMAND <- ? S B A C L U X <Q> [{:02},{:02}] ->",
             target_coords[0], target_coords[1]
         )
     );
@@ -178,9 +178,9 @@ fn planet_database_terminal_typed_jump_clears_footer_input() {
     app.render(&mut terminal)
         .expect("planet database list should render");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? J K ^U ^D F S <Q>").trim(),
+        line_containing(&terminal, "COMMAND <- ? F S <Q>").trim(),
         format!(
-            "COMMAND <- ? J K ^U ^D F S <Q> [{:02},{:02}] ->",
+            "COMMAND <- ? F S <Q> [{:02},{:02}] ->",
             target_coords[0], target_coords[1]
         )
     );

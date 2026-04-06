@@ -1139,7 +1139,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
             .line(0)
             .contains("Type: All | Year: All | Focus: Inbox")
     );
-    assert!(terminal.line(24).contains("COMMAND <- ? J K ^U ^D M"));
+    assert!(terminal.line(24).contains("COMMAND <- ? M"));
     assert!(terminal.line(24).contains("<TAB>"));
     assert!(terminal.line(24).contains("<Q> [01] ->"));
     assert!(

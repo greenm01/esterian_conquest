@@ -119,7 +119,7 @@ fn scrollable_table_panics_when_border_would_consume_last_playfield_col() {
 fn centered_table_block_expands_to_match_command_footer_width() {
     let columns = [TableColumn::left("ID", 2), TableColumn::left("Name", 8)];
     let footer = TableFooter::CommandBar {
-        hotkeys_markup: "J K ^U ^D <Q>",
+        hotkeys_markup: "? <Q>",
         default: Some("02,02"),
         input: "",
     };
@@ -164,7 +164,7 @@ fn widget_minimum_width_ignores_live_footer_input() {
         TableWidthMode::Compact,
         Some("COLOR THEMES:"),
         Some(TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: Some("Matrix"),
             input: "",
         }),
@@ -177,7 +177,7 @@ fn widget_minimum_width_ignores_live_footer_input() {
         TableWidthMode::Compact,
         Some("COLOR THEMES:"),
         Some(TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: Some("Matrix"),
             input: "tokyonight",
         }),
@@ -203,7 +203,7 @@ fn widget_minimum_width_can_freeze_selection_driven_footer_defaults() {
         ],
     ];
     let footer_floor = table_footer_scaffold_width(TableFooter::CommandBar {
-        hotkeys_markup: "J K ^U ^D <Q>",
+        hotkeys_markup: "? <Q>",
         default: Some("Catppuccin Mocha"),
         input: "",
     });
@@ -215,7 +215,7 @@ fn widget_minimum_width_can_freeze_selection_driven_footer_defaults() {
         TableWidthMode::Compact,
         Some("COLOR THEMES:"),
         Some(TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: Some("Matrix"),
             input: "",
         }),
@@ -229,7 +229,7 @@ fn widget_minimum_width_can_freeze_selection_driven_footer_defaults() {
         TableWidthMode::Compact,
         Some("COLOR THEMES:"),
         Some(TableFooter::CommandBar {
-            hotkeys_markup: "J K ^U ^D <Q>",
+            hotkeys_markup: "? <Q>",
             default: Some("One Dark"),
             input: "",
         }),
@@ -897,7 +897,7 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
         .find(|row| {
             buffer
                 .plain_line(*row)
-                .contains("COMMAND <- ? J K ^U ^D D <Q>")
+                .contains("COMMAND <- ? D <Q>")
         })
         .expect("command row");
     let command_col = buffer
@@ -1008,7 +1008,7 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .find(|row| {
             buffer
                 .plain_line(*row)
-                .contains("COMMAND <- ? J K ^U ^D <Q>")
+                .contains("COMMAND <- ? <Q>")
         })
         .expect("command row");
     let command_col = buffer

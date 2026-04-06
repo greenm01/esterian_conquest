@@ -108,7 +108,7 @@ PLANET COMMAND:
 │(08,08) │New Carthage          │  61│  90│    40│  33│   +2│     6│ Y│  5│  2│
 │(10,12) │Haven                 │  18│  60│     4│   9│   +5│     0│ N│  1│  0│
 └────────┴──────────────────────┴────┴────┴──────┴────┴─────┴──────┴──┴───┴───┘
-COMMANDS <- J K S <Q> [03,03] ->
+COMMANDS <- ? S <Q> [03,03] ->
 ```
 
 ## Command Bar Grammar
@@ -136,6 +136,8 @@ Rules:
   detail view
 - entering a valid coordinate opens that target’s detail view
 - quitting from that detail view returns to the originating table
+- generic navigation keys are implied and stay out of the command rail; `?`
+  helper popups document movement and paging instead
 
 ### Prompt-replacement mode
 

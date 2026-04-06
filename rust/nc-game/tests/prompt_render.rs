@@ -394,11 +394,11 @@ fn draw_command_prompt_places_cursor_after_arrow_space() {
 #[test]
 fn draw_command_prompt_at_col_offsets_label_keys_and_cursor_together() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt_at_col(&mut buffer, COMMAND_LINE_ROW, 9, "MAP COMMAND", "HJKL <Q>");
+    draw_command_prompt_at_col(&mut buffer, COMMAND_LINE_ROW, 9, "MAP COMMAND", "? <Q>");
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     let label_col = find_in_row(&buffer, COMMAND_LINE_ROW, "MAP COMMAND");
-    let keys_col = find_in_row(&buffer, COMMAND_LINE_ROW, "HJKL <Q>");
+    let keys_col = find_in_row(&buffer, COMMAND_LINE_ROW, "? <Q>");
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
 
     assert_eq!(label_col, 9);
