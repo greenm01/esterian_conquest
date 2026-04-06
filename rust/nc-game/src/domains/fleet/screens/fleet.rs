@@ -309,7 +309,7 @@ impl FleetMenuScreen {
             ROW_4.as_slice(),
         ]
         .into_iter()
-            .enumerate()
+        .enumerate()
         {
             buffer.fill_row(PRIMARY_MENU_ROW + row_idx + 1, classic::menu_style());
             for entry in row {

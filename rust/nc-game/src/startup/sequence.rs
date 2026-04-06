@@ -3,8 +3,8 @@ use crate::reports::ReportsPreview;
 
 // StartupPhase and StartupSequence now live in nc-session.
 // Re-export for backward compatibility within nc-game.
-pub use nc_session::startup::{StartupPhase, StartupSequence};
 use nc_session::startup::StartupSummary as SharedStartupSummary;
+pub use nc_session::startup::{StartupPhase, StartupSequence};
 
 /// nc-game's extended startup summary that includes game-specific login state.
 #[derive(Debug, Clone, PartialEq, Eq)]

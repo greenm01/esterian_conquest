@@ -625,7 +625,7 @@ impl App {
                     .max()
                     .unwrap_or(fleet.local_slot_word_raw());
                 format!(
-                    "Commissioned selected ships into Fleet {}.",
+                    "Fleet {} Commissioned",
                     format_fleet_number(fleet.local_slot_word_raw(), max_fleet_number)
                 )
             }
@@ -1489,7 +1489,7 @@ impl App {
             .max()
             .unwrap_or(fleet.local_slot_word_raw());
         Ok(format!(
-            "Commissioned selected ships into Fleet {}.",
+            "Fleet {} Commissioned",
             format_fleet_number(fleet.local_slot_word_raw(), max_fleet_number)
         ))
     }

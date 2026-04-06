@@ -527,6 +527,15 @@ impl App {
         );
     }
 
+    /// Close the ETA screen and return to the calling context (fleet list or menu).
+    pub fn close_fleet_eta(&mut self) {
+        self.fleet.eta_status = None;
+        self.fleet.eta_fleet_record_index_1_based = None;
+        self.fleet.eta_destination_input.clear();
+        self.fleet.eta_include_system_input.clear();
+        self.current_screen = self.fleet_context_screen();
+    }
+
     pub(crate) fn open_fleet_eta_with_selected_record(
         &mut self,
         fleet_record_index_1_based: usize,
@@ -1555,7 +1564,7 @@ impl App {
                 KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitEta),
                 KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceEtaInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::Fleet(FleetAction::OpenEta)
+                    crate::app::Action::Fleet(FleetAction::CloseEta)
                 }
                 KeyCode::Char(ch) if is_coordinate_input_char(ch) => {
                     crate::app::Action::Fleet(FleetAction::AppendEtaChar(ch))
@@ -1566,7 +1575,7 @@ impl App {
                 KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitEta),
                 KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceEtaInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::Fleet(FleetAction::OpenEta)
+                    crate::app::Action::Fleet(FleetAction::CloseEta)
                 }
                 KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
                     crate::app::Action::Fleet(FleetAction::AppendEtaChar(ch))

@@ -75,7 +75,6 @@ struct HostedLaunchContext {
     invite_code: Option<String>,
 }
 
-
 const LOOPBACK_DOOR_HOST: &str = "127.0.0.1";
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -966,7 +965,6 @@ fn session_lease_ttl_seconds(
         .or_else(|| game_config.idle_timeout_secs())
         .unwrap_or(120)
 }
-
 
 fn slug_from_dir(dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {
     let slug = dir

@@ -417,14 +417,25 @@ impl PlanetCommissionScreen {
             if rows.is_empty() { None } else { Some(cursor) },
             0,
         );
-        draw_table_footer(
-            &mut buffer,
-            geometry,
-            layout.command_col,
-            metrics.bottom_row,
-            footer,
-        );
-        let _ = (status, notice);
+        if let Some(notice_text) = notice {
+            // Override the footer with the commission notice + slap-a-key prompt.
+            let prompt = format!("(Slap a key) {}", notice_text);
+            crate::screen::layout::draw_plain_prompt_at_col(
+                &mut buffer,
+                crate::screen::layout::table_prompt_row_for(geometry, metrics.bottom_row),
+                layout.command_col,
+                &prompt,
+            );
+        } else {
+            draw_table_footer(
+                &mut buffer,
+                geometry,
+                layout.command_col,
+                metrics.bottom_row,
+                footer,
+            );
+        }
+        let _ = status;
         Ok(buffer)
     }
 

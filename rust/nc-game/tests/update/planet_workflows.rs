@@ -589,7 +589,7 @@ fn planet_commission_uses_draft_for_ships_and_direct_result_for_starbases() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("Notice: Commissioned selected ships into Fleet"))
+            .any(|line| line.contains("Fleet") && line.contains("Commissioned"))
     );
     assert!(
         terminal
@@ -965,8 +965,7 @@ fn planet_commission_result_latches_dismiss_key_until_release() {
     assert_eq!(app.current_screen(), ScreenId::PlanetCommissionPicker);
     app.current_screen = ScreenId::PlanetCommissionResult;
     app.planet.commission_result_return_to_picker = true;
-    app.planet.commission_result_notice =
-        Some("Commissioned selected ships into Fleet 02.".to_string());
+    app.planet.commission_result_notice = Some("Fleet 02 Commissioned".to_string());
 
     let dismiss_press = app.handle_key(key_with_kind(KeyCode::Enter, KeyEventKind::Press));
     assert_eq!(apply_action(&mut app, dismiss_press), AppOutcome::Continue);

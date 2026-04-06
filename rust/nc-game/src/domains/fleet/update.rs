@@ -17,6 +17,7 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenTransfer => app.open_fleet_transfer(),
         FleetAction::OpenDetach => app.open_fleet_detach(),
         FleetAction::OpenEta => app.open_fleet_eta(),
+        FleetAction::CloseEta => app.close_fleet_eta(),
         FleetAction::OpenTransportLoad => {
             app.open_fleet_transport_prompt(PlanetTransportMode::Load)
         }

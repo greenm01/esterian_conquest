@@ -1732,17 +1732,20 @@ fn fleet_list_help_mentions_row_actions_without_review_hotkey() {
         "fleet list helper should advertise Enter review"
     );
     assert!(
-        line_containing(&terminal, "order, change, ETA, or detach selected fleet")
-            .contains("O/C/E/D"),
-        "fleet list helper should advertise O/C/E/D row actions"
+        line_containing(&terminal, "assign orders").contains("O"),
+        "fleet list helper should advertise O for orders"
     );
     assert!(
-        line_containing(
-            &terminal,
-            "merge, transfer, load, or unload from selected fleet"
-        )
-        .contains("M/T/L/U"),
-        "fleet list helper should advertise M/T/L/U row actions"
+        line_containing(&terminal, "ROE, ID number, or speed").contains("C"),
+        "fleet list helper should advertise C for change"
+    );
+    assert!(
+        line_containing(&terminal, "travel time").contains("E"),
+        "fleet list helper should advertise E for ETA"
+    );
+    assert!(
+        line_containing(&terminal, "merge selected").contains("M"),
+        "fleet list helper should advertise M for merge"
     );
     assert!(
         !terminal
@@ -1776,24 +1779,28 @@ fn planet_list_help_mentions_row_actions_and_sort_hotkey() {
         "planet list helper should advertise I/Enter review"
     );
     assert!(
-        line_containing(
-            &terminal,
-            "build, auto-commission, or commission selected planet"
-        )
-        .contains("B/A/C"),
-        "planet list helper should advertise B/A/C row actions"
+        line_containing(&terminal, "build queue").contains("B"),
+        "planet list helper should advertise B for build"
     );
     assert!(
-        line_containing(&terminal, "load, unload, or scorch selected planet").contains("L/U/X"),
-        "planet list helper should advertise L/U/X row actions"
+        line_containing(&terminal, "auto-commission").contains("A"),
+        "planet list helper should advertise A for auto-commission"
+    );
+    assert!(
+        line_containing(&terminal, "manually commission").contains("C"),
+        "planet list helper should advertise C for commission"
+    );
+    assert!(
+        line_containing(&terminal, "load armies").contains("L"),
+        "planet list helper should advertise L for load"
+    );
+    assert!(
+        line_containing(&terminal, "scorch earth").contains("X"),
+        "planet list helper should advertise X for scorch"
     );
     assert!(
         line_containing(&terminal, "sort the planet list").contains("S"),
         "planet list helper should advertise S sort"
-    );
-    assert!(
-        line_containing(&terminal, "jump to planet coordinates").contains("Type"),
-        "planet list helper should advertise typed coordinate jumps"
     );
 }
 

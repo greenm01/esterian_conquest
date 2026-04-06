@@ -13,6 +13,7 @@ pub enum FleetAction {
     OpenTransfer,
     OpenDetach,
     OpenEta,
+    CloseEta,
     OpenTransportLoad,
     OpenTransportUnload,
     DismissMessage,

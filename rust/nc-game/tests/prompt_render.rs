@@ -838,7 +838,7 @@ fn commission_draft_renders_inline_notice_below_command_row() {
             0,
             "",
             None,
-            Some("Commissioned selected ships into Fleet 02."),
+            Some("Fleet 02 Commissioned"),
         )
         .expect("commission draft renders");
 
@@ -846,12 +846,13 @@ fn commission_draft_renders_inline_notice_below_command_row() {
         .find(|&row| row_text(&buffer, row).contains("┌"))
         .expect("table top row");
     let prompt_row = (0..buffer.height())
-        .find(|&row| row_text(&buffer, row).contains("COMMAND <- Qty for Battleships [03] <Q> ->"))
-        .expect("command row");
+        .find(|&row| row_text(&buffer, row).contains("(Slap a key) Fleet 02 Commissioned"))
+        .expect("notice row");
     assert_eq!(prompt_row, top_row + 6);
-    assert!((prompt_row + 1..buffer.height()).all(|row| {
-        !row_text(&buffer, row).contains("Commissioned selected ships into Fleet 02.")
-    }));
+    assert!(
+        (prompt_row + 1..buffer.height())
+            .all(|row| { !row_text(&buffer, row).contains("Fleet 02 Commissioned") })
+    );
 }
 
 #[test]
@@ -901,12 +902,12 @@ fn commission_result_renders_notice_with_dismiss_prompt() {
     let buffer = screen
         .render_result(
             "DRAFT COMMISSION FLEET: \"Aurora Prime\" IN SYSTEM [08,09]:",
-            "Commissioned selected ships into Fleet 02.",
+            "Fleet 02 Commissioned",
         )
         .expect("commission result renders");
 
     assert!(row_text(&buffer, 0).contains("DRAFT COMMISSION FLEET:"));
-    assert!(row_text(&buffer, 2).contains("Notice: Commissioned selected ships into Fleet 02."));
+    assert!(row_text(&buffer, 2).contains("Notice: Fleet 02 Commissioned"));
     assert!(row_text(&buffer, 3).trim().is_empty());
     assert_eq!(row_text(&buffer, 4).trim_end(), " (slap a key)");
 }
