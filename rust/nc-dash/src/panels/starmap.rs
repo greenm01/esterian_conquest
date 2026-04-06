@@ -1,84 +1,56 @@
 //! Center panel: sector grid, crosshair, axis labels, status line.
-//!
-//! Grid: 3-char-wide × 1-row-tall cells. Full map always visible.
-//! Red dashed crosshair at the cursor sector.
 
+use nc_data::{DiplomaticRelation, IntelTier, PlanetIntelSnapshot};
 use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
-use crate::layout::{LEFT_WIDTH, RIGHT_WIDTH, center_width};
+use crate::layout;
+use crate::layout::geometry::{CELL_WIDTH, ROW_LABEL_COLS};
 use crate::theme;
 
-const ROW_LABEL_COLS: usize = 3; // "18 " — 2 digits + space
-const CELL_WIDTH: usize = 3;     // 3 chars per sector
-
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let total_w = buf.width();
-    let total_h = buf.height();
-    let center_w = center_width(total_w);
-    let map_start_col = LEFT_WIDTH + 2; // +2 for left border + pad
+    let (ox, oy) = layout::frame_offset(app);
+    let map_start_col = layout::center_start_col(ox);
+    let right_div = layout::right_divider_col(app, ox);
 
-    let axis_row = 2;      // column number header row
-    let grid_start = 3;    // first grid row
+    let axis_row = oy + 2;
+    let grid_start = oy + 3;
 
-    // Number of map sectors visible horizontally.
-    let available_cols = center_w.saturating_sub(ROW_LABEL_COLS + 2); // +2 for borders
-    let map_cols = (available_cols / CELL_WIDTH).min(36).max(1);
-
-    // Number of map sectors visible vertically.
-    let available_rows = total_h.saturating_sub(grid_start + 3); // +3 for header/footer/status
-    let map_rows = available_rows.min(36).max(1);
+    let map_size = nc_data::map_size_for_player_count(
+        app.game_data.conquest.player_count(),
+    ) as usize;
 
     let player_empire = app.player_record_index_1_based as u8;
 
     // Column axis numbers.
-    for col_idx in 0..map_cols {
+    for col_idx in 0..map_size {
         let screen_col = map_start_col + ROW_LABEL_COLS + col_idx * CELL_WIDTH;
-        if screen_col + 1 < total_w {
-            let label = format!("{:02}", col_idx + 1);
-            buf.write_text(axis_row, screen_col, &label, theme::dim_style());
-        }
+        if screen_col + 2 >= right_div { break; }
+        buf.write_text(axis_row, screen_col, &format!("{:02}", col_idx + 1), theme::dim_style());
     }
 
-    // Grid rows — row 1 at bottom (map_rows at top).
-    for row_idx in 0..map_rows {
-        let row_y = (map_rows - row_idx) as u8;
+    // Grid rows — row_y descends: map_size at top, 1 at bottom.
+    for row_idx in 0..map_size {
+        let row_y = (map_size - row_idx) as u8;
         let screen_row = grid_start + row_idx;
-        if screen_row >= total_h.saturating_sub(2) {
-            break;
-        }
         let is_h_crosshair = row_y == app.crosshair_y;
 
-        // Row label.
-        let label = format!("{:02} ", row_y);
-        buf.write_text(screen_row, map_start_col, &label, theme::dim_style());
+        buf.write_text(screen_row, map_start_col, &format!("{:02} ", row_y), theme::dim_style());
 
-        // Grid cells.
-        for col_idx in 0..map_cols {
+        for col_idx in 0..map_size {
             let col_x = (col_idx + 1) as u8;
             let screen_col = map_start_col + ROW_LABEL_COLS + col_idx * CELL_WIDTH;
-            if screen_col + CELL_WIDTH > total_w.saturating_sub(RIGHT_WIDTH + 2) {
-                break;
-            }
+            if screen_col + CELL_WIDTH > right_div { break; }
             let is_v_crosshair = col_x == app.crosshair_x;
 
-            // Find what's at this sector.
-            let planet = app.game_data.planets.records.iter().find(|p| {
-                p.coords_raw() == [col_x, row_y] && p.owner_empire_slot_raw() != 0
-            });
+            let planet = planet_snapshot_at(app, [col_x, row_y]);
 
-            let (sym, base_style) = if let Some(p) = planet {
-                let owner = p.owner_empire_slot_raw();
-                if owner == player_empire {
-                    ('■', theme::friendly_style())
-                } else {
-                    ('●', theme::enemy_style())
-                }
+            let (sym, base_style) = if let Some(snapshot) = planet {
+                marker_for_snapshot(app, player_empire, snapshot)
             } else {
                 ('·', theme::dim_style())
             };
 
-            // Render cell with crosshair overlay.
             let (left, mid, right, cell_style) = if is_h_crosshair && is_v_crosshair {
                 (' ', sym, ' ', CellStyle::new(GameColor::BrightWhite, GameColor::BrightBlack, true))
             } else if is_h_crosshair {
@@ -90,33 +62,132 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             };
 
             buf.set_cell(screen_row, screen_col, left, cell_style);
-            buf.set_cell(screen_row, screen_col + 1, mid, if is_h_crosshair || is_v_crosshair { cell_style } else { base_style });
+            let mid_style = if is_h_crosshair || is_v_crosshair { cell_style } else { base_style };
+            buf.set_cell(screen_row, screen_col + 1, mid, mid_style);
             buf.set_cell(screen_row, screen_col + 2, right, cell_style);
         }
     }
 
     // Status line below grid.
-    let status_row = grid_start + map_rows;
-    if status_row < total_h.saturating_sub(1) {
-        // Find what's at the crosshair.
-        let cx = app.crosshair_x;
-        let cy = app.crosshair_y;
-        let planet_info = app.game_data.planets.records.iter().find(|p| {
-            p.coords_raw() == [cx, cy] && p.owner_empire_slot_raw() != 0
-        });
-        let status = if let Some(p) = planet_info {
-            let name = p.planet_name();
-            let prod = p.present_production_points().unwrap_or(0);
-            let armies = p.army_count_raw();
-            let batt = p.ground_batteries_raw();
-            format!(
-                " Sector ({:02},{:02}) {} — {} prod, {} AR, {} RB",
-                cx, cy, name, prod, armies, batt
-            )
-        } else {
-            format!(" Sector ({:02},{:02}) — empty", cx, cy)
-        };
-        let truncated: String = status.chars().take(center_w.saturating_sub(2)).collect();
-        buf.write_text(status_row, map_start_col, &truncated, theme::value_style());
+    let status_row = grid_start + map_size;
+    let cx = app.crosshair_x;
+    let cy = app.crosshair_y;
+    let status = if let Some(snapshot) = planet_snapshot_at(app, [cx, cy]) {
+        format_snapshot_status(app, [cx, cy], snapshot)
+    } else {
+        format!("Sector ({:02},{:02}) — uncharted", cx, cy)
+    };
+    let max_w = layout::center_width(app).saturating_sub(2);
+    let truncated: String = status.chars().take(max_w).collect();
+    buf.write_text_clipped(status_row, map_start_col + 1, &truncated, theme::value_style());
+}
+
+fn planet_snapshot_at(app: &DashApp, coords: [u8; 2]) -> Option<&PlanetIntelSnapshot> {
+    app.planet_intel_snapshots.iter().find(|snapshot| {
+        snapshot.intel_tier != IntelTier::Unknown
+            && app
+                .game_data
+                .planets
+                .records
+                .get(snapshot.planet_record_index_1_based.saturating_sub(1))
+                .map(|planet| planet.coords_raw() == coords)
+                .unwrap_or(false)
+    })
+}
+
+fn marker_for_snapshot(
+    app: &DashApp,
+    viewer_empire_id: u8,
+    snapshot: &PlanetIntelSnapshot,
+) -> (char, CellStyle) {
+    match snapshot.known_owner_empire_id {
+        Some(owner) if owner == viewer_empire_id => ('■', theme::friendly_style()),
+        Some(0) => ('○', theme::dim_style()),
+        Some(owner) => {
+            let is_icd = app
+                .game_data
+                .player
+                .records
+                .get(owner.saturating_sub(1) as usize)
+                .map(|player| player.is_civil_disorder_player())
+                .unwrap_or(false);
+            if is_icd {
+                ('◊', theme::icd_style())
+            } else {
+                let viewer = app
+                    .game_data
+                    .player
+                    .records
+                    .get(viewer_empire_id.saturating_sub(1) as usize);
+                let is_enemy = viewer
+                    .and_then(|viewer| viewer.diplomatic_relation_toward(owner))
+                    == Some(DiplomaticRelation::Enemy);
+                if is_enemy {
+                    ('●', theme::enemy_style())
+                } else {
+                    ('○', theme::label_style())
+                }
+            }
+        }
+        None => ('·', theme::dim_style()),
     }
+}
+
+fn format_snapshot_status(app: &DashApp, coords: [u8; 2], snapshot: &PlanetIntelSnapshot) -> String {
+    let owner = match snapshot.known_owner_empire_id {
+        Some(0) => String::from("Unowned"),
+        Some(owner) => app
+            .game_data
+            .player
+            .records
+            .get(owner.saturating_sub(1) as usize)
+            .map(|player| {
+                if player.is_civil_disorder_player() {
+                    String::from("ICD")
+                } else {
+                    format!("#{owner}")
+                }
+            })
+            .unwrap_or_else(|| format!("#{owner}")),
+        None => String::from("?"),
+    };
+    format!(
+        "Sector ({:02},{:02}) {} O:{} Pot:{} Seen:{} AR:{} GB:{} SB:{} Curr:{} Pts:{} Scout:{}",
+        coords[0],
+        coords[1],
+        snapshot.known_name.as_deref().unwrap_or("?"),
+        owner,
+        snapshot
+            .known_potential_production
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .seen_year
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .known_armies
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .known_ground_batteries
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .known_starbase_count
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .known_current_production
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .known_stored_points
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+        snapshot
+            .scout_year
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| String::from("?")),
+    )
 }

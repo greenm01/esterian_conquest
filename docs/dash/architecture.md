@@ -23,6 +23,11 @@ nc-engine ← shared: maintenance engine, combat, reports
 `nc-dash` produces its own binary. The sysop deploys `nc-game` for BBS
 doors and retro terminals, `nc-dash` for modern SSH or local play.
 
+`nc-dash` must not call into `nc-game`. The legacy crate is the UX and
+workflow reference only. Shared neutral rendering primitives belong in
+`nc-ui`; dashboard-specific overlays, prompts, and tables are implemented
+inside `nc-dash`.
+
 ## Rendering Model
 
 `nc-dash` uses the same `PlayfieldBuffer` + crossterm pipeline as `nc-game`.
@@ -82,6 +87,10 @@ Side panels get the full 20+ rows of vertical space alongside the grid —
 room for all economy, planet, fleet, diplomacy, and report data without
 scrolling in most games.
 
+The left and right side columns use internal horizontal separators between
+their stacked sections, and all panel text must clip before crossing a
+divider or the outer frame border.
+
 ### Header Bar
 
 - **Left:** "NOSTRIAN CONQUEST" branding.
@@ -99,6 +108,21 @@ Context-sensitive hotkey legend — shows available actions for the currently
 focused panel. No command-line input. All interaction is through keyboard
 shortcuts and panel navigation. The footer updates when focus changes
 between panels.
+
+## Overlay Windows
+
+Planet List, Fleet List, the Total Planet Database, the inbox, diplomacy,
+help, and settings open as centered modal work windows inside the fullscreen
+dashboard canvas:
+
+- centered with visible outer padding
+- boxed with proper borders and titles
+- command rails and prompts rendered inside the popup box
+- all table, preview, and prompt content clipped to the popup body
+
+These overlays should match `nc-game` behavior and command semantics where
+applicable, but they should use the extra dashboard real estate rather than
+the legacy 80×25 geometry.
 
 ### Left Column (20 chars)
 

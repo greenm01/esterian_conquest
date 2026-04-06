@@ -1,92 +1,117 @@
-//! F overlay: fullscreen fleet + starbase management table.
+//! F overlay: dashboard-sized fleet and starbase command table.
 
 use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::DashApp;
+use crate::overlays::frame::{draw_hline, draw_overlay_frame, write_clipped};
 use crate::panels::fleets::order_abbrev;
 use crate::theme;
 
+const FOOTER: &str = "COMMAND <- ? J K ^U ^D O C M T I <Q> ->";
+
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let w = buf.width();
-    let h = buf.height();
-    let col = 2;
+    let preferred_width = buf.width().saturating_sub(12).clamp(96, 138);
+    let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
+    let frame = draw_overlay_frame(buf, "FLEET LIST", preferred_width, preferred_height, FOOTER);
 
-    buf.fill_row(0, theme::header_style());
-    buf.write_text(0, col, "FLEET LIST", theme::title_style());
-    buf.fill_row(h.saturating_sub(1), theme::footer_style());
-    buf.write_text(
-        h.saturating_sub(1),
-        col,
-        "COMMAND <- ? J K ^U ^D O C M T <Q> ->",
-        theme::footer_style(),
+    write_clipped(
+        buf,
+        frame.body_row,
+        frame.body_col,
+        frame.body_width,
+        "Fleet Coords  Ord Spd ROE AR ETA  Ships / Forces",
+        theme::section_title_style(),
     );
-
-    let header_row = 1;
-    buf.fill_row(header_row, theme::section_title_style());
-    let hdr = format!(
-        " {:<5} {:>8} {:>4} {:>4} {:>4} {:>4} {:>4} {:>5}  {}",
-        "Fleet", "Coords", "Ord", "Spd", "ROE", "AR", "ETA", "Ships", ""
-    );
-    buf.write_text(header_row, col - 1, &hdr, theme::section_title_style());
-
-    let sep_row = 2;
-    for c in 0..w { buf.set_cell(sep_row, c, '─', theme::border_style()); }
+    draw_hline(buf, frame.body_row + 1, frame.body_col, frame.body_width, theme::border_style());
 
     let owner_slot = app.player_record_index_1_based as u8;
-    let mut row = sep_row + 1;
-    let max_rows = h.saturating_sub(sep_row + 3);
-    let mut shown = 0;
+    let mut rows = Vec::new();
 
     for fleet in &app.game_data.fleets.records {
         if fleet.owner_empire_raw() != owner_slot || !fleet.has_any_force() {
             continue;
         }
-        if shown < app.fleets_scroll {
-            shown += 1;
-            continue;
-        }
-        if shown >= max_rows + app.fleets_scroll {
-            break;
-        }
-
-        let num = fleet.local_slot_word_raw();
-        let coords = fleet.current_location_coords_raw();
-        let order = fleet.standing_order_kind();
-        let abbrev = order_abbrev(order);
-        let speed = fleet.current_speed();
-        let roe = fleet.rules_of_engagement();
-        let armies = fleet.army_count();
-        let ships = fleet.ship_composition_summary();
-
-        let line = format!(
-            " #{:<4} ({:02},{:02})  {:<2}  {:>3}  {:>3}  {:>3}  {:>3}  {}",
-            num, coords[0], coords[1], abbrev, speed, roe, armies, "—",
-            &ships[..ships.len().min(w.saturating_sub(50))]
-        );
-        buf.write_text(row, 0, &line, theme::value_style());
-        row += 1;
-        shown += 1;
+        rows.push((
+            false,
+            format!(
+                "#{:<3} ({:02},{:02}) {:>2} {:>3} {:>3} {:>2} {:>3}  {}",
+                fleet.local_slot_word_raw(),
+                fleet.current_location_coords_raw()[0],
+                fleet.current_location_coords_raw()[1],
+                order_abbrev(fleet.standing_order_kind()),
+                fleet.current_speed(),
+                fleet.rules_of_engagement(),
+                fleet.army_count(),
+                "—",
+                truncate(&fleet.ship_composition_summary(), frame.body_width.saturating_sub(35)),
+            ),
+        ));
     }
 
-    // Starbases.
     for base in &app.game_data.bases.records {
         if base.owner_empire_raw() != owner_slot || base.active_flag_raw() == 0 {
             continue;
         }
-        if shown < app.fleets_scroll { shown += 1; continue; }
-        if shown >= max_rows + app.fleets_scroll { break; }
+        rows.push((
+            true,
+            format!(
+                "SB{:<2} ({:02},{:02}) Gs   0   0  0  —    Starbase",
+                base.base_id_raw(),
+                base.coords_raw()[0],
+                base.coords_raw()[1],
+            ),
+        ));
+    }
 
-        let coords = base.coords_raw();
-        let line = format!(
-            " SB {:<3} ({:02},{:02})  Gs   0    0    0    —",
-            base.base_id_raw(), coords[0], coords[1]
+    let list_start = frame.body_row + 2;
+    let max_rows = frame.body_height.saturating_sub(2);
+    let selected = app
+        .fleet_overlay
+        .selected
+        .min(rows.len().saturating_sub(1));
+    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, max_rows, rows.len());
+
+    for (visible_idx, (is_base, line)) in rows.iter().skip(scroll).take(max_rows).enumerate() {
+        let row = list_start + visible_idx;
+        let absolute_idx = scroll + visible_idx;
+        let style = if absolute_idx == selected {
+            theme::alert_style()
+        } else if *is_base {
+            theme::friendly_style()
+        } else {
+            theme::value_style()
+        };
+        if absolute_idx == selected {
+            buf.fill_rect(row, frame.body_col, frame.body_width, 1, style);
+        }
+        write_clipped(buf, row, frame.body_col, frame.body_width, line, style);
+    }
+
+    if rows.is_empty() {
+        write_clipped(
+            buf,
+            list_start,
+            frame.body_col,
+            frame.body_width,
+            "You have no active fleets or starbases.",
+            theme::dim_style(),
         );
-        buf.write_text(row, 0, &line, theme::friendly_style());
-        row += 1;
-        shown += 1;
     }
+}
 
-    if shown == 0 {
-        buf.write_text(sep_row + 1, col, "(no fleets)", theme::dim_style());
+fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {
+    if max_rows == 0 || total_rows <= max_rows {
+        return 0;
     }
+    if selected < scroll {
+        return selected;
+    }
+    if selected >= scroll + max_rows {
+        return selected + 1 - max_rows;
+    }
+    scroll.min(total_rows.saturating_sub(max_rows))
+}
+
+fn truncate(value: &str, width: usize) -> String {
+    value.chars().take(width).collect()
 }

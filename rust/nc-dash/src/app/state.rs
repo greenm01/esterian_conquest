@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use nc_data::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
+use nc_data::{CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 
@@ -57,13 +57,73 @@ pub enum ActiveOverlay {
     Help,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxFocus {
+    List,
+    Preview,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboxFilter {
+    All,
+    Reports,
+    Messages,
+}
+
+impl InboxFilter {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::Reports => "Reports",
+            Self::Messages => "Messages",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ListOverlayState {
+    pub selected: usize,
+    pub scroll: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct InboxOverlayState {
+    pub selected: usize,
+    pub scroll: usize,
+    pub preview_scroll: usize,
+    pub focus: InboxFocus,
+    pub filter: InboxFilter,
+    pub current_year_only: bool,
+    pub delete_confirm: bool,
+    pub jump_input: String,
+}
+
+impl Default for InboxOverlayState {
+    fn default() -> Self {
+        Self {
+            selected: 0,
+            scroll: 0,
+            preview_scroll: 0,
+            focus: InboxFocus::List,
+            filter: InboxFilter::All,
+            current_year_only: false,
+            delete_confirm: false,
+            jump_input: String::new(),
+        }
+    }
+}
+
 /// Dashboard application state.
 pub struct DashApp {
     pub game_dir: PathBuf,
     pub game_data: CoreGameData,
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
+    pub planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
+    /// Full terminal dimensions (canvas).
     pub geometry: ScreenGeometry,
+    /// Dashboard frame dimensions (map + panels + borders).
+    pub frame: ScreenGeometry,
     pub player_record_index_1_based: usize,
 
     // Startup flow
@@ -85,6 +145,13 @@ pub struct DashApp {
     pub reports_scroll: usize,
     pub diplomacy_scroll: usize,
 
+    // Overlay-local state
+    pub planet_overlay: ListOverlayState,
+    pub fleet_overlay: ListOverlayState,
+    pub intel_overlay: ListOverlayState,
+    pub diplomacy_overlay: ListOverlayState,
+    pub inbox_overlay: InboxOverlayState,
+
     pub should_quit: bool,
 }
 
@@ -94,7 +161,9 @@ impl DashApp {
         game_data: CoreGameData,
         report_block_rows: Vec<ReportBlockRow>,
         queued_mail: Vec<QueuedPlayerMail>,
+        planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
         geometry: ScreenGeometry,
+        frame: ScreenGeometry,
         player_record_index_1_based: usize,
     ) -> Self {
         let startup_summary = StartupSummary {
@@ -111,7 +180,9 @@ impl DashApp {
             game_data,
             report_block_rows,
             queued_mail,
+            planet_intel_snapshots,
             geometry,
+            frame,
             player_record_index_1_based,
             startup_phase: StartupPhase::Complete,
             startup_sequence,
@@ -124,6 +195,11 @@ impl DashApp {
             fleets_scroll: 0,
             reports_scroll: 0,
             diplomacy_scroll: 0,
+            planet_overlay: ListOverlayState::default(),
+            fleet_overlay: ListOverlayState::default(),
+            intel_overlay: ListOverlayState::default(),
+            diplomacy_overlay: ListOverlayState::default(),
+            inbox_overlay: InboxOverlayState::default(),
             should_quit: false,
         }
     }

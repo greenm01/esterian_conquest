@@ -40,16 +40,23 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         std::process::exit(1);
     }
 
-    let geometry = layout::geometry::capped_geometry(cols as usize, rows as usize);
-
-    // Load game data.
+    // Load game data first so we know the map size.
     let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
     let state = campaign_store
         .load_latest_runtime_state()?
         .ok_or("No runtime snapshots found — run maintenance first.")?;
 
+    // Canvas = full terminal. Frame = sized to map + panels.
+    let geometry = ScreenGeometry::new(cols as usize, rows as usize);
+    let map_size = nc_data::map_size_for_player_count(
+        state.game_data.conquest.player_count(),
+    ) as usize;
+    let frame = layout::geometry::dashboard_geometry(map_size);
+
     // Default to player 1. Future: resolve from args/session.
     let player_record_index_1_based = 1;
+    let planet_intel_snapshots = campaign_store
+        .latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
 
     let color_mode = detect_color_mode();
     let mut terminal = StdoutTerminal::with_encoding_and_color_mode(OutputEncoding::Utf8, color_mode);
@@ -65,7 +72,9 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         state.game_data,
         state.report_block_rows,
         state.queued_mail,
+        planet_intel_snapshots,
         geometry,
+        frame,
         player_record_index_1_based,
         &mut terminal,
     );
@@ -83,7 +92,9 @@ fn run_dashboard(
     game_data: nc_data::CoreGameData,
     report_block_rows: Vec<nc_data::ReportBlockRow>,
     queued_mail: Vec<nc_data::QueuedPlayerMail>,
+    planet_intel_snapshots: Vec<nc_data::PlanetIntelSnapshot>,
     geometry: ScreenGeometry,
+    frame: ScreenGeometry,
     player_record_index_1_based: usize,
     terminal: &mut dyn nc_ui::Terminal,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -92,7 +103,9 @@ fn run_dashboard(
         game_data,
         report_block_rows,
         queued_mail,
+        planet_intel_snapshots,
         geometry,
+        frame,
         player_record_index_1_based,
     );
     app.run(terminal)

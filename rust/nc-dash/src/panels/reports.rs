@@ -1,64 +1,43 @@
-//! Right panel: unread counts (placeholder), scrollable report feed.
+//! Right panel: report feed summary.
 
 use nc_ui::PlayfieldBuffer;
-
 use crate::app::state::DashApp;
+use crate::layout;
 use crate::theme;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let right_col = buf.width().saturating_sub(crate::layout::RIGHT_WIDTH);
-    let col = right_col + 1;
-    let panel_width = crate::layout::RIGHT_WIDTH.saturating_sub(2);
-    let start_row = buf.height() / 2 + 2;
-    let start_row = start_row.max(18).min(buf.height().saturating_sub(5));
+    let (ox, oy) = layout::frame_offset(app);
+    let col = layout::right_content_col(app, ox);
+    let right_div = layout::right_divider_col(app, ox);
+    let panel_width = buf.width().saturating_sub(right_div + 3);
+    let footer_row = layout::section_footer_row(app, oy);
 
-    // Unread counts — placeholder until unread tracking is implemented.
+    // Place reports directly after diplomacy.
+    let start_row = layout::right_reports_title_row(app, oy);
+
     let report_count = app.report_block_rows.len();
     let msg_count = app.queued_mail.len();
-    buf.write_text(
-        start_row,
-        col,
+    layout::write_width_clipped(buf, start_row, col, panel_width,
         &format!("REPORTS ({R}R,{M}M)", R = report_count, M = msg_count),
-        theme::section_title_style(),
-    );
+        theme::section_title_style());
 
-    let max_rows = buf.height().saturating_sub(start_row + 1);
-
+    let max_rows = footer_row.saturating_sub(start_row + 1);
     let viewer = app.player_record_index_1_based as u8;
     let mut row = start_row + 1;
     let mut shown = 0;
 
-    // Show report blocks addressed to this player.
     for block in &app.report_block_rows {
-        if block.viewer_empire_id != 0 && block.viewer_empire_id != viewer {
-            continue;
-        }
-        if block.recipient_deleted {
-            continue;
-        }
+        if !block.is_visible_to_viewer(viewer) || block.recipient_deleted { continue; }
+        if shown < app.reports_scroll { shown += 1; continue; }
+        if row >= start_row + 1 + max_rows { break; }
 
-        if shown < app.reports_scroll {
-            shown += 1;
-            continue;
-        }
-        if shown >= max_rows.max(1) + app.reports_scroll {
-            break;
-        }
-
-        // Show first line of the report truncated to panel width.
-        let first_line = block
-            .decoded_text
-            .lines()
+        let first_line = block.decoded_text.lines()
             .find(|l: &&str| !l.trim().is_empty())
-            .unwrap_or("")
-            .trim();
-        let truncated: String = first_line.chars().take(panel_width.max(1)).collect();
-        buf.write_text(row, col, &format!(" {}", truncated), theme::value_style());
-        row += 1;
-        shown += 1;
+            .unwrap_or("").trim();
+        layout::write_width_clipped(buf, row, col, panel_width, &format!(" {}", first_line), theme::value_style());
+        row += 1; shown += 1;
     }
-
     if row == start_row + 1 {
-        buf.write_text(start_row + 1, col, " (no reports)", theme::dim_style());
+        layout::write_width_clipped(buf, start_row + 1, col, panel_width, " (no reports)", theme::dim_style());
     }
 }

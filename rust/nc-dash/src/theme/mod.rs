@@ -46,10 +46,6 @@ pub fn enemy_style() -> CellStyle {
     CellStyle::new(GameColor::Red, GameColor::Black, false)
 }
 
-pub fn neutral_style() -> CellStyle {
-    CellStyle::new(GameColor::BrightBlack, GameColor::Black, false)
-}
-
 pub fn friendly_style() -> CellStyle {
     CellStyle::new(GameColor::Green, GameColor::Black, false)
 }
