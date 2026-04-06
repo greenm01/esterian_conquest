@@ -9,8 +9,7 @@ use nc_data::{
 use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
-use crate::layout;
-use crate::layout::geometry::{CELL_WIDTH, ROW_LABEL_COLS};
+use crate::layout::{self, MapWidgetFrame};
 use crate::theme;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,14 +23,7 @@ pub(crate) enum StarmapMarkerKind {
     Unknown,
 }
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (ox, oy) = layout::frame_offset(app);
-    let map_start_col = layout::center_start_col(ox);
-    let right_div = layout::right_divider_col(app, ox);
-
-    let axis_row = oy + 2;
-    let grid_start = oy + 3;
-
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let map_size = nc_data::map_size_for_player_count(
         app.game_data.conquest.player_count(),
     ) as usize;
@@ -51,23 +43,30 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
 
     // Column axis numbers.
     for col_idx in 0..map_size {
-        let screen_col = map_start_col + ROW_LABEL_COLS + col_idx * CELL_WIDTH;
-        if screen_col + 2 >= right_div { break; }
-        buf.write_text(axis_row, screen_col, &format!("{:02}", col_idx + 1), theme::dim_style());
+        let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
+        if screen_col + 1 > frame.grid.last_col() { break; }
+        buf.write_text(frame.axis_row, screen_col, &format!("{:02}", col_idx + 1), theme::dim_style());
     }
 
     // Grid rows — row_y descends: map_size at top, 1 at bottom.
     for row_idx in 0..map_size {
         let row_y = (map_size - row_idx) as u8;
-        let screen_row = grid_start + row_idx;
+        let screen_row = frame.grid.row + row_idx;
         let is_h_crosshair = row_y == app.crosshair_y;
 
-        buf.write_text(screen_row, map_start_col, &format!("{:02} ", row_y), theme::dim_style());
+        layout::write_clipped(
+            buf,
+            screen_row,
+            frame.grid.col,
+            frame.row_label_cols,
+            &format!("{:02} ", row_y),
+            theme::dim_style(),
+        );
 
         for col_idx in 0..map_size {
             let col_x = (col_idx + 1) as u8;
-            let screen_col = map_start_col + ROW_LABEL_COLS + col_idx * CELL_WIDTH;
-            if screen_col + CELL_WIDTH > right_div { break; }
+            let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
+            if screen_col + frame.cell_width - 1 > frame.grid.last_col() { break; }
             let is_v_crosshair = col_x == app.crosshair_x;
 
             let planet = projection_world_at(&projection, [col_x, row_y]);
@@ -96,7 +95,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     }
 
     // Status line below grid.
-    let status_row = grid_start + map_size;
     let cx = app.crosshair_x;
     let cy = app.crosshair_y;
     let status = if let Some(world) = projection_world_at(&projection, [cx, cy]) {
@@ -104,9 +102,15 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     } else {
         format!("Sector ({:02},{:02}) — uncharted", cx, cy)
     };
-    let max_w = layout::center_width(app).saturating_sub(2);
-    let truncated: String = status.chars().take(max_w).collect();
-    buf.write_text_clipped(status_row, map_start_col + 1, &truncated, theme::value_style());
+    let max_w = frame.outer.width.saturating_sub(2);
+    layout::write_clipped(
+        buf,
+        frame.status_row,
+        frame.outer.col + 1,
+        max_w,
+        &status,
+        theme::value_style(),
+    );
 }
 
 fn projection_world_at(

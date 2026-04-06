@@ -1,103 +1,20 @@
 //! Three-column frame, border drawing, resize handling.
 
 pub mod geometry;
+pub mod widgets;
 
 use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 
 use crate::app::state::DashApp;
-use crate::layout::geometry::SIDE_PANEL_WIDTH;
 use crate::theme;
-
-/// Left content column width.
-pub const LEFT_WIDTH: usize = SIDE_PANEL_WIDTH;
-/// Right content column width.
-pub const RIGHT_WIDTH: usize = SIDE_PANEL_WIDTH;
-
-pub fn section_footer_row(app: &DashApp, oy: usize) -> usize {
-    oy + app.frame.height().saturating_sub(3)
-}
-
-pub fn left_economy_title_row(oy: usize) -> usize {
-    oy + 2
-}
-
-pub fn left_planets_title_row(oy: usize) -> usize {
-    oy + 8
-}
-
-pub fn left_fleets_title_row(app: &DashApp, oy: usize) -> usize {
-    (oy + app.frame.height() / 2 + 2).min(section_footer_row(app, oy).saturating_sub(4))
-}
-
-pub fn right_galaxy_title_row(oy: usize) -> usize {
-    oy + 2
-}
-
-pub fn right_diplomacy_title_row(oy: usize) -> usize {
-    oy + 9
-}
-
-pub fn right_reports_title_row(app: &DashApp, oy: usize) -> usize {
-    (oy + app.frame.height() / 2 + 2).min(section_footer_row(app, oy).saturating_sub(4))
-}
-
-pub fn left_panel_content_width() -> usize {
-    LEFT_WIDTH.saturating_sub(1)
-}
-
-pub fn right_panel_content_width() -> usize {
-    RIGHT_WIDTH.saturating_sub(1)
-}
-
-pub fn write_width_clipped(
-    buf: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    width: usize,
-    text: &str,
-    style: nc_ui::CellStyle,
-) {
-    if width == 0 {
-        return;
-    }
-    let clipped: String = text.chars().take(width).collect();
-    buf.write_text_clipped(row, col, &clipped, style);
-}
+pub use widgets::{
+    DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame, dashboard_widget_frames,
+    frame_offset_for, write_clipped, write_panel_body_line, write_panel_title,
+};
 
 /// Compute the (col, row) offset to center the frame in the canvas.
 pub fn frame_offset(app: &DashApp) -> (usize, usize) {
-    let cw = app.geometry.width();
-    let ch = app.geometry.height();
-    let fw = app.frame.width();
-    let fh = app.frame.height();
-    let ox = cw.saturating_sub(fw) / 2;
-    let oy = ch.saturating_sub(fh) / 2;
-    (ox, oy)
-}
-
-/// Column of the left vertical divider relative to frame origin.
-pub fn left_divider_col(ox: usize) -> usize {
-    ox + 1 + LEFT_WIDTH
-}
-
-/// Column of the right vertical divider relative to frame origin.
-pub fn right_divider_col(app: &DashApp, ox: usize) -> usize {
-    ox + app.frame.width().saturating_sub(1 + RIGHT_WIDTH)
-}
-
-/// First column of the center (map) area.
-pub fn center_start_col(ox: usize) -> usize {
-    ox + 1 + LEFT_WIDTH + 1
-}
-
-/// Usable width of the center area.
-pub fn center_width(app: &DashApp) -> usize {
-    app.frame.width().saturating_sub(2 + LEFT_WIDTH + 1 + 1 + RIGHT_WIDTH)
-}
-
-/// First column of the right panel content.
-pub fn right_content_col(app: &DashApp, ox: usize) -> usize {
-    right_divider_col(app, ox) + 1
+    frame_offset_for(app.geometry, app.frame)
 }
 
 /// Create a new PlayfieldBuffer at the full canvas size, filled with theme bg.
@@ -106,18 +23,21 @@ pub fn new_dashboard_buffer(geometry: ScreenGeometry) -> PlayfieldBuffer {
 }
 
 /// Draw the complete outer border + column dividers + header/footer dividers.
-pub fn draw_frame(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (ox, oy) = frame_offset(app);
-    let fw = app.frame.width();
-    let fh = app.frame.height();
+pub fn draw_frame(
+    buf: &mut PlayfieldBuffer,
+    frame: ScreenGeometry,
+    widgets: &DashboardWidgetFrames,
+) {
+    let (ox, _) = frame_offset_for(ScreenGeometry::new(buf.width(), buf.height()), frame);
+    let fw = frame.width();
     let bs = theme::border_style();
 
-    let left_div = left_divider_col(ox);
-    let right_div = right_divider_col(app, ox);
-    let top = oy;
-    let bottom = oy + fh.saturating_sub(1);
-    let header_div = top + 1;
-    let footer_div = bottom.saturating_sub(1);
+    let left_div = widgets.left_divider_col;
+    let right_div = widgets.right_divider_col;
+    let top = widgets.outer_top;
+    let bottom = widgets.outer_bottom;
+    let header_div = widgets.header_divider_row;
+    let footer_div = widgets.footer_divider_row;
 
     // Top and bottom outer edges.
     for c in ox..ox + fw {
@@ -164,28 +84,28 @@ pub fn draw_frame(buf: &mut PlayfieldBuffer, app: &DashApp) {
         buf,
         ox + 1,
         left_div.saturating_sub(1),
-        left_planets_title_row(oy).saturating_sub(1),
+        widgets.left_planets.outer.row.saturating_sub(1),
         bs,
     );
     draw_panel_separator(
         buf,
         ox + 1,
         left_div.saturating_sub(1),
-        left_fleets_title_row(app, oy).saturating_sub(1),
+        widgets.left_fleets.outer.row.saturating_sub(1),
         bs,
     );
     draw_panel_separator(
         buf,
         right_div + 1,
         ox + fw.saturating_sub(2),
-        right_diplomacy_title_row(oy).saturating_sub(1),
+        widgets.right_diplomacy.outer.row.saturating_sub(1),
         bs,
     );
     draw_panel_separator(
         buf,
         right_div + 1,
         ox + fw.saturating_sub(2),
-        right_reports_title_row(app, oy).saturating_sub(1),
+        widgets.right_reports.outer.row.saturating_sub(1),
         bs,
     );
 }
@@ -276,11 +196,12 @@ fn draw_panel_separator(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::geometry::dashboard_geometry;
 
     #[test]
-    fn write_width_clipped_respects_panel_width() {
+    fn write_clipped_respects_panel_width() {
         let mut buffer = PlayfieldBuffer::new(32, 4, theme::body_style());
-        write_width_clipped(
+        write_clipped(
             &mut buffer,
             1,
             2,
@@ -296,5 +217,39 @@ mod tests {
         let mut buffer = PlayfieldBuffer::new(20, 6, theme::body_style());
         draw_panel_separator(&mut buffer, 2, 10, 3, theme::border_style());
         assert_eq!(buffer.plain_line(3), "  ─────────");
+    }
+
+    #[test]
+    fn dashboard_frame_separators_follow_widget_boundaries() {
+        let canvas = ScreenGeometry::new(160, 40);
+        let frame = dashboard_geometry(18);
+        let widgets = dashboard_widget_frames(canvas, frame);
+        let mut buffer = PlayfieldBuffer::new(canvas.width(), canvas.height(), theme::body_style());
+
+        draw_frame(&mut buffer, frame, &widgets);
+
+        let left_sep_line: String = buffer
+            .row(widgets.left_planets.outer.row.saturating_sub(1))
+            .iter()
+            .map(|cell| cell.ch)
+            .collect();
+        let right_sep_line: String = buffer
+            .row(widgets.right_diplomacy.outer.row.saturating_sub(1))
+            .iter()
+            .map(|cell| cell.ch)
+            .collect();
+
+        assert_eq!(
+            left_sep_line
+                .chars()
+                .nth(widgets.left_economy.outer.col),
+            Some('─')
+        );
+        assert_eq!(
+            right_sep_line
+                .chars()
+                .nth(widgets.right_galaxy.outer.col),
+            Some('─')
+        );
     }
 }

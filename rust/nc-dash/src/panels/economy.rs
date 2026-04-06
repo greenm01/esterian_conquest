@@ -4,16 +4,11 @@ use nc_data::{yearly_growth_delta, yearly_tax_revenue};
 use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::DashApp;
-use crate::layout;
+use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (ox, oy) = layout::frame_offset(app);
-    let col = ox + 2;
-    let start_row = layout::left_economy_title_row(oy);
-    let width = layout::left_panel_content_width();
-
-    layout::write_width_clipped(buf, start_row, col, width, "ECONOMY", theme::section_title_style());
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
+    layout::write_panel_title(buf, frame, "ECONOMY", theme::section_title_style());
 
     let player_idx = app.player_record_index_1_based.saturating_sub(1);
     let Some(player) = app.game_data.player.records.get(player_idx) else { return };
@@ -35,9 +30,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         yearly_growth_delta(total_present as u16, total_potential as u16, tax, false) as i32
     } else { 0 };
 
-    layout::write_width_clipped(buf, start_row + 1, col, width, &format!(" Treasury:{:>7}", total_treasury), theme::value_style());
-    layout::write_width_clipped(buf, start_row + 2, col, width, &format!(" Prod:{}/{}", total_present, total_potential), theme::value_style());
-    layout::write_width_clipped(buf, start_row + 3, col, width, &format!(" Revenue:{:>7}", revenue), theme::value_style());
+    layout::write_panel_body_line(buf, frame, 0, &format!(" Treasury:{:>7}", total_treasury), theme::value_style());
+    layout::write_panel_body_line(buf, frame, 1, &format!(" Prod:{}/{}", total_present, total_potential), theme::value_style());
+    layout::write_panel_body_line(buf, frame, 2, &format!(" Revenue:{:>7}", revenue), theme::value_style());
     let gs = if growth > 0 { theme::friendly_style() } else if growth < 0 { theme::enemy_style() } else { theme::dim_style() };
-    layout::write_width_clipped(buf, start_row + 4, col, width, &format!(" Growth:{:>+7}", growth), gs);
+    layout::write_panel_body_line(buf, frame, 3, &format!(" Growth:{:>+7}", growth), gs);
 }

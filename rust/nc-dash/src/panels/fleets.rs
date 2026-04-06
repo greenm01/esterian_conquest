@@ -3,7 +3,7 @@
 use nc_data::Order;
 use nc_ui::PlayfieldBuffer;
 use crate::app::state::DashApp;
-use crate::layout;
+use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 
 pub fn order_abbrev(order: Order) -> &'static str {
@@ -28,55 +28,46 @@ fn order_style(order: Order) -> nc_ui::CellStyle {
     }
 }
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (ox, oy) = layout::frame_offset(app);
-    let col = ox + 2;
-    let footer_row = layout::section_footer_row(app, oy);
-    // Place fleet list in the bottom half of the left panel.
-    let start_row = layout::left_fleets_title_row(app, oy);
-    let width = layout::left_panel_content_width();
-
-    layout::write_width_clipped(buf, start_row, col, width, "ACTIVE FLEETS", theme::section_title_style());
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
+    layout::write_panel_title(buf, frame, "ACTIVE FLEETS", theme::section_title_style());
 
     let owner_slot = app.player_record_index_1_based as u8;
-    let max_rows = footer_row.saturating_sub(start_row + 1);
-    let mut row = start_row + 1;
+    let max_rows = frame.body.height;
+    let mut row_offset = 0usize;
     let mut shown = 0;
 
     for fleet in &app.game_data.fleets.records {
         if fleet.owner_empire_raw() != owner_slot || !fleet.has_any_force() { continue; }
         if shown < app.fleets_scroll { shown += 1; continue; }
-        if row >= start_row + 1 + max_rows { break; }
+        if row_offset >= max_rows { break; }
         let num = fleet.local_slot_word_raw();
         let c = fleet.current_location_coords_raw();
         let order = fleet.standing_order_kind();
         let ab = order_abbrev(order);
-        layout::write_width_clipped(
+        layout::write_panel_body_line(
             buf,
-            row,
-            col,
-            width,
+            frame,
+            row_offset,
             &format!("#{:<3} ({:02},{:02}) {:>2}", num, c[0], c[1], ab),
             order_style(order),
         );
-        row += 1; shown += 1;
+        row_offset += 1; shown += 1;
     }
     for base in &app.game_data.bases.records {
         if base.owner_empire_raw() != owner_slot || base.active_flag_raw() == 0 { continue; }
         if shown < app.fleets_scroll { shown += 1; continue; }
-        if row >= start_row + 1 + max_rows { break; }
+        if row_offset >= max_rows { break; }
         let c = base.coords_raw();
-        layout::write_width_clipped(
+        layout::write_panel_body_line(
             buf,
-            row,
-            col,
-            width,
+            frame,
+            row_offset,
             &format!("SB{:<2} ({:02},{:02}) Gs", base.base_id_raw(), c[0], c[1]),
             theme::friendly_style(),
         );
-        row += 1; shown += 1;
+        row_offset += 1; shown += 1;
     }
-    if row == start_row + 1 {
-        layout::write_width_clipped(buf, start_row + 1, col, width, "(none)", theme::dim_style());
+    if row_offset == 0 {
+        layout::write_panel_body_line(buf, frame, 0, "(none)", theme::dim_style());
     }
 }

@@ -9,24 +9,25 @@ use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, reports, 
 
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buf = layout::new_dashboard_buffer(app.geometry);
+    let widgets = layout::dashboard_widget_frames(app.geometry, app.frame);
 
     // Draw structural borders and header/footer.
-    layout::draw_frame(&mut buf, app);
+    layout::draw_frame(&mut buf, app.frame, &widgets);
     layout::draw_header(&mut buf, app);
     layout::draw_footer(&mut buf, app);
 
     // Left column panels.
-    economy::draw(&mut buf, app);
-    planets::draw(&mut buf, app);
-    fleets::draw(&mut buf, app);
+    economy::draw(&mut buf, app, widgets.left_economy);
+    planets::draw(&mut buf, app, widgets.left_planets);
+    fleets::draw(&mut buf, app, widgets.left_fleets);
 
     // Center: starmap.
-    starmap::draw(&mut buf, app);
+    starmap::draw(&mut buf, app, widgets.center_map);
 
     // Right column panels.
-    known_galaxy::draw(&mut buf, app);
-    diplomacy::draw(&mut buf, app);
-    reports::draw(&mut buf, app);
+    known_galaxy::draw(&mut buf, app, widgets.right_galaxy);
+    diplomacy::draw(&mut buf, app, widgets.right_diplomacy);
+    reports::draw(&mut buf, app, widgets.right_reports);
 
     // Overlay (drawn over everything if active).
     match app.overlay {
