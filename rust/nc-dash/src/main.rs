@@ -1,8 +1,4 @@
 //! nc-dash — Full-screen dashboard TUI for Nostrian Conquest.
-//!
-//! A modern three-column terminal dashboard replacing the legacy 80×25
-//! BBS-style interface. Built for SSH and local play on 1920×1200+
-//! displays. See docs/dash/architecture.md for the full design spec.
 
 mod app;
 mod layout;
@@ -12,10 +8,13 @@ mod popups;
 mod startup;
 mod theme;
 
+use nc_data::CampaignStore;
 use nc_session::args::detect_color_mode;
+use nc_ui::{OutputEncoding, StdoutTerminal};
+use nc_ui::ScreenGeometry;
 
-const MIN_COLS: u16 = 160;
-const MIN_ROWS: u16 = 40;
+use app::state::DashApp;
+use layout::geometry::{MIN_COLS, MIN_ROWS};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args.into_iter().collect();
@@ -30,8 +29,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         .map(std::path::PathBuf::from)
         .ok_or("Usage: nc-dash <game-dir>")?;
 
-    let color_mode = detect_color_mode();
-
+    // Check terminal size.
     let (cols, rows) = crossterm::terminal::size()?;
     if cols < MIN_COLS || rows < MIN_ROWS {
         eprintln!(
@@ -42,12 +40,43 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         std::process::exit(1);
     }
 
-    eprintln!("nc-dash: {}×{} terminal — OK", cols, rows);
-    eprintln!("nc-dash: game_dir = {}", game_dir.display());
-    eprintln!("nc-dash: color_mode = {:?}", color_mode);
-    eprintln!("nc-dash: scaffold only — not yet playable.");
+    let geometry = layout::geometry::capped_geometry(cols as usize, rows as usize);
 
-    Ok(())
+    // Load game data.
+    let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
+    let game_data = campaign_store.load_latest_runtime_game_data()?;
+
+    // Default to player 1. Future: resolve from args/session.
+    let player_record_index_1_based = 1;
+
+    let color_mode = detect_color_mode();
+    let mut terminal = StdoutTerminal::with_encoding_and_color_mode(OutputEncoding::Utf8, color_mode);
+
+    // Enable alternate screen + raw mode.
+    use crossterm::terminal::{enable_raw_mode, EnterAlternateScreen};
+    use crossterm::execute;
+    enable_raw_mode()?;
+    execute!(std::io::stdout(), EnterAlternateScreen)?;
+
+    let result = run_dashboard(game_dir, game_data, geometry, player_record_index_1_based, &mut terminal);
+
+    // Restore terminal.
+    use crossterm::terminal::{disable_raw_mode, LeaveAlternateScreen};
+    let _ = disable_raw_mode();
+    let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
+
+    result
+}
+
+fn run_dashboard(
+    game_dir: std::path::PathBuf,
+    game_data: nc_data::CoreGameData,
+    geometry: ScreenGeometry,
+    player_record_index_1_based: usize,
+    terminal: &mut dyn nc_ui::Terminal,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut app = DashApp::new(game_dir, game_data, geometry, player_record_index_1_based);
+    app.run(terminal)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

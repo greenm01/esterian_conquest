@@ -1,1 +1,97 @@
-//! Key/mouse event → Action mapping.
+//! Key event → Action mapping.
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+use crate::app::state::{ActiveOverlay, PanelFocus};
+
+/// Actions the dashboard can perform in response to input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Quit,
+    FocusNext,
+    FocusPrev,
+    ScrollUp,
+    ScrollDown,
+    PageUp,
+    PageDown,
+    Home,
+    End,
+    MoveCrosshairUp,
+    MoveCrosshairDown,
+    MoveCrosshairLeft,
+    MoveCrosshairRight,
+    GotoCoords,
+    ToggleAutopilot,
+    SetTaxRate,
+    OpenOverlay(ActiveOverlay),
+    CloseOverlay,
+    None,
+}
+
+/// Map a key event to an action given the current focus.
+pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -> Action {
+    // Global quit.
+    if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        return Action::Quit;
+    }
+
+    // Overlay open — only Esc closes it (overlay handles its own keys otherwise).
+    if overlay != ActiveOverlay::None {
+        if key.code == KeyCode::Esc {
+            return Action::CloseOverlay;
+        }
+        return Action::None; // overlay handles input internally
+    }
+
+    match key.code {
+        // Quit
+        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+        KeyCode::Esc => Action::Quit,
+
+        // Panel focus cycling
+        KeyCode::Tab => Action::FocusNext,
+        KeyCode::BackTab => Action::FocusPrev,
+
+        // Global overlay shortcuts
+        KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenOverlay(ActiveOverlay::PlanetList),
+        KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenOverlay(ActiveOverlay::FleetList),
+        KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenOverlay(ActiveOverlay::IntelDatabase),
+        KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenOverlay(ActiveOverlay::Inbox),
+        KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenOverlay(ActiveOverlay::Diplomacy),
+        KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenOverlay(ActiveOverlay::Settings),
+        KeyCode::Char('?') => Action::OpenOverlay(ActiveOverlay::Help),
+
+        // Autopilot toggle
+        KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
+
+        // Tax rate
+        KeyCode::Char('x') | KeyCode::Char('X') => Action::SetTaxRate,
+
+        // Navigation — context-sensitive
+        KeyCode::Up | KeyCode::Char('k') => match focus {
+            PanelFocus::Map => Action::MoveCrosshairUp,
+            _ => Action::ScrollUp,
+        },
+        KeyCode::Down | KeyCode::Char('j') => match focus {
+            PanelFocus::Map => Action::MoveCrosshairDown,
+            _ => Action::ScrollDown,
+        },
+        KeyCode::Left | KeyCode::Char('h') => match focus {
+            PanelFocus::Map => Action::MoveCrosshairLeft,
+            _ => Action::None,
+        },
+        KeyCode::Right | KeyCode::Char('l') => match focus {
+            PanelFocus::Map => Action::MoveCrosshairRight,
+            _ => Action::None,
+        },
+        KeyCode::PageUp => Action::PageUp,
+        KeyCode::PageDown => Action::PageDown,
+        KeyCode::Home => Action::Home,
+        KeyCode::End => Action::End,
+
+        // Map goto
+        KeyCode::Char('g') | KeyCode::Char('G') if focus == PanelFocus::Map => Action::GotoCoords,
+
+        _ => Action::None,
+    }
+}
