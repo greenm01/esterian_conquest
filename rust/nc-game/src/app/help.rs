@@ -1,4 +1,4 @@
-use crate::screen::help::{MenuHelpTopic, help_lines, menu_help_spec, render_help_popup};
+use crate::screen::help::{help_lines, menu_help_spec, render_help_popup, MenuHelpTopic};
 use crate::screen::{PlanetListMode, PlayfieldBuffer, ScreenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,8 +26,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Type", "filter themes by name"),
                 ("Enter", "apply selected theme"),
-                ("Q/Esc", "close picker"),
-                ("?", "show/hide helper"),
+                ("Q", "close picker"),
+                ("Esc", "close picker"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::FleetList => Some(table_help(
@@ -41,9 +42,11 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("D", "detach ships from selected fleet"),
                 ("M", "merge selected fleet into another fleet"),
                 ("T", "transfer ships between fleets"),
-                ("L/U", "load or unload armies from selected fleet"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("L", "load armies from selected fleet"),
+                ("U", "unload armies from selected fleet"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::FleetMissionPicker
@@ -54,8 +57,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Enter", "accept highlighted item"),
                 ("Type", "use the prompt value shown on the command line"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::StarbaseList | ScreenId::StarbaseReviewSelect => Some(table_help(
@@ -63,23 +67,27 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Digits", "jump to a starbase number"),
                 ("Enter", "review highlighted starbase"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::PlanetBuildList => Some(table_help(
             "PLANET COMMANDS",
             &[
-                ("D/Enter", "delete highlighted build order"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("D", "delete highlighted build order"),
+                ("Enter", "delete highlighted build order"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::PlanetList(PlanetListMode::Brief, _) => Some(table_help(
             "PLANET COMMANDS",
             &[
                 ("Coords", "jump to a planet by coordinates"),
-                ("I/Enter", "review highlighted planet"),
+                ("I", "review highlighted planet"),
+                ("Enter", "review highlighted planet"),
                 ("B", "open build queue for selected planet"),
                 ("A", "auto-commission ships from stardock to fleets"),
                 ("C", "manually commission ships into a fleet"),
@@ -87,8 +95,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("U", "unload armies from transports to planet"),
                 ("X", "scorch earth (destroy factories)"),
                 ("S", "sort the planet list"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::PlanetList(_, _)
@@ -104,8 +113,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Enter", "accept highlighted item"),
                 ("Type", "use the prompt value shown on the command line"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::PlanetListSortPrompt(_)
@@ -122,8 +132,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Type", "enter the value shown on the command line"),
                 ("Enter", "accept the current prompt"),
-                ("Q/Esc", "cancel or return when available"),
-                ("?", "show/hide helper"),
+                ("Q", "cancel or return when available"),
+                ("Esc", "cancel or return when available"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::ComposeMessageSubject => Some(prompt_help(
@@ -132,7 +143,7 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("Type", "enter the message subject"),
                 ("Enter", "accept the current subject"),
                 ("Esc", "return to recipient selection"),
-                ("?", "show/hide helper"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::ComposeMessageBody => Some(prompt_help(
@@ -140,7 +151,7 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("^E", "confirm sending the message"),
                 ("^X", "confirm canceling the message"),
-                ("?", "show/hide helper"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::ComposeMessageRecipient | ScreenId::ComposeMessageOutbox => Some(table_help(
@@ -149,8 +160,9 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("D", "open queued outgoing messages"),
                 ("Enter", "accept highlighted item"),
                 ("Type", "use the prompt value shown on the command line"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::Enemies | ScreenId::Rankings(_) => Some(table_help(
@@ -158,37 +170,46 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Enter", "accept highlighted item when available"),
                 ("Type", "use the prompt value shown on the command line"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::Reports => Some(prompt_help(
             "INBOX COMMANDS",
             &[
-                ("M/R/A", "filter messages, reports, or all items"),
+                ("M", "filter to messages"),
+                ("R", "filter to reports"),
+                ("A", "filter to all items"),
                 ("Y", "set or clear the year filter"),
                 ("Tab", "switch focus between inbox and preview"),
                 ("D", "delete the selected inbox item when offered"),
                 ("Digits", "jump to the visible inbox ID on the command line"),
                 ("Enter", "toggle preview focus or accept the current prompt"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::PartialStarmapView | ScreenId::Starmap => Some(prompt_help(
             "MAP COMMANDS",
             &[
-                ("Enter", "open info for the planet at the current map cursor"),
-                ("Q/Esc", "return"),
-                ("?", "show/hide helper"),
+                (
+                    "Enter",
+                    "open info for the planet at the current map cursor",
+                ),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
             ],
         )),
         ScreenId::FirstTimeIntro | ScreenId::Startup(_) => Some(prompt_help(
             "INTRO HELP",
             &[
                 ("Enter", "advance the current page"),
-                ("Q/Esc", "return when offered"),
-                ("?", "show/hide helper"),
+                ("Q", "return when offered"),
+                ("Esc", "return when offered"),
+                ("?", "open this helper"),
             ],
         )),
         _ => None,

@@ -136,6 +136,13 @@ advertising actionable commands. Dismissal footers must render entirely inside
 the modal footer span and must never overwrite the modal borders. In dash,
 `(slap a key)` means exactly that: any key dismisses the modal.
 
+Helper popup bodies should stay flat and command-focused:
+
+- one command or action per row
+- no combined rows such as `Q/Esc` or `B / A / C`
+- no internal category headings or grouped sections inside the popup body
+- aligned `Key : Description` columns throughout the helper
+
 Within any dash modal or widget body that uses colon-separated label/value
 rows, the `:` column should align consistently across that block, matching the
 `INFO ABOUT A PLANET:` detail layout. Ad hoc `Label:value` spacing is not

@@ -375,30 +375,22 @@ fn reports_inbox_stacks_type_and_year_filters_and_deletes_selected_item() {
     let mut filtered = CaptureTerminal::new();
     app.render(&mut filtered)
         .expect("filtered inbox should render");
-    assert!(
-        filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Type: Messages"))
-    );
-    assert!(
-        filtered
-            .lines
-            .iter()
-            .any(|line| line.contains(&format!("Year: {current_year}")))
-    );
-    assert!(
-        filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Current message"))
-    );
-    assert!(
-        !filtered
-            .lines
-            .iter()
-            .any(|line| line.contains("Older message"))
-    );
+    assert!(filtered
+        .lines
+        .iter()
+        .any(|line| line.contains("Type: Messages")));
+    assert!(filtered
+        .lines
+        .iter()
+        .any(|line| line.contains(&format!("Year: {current_year}"))));
+    assert!(filtered
+        .lines
+        .iter()
+        .any(|line| line.contains("Current message")));
+    assert!(!filtered
+        .lines
+        .iter()
+        .any(|line| line.contains("Older message")));
     assert!(!filtered.lines.iter().any(|line| line.contains("Scout")));
 
     assert_eq!(
@@ -500,12 +492,10 @@ fn reports_inbox_rejects_no_match_year_filter_without_blanking_the_table() {
         .expect("inbox should still render");
     assert!(terminal.line(0).contains("Year: All"));
     assert!(terminal.lines.iter().any(|line| line.contains("Visible")));
-    assert!(
-        !terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("<no matching items>"))
-    );
+    assert!(!terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<no matching items>")));
 }
 
 #[test]
@@ -534,10 +524,22 @@ fn reports_inbox_question_mark_opens_popup_help_with_inbox_commands() {
 
     let popup = app.popup_help.as_ref().expect("popup help should open");
     assert_eq!(popup.title, "INBOX COMMANDS");
-    assert!(popup.lines.iter().any(|line| line.contains("M/R/A")));
+    assert!(popup
+        .lines
+        .iter()
+        .any(|line| line.contains("M") && line.contains("messages")));
+    assert!(popup
+        .lines
+        .iter()
+        .any(|line| line.contains("R") && line.contains("reports")));
+    assert!(popup
+        .lines
+        .iter()
+        .any(|line| line.contains("A") && line.contains("all items")));
     assert!(popup.lines.iter().any(|line| line.contains("Tab")));
     assert!(popup.lines.iter().any(|line| line.contains("Digits")));
     assert!(popup.lines.iter().any(|line| line.contains("?")));
+    assert!(!popup.lines.iter().any(|line| line.contains("M/R/A")));
     assert!(!popup.lines.iter().any(|line| line.contains("J/K")));
     assert!(!popup.lines.iter().any(|line| line.contains("^U/^D")));
     assert!(!popup.lines.iter().any(|line| line.contains("Backspace")));
@@ -632,21 +634,17 @@ fn reports_inbox_typed_id_jump_moves_selection_immediately() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("inbox should render");
-    assert!(
-        terminal
-            .line(0)
-            .contains("Type: All | Year: All | Focus: Inbox")
-    );
+    assert!(terminal
+        .line(0)
+        .contains("Type: All | Year: All | Focus: Inbox"));
     assert!(terminal.line(1).starts_with('┌'));
     assert!(terminal.line(24).contains("<TAB> <Q> [03] ->"));
     assert!(!terminal.line(24).contains("-> 3"));
     assert!(terminal.lines.iter().any(|line| line.contains("Alpha")));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Body Alpha"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Body Alpha")));
 }
 
 #[test]
@@ -717,12 +715,10 @@ fn reports_inbox_delete_keeps_sparse_session_ids_without_empty_rows() {
     let mut deleted = CaptureTerminal::new();
     app.render(&mut deleted)
         .expect("deleted inbox should render");
-    assert!(
-        deleted
-            .lines
-            .iter()
-            .any(|line| line.contains("Deleted item 03."))
-    );
+    assert!(deleted
+        .lines
+        .iter()
+        .any(|line| line.contains("Deleted item 03.")));
     assert!(!deleted.lines.iter().any(|line| line.contains("│03│")));
     assert!(deleted.lines.iter().any(|line| line.contains("│04│")));
     assert_eq!(
@@ -890,12 +886,10 @@ fn reports_inbox_long_preview_scrolls_and_clamps_without_panicking() {
 
     let mut switched = CaptureTerminal::new();
     app.render(&mut switched).expect("switched preview render");
-    assert!(
-        switched
-            .lines
-            .iter()
-            .any(|line| line.contains("Short body"))
-    );
+    assert!(switched
+        .lines
+        .iter()
+        .any(|line| line.contains("Short body")));
 }
 
 #[test]

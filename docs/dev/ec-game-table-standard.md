@@ -141,6 +141,11 @@ Rules:
   paging keys
 - helper popups should explain the table’s visible commands plus only
   unobvious non-rail actions such as typed jump or `ENTER` opening detail
+- helper popups should list one command or action per row
+- helper popups should not combine multiple commands on one row
+- helper popup bodies should not use internal category headings or grouped
+  sections
+- helper popup rows should keep the `Key : Description` columns aligned
 
 ### Prompt-replacement mode
 

@@ -1,4 +1,4 @@
-use nc_ui::modal::{ModalTheme, render_modal_box};
+use nc_ui::modal::{render_modal_box, ModalTheme};
 use nc_ui::theme::classic;
 
 use crate::screen::PlayfieldBuffer;
@@ -66,7 +66,7 @@ const GENERAL_LINES: [&str; 14] = [
     "<X> - hide/show command menus",
 ];
 
-const FLEET_LINES: [&str; 16] = [
+const FLEET_LINES: [&str; 17] = [
     "<B> - display a brief list of your fleets with locations, destinations, etc.",
     "<C> - change a fleet's ROE, ID Number, or Speed of Travel.",
     "<D> - detach one or more starships from a fleet to form a new fleet",
@@ -82,7 +82,8 @@ const FLEET_LINES: [&str; 16] = [
     "<S> - bring up the Starbase Control menu",
     "<T> - transfer one or more starships from one fleet to another",
     "<U> - unload one or more armies from a fleet to a planet",
-    "<V>/<X> - display a partial map / hide or show menus",
+    "<V> - display a partial map",
+    "<X> - hide or show menus",
 ];
 
 const STARBASE_LINES: [&str; 8] = [
@@ -113,7 +114,7 @@ const PLANET_LINES: [&str; 14] = [
     "<X> - hide/show command menus",
 ];
 
-const BUILD_LINES: [&str; 14] = [
+const BUILD_LINES: [&str; 13] = [
     "<S> - specify build orders using this planet's current-turn PP budget",
     "<L> - list units currently queued for construction",
     "<R> - review the current build planet through planet information",
@@ -122,12 +123,11 @@ const BUILD_LINES: [&str; 14] = [
     "<A> - abort queued build orders on the current planet",
     "<Q> - return to the Build Command menu",
     "<X> - hide/show command menus",
-    "",
-    "Build queue = work still in progress.  Those PP are already committed.",
-    "Stardock   = completed ships and starbases waiting for commission.",
-    "Armies and ground batteries do not enter stardock when they complete.",
-    "If stardock is full, ship and starbase builds wait in queue until space opens.",
-    "Use Commission to lift completed ships and starbases out of stardock.",
+    "Build queue - work still in progress; those PP are already committed",
+    "Stardock - completed ships and starbases waiting for commission",
+    "Armies / batteries - complete immediately and do not enter stardock",
+    "Full stardock - ships and starbases wait in queue until space opens",
+    "Commission - lift completed ships and starbases out of stardock",
 ];
 
 const FIRST_TIME_LOCAL_LINES: [&str; 6] = [

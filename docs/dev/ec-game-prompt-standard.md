@@ -52,6 +52,12 @@ Read it together with:
   review/open actions, `Tab` focus switching, or editor send/cancel shortcuts.
 - Helper popups should not become keyboard-reference sheets for generic
   movement, paging, or erase keys.
+- Helper popups should list one command or action per row.
+- Helper popups should not combine multiple commands on one row such as
+  `Q/Esc`, `I/Enter`, or `M/R/A`.
+- Helper popup bodies should stay flat: no internal category headings or
+  grouped sections inside the popup body.
+- Helper popup rows should use aligned `Key : Description` formatting.
 
 ## Standard Grammar
 
