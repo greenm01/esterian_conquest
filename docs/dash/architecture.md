@@ -336,6 +336,11 @@ This keeps the interaction model consistent with nc-game — players who
 know the legacy TUI already know the overlays. The centered box framing
 makes them feel like focused work windows rather than full mode switches.
 
+All popup modals, including center-pane detail popups over the starmap,
+must follow the same padded modal treatment. A popup border should never
+sit flush against its parent pane when there is room for visible outer
+padding.
+
 ### Map Navigation (when map is focused)
 
 - **Arrow keys, h/j/k/l:** Move crosshair.

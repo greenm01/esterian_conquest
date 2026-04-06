@@ -88,24 +88,46 @@ pub fn draw_modal_frame(
     height: u16,
     theme: ModalTheme,
 ) -> Rect {
-    let max_width = buffer.width().saturating_sub(8).max(1);
-    let popup = centered_rect(
-        preferred_width.min(max_width) as u16,
+    draw_modal_frame_in_parent(
+        buffer,
+        title,
+        preferred_width,
         height,
         Rect::new(0, 0, buffer.width() as u16, buffer.height() as u16),
+        theme,
+    )
+}
+
+pub fn draw_modal_frame_in_parent(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    preferred_width: usize,
+    height: u16,
+    parent: Rect,
+    theme: ModalTheme,
+) -> Rect {
+    let max_width = parent.width.saturating_sub(2).max(1);
+    let max_height = parent.height.saturating_sub(2).max(1);
+    let popup = centered_rect(
+        preferred_width.min(max_width as usize) as u16,
+        height.min(max_height),
+        parent,
     );
-    let popup = Rect::new(
-        popup.x,
-        popup.y,
-        popup.width.min(buffer.width() as u16 - popup.x),
-        popup.height.min(buffer.height() as u16 - popup.y),
-    );
+    let pad_x = popup.x.saturating_sub(1).max(parent.x);
+    let pad_y = popup.y.saturating_sub(1).max(parent.y);
+    let popup_right = popup.x + popup.width.saturating_sub(1);
+    let popup_bottom = popup.y + popup.height.saturating_sub(1);
+    let parent_right = parent.x + parent.width.saturating_sub(1);
+    let parent_bottom = parent.y + parent.height.saturating_sub(1);
+    let pad_right = popup_right.saturating_add(1).min(parent_right);
+    let pad_bottom = popup_bottom.saturating_add(1).min(parent_bottom);
     let pad = Rect::new(
-        popup.x.saturating_sub(1),
-        popup.y.saturating_sub(1),
-        (popup.width + 2).min(buffer.width() as u16 - popup.x.saturating_sub(1)),
-        (popup.height + 2).min(buffer.height() as u16 - popup.y.saturating_sub(1)),
+        pad_x,
+        pad_y,
+        pad_right.saturating_sub(pad_x).saturating_add(1),
+        pad_bottom.saturating_sub(pad_y).saturating_add(1),
     );
+
     buffer.fill_rect(
         pad.y as usize,
         pad.x as usize,
@@ -199,4 +221,34 @@ fn truncate_with_continuation(text: &str, max_width: usize) -> String {
     }
     let clipped = clip_to_width(text, max_width.saturating_sub(3));
     format!("{clipped}...")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::classic;
+
+    #[test]
+    fn modal_frame_in_parent_keeps_visible_padding_when_space_allows() {
+        let mut buffer = PlayfieldBuffer::new(80, 30, classic::body_style());
+        let parent = Rect::new(20, 8, 30, 12);
+        let popup = draw_modal_frame_in_parent(
+            &mut buffer,
+            "TEST",
+            18,
+            8,
+            parent,
+            ModalTheme {
+                body_style: classic::body_style(),
+                pad_style: classic::help_panel_style(),
+                chrome_style: classic::table_chrome_style(),
+                title_style: classic::table_header_style(),
+            },
+        );
+
+        assert!(popup.x > parent.x);
+        assert!(popup.y > parent.y);
+        assert!(popup.x + popup.width < parent.x + parent.width);
+        assert!(popup.y + popup.height < parent.y + parent.height);
+    }
 }
