@@ -4,10 +4,9 @@ use nc_data::Order;
 use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::DashApp;
-use crate::theme;
 
 /// Two-letter order abbreviation per player manual Appendix C.
-fn order_abbrev(order: Order) -> &'static str {
+pub fn order_abbrev(order: Order) -> &'static str {
     match order {
         Order::HoldPosition => "Hd",
         Order::MoveOnly => "Mv",
