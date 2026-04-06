@@ -197,11 +197,11 @@ Three stacked sections:
 - **Diplomacy:** List of other empires, color-coded by diplomatic status
   (green = neutral, red = enemy). Up to 11 others in a 12-player game.
   Compact one-line-per-empire format.
-- **Reports:** Header shows unread counts: `REPORTS (5R, 2M)` where R is
-  unread reports and M is unread messages. Scrollable feed with unread
-  items marked with a bright indicator. Most recent at top. Enter opens
-  the full report text in a detail popup. The full inbox overlay (R key)
-  provides filtering by type and year, message composition, and bulk delete.
+- **Reports:** Header shows pending visible counts: `REPORTS (5R, 2M)` where
+  R is reports and M is messages still in the inbox. The panel body is a
+  compact summary of pending workload: total items, current-year vs backlog,
+  and coarse report buckets such as Combat and Intel. The full inbox overlay
+  (`R`) provides filtering by type and year, preview, and delete.
 
 ### Startup Flow
 
@@ -440,7 +440,7 @@ all overlays. Tab switches focus between item list and preview pane.
 - Item list shows more rows (15+ vs 8 in classic).
 - Tab switches focus between item list and preview pane.
 - Standard command line at bottom with ? help.
-- Unread items marked with `►` indicator (new for nc-dash).
+- The dashboard summary panel stays compact while `R` handles full reading.
 
 ### Navigation
 
@@ -470,17 +470,17 @@ The composer reuses the nc-game composition logic and data model
 (`QueuedPlayerMail`). The 3-message-per-opponent-per-turn limit is
 enforced and shown in the status line.
 
-### Unread Tracking (New)
+### Inbox Tracking
 
-nc-game has no read/unread tracking. nc-dash adds it:
-- Each report/message gets a `read` flag (persisted in campaign database).
-- Unread items shown with `►` marker in the item list.
-- The Reports panel on the dashboard shows unread counts: `REPORTS (5R,2M)`.
-- Reading an item (selecting it in the inbox) marks it as read.
-- New items from maintenance are unread by default.
-- Reading does NOT hide the item — per the manual, messages and reports
-  never automatically purge. They accumulate across turns and remain
-  visible in the "All" view until the player explicitly deletes them.
+nc-game has no separate read/unread tracking, and nc-dash currently mirrors
+that runtime model:
+- Reports and messages stay visible until the recipient explicitly deletes them.
+- The Reports dashboard panel shows pending visible counts, not a separate
+  unread state.
+- The inbox overlay (`R`) is where the player reads, filters, previews, and
+  deletes items.
+- Soft-delete with `D` marks `recipient_deleted`; it does not purge history
+  from the runtime snapshot immediately.
 
 ## Planet List (P Overlay)
 
@@ -686,7 +686,7 @@ nc-dash/
       starmap.rs         ← center: sector grid, crosshair, axis labels
       known_galaxy.rs    ← right: world counts by category
       diplomacy.rs       ← right: empire list, color-coded status
-      reports.rs         ← right: unread counts, report feed
+      reports.rs         ← right: pending inbox summary
     overlays/
       mod.rs             ← overlay trait, Esc:Back handling
       planet_list.rs     ← P: fullscreen planet management table
@@ -748,7 +748,7 @@ Guidelines:
   (3-char abbrev, coords, production), Active Fleets + starbases
   (ID, coords, 2-letter order).
 - Right: Known Galaxy (world counts), Diplomacy (empire list, color-coded),
-  Reports (unread counts, feed).
+  Reports (pending inbox summary).
 - Tab focus cycling, scrolling within focused panel.
 
 ### Phase 4: Classic Intro Flow

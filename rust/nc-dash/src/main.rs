@@ -1,6 +1,7 @@
 //! nc-dash — Full-screen dashboard TUI for Nostrian Conquest.
 
 mod app;
+mod inbox;
 mod layout;
 mod overlays;
 mod panels;

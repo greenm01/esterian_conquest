@@ -2,20 +2,13 @@
 
 use nc_ui::PlayfieldBuffer;
 
-use crate::app::state::{DashApp, InboxFilter, InboxFocus};
+use crate::app::state::{DashApp, InboxFocus};
+use crate::inbox::{DashInboxItem, project_inbox_items};
 use crate::overlays::frame::{draw_hline, draw_overlay_frame, draw_vline, write_clipped};
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? Tab J K ^U ^D M R A Y D C <Q> ->";
 const LIST_WIDTH: usize = 28;
-
-#[derive(Debug, Clone)]
-struct InboxItem {
-    kind: char,
-    year: Option<u16>,
-    subject: String,
-    body: String,
-}
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let preferred_width = buf.width().saturating_sub(10).clamp(104, 142);
@@ -103,8 +96,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         let line = format!(
             "{:>2}  {}   {:>4} {}",
             absolute_idx + 1,
-            item.kind,
-            item.year.map(|year| year.to_string()).unwrap_or_else(|| String::from("----")),
+            item.item_type.code(),
+            item.year.to_string(),
             truncate(&item.subject, LIST_WIDTH.saturating_sub(14)),
         );
         write_clipped(buf, row, frame.body_col, LIST_WIDTH.saturating_sub(1), &line, list_style);
@@ -122,7 +115,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     }
 
     if let Some(item) = items.get(selected) {
-        let lines = item.body.lines().collect::<Vec<_>>();
         let preview_style = if matches!(app.inbox_overlay.focus, InboxFocus::Preview) {
             theme::value_style()
         } else {
@@ -131,8 +123,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         let preview_scroll = app
             .inbox_overlay
             .preview_scroll
-            .min(lines.len().saturating_sub(max_rows.max(1)));
-        for (visible_idx, line) in lines.iter().skip(preview_scroll).take(max_rows).enumerate() {
+            .min(item.body_lines.len().saturating_sub(max_rows.max(1)));
+        for (visible_idx, line) in item
+            .body_lines
+            .iter()
+            .skip(preview_scroll)
+            .take(max_rows)
+            .enumerate()
+        {
             write_clipped(
                 buf,
                 list_start + visible_idx,
@@ -145,57 +143,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     }
 }
 
-fn inbox_items(app: &DashApp) -> Vec<InboxItem> {
+fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {
     let viewer = app.player_record_index_1_based as u8;
     let current_year = app.game_data.conquest.game_year();
-    let mut items = Vec::new();
-
-    if !matches!(app.inbox_overlay.filter, InboxFilter::Messages) {
-        for block in &app.report_block_rows {
-            if !block.is_visible_to_viewer(viewer) || block.recipient_deleted {
-                continue;
-            }
-            items.push(InboxItem {
-                kind: 'R',
-                year: None,
-                subject: block
-                    .decoded_text
-                    .lines()
-                    .find(|line| !line.trim().is_empty())
-                    .unwrap_or("(report)")
-                    .trim()
-                    .to_string(),
-                body: block.decoded_text.clone(),
-            });
-        }
-    }
-
-    if !matches!(app.inbox_overlay.filter, InboxFilter::Reports) {
-        for mail in &app.queued_mail {
-            if !mail.is_visible_to_recipient(viewer) {
-                continue;
-            }
-            if app.inbox_overlay.current_year_only && mail.year != current_year {
-                continue;
-            }
-            items.push(InboxItem {
-                kind: 'M',
-                year: Some(mail.year),
-                subject: if mail.subject.is_empty() {
-                    String::from("<no subject>")
-                } else {
-                    mail.subject.clone()
-                },
-                body: format!("From Empire #{}\n\n{}", mail.sender_empire_id, mail.body),
-            });
-        }
-    }
-
-    if app.inbox_overlay.current_year_only {
-        items.retain(|item| item.year.map(|year| year == current_year).unwrap_or(true));
-    }
-
-    items
+    project_inbox_items(&app.game_data, viewer, &app.report_block_rows, &app.queued_mail)
+        .into_iter()
+        .filter(|item| item.matches_filter(app.inbox_overlay.filter, app.inbox_overlay.current_year_only, current_year))
+        .collect()
 }
 
 fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {

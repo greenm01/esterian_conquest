@@ -9,6 +9,8 @@ use state::{ActiveOverlay, DashApp};
 use input::{Action, key_to_action};
 use nc_ui::Terminal;
 
+use crate::inbox::{DashInboxItemSource, project_inbox_items};
+
 impl DashApp {
     /// Run the main event loop.
     pub fn run(&mut self, terminal: &mut dyn Terminal) -> Result<(), Box<dyn std::error::Error>> {
@@ -89,7 +91,6 @@ impl DashApp {
         match self.focus {
             Planets => self.planets_scroll = self.planets_scroll.saturating_sub(1),
             Fleets => self.fleets_scroll = self.fleets_scroll.saturating_sub(1),
-            Reports => self.reports_scroll = self.reports_scroll.saturating_sub(1),
             Diplomacy => self.diplomacy_scroll = self.diplomacy_scroll.saturating_sub(1),
             _ => {}
         }
@@ -100,7 +101,6 @@ impl DashApp {
         match self.focus {
             Planets => self.planets_scroll += 1,
             Fleets => self.fleets_scroll += 1,
-            Reports => self.reports_scroll += 1,
             Diplomacy => self.diplomacy_scroll += 1,
             _ => {}
         }
@@ -111,7 +111,6 @@ impl DashApp {
         match self.focus {
             Planets => self.planets_scroll = 0,
             Fleets => self.fleets_scroll = 0,
-            Reports => self.reports_scroll = 0,
             Diplomacy => self.diplomacy_scroll = 0,
             _ => {}
         }
@@ -123,7 +122,6 @@ impl DashApp {
         match self.focus {
             Planets => self.planets_scroll = usize::MAX,
             Fleets => self.fleets_scroll = usize::MAX,
-            Reports => self.reports_scroll = usize::MAX,
             Diplomacy => self.diplomacy_scroll = usize::MAX,
             _ => {}
         }
@@ -337,44 +335,32 @@ fn handle_list_overlay_key(
 fn delete_selected_inbox_item(app: &mut DashApp) {
     let viewer = app.player_record_index_1_based as u8;
     let state = &app.inbox_overlay;
-    let mut selected = state.selected;
+    let current_year = app.game_data.conquest.game_year();
+    let items = project_inbox_items(
+        &app.game_data,
+        viewer,
+        &app.report_block_rows,
+        &app.queued_mail,
+    )
+    .into_iter()
+    .filter(|item| item.matches_filter(state.filter, state.current_year_only, current_year))
+    .collect::<Vec<_>>();
 
-    for block in app
-        .report_block_rows
-        .iter_mut()
-        .filter(|block| block.is_visible_to_viewer(viewer) && !block.recipient_deleted)
-    {
-        if matches!(
-            state.filter,
-            state::InboxFilter::Messages
-        ) {
-            continue;
-        }
-        if state.current_year_only {
-            // Runtime report rows do not carry a year field; keep them visible.
-        }
-        if selected == 0 {
-            block.recipient_deleted = true;
-            return;
-        }
-        selected -= 1;
-    }
+    let selected = state.selected.min(items.len().saturating_sub(1));
+    let Some(item) = items.get(selected) else {
+        return;
+    };
 
-    for mail in app
-        .queued_mail
-        .iter_mut()
-        .filter(|mail| mail.is_visible_to_recipient(viewer))
-    {
-        if matches!(state.filter, state::InboxFilter::Reports) {
-            continue;
+    match item.source {
+        DashInboxItemSource::ReportBlock(idx) => {
+            if let Some(block) = app.report_block_rows.get_mut(idx) {
+                block.recipient_deleted = true;
+            }
         }
-        if state.current_year_only && mail.year != app.game_data.conquest.game_year() {
-            continue;
+        DashInboxItemSource::QueuedMail(idx) => {
+            if let Some(mail) = app.queued_mail.get_mut(idx) {
+                mail.mark_deleted_by_recipient();
+            }
         }
-        if selected == 0 {
-            mail.mark_deleted_by_recipient();
-            return;
-        }
-        selected -= 1;
     }
 }

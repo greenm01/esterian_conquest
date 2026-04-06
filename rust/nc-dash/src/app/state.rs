@@ -142,7 +142,6 @@ pub struct DashApp {
     // Panel scroll positions
     pub planets_scroll: usize,
     pub fleets_scroll: usize,
-    pub reports_scroll: usize,
     pub diplomacy_scroll: usize,
 
     // Overlay-local state
@@ -193,7 +192,6 @@ impl DashApp {
             crosshair_y: 1,
             planets_scroll: 0,
             fleets_scroll: 0,
-            reports_scroll: 0,
             diplomacy_scroll: 0,
             planet_overlay: ListOverlayState::default(),
             fleet_overlay: ListOverlayState::default(),
