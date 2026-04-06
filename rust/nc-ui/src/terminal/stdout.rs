@@ -12,8 +12,8 @@ use crossterm::{
 use diff::{changed_spans, fingerprint_row};
 
 use crate::buffer::{Cell, CellStyle, GameColor, PlayfieldBuffer};
-use crate::terminal::{ColorMode, OutputEncoding, Terminal};
 use crate::terminal::cp437;
+use crate::terminal::{ColorMode, OutputEncoding, Terminal};
 use crate::theme::classic;
 
 pub struct StdoutTerminal {
@@ -497,7 +497,13 @@ pub fn rgb_to_named16(r: u8, g: u8, b: u8) -> Color {
 
 pub fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
     let cube_idx = |v: u8| -> u8 {
-        if v < 48 { 0 } else if v < 115 { 1 } else { (v - 35) / 40 }
+        if v < 48 {
+            0
+        } else if v < 115 {
+            1
+        } else {
+            (v - 35) / 40
+        }
     };
     let ri = cube_idx(r);
     let gi = cube_idx(g);
@@ -521,22 +527,38 @@ pub fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
     };
     let gray_dist = redmean_dist(r, g, b, gray_rgb, gray_rgb, gray_rgb);
 
-    if gray_dist < cube_dist { gray_index } else { cube_index }
+    if gray_dist < cube_dist {
+        gray_index
+    } else {
+        cube_index
+    }
 }
 
 const ANSI16_COLORS: [Color; 16] = [
-    Color::Black, Color::DarkRed, Color::DarkGreen, Color::DarkYellow,
-    Color::DarkBlue, Color::DarkMagenta, Color::DarkCyan, Color::Grey,
-    Color::DarkGrey, Color::Red, Color::Green, Color::Yellow,
-    Color::Blue, Color::Magenta, Color::Cyan, Color::White,
+    Color::Black,
+    Color::DarkRed,
+    Color::DarkGreen,
+    Color::DarkYellow,
+    Color::DarkBlue,
+    Color::DarkMagenta,
+    Color::DarkCyan,
+    Color::Grey,
+    Color::DarkGrey,
+    Color::Red,
+    Color::Green,
+    Color::Yellow,
+    Color::Blue,
+    Color::Magenta,
+    Color::Cyan,
+    Color::White,
 ];
 
 #[cfg(test)]
 mod tests {
     use super::{RenderSnapshot, cursor_update_required, frame_reset_required, render_cursor};
+    use crate::buffer::PlayfieldBuffer;
     use crate::buffer::{Cell, CellStyle, GameColor};
     use crate::terminal::OutputEncoding;
-    use crate::buffer::PlayfieldBuffer;
 
     fn snapshot(
         width: usize,

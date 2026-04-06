@@ -85,7 +85,10 @@ mod tests {
     use crate::buffer::{Cell, CellStyle, GameColor};
 
     fn cell(ch: char) -> Cell {
-        Cell::new(ch, CellStyle::new(GameColor::White, GameColor::Black, false))
+        Cell::new(
+            ch,
+            CellStyle::new(GameColor::White, GameColor::Black, false),
+        )
     }
 
     fn highlighted(ch: char) -> Cell {
@@ -111,7 +114,13 @@ mod tests {
     #[test]
     fn separated_changes_produce_multiple_spans() {
         let previous = [cell('A'), cell('B'), cell('C'), cell('D'), cell('E')];
-        let current = [highlighted('A'), cell('B'), cell('C'), highlighted('D'), cell('E')];
+        let current = [
+            highlighted('A'),
+            cell('B'),
+            cell('C'),
+            highlighted('D'),
+            cell('E'),
+        ];
         assert_eq!(
             changed_spans(&previous, &current),
             vec![

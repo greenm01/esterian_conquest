@@ -382,14 +382,12 @@ impl App {
             AppView::Password(password) => {
                 launcher_render::render_buffer(&password.state, self.term_cols, self.term_rows)
             }
-            AppView::Picker(picker) => {
-                picker_render::render_buffer(
-                    &picker.state,
-                    picker.session.as_ref(),
-                    self.term_cols,
-                    self.term_rows,
-                )
-            }
+            AppView::Picker(picker) => picker_render::render_buffer(
+                &picker.state,
+                picker.session.as_ref(),
+                self.term_cols,
+                self.term_rows,
+            ),
             AppView::Live(live) => live.terminal.render_buffer(),
             AppView::Empty => PlayfieldBuffer::new(
                 self.term_cols as usize,
@@ -408,14 +406,12 @@ impl App {
             AppView::Password(password) => {
                 launcher_render::render_buffer(&password.state, self.term_cols, self.term_rows)
             }
-            AppView::Picker(picker) => {
-                picker_render::render_buffer(
-                    &picker.state,
-                    picker.session.as_ref(),
-                    self.term_cols,
-                    self.term_rows,
-                )
-            }
+            AppView::Picker(picker) => picker_render::render_buffer(
+                &picker.state,
+                picker.session.as_ref(),
+                self.term_cols,
+                self.term_rows,
+            ),
             AppView::Live(live) => live.terminal.render_buffer(),
             AppView::Empty => {
                 return None;

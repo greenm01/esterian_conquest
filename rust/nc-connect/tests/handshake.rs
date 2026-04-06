@@ -53,8 +53,7 @@ fn parse_ready_missing_ssh_port_is_err() {
 
 #[test]
 fn parse_ready_escaped_strings() {
-    let json =
-        r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"Night \"EC\"","seat":1,"session_ui":"classic_nc_game"}"#;
+    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"Night \"EC\"","seat":1,"session_ui":"classic_nc_game"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.game_name, "Night \"EC\"");
 }

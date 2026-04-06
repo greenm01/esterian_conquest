@@ -28,11 +28,8 @@ impl SessionLeaseGuard {
     }
 
     pub fn heartbeat(&self) -> Result<(), Box<dyn std::error::Error>> {
-        self.store.heartbeat_session_lease(
-            &self.session_token,
-            unix_now(),
-            self.ttl_seconds,
-        )?;
+        self.store
+            .heartbeat_session_lease(&self.session_token, unix_now(), self.ttl_seconds)?;
         Ok(())
     }
 

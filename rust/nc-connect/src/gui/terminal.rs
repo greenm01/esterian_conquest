@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::connect::handshake::SessionUiMode;
 use crate::connect::bridge::BridgeError;
+use crate::connect::handshake::SessionUiMode;
 use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
 use crate::connect::map_push::{MapPushMonitor, MapPushMonitorResult};
 use crate::connect::session::{PreparedLiveSession, PreparedSessionFinalizer};
@@ -115,7 +115,10 @@ impl TerminalView {
             &TermSize::new(terminal_cols as usize, terminal_rows as usize),
             events.clone(),
         );
-        term.resize(TermSize::new(terminal_cols as usize, terminal_rows as usize));
+        term.resize(TermSize::new(
+            terminal_cols as usize,
+            terminal_rows as usize,
+        ));
         let live = LiveSession::start(
             prepared.payload,
             prepared.keypair,
@@ -358,8 +361,10 @@ impl TerminalView {
         {
             self.terminal_cols = viewport_cols;
             self.terminal_rows = viewport_rows;
-            self.term
-                .resize(TermSize::new(viewport_cols as usize, viewport_rows as usize));
+            self.term.resize(TermSize::new(
+                viewport_cols as usize,
+                viewport_rows as usize,
+            ));
             self.live.resize(viewport_cols, viewport_rows);
             return true;
         }
@@ -444,7 +449,10 @@ impl TerminalView {
         self.selection_drag
     }
 
-    fn pixel_to_terminal_point(&self, position: winit::dpi::PhysicalPosition<f64>) -> Option<Point> {
+    fn pixel_to_terminal_point(
+        &self,
+        position: winit::dpi::PhysicalPosition<f64>,
+    ) -> Option<Point> {
         pixel_to_terminal_point(
             position,
             self.viewport_cols,
@@ -573,10 +581,7 @@ fn center_terminal_buffer(
         }
     }
     if let Some((col, row)) = inner.cursor() {
-        outer.set_cursor(
-            col + origin_col as u16,
-            row + origin_row as u16,
-        );
+        outer.set_cursor(col + origin_col as u16, row + origin_row as u16);
     }
     outer
 }
@@ -685,18 +690,17 @@ fn indexed_color(index: u8) -> (u8, u8, u8) {
 mod tests {
     use super::{
         EventQueue, LiveIo, SessionFinalizer, TERM_COLS, TERM_ROWS, TerminalView,
-        center_terminal_buffer,
-        should_render_cursor,
+        center_terminal_buffer, should_render_cursor,
     };
     use crate::connect::handshake::SessionUiMode;
     use crate::connect::live::LiveEvent;
     use crate::gui::clipboard::Clipboard;
     use crate::gui::terminal::pixel_to_terminal_point;
     use crate::gui::{CELL_HEIGHT, CELL_WIDTH};
-    use nc_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
     use alacritty_terminal::term::test::TermSize;
     use alacritty_terminal::term::{Config, Term};
     use alacritty_terminal::vte::ansi::CursorShape;
+    use nc_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
     use std::collections::VecDeque;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
@@ -776,7 +780,10 @@ mod tests {
             &TermSize::new(terminal_cols as usize, terminal_rows as usize),
             events.clone(),
         );
-        term.resize(TermSize::new(terminal_cols as usize, terminal_rows as usize));
+        term.resize(TermSize::new(
+            terminal_cols as usize,
+            terminal_rows as usize,
+        ));
         (
             TerminalView {
                 session_ui,
@@ -840,12 +847,10 @@ mod tests {
     #[test]
     fn selection_drag_does_not_block_keyboard_forwarding() {
         let (mut terminal, handle) = test_terminal_view();
-        let start_x =
-            (((terminal.viewport_cols - TERM_COLS) / 2) as usize * CELL_WIDTH + (CELL_WIDTH / 2))
-                as f64;
-        let start_y =
-            (((terminal.viewport_rows - TERM_ROWS) / 2) as usize * CELL_HEIGHT
-                + (CELL_HEIGHT / 2)) as f64;
+        let start_x = (((terminal.viewport_cols - TERM_COLS) / 2) as usize * CELL_WIDTH
+            + (CELL_WIDTH / 2)) as f64;
+        let start_y = (((terminal.viewport_rows - TERM_ROWS) / 2) as usize * CELL_HEIGHT
+            + (CELL_HEIGHT / 2)) as f64;
         terminal
             .handle_mouse_button(true, PhysicalPosition::new(start_x, start_y))
             .expect("mouse down");
@@ -902,7 +907,12 @@ mod tests {
             1,
             CellStyle::new(GameColor::White, GameColor::Black, false),
         );
-        inner.write_text(0, 0, "OK", CellStyle::new(GameColor::White, GameColor::Black, false));
+        inner.write_text(
+            0,
+            0,
+            "OK",
+            CellStyle::new(GameColor::White, GameColor::Black, false),
+        );
         let centered = center_terminal_buffer(&inner, 6, 3);
         assert_eq!(centered.width(), 6);
         assert_eq!(centered.height(), 3);

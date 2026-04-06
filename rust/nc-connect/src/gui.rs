@@ -14,9 +14,9 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::ModifiersState;
 use winit::window::{Fullscreen, WindowBuilder};
 
+use crate::shell::{OUTER_HEIGHT, OUTER_WIDTH};
 use app::App;
 use render::WindowRenderer;
-use crate::shell::{OUTER_HEIGHT, OUTER_WIDTH};
 
 pub(crate) const TERM_COLS: u16 = 80;
 pub(crate) const TERM_ROWS: u16 = 25;
@@ -116,7 +116,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 WindowEvent::RedrawRequested => {
                     let size = window.inner_size();
-                    if let Err(err) = renderer.render(&app.current_buffer(), size.width, size.height)
+                    if let Err(err) =
+                        renderer.render(&app.current_buffer(), size.width, size.height)
                     {
                         show_fatal_error(&format!("unable to render nc-connect window: {err}"));
                         elwt.exit();
