@@ -12,10 +12,11 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::ModifiersState;
-use winit::window::WindowBuilder;
+use winit::window::{Fullscreen, WindowBuilder};
 
 use app::App;
 use render::WindowRenderer;
+use crate::shell::{OUTER_HEIGHT, OUTER_WIDTH};
 
 pub(crate) const TERM_COLS: u16 = 80;
 pub(crate) const TERM_ROWS: u16 = 25;
@@ -27,19 +28,23 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     parse_launch_args(env::args().skip(1))?;
     init_gui_logging();
     let event_loop = EventLoop::new()?;
-    let logical_width = f64::from(TERM_COLS) * CELL_WIDTH as f64;
-    let logical_height = f64::from(TERM_ROWS) * CELL_HEIGHT as f64;
+    let logical_width = (OUTER_WIDTH * CELL_WIDTH) as f64;
+    let logical_height = (OUTER_HEIGHT * CELL_HEIGHT) as f64;
     let window = Box::new(
         WindowBuilder::new()
             .with_title(WINDOW_TITLE)
             .with_inner_size(LogicalSize::new(logical_width, logical_height))
-            .with_resizable(false)
+            .with_resizable(true)
             .build(&event_loop)?,
     );
     let window: &'static winit::window::Window = Box::leak(window);
     let mut renderer = WindowRenderer::new(window)?;
+    let initial_size = window.inner_size();
     let mut app = App::new()?;
+    app.update_window_size(initial_size.width, initial_size.height)?;
     let mut modifiers = ModifiersState::empty();
+    let mut fullscreen_live = false;
+    let mut windowed_size = initial_size;
 
     event_loop.run(move |event, elwt| {
         elwt.set_control_flow(ControlFlow::Wait);
@@ -59,6 +64,29 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 WindowEvent::Occluded(occluded) => {
                     tracing::debug!(occluded, "nc-connect window occlusion changed");
                 }
+                WindowEvent::Resized(size) => {
+                    if !fullscreen_live {
+                        windowed_size = size;
+                    }
+                    if let Err(err) = app.update_window_size(size.width, size.height) {
+                        show_fatal_error(&err.to_string());
+                        elwt.exit();
+                    } else {
+                        window.request_redraw();
+                    }
+                }
+                WindowEvent::ScaleFactorChanged { .. } => {
+                    let size = window.inner_size();
+                    if !fullscreen_live {
+                        windowed_size = size;
+                    }
+                    if let Err(err) = app.update_window_size(size.width, size.height) {
+                        show_fatal_error(&err.to_string());
+                        elwt.exit();
+                    } else {
+                        window.request_redraw();
+                    }
+                }
                 WindowEvent::CursorMoved { position, .. } => {
                     if let Err(err) = app.handle_mouse_move(position) {
                         show_fatal_error(&err.to_string());
@@ -71,6 +99,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         show_fatal_error(&err.to_string());
                         elwt.exit();
                     } else if app.needs_redraw {
+                        sync_window_mode(window, &app, &mut fullscreen_live, &mut windowed_size);
                         window.request_redraw();
                     }
                 }
@@ -81,11 +110,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     } else if app.exit_requested {
                         elwt.exit();
                     } else if app.needs_redraw {
+                        sync_window_mode(window, &app, &mut fullscreen_live, &mut windowed_size);
                         window.request_redraw();
                     }
                 }
                 WindowEvent::RedrawRequested => {
-                    if let Err(err) = renderer.render(&app.current_buffer()) {
+                    let size = window.inner_size();
+                    if let Err(err) = renderer.render(&app.current_buffer(), size.width, size.height)
+                    {
                         show_fatal_error(&format!("unable to render nc-connect window: {err}"));
                         elwt.exit();
                     } else {
@@ -105,6 +137,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
                 elwt.set_control_flow(app.control_flow());
+                sync_window_mode(window, &app, &mut fullscreen_live, &mut windowed_size);
                 if app.needs_redraw {
                     window.request_redraw();
                 }
@@ -114,6 +147,37 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     })?;
 
     Ok(())
+}
+
+pub(crate) fn terminal_grid_for_pixels(pixel_width: u32, pixel_height: u32) -> (u16, u16) {
+    let cols = (pixel_width.max(1) as usize / CELL_WIDTH).max(1);
+    let rows = (pixel_height.max(1) as usize / CELL_HEIGHT).max(1);
+    (
+        cols.min(u16::MAX as usize) as u16,
+        rows.min(u16::MAX as usize) as u16,
+    )
+}
+
+fn sync_window_mode(
+    window: &winit::window::Window,
+    app: &App,
+    fullscreen_live: &mut bool,
+    windowed_size: &mut winit::dpi::PhysicalSize<u32>,
+) {
+    if app.in_live_session() {
+        if !*fullscreen_live {
+            *windowed_size = window.inner_size();
+            window.set_fullscreen(Some(Fullscreen::Borderless(window.current_monitor())));
+            *fullscreen_live = true;
+        }
+        return;
+    }
+
+    if *fullscreen_live {
+        window.set_fullscreen(None);
+        let _ = window.request_inner_size(*windowed_size);
+        *fullscreen_live = false;
+    }
 }
 
 fn init_gui_logging() {

@@ -35,6 +35,33 @@ pub const HANDSHAKE_TIMEOUT_SECS: u64 = 15;
 // ── Payload types ─────────────────────────────────────────────────────────────
 
 /// Decrypted payload from a 30502 SessionReady event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionUiMode {
+    ClassicNcGame,
+    FullscreenNcDash,
+}
+
+impl SessionUiMode {
+    pub const CLASSIC_NC_GAME_WIRE: &'static str = "classic_nc_game";
+    pub const FULLSCREEN_NC_DASH_WIRE: &'static str = "fullscreen_nc_dash";
+
+    pub fn parse_wire(value: &str) -> Result<Self, String> {
+        match value {
+            Self::CLASSIC_NC_GAME_WIRE => Ok(Self::ClassicNcGame),
+            Self::FULLSCREEN_NC_DASH_WIRE => Ok(Self::FullscreenNcDash),
+            other => Err(format!("unknown session_ui {other:?}")),
+        }
+    }
+
+    pub const fn as_wire(self) -> &'static str {
+        match self {
+            Self::ClassicNcGame => Self::CLASSIC_NC_GAME_WIRE,
+            Self::FullscreenNcDash => Self::FULLSCREEN_NC_DASH_WIRE,
+        }
+    }
+}
+
+/// Decrypted payload from a 30502 SessionReady event.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionReadyPayload {
     pub game_id: String,
@@ -48,6 +75,7 @@ pub struct SessionReadyPayload {
     pub game_name: String,
     pub seat: u32,
     pub player_name: String,
+    pub session_ui: SessionUiMode,
 }
 
 /// One entry in a `multiple_games` error list.
@@ -203,7 +231,7 @@ async fn publish_session_request(
 /// ```json
 /// {"game_id":"...","ssh_host":"...","ssh_port":22,"ssh_user":"...",
 ///  "host_fingerprint":"...",
-///  "game_name":"...","seat":2,"player_name":"..."}
+///  "game_name":"...","seat":2,"player_name":"...","session_ui":"classic_nc_game"}
 /// ```
 pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
     let game_id = extract_str(json, "game_id")?;
@@ -216,6 +244,7 @@ pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
     let game_name = extract_str(json, "game_name")?;
     let seat = extract_u32(json, "seat").ok_or("missing or invalid seat")?;
     let player_name = extract_str(json, "player_name").unwrap_or_default();
+    let session_ui = SessionUiMode::parse_wire(&extract_str(json, "session_ui")?)?;
 
     Ok(SessionReadyPayload {
         game_id,
@@ -226,6 +255,7 @@ pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
         game_name,
         seat,
         player_name,
+        session_ui,
     })
 }
 

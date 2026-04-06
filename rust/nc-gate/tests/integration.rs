@@ -11,7 +11,7 @@ use nc_gate::serve::game_def::build_game_def_tags;
 use nc_gate::serve::lease::find_active_identity_session;
 use nc_gate::serve::provision::{provision_key, reap_expired_keys, remove_key};
 use nc_gate::serve::request::parse_session_request;
-use nc_gate::serve::response::{SessionReadyPayload, session_error_payload};
+use nc_gate::serve::response::{SessionReadyPayload, SessionUiMode, session_error_payload};
 use nc_gate::serve::routing::{RouteError, RoutingDecision, route};
 use nc_nostr::hash::sha256_hex;
 use nc_nostr::timing::MAX_EVENT_AGE_SECS;
@@ -179,6 +179,7 @@ fn full_pipeline_first_time_join_with_invite_code() {
         game_name: &seat.game_name,
         seat: seat.player,
         player_name: "Empire of Sol",
+        session_ui: SessionUiMode::ClassicNcGame,
     };
     let plaintext = payload.to_json();
     let encrypted = nip44::encrypt(

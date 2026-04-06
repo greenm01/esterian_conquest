@@ -220,10 +220,12 @@ Published by `nc-gate` when a session has been provisioned.
   "game_id": "friday-night",
   "ssh_host": "play.example.com",
   "ssh_port": 22,
+  "ssh_user": "ecgame",
   "host_fingerprint": "SHA256:...",
   "game_name": "Friday Night EC",
   "seat": 2,
-  "player_name": "Empire of Sol"
+  "player_name": "Empire of Sol",
+  "session_ui": "classic_nc_game"
 }
 ```
 
@@ -234,10 +236,12 @@ Fields:
 | `game_id` | Game identifier slug. Used by `nc-connect` to disambiguate future connections and to populate the local cache once a seat is confirmed claimed. |
 | `ssh_host` | Hostname or IP to SSH into |
 | `ssh_port` | SSH port number |
+| `ssh_user` | SSH username to authenticate as |
 | `host_fingerprint` | SSH server host key fingerprint for verification |
 | `game_name` | Human-readable game name |
 | `seat` | Player seat number (1-based) |
 | `player_name` | Empire name for this seat |
+| `session_ui` | Hosted live-session UI mode. `classic_nc_game` means `nc-connect` should allocate a fixed `80x25` PTY and center the live game in a fullscreen shell. `fullscreen_nc_dash` means `nc-connect` should allocate a fullscreen-sized PTY and forward live resize events. |
 
 ### 30503: SessionError
 

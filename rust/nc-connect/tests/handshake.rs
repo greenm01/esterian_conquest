@@ -1,5 +1,6 @@
 use nc_connect::connect::handshake::{
-    GameEntry, SessionErrorPayload, SessionReadyPayload, parse_session_error, parse_session_ready,
+    GameEntry, SessionErrorPayload, SessionReadyPayload, SessionUiMode, parse_session_error,
+    parse_session_ready,
 };
 use nc_nostr::nonce::random_nonce_hex;
 
@@ -7,7 +8,7 @@ use nc_nostr::nonce::random_nonce_hex;
 
 #[test]
 fn parse_ready_full_payload() {
-    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"ssh_user":"ecgame","host_fingerprint":"SHA256:abc","game_name":"Friday Night EC","seat":2,"player_name":"Empire of Sol"}"#;
+    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"ssh_user":"ecgame","host_fingerprint":"SHA256:abc","game_name":"Friday Night EC","seat":2,"player_name":"Empire of Sol","session_ui":"fullscreen_nc_dash"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.game_id, "friday-night");
     assert_eq!(p.ssh_host, "play.example.com");
@@ -17,19 +18,21 @@ fn parse_ready_full_payload() {
     assert_eq!(p.game_name, "Friday Night EC");
     assert_eq!(p.seat, 2);
     assert_eq!(p.player_name, "Empire of Sol");
+    assert_eq!(p.session_ui, SessionUiMode::FullscreenNcDash);
 }
 
 #[test]
 fn parse_ready_missing_fingerprint_defaults_to_empty() {
-    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"N","seat":1,"player_name":"P"}"#;
+    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"N","seat":1,"player_name":"P","session_ui":"classic_nc_game"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.ssh_user, "");
     assert_eq!(p.host_fingerprint, "");
+    assert_eq!(p.session_ui, SessionUiMode::ClassicNcGame);
 }
 
 #[test]
 fn parse_ready_missing_player_name_defaults_to_empty() {
-    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":2222,"game_name":"N","seat":3}"#;
+    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":2222,"game_name":"N","seat":3,"session_ui":"classic_nc_game"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.player_name, "");
     assert_eq!(p.ssh_port, 2222);
@@ -51,9 +54,21 @@ fn parse_ready_missing_ssh_port_is_err() {
 #[test]
 fn parse_ready_escaped_strings() {
     let json =
-        r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"Night \"EC\"","seat":1}"#;
+        r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"Night \"EC\"","seat":1,"session_ui":"classic_nc_game"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.game_name, "Night \"EC\"");
+}
+
+#[test]
+fn parse_ready_missing_session_ui_is_err() {
+    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"N","seat":1}"#;
+    assert!(parse_session_ready(json).is_err());
+}
+
+#[test]
+fn parse_ready_invalid_session_ui_is_err() {
+    let json = r#"{"game_id":"g","ssh_host":"h","ssh_port":22,"game_name":"N","seat":1,"session_ui":"unknown"}"#;
+    assert!(parse_session_ready(json).is_err());
 }
 
 // ── parse_session_error ───────────────────────────────────────────────────────
@@ -121,18 +136,16 @@ fn parse_error_escaped_message() {
 
 // ── round-trip: nc-gate format → parse_session_ready ─────────────────────────
 
-/// The gate serializes payloads without host_fingerprint or player_name (older
-/// gate), ensure we still parse cleanly.
 #[test]
 fn parse_ready_gate_compact_format() {
-    // This matches nc-gate's SessionReadyPayload::to_json() output.
-    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"ssh_user":"ecgame","game_name":"Friday Night EC","seat":2}"#;
+    let json = r#"{"game_id":"friday-night","ssh_host":"play.example.com","ssh_port":22,"ssh_user":"ecgame","game_name":"Friday Night EC","seat":2,"session_ui":"classic_nc_game"}"#;
     let p = parse_session_ready(json).unwrap();
     assert_eq!(p.game_id, "friday-night");
     assert_eq!(p.seat, 2);
     assert_eq!(p.ssh_user, "ecgame");
     assert_eq!(p.host_fingerprint, "");
     assert_eq!(p.player_name, "");
+    assert_eq!(p.session_ui, SessionUiMode::ClassicNcGame);
 }
 
 // ── random_nonce_hex ──────────────────────────────────────────────────────────
@@ -164,6 +177,7 @@ fn session_ready_payload_equality() {
         game_name: "N".into(),
         seat: 1,
         player_name: "P".into(),
+        session_ui: SessionUiMode::ClassicNcGame,
     };
     let b = a.clone();
     assert_eq!(a, b);

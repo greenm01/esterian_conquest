@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use crate::connect::handshake::SessionUiMode;
 use crate::connect::bridge::BridgeError;
 use crate::connect::live::{LiveEvent, LiveSession, TerminalSpec};
 use crate::connect::map_push::{MapPushMonitor, MapPushMonitorResult};
@@ -22,6 +23,7 @@ use super::{CELL_HEIGHT, CELL_WIDTH, TERM_COLS, TERM_ROWS};
 
 trait LiveIo {
     fn send_input(&self, data: Vec<u8>);
+    fn resize(&self, cols: u16, rows: u16);
     fn close(&self);
     fn try_recv(&mut self) -> Result<Option<LiveEvent>, String>;
 }
@@ -33,6 +35,10 @@ struct SessionLiveIo {
 impl LiveIo for SessionLiveIo {
     fn send_input(&self, data: Vec<u8>) {
         self.session.send_input(data);
+    }
+
+    fn resize(&self, cols: u16, rows: u16) {
+        self.session.resize(cols, rows);
     }
 
     fn close(&self) {
@@ -66,6 +72,7 @@ impl EventListener for EventQueue {
 }
 
 pub struct TerminalView {
+    session_ui: SessionUiMode,
     live: Box<dyn LiveIo>,
     finalizer: SessionFinalizer,
     term: Term<EventQueue>,
@@ -78,33 +85,49 @@ pub struct TerminalView {
     has_received_output: bool,
     created_at: Instant,
     last_output_at: Option<Instant>,
+    viewport_cols: u16,
+    viewport_rows: u16,
+    viewport_pixel_width: u32,
+    viewport_pixel_height: u32,
+    terminal_cols: u16,
+    terminal_rows: u16,
 }
 
 impl TerminalView {
     pub fn new(
         prepared: PreparedLiveSession,
         finalizer: PreparedSessionFinalizer,
-        _username: String,
+        username: String,
+        viewport_cols: u16,
+        viewport_rows: u16,
+        viewport_pixel_width: u32,
+        viewport_pixel_height: u32,
     ) -> Self {
         let map_push_monitor = prepared.map_push_config.clone().map(MapPushMonitor::start);
         let events = EventQueue::default();
+        let session_ui = prepared.payload.session_ui;
+        let (terminal_cols, terminal_rows) = match session_ui {
+            SessionUiMode::ClassicNcGame => (TERM_COLS, TERM_ROWS),
+            SessionUiMode::FullscreenNcDash => (viewport_cols.max(1), viewport_rows.max(1)),
+        };
         let mut term = Term::new(
             Config::default(),
-            &TermSize::new(TERM_COLS as usize, TERM_ROWS as usize),
+            &TermSize::new(terminal_cols as usize, terminal_rows as usize),
             events.clone(),
         );
-        term.resize(TermSize::new(TERM_COLS as usize, TERM_ROWS as usize));
+        term.resize(TermSize::new(terminal_cols as usize, terminal_rows as usize));
         let live = LiveSession::start(
             prepared.payload,
             prepared.keypair,
-            _username.clone(),
+            username,
             TerminalSpec {
                 term: "xterm-256color".to_string(),
-                cols: TERM_COLS,
-                rows: TERM_ROWS,
+                cols: terminal_cols,
+                rows: terminal_rows,
             },
         );
         Self {
+            session_ui,
             live: Box::new(SessionLiveIo { session: live }),
             finalizer: SessionFinalizer::Real(finalizer),
             term,
@@ -117,6 +140,12 @@ impl TerminalView {
             has_received_output: false,
             created_at: Instant::now(),
             last_output_at: None,
+            viewport_cols: viewport_cols.max(1),
+            viewport_rows: viewport_rows.max(1),
+            viewport_pixel_width: viewport_pixel_width.max(1),
+            viewport_pixel_height: viewport_pixel_height.max(1),
+            terminal_cols,
+            terminal_rows,
         }
     }
 
@@ -165,9 +194,21 @@ impl TerminalView {
     }
 
     pub fn render_buffer(&self) -> PlayfieldBuffer {
+        let mut buffer = self.render_terminal_buffer();
+        if self.session_ui == SessionUiMode::ClassicNcGame {
+            buffer = center_terminal_buffer(
+                &buffer,
+                usize::from(self.viewport_cols),
+                usize::from(self.viewport_rows),
+            );
+        }
+        buffer
+    }
+
+    fn render_terminal_buffer(&self) -> PlayfieldBuffer {
         let mut buffer = PlayfieldBuffer::new(
-            TERM_COLS as usize,
-            TERM_ROWS as usize,
+            usize::from(self.terminal_cols),
+            usize::from(self.terminal_rows),
             CellStyle::new(GameColor::White, GameColor::Black, false),
         );
         let content = self.term.renderable_content();
@@ -260,7 +301,7 @@ impl TerminalView {
         if !self.selection_drag {
             return Ok(false);
         }
-        let Some(point) = pixel_to_terminal_point(position) else {
+        let Some(point) = self.pixel_to_terminal_point(position) else {
             return Ok(false);
         };
         if let Some(selection) = self.term.selection.as_mut() {
@@ -275,7 +316,7 @@ impl TerminalView {
         pressed: bool,
         position: winit::dpi::PhysicalPosition<f64>,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        let Some(point) = pixel_to_terminal_point(position) else {
+        let Some(point) = self.pixel_to_terminal_point(position) else {
             self.selection_drag = false;
             return Ok(false);
         };
@@ -290,6 +331,40 @@ impl TerminalView {
             return Ok(true);
         }
         Ok(false)
+    }
+
+    pub fn resize_viewport(
+        &mut self,
+        viewport_cols: u16,
+        viewport_rows: u16,
+        viewport_pixel_width: u32,
+        viewport_pixel_height: u32,
+    ) -> bool {
+        let viewport_cols = viewport_cols.max(1);
+        let viewport_rows = viewport_rows.max(1);
+        let viewport_pixel_width = viewport_pixel_width.max(1);
+        let viewport_pixel_height = viewport_pixel_height.max(1);
+        let changed = self.viewport_cols != viewport_cols
+            || self.viewport_rows != viewport_rows
+            || self.viewport_pixel_width != viewport_pixel_width
+            || self.viewport_pixel_height != viewport_pixel_height;
+        self.viewport_cols = viewport_cols;
+        self.viewport_rows = viewport_rows;
+        self.viewport_pixel_width = viewport_pixel_width;
+        self.viewport_pixel_height = viewport_pixel_height;
+
+        if self.session_ui == SessionUiMode::FullscreenNcDash
+            && (self.terminal_cols != viewport_cols || self.terminal_rows != viewport_rows)
+        {
+            self.terminal_cols = viewport_cols;
+            self.terminal_rows = viewport_rows;
+            self.term
+                .resize(TermSize::new(viewport_cols as usize, viewport_rows as usize));
+            self.live.resize(viewport_cols, viewport_rows);
+            return true;
+        }
+
+        changed
     }
 
     fn handle_term_events(
@@ -330,8 +405,8 @@ impl TerminalView {
                 }
                 TermEvent::TextAreaSizeRequest(formatter) => {
                     let response = formatter(WindowSize {
-                        num_lines: TERM_ROWS,
-                        num_cols: TERM_COLS,
+                        num_lines: self.terminal_rows,
+                        num_cols: self.terminal_cols,
                         cell_width: CELL_WIDTH as u16,
                         cell_height: CELL_HEIGHT as u16,
                     });
@@ -367,6 +442,19 @@ impl TerminalView {
 
     pub fn selection_drag_active(&self) -> bool {
         self.selection_drag
+    }
+
+    fn pixel_to_terminal_point(&self, position: winit::dpi::PhysicalPosition<f64>) -> Option<Point> {
+        pixel_to_terminal_point(
+            position,
+            self.viewport_cols,
+            self.viewport_rows,
+            self.viewport_pixel_width,
+            self.viewport_pixel_height,
+            self.terminal_cols,
+            self.terminal_rows,
+            self.session_ui,
+        )
     }
 
     #[cfg(test)]
@@ -411,16 +499,86 @@ fn populate_terminal_buffer(buffer: &mut PlayfieldBuffer, content: RenderableCon
     }
 }
 
-fn pixel_to_terminal_point(position: winit::dpi::PhysicalPosition<f64>) -> Option<Point> {
+fn pixel_to_terminal_point(
+    position: winit::dpi::PhysicalPosition<f64>,
+    viewport_cols: u16,
+    viewport_rows: u16,
+    viewport_pixel_width: u32,
+    viewport_pixel_height: u32,
+    terminal_cols: u16,
+    terminal_rows: u16,
+    session_ui: SessionUiMode,
+) -> Option<Point> {
     if position.x < 0.0 || position.y < 0.0 {
         return None;
     }
-    let col = (position.x as usize) / CELL_WIDTH;
-    let row = (position.y as usize) / CELL_HEIGHT;
-    if col >= TERM_COLS as usize || row >= TERM_ROWS as usize {
+
+    let grid_pixel_width = usize::from(viewport_cols) * CELL_WIDTH;
+    let grid_pixel_height = usize::from(viewport_rows) * CELL_HEIGHT;
+    let grid_origin_x = ((viewport_pixel_width as usize).saturating_sub(grid_pixel_width)) / 2;
+    let grid_origin_y = ((viewport_pixel_height as usize).saturating_sub(grid_pixel_height)) / 2;
+    let x = position.x as usize;
+    let y = position.y as usize;
+    if x < grid_origin_x
+        || y < grid_origin_y
+        || x >= grid_origin_x + grid_pixel_width
+        || y >= grid_origin_y + grid_pixel_height
+    {
+        return None;
+    }
+
+    let viewport_col = (x - grid_origin_x) / CELL_WIDTH;
+    let viewport_row = (y - grid_origin_y) / CELL_HEIGHT;
+    let content_col_offset = match session_ui {
+        SessionUiMode::ClassicNcGame => {
+            usize::from(viewport_cols.saturating_sub(terminal_cols)) / 2
+        }
+        SessionUiMode::FullscreenNcDash => 0,
+    };
+    let content_row_offset = match session_ui {
+        SessionUiMode::ClassicNcGame => {
+            usize::from(viewport_rows.saturating_sub(terminal_rows)) / 2
+        }
+        SessionUiMode::FullscreenNcDash => 0,
+    };
+
+    if viewport_col < content_col_offset || viewport_row < content_row_offset {
+        return None;
+    }
+    let col = viewport_col - content_col_offset;
+    let row = viewport_row - content_row_offset;
+    if col >= terminal_cols as usize || row >= terminal_rows as usize {
         return None;
     }
     Some(Point::new(Line(row as i32), Column(col)))
+}
+
+fn center_terminal_buffer(
+    inner: &PlayfieldBuffer,
+    viewport_width: usize,
+    viewport_height: usize,
+) -> PlayfieldBuffer {
+    let width = viewport_width.max(inner.width());
+    let height = viewport_height.max(inner.height());
+    let mut outer = PlayfieldBuffer::new(
+        width,
+        height,
+        CellStyle::new(GameColor::White, GameColor::Black, false),
+    );
+    let origin_col = width.saturating_sub(inner.width()) / 2;
+    let origin_row = height.saturating_sub(inner.height()) / 2;
+    for row in 0..inner.height() {
+        for (col, cell) in inner.row(row).iter().enumerate() {
+            outer.set_cell(origin_row + row, origin_col + col, cell.ch, cell.style);
+        }
+    }
+    if let Some((col, row)) = inner.cursor() {
+        outer.set_cursor(
+            col + origin_col as u16,
+            row + origin_row as u16,
+        );
+    }
+    outer
 }
 
 fn resolve_color(color: Color, colors: &alacritty_terminal::term::color::Colors) -> GameColor {
@@ -527,12 +685,15 @@ fn indexed_color(index: u8) -> (u8, u8, u8) {
 mod tests {
     use super::{
         EventQueue, LiveIo, SessionFinalizer, TERM_COLS, TERM_ROWS, TerminalView,
+        center_terminal_buffer,
         should_render_cursor,
     };
+    use crate::connect::handshake::SessionUiMode;
     use crate::connect::live::LiveEvent;
     use crate::gui::clipboard::Clipboard;
     use crate::gui::terminal::pixel_to_terminal_point;
     use crate::gui::{CELL_HEIGHT, CELL_WIDTH};
+    use nc_ui::buffer::{CellStyle, GameColor, PlayfieldBuffer};
     use alacritty_terminal::term::test::TermSize;
     use alacritty_terminal::term::{Config, Term};
     use alacritty_terminal::vte::ansi::CursorShape;
@@ -545,6 +706,7 @@ mod tests {
     #[derive(Clone, Default)]
     struct TestLiveHandle {
         sent_inputs: Arc<Mutex<Vec<Vec<u8>>>>,
+        sent_resizes: Arc<Mutex<Vec<(u16, u16)>>>,
         queued_events: Arc<Mutex<VecDeque<LiveEvent>>>,
     }
 
@@ -558,6 +720,10 @@ mod tests {
 
         fn sent_inputs(&self) -> Vec<Vec<u8>> {
             self.sent_inputs.lock().expect("sent inputs").clone()
+        }
+
+        fn sent_resizes(&self) -> Vec<(u16, u16)> {
+            self.sent_resizes.lock().expect("sent resizes").clone()
         }
     }
 
@@ -574,6 +740,14 @@ mod tests {
                 .push(data);
         }
 
+        fn resize(&self, cols: u16, rows: u16) {
+            self.handle
+                .sent_resizes
+                .lock()
+                .expect("sent resizes")
+                .push((cols, rows));
+        }
+
         fn close(&self) {}
 
         fn try_recv(&mut self) -> Result<Option<LiveEvent>, String> {
@@ -587,16 +761,25 @@ mod tests {
     }
 
     fn test_terminal_view() -> (TerminalView, TestLiveHandle) {
+        test_terminal_view_with_mode(SessionUiMode::ClassicNcGame)
+    }
+
+    fn test_terminal_view_with_mode(session_ui: SessionUiMode) -> (TerminalView, TestLiveHandle) {
         let handle = TestLiveHandle::default();
         let events = EventQueue::default();
+        let (terminal_cols, terminal_rows) = match session_ui {
+            SessionUiMode::ClassicNcGame => (TERM_COLS, TERM_ROWS),
+            SessionUiMode::FullscreenNcDash => (120, 40),
+        };
         let mut term = Term::new(
             Config::default(),
-            &TermSize::new(TERM_COLS as usize, TERM_ROWS as usize),
+            &TermSize::new(terminal_cols as usize, terminal_rows as usize),
             events.clone(),
         );
-        term.resize(TermSize::new(TERM_COLS as usize, TERM_ROWS as usize));
+        term.resize(TermSize::new(terminal_cols as usize, terminal_rows as usize));
         (
             TerminalView {
+                session_ui,
                 live: Box::new(TestLiveIo {
                     handle: handle.clone(),
                 }),
@@ -611,6 +794,12 @@ mod tests {
                 has_received_output: false,
                 created_at: Instant::now() - Duration::from_secs(5),
                 last_output_at: None,
+                viewport_cols: 120,
+                viewport_rows: 40,
+                viewport_pixel_width: 1200,
+                viewport_pixel_height: 720,
+                terminal_cols,
+                terminal_rows,
             },
             handle,
         )
@@ -651,11 +840,14 @@ mod tests {
     #[test]
     fn selection_drag_does_not_block_keyboard_forwarding() {
         let (mut terminal, handle) = test_terminal_view();
+        let start_x =
+            (((terminal.viewport_cols - TERM_COLS) / 2) as usize * CELL_WIDTH + (CELL_WIDTH / 2))
+                as f64;
+        let start_y =
+            (((terminal.viewport_rows - TERM_ROWS) / 2) as usize * CELL_HEIGHT
+                + (CELL_HEIGHT / 2)) as f64;
         terminal
-            .handle_mouse_button(
-                true,
-                PhysicalPosition::new((CELL_WIDTH / 2) as f64, (CELL_HEIGHT / 2) as f64),
-            )
+            .handle_mouse_button(true, PhysicalPosition::new(start_x, start_y))
             .expect("mouse down");
         assert!(terminal.selection_drag_active());
 
@@ -665,7 +857,55 @@ mod tests {
 
     #[test]
     fn helper_points_stay_available_for_live_tests() {
-        assert!(pixel_to_terminal_point(PhysicalPosition::new(0.0, 0.0)).is_some());
+        assert!(
+            pixel_to_terminal_point(
+                PhysicalPosition::new(0.0, 0.0),
+                TERM_COLS,
+                TERM_ROWS,
+                (TERM_COLS as u32) * CELL_WIDTH as u32,
+                (TERM_ROWS as u32) * CELL_HEIGHT as u32,
+                TERM_COLS,
+                TERM_ROWS,
+                SessionUiMode::ClassicNcGame,
+            )
+            .is_some()
+        );
         assert_eq!(ModifiersState::empty(), ModifiersState::default());
+    }
+
+    #[test]
+    fn classic_live_resize_keeps_fixed_pty_size() {
+        let (mut terminal, handle) = test_terminal_view_with_mode(SessionUiMode::ClassicNcGame);
+
+        assert!(terminal.resize_viewport(140, 45, 1400, 810));
+        assert!(handle.sent_resizes().is_empty());
+        assert_eq!(terminal.terminal_cols, TERM_COLS);
+        assert_eq!(terminal.terminal_rows, TERM_ROWS);
+        assert_eq!(terminal.render_buffer().width(), 140);
+        assert_eq!(terminal.render_buffer().height(), 45);
+    }
+
+    #[test]
+    fn dash_live_resize_forwards_pty_resize() {
+        let (mut terminal, handle) = test_terminal_view_with_mode(SessionUiMode::FullscreenNcDash);
+
+        assert!(terminal.resize_viewport(132, 44, 1320, 792));
+        assert_eq!(handle.sent_resizes(), vec![(132, 44)]);
+        assert_eq!(terminal.terminal_cols, 132);
+        assert_eq!(terminal.terminal_rows, 44);
+    }
+
+    #[test]
+    fn classic_live_buffer_is_centered_in_viewport() {
+        let mut inner = PlayfieldBuffer::new(
+            2,
+            1,
+            CellStyle::new(GameColor::White, GameColor::Black, false),
+        );
+        inner.write_text(0, 0, "OK", CellStyle::new(GameColor::White, GameColor::Black, false));
+        let centered = center_terminal_buffer(&inner, 6, 3);
+        assert_eq!(centered.width(), 6);
+        assert_eq!(centered.height(), 3);
+        assert_eq!(centered.plain_line(1), "  OK");
     }
 }

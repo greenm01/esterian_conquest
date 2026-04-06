@@ -3,7 +3,7 @@
 //! These tests exercise the pure logic: payload serialization, JSON escaping,
 //! and the error payload format.  Publishing to a live relay is not tested here.
 
-use nc_gate::serve::response::{SessionReadyPayload, session_error_payload};
+use nc_gate::serve::response::{SessionReadyPayload, SessionUiMode, session_error_payload};
 use nc_gate::serve::routing::{GameEntry, RouteError};
 
 // ---------------------------------------------------------------------------
@@ -20,6 +20,7 @@ fn session_ready_payload_json_basic() {
         game_name: "Friday Night EC",
         seat: 2,
         player_name: "Empire of Sol",
+        session_ui: SessionUiMode::ClassicNcGame,
     };
     let json = payload.to_json();
     assert!(json.contains(r#""game_id":"friday-night""#));
@@ -29,6 +30,7 @@ fn session_ready_payload_json_basic() {
     assert!(json.contains(r#""game_name":"Friday Night EC""#));
     assert!(json.contains(r#""seat":2"#));
     assert!(json.contains(r#""player_name":"Empire of Sol""#));
+    assert!(json.contains(r#""session_ui":"classic_nc_game""#));
 }
 
 #[test]
@@ -41,6 +43,7 @@ fn session_ready_payload_is_valid_json_structure() {
         game_name: "Test",
         seat: 1,
         player_name: "Empire",
+        session_ui: SessionUiMode::FullscreenNcDash,
     };
     let json = payload.to_json();
     // Must start and end with braces.
@@ -156,6 +159,7 @@ fn nip44_round_trip_session_ready_payload() {
         game_name: "Friday Night EC",
         seat: 3,
         player_name: "Commander \"Codex\"",
+        session_ui: SessionUiMode::FullscreenNcDash,
     };
     let plaintext = payload.to_json();
     assert!(plaintext.contains(r#""player_name":"Commander \"Codex\"""#));

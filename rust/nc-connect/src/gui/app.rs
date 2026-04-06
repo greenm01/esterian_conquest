@@ -27,11 +27,12 @@ use crate::picker::refresh::execute_pending_refresh;
 use crate::picker::render as picker_render;
 use crate::picker::session::load_picker_session;
 use crate::picker::state::{PickerSession, PickerState, Screen};
+use crate::shell::{OUTER_HEIGHT, OUTER_WIDTH};
 
 use super::clipboard::Clipboard;
 use super::input::{is_key_press, is_paste_shortcut, pasteable_text, picker_key};
 use super::terminal::TerminalView;
-use super::{TERM_COLS, TERM_ROWS};
+use super::terminal_grid_for_pixels;
 
 const LOCKED_FRAME_STEP: Duration = Duration::from_millis(80);
 const LIVE_POLL_STEP: Duration = Duration::from_millis(16);
@@ -42,6 +43,10 @@ pub struct App {
     clipboard: Clipboard,
     cursor_blink: CursorBlinkState,
     mouse_pos: PhysicalPosition<f64>,
+    term_cols: u16,
+    term_rows: u16,
+    window_pixel_width: u32,
+    window_pixel_height: u32,
     pub needs_redraw: bool,
     pub exit_requested: bool,
 }
@@ -124,7 +129,19 @@ impl CursorBlinkState {
 
 impl App {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        Self::new_with_window_size(
+            (OUTER_WIDTH * super::CELL_WIDTH) as u32,
+            (OUTER_HEIGHT * super::CELL_HEIGHT) as u32,
+        )
+    }
+
+    pub fn new_with_window_size(
+        window_pixel_width: u32,
+        window_pixel_height: u32,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let now = Instant::now();
+        let (term_cols, term_rows) =
+            terminal_grid_for_pixels(window_pixel_width, window_pixel_height);
         Ok(Self {
             view: AppView::Password(PasswordView {
                 state: PasswordGateState::new(keychain_exists(&keychain_path()), None),
@@ -133,9 +150,46 @@ impl App {
             clipboard: Clipboard::new(),
             cursor_blink: CursorBlinkState::new(now),
             mouse_pos: PhysicalPosition::new(0.0, 0.0),
+            term_cols,
+            term_rows,
+            window_pixel_width: window_pixel_width.max(1),
+            window_pixel_height: window_pixel_height.max(1),
             needs_redraw: true,
             exit_requested: false,
         })
+    }
+
+    pub fn update_window_size(
+        &mut self,
+        window_pixel_width: u32,
+        window_pixel_height: u32,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (term_cols, term_rows) =
+            terminal_grid_for_pixels(window_pixel_width, window_pixel_height);
+        let mut changed = self.term_cols != term_cols
+            || self.term_rows != term_rows
+            || self.window_pixel_width != window_pixel_width.max(1)
+            || self.window_pixel_height != window_pixel_height.max(1);
+        self.term_cols = term_cols;
+        self.term_rows = term_rows;
+        self.window_pixel_width = window_pixel_width.max(1);
+        self.window_pixel_height = window_pixel_height.max(1);
+        if let AppView::Live(live) = &mut self.view {
+            changed |= live.terminal.resize_viewport(
+                self.term_cols,
+                self.term_rows,
+                self.window_pixel_width,
+                self.window_pixel_height,
+            );
+        }
+        if changed {
+            self.needs_redraw = true;
+        }
+        Ok(())
+    }
+
+    pub fn in_live_session(&self) -> bool {
+        matches!(self.view, AppView::Live(_))
     }
 
     pub fn request_close(&mut self) {
@@ -325,14 +379,21 @@ impl App {
 
     pub fn current_buffer(&self) -> PlayfieldBuffer {
         let mut buffer = match &self.view {
-            AppView::Password(password) => launcher_render::render_inner_buffer(&password.state),
+            AppView::Password(password) => {
+                launcher_render::render_buffer(&password.state, self.term_cols, self.term_rows)
+            }
             AppView::Picker(picker) => {
-                picker_render::render_inner_buffer(&picker.state, picker.session.as_ref())
+                picker_render::render_buffer(
+                    &picker.state,
+                    picker.session.as_ref(),
+                    self.term_cols,
+                    self.term_rows,
+                )
             }
             AppView::Live(live) => live.terminal.render_buffer(),
             AppView::Empty => PlayfieldBuffer::new(
-                TERM_COLS as usize,
-                TERM_ROWS as usize,
+                self.term_cols as usize,
+                self.term_rows as usize,
                 nc_ui::theme::classic::body_style(),
             ),
         };
@@ -344,9 +405,16 @@ impl App {
 
     fn blink_policy(&self) -> Option<()> {
         let buffer = match &self.view {
-            AppView::Password(password) => launcher_render::render_inner_buffer(&password.state),
+            AppView::Password(password) => {
+                launcher_render::render_buffer(&password.state, self.term_cols, self.term_rows)
+            }
             AppView::Picker(picker) => {
-                picker_render::render_inner_buffer(&picker.state, picker.session.as_ref())
+                picker_render::render_buffer(
+                    &picker.state,
+                    picker.session.as_ref(),
+                    self.term_cols,
+                    self.term_rows,
+                )
             }
             AppView::Live(live) => live.terminal.render_buffer(),
             AppView::Empty => {
@@ -460,7 +528,15 @@ impl App {
         if let Some((request, prepared, finalizer, username)) = prepared {
             let picker = self.take_picker();
             self.view = AppView::Live(LiveView::new(
-                picker, request, prepared, finalizer, username,
+                picker,
+                request,
+                prepared,
+                finalizer,
+                username,
+                self.term_cols,
+                self.term_rows,
+                self.window_pixel_width,
+                self.window_pixel_height,
             ));
             self.needs_redraw = true;
         }
@@ -819,11 +895,23 @@ impl LiveView {
         prepared: crate::connect::session::PreparedLiveSession,
         finalizer: crate::connect::session::PreparedSessionFinalizer,
         username: String,
+        term_cols: u16,
+        term_rows: u16,
+        window_pixel_width: u32,
+        window_pixel_height: u32,
     ) -> Self {
         Self {
             picker,
             request,
-            terminal: TerminalView::new(prepared, finalizer, username),
+            terminal: TerminalView::new(
+                prepared,
+                finalizer,
+                username,
+                term_cols,
+                term_rows,
+                window_pixel_width,
+                window_pixel_height,
+            ),
         }
     }
 

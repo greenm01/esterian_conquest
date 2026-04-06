@@ -18,6 +18,22 @@ use crate::serve::routing::{GameEntry, ResolvedSeat, RouteError};
 // ---------------------------------------------------------------------------
 
 /// JSON payload encrypted inside a 30502 SessionReady event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SessionUiMode {
+    ClassicNcGame,
+    FullscreenNcDash,
+}
+
+impl SessionUiMode {
+    pub const fn as_wire(self) -> &'static str {
+        match self {
+            Self::ClassicNcGame => "classic_nc_game",
+            Self::FullscreenNcDash => "fullscreen_nc_dash",
+        }
+    }
+}
+
+/// JSON payload encrypted inside a 30502 SessionReady event.
 #[derive(Debug)]
 pub struct SessionReadyPayload<'a> {
     pub game_id: &'a str,
@@ -27,6 +43,7 @@ pub struct SessionReadyPayload<'a> {
     pub game_name: &'a str,
     pub seat: usize,
     pub player_name: &'a str,
+    pub session_ui: SessionUiMode,
 }
 
 impl SessionReadyPayload<'_> {
@@ -37,8 +54,9 @@ impl SessionReadyPayload<'_> {
         let ssh_user = escape_json_string(self.ssh_user);
         let game_name = escape_json_string(self.game_name);
         let player_name = escape_json_string(self.player_name);
+        let session_ui = self.session_ui.as_wire();
         format!(
-            r#"{{"game_id":"{game_id}","ssh_host":"{ssh_host}","ssh_port":{ssh_port},"ssh_user":"{ssh_user}","game_name":"{game_name}","seat":{seat},"player_name":"{player_name}"}}"#,
+            r#"{{"game_id":"{game_id}","ssh_host":"{ssh_host}","ssh_port":{ssh_port},"ssh_user":"{ssh_user}","game_name":"{game_name}","seat":{seat},"player_name":"{player_name}","session_ui":"{session_ui}"}}"#,
             game_id = game_id,
             ssh_host = ssh_host,
             ssh_port = self.ssh_port,
@@ -46,6 +64,7 @@ impl SessionReadyPayload<'_> {
             game_name = game_name,
             seat = self.seat,
             player_name = player_name,
+            session_ui = session_ui,
         )
     }
 }
@@ -72,6 +91,7 @@ pub async fn publish_session_ready(
         game_name: &seat.game_name,
         seat: seat.player,
         player_name,
+        session_ui: SessionUiMode::ClassicNcGame,
     };
     let plaintext = payload.to_json();
 

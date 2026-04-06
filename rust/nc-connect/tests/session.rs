@@ -1,6 +1,6 @@
 use nc_connect::cache::{CachedGame, GameCache};
 use nc_connect::connect::game_discovery::{DiscoveredGame, InviteResolution};
-use nc_connect::connect::handshake::SessionReadyPayload;
+use nc_connect::connect::handshake::{SessionReadyPayload, SessionUiMode};
 use nc_connect::connect::public_join::build_session_target_for_discovered_join;
 use nc_connect::connect::resolve::ResolvedTarget;
 use nc_connect::connect::session::{
@@ -62,6 +62,7 @@ fn ready_payload() -> SessionReadyPayload {
         game_name: "Stress Campaign".to_string(),
         seat: 2,
         player_name: "Empire Prime".to_string(),
+        session_ui: SessionUiMode::ClassicNcGame,
     }
 }
 

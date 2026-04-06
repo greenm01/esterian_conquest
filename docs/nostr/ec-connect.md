@@ -63,7 +63,10 @@ picker when the game session ends.
 ### Picker Mode
 
 When run with no arguments, `nc-connect` first shows a centered masked
-password window and then opens the fixed `80x25` main menu:
+password window and then opens the normal windowed picker shell. When the
+player starts a hosted live session, `nc-connect` switches that session into
+borderless fullscreen automatically and returns to the windowed picker after
+the game exits:
 
 ```
 $ nc-connect
@@ -131,7 +134,7 @@ Password: ********
 Press N and paste copper-sunrise@relay.example.com
 Joining game... Welcome! You are Player 3 in "Friday Night EC."
 
-[nc-game launches]
+[live session launches fullscreen]
 ```
 
 ## Identity Management
@@ -370,8 +373,14 @@ not publish public 30500 definitions or when you are doing manual troubleshootin
 
 ## Main Menu
 
-The no-argument shell is a fixed `80x25` crossterm screen aligned with the
-`nc-game` command-line style. It is not a ratatui app anymore.
+The no-argument shell is a centered windowed terminal-style picker. Hosted live
+sessions reuse the same renderer but switch the window into borderless
+fullscreen automatically:
+
+- `classic_nc_game`: the remote PTY stays fixed at `80x25`, and the live game
+  is centered inside the fullscreen window with padding around it
+- `fullscreen_nc_dash`: the remote PTY uses the fullscreen grid, and resize
+  changes are forwarded live to the server
 
 ### Layout
 
