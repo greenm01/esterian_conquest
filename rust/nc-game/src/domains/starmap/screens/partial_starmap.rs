@@ -164,6 +164,7 @@ impl PartialStarmapScreen {
             let screen_row = map_bottom_row - (y - start_y);
             let symbol = match world.known_owner_empire_id {
                 Some(empire_id) if empire_id as usize == frame.player.record_index_1_based => 'O',
+                Some(0) => '#',
                 Some(_) => '#',
                 None if world.known_name.is_some()
                     || world.known_potential_production.is_some()
@@ -174,12 +175,11 @@ impl PartialStarmapScreen {
                 }
                 None => '?',
             };
-            buffer.write_text(
-                screen_row,
-                screen_col,
-                &symbol.to_string(),
-                classic::bright_style(),
-            );
+            let style = match world.known_owner_empire_id {
+                Some(empire_id) if empire_id > 0 => classic::empire_slot_style(empire_id),
+                _ => classic::bright_style(),
+            };
+            buffer.write_text(screen_row, screen_col, &symbol.to_string(), style);
         }
         buffer.write_text(center_row, center_col, "+", classic::map_crosshair_style());
 

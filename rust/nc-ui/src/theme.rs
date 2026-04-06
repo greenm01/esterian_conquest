@@ -96,7 +96,23 @@ struct Theme {
     indicator_on: CellStyle,
     indicator_off: CellStyle,
     star_colors: [GameColor; 6],
+    empire_colors: [GameColor; 12],
 }
+
+const DEFAULT_EMPIRE_COLORS: [GameColor; 12] = [
+    GameColor::Rgb(122, 162, 247),
+    GameColor::Rgb(158, 206, 106),
+    GameColor::Rgb(224, 175, 104),
+    GameColor::Rgb(247, 118, 142),
+    GameColor::Rgb(187, 154, 247),
+    GameColor::Rgb(125, 207, 255),
+    GameColor::Rgb(255, 158, 100),
+    GameColor::Rgb(192, 202, 245),
+    GameColor::Rgb(79, 214, 190),
+    GameColor::Rgb(224, 108, 117),
+    GameColor::Rgb(209, 154, 102),
+    GameColor::Rgb(198, 120, 221),
+];
 
 impl Theme {
     fn from_kdl_str(source: &str) -> Result<Self, String> {
@@ -149,6 +165,7 @@ impl Theme {
             indicator_on: require_style("indicator_on")?,
             indicator_off: require_style("indicator_off")?,
             star_colors: parse_star_colors(&document)?,
+            empire_colors: parse_empire_colors(&document)?,
         })
     }
 
@@ -199,6 +216,7 @@ impl Theme {
         theme.indicator_on = mono_bright(theme.indicator_on);
         theme.indicator_off = mono_muted(theme.indicator_off);
         theme.star_colors = [GameColor::BrightWhite; 6];
+        theme.empire_colors = [GameColor::BrightWhite; 12];
 
         theme
     }
@@ -293,6 +311,24 @@ fn parse_star_colors(document: &kdl::KdlDocument) -> Result<[GameColor; 6], Stri
             .get(idx)
             .and_then(|value| value.as_string())
             .ok_or_else(|| format!("star_colors missing entry {idx}"))?;
+        *slot = parse_color_value(value)?;
+    }
+    Ok(colors)
+}
+
+fn parse_empire_colors(document: &kdl::KdlDocument) -> Result<[GameColor; 12], String> {
+    let Some(node) = document.nodes().iter().find(|node| {
+        let name = node.name().value();
+        name == "empire-colors" || name == "empire_colors"
+    }) else {
+        return Ok(DEFAULT_EMPIRE_COLORS);
+    };
+    let mut colors = DEFAULT_EMPIRE_COLORS;
+    for (idx, slot) in colors.iter_mut().enumerate() {
+        let value = node
+            .get(idx)
+            .and_then(|value| value.as_string())
+            .ok_or_else(|| format!("empire_colors missing entry {idx}"))?;
         *slot = parse_color_value(value)?;
     }
     Ok(colors)
@@ -583,6 +619,21 @@ pub mod classic {
         )
     }
 
+    pub fn empire_slot_color(slot: u8) -> GameColor {
+        let theme = active_theme();
+        let idx = slot.saturating_sub(1) as usize % theme.empire_colors.len();
+        theme.empire_colors[idx]
+    }
+
+    pub fn empire_slot_style(slot: u8) -> CellStyle {
+        let theme = active_theme();
+        CellStyle::new(empire_slot_color(slot), theme.body.bg, false)
+    }
+
+    pub fn empire_slot_style_on(slot: u8, bg: GameColor, bold: bool) -> CellStyle {
+        CellStyle::new(empire_slot_color(slot), bg, bold)
+    }
+
     pub fn status_label_style() -> CellStyle {
         active_theme().status_label
     }
@@ -679,8 +730,10 @@ pub mod classic {
 #[cfg(test)]
 mod tests {
     use super::{
-        AnsiMode, apply_default_theme, apply_mono_theme, apply_theme_from_kdl, current_theme_key,
+        AnsiMode, apply_default_theme, apply_mono_theme, apply_theme_from_kdl, bundled_theme_kdl,
+        classic, current_theme_key,
     };
+    use crate::buffer::GameColor;
 
     #[test]
     fn bundled_theme_is_valid_kdl() {
@@ -699,5 +752,30 @@ mod tests {
         let err = apply_theme_from_kdl("style body", AnsiMode::On, Some("bad"))
             .expect_err("invalid theme should fail");
         assert!(!err.is_empty());
+    }
+
+    #[test]
+    fn bundled_theme_exposes_empire_slot_palette() {
+        apply_default_theme();
+        assert_eq!(classic::empire_slot_color(1), GameColor::Rgb(122, 162, 247));
+        assert_eq!(
+            classic::empire_slot_color(12),
+            GameColor::Rgb(198, 120, 221)
+        );
+    }
+
+    #[test]
+    fn custom_theme_without_empire_colors_uses_fallback_palette() {
+        let source = bundled_theme_kdl()
+            .lines()
+            .filter(|line: &&str| !line.trim_start().starts_with("empire-colors "))
+            .collect::<Vec<_>>()
+            .join("\n");
+        apply_theme_from_kdl(&source, AnsiMode::On, Some("fallback")).expect("theme loads");
+        assert_eq!(classic::empire_slot_color(1), GameColor::Rgb(122, 162, 247));
+        assert_eq!(
+            classic::empire_slot_color(12),
+            GameColor::Rgb(198, 120, 221)
+        );
     }
 }

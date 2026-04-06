@@ -612,9 +612,9 @@ The entire dashboard — header, footer, panels, starmap, popups, overlays
 hardcoded RGB values. The themes from nc-game work unchanged in nc-dash
 because both use `GameColor` from `nc-ui`.
 
-Empire colors on the starmap and diplomacy screen use a fixed palette
-(12 distinct colors for up to 12 empires) that adapts to the active
-theme's brightness range.
+Empire colors on the starmap and diplomacy screen use a stable 12-slot,
+theme-defined palette keyed to player number. Custom themes may omit that
+palette and fall back to the built-in default slot colors.
 
 ## Help Overlay (?)
 

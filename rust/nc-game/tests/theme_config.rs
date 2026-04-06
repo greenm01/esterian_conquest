@@ -63,6 +63,11 @@ fn game_dir_uses_bundled_themes_without_creating_theme_files() {
     initialize_from_game_dir(&game_dir, None).expect("initialize from game dir");
 
     assert_eq!(classic::logo_style().fg, GameColor::Rgb(122, 162, 247));
+    assert_eq!(classic::empire_slot_color(1), GameColor::Rgb(122, 162, 247));
+    assert_eq!(
+        classic::empire_slot_color(12),
+        GameColor::Rgb(198, 120, 221)
+    );
     assert!(
         fs::read_dir(&game_dir).expect("read dir").next().is_none(),
         "DB-only runtime should not create theme files"
@@ -195,6 +200,8 @@ fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
     assert_eq!(classic::quote_style().fg, GameColor::White);
     assert_eq!(classic::logo_style().fg, GameColor::White);
     assert_eq!(classic::notice_style().fg, GameColor::White);
+    assert_eq!(classic::empire_slot_color(1), GameColor::BrightWhite);
+    assert_eq!(classic::empire_slot_color(12), GameColor::BrightWhite);
     assert_eq!(classic::disabled_row_style().fg, GameColor::BrightBlack);
     assert_eq!(classic::indicator_off_style().fg, GameColor::BrightBlack);
     assert_eq!(classic::selected_row_style().fg, GameColor::Black);
@@ -221,6 +228,9 @@ fn apply_door_theme_forces_mag16_and_restores_it_after_ansi_toggle() {
     assert_eq!(current_theme_key().as_deref(), Some(door_theme_key()));
     assert_eq!(classic::logo_style().fg, GameColor::BrightBlue);
     assert_eq!(classic::notice_style().fg, GameColor::BrightRed);
+    assert_eq!(classic::empire_slot_color(1), GameColor::BrightBlue);
+    assert_eq!(classic::empire_slot_color(6), GameColor::BrightCyan);
+    assert_eq!(classic::empire_slot_color(12), GameColor::White);
     assert_eq!(classic::body_style().fg, GameColor::White);
     assert_eq!(classic::table_header_style().fg, GameColor::Cyan);
     assert_eq!(classic::selected_row_style().fg, GameColor::BrightWhite);

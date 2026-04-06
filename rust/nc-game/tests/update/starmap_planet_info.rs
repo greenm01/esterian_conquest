@@ -70,6 +70,105 @@ fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
 }
 
 #[test]
+fn partial_starmap_colors_viewer_and_known_enemy_worlds_by_empire_slot() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    let enemy_idx = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should contain a non-player world");
+    let enemy = &mut app.game_data.planets.records[enemy_idx];
+    enemy.set_owner_empire_slot_raw(2);
+    let enemy_coords = enemy.coords_raw();
+    let enemy_name = enemy.status_or_name_summary();
+    app.planet_intel_snapshots.insert(
+        enemy_idx + 1,
+        PlanetIntelSnapshot {
+            planet_record_index_1_based: enemy_idx + 1,
+            intel_tier: IntelTier::Partial,
+            compat_is_orbit_seed: false,
+            last_intel_year: Some(app.game_data.conquest.game_year()),
+            seen_year: Some(app.game_data.conquest.game_year()),
+            scout_year: None,
+            known_name: Some(enemy_name),
+            known_owner_empire_id: Some(2),
+            known_potential_production: None,
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: None,
+            known_current_production: None,
+            known_stored_points: None,
+            known_docked_summary: None,
+            known_orbit_summary: None,
+            compat_word_1e: None,
+        },
+    );
+
+    app.starmap_state.partial_center = [8, 2];
+    let frame = nc_game::screen::ScreenFrame {
+        game_dir: &app.game_dir,
+        game_data: &app.game_data,
+        player: &app.player,
+        campaign_seed: app.campaign_seed,
+        planet_intel_snapshots: &app.planet_intel_snapshots,
+        owned_planet_years: &app.owned_planet_years,
+        geometry: app.screen_geometry,
+    };
+    let buffer = app
+        .partial_starmap
+        .render_view(&frame, app.starmap_state.partial_center, None)
+        .expect("partial starmap should render");
+
+    let homeworld = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("fixture should contain player homeworld");
+    let home_cell = partial_starmap_cell(&buffer, homeworld.coords_raw());
+    let enemy_cell = partial_starmap_cell(&buffer, enemy_coords);
+
+    assert_eq!(home_cell.ch, 'O');
+    assert_eq!(home_cell.style.fg, theme::classic::empire_slot_color(1));
+    assert_eq!(enemy_cell.ch, '#');
+    assert_eq!(enemy_cell.style.fg, theme::classic::empire_slot_color(2));
+}
+
+fn partial_starmap_cell(
+    buffer: &nc_game::screen::PlayfieldBuffer,
+    coords: [u8; 2],
+) -> nc_game::screen::Cell {
+    let geometry = nc_game::screen::ScreenGeometry::local_default();
+    let map_size = map_size_for_player_count(4) as usize;
+    let map_cell_start_col = (80 - ((map_size.saturating_sub(1) * 3) + 1)) / 2;
+    let map_top_row = nc_game::screen::layout::centered_row(
+        1,
+        nc_game::screen::layout::command_line_row_for(geometry).saturating_sub(1),
+        map_size,
+    );
+    let map_bottom_row = map_top_row + map_size - 1;
+    let screen_col = map_cell_start_col + (coords[0] as usize - 1) * 3;
+    let screen_row = map_bottom_row - (coords[1] as usize - 1);
+    buffer.row(screen_row)[screen_col]
+}
+
+#[test]
 fn partial_starmap_view_24_row_door_keeps_command_prompt_visible_and_title_centered() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

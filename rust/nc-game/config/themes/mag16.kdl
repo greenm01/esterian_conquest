@@ -180,3 +180,4 @@ style "indicator_off" {
 }
 
 star-colors "bright_blue" "bright_white" "white" "bright_yellow" "yellow" "bright_red"
+empire-colors "bright_blue" "bright_green" "bright_yellow" "bright_red" "bright_magenta" "bright_cyan" "yellow" "bright_white" "cyan" "red" "magenta" "white"

@@ -24,9 +24,8 @@ pub(crate) enum StarmapMarkerKind {
 }
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
-    let map_size = nc_data::map_size_for_player_count(
-        app.game_data.conquest.player_count(),
-    ) as usize;
+    let map_size =
+        nc_data::map_size_for_player_count(app.game_data.conquest.player_count()) as usize;
 
     let player_empire = app.player_record_index_1_based as u8;
     let snapshot_map = app
@@ -44,7 +43,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     // Column axis numbers.
     for col_idx in 0..map_size {
         let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
-        if screen_col + 1 > frame.grid.last_col() { break; }
+        if screen_col + 1 > frame.grid.last_col() {
+            break;
+        }
         layout::write_strict_span(
             buf,
             frame.axis_row,
@@ -75,7 +76,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
         for col_idx in 0..map_size {
             let col_x = (col_idx + 1) as u8;
             let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
-            if screen_col + frame.cell_width - 1 > frame.grid.last_col() { break; }
+            if screen_col + frame.cell_width - 1 > frame.grid.last_col() {
+                break;
+            }
             let is_v_crosshair = col_x == app.crosshair_x;
 
             let planet = projection_world_at(&projection, [col_x, row_y]);
@@ -87,17 +90,36 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             };
 
             let (left, mid, right, cell_style) = if is_h_crosshair && is_v_crosshair {
-                (' ', sym, ' ', CellStyle::new(GameColor::BrightWhite, GameColor::BrightBlack, true))
+                (
+                    ' ',
+                    sym,
+                    ' ',
+                    CellStyle::new(GameColor::BrightWhite, GameColor::BrightBlack, true),
+                )
             } else if is_h_crosshair {
-                (' ', sym, ' ', CellStyle::new(GameColor::BrightRed, GameColor::Black, false))
+                (
+                    ' ',
+                    sym,
+                    ' ',
+                    CellStyle::new(GameColor::BrightRed, GameColor::Black, false),
+                )
             } else if is_v_crosshair {
-                (' ', sym, ' ', CellStyle::new(GameColor::BrightRed, GameColor::Black, false))
+                (
+                    ' ',
+                    sym,
+                    ' ',
+                    CellStyle::new(GameColor::BrightRed, GameColor::Black, false),
+                )
             } else {
                 (' ', sym, ' ', base_style)
             };
 
             buf.set_cell(screen_row, screen_col, left, cell_style);
-            let mid_style = if is_h_crosshair || is_v_crosshair { cell_style } else { base_style };
+            let mid_style = if is_h_crosshair || is_v_crosshair {
+                cell_style
+            } else {
+                base_style
+            };
             buf.set_cell(screen_row, screen_col + 1, mid, mid_style);
             buf.set_cell(screen_row, screen_col + 2, right, cell_style);
         }
@@ -107,7 +129,12 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let cx = app.crosshair_x;
     let cy = app.crosshair_y;
     let status = if let Some(world) = projection_world_at(&projection, [cx, cy]) {
-        format_world_status(app, [cx, cy], world, snapshot_map.get(&world.planet_record_index_1_based))
+        format_world_status(
+            app,
+            [cx, cy],
+            world,
+            snapshot_map.get(&world.planet_record_index_1_based),
+        )
     } else {
         format!("Sector ({:02},{:02}) — uncharted", cx, cy)
     };
@@ -126,7 +153,10 @@ fn projection_world_at(
     projection: &PlayerStarmapProjection,
     coords: [u8; 2],
 ) -> Option<&PlayerStarmapWorld> {
-    projection.worlds.iter().find(|world| world.coords == coords)
+    projection
+        .worlds
+        .iter()
+        .find(|world| world.coords == coords)
 }
 
 pub(crate) fn marker_kind_for_world(
@@ -153,8 +183,7 @@ pub(crate) fn marker_kind_for_world(
                     .player
                     .records
                     .get(viewer_empire_id.saturating_sub(1) as usize);
-                let is_enemy = viewer
-                .and_then(|viewer| viewer.diplomatic_relation_toward(owner))
+                let is_enemy = viewer.and_then(|viewer| viewer.diplomatic_relation_toward(owner))
                     == Some(DiplomaticRelation::Enemy);
                 if is_enemy {
                     StarmapMarkerKind::Enemy
@@ -180,13 +209,58 @@ fn marker_for_world(
     world: &PlayerStarmapWorld,
 ) -> (char, CellStyle) {
     match marker_kind_for_world(app, viewer_empire_id, world) {
-        StarmapMarkerKind::Owned => ('O', theme::friendly_style()),
+        StarmapMarkerKind::Owned => (
+            'O',
+            theme::empire_slot_style(world.known_owner_empire_id.unwrap_or(viewer_empire_id)),
+        ),
         StarmapMarkerKind::Unowned => ('#', theme::dim_style()),
-        StarmapMarkerKind::Icd => ('◊', theme::icd_style()),
-        StarmapMarkerKind::Enemy => ('#', theme::enemy_style()),
-        StarmapMarkerKind::Neutral => ('#', theme::label_style()),
+        StarmapMarkerKind::Icd => (
+            '◊',
+            theme::empire_slot_style(world.known_owner_empire_id.unwrap_or(viewer_empire_id)),
+        ),
+        StarmapMarkerKind::Enemy => (
+            '#',
+            theme::empire_slot_style(world.known_owner_empire_id.unwrap_or(viewer_empire_id)),
+        ),
+        StarmapMarkerKind::Neutral => (
+            '#',
+            theme::empire_slot_style(world.known_owner_empire_id.unwrap_or(viewer_empire_id)),
+        ),
         StarmapMarkerKind::Partial => ('*', theme::value_style()),
         StarmapMarkerKind::Unknown => ('?', theme::dim_style()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_markers_use_empire_slot_colors() {
+        let owner = Some(4);
+        let expected = theme::empire_slot_color(4);
+
+        let (_, owned_style) = marker_for_world_kind(owner, StarmapMarkerKind::Owned);
+        let (_, enemy_style) = marker_for_world_kind(owner, StarmapMarkerKind::Enemy);
+        let (_, neutral_style) = marker_for_world_kind(owner, StarmapMarkerKind::Neutral);
+        let (_, icd_style) = marker_for_world_kind(owner, StarmapMarkerKind::Icd);
+
+        assert_eq!(owned_style.fg, expected);
+        assert_eq!(enemy_style.fg, expected);
+        assert_eq!(neutral_style.fg, expected);
+        assert_eq!(icd_style.fg, expected);
+    }
+
+    fn marker_for_world_kind(owner: Option<u8>, kind: StarmapMarkerKind) -> (char, CellStyle) {
+        match kind {
+            StarmapMarkerKind::Owned => ('O', theme::empire_slot_style(owner.unwrap())),
+            StarmapMarkerKind::Unowned => ('#', theme::dim_style()),
+            StarmapMarkerKind::Icd => ('◊', theme::empire_slot_style(owner.unwrap())),
+            StarmapMarkerKind::Enemy => ('#', theme::empire_slot_style(owner.unwrap())),
+            StarmapMarkerKind::Neutral => ('#', theme::empire_slot_style(owner.unwrap())),
+            StarmapMarkerKind::Partial => ('*', theme::value_style()),
+            StarmapMarkerKind::Unknown => ('?', theme::dim_style()),
+        }
     }
 }
 

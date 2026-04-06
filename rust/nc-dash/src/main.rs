@@ -1,6 +1,7 @@
 //! nc-dash — Full-screen dashboard TUI for Nostrian Conquest.
 
 mod app;
+mod diplomacy_view;
 mod inbox;
 mod layout;
 mod overlays;
@@ -11,8 +12,8 @@ mod theme;
 
 use nc_data::CampaignStore;
 use nc_session::args::detect_color_mode;
-use nc_ui::{OutputEncoding, StdoutTerminal};
 use nc_ui::ScreenGeometry;
+use nc_ui::{OutputEncoding, StdoutTerminal};
 
 use app::state::DashApp;
 use layout::geometry::{MIN_COLS, MIN_ROWS};
@@ -49,22 +50,22 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 
     // Canvas = full terminal. Frame = sized to map + panels.
     let geometry = ScreenGeometry::new(cols as usize, rows as usize);
-    let map_size = nc_data::map_size_for_player_count(
-        state.game_data.conquest.player_count(),
-    ) as usize;
+    let map_size =
+        nc_data::map_size_for_player_count(state.game_data.conquest.player_count()) as usize;
     let frame = layout::geometry::dashboard_geometry(map_size);
 
     // Default to player 1. Future: resolve from args/session.
     let player_record_index_1_based = 1;
-    let planet_intel_snapshots = campaign_store
-        .latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
+    let planet_intel_snapshots =
+        campaign_store.latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
 
     let color_mode = detect_color_mode();
-    let mut terminal = StdoutTerminal::with_encoding_and_color_mode(OutputEncoding::Utf8, color_mode);
+    let mut terminal =
+        StdoutTerminal::with_encoding_and_color_mode(OutputEncoding::Utf8, color_mode);
 
     // Enable alternate screen + raw mode.
-    use crossterm::terminal::{enable_raw_mode, EnterAlternateScreen};
     use crossterm::execute;
+    use crossterm::terminal::{EnterAlternateScreen, enable_raw_mode};
     enable_raw_mode()?;
     execute!(std::io::stdout(), EnterAlternateScreen)?;
 
@@ -81,7 +82,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     );
 
     // Restore terminal.
-    use crossterm::terminal::{disable_raw_mode, LeaveAlternateScreen};
+    use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
     let _ = disable_raw_mode();
     let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
 

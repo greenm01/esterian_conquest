@@ -198,3 +198,4 @@ style "indicator_off" {
 }
 
 star-colors "#008F11" "#00FF41" "#55ff55" "#339933" "#E4D00A" "#ff0000"
+empire-colors "#7aa2f7" "#9ece6a" "#e0af68" "#f7768e" "#bb9af7" "#7dcfff" "#ff9e64" "#c0caf5" "#4fd6be" "#e06c75" "#d19a66" "#c678dd"

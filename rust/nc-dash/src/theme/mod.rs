@@ -7,6 +7,18 @@ pub fn body_style() -> CellStyle {
     nc_ui::theme::classic::body_style()
 }
 
+pub fn empire_slot_color(slot: u8) -> GameColor {
+    nc_ui::theme::classic::empire_slot_color(slot)
+}
+
+pub fn empire_slot_style(slot: u8) -> CellStyle {
+    nc_ui::theme::classic::empire_slot_style(slot)
+}
+
+pub fn empire_slot_style_on(slot: u8, bg: GameColor, bold: bool) -> CellStyle {
+    nc_ui::theme::classic::empire_slot_style_on(slot, bg, bold)
+}
+
 pub fn border_style() -> CellStyle {
     CellStyle::new(GameColor::BrightBlack, GameColor::Black, false)
 }
