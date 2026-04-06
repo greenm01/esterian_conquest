@@ -5,5 +5,5 @@ pub mod economy;
 pub mod fleets;
 pub mod known_galaxy;
 pub mod planets;
-pub mod reports;
+pub mod sector_detail;
 pub mod starmap;

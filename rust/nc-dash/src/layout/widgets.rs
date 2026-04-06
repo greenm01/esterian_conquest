@@ -70,7 +70,7 @@ pub struct DashboardWidgetFrames {
     pub center_map: MapWidgetFrame,
     pub right_galaxy: PanelWidgetFrame,
     pub right_diplomacy: PanelWidgetFrame,
-    pub right_reports: PanelWidgetFrame,
+    pub right_sector_detail: PanelWidgetFrame,
 }
 
 pub const fn frame_offset_for(canvas: ScreenGeometry, frame: ScreenGeometry) -> (usize, usize) {
@@ -166,7 +166,12 @@ pub fn dashboard_widget_frames(
             right_sep_1 + 1,
             lower_sep.saturating_sub(1),
         ),
-        right_reports: panel_widget_frame(right_col, RIGHT_WIDTH, lower_sep + 1, content_bottom),
+        right_sector_detail: panel_widget_frame(
+            right_col,
+            RIGHT_WIDTH,
+            lower_sep + 1,
+            content_bottom,
+        ),
     }
 }
 
@@ -316,7 +321,7 @@ mod tests {
         assert!(widgets.left_economy.outer.last_row() < widgets.left_planets.outer.row);
         assert!(widgets.left_planets.outer.last_row() < widgets.left_fleets.outer.row);
         assert!(widgets.right_galaxy.outer.last_row() < widgets.right_diplomacy.outer.row);
-        assert!(widgets.right_diplomacy.outer.last_row() < widgets.right_reports.outer.row);
+        assert!(widgets.right_diplomacy.outer.last_row() < widgets.right_sector_detail.outer.row);
     }
 
     #[test]

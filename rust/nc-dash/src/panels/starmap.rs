@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    build_player_starmap_projection_from_snapshots, CoreGameData, DiplomaticRelation,
-    PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
+    CoreGameData, DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection,
+    PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
 };
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -353,7 +353,7 @@ mod tests {
         };
 
         let status = format_world_status(&game_data, [9, 9], &world, Some(&snapshot));
-        assert_eq!(status, "(09,09) O:#4 E:98/45/12 D:?/?/0 Y:3006");
+        assert_eq!(status, "(09,09) O:#4 E:98|45|12 D:?|?|0 Y:3006");
         assert!(status.chars().count() <= 55);
     }
 
@@ -441,7 +441,7 @@ fn format_world_status(
 ) -> String {
     let owner = owner_label(game_data, world.known_owner_empire_id);
     format!(
-        "({:02},{:02}) O:{} E:{}/{}/{} D:{}/{}/{} Y:{}",
+        "({:02},{:02}) O:{} E:{}|{}|{} D:{}|{}|{} Y:{}",
         coords[0],
         coords[1],
         owner,

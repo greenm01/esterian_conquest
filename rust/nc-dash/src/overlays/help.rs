@@ -1,8 +1,8 @@
 //! ? overlay: keyboard reference, centered on screen.
 
+use nc_ui::PlayfieldBuffer;
 use nc_ui::modal::format_help_rows;
 use nc_ui::table::TableFooter;
-use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{DashApp, HelpContext};
 use crate::overlays::frame::{draw_overlay_frame, write_clipped};
@@ -56,7 +56,13 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             String::new(),
             String::from("MAP"),
             String::new(),
-            format_help_rows([("[ / ]", "Jump to previous or next planet on the map")]).join("\n"),
+            format_help_rows([
+                ("Enter", "Open planet detail for the selected world"),
+                ("[ / ]", "Jump to previous or next planet on the map"),
+                ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
+                ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
+            ])
+            .join("\n"),
         ],
         HelpContext::PlanetList => overlay_help_blocks(
             "PLANET LIST",
@@ -176,12 +182,17 @@ mod tests {
         let lines = help_lines(HelpContext::Global);
 
         assert!(lines.iter().any(|line| line.contains("GLOBAL HOTKEYS")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("Planet, Fleet, Intel, Inbox overlays")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("Jump to previous or next planet")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("Planet, Fleet, Intel, Inbox overlays"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("Jump to previous or next planet"))
+        );
+        assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));
     }
 }

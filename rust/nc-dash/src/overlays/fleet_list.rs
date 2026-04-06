@@ -9,7 +9,29 @@ use nc_ui::table::{
 
 use crate::app::state::DashApp;
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
-use crate::panels::fleets::order_abbrev;
+use nc_data::Order;
+
+pub fn order_abbrev(order: Order) -> &'static str {
+    match order {
+        Order::HoldPosition => "Hd",
+        Order::MoveOnly => "Mv",
+        Order::SeekHome => "Sk",
+        Order::PatrolSector => "Pa",
+        Order::GuardStarbase => "Gs",
+        Order::GuardBlockadeWorld => "Gb",
+        Order::BombardWorld => "Bo",
+        Order::InvadeWorld => "In",
+        Order::BlitzWorld => "Bz",
+        Order::ViewWorld => "Vw",
+        Order::ScoutSector => "Ss",
+        Order::ScoutSolarSystem => "Sy",
+        Order::ColonizeWorld => "Co",
+        Order::JoinAnotherFleet => "Jn",
+        Order::RendezvousSector => "Rz",
+        Order::Salvage => "Sa",
+        Order::Unknown(_) => "??",
+    }
+}
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? O C M T I <Q>";

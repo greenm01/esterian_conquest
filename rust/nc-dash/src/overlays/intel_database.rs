@@ -95,11 +95,13 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
 
 fn selected_default(app: &DashApp) -> Option<String> {
     let projection_rows = table_rows(app);
-    let selected = app.intel_overlay.selected.min(projection_rows.len().saturating_sub(1));
+    let selected = app
+        .intel_overlay
+        .selected
+        .min(projection_rows.len().saturating_sub(1));
     projection_rows.get(selected).and_then(|row| {
-        row.first().and_then(|cell| {
-            parse_table_coords(cell).map(format_sector_coords_default)
-        })
+        row.first()
+            .and_then(|cell| parse_table_coords(cell).map(format_sector_coords_default))
     })
 }
 

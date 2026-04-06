@@ -61,18 +61,6 @@ impl DashInboxItem {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct ReportsPanelSummary {
-    pub pending_count: usize,
-    pub report_count: usize,
-    pub message_count: usize,
-    pub current_count: usize,
-    pub backlog_count: usize,
-    pub combat_count: usize,
-    pub intel_count: usize,
-    pub ops_count: usize,
-}
-
 pub fn project_inbox_items(
     game_data: &CoreGameData,
     viewer_empire_id: u8,
@@ -96,32 +84,6 @@ pub fn project_inbox_items(
     );
 
     items
-}
-
-pub fn summarize_reports_panel(items: &[DashInboxItem], current_year: u16) -> ReportsPanelSummary {
-    let mut summary = ReportsPanelSummary::default();
-    for item in items {
-        summary.pending_count += 1;
-        if item.year == current_year {
-            summary.current_count += 1;
-        } else {
-            summary.backlog_count += 1;
-        }
-        match item.item_type {
-            DashInboxItemType::Report => {
-                summary.report_count += 1;
-                match item.report_bucket.unwrap_or(ReportSummaryBucket::Ops) {
-                    ReportSummaryBucket::Combat => summary.combat_count += 1,
-                    ReportSummaryBucket::Intel => summary.intel_count += 1,
-                    ReportSummaryBucket::Ops => summary.ops_count += 1,
-                }
-            }
-            DashInboxItemType::Message => {
-                summary.message_count += 1;
-            }
-        }
-    }
-    summary
 }
 
 fn report_item(idx: usize, row: &ReportBlockRow, current_year: u16) -> DashInboxItem {
@@ -299,48 +261,5 @@ mod tests {
             parse_stardate_week_year("Stardate: 02/3002"),
             Some((2, 3002))
         );
-    }
-
-    #[test]
-    fn summarize_reports_panel_counts_current_and_backlog_items() {
-        let items = vec![
-            DashInboxItem {
-                source: DashInboxItemSource::ReportBlock(0),
-                item_type: DashInboxItemType::Report,
-                year: 3002,
-                week: Some(2),
-                subject: String::from("Combat"),
-                body_lines: vec![String::from("Body")],
-                report_bucket: Some(ReportSummaryBucket::Combat),
-            },
-            DashInboxItem {
-                source: DashInboxItemSource::ReportBlock(1),
-                item_type: DashInboxItemType::Report,
-                year: 3001,
-                week: Some(12),
-                subject: String::from("Scout"),
-                body_lines: vec![String::from("Body")],
-                report_bucket: Some(ReportSummaryBucket::Intel),
-            },
-            DashInboxItem {
-                source: DashInboxItemSource::QueuedMail(0),
-                item_type: DashInboxItemType::Message,
-                year: 3002,
-                week: None,
-                subject: String::from("Scout"),
-                body_lines: vec![String::from("Body")],
-                report_bucket: None,
-            },
-        ];
-
-        let summary = summarize_reports_panel(&items, 3002);
-        assert_eq!(summary.pending_count, 3);
-        assert_eq!(summary.report_count, 2);
-        assert_eq!(summary.message_count, 1);
-        assert_eq!(summary.current_count, 2);
-        assert_eq!(summary.backlog_count, 1);
-        assert_eq!(summary.combat_count, 1);
-        assert_eq!(summary.intel_count, 1);
-        assert_eq!(summary.ops_count, 0);
     }
 }

@@ -35,7 +35,10 @@ const COLUMNS: [TableColumn<'static>; 12] = [
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let rows = table_rows(app);
-    let selected = app.planet_overlay.selected.min(rows.len().saturating_sub(1));
+    let selected = app
+        .planet_overlay
+        .selected
+        .min(rows.len().saturating_sub(1));
     let selected_default = selected_default(app);
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,

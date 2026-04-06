@@ -111,7 +111,7 @@ pub fn draw_frame(
         buf,
         right_div,
         ox + fw.saturating_sub(1),
-        widgets.right_reports.outer.row.saturating_sub(1),
+        widgets.right_sector_detail.outer.row.saturating_sub(1),
         '├',
         '┤',
         bs,
@@ -170,21 +170,9 @@ pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .records
         .get(app.player_record_index_1_based.saturating_sub(1));
     let year = app.game_data.conquest.game_year();
-    let planet_count = player.map(|p| p.planet_count_raw()).unwrap_or(0);
-    let fleet_count = app
-        .game_data
-        .fleets
-        .records
-        .iter()
-        .filter(|f| {
-            f.owner_empire_raw() == app.player_record_index_1_based as u8 && f.has_any_force()
-        })
-        .count();
     let tax = player.map(|p| p.tax_rate()).unwrap_or(0);
     let ap = if app.autopilot_on { "ON" } else { "OFF" };
-    let right_str = format!(
-        "Y{year}  Planets:{planet_count}  Fleets:{fleet_count}  Autopilot:{ap}  Tax:{tax}% "
-    );
+    let right_str = format!("Y{year}                  Autopilot:{ap}  Tax:{tax}% ");
     let right_col = (ox + fw).saturating_sub(right_str.len() + 1);
     let style = if app.autopilot_on {
         theme::alert_style()

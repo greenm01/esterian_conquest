@@ -5,14 +5,15 @@ pub mod render;
 pub mod state;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use input::{key_to_action, Action};
-use nc_ui::table_selection;
+use input::{Action, key_to_action};
 use nc_ui::Terminal;
-use state::{ActiveOverlay, DashApp, HelpContext};
+use nc_ui::table_selection;
+use state::{ActiveOverlay, ActivePopup, DashApp, HelpContext};
 
-use crate::inbox::{project_inbox_items, DashInboxItemSource};
+use crate::inbox::{DashInboxItemSource, project_inbox_items};
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
+use crate::planet_view;
 
 impl DashApp {
     /// Run the main event loop.
@@ -30,6 +31,9 @@ impl DashApp {
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
+        if self.popup != ActivePopup::None && self.handle_popup_key(key) {
+            return;
+        }
         if self.overlay != ActiveOverlay::None && self.handle_overlay_key(key) {
             return;
         }
@@ -51,6 +55,7 @@ impl DashApp {
                 self.overlay = overlay;
             }
             Action::CloseOverlay => self.close_active_overlay(),
+            Action::ClosePopup => self.popup = ActivePopup::None,
             Action::MoveCrosshairUp => {
                 // Up arrow → higher Y (row 18 at top of screen).
                 let map_size =
@@ -83,6 +88,7 @@ impl DashApp {
             Action::JumpPlanetForward => {
                 self.jump_crosshair_to_planet(starmap::PlanetJumpDirection::Forward);
             }
+            Action::OpenPlanetDetailPopup => self.open_planet_detail_popup_at_cursor(),
             Action::ScrollUp => self.scroll_up(),
             Action::ScrollDown => self.scroll_down(),
             Action::PageUp => {
@@ -103,6 +109,16 @@ impl DashApp {
         }
     }
 
+    fn handle_popup_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                self.apply_action(Action::ClosePopup);
+                true
+            }
+            _ => true,
+        }
+    }
+
     fn jump_crosshair_to_planet(&mut self, direction: starmap::PlanetJumpDirection) {
         if let Some(target) = starmap::jump_planet_target_for_app(
             self,
@@ -112,6 +128,15 @@ impl DashApp {
             self.crosshair_x = target[0];
             self.crosshair_y = target[1];
         }
+    }
+
+    fn open_planet_detail_popup_at_cursor(&mut self) {
+        let Some(detail) = planet_view::selected_planet_detail(self) else {
+            return;
+        };
+        self.popup = ActivePopup::PlanetDetail {
+            planet_record_index_1_based: detail.planet_record_index_1_based,
+        };
     }
 
     fn scroll_up(&mut self) {

@@ -22,11 +22,13 @@ pub enum Action {
     MoveCrosshairRight,
     JumpPlanetBackward,
     JumpPlanetForward,
+    OpenPlanetDetailPopup,
     GotoCoords,
     ToggleAutopilot,
     SetTaxRate,
     OpenOverlay(ActiveOverlay),
     CloseOverlay,
+    ClosePopup,
     None,
 }
 
@@ -94,6 +96,7 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         KeyCode::PageDown => Action::PageDown,
         KeyCode::Home => Action::Home,
         KeyCode::End => Action::End,
+        KeyCode::Enter if focus == PanelFocus::Map => Action::OpenPlanetDetailPopup,
 
         // Map goto
         KeyCode::Char('g') | KeyCode::Char('G') if focus == PanelFocus::Map => Action::GotoCoords,
@@ -135,6 +138,34 @@ mod tests {
         assert_eq!(
             key_to_action(
                 KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::PlanetList,
+            ),
+            Action::None
+        );
+    }
+
+    #[test]
+    fn enter_opens_planet_detail_only_on_map_without_overlay() {
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::OpenPlanetDetailPopup
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                PanelFocus::Diplomacy,
+                ActiveOverlay::None,
+            ),
+            Action::None
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
                 PanelFocus::Map,
                 ActiveOverlay::PlanetList,
             ),

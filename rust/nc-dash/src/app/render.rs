@@ -2,10 +2,14 @@
 
 use nc_ui::PlayfieldBuffer;
 
-use crate::app::state::{ActiveOverlay, DashApp};
+use crate::app::state::{ActiveOverlay, ActivePopup, DashApp};
 use crate::layout;
-use crate::overlays::{self, frame::{OverlayBackdrop, draw_full_backdrop, overlay_backdrop}};
-use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, reports, starmap};
+use crate::overlays::{
+    self,
+    frame::{OverlayBackdrop, draw_full_backdrop, overlay_backdrop},
+};
+use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap};
+use crate::popups;
 
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buf = layout::new_dashboard_buffer(app.geometry);
@@ -27,23 +31,82 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     // Right column panels.
     known_galaxy::draw(&mut buf, app, widgets.right_galaxy);
     diplomacy::draw(&mut buf, app, widgets.right_diplomacy);
-    reports::draw(&mut buf, app, widgets.right_reports);
+    sector_detail::draw(&mut buf, app, widgets.right_sector_detail);
 
-    // Overlay (drawn over everything if active).
-    if matches!(overlay_backdrop(app.overlay), OverlayBackdrop::FullBackdrop) {
+    let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
+
+    // Overlay (drawn over everything if active). Help keeps the calling screen visible
+    // underneath it instead of dropping back to the raw dashboard.
+    if matches!(overlay_backdrop(underlay), OverlayBackdrop::FullBackdrop) {
         draw_full_backdrop(&mut buf);
     }
 
-    match app.overlay {
-        ActiveOverlay::None => {}
-        ActiveOverlay::PlanetList => overlays::planet_list::draw(&mut buf, app),
-        ActiveOverlay::FleetList => overlays::fleet_list::draw(&mut buf, app),
-        ActiveOverlay::IntelDatabase => overlays::intel_database::draw(&mut buf, app),
-        ActiveOverlay::Inbox => overlays::inbox::draw(&mut buf, app),
-        ActiveOverlay::Diplomacy => overlays::diplomacy::draw(&mut buf, app),
-        ActiveOverlay::Settings => overlays::settings::draw(&mut buf, app),
-        ActiveOverlay::Help => overlays::help::draw(&mut buf, app),
+    if underlay != ActiveOverlay::None {
+        draw_non_help_overlay(&mut buf, app, underlay);
+    }
+
+    if app.overlay == ActiveOverlay::Help {
+        overlays::help::draw(&mut buf, app);
+    }
+
+    if app.overlay == ActiveOverlay::None {
+        if let ActivePopup::PlanetDetail {
+            planet_record_index_1_based,
+        } = app.popup
+        {
+            popups::planet_detail::draw(
+                &mut buf,
+                app,
+                widgets.center_map,
+                planet_record_index_1_based,
+            );
+        }
     }
 
     Ok(buf)
+}
+
+fn help_underlay_overlay(
+    active: ActiveOverlay,
+    help_return_overlay: ActiveOverlay,
+) -> ActiveOverlay {
+    if active == ActiveOverlay::Help {
+        help_return_overlay
+    } else {
+        active
+    }
+}
+
+fn draw_non_help_overlay(buf: &mut PlayfieldBuffer, app: &DashApp, overlay: ActiveOverlay) {
+    match overlay {
+        ActiveOverlay::None | ActiveOverlay::Help => {}
+        ActiveOverlay::PlanetList => overlays::planet_list::draw(buf, app),
+        ActiveOverlay::FleetList => overlays::fleet_list::draw(buf, app),
+        ActiveOverlay::IntelDatabase => overlays::intel_database::draw(buf, app),
+        ActiveOverlay::Inbox => overlays::inbox::draw(buf, app),
+        ActiveOverlay::Diplomacy => overlays::diplomacy::draw(buf, app),
+        ActiveOverlay::Settings => overlays::settings::draw(buf, app),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::help_underlay_overlay;
+    use crate::app::state::ActiveOverlay;
+
+    #[test]
+    fn help_over_dense_overlay_keeps_dense_underlay() {
+        assert_eq!(
+            help_underlay_overlay(ActiveOverlay::Help, ActiveOverlay::PlanetList),
+            ActiveOverlay::PlanetList
+        );
+    }
+
+    #[test]
+    fn global_help_has_no_underlay_overlay() {
+        assert_eq!(
+            help_underlay_overlay(ActiveOverlay::Help, ActiveOverlay::None),
+            ActiveOverlay::None
+        );
+    }
 }

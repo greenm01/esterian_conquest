@@ -180,11 +180,12 @@ Three stacked sections:
 - **Diplomacy:** List of other empires, color-coded by diplomatic status
   (green = neutral, red = enemy). Up to 11 others in a 12-player game.
   Compact one-line-per-empire format.
-- **Reports:** Header shows pending visible counts: `REPORTS (5R, 2M)` where
-  R is reports and M is messages still in the inbox. The panel body is a
-  compact summary of pending workload: total items, current-year vs backlog,
-  and coarse report buckets such as Combat and Intel. The full inbox overlay
-  (`R`) provides filtering by type and year, preview, and delete.
+- **Sector Detail:** Passive detail for the sector under the map crosshair.
+  Shows the selected world's most useful condensed information: planet name,
+  owner, `E`conomy (`Potential|Current|Points`), `D`efenses
+  (`Armies|Ground Batteries|Starbases`), plus state/intel/build/docked
+  summaries that fit comfortably in the panel. Empty sectors show
+  `No world in sector`. The full inbox overlay remains available on `R`.
 
 ### Startup Flow
 
@@ -263,7 +264,7 @@ focused panel gets a highlighted border/title. Unfocused panels show
 static summaries (top N items that fit).
 
 - **Tab / Shift+Tab:** Cycle focus: Map → Economy → Planets → Fleets →
-  Galaxy → Diplomacy → Reports → Map.
+  Galaxy → Diplomacy → Map.
 - **Esc:** Unfocus current panel, return to map. Dismiss any open popup.
 
 ### Panel List Navigation (when a side panel is focused)
@@ -271,22 +272,25 @@ static summaries (top N items that fit).
 - **Arrow up/down, j/k:** Scroll one item.
 - **PgUp / PgDn:** Scroll one page.
 - **Home / End:** Jump to top / bottom of list.
-- **Enter:** Open detail popup for the selected item.
+- **Enter:** Open detail popup for the selected item when that panel supports
+  it.
 
 When a panel is focused, the other panels freeze at their current scroll
 position. The map remains visible.
 
 ### Detail Popups
 
-**Enter** on a selected list item opens a detail popup that overlays the
-map area (center column). The side panels stay visible for context.
+**Enter** on the map opens a detail popup for the world under the crosshair.
+List/overlay views may also use **Enter** for row review or detail. The
+detail popup overlays the map area (center column) and leaves the side panels
+visible for context.
 
 - **Fleet detail popup:** Fleet number, full ship composition, location,
   order, target, speed, max speed, ROE, ETA, loaded armies. Action
   hotkeys at the bottom: O:Order, C:Speed, E:ROE, M:Merge, T:Transfer.
-- **Planet detail popup:** Name, coordinates, owner, present/potential
-  production, stored goods, efficiency, armies, batteries, stardock
-  contents, build queue. Action hotkeys: B:Build, X:Tax, L:Load, U:Unload.
+- **Planet detail popup:** Mirrors `nc-game` planet info: coordinates,
+  planet, owner, state, economy, defenses, orbit/docked/build status, and
+  intel freshness where applicable.
 - **Report detail popup:** Full report text, word-wrapped to fit the
   overlay width. Scrollable if the report is long.
 - **Diplomacy detail popup:** Empire name, diplomatic status, known
@@ -310,7 +314,7 @@ the overlay, preserving spatial context.
   [ec-game-prompt-standard.md](../dev/ec-game-prompt-standard.md).
   The only screen that does NOT follow this standard is the main
   map-screen dashboard, which uses its own hotkey footer bar.
-- **Enter** on a row opens a detail popup (nested inside the overlay).
+- **Enter** on a row opens a detail popup where that overlay supports it.
 - **?** from within any overlay opens a context-sensitive help popup
   (boxed, dynamically sized, centered, padded — same style as nc-game's
   help boxes). Shows the available commands for that specific overlay.
@@ -326,10 +330,10 @@ makes them feel like focused work windows rather than full mode switches.
 - **Arrow keys, h/j/k/l:** Move crosshair.
 - **[ / ]:** Jump to the previous or next planet in wrapped screen order.
   These keys wrap across map edges; ordinary crosshair movement does not.
+- **Enter:** Open planet detail for the world under the crosshair.
 - **G:** Go-to — enter coordinates to jump crosshair.
 - **Home:** Center crosshair on homeworld.
 - **1-9:** Jump crosshair to fleet by number.
-- **Enter:** Show detail popup for the sector under crosshair.
 
 ### Global Hotkeys (always active, any focus)
 
@@ -460,8 +464,8 @@ enforced and shown in the status line.
 nc-game has no separate read/unread tracking, and nc-dash currently mirrors
 that runtime model:
 - Reports and messages stay visible until the recipient explicitly deletes them.
-- The Reports dashboard panel shows pending visible counts, not a separate
-  unread state.
+- There is no separate unread state on the dashboard; inbox detail lives in
+  the `R` overlay.
 - The inbox overlay (`R`) is where the player reads, filters, previews, and
   deletes items.
 - Soft-delete with `D` marks `recipient_deleted`; it does not purge history
@@ -666,7 +670,7 @@ nc-dash/
       starmap.rs         ← center: sector grid, crosshair, axis labels
       known_galaxy.rs    ← right: world counts by category
       diplomacy.rs       ← right: empire list, color-coded status
-      reports.rs         ← right: pending inbox summary
+      sector_detail.rs   ← right: selected sector / planet summary
     overlays/
       mod.rs             ← overlay trait, Esc:Back handling
       planet_list.rs     ← P: fullscreen planet management table
@@ -727,7 +731,7 @@ Guidelines:
 - Left: Economy (treasury, production, revenue, growth), My Planets
   (summary stats), Active Fleets (summary stats).
 - Right: Known Galaxy (world counts), Diplomacy (empire list, color-coded),
-  Reports (pending inbox summary).
+  Sector Detail (selected world summary).
 - Tab focus cycling, scrolling within focused panel.
 
 ### Phase 4: Classic Intro Flow

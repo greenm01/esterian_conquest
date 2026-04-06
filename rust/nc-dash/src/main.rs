@@ -6,6 +6,7 @@ mod inbox;
 mod layout;
 mod overlays;
 mod panels;
+mod planet_view;
 mod popups;
 mod startup;
 mod theme;
@@ -56,6 +57,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 
     // Default to player 1. Future: resolve from args/session.
     let player_record_index_1_based = 1;
+    let owned_planet_years =
+        campaign_store.latest_owned_planet_years_for_empire(player_record_index_1_based as u8)?;
     let planet_intel_snapshots =
         campaign_store.latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
 
@@ -72,6 +75,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     let result = run_dashboard(
         game_dir,
         state.game_data,
+        owned_planet_years,
+        state.planet_scorch_orders,
         state.report_block_rows,
         state.queued_mail,
         planet_intel_snapshots,
@@ -92,6 +97,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 fn run_dashboard(
     game_dir: std::path::PathBuf,
     game_data: nc_data::CoreGameData,
+    owned_planet_years: std::collections::BTreeMap<usize, u16>,
+    planet_scorch_orders: std::collections::BTreeSet<usize>,
     report_block_rows: Vec<nc_data::ReportBlockRow>,
     queued_mail: Vec<nc_data::QueuedPlayerMail>,
     planet_intel_snapshots: Vec<nc_data::PlanetIntelSnapshot>,
@@ -103,6 +110,8 @@ fn run_dashboard(
     let mut app = DashApp::new(
         game_dir,
         game_data,
+        owned_planet_years,
+        planet_scorch_orders,
         report_block_rows,
         queued_mail,
         planet_intel_snapshots,

@@ -1,5 +1,6 @@
 //! Dashboard application state.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use nc_data::{CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
@@ -15,7 +16,6 @@ pub enum PanelFocus {
     Fleets,
     Galaxy,
     Diplomacy,
-    Reports,
 }
 
 impl PanelFocus {
@@ -26,20 +26,18 @@ impl PanelFocus {
             Self::Planets => Self::Fleets,
             Self::Fleets => Self::Galaxy,
             Self::Galaxy => Self::Diplomacy,
-            Self::Diplomacy => Self::Reports,
-            Self::Reports => Self::Map,
+            Self::Diplomacy => Self::Map,
         }
     }
 
     pub fn prev(self) -> Self {
         match self {
-            Self::Map => Self::Reports,
+            Self::Map => Self::Diplomacy,
             Self::Economy => Self::Map,
             Self::Planets => Self::Economy,
             Self::Fleets => Self::Planets,
             Self::Galaxy => Self::Fleets,
             Self::Diplomacy => Self::Galaxy,
-            Self::Reports => Self::Diplomacy,
         }
     }
 }
@@ -55,6 +53,12 @@ pub enum ActiveOverlay {
     Diplomacy,
     Settings,
     Help,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivePopup {
+    None,
+    PlanetDetail { planet_record_index_1_based: usize },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,6 +133,8 @@ impl Default for InboxOverlayState {
 pub struct DashApp {
     pub game_dir: PathBuf,
     pub game_data: CoreGameData,
+    pub owned_planet_years: BTreeMap<usize, u16>,
+    pub planet_scorch_orders: BTreeSet<usize>,
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
@@ -145,6 +151,7 @@ pub struct DashApp {
     // Dashboard navigation
     pub focus: PanelFocus,
     pub overlay: ActiveOverlay,
+    pub popup: ActivePopup,
     pub help_return_overlay: ActiveOverlay,
     pub help_context: HelpContext,
     pub autopilot_on: bool,
@@ -154,8 +161,6 @@ pub struct DashApp {
     pub crosshair_y: u8,
 
     // Panel scroll positions
-    pub planets_scroll: usize,
-    pub fleets_scroll: usize,
     pub diplomacy_scroll: usize,
 
     // Overlay-local state
@@ -172,6 +177,8 @@ impl DashApp {
     pub fn new(
         game_dir: PathBuf,
         game_data: CoreGameData,
+        owned_planet_years: BTreeMap<usize, u16>,
+        planet_scorch_orders: BTreeSet<usize>,
         report_block_rows: Vec<ReportBlockRow>,
         queued_mail: Vec<QueuedPlayerMail>,
         planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
@@ -191,6 +198,8 @@ impl DashApp {
         Self {
             game_dir,
             game_data,
+            owned_planet_years,
+            planet_scorch_orders,
             report_block_rows,
             queued_mail,
             planet_intel_snapshots,
@@ -201,13 +210,12 @@ impl DashApp {
             startup_sequence,
             focus: PanelFocus::Map,
             overlay: ActiveOverlay::None,
+            popup: ActivePopup::None,
             help_return_overlay: ActiveOverlay::None,
             help_context: HelpContext::Global,
             autopilot_on: false,
             crosshair_x: 1,
             crosshair_y: 1,
-            planets_scroll: 0,
-            fleets_scroll: 0,
             diplomacy_scroll: 0,
             planet_overlay: ListOverlayState::default(),
             fleet_overlay: ListOverlayState::default(),
@@ -216,5 +224,16 @@ impl DashApp {
             inbox_overlay: InboxOverlayState::default(),
             should_quit: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PanelFocus;
+
+    #[test]
+    fn focus_cycle_skips_removed_reports_panel() {
+        assert_eq!(PanelFocus::Diplomacy.next(), PanelFocus::Map);
+        assert_eq!(PanelFocus::Map.prev(), PanelFocus::Diplomacy);
     }
 }

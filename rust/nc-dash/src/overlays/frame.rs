@@ -1,8 +1,8 @@
 //! Shared centered modal shell for dashboard overlays.
 
 use crate::app::state::ActiveOverlay;
-use nc_ui::modal::{draw_modal_frame, ModalTheme};
-use nc_ui::table::{draw_table_footer_in_span, table_footer_scaffold_width, TableFooter};
+use nc_ui::modal::{ModalTheme, draw_modal_frame};
+use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::theme;
@@ -164,9 +164,11 @@ mod tests {
         );
 
         assert!(buffer.plain_line(frame.footer_row).contains("COMMAND <- "));
-        assert!(!buffer
-            .plain_line(frame.footer_row.saturating_sub(1))
-            .contains("COMMAND <- "));
+        assert!(
+            !buffer
+                .plain_line(frame.footer_row.saturating_sub(1))
+                .contains("COMMAND <- ")
+        );
     }
 
     #[test]

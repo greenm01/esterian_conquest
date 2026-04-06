@@ -226,7 +226,10 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
 
 fn selected_default(app: &DashApp) -> Option<String> {
     let items = inbox_items(app);
-    let selected = app.inbox_overlay.selected.min(items.len().saturating_sub(1));
+    let selected = app
+        .inbox_overlay
+        .selected
+        .min(items.len().saturating_sub(1));
     items.get(selected).map(|_| format!("{:02}", selected + 1))
 }
 
