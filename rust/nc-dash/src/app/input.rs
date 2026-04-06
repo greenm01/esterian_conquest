@@ -23,7 +23,6 @@ pub enum Action {
     JumpPlanetBackward,
     JumpPlanetForward,
     OpenPlanetDetailPopup,
-    GotoCoords,
     ToggleAutopilot,
     SetTaxRate,
     OpenOverlay(ActiveOverlay),
@@ -97,9 +96,6 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         KeyCode::Home => Action::Home,
         KeyCode::End => Action::End,
         KeyCode::Enter if focus == PanelFocus::Map => Action::OpenPlanetDetailPopup,
-
-        // Map goto
-        KeyCode::Char('g') | KeyCode::Char('G') if focus == PanelFocus::Map => Action::GotoCoords,
 
         _ => Action::None,
     }

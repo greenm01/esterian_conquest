@@ -5,12 +5,12 @@ pub mod render;
 pub mod state;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use input::{Action, key_to_action};
-use nc_ui::Terminal;
+use input::{key_to_action, Action};
 use nc_ui::table_selection;
+use nc_ui::Terminal;
 use state::{ActiveOverlay, ActivePopup, DashApp, HelpContext};
 
-use crate::inbox::{DashInboxItemSource, project_inbox_items};
+use crate::inbox::{project_inbox_items, DashInboxItemSource};
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
@@ -37,7 +37,13 @@ impl DashApp {
         if self.overlay != ActiveOverlay::None && self.handle_overlay_key(key) {
             return;
         }
+        if self.handle_map_coord_key(key) {
+            return;
+        }
         let action = key_to_action(key, self.focus, self.overlay);
+        if action != Action::None {
+            self.map_coord_input.clear();
+        }
         self.apply_action(action);
     }
 
@@ -103,9 +109,29 @@ impl DashApp {
             }
             Action::Home => self.scroll_home(),
             Action::End => self.scroll_end(),
-            // SetTaxRate and GotoCoords require multi-key input prompts.
-            // These will be implemented as mini prompt states in a future phase.
-            Action::SetTaxRate | Action::GotoCoords | Action::None => {}
+            // SetTaxRate requires a multi-key input prompt.
+            Action::SetTaxRate | Action::None => {}
+        }
+    }
+
+    fn handle_map_coord_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Char(ch)
+                if self.map_coord_input.len() < 16
+                    && !matches!(ch, '[' | ']')
+                    && table_selection::is_coordinate_input_char(ch) =>
+            {
+                self.map_coord_input.push(ch);
+                if self.sync_map_cursor_to_input() {
+                    self.map_coord_input.clear();
+                }
+                true
+            }
+            KeyCode::Backspace => {
+                self.map_coord_input.pop();
+                true
+            }
+            _ => false,
         }
     }
 
@@ -133,6 +159,24 @@ impl DashApp {
         self.popup = ActivePopup::PlanetDetail {
             planet_record_index_1_based: detail.planet_record_index_1_based,
         };
+    }
+
+    fn sync_map_cursor_to_input(&mut self) -> bool {
+        let rows = map_coord_rows(self);
+        let Some(matched) = table_selection::find_typed_jump(&rows, 0, &self.map_coord_input)
+        else {
+            return false;
+        };
+        let Some(coords) = rows
+            .get(matched.index)
+            .and_then(|row| row.first())
+            .and_then(|coords| parse_table_coord(coords))
+        else {
+            return false;
+        };
+        self.crosshair_x = coords[0];
+        self.crosshair_y = coords[1];
+        matched.is_terminal_exact_match
     }
 
     fn scroll_up(&mut self) {
@@ -513,6 +557,28 @@ fn handle_list_overlay_key(key: KeyEvent, state: &mut state::ListOverlayState, t
     }
 }
 
+fn map_coord_rows(app: &DashApp) -> Vec<Vec<String>> {
+    let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
+    let mut rows = Vec::with_capacity(usize::from(map_size) * usize::from(map_size));
+    for x in 1..=map_size {
+        for y in 1..=map_size {
+            rows.push(vec![format!("({x:02},{y:02})")]);
+        }
+    }
+    rows
+}
+
+fn parse_table_coord(cell: &str) -> Option<[u8; 2]> {
+    let digits = cell
+        .split(|ch: char| !ch.is_ascii_digit())
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let [x, y] = digits.as_slice() else {
+        return None;
+    };
+    Some([x.parse().ok()?, y.parse().ok()?])
+}
+
 fn wrap_prev_index(selected: usize, total_rows: usize) -> usize {
     if total_rows == 0 {
         0
@@ -576,7 +642,12 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
 
 #[cfg(test)]
 mod tests {
-    use super::{wrap_next_index, wrap_prev_index};
+    use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
+    use crate::app::state::DashApp;
+    use crossterm::event::{KeyCode, KeyEvent};
+    use nc_data::GameStateBuilder;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn wrap_prev_goes_from_first_to_last() {
@@ -586,5 +657,111 @@ mod tests {
     #[test]
     fn wrap_next_goes_from_last_to_first() {
         assert_eq!(wrap_next_index(3, 4), 0);
+    }
+
+    #[test]
+    fn parse_table_coord_reads_table_style_coords() {
+        assert_eq!(parse_table_coord("(02,03)"), Some([2, 3]));
+        assert_eq!(parse_table_coord("[02,03]"), Some([2, 3]));
+        assert_eq!(parse_table_coord("bogus"), None);
+    }
+
+    #[test]
+    fn map_coord_rows_cover_entire_map_in_numeric_coordinate_order() {
+        let app = dash_app();
+        let rows = map_coord_rows(&app);
+        assert_eq!(
+            rows.first().and_then(|row| row.first()),
+            Some(&"(01,01)".to_string())
+        );
+        assert_eq!(
+            rows.get(1).and_then(|row| row.first()),
+            Some(&"(01,02)".to_string())
+        );
+        assert_eq!(
+            rows.get(18).and_then(|row| row.first()),
+            Some(&"(02,01)".to_string())
+        );
+    }
+
+    #[test]
+    fn typed_map_coords_move_crosshair_and_clear_on_exact_match() {
+        let mut app = dash_app();
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('0'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('2'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char(','),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('0'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('3'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], [2, 3]);
+        assert!(app.map_coord_input.is_empty());
+    }
+
+    #[test]
+    fn typed_map_coords_keep_partial_input_visible() {
+        let mut app = dash_app();
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('0'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('2'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], [2, 1]);
+        assert_eq!(app.map_coord_input, "02");
+    }
+
+    #[test]
+    fn dashboard_actions_clear_partial_map_coord_input() {
+        let mut app = dash_app();
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('0'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('2'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char(']'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+
+        assert!(app.map_coord_input.is_empty());
+    }
+
+    fn dash_app() -> DashApp {
+        DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            nc_ui::ScreenGeometry::new(160, 40),
+            nc_ui::ScreenGeometry::new(108, 26),
+            1,
+        )
     }
 }

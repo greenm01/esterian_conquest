@@ -1,10 +1,10 @@
-//! Center panel: sector grid, crosshair, axis labels, status line.
+//! Center panel: sector grid, crosshair, and axis labels.
 
 use std::collections::BTreeMap;
 
 use nc_data::{
-    CoreGameData, DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection,
-    PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
+    build_player_starmap_projection_from_snapshots, CoreGameData, DiplomaticRelation,
+    PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
 };
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -106,29 +106,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             buf.set_cell(screen_row, screen_col + 2, right, cell_style);
         }
     }
-
-    // Status line below grid.
-    let cx = app.crosshair_x;
-    let cy = app.crosshair_y;
-    let status = if let Some(world) = projection_world_at(&projection, [cx, cy]) {
-        format_world_status(
-            &app.game_data,
-            [cx, cy],
-            world,
-            snapshot_map.get(&world.planet_record_index_1_based),
-        )
-    } else {
-        format!("({:02},{:02}) uncharted", cx, cy)
-    };
-    let max_w = frame.outer.width.saturating_sub(2);
-    layout::write_clipped(
-        buf,
-        frame.status_row,
-        frame.outer.col + 1,
-        max_w,
-        &status,
-        theme::value_style(),
-    );
 }
 
 pub(crate) fn jump_planet_target_for_app(
@@ -279,7 +256,13 @@ fn marker_for_world(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::state::DashApp;
+    use crate::layout::{dashboard_widget_frames, geometry::dashboard_geometry};
+    use crate::theme;
     use nc_data::{GameStateBuilder, IntelTier};
+    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn owner_markers_use_empire_slot_colors() {
@@ -307,54 +290,6 @@ mod tests {
             StarmapMarkerKind::Partial => ('*', theme::value_style()),
             StarmapMarkerKind::Unknown => ('?', theme::dim_style()),
         }
-    }
-
-    #[test]
-    fn world_status_uses_compact_grouped_fields() {
-        let game_data = GameStateBuilder::new()
-            .with_player_count(4)
-            .with_year(3006)
-            .build_initialized_baseline()
-            .expect("baseline game data");
-        let world = PlayerStarmapWorld {
-            planet_record_index_1_based: 1,
-            coords: [9, 9],
-            intel_tier: IntelTier::Partial,
-            known_name: Some(String::from("98")),
-            known_owner_empire_id: Some(4),
-            known_owner_empire_name: None,
-            known_potential_production: Some(98),
-            known_armies: None,
-            known_ground_batteries: None,
-            known_starbase_count: Some(0),
-            known_current_production: Some(45),
-            known_stored_points: Some(12),
-            known_docked_summary: None,
-            known_orbit_summary: None,
-        };
-        let snapshot = PlanetIntelSnapshot {
-            planet_record_index_1_based: 1,
-            intel_tier: IntelTier::Partial,
-            compat_is_orbit_seed: false,
-            last_intel_year: Some(3006),
-            seen_year: Some(3006),
-            scout_year: Some(3005),
-            known_name: Some(String::from("98")),
-            known_owner_empire_id: Some(4),
-            known_potential_production: Some(98),
-            known_armies: None,
-            known_ground_batteries: None,
-            known_starbase_count: Some(0),
-            known_current_production: Some(45),
-            known_stored_points: Some(12),
-            known_docked_summary: None,
-            known_orbit_summary: None,
-            compat_word_1e: None,
-        };
-
-        let status = format_world_status(&game_data, [9, 9], &world, Some(&snapshot));
-        assert_eq!(status, "(09,09) O:#4 E:98|45|12 D:?|?|0 Y:3006");
-        assert!(status.chars().count() <= 55);
     }
 
     #[test]
@@ -413,6 +348,37 @@ mod tests {
         );
     }
 
+    #[test]
+    fn draw_leaves_status_row_blank() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 40),
+            dashboard_geometry(18),
+            1,
+        );
+        app.crosshair_x = 2;
+        app.crosshair_y = 3;
+        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, widgets.center_map);
+
+        assert_eq!(buffer.plain_line(widgets.center_map.status_row).trim(), "");
+    }
+
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {
         PlayerStarmapWorld {
             planet_record_index_1_based: 1,
@@ -431,28 +397,6 @@ mod tests {
             known_orbit_summary: None,
         }
     }
-}
-
-fn format_world_status(
-    game_data: &CoreGameData,
-    coords: [u8; 2],
-    world: &PlayerStarmapWorld,
-    snapshot: Option<&PlanetIntelSnapshot>,
-) -> String {
-    let owner = owner_label(game_data, world.known_owner_empire_id);
-    format!(
-        "({:02},{:02}) O:{} E:{}|{}|{} D:{}|{}|{} Y:{}",
-        coords[0],
-        coords[1],
-        owner,
-        known_u16(world.known_potential_production),
-        known_u8(world.known_current_production),
-        known_u16(world.known_stored_points),
-        known_u8(world.known_armies),
-        known_u8(world.known_ground_batteries),
-        known_u8(world.known_starbase_count),
-        known_u16(snapshot.and_then(|row| row.last_intel_year)),
-    )
 }
 
 fn owner_label(game_data: &CoreGameData, known_owner_empire_id: Option<u8>) -> String {

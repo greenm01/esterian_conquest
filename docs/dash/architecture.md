@@ -68,9 +68,9 @@ Three-column layout with header and footer bars:
 │  In Transit:     3 │ 03  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │ REPORTS  (5R, 2M)  │
 │  Hostile:        2 │ 02  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  3rd Flt intercept │
 │  Defensive:      2 │ 01  ·  ·  ·  ·  ·  ·  ·  ·  ·  |  ·  ·  ·  ·  ·  ·  ·  · │  7th Flt bombarded │
-│  Idle:           1 │    Sector (10,09) ■ Colony A — 45 prod, 10 AR, 4 RB      │  SB 1 lost         │
+│  Idle:           1 │                                                          │  SB 1 lost         │
 ├────────────────────┴──────────────────────────────────────────────────────────┴────────────────────┤
-│ P:Planets  F:Fleets  I:Intel  R:Inbox  D:Diplomacy  A:Autopilot  X:Tax  S:Settings  Q:Quit  ?      │
+│ COMMAND <- ? P F I R D A S <Q> [10,09] ->                                                        │
 └────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -78,8 +78,8 @@ Classic-style 3-char-wide × 1-row-tall cells with crosshair and axis
 labels. Row numbers on the left flow directly into the grid with no
 separator bar — just `09 ─·──·──` for the crosshair row. Column numbers
 sit on their own row inside the map area, centered over each 3-char cell.
-The crosshair highlights row 09 with dashes. A status line below the grid
-shows the sector under the crosshair with planet/fleet intel.
+The crosshair highlights row 09 with dashes. Sector intel lives in the
+right-side `SECTOR DETAIL` widget rather than on a duplicate map status line.
 
 The map area is 54 grid columns + 3 for row labels = ~57 columns center.
 Side panels get the full 20+ rows of vertical space alongside the grid —
@@ -102,10 +102,14 @@ when on so the player never forgets he's on autopilot.
 
 ### Footer Bar
 
-Context-sensitive hotkey legend — shows available actions for the currently
-focused panel. No command-line input. All interaction is through keyboard
-shortcuts and panel navigation. The footer updates when focus changes
-between panels.
+The dashboard footer is a real command line rendered with the shared prompt
+grammar:
+
+`COMMAND <- ? P F I R D A S <Q> [XX,YY] ->`
+
+`[XX,YY]` always reflects the current crosshair position. The player may type
+coordinates directly into that footer to jump the crosshair, using the same
+punctuation-insensitive coordinate parser behavior as table typed-jump.
 
 ## Overlay Windows
 
@@ -179,8 +183,8 @@ maximum density.
 Full starmap. Classic-style 3-char-wide × 1-row-tall cells for all map
 sizes (18×18 through 36×36). The entire map is always visible — no
 panning. Row numbers descend on the left. Column numbers across the top.
-Red dashed crosshair highlights the cursor row and column. A status line
-below the grid shows intel for the sector under the crosshair.
+Red dashed crosshair highlights the cursor row and column. The right-side
+`SECTOR DETAIL` widget owns the selected-sector intel display.
 
 Grid dimensions scale with map size:
 - 18×18 map: 54 cols × 18 rows + axis/status
@@ -204,7 +208,7 @@ Three stacked sections:
   owner, `E`conomy (`Potential|Current|Points`), `D`efenses
   (`Armies|Ground Batteries|Starbases`), plus state/intel/build/docked
   summaries that fit comfortably in the panel. Empty sectors show
-  `No world in sector`. The full inbox overlay remains available on `R`.
+  `empty sector`. The full inbox overlay remains available on `R`.
 
 ### Startup Flow
 
@@ -247,7 +251,7 @@ on the left, column numbers on top. All map sizes from 18×18 to 36×36
 fit at 3-char-wide on a 1920×1200 minimum display.
 
 Grid width = map_size × 3 + 3 (row labels). Grid height = map_size + 2
-(column labels + status line).
+(column labels + one blank/themed row under the grid).
 
 ### Display
 
@@ -259,10 +263,9 @@ Grid width = map_size × 3 + 3 (row labels). Grid height = map_size + 2
 - Neutral/unowned planets: gray (`○`).
 - Fleets: triangle or arrow marker (`▸`) in the sector. When a fleet and
   planet share a sector, the planet marker takes priority and the fleet
-  presence is indicated by a brighter color or underline. The status line
-  shows both when the crosshair is over such a sector.
+  presence is indicated by a brighter color or underline.
 - Crosshair: red dashed line through the cursor row and column.
-- Selected sector: shown in status line below grid with intel.
+- Selected sector: shown in the `SECTOR DETAIL` widget.
 
 ### Terminal Resize
 
@@ -331,8 +334,8 @@ the overlay, preserving spatial context.
 - Command prompt sits inside the box at the bottom, following the
   nc-game prompt standard (`LABEL <- ... <Q> ->`). See
   [ec-game-prompt-standard.md](../dev/ec-game-prompt-standard.md).
-  The only screen that does NOT follow this standard is the main
-  map-screen dashboard, which uses its own hotkey footer bar.
+  The main map-screen dashboard also follows this standard, using its own
+  dashboard command line instead of a literal legend bar.
 - **Enter** on a row opens a detail popup where that overlay supports it.
 - **?** from within any overlay opens a context-sensitive help popup
   (boxed, dynamically sized, centered, padded — same style as nc-game's
@@ -352,12 +355,10 @@ padding.
 ### Map Navigation (when map is focused)
 
 - **Arrow keys, h/j/k/l:** Move crosshair.
+- **Type `XX,YY`:** Jump crosshair directly to map coordinates.
 - **[ / ]:** Jump to the previous or next planet in wrapped screen order.
   These keys wrap across map edges; ordinary crosshair movement does not.
 - **Enter:** Open planet detail for the world under the crosshair.
-- **G:** Go-to — enter coordinates to jump crosshair.
-- **Home:** Center crosshair on homeworld.
-- **1-9:** Jump crosshair to fleet by number.
 
 ### Global Hotkeys (always active, any focus)
 
@@ -368,7 +369,6 @@ padding.
 - **R:** Inbox overlay (reports + messages + compose).
 - **D:** Diplomacy overlay (leaderboard + declare enemies).
 - **A:** Toggle autopilot on/off (reflected in header).
-- **X:** Change empire tax rate (inline prompt).
 - **?:** Help overlay.
 - **S:** Settings (theme picker, mouse toggle).
 - **Q:** Quit.
@@ -382,17 +382,17 @@ crossterm supports mouse events. If enabled:
 
 Mouse support is optional — the dashboard is fully keyboard-navigable.
 
-### Footer Hotkey Legend
+### Footer Command Line
 
-The footer bar shows context-sensitive hotkeys. Left side shows panel/mode
-actions; right side always shows the global overlay keys.
+The dashboard footer stays on one shared map-screen command line:
 
-The footer is the same global bar shown in the mockup. The overlay keys
-(P, F, I, R, D, A, X, S, Q, ?) are always visible. When inside an
-overlay or popup, the overlay's own footer replaces the global bar with
-context-specific actions and an Esc:Back hint.
+`COMMAND <- ? P F I R D A S <Q> [XX,YY] ->`
 
-The footer updates whenever focus or mode changes.
+`[XX,YY]` is the live default taken from the current crosshair position.
+When the player types coordinate characters, the shared coordinate parser
+reuses the same punctuation-insensitive matching behavior as table typed-jump.
+Partial matches move the crosshair immediately and keep the typed input
+visible; a terminal exact match clears the live input automatically.
 
 ## Inbox (R Overlay)
 
@@ -745,8 +745,8 @@ Guidelines:
 - Render full map (18×18 through 36×36) with 3-char-wide × 1-row cells.
 - Axis labels: row numbers left, column numbers top.
 - Crosshair: red dashed horizontal and vertical lines.
-- Status line below grid with sector intel.
-- Arrow/hjkl navigation, G:Goto, Home:Homeworld, 1-9:Fleet jump.
+- No duplicate status line below grid; sector intel lives in `SECTOR DETAIL`.
+- Arrow/hjkl navigation, direct `XX,YY` coordinate jump, and `[` / `]` planet jump.
 - Planet markers: ■ owned, ● enemy, ○ neutral, · empty.
 - Fleet markers overlaid on sectors.
 

@@ -46,6 +46,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Tab", "Cycle dashboard focus"),
             ("Shift+Tab", "Cycle dashboard focus backward"),
             ("Enter", "Open planet detail for the selected world"),
+            ("XX,YY", "Jump crosshair to map coordinates"),
             ("[", "Jump to the previous planet on the map"),
             ("]", "Jump to the next planet on the map"),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
@@ -160,6 +161,9 @@ mod tests {
         assert!(lines
             .iter()
             .any(|line| line.contains("[") && line.contains("previous planet")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("XX,YY") && line.contains("map coordinates")));
         assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));

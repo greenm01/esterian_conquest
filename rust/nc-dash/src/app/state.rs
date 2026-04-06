@@ -159,6 +159,7 @@ pub struct DashApp {
     // Starmap crosshair (1-based sector coords)
     pub crosshair_x: u8,
     pub crosshair_y: u8,
+    pub map_coord_input: String,
 
     // Panel scroll positions
     pub diplomacy_scroll: usize,
@@ -216,6 +217,7 @@ impl DashApp {
             autopilot_on: false,
             crosshair_x: 1,
             crosshair_y: 1,
+            map_coord_input: String::new(),
             diplomacy_scroll: 0,
             planet_overlay: ListOverlayState::default(),
             fleet_overlay: ListOverlayState::default(),

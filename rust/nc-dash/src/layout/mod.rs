@@ -3,14 +3,14 @@
 pub mod geometry;
 pub mod widgets;
 
-use nc_ui::{PlayfieldBuffer, ScreenGeometry};
+use nc_ui::{prompt, PlayfieldBuffer, ScreenGeometry};
 
 use crate::app::state::DashApp;
 use crate::theme;
 pub use widgets::{
-    DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame, dashboard_widget_frames,
-    format_label_value, frame_offset_for, label_value_width, write_clipped,
-    write_panel_body_line, write_panel_title, write_strict_span,
+    dashboard_widget_frames, format_label_value, frame_offset_for, label_value_width,
+    write_clipped, write_panel_body_line, write_panel_title, write_strict_span,
+    DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame,
 };
 
 /// Compute the (col, row) offset to center the frame in the canvas.
@@ -196,17 +196,19 @@ pub fn draw_footer(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let (ox, _) = frame_offset(app);
     let widgets = dashboard_widget_frames(app.geometry, app.frame);
     let row = widgets.footer_bar_row;
-    let footer_text =
-        " P:Planets F:Fleets I:Intel R:Inbox D:Diplomacy A:Autopilot X:Tax S:Settings Q:Quit ? ";
-    write_strict_span(
+    prompt::draw_table_command_bar_in_span(
         buf,
         row,
-        ox + 2,
-        app.frame.width().saturating_sub(3),
-        footer_text,
-        theme::footer_style(),
-        "dashboard footer",
+        ox + 1,
+        app.frame.width().saturating_sub(2),
+        "? P F I R D A S <Q>",
+        Some(&current_coord_default(app)),
+        &app.map_coord_input,
     );
+}
+
+fn current_coord_default(app: &DashApp) -> String {
+    format!("{:02},{:02}", app.crosshair_x, app.crosshair_y)
 }
 
 fn draw_panel_separator(
@@ -254,7 +256,11 @@ fn plain_separator(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::state::DashApp;
     use crate::layout::geometry::dashboard_geometry;
+    use nc_data::GameStateBuilder;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn write_clipped_respects_panel_width() {
@@ -351,5 +357,42 @@ mod tests {
             Some('├')
         );
         assert_eq!(line_char(&buffer, right_row, right_border_col), Some('┤'));
+    }
+
+    #[test]
+    fn dashboard_footer_uses_command_line_with_crosshair_default() {
+        let mut app = dash_app();
+        app.crosshair_x = 2;
+        app.crosshair_y = 3;
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw_footer(&mut buffer, &app);
+
+        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let line = buffer.plain_line(widgets.footer_bar_row);
+        assert!(line.contains("COMMAND <- ? P F I R D A S <Q> [02,03] ->"));
+        assert!(!line.contains("P:Planets"));
+    }
+
+    fn dash_app() -> DashApp {
+        DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 40),
+            dashboard_geometry(18),
+            1,
+        )
     }
 }
