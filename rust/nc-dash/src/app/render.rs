@@ -4,7 +4,7 @@ use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{ActiveOverlay, DashApp};
 use crate::layout;
-use crate::overlays;
+use crate::overlays::{self, frame::{OverlayBackdrop, draw_full_backdrop, overlay_backdrop}};
 use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, reports, starmap};
 
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -30,6 +30,10 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     reports::draw(&mut buf, app, widgets.right_reports);
 
     // Overlay (drawn over everything if active).
+    if matches!(overlay_backdrop(app.overlay), OverlayBackdrop::FullBackdrop) {
+        draw_full_backdrop(&mut buf);
+    }
+
     match app.overlay {
         ActiveOverlay::None => {}
         ActiveOverlay::PlanetList => overlays::planet_list::draw(&mut buf, app),

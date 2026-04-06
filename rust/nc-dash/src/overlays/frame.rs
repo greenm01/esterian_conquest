@@ -1,9 +1,16 @@
 //! Shared centered modal shell for dashboard overlays.
 
+use crate::app::state::ActiveOverlay;
 use nc_ui::modal::{ModalTheme, draw_modal_frame};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::theme;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayBackdrop {
+    None,
+    FullBackdrop,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct OverlayFrame {
@@ -12,6 +19,23 @@ pub struct OverlayFrame {
     pub body_width: usize,
     pub body_height: usize,
     pub footer_row: usize,
+}
+
+pub fn overlay_backdrop(overlay: ActiveOverlay) -> OverlayBackdrop {
+    match overlay {
+        ActiveOverlay::PlanetList
+        | ActiveOverlay::FleetList
+        | ActiveOverlay::IntelDatabase
+        | ActiveOverlay::Inbox => OverlayBackdrop::FullBackdrop,
+        ActiveOverlay::None
+        | ActiveOverlay::Diplomacy
+        | ActiveOverlay::Settings
+        | ActiveOverlay::Help => OverlayBackdrop::None,
+    }
+}
+
+pub fn draw_full_backdrop(buf: &mut PlayfieldBuffer) {
+    buf.fill_rect(0, 0, buf.width(), buf.height(), theme::dim_style());
 }
 
 pub fn draw_overlay_frame(
@@ -71,7 +95,8 @@ pub fn draw_overlay_frame_for_body(
     body_height: usize,
     footer: &str,
 ) -> OverlayFrame {
-    let preferred_width = (body_width.max(footer.chars().count()) + 4).max(title.chars().count() + 6);
+    let preferred_width =
+        (body_width.max(footer.chars().count()) + 4).max(title.chars().count() + 6);
     let preferred_height = body_height + 4;
     draw_overlay_frame(buf, title, preferred_width, preferred_height, footer)
 }
@@ -93,7 +118,12 @@ mod tests {
 
         assert!(frame.footer_row < buffer.height());
         assert!(frame.body_row < frame.footer_row);
-        assert_eq!(buffer.plain_line(frame.footer_row).contains("COMMAND <- ? J K <Q> ->"), true);
+        assert_eq!(
+            buffer
+                .plain_line(frame.footer_row)
+                .contains("COMMAND <- ? J K <Q> ->"),
+            true
+        );
     }
 
     #[test]
@@ -122,6 +152,43 @@ mod tests {
             8,
             "COMMAND <- this footer is far too wide for the popup ->",
         );
+    }
+
+    #[test]
+    fn dense_table_overlays_use_full_backdrop() {
+        assert_eq!(
+            overlay_backdrop(ActiveOverlay::PlanetList),
+            OverlayBackdrop::FullBackdrop
+        );
+        assert_eq!(
+            overlay_backdrop(ActiveOverlay::FleetList),
+            OverlayBackdrop::FullBackdrop
+        );
+        assert_eq!(
+            overlay_backdrop(ActiveOverlay::IntelDatabase),
+            OverlayBackdrop::FullBackdrop
+        );
+        assert_eq!(
+            overlay_backdrop(ActiveOverlay::Inbox),
+            OverlayBackdrop::FullBackdrop
+        );
+        assert_eq!(
+            overlay_backdrop(ActiveOverlay::Diplomacy),
+            OverlayBackdrop::None
+        );
+        assert_eq!(overlay_backdrop(ActiveOverlay::Help), OverlayBackdrop::None);
+    }
+
+    #[test]
+    fn full_backdrop_clears_existing_dashboard_text() {
+        let mut buffer = PlayfieldBuffer::new(40, 12, theme::body_style());
+        buffer.write_text(2, 4, "dashboard clutter", theme::label_style());
+        buffer.write_text(9, 8, "more clutter", theme::alert_style());
+
+        draw_full_backdrop(&mut buffer);
+
+        assert_eq!(buffer.plain_line(2), "");
+        assert_eq!(buffer.plain_line(9), "");
     }
 }
 

@@ -120,6 +120,17 @@ dashboard canvas:
 - command rails and prompts rendered inside the popup box
 - all table, preview, and prompt content clipped to the popup body
 
+Dense work overlays use a calm full-screen backdrop so the dashboard does not
+show through behind busy tables:
+
+- `Planet List`
+- `Fleet List`
+- `Total Planet Database`
+- `Inbox`
+
+Lighter overlays such as diplomacy, help, and settings keep the live
+dashboard visible behind the popup.
+
 These overlays should match `nc-game` behavior and command semantics where
 applicable, but they should use the extra dashboard real estate rather than
 the legacy 80×25 geometry.
