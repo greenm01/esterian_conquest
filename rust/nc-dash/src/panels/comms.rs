@@ -47,7 +47,13 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         }
     }
 
+    let total_unread = unread_combat + unread_intel + unread_msgs;
+
     vec![
+        (
+            layout::format_left_column_value("Total", &total_unread.to_string()),
+            if total_unread > 0 { theme::alert_style() } else { theme::dim_style() },
+        ),
         (
             layout::format_left_column_value("Combat Rep", &unread_combat.to_string()),
             if unread_combat > 0 { theme::enemy_style() } else { theme::dim_style() },

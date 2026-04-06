@@ -94,7 +94,11 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             theme::value_style(),
         ),
         (
-            layout::format_left_column_value("Rank (Prd/Pln)", &format!("#{} / #{}", economy.rank_by_present_production, economy.rank_by_planets)),
+            layout::format_left_column_value("Prod Rank", &format!("#{}", economy.rank_by_present_production)),
+            theme::value_style(),
+        ),
+        (
+            layout::format_left_column_value("Plnt Rank", &format!("#{}", economy.rank_by_planets)),
             theme::value_style(),
         ),
         (
