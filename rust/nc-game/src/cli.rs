@@ -32,12 +32,7 @@ struct ParsedLaunchArgs {
     door_transport: DoorTransport,
 }
 
-struct SessionLeaseGuard {
-    store: CampaignStore,
-    player_npub: String,
-    session_token: String,
-    ttl_seconds: u64,
-}
+use nc_session::lease::{SessionLeaseGuard, unix_now};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LaunchPlayerBindingSource {
@@ -80,40 +75,6 @@ struct HostedLaunchContext {
     invite_code: Option<String>,
 }
 
-impl SessionLeaseGuard {
-    fn activate(
-        store: CampaignStore,
-        session_token: String,
-        now_unix_seconds: u64,
-        ttl_seconds: u64,
-        player_npub: String,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        store.activate_session_lease(&session_token, now_unix_seconds, ttl_seconds)?;
-        Ok(Self {
-            store,
-            player_npub,
-            session_token,
-            ttl_seconds,
-        })
-    }
-
-    fn heartbeat(&self) -> Result<(), Box<dyn std::error::Error>> {
-        self.store
-            .heartbeat_session_lease(&self.session_token, unix_now(), self.ttl_seconds)?;
-        Ok(())
-    }
-
-    fn release(&self) -> Result<(), Box<dyn std::error::Error>> {
-        self.store.release_session_lease(&self.session_token)?;
-        Ok(())
-    }
-}
-
-impl Drop for SessionLeaseGuard {
-    fn drop(&mut self) {
-        let _ = self.store.release_session_lease(&self.session_token);
-    }
-}
 
 const LOOPBACK_DOOR_HOST: &str = "127.0.0.1";
 
@@ -1006,12 +967,6 @@ fn session_lease_ttl_seconds(
         .unwrap_or(120)
 }
 
-fn unix_now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-}
 
 fn slug_from_dir(dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {
     let slug = dir

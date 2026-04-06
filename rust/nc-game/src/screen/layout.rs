@@ -14,46 +14,11 @@ pub const PRIMARY_MENU_ROW: usize = 1;
 pub const PRIMARY_MENU_TITLE_COL: usize = 1;
 pub const LEFT_WINDOW_PAD_COL: usize = 1;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ScreenGeometry {
-    width: usize,
-    height: usize,
-}
+// ScreenGeometry is now defined in nc-ui. Re-export for backward compatibility.
+// local_default() and for_door() are also defined in nc-ui's ScreenGeometry impl.
+pub use nc_ui::layout::ScreenGeometry;
 
-impl ScreenGeometry {
-    pub const fn local_default() -> Self {
-        Self {
-            width: PLAYFIELD_WIDTH,
-            height: PLAYFIELD_HEIGHT,
-        }
-    }
-
-    pub fn for_door(rows: Option<usize>) -> Self {
-        let height = rows
-            .unwrap_or(DOOR_FALLBACK_HEIGHT)
-            .clamp(DOOR_FALLBACK_HEIGHT, PLAYFIELD_HEIGHT);
-        Self {
-            width: PLAYFIELD_WIDTH,
-            height,
-        }
-    }
-
-    pub const fn width(self) -> usize {
-        self.width
-    }
-
-    pub const fn height(self) -> usize {
-        self.height
-    }
-}
-
-pub const fn command_line_row_for(geometry: ScreenGeometry) -> usize {
-    geometry.height - 1
-}
-
-pub const fn last_body_row_for(geometry: ScreenGeometry) -> usize {
-    command_line_row_for(geometry) - 1
-}
+pub use nc_ui::layout::{command_line_row_for, last_body_row_for};
 
 pub const fn last_body_row() -> usize {
     last_body_row_for(ScreenGeometry::local_default())

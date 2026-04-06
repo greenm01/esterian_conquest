@@ -9,9 +9,10 @@ name = "nc-dash"
 path = "src/main.rs"
 
 [dependencies]
-crossterm = "0.28"
+crossterm = "0.29"
 nc-data = { path = "../nc-data" }
 nc-engine = { path = "../nc-engine" }
+nc-session = { path = "../nc-session" }
 nc-ui = { path = "../nc-ui" }
 nc-log = { path = "../nc-log" }
 tracing = "0.1"

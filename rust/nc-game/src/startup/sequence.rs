@@ -1,16 +1,12 @@
 use crate::model::ClassicLoginState;
 use crate::reports::ReportsPreview;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StartupPhase {
-    Splash,
-    Intro,
-    LoginSummary,
-    Results,
-    Messages,
-    Complete,
-}
+// StartupPhase and StartupSequence now live in nc-session.
+// Re-export for backward compatibility within nc-game.
+pub use nc_session::startup::{StartupPhase, StartupSequence};
+use nc_session::startup::StartupSummary as SharedStartupSummary;
 
+/// nc-game's extended startup summary that includes game-specific login state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StartupSummary {
     pub game_year: u16,
@@ -19,14 +15,6 @@ pub struct StartupSummary {
     pub pending_messages: bool,
     pub results_line_count: usize,
     pub message_line_count: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StartupSequence {
-    current: StartupPhase,
-    show_login_review: bool,
-    show_results: bool,
-    show_messages: bool,
 }
 
 impl StartupSummary {
@@ -46,62 +34,20 @@ impl StartupSummary {
             message_line_count: reports.message_lines.len(),
         }
     }
-}
 
-impl StartupSequence {
-    pub fn new(summary: &StartupSummary, login_state: ClassicLoginState) -> Self {
+    /// Convert to the shared summary for use with StartupSequence.
+    pub fn to_shared(&self) -> SharedStartupSummary {
         let show_login_review = matches!(
-            login_state,
+            self.login_state,
             ClassicLoginState::MatchedPreloadedFirstLogin | ClassicLoginState::ReturningPlayer
         );
-        Self {
-            current: StartupPhase::Splash,
+        SharedStartupSummary {
+            game_year: self.game_year,
             show_login_review,
-            show_results: show_login_review && summary.pending_results,
-            show_messages: show_login_review && summary.pending_messages,
+            pending_results: self.pending_results,
+            pending_messages: self.pending_messages,
+            results_line_count: self.results_line_count,
+            message_line_count: self.message_line_count,
         }
-    }
-
-    pub fn current(&self) -> StartupPhase {
-        self.current
-    }
-
-    pub fn advance(&mut self) -> StartupPhase {
-        self.current = match self.current {
-            StartupPhase::Splash | StartupPhase::Intro => {
-                if self.show_login_review {
-                    StartupPhase::LoginSummary
-                } else {
-                    StartupPhase::Complete
-                }
-            }
-            StartupPhase::LoginSummary => {
-                if self.show_results {
-                    StartupPhase::Results
-                } else if self.show_messages {
-                    StartupPhase::Messages
-                } else {
-                    StartupPhase::Complete
-                }
-            }
-            StartupPhase::Results => {
-                if self.show_messages {
-                    StartupPhase::Messages
-                } else {
-                    StartupPhase::Complete
-                }
-            }
-            StartupPhase::Messages | StartupPhase::Complete => StartupPhase::Complete,
-        };
-        self.current
-    }
-
-    pub fn skip_intro(&mut self) -> StartupPhase {
-        self.current = if self.show_login_review {
-            StartupPhase::LoginSummary
-        } else {
-            StartupPhase::Complete
-        };
-        self.current
     }
 }

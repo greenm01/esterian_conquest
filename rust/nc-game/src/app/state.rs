@@ -183,7 +183,7 @@ impl App {
             main_menu_summary.pending_messages,
             &reports,
         );
-        let startup_sequence = StartupSequence::new(&startup_summary, player.classic_login_state);
+        let startup_sequence = StartupSequence::new(&startup_summary.to_shared());
         let mut startup_state = StartupState::default();
         startup_state.reserved_seat_alias = config
             .game_config

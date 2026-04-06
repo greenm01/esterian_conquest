@@ -1,0 +1,13 @@
+[package]
+name = "nc-session"
+version = "1.0.0-beta.2"
+edition = "2024"
+license-file = "../../LICENSE"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+nc-data = { path = "../nc-data" }
+nc-log = { path = "../nc-log" }
+nc-ui = { path = "../nc-ui" }
