@@ -3,10 +3,11 @@
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
 use nc_data::{Order, STARDOCK_SLOT_COUNT};
-use nc_ui::{CellStyle, PlayfieldBuffer};
 use nc_ui::theme::classic::status_value_style;
+use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "MY FLEETS";
+pub(crate) const MIN_BODY_ROWS: usize = 7;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, TITLE, crate::theme::section_title_style());
@@ -25,10 +26,10 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let mut total_fleets = 0;
     let mut total_ships = 0;
     let mut docked = 0;
-    let mut in_transit = 0;
-    let mut hostile = 0;
-    let mut defensive = 0;
-    let mut idle = 0;
+    let mut moving = 0;
+    let mut combat = 0;
+    let mut guarding = 0;
+    let mut holding = 0;
 
     for planet in &app.game_data.planets.records {
         if planet.owner_empire_slot_raw() != owner_slot {
@@ -58,16 +59,16 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             | Order::SeekHome
             | Order::JoinAnotherFleet
             | Order::RendezvousSector => {
-                in_transit += 1;
+                moving += 1;
             }
             Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld => {
-                hostile += 1;
+                combat += 1;
             }
             Order::PatrolSector | Order::GuardStarbase | Order::GuardBlockadeWorld => {
-                defensive += 1;
+                guarding += 1;
             }
             Order::HoldPosition => {
-                idle += 1;
+                holding += 1;
             }
             _ => {}
         }
@@ -86,39 +87,76 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             layout::format_left_column_value("Docked", &docked.to_string()),
             status_value_style(),
         ),
+        (
+            layout::format_left_column_value("Moving", &moving.to_string()),
+            crate::theme::dim_style(),
+        ),
+        (
+            layout::format_left_column_value("Combat", &combat.to_string()),
+            if combat > 0 {
+                crate::theme::enemy_style()
+            } else {
+                crate::theme::dim_style()
+            },
+        ),
+        (
+            layout::format_left_column_value("Guarding", &guarding.to_string()),
+            if guarding > 0 {
+                crate::theme::friendly_style()
+            } else {
+                crate::theme::dim_style()
+            },
+        ),
+        (
+            layout::format_left_column_value("Holding", &holding.to_string()),
+            crate::theme::dim_style(),
+        ),
     ];
 
-    if in_transit > 0 {
-        summary_rows.push((layout::format_left_column_value("In Transit", &in_transit.to_string()), crate::theme::dim_style()));
-    }
-    if hostile > 0 {
-        summary_rows.push((layout::format_left_column_value("Hostile", &hostile.to_string()), crate::theme::enemy_style()));
-    }
-    if defensive > 0 {
-        summary_rows.push((layout::format_left_column_value("Defensive", &defensive.to_string()), crate::theme::friendly_style()));
-    }
-    if idle > 0 {
-        summary_rows.push((layout::format_left_column_value("Idle", &idle.to_string()), crate::theme::dim_style()));
-    }
-
-    let active = app.game_data.empire_active_duty_summary(app.player_record_index_1_based);
+    let active = app
+        .game_data
+        .empire_active_duty_summary(app.player_record_index_1_based);
     if active.battleships > 0 {
-        summary_rows.push((layout::format_left_column_value("  BBs", &active.battleships.to_string()), crate::theme::dim_style()));
+        summary_rows.push((
+            layout::format_left_column_value("BBs", &active.battleships.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
     if active.cruisers > 0 {
-        summary_rows.push((layout::format_left_column_value("  CAs", &active.cruisers.to_string()), crate::theme::dim_style()));
+        summary_rows.push((
+            layout::format_left_column_value("CAs", &active.cruisers.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
     if active.destroyers > 0 {
-        summary_rows.push((layout::format_left_column_value("  DDs", &active.destroyers.to_string()), crate::theme::dim_style()));
+        summary_rows.push((
+            layout::format_left_column_value("DDs", &active.destroyers.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
     if active.scouts > 0 {
-        summary_rows.push((layout::format_left_column_value("  SCs", &active.scouts.to_string()), crate::theme::dim_style()));
+        summary_rows.push((
+            layout::format_left_column_value("SCs", &active.scouts.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
     if active.transports > 0 {
-        summary_rows.push((layout::format_left_column_value("  TRs", &active.transports.to_string()), crate::theme::dim_style()));
+        summary_rows.push((
+            layout::format_left_column_value("TTs", &active.transports.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
     if active.etacs > 0 {
-        summary_rows.push((layout::format_left_column_value("  ETs", &active.etacs.to_string()), crate::theme::dim_style()));
+        summary_rows.push((
+            layout::format_left_column_value("ETs", &active.etacs.to_string()),
+            crate::theme::dim_style(),
+        ));
+    }
+    if active.starbases > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("SBs", &active.starbases.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
 
     summary_rows

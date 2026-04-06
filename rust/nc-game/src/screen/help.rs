@@ -1,4 +1,4 @@
-use nc_ui::modal::{render_modal_box, wrap_formatted_help_lines, ModalTheme};
+use nc_ui::modal::{ModalTheme, render_modal_box, wrap_formatted_help_lines};
 use nc_ui::theme::classic;
 
 use crate::screen::PlayfieldBuffer;

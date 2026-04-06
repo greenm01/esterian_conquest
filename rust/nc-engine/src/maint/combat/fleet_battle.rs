@@ -951,10 +951,14 @@ pub(crate) fn process_fleet_battles(
                     .copied()
                     .unwrap_or(0),
                 friendly_losses,
+                friendly_starbases_lost: before.counts[IDX_SB]
+                    .saturating_sub(after_tf.state.counts[IDX_SB]),
                 enemy_initial: ship_counts_from_state(&enemy_before),
                 enemy_initial_starbases: enemy_before.counts[IDX_SB],
                 enemy_loaded_armies_initial,
                 enemy_losses,
+                enemy_starbases_destroyed: enemy_before.counts[IDX_SB]
+                    .saturating_sub(enemy_after.counts[IDX_SB]),
                 stardate_week: None,
             });
 

@@ -5,7 +5,7 @@ pub mod render;
 pub mod state;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use input::{key_to_action, Action};
+use input::{Action, key_to_action};
 use nc_ui::table_selection;
 use nc_ui::{ScreenGeometry, Terminal};
 use state::{
@@ -14,7 +14,7 @@ use state::{
     MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
 };
 
-use crate::inbox::{project_inbox_items, DashInboxItemSource};
+use crate::inbox::{DashInboxItemSource, project_inbox_items};
 use crate::layout::dashboard;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
@@ -39,13 +39,7 @@ impl DashApp {
                 }
                 Event::Resize(cols, rows) => {
                     self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
-                    let required = dashboard::required_dashboard_frame(self);
-                    if self.geometry.width() < required.width() || self.geometry.height() < required.height() {
-                        self.is_terminal_too_small = true;
-                    } else {
-                        self.is_terminal_too_small = false;
-                        self.frame = required;
-                    }
+                    self.refresh_terminal_fit_state();
                 }
                 _ => {}
             }
@@ -122,6 +116,7 @@ impl DashApp {
                     MapViewMode::Readable => MapViewMode::Fill,
                     MapViewMode::Fill => MapViewMode::Readable,
                 };
+                self.refresh_terminal_fit_state();
             }
             Action::ZoomMapIn => {
                 self.map_zoom_level = self.map_zoom_level.saturating_add(1).min(5);
@@ -215,6 +210,17 @@ impl DashApp {
         matched.is_terminal_exact_match
     }
 
+    fn refresh_terminal_fit_state(&mut self) {
+        let required = dashboard::required_dashboard_frame(self);
+        let layout = dashboard::dashboard_layout(self);
+        self.is_terminal_too_small = self.geometry.width() < required.width()
+            || self.geometry.height() < required.height()
+            || !dashboard::dashboard_fits_canvas(self.geometry, &layout);
+        if !self.is_terminal_too_small {
+            self.frame = required;
+        }
+    }
+
     fn scroll_up(&mut self) {
         use state::PanelFocus::*;
         match self.focus {
@@ -283,7 +289,14 @@ impl DashApp {
                 self.handle_inbox_overlay_key(key);
                 true
             }
-            ActiveOverlay::Settings | ActiveOverlay::Help => {
+            ActiveOverlay::Settings => {
+                if self.handle_overlay_close_or_help(key, HelpContext::Settings) {
+                    return true;
+                }
+                self.close_active_overlay();
+                true
+            }
+            ActiveOverlay::Help => {
                 let _ = key;
                 self.close_active_overlay();
                 true
@@ -581,9 +594,10 @@ impl DashApp {
                         [0, 0],
                     )
                     .unwrap_or([0, 0]);
-                    if let Some(anchor) =
-                        intel_database::parse_coords_input(&self.intel_overlay.prompt_input, default)
-                    {
+                    if let Some(anchor) = intel_database::parse_coords_input(
+                        &self.intel_overlay.prompt_input,
+                        default,
+                    ) {
                         self.apply_intel_overlay_sort(IntelOverlaySort::Range(anchor));
                     }
                 }
@@ -644,9 +658,10 @@ impl DashApp {
                         [0, 0],
                     )
                     .unwrap_or([0, 0]);
-                    if let Some(anchor) =
-                        intel_database::parse_coords_input(&self.intel_overlay.prompt_input, default)
-                    {
+                    if let Some(anchor) = intel_database::parse_coords_input(
+                        &self.intel_overlay.prompt_input,
+                        default,
+                    ) {
                         self.intel_overlay.pending_range_anchor = Some(anchor);
                         self.intel_overlay.prompt_mode =
                             IntelOverlayPromptMode::FilterRangeDistance;
@@ -725,7 +740,11 @@ impl DashApp {
                     self.reset_intel_overlay_prompt();
                 }
                 KeyCode::Enter => {
-                    let default = self.intel_overlay.prompt_default.parse::<u16>().unwrap_or(100);
+                    let default = self
+                        .intel_overlay
+                        .prompt_default
+                        .parse::<u16>()
+                        .unwrap_or(100);
                     let min_prod = if self.intel_overlay.prompt_input.trim().is_empty() {
                         default
                     } else {
@@ -947,7 +966,11 @@ impl DashApp {
                     .position(|row| row.planet_record_index_1_based == record)
             })
             .unwrap_or(0);
-        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, self.planet_overlay.selected, 1_000);
+        sync_scroll_to_cursor(
+            &mut self.planet_overlay.scroll,
+            self.planet_overlay.selected,
+            1_000,
+        );
     }
 
     fn apply_planet_overlay_filter(&mut self, filter: PlanetOverlayFilter) {
@@ -967,7 +990,11 @@ impl DashApp {
                     .position(|row| row.planet_record_index_1_based == record)
             })
             .unwrap_or(0);
-        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, self.planet_overlay.selected, 1_000);
+        sync_scroll_to_cursor(
+            &mut self.planet_overlay.scroll,
+            self.planet_overlay.selected,
+            1_000,
+        );
     }
 
     fn apply_fleet_overlay_sort(&mut self, sort: FleetOverlaySort) {
@@ -980,7 +1007,11 @@ impl DashApp {
         self.fleet_overlay.selected = selected_key
             .and_then(|key| rows.iter().position(|row| row.key == key))
             .unwrap_or(0);
-        sync_scroll_to_cursor(&mut self.fleet_overlay.scroll, self.fleet_overlay.selected, 1_000);
+        sync_scroll_to_cursor(
+            &mut self.fleet_overlay.scroll,
+            self.fleet_overlay.selected,
+            1_000,
+        );
     }
 
     fn apply_fleet_overlay_filter(&mut self, filter: FleetOverlayFilter) {
@@ -997,7 +1028,11 @@ impl DashApp {
         self.fleet_overlay.selected = selected_key
             .and_then(|key| rows.iter().position(|row| row.key == key))
             .unwrap_or(0);
-        sync_scroll_to_cursor(&mut self.fleet_overlay.scroll, self.fleet_overlay.selected, 1_000);
+        sync_scroll_to_cursor(
+            &mut self.fleet_overlay.scroll,
+            self.fleet_overlay.selected,
+            1_000,
+        );
     }
 
     fn reset_intel_overlay_prompt(&mut self) {
@@ -1020,7 +1055,11 @@ impl DashApp {
                     .position(|row| row.planet_record_index_1_based == record)
             })
             .unwrap_or(0);
-        sync_scroll_to_cursor(&mut self.intel_overlay.scroll, self.intel_overlay.selected, 10_000);
+        sync_scroll_to_cursor(
+            &mut self.intel_overlay.scroll,
+            self.intel_overlay.selected,
+            10_000,
+        );
     }
 
     fn apply_intel_overlay_filter(&mut self, filter: IntelOverlayFilter) {
@@ -1040,7 +1079,11 @@ impl DashApp {
                     .position(|row| row.planet_record_index_1_based == record)
             })
             .unwrap_or(0);
-        sync_scroll_to_cursor(&mut self.intel_overlay.scroll, self.intel_overlay.selected, 10_000);
+        sync_scroll_to_cursor(
+            &mut self.intel_overlay.scroll,
+            self.intel_overlay.selected,
+            10_000,
+        );
     }
 }
 
@@ -1173,6 +1216,7 @@ mod tests {
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crossterm::event::{KeyCode, KeyEvent};
     use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 
@@ -1339,6 +1383,20 @@ mod tests {
             crossterm::event::KeyModifiers::NONE,
         ));
         assert_eq!(app.map_view_mode, MapViewMode::Readable);
+    }
+
+    #[test]
+    fn toggling_map_view_rechecks_too_small_state() {
+        let mut app = dash_app();
+        app.geometry = ScreenGeometry::new(40, 20);
+        app.is_terminal_too_small = false;
+
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('v'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+
+        assert!(app.is_terminal_too_small);
     }
 
     #[test]

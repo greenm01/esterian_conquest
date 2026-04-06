@@ -2,17 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
-use nc_game::screen::layout::{
-    dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
-    draw_labeled_table_command_bar_at_col,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
-    draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
-    draw_inline_planet_info_prompt, draw_plain_prompt, draw_prompt_error_after,
-    draw_prompt_feedback_after, draw_status_line,
-    table_dismiss_prompt_row, PromptFeedback, ScreenGeometry, COMMAND_LINE_ROW, PLAYFIELD_HEIGHT,
-    PLAYFIELD_WIDTH,
-};
-use nc_game::screen::render_first_time_join_name;
 use nc_game::screen::MessageComposeScreen;
 use nc_game::screen::PlanetBuildOrder;
 use nc_game::screen::PlanetBuildScreen;
@@ -22,6 +11,16 @@ use nc_game::screen::PlanetCommissionScreen;
 use nc_game::screen::PlanetMenuScreen;
 use nc_game::screen::PlayfieldBuffer;
 use nc_game::screen::StarmapScreen;
+use nc_game::screen::layout::{
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
+    dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
+    draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
+    draw_inline_planet_info_prompt, draw_labeled_table_command_bar_at_col, draw_plain_prompt,
+    draw_prompt_error_after, draw_prompt_feedback_after, draw_status_line,
+    table_dismiss_prompt_row,
+};
+use nc_game::screen::render_first_time_join_name;
 use nc_game::theme::classic;
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
@@ -545,8 +544,10 @@ fn inline_delete_reviewables_prompt_uses_notice_style_and_cursor_gap() {
     let title_col = find_in_row(&buffer, 12, title);
     let row = buffer.row(12);
     assert_eq!(row[title_col].style, classic::notice_style());
-    assert!(row_text(&buffer, 13)
-        .contains("This will clear all currently reviewable messages and results."));
+    assert!(
+        row_text(&buffer, 13)
+            .contains("This will clear all currently reviewable messages and results.")
+    );
 }
 
 #[test]
@@ -580,8 +581,10 @@ fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
     assert!(row_text(&buffer, 6).contains("COMMAND <- [Y]/N -> "));
     assert!(row_text(&buffer, 7).trim().is_empty());
     assert!(row_text(&buffer, 8).contains("AUTO-COMMISSION SHIPS:"));
-    assert!(row_text(&buffer, 9)
-        .contains("Automatically commission all ships and starbases in stardock?"));
+    assert!(
+        row_text(&buffer, 9)
+            .contains("Automatically commission all ships and starbases in stardock?")
+    );
 }
 
 #[test]
@@ -807,8 +810,10 @@ fn commission_draft_renders_inline_notice_below_command_row() {
         .find(|&row| row_text(&buffer, row).contains("(Slap a key) Fleet 02 Commissioned"))
         .expect("notice row");
     assert_eq!(prompt_row, top_row + 6);
-    assert!((prompt_row + 1..buffer.height())
-        .all(|row| { !row_text(&buffer, row).contains("Fleet 02 Commissioned") }));
+    assert!(
+        (prompt_row + 1..buffer.height())
+            .all(|row| { !row_text(&buffer, row).contains("Fleet 02 Commissioned") })
+    );
 }
 
 #[test]

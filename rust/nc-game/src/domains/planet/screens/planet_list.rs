@@ -418,9 +418,9 @@ impl PlanetListScreen {
                 KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Enter => Action::Planet(
                     PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::All),
                 ),
-                KeyCode::Char('r') | KeyCode::Char('R') => {
-                    Action::Planet(PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Range))
-                }
+                KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(
+                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Range),
+                ),
                 KeyCode::Char('s') | KeyCode::Char('S') => Action::Planet(
                     PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Starbase),
                 ),
@@ -432,30 +432,32 @@ impl PlanetListScreen {
                 }
                 _ => Action::Noop,
             },
-            PlanetListFilterPromptMode::RangeCoords
-            | PlanetListFilterPromptMode::RangeDistance => match key.code {
-                KeyCode::Char('?') => Action::OpenPopupHelp,
-                KeyCode::Enter => {
-                    Action::Planet(PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Range))
+            PlanetListFilterPromptMode::RangeCoords | PlanetListFilterPromptMode::RangeDistance => {
+                match key.code {
+                    KeyCode::Char('?') => Action::OpenPopupHelp,
+                    KeyCode::Enter => Action::Planet(PlanetAction::SubmitListFilter(
+                        mode,
+                        PlanetListFilterMode::Range,
+                    )),
+                    KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
+                    KeyCode::Char(ch)
+                        if matches!(prompt_mode, PlanetListFilterPromptMode::RangeCoords)
+                            && is_coordinate_input_char(ch) =>
+                    {
+                        Action::Planet(PlanetAction::AppendListPromptChar(ch))
+                    }
+                    KeyCode::Char(ch)
+                        if matches!(prompt_mode, PlanetListFilterPromptMode::RangeDistance)
+                            && ch.is_ascii_digit() =>
+                    {
+                        Action::Planet(PlanetAction::AppendListPromptChar(ch))
+                    }
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                        Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
+                    }
+                    _ => Action::Noop,
                 }
-                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
-                KeyCode::Char(ch)
-                    if matches!(prompt_mode, PlanetListFilterPromptMode::RangeCoords)
-                        && is_coordinate_input_char(ch) =>
-                {
-                    Action::Planet(PlanetAction::AppendListPromptChar(ch))
-                }
-                KeyCode::Char(ch)
-                    if matches!(prompt_mode, PlanetListFilterPromptMode::RangeDistance)
-                        && ch.is_ascii_digit() =>
-                {
-                    Action::Planet(PlanetAction::AppendListPromptChar(ch))
-                }
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
-                }
-                _ => Action::Noop,
-            },
+            }
         }
     }
 

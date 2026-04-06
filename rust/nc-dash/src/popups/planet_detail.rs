@@ -217,8 +217,8 @@ fn chunk_word(word: &str, width: usize) -> Vec<String> {
 mod tests {
     use super::{draw_center_map_popup_frame, popup_lines};
     use crate::layout::widgets::WidgetRect;
-    use crate::theme;
     use crate::planet_view::DetailLine;
+    use crate::theme;
     use nc_ui::PlayfieldBuffer;
     use nc_ui::table::TableFooter;
 

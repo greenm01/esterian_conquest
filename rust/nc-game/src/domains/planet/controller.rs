@@ -177,7 +177,10 @@ impl App {
     }
 
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
-        if self.planet_list_rows(mode, PlanetListSort::Location).is_empty() {
+        if self
+            .planet_list_rows(mode, PlanetListSort::Location)
+            .is_empty()
+        {
             self.show_command_menu_notice(
                 Self::command_menu_for_planet_list_mode(mode),
                 "You do not currently control any planets.",
@@ -190,7 +193,10 @@ impl App {
     }
 
     pub fn open_planet_list_filter_prompt(&mut self, mode: PlanetListMode) {
-        if self.planet_list_rows(mode, self.planet.list_sort).is_empty() {
+        if self
+            .planet_list_rows(mode, self.planet.list_sort)
+            .is_empty()
+        {
             self.show_command_menu_notice(
                 Self::command_menu_for_planet_list_mode(mode),
                 "You do not currently control any planets.",
@@ -236,23 +242,35 @@ impl App {
         };
     }
 
-    pub fn submit_planet_list_filter(&mut self, mode: PlanetListMode, filter_mode: PlanetListFilterMode) {
+    pub fn submit_planet_list_filter(
+        &mut self,
+        mode: PlanetListMode,
+        filter_mode: PlanetListFilterMode,
+    ) {
         if self.current_screen != ScreenId::PlanetListFilterPrompt(mode) {
             return;
         }
         match self.planet.list_filter_prompt_mode {
             PlanetListFilterPromptMode::FilterMenu => match filter_mode {
-                PlanetListFilterMode::All => self.apply_planet_list_filter(mode, PlanetListFilter::All),
+                PlanetListFilterMode::All => {
+                    self.apply_planet_list_filter(mode, PlanetListFilter::All)
+                }
                 PlanetListFilterMode::Range => {
                     self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::RangeCoords;
                     self.planet.list_prompt_input.clear();
                     self.planet.list_prompt_default_value =
-                        crate::screen::format_sector_coords_default(self.default_planet_prompt_coords());
+                        crate::screen::format_sector_coords_default(
+                            self.default_planet_prompt_coords(),
+                        );
                     self.planet.list_pending_range_anchor = None;
                     self.planet.list_prompt_status = None;
                 }
-                PlanetListFilterMode::Starbase => self.apply_planet_list_filter(mode, PlanetListFilter::Starbase),
-                PlanetListFilterMode::Stardock => self.apply_planet_list_filter(mode, PlanetListFilter::Stardock),
+                PlanetListFilterMode::Starbase => {
+                    self.apply_planet_list_filter(mode, PlanetListFilter::Starbase)
+                }
+                PlanetListFilterMode::Stardock => {
+                    self.apply_planet_list_filter(mode, PlanetListFilter::Stardock)
+                }
             },
             PlanetListFilterPromptMode::RangeCoords => {
                 let Some(anchor) = resolve_default_coords_input(
@@ -275,7 +293,10 @@ impl App {
                     return;
                 };
                 let radius = if self.planet.list_prompt_input.trim().is_empty() {
-                    self.planet.list_prompt_default_value.parse::<u8>().unwrap_or(5)
+                    self.planet
+                        .list_prompt_default_value
+                        .parse::<u8>()
+                        .unwrap_or(5)
                 } else {
                     match self.planet.list_prompt_input.trim().parse::<u8>() {
                         Ok(value) => value,
@@ -490,7 +511,10 @@ impl App {
         };
         let allow_char = match self.current_screen {
             ScreenId::PlanetDatabaseList => is_coordinate_input_char(ch),
-            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => match self.planet.database_prompt_mode {
+            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => match self
+                .planet
+                .database_prompt_mode
+            {
                 PlanetDatabasePromptMode::FilterRangeCoords
                 | PlanetDatabasePromptMode::SortRangeInput => is_coordinate_input_char(ch),
                 PlanetDatabasePromptMode::FilterRangeDistance

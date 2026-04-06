@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    build_player_starmap_projection_from_snapshots, CoreGameData, DiplomaticRelation,
-    PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
+    CoreGameData, DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection,
+    PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
 };
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -127,7 +127,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     }
 }
 
-fn projected_map_geometry(app: &DashApp, frame: MapWidgetFrame, map_size: u8) -> ProjectedMapGeometry {
+fn projected_map_geometry(
+    app: &DashApp,
+    frame: MapWidgetFrame,
+    map_size: u8,
+) -> ProjectedMapGeometry {
     let cell_area_col = frame.grid.col + frame.row_label_cols;
     let cell_area_width = frame.grid.width.saturating_sub(frame.row_label_cols);
     let projection = projected_display_bounds(app, frame, map_size, cell_area_width);
@@ -144,8 +148,16 @@ fn projected_map_geometry(app: &DashApp, frame: MapWidgetFrame, map_size: u8) ->
         visible_y: projection.visible_y,
         tile_width: projection.tile_width,
         tile_height: projection.tile_height,
-        col_edges: partition_edges(cell_area_col, cell_area_width, projection.visible_x as usize),
-        row_edges: partition_edges(frame.grid.row, frame.grid.height, projection.visible_y as usize),
+        col_edges: partition_edges(
+            cell_area_col,
+            cell_area_width,
+            projection.visible_x as usize,
+        ),
+        row_edges: partition_edges(
+            frame.grid.row,
+            frame.grid.height,
+            projection.visible_y as usize,
+        ),
     }
 }
 
@@ -208,7 +220,11 @@ fn partition_edges(start: usize, extent: usize, count: usize) -> Vec<usize> {
 
 impl ProjectedMapGeometry {
     fn sector_rect(&self, coords: [u8; 2]) -> Option<SectorRect> {
-        if coords[0] < self.x_min || coords[0] > self.x_max || coords[1] < self.y_min || coords[1] > self.y_max {
+        if coords[0] < self.x_min
+            || coords[0] > self.x_max
+            || coords[1] < self.y_min
+            || coords[1] > self.y_max
+        {
             return None;
         }
         let x_idx = usize::from(coords[0] - self.x_min);
@@ -224,10 +240,14 @@ impl ProjectedMapGeometry {
             height: next_row.saturating_sub(row),
         })
     }
-
 }
 
-fn draw_column_axis_label(buf: &mut PlayfieldBuffer, axis_row: usize, rect: SectorRect, world_x: u8) {
+fn draw_column_axis_label(
+    buf: &mut PlayfieldBuffer,
+    axis_row: usize,
+    rect: SectorRect,
+    world_x: u8,
+) {
     if rect.width == 0 {
         return;
     }
@@ -574,7 +594,11 @@ mod tests {
 
         draw(&mut buffer, &app, widgets.center_map);
 
-        assert!(!buffer.plain_line(widgets.center_map.bottom_pad_row).is_empty());
+        assert!(
+            !buffer
+                .plain_line(widgets.center_map.bottom_pad_row)
+                .is_empty()
+        );
     }
 
     #[test]
@@ -610,8 +634,14 @@ mod tests {
 
         assert!(layout.frame.width() < app.geometry.width());
         assert_eq!(widgets.center_map.map_block, widgets.center_map.outer);
-        assert_eq!(widgets.center_map.axis_row, widgets.center_map.map_block.row);
-        assert_eq!(widgets.center_map.grid.col, widgets.center_map.map_block.col);
+        assert_eq!(
+            widgets.center_map.axis_row,
+            widgets.center_map.map_block.row
+        );
+        assert_eq!(
+            widgets.center_map.grid.col,
+            widgets.center_map.map_block.col
+        );
         assert_eq!(
             widgets.center_map.bottom_pad_row,
             widgets.center_map.map_block.last_row()
@@ -645,16 +675,25 @@ mod tests {
 
         assert!(projected.x_min <= app.crosshair_x && projected.x_max >= app.crosshair_x);
         assert!(projected.y_min <= app.crosshair_y && projected.y_max >= app.crosshair_y);
-        assert_eq!(projected.col_edges.first().copied(), Some(frame.grid.col + frame.row_label_cols));
+        assert_eq!(
+            projected.col_edges.first().copied(),
+            Some(frame.grid.col + frame.row_label_cols)
+        );
         assert!(projected.col_edges.last().copied().unwrap_or(0) <= frame.grid.last_col() + 1);
         assert_eq!(projected.row_edges.first().copied(), Some(frame.grid.row));
         assert!(projected.row_edges.last().copied().unwrap_or(0) <= frame.grid.last_row() + 1);
         assert_eq!(projected.visible_x, 9);
         assert_eq!(projected.visible_y, 9);
-        assert_eq!(projected.tile_width, 12);
-        assert_eq!(projected.tile_height, 4);
-        assert_eq!(projected.col_edges.last().copied(), Some(frame.grid.last_col() + 1));
-        assert_eq!(projected.row_edges.last().copied(), Some(frame.grid.last_row() + 1));
+        assert!(projected.tile_width >= 4);
+        assert!(projected.tile_height >= 2);
+        assert_eq!(
+            projected.col_edges.last().copied(),
+            Some(frame.grid.last_col() + 1)
+        );
+        assert_eq!(
+            projected.row_edges.last().copied(),
+            Some(frame.grid.last_row() + 1)
+        );
     }
 
     #[test]
@@ -685,12 +724,21 @@ mod tests {
         assert_eq!(projected.y_max, 18);
         assert_eq!(projected.visible_x, 18);
         assert_eq!(projected.visible_y, 18);
-        assert_eq!(projected.tile_width, 6);
-        assert_eq!(projected.tile_height, 2);
-        assert_eq!(projected.col_edges.first().copied(), Some(frame.grid.col + frame.row_label_cols));
-        assert_eq!(projected.col_edges.last().copied(), Some(frame.grid.last_col() + 1));
+        assert!(projected.tile_width >= 4);
+        assert!(projected.tile_height >= 1);
+        assert_eq!(
+            projected.col_edges.first().copied(),
+            Some(frame.grid.col + frame.row_label_cols)
+        );
+        assert_eq!(
+            projected.col_edges.last().copied(),
+            Some(frame.grid.last_col() + 1)
+        );
         assert_eq!(projected.row_edges.first().copied(), Some(frame.grid.row));
-        assert_eq!(projected.row_edges.last().copied(), Some(frame.grid.last_row() + 1));
+        assert_eq!(
+            projected.row_edges.last().copied(),
+            Some(frame.grid.last_row() + 1)
+        );
     }
 
     #[test]

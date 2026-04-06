@@ -6,7 +6,7 @@ use rusqlite::{OptionalExtension, params};
 
 use super::{
     CampaignRuntimeState, CampaignStore, CampaignStoreError, PlanetIntelSnapshot,
-    PlayerActivityState,
+    PlayerActivityState, PlayerWarStatsState,
 };
 use crate::{
     CoreGameData, QueuedPlayerMail, ReportBlockRow, derive_campaign_seed_from_runtime,
@@ -80,6 +80,7 @@ impl CampaignStore {
             None,
             None,
             None,
+            None,
         )
     }
 
@@ -97,6 +98,7 @@ impl CampaignStore {
             planet_scorch_orders,
             report_block_rows,
             queued_mail,
+            None,
             None,
             None,
             None,
@@ -140,6 +142,7 @@ impl CampaignStore {
             campaign_seed,
             None,
             None,
+            None,
         )
     }
 
@@ -160,6 +163,30 @@ impl CampaignStore {
             Some(planet_intel_by_viewer),
             None,
             Some(player_activity_states),
+            None,
+            None,
+        )
+    }
+
+    pub fn save_runtime_state_structured_with_intel_activity_and_war_stats(
+        &self,
+        game_data: &CoreGameData,
+        planet_scorch_orders: &BTreeSet<usize>,
+        report_block_rows: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+        planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+        player_activity_states: &[PlayerActivityState],
+        player_war_stats: &[PlayerWarStatsState],
+    ) -> Result<i64, CampaignStoreError> {
+        self.save_runtime_state_internal(
+            game_data,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            Some(planet_intel_by_viewer),
+            None,
+            Some(player_activity_states),
+            Some(player_war_stats),
             None,
         )
     }
@@ -183,6 +210,7 @@ impl CampaignStore {
             Some(planet_intel_by_viewer),
             None,
             Some(player_activity_states),
+            None,
             Some((player_record_index_1_based, player_npub)),
         )
     }
@@ -196,6 +224,7 @@ impl CampaignStore {
         planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
         campaign_seed_override: Option<u64>,
         player_activity_override: Option<&[PlayerActivityState]>,
+        player_war_stats_override: Option<&[PlayerWarStatsState]>,
         hosted_claim: Option<(usize, &str)>,
     ) -> Result<i64, CampaignStoreError> {
         let year = game_data.conquest.game_year();
@@ -211,6 +240,7 @@ impl CampaignStore {
             planet_intel_by_viewer_override,
             campaign_seed_override,
             player_activity_override,
+            player_war_stats_override,
             hosted_claim,
         )?;
         tx.commit()?;
@@ -228,6 +258,7 @@ pub(super) fn save_runtime_state_internal_tx(
     planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
     campaign_seed_override: Option<u64>,
     player_activity_override: Option<&[PlayerActivityState]>,
+    player_war_stats_override: Option<&[PlayerWarStatsState]>,
     hosted_claim: Option<(usize, &str)>,
 ) -> Result<i64, CampaignStoreError> {
     let campaign_seed = super::metadata::load_campaign_seed_tx(&tx)?
@@ -284,6 +315,13 @@ pub(super) fn save_runtime_state_internal_tx(
         game_data,
         previous_snapshot_id,
         player_activity_override,
+    )?;
+    super::player_war_stats::write_player_war_stats_rows(
+        &tx,
+        snapshot_id,
+        game_data.conquest.player_count(),
+        previous_snapshot_id,
+        player_war_stats_override,
     )?;
     if let Some((player_record_index_1_based, player_npub)) = hosted_claim {
         let claim_result = super::hosted_seats::claim_hosted_seat_for_player_tx(

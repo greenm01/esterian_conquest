@@ -664,7 +664,10 @@ impl FleetListScreen {
             &mut buffer,
             geometry,
             layout.command_col,
-            3 + table_rows.len().saturating_sub(scroll_offset).min(visible_rows),
+            3 + table_rows
+                .len()
+                .saturating_sub(scroll_offset)
+                .min(visible_rows),
             footer,
         );
         Ok(buffer)
@@ -729,7 +732,10 @@ impl FleetListScreen {
             &mut buffer,
             geometry,
             layout.command_col,
-            3 + table_rows.len().saturating_sub(scroll_offset).min(visible_rows),
+            3 + table_rows
+                .len()
+                .saturating_sub(scroll_offset)
+                .min(visible_rows),
             footer,
         );
         Ok(buffer)
@@ -746,8 +752,12 @@ impl FleetListScreen {
             KeyCode::PageUp => Action::Fleet(FleetAction::MoveList(-8)),
             KeyCode::PageDown => Action::Fleet(FleetAction::MoveList(8)),
             KeyCode::Enter => Action::Fleet(FleetAction::OpenReview),
-            KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenListFilterPrompt),
-            KeyCode::Char('s') | KeyCode::Char('S') => Action::Fleet(FleetAction::OpenListSortPrompt),
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                Action::Fleet(FleetAction::OpenListFilterPrompt)
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                Action::Fleet(FleetAction::OpenListSortPrompt)
+            }
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Fleet(FleetAction::OpenOrder),
             KeyCode::Char('c') | KeyCode::Char('C') => Action::Fleet(FleetAction::OpenChangePrompt),
             KeyCode::Char('e') | KeyCode::Char('E') => Action::Fleet(FleetAction::OpenEta),

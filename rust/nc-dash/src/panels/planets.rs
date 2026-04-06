@@ -2,10 +2,12 @@
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
-use nc_ui::{CellStyle, PlayfieldBuffer};
+use nc_data::ProductionItemKind;
 use nc_ui::theme::classic::status_value_style;
+use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "MY PLANETS";
+pub(crate) const MIN_BODY_ROWS: usize = 6;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, TITLE, crate::theme::section_title_style());
@@ -26,7 +28,15 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let mut starbases_built = 0;
     let mut armies_mustered = 0;
     let mut ground_batteries = 0;
+    let mut building = 0u32;
     let mut vulnerable_worlds = 0;
+    let mut build_bbs = 0u32;
+    let mut build_cas = 0u32;
+    let mut build_dds = 0u32;
+    let mut build_scs = 0u32;
+    let mut build_tts = 0u32;
+    let mut build_ets = 0u32;
+    let mut build_sbs = 0u32;
 
     let starbase_coords: std::collections::HashSet<[u8; 2]> = app
         .game_data
@@ -54,6 +64,23 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         let batteries = planet.ground_batteries_raw();
         ground_batteries += batteries as u32;
 
+        for slot in 0..10 {
+            let points = u32::from(planet.build_count_raw(slot));
+            let kind = ProductionItemKind::from_raw(planet.build_kind_raw(slot));
+            let qty = build_quantity_from_points(kind, points);
+            building += qty;
+            match kind {
+                ProductionItemKind::Battleship => build_bbs += qty,
+                ProductionItemKind::Cruiser => build_cas += qty,
+                ProductionItemKind::Destroyer => build_dds += qty,
+                ProductionItemKind::Scout => build_scs += qty,
+                ProductionItemKind::Transport => build_tts += qty,
+                ProductionItemKind::Etac => build_ets += qty,
+                ProductionItemKind::Starbase => build_sbs += qty,
+                _ => {}
+            }
+        }
+
         if armies == 0 && batteries == 0 {
             vulnerable_worlds += 1;
         }
@@ -77,7 +104,7 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             status_value_style(),
         ),
         (
-            layout::format_left_column_value("Act Docks", &stardocks_active.to_string()),
+            layout::format_left_column_value("Stardocks", &stardocks_active.to_string()),
             status_value_style(),
         ),
         (
@@ -92,6 +119,10 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             layout::format_left_column_value("GBs", &ground_batteries.to_string()),
             status_value_style(),
         ),
+        (
+            layout::format_left_column_value("Building", &building.to_string()),
+            status_value_style(),
+        ),
     ];
 
     if vulnerable_worlds > 0 {
@@ -101,28 +132,92 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         ));
     }
 
-    let stardock = app.game_data.empire_stardock_summary(app.player_record_index_1_based);
-    if stardock.battleships > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld BBs", &stardock.battleships.to_string()), crate::theme::dim_style()));
+    if build_bbs > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld BBs", &build_bbs.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
-    if stardock.cruisers > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld CAs", &stardock.cruisers.to_string()), crate::theme::dim_style()));
+    if build_cas > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld CAs", &build_cas.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
-    if stardock.destroyers > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld DDs", &stardock.destroyers.to_string()), crate::theme::dim_style()));
+    if build_dds > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld DDs", &build_dds.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
-    if stardock.scouts > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld SCs", &stardock.scouts.to_string()), crate::theme::dim_style()));
+    if build_scs > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld SCs", &build_scs.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
-    if stardock.transports > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld TRs", &stardock.transports.to_string()), crate::theme::dim_style()));
+    if build_tts > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld TTs", &build_tts.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
-    if stardock.etacs > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld ETs", &stardock.etacs.to_string()), crate::theme::dim_style()));
+    if build_ets > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld ETs", &build_ets.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
-    if stardock.starbases > 0 {
-        summary_rows.push((layout::format_left_column_value("Bld SBs", &stardock.starbases.to_string()), crate::theme::dim_style()));
+    if build_sbs > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Bld SBs", &build_sbs.to_string()),
+            crate::theme::dim_style(),
+        ));
     }
 
     summary_rows
+}
+
+fn build_quantity_from_points(kind: ProductionItemKind, points: u32) -> u32 {
+    kind.build_cost()
+        .map(|cost| points.div_ceil(cost))
+        .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::body_rows;
+    use crate::app::state::DashApp;
+    use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    #[test]
+    fn planet_summary_includes_total_building_row() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let homeworld = &mut app.game_data.planets.records[0];
+        homeworld.set_build_kind_raw(0, 3);
+        homeworld.set_build_count_raw(0, 90);
+
+        assert!(
+            body_rows(&app)
+                .iter()
+                .any(|(row, _)| row.contains("Building") && row.ends_with("2"))
+        );
+    }
 }

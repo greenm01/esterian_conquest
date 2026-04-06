@@ -4,14 +4,16 @@ use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{ActiveOverlay, ActivePopup, DashApp};
 use crate::layout::{
-    self, dashboard_layout, draw_footer, draw_frame, draw_header, new_dashboard_buffer,
-    required_dashboard_frame,
+    self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
+    layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
 use crate::overlays::{
     self,
-    frame::{draw_full_backdrop, overlay_backdrop, OverlayBackdrop},
+    frame::{OverlayBackdrop, draw_full_backdrop, overlay_backdrop},
 };
-use crate::panels::{comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap};
+use crate::panels::{
+    comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap, war_record,
+};
 use crate::popups;
 use crate::theme;
 
@@ -25,6 +27,15 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     }
 
     let dashboard = dashboard_layout(app);
+    if !dashboard_fits_canvas(app.geometry, &dashboard) {
+        let layout_required = layout_canvas_requirement(&dashboard);
+        let blocker_required = nc_ui::ScreenGeometry::new(
+            required.width().max(layout_required.width()),
+            required.height().max(layout_required.height()),
+        );
+        render_too_small_blocker(&mut buf, app.geometry, blocker_required);
+        return Ok(buf);
+    }
     let widgets = dashboard.widgets;
 
     // Draw structural borders and header/footer.
@@ -36,6 +47,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     economy::draw(&mut buf, app, widgets.left_economy);
     planets::draw(&mut buf, app, widgets.left_planets);
     fleets::draw(&mut buf, app, widgets.left_fleets);
+    war_record::draw(&mut buf, app, widgets.left_war_record);
 
     // Center: starmap.
     starmap::draw(&mut buf, app, widgets.center_map);

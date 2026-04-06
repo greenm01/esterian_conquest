@@ -1,8 +1,9 @@
 //! Plain event and type definitions shared by the maintenance engine.
 
 use crate::{
-    DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,
-    PlanetIntelSnapshot, PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
+    DiplomaticRelation, EmpireUnitSummary, FleetOrderValidationError,
+    FleetPlayerInputValidationError, PlanetIntelSnapshot, PlanetPlayerInputValidationError,
+    PlayerDiplomacyValidationError,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -40,6 +41,8 @@ pub struct BombardEvent {
     pub defender_army_losses: u8,
     /// Whether the bombardment broke through to armies/production (batteries cleared).
     pub breakthrough: bool,
+    /// Typed docked-unit losses caused by the bombardment.
+    pub docked_losses: EmpireUnitSummary,
     /// Stardock items destroyed by bombardment.
     pub stardock_items_destroyed: u32,
     /// Stored goods destroyed by bombardment spillover.
@@ -160,6 +163,8 @@ pub struct FleetBattleEvent {
     pub friendly_loaded_armies_initial: u32,
     /// Exact losses suffered by the reporting empire.
     pub friendly_losses: ShipLosses,
+    /// Friendly starbases destroyed in this battle.
+    pub friendly_starbases_lost: u32,
     /// Initial observed hostile composition across opposing forces.
     pub enemy_initial: ShipLosses,
     /// Initial enemy starbases participating in the battle.
@@ -168,6 +173,8 @@ pub struct FleetBattleEvent {
     pub enemy_loaded_armies_initial: u32,
     /// Observed hostile losses across the opposing forces.
     pub enemy_losses: ShipLosses,
+    /// Enemy starbases destroyed in this battle.
+    pub enemy_starbases_destroyed: u32,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }

@@ -177,7 +177,11 @@ mod tests {
         let frame = draw_overlay_frame(&mut buffer, "HELP", 18, 8, TableFooter::Dismiss);
 
         let footer_row = frame.footer_row;
-        let footer_line = buffer.row(footer_row).iter().map(|cell| cell.ch).collect::<String>();
+        let footer_line = buffer
+            .row(footer_row)
+            .iter()
+            .map(|cell| cell.ch)
+            .collect::<String>();
         let left_border = footer_line.find('│').expect("left footer border");
         let right_border = footer_line.rfind('│').expect("right footer border");
 

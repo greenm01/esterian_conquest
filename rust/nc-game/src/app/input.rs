@@ -281,9 +281,11 @@ impl App {
             ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => {
                 Action::Planet(PlanetAction::OpenMenu)
             }
-            ScreenId::PlanetListFilterPrompt(mode) => self
-                .planet_list
-                .handle_filter_prompt_key(key, mode, self.planet.list_filter_prompt_mode),
+            ScreenId::PlanetListFilterPrompt(mode) => self.planet_list.handle_filter_prompt_key(
+                key,
+                mode,
+                self.planet.list_filter_prompt_mode,
+            ),
             ScreenId::PlanetListSortPrompt(mode) => {
                 self.planet_list.handle_sort_prompt_key(key, mode)
             }

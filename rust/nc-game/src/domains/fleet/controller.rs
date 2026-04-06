@@ -81,7 +81,10 @@ fn fleet_eta_sort_key(label: &str) -> (u8, u16) {
         "0" => (0, 0),
         "S" => (1, 0),
         "X" => (3, 0),
-        _ => label.parse::<u16>().map(|value| (0, value)).unwrap_or((2, 0)),
+        _ => label
+            .parse::<u16>()
+            .map(|value| (0, value))
+            .unwrap_or((2, 0)),
     }
 }
 

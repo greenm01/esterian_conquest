@@ -548,19 +548,25 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     app.planet.info_selected = Some(planet_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("Last Viewed/Scouted")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Last Viewed/Scouted"))
+    );
     assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("Intel Tier")));
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1]))));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Intel Tier"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
+    );
 }
 
 #[test]
@@ -615,14 +621,18 @@ fn planet_info_intel_detail_shows_unowned_for_known_zero_owner() {
     app.planet.info_selected = Some(planet_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1]))));
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("Owner") && line.contains("Unowned")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Owner") && line.contains("Unowned"))
+    );
     assert!(!terminal.lines.iter().any(|line| line.contains("Empire #0")));
 }
 
@@ -655,10 +665,12 @@ fn owned_planet_info_detail_shows_owned_since_year() {
     app.planet.info_selected = Some(owned_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("Owned Since") && line.contains("Y3000")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Owned Since") && line.contains("Y3000"))
+    );
 }
 
 #[test]

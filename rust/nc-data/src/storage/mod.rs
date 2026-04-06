@@ -14,6 +14,7 @@ mod metadata;
 mod planet_owned_since;
 mod planet_scorch_orders;
 mod player_activity;
+mod player_war_stats;
 mod report_blocks;
 mod runtime;
 mod settings;
@@ -22,13 +23,14 @@ mod snapshot_core;
 pub use hosted_publish_jobs::{HostedPublishJob, HostedPublishJobKind, HostedPublishJobStatus};
 pub use hosted_seats::{ClaimHostedSeatError, HostedSeat, HostedSeatStatus};
 pub use player_activity::PlayerActivityState;
+pub use player_war_stats::PlayerWarStatsState;
 pub use settings::{
     CampaignSettings, DEFAULT_CAMPAIGN_THEME_KEY, DEFAULT_MAINTENANCE_INTERVAL_MINUTES,
     SessionLease, SessionLeaseError, SessionLeaseState,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ncgame.db";
-const RUNTIME_SCHEMA_VERSION: i64 = 9;
+const RUNTIME_SCHEMA_VERSION: i64 = 10;
 const LEGACY_RECORD_TABLES: [&str; 7] = [
     "player_record_fields",
     "planet_record_fields",
@@ -406,6 +408,39 @@ impl CampaignStore {
                  inactivity_autopilot_pending_clear INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, player_record_index)
              );
+             CREATE TABLE IF NOT EXISTS player_war_stats (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 player_record_index INTEGER NOT NULL,
+                 colonies_established INTEGER NOT NULL,
+                 worlds_taken INTEGER NOT NULL,
+                 worlds_lost INTEGER NOT NULL,
+                 bombardments_launched INTEGER NOT NULL,
+                 bombardments_suffered INTEGER NOT NULL,
+                 invade_attempts INTEGER NOT NULL,
+                 invade_successes INTEGER NOT NULL,
+                 blitz_attempts INTEGER NOT NULL,
+                 blitz_successes INTEGER NOT NULL,
+                 attacks_repelled INTEGER NOT NULL,
+                 units_lost_destroyers INTEGER NOT NULL,
+                 units_lost_cruisers INTEGER NOT NULL,
+                 units_lost_battleships INTEGER NOT NULL,
+                 units_lost_scouts INTEGER NOT NULL,
+                 units_lost_transports INTEGER NOT NULL,
+                 units_lost_etacs INTEGER NOT NULL,
+                 units_lost_starbases INTEGER NOT NULL,
+                 units_lost_armies INTEGER NOT NULL,
+                 units_lost_ground_batteries INTEGER NOT NULL,
+                 enemy_destroyed_destroyers INTEGER NOT NULL,
+                 enemy_destroyed_cruisers INTEGER NOT NULL,
+                 enemy_destroyed_battleships INTEGER NOT NULL,
+                 enemy_destroyed_scouts INTEGER NOT NULL,
+                 enemy_destroyed_transports INTEGER NOT NULL,
+                 enemy_destroyed_etacs INTEGER NOT NULL,
+                 enemy_destroyed_starbases INTEGER NOT NULL,
+                 enemy_destroyed_armies INTEGER NOT NULL,
+                 enemy_destroyed_ground_batteries INTEGER NOT NULL,
+                 PRIMARY KEY(snapshot_id, player_record_index)
+             );
              CREATE TABLE IF NOT EXISTS snapshot_players (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  record_index INTEGER NOT NULL,
@@ -595,6 +630,9 @@ impl CampaignStore {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(8) => {
+                metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
+            }
+            Some(9) => {
                 metadata::persist_runtime_schema_version(&mut conn, RUNTIME_SCHEMA_VERSION)?;
             }
             Some(found) => {

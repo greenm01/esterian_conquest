@@ -1,8 +1,8 @@
 //! ? overlay: keyboard reference, centered on screen.
 
+use nc_ui::PlayfieldBuffer;
 use nc_ui::modal::{format_help_rows, wrap_formatted_help_lines};
 use nc_ui::table::TableFooter;
-use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{DashApp, HelpContext};
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
@@ -207,9 +207,11 @@ mod tests {
         let lines = help_lines(HelpContext::FleetList);
 
         assert!(lines.iter().any(|line| line.contains("Typed jump")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("O") && line.contains("assign orders")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("O") && line.contains("assign orders"))
+        );
         assert!(lines
             .iter()
             .any(|line| line.contains("Enter") && line.contains("review the highlighted fleet")));
@@ -224,21 +226,31 @@ mod tests {
         let lines = help_lines(HelpContext::Global);
 
         assert!(!lines.iter().any(|line| line.contains("GLOBAL HOTKEYS")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("P") && line.contains("Open Planet List")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("[") && line.contains("previous planet")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("XX,YY") && line.contains("map coordinates")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("+") && line.contains("Zoom the map in")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("V") && line.contains("fill map view")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("P") && line.contains("Open Planet List"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("[") && line.contains("previous planet"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("XX,YY") && line.contains("map coordinates"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("+") && line.contains("Zoom the map in"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("V") && line.contains("fill map view"))
+        );
         assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));

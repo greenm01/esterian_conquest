@@ -85,8 +85,7 @@ pub use crate::domains::fleet::screens::fleet::{
     FleetDetachClass, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
     FleetGroupOrderMode, FleetGroupScreen, FleetListFilter, FleetListScreen, FleetListSort,
     FleetMenuScreen, FleetMessageScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRow,
-    FleetSingleOrderMode,
-    FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
+    FleetSingleOrderMode, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
 };
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;
 pub(crate) use crate::domains::messaging::screens::message_compose::{

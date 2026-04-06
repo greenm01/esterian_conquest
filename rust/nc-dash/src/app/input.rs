@@ -100,9 +100,7 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         }
         KeyCode::Char('+') | KeyCode::Char('=') if focus == PanelFocus::Map => Action::ZoomMapIn,
         KeyCode::Char('-') if focus == PanelFocus::Map => Action::ZoomMapOut,
-        KeyCode::Char('z') | KeyCode::Char('Z') if focus == PanelFocus::Map => {
-            Action::ResetMapZoom
-        }
+        KeyCode::Char('z') | KeyCode::Char('Z') if focus == PanelFocus::Map => Action::ResetMapZoom,
         KeyCode::PageUp => Action::PageUp,
         KeyCode::PageDown => Action::PageDown,
         KeyCode::Home => Action::Home,

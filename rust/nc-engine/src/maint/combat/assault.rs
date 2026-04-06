@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     AssaultReportEvent, BombardEvent, CoreGameData, Mission, MissionEvent, MissionOutcome, Order,
-    PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, STARDOCK_SLOT_COUNT,
-    ShipLosses,
+    PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, ProductionItemKind,
+    STARDOCK_SLOT_COUNT, ShipLosses,
 };
 
 use super::exchange::{
@@ -88,6 +88,48 @@ fn reduce_stardock(planet: &mut nc_data::PlanetRecord, mut hits: u32) -> u32 {
         hits -= destroyed as u32;
     }
     hits
+}
+
+fn stardock_summary(planet: &nc_data::PlanetRecord) -> nc_data::EmpireUnitSummary {
+    let mut summary = nc_data::EmpireUnitSummary::default();
+    for slot in 0..STARDOCK_SLOT_COUNT {
+        let count = u32::from(planet.stardock_count_raw(slot));
+        if count == 0 {
+            continue;
+        }
+        match ProductionItemKind::from_raw(planet.stardock_kind_raw(slot)) {
+            ProductionItemKind::Destroyer => summary.destroyers += count,
+            ProductionItemKind::Cruiser => summary.cruisers += count,
+            ProductionItemKind::Battleship => summary.battleships += count,
+            ProductionItemKind::Scout => summary.scouts += count,
+            ProductionItemKind::Transport => summary.transports += count,
+            ProductionItemKind::Etac => summary.etacs += count,
+            ProductionItemKind::Starbase => summary.starbases += count,
+            ProductionItemKind::Army => summary.armies += count,
+            ProductionItemKind::GroundBattery => summary.ground_batteries += count,
+            ProductionItemKind::Unknown(_) => {}
+        }
+    }
+    summary
+}
+
+fn stardock_summary_diff(
+    before: nc_data::EmpireUnitSummary,
+    after: nc_data::EmpireUnitSummary,
+) -> nc_data::EmpireUnitSummary {
+    nc_data::EmpireUnitSummary {
+        destroyers: before.destroyers.saturating_sub(after.destroyers),
+        cruisers: before.cruisers.saturating_sub(after.cruisers),
+        battleships: before.battleships.saturating_sub(after.battleships),
+        scouts: before.scouts.saturating_sub(after.scouts),
+        transports: before.transports.saturating_sub(after.transports),
+        etacs: before.etacs.saturating_sub(after.etacs),
+        starbases: before.starbases.saturating_sub(after.starbases),
+        armies: before.armies.saturating_sub(after.armies),
+        ground_batteries: before
+            .ground_batteries
+            .saturating_sub(after.ground_batteries),
+    }
 }
 
 /// Suppression damage: hits only go through stardock and batteries.
@@ -401,6 +443,7 @@ pub(crate) fn process_planetary_assaults(
                 let pre_stardock_items: u32 = (0..STARDOCK_SLOT_COUNT)
                     .map(|s| game_data.planets.records[planet_idx].stardock_count_raw(s) as u32)
                     .sum();
+                let pre_docked_summary = stardock_summary(&game_data.planets.records[planet_idx]);
 
                 let before = fleet_state_from_records(game_data, &winner_fleets, 0);
                 let mut fleet_state = before.clone();
@@ -481,6 +524,7 @@ pub(crate) fn process_planetary_assaults(
 
                 hold_bombardment_station(game_data, &winner_fleets);
                 let post_planet = &game_data.planets.records[planet_idx];
+                let post_docked_summary = stardock_summary(post_planet);
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
@@ -497,6 +541,7 @@ pub(crate) fn process_planetary_assaults(
                         .saturating_sub(post_planet.ground_batteries_raw()),
                     defender_army_losses: pre_armies.saturating_sub(post_planet.army_count_raw()),
                     breakthrough,
+                    docked_losses: stardock_summary_diff(pre_docked_summary, post_docked_summary),
                     stardock_items_destroyed: pre_stardock_items.saturating_sub(
                         (0..STARDOCK_SLOT_COUNT)
                             .map(|s| post_planet.stardock_count_raw(s) as u32)

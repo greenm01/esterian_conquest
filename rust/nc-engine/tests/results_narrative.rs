@@ -122,6 +122,7 @@ fn results_reports_battle_before_bombard_aftermath() {
         },
         friendly_loaded_armies_initial: 0,
         friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
         enemy_initial: ShipLosses {
             destroyers: 1,
             ..ShipLosses::default()
@@ -132,6 +133,7 @@ fn results_reports_battle_before_bombard_aftermath() {
             destroyers: 1,
             ..ShipLosses::default()
         },
+        enemy_starbases_destroyed: 0,
         stardate_week: Some(2),
     });
     events.bombard_events.push(BombardEvent {
@@ -149,6 +151,7 @@ fn results_reports_battle_before_bombard_aftermath() {
         defender_battery_losses: 2,
         defender_army_losses: 3,
         breakthrough: true,
+        docked_losses: nc_data::EmpireUnitSummary::default(),
         stardock_items_destroyed: 0,
         stored_goods_destroyed: 0,
         factories_destroyed: 0,
@@ -208,6 +211,7 @@ fn results_reports_named_hostile_fleet_with_empire_local_slot() {
                     destroyers: 1,
                     ..ShipLosses::default()
                 },
+                friendly_starbases_lost: 0,
                 enemy_initial: ShipLosses {
                     cruisers: 1,
                     ..ShipLosses::default()
@@ -215,6 +219,7 @@ fn results_reports_named_hostile_fleet_with_empire_local_slot() {
                 enemy_initial_starbases: 0,
                 enemy_loaded_armies_initial: 0,
                 enemy_losses: ShipLosses::default(),
+                enemy_starbases_destroyed: 0,
                 stardate_week: Some(2),
             }],
             ..MaintenanceEvents::default()

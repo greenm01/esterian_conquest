@@ -1181,14 +1181,18 @@ fn fleet_review_detail_from_menu_uses_dismiss_prompt_and_returns_to_menu() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review should render");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("(slap a key)")));
-    assert!(terminal
-        .lines
-        .iter()
-        .all(|line| !line.contains("Fleet Record #:")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("(slap a key)"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Fleet Record #:"))
+    );
     assert_eq!(terminal.line(10).trim_end(), "");
     assert_eq!(terminal.line(11).trim_end(), " (slap a key)");
     assert_eq!(
@@ -1237,10 +1241,12 @@ fn fleet_review_from_list_uses_dismiss_prompt_and_any_key_returns_to_list() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review should render");
-    assert!(terminal
-        .lines
-        .iter()
-        .all(|line| !line.contains("Fleet Record #:")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("Fleet Record #:"))
+    );
     assert_eq!(terminal.line(10).trim_end(), "");
     assert_eq!(terminal.line(11).trim_end(), " (slap a key)");
     assert!(!terminal.line(11).contains("COMMAND <-"));
@@ -1627,15 +1633,19 @@ fn starbase_move_prompt_accepts_non_planet_sector_and_persists_report() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase move base prompt should render");
-    assert!(line_containing(&terminal, "STARBASE COMMAND <- Starbase #")
-        .contains("Starbase # [1] <Q> ->"));
+    assert!(
+        line_containing(&terminal, "STARBASE COMMAND <- Starbase #")
+            .contains("Starbase # [1] <Q> ->")
+    );
 
     apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase move decision prompt should render");
-    assert!(line_containing(&terminal, "STARBASE COMMAND <- <H>alt or")
-        .contains("<H>alt or [M]ove <Q> ->"));
+    assert!(
+        line_containing(&terminal, "STARBASE COMMAND <- <H>alt or")
+            .contains("<H>alt or [M]ove <Q> ->")
+    );
 
     apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitMovePrompt));
     let mut terminal = CaptureTerminal::new();
@@ -1680,9 +1690,11 @@ fn starbase_move_prompt_accepts_non_planet_sector_and_persists_report() {
         "Starbase 1 is moving to ({:02},{:02}).",
         destination[0], destination[1]
     )));
-    assert!(latest_report
-        .decoded_text
-        .contains("Guard Fleets 1 and 2 will follow it."));
+    assert!(
+        latest_report
+            .decoded_text
+            .contains("Guard Fleets 1 and 2 will follow it.")
+    );
 }
 
 #[test]
@@ -1711,7 +1723,9 @@ fn starbase_help_uses_move_wording_not_hauling() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("starbase help should render");
-    assert!(line_containing(&terminal, "move to a new location").contains("move to a new location"));
+    assert!(
+        line_containing(&terminal, "move to a new location").contains("move to a new location")
+    );
     assert!(
         !terminal.lines.iter().any(|line| line.contains("hauled")),
         "player-facing help should not mention hauling"
@@ -1933,10 +1947,12 @@ fn fleet_list_change_prompt_uses_overlay_keys_and_returns_to_list() {
         "{:#?}",
         terminal.lines
     );
-    assert!(terminal
-        .lines
-        .iter()
-        .all(|line| !line.contains("ROE set to 0.")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .all(|line| !line.contains("ROE set to 0."))
+    );
 }
 
 #[test]
@@ -2241,8 +2257,10 @@ fn fleet_list_transfer_host_error_uses_slap_a_key_latch_and_preserves_prompt() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet list transfer host prompt should return after dismiss");
-    assert!(line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
-        .contains("Transfer To Fleet # ["));
+    assert!(
+        line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
+            .contains("Transfer To Fleet # [")
+    );
 }
 
 #[test]
@@ -2488,8 +2506,10 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("transfer host prompt should render");
-    assert!(line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
-        .contains("Transfer To Fleet # ["));
+    assert!(
+        line_containing(&terminal, "COMMAND <- Transfer To Fleet #")
+            .contains("Transfer To Fleet # [")
+    );
 
     submit_fleet_menu_prompt(&mut app, Some(2));
     assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
@@ -2503,16 +2523,20 @@ fn fleet_transfer_uses_two_inline_fleet_prompts_before_quantity_entry() {
     assert!(
         line_containing(&terminal, "Destination Fleet: Fleet #2").contains("Destination Fleet:")
     );
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("Ships: ") && line.contains("TT*")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Ships: ") && line.contains("TT*"))
+    );
     assert!(terminal.lines.iter().all(|line| !line.contains("AR=")));
     assert!(line_containing(&terminal, "Class <BB,CA,DD,TT*,TT,SC,ET,C,X>").contains("<Q> ->"));
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("Staged to Transfer: none")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Staged to Transfer: none"))
+    );
 }
 
 #[test]
@@ -3148,10 +3172,12 @@ fn apply_action_deletes_reviewables() {
     );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    assert!(runtime
-        .report_block_rows
-        .iter()
-        .all(|row| row.recipient_deleted));
+    assert!(
+        runtime
+            .report_block_rows
+            .iter()
+            .all(|row| row.recipient_deleted)
+    );
     assert_eq!(runtime.queued_mail.len(), 1);
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);

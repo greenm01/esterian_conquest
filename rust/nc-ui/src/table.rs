@@ -706,7 +706,9 @@ pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
             hotkeys_markup,
             default,
             input,
-        } => shared_prompt::table_command_bar_width_for_label(label, hotkeys_markup, default, input),
+        } => {
+            shared_prompt::table_command_bar_width_for_label(label, hotkeys_markup, default, input)
+        }
         TableFooter::CommandText { label, text } => {
             shared_prompt::command_line_text_width(label, text)
         }
@@ -736,7 +738,11 @@ pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
             hotkeys_markup,
             default,
             ..
-        } => shared_prompt::table_command_bar_scaffold_width_for_label(label, hotkeys_markup, default),
+        } => shared_prompt::table_command_bar_scaffold_width_for_label(
+            label,
+            hotkeys_markup,
+            default,
+        ),
         TableFooter::CommandText { label, text } => {
             shared_prompt::command_line_text_width(label, text)
         }

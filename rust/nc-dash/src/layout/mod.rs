@@ -4,15 +4,18 @@ pub mod dashboard;
 pub mod geometry;
 pub mod widgets;
 
-use nc_ui::{prompt, PlayfieldBuffer, ScreenGeometry};
+use nc_ui::{PlayfieldBuffer, ScreenGeometry, prompt};
 
 use crate::app::state::DashApp;
 use crate::theme;
-pub use dashboard::{DashboardLayout, dashboard_layout, required_dashboard_frame};
+pub use dashboard::{
+    DashboardLayout, dashboard_fits_canvas, dashboard_layout, layout_canvas_requirement,
+    required_dashboard_frame,
+};
 pub use widgets::{
-    format_label_value, format_left_column_value, frame_offset_for, label_value_width,
-    write_clipped, write_panel_body_line, write_panel_title, write_strict_span,
-    DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame,
+    DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame, format_label_value,
+    format_left_column_value, frame_offset_for, label_value_width, write_clipped,
+    write_panel_body_line, write_panel_title, write_strict_span,
 };
 
 /// Create a new PlayfieldBuffer at the full canvas size, filled with theme bg.
@@ -92,6 +95,15 @@ pub fn draw_frame(
         ox,
         left_div,
         widgets.left_fleets.outer.row.saturating_sub(1),
+        '├',
+        '┤',
+        bs,
+    );
+    draw_panel_separator(
+        buf,
+        ox,
+        left_div,
+        widgets.left_war_record.outer.row.saturating_sub(1),
         '├',
         '┤',
         bs,
@@ -292,8 +304,11 @@ mod tests {
         let layout = dashboard_layout(&app);
         let frame = layout.frame;
         let widgets = layout.widgets;
-        let mut buffer =
-            PlayfieldBuffer::new(app.geometry.width(), app.geometry.height(), theme::body_style());
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
 
         draw_frame(&mut buffer, frame, &widgets);
 
@@ -343,8 +358,11 @@ mod tests {
         let layout = dashboard_layout(&app);
         let frame = layout.frame;
         let widgets = layout.widgets;
-        let mut buffer =
-            PlayfieldBuffer::new(app.geometry.width(), app.geometry.height(), theme::body_style());
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
 
         draw_frame(&mut buffer, frame, &widgets);
 

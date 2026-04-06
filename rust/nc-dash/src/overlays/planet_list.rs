@@ -11,9 +11,7 @@ use nc_ui::table::{
 };
 use nc_ui::table_selection;
 
-use crate::app::state::{
-    DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
-};
+use crate::app::state::{DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort};
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
@@ -89,10 +87,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             input: &app.planet_overlay.prompt_input,
         },
     };
-    let table_cells = rows
-        .iter()
-        .map(|row| row.cells.clone())
-        .collect::<Vec<_>>();
+    let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
     let desired_visible_rows = table_cells.len().clamp(1, buf.height().saturating_sub(11));
     let columns = resolve_table_columns(
         &COLUMNS,

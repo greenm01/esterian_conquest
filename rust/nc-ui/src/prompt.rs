@@ -83,7 +83,8 @@ pub fn table_command_bar_width_for_label(
     default: Option<&str>,
     input: &str,
 ) -> usize {
-    table_command_bar_scaffold_width_for_label(label, hotkeys_markup, default) + input.chars().count()
+    table_command_bar_scaffold_width_for_label(label, hotkeys_markup, default)
+        + input.chars().count()
 }
 
 pub fn table_command_bar_scaffold_width_for_label(
@@ -91,10 +92,12 @@ pub fn table_command_bar_scaffold_width_for_label(
     hotkeys_markup: &str,
     default: Option<&str>,
 ) -> usize {
-    let mut width = COMMAND_LABEL.chars().count()
-        + COMMAND_ARROW_PREFIX.chars().count();
+    let mut width = COMMAND_LABEL.chars().count() + COMMAND_ARROW_PREFIX.chars().count();
     width += command_rail_width(hotkeys_markup);
-    width += label.chars().count().saturating_sub(COMMAND_LABEL.chars().count());
+    width += label
+        .chars()
+        .count()
+        .saturating_sub(COMMAND_LABEL.chars().count());
     if let Some(default) = default {
         width += " ".chars().count()
             + DEFAULT_OPEN.chars().count()

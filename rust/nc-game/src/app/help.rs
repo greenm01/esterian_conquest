@@ -1,4 +1,4 @@
-use crate::screen::help::{help_lines, menu_help_spec, render_help_popup, MenuHelpTopic};
+use crate::screen::help::{MenuHelpTopic, help_lines, menu_help_spec, render_help_popup};
 use crate::screen::{PlanetListMode, PlayfieldBuffer, ScreenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

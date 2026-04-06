@@ -8,6 +8,7 @@ use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 
 pub(crate) const TITLE: &str = "ECONOMY";
+pub(crate) const MIN_BODY_ROWS: usize = 6;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());
@@ -40,7 +41,9 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         total_potential += planet.potential_production_points() as u32;
     }
 
-    let economy = app.game_data.empire_economy_summary(app.player_record_index_1_based);
+    let economy = app
+        .game_data
+        .empire_economy_summary(app.player_record_index_1_based);
 
     let revenue = yearly_tax_revenue(total_present as u16, tax);
     let growth: i32 = if total_present < total_potential {
@@ -70,6 +73,13 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             theme::value_style(),
         ),
         (
+            layout::format_left_column_value(
+                "Avail Pts",
+                &economy.total_available_points.to_string(),
+            ),
+            theme::value_style(),
+        ),
+        (
             layout::format_left_column_value("Prod", &total_present.to_string()),
             theme::value_style(),
         ),
@@ -82,6 +92,10 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             theme::value_style(),
         ),
         (
+            layout::format_left_column_value("Tax Rate", &format!("{tax}%")),
+            theme::value_style(),
+        ),
+        (
             layout::format_left_column_value("PP Gen", &format!("{growth:+}")),
             gs,
         ),
@@ -90,11 +104,17 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             gs,
         ),
         (
-            layout::format_left_column_value("Efficiency", &format!("{:.1}%", economy.efficiency_percent)),
+            layout::format_left_column_value(
+                "Efficiency",
+                &format!("{:.1}%", economy.efficiency_percent),
+            ),
             theme::value_style(),
         ),
         (
-            layout::format_left_column_value("Prod Rank", &format!("#{}", economy.rank_by_present_production)),
+            layout::format_left_column_value(
+                "Prod Rank",
+                &format!("#{}", economy.rank_by_present_production),
+            ),
             theme::value_style(),
         ),
         (
@@ -102,8 +122,57 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             theme::value_style(),
         ),
         (
-            layout::format_left_column_value("Cmd Limit", &format!("{} / {}", economy.current_fleets_and_bases, economy.max_fleets_and_bases)),
+            layout::format_left_column_value(
+                "Cmd Limit",
+                &format_cmd_limit(
+                    economy.current_fleets_and_bases,
+                    economy.max_fleets_and_bases,
+                ),
+            ),
             theme::value_style(),
         ),
     ]
+}
+
+fn format_cmd_limit(current: usize, max: usize) -> String {
+    format!("{current:03}|{max:03}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{body_rows, format_cmd_limit};
+    use crate::app::state::DashApp;
+    use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    #[test]
+    fn command_limit_uses_zero_padded_pipe_format() {
+        assert_eq!(format_cmd_limit(4, 500), "004|500");
+    }
+
+    #[test]
+    fn economy_rows_render_compact_cmd_limit() {
+        let app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        assert!(
+            body_rows(&app)
+                .iter()
+                .any(|(row, _)| row.contains("Cmd Limit") && row.contains('|'))
+        );
+    }
 }

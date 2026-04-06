@@ -44,11 +44,16 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     let geometry = ScreenGeometry::new(cols as usize, rows as usize);
 
     // Default to player 1. Future: resolve from args/session.
-    let player_record_index_1_based = 1;
+    let player_record_index_1_based: usize = 1;
     let owned_planet_years =
         campaign_store.latest_owned_planet_years_for_empire(player_record_index_1_based as u8)?;
     let planet_intel_snapshots =
         campaign_store.latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
+    let player_war_stats = campaign_store
+        .latest_player_war_stats(state.game_data.conquest.player_count())?
+        .get(player_record_index_1_based.saturating_sub(1))
+        .copied()
+        .unwrap_or_else(|| nc_data::PlayerWarStatsState::for_player(player_record_index_1_based));
 
     let mut app = DashApp::new(
         game_dir,
@@ -62,6 +67,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         ScreenGeometry::new(0, 0),
         player_record_index_1_based,
     );
+    app.player_war_stats = player_war_stats;
     let required = layout::dashboard::required_dashboard_frame(&app);
     if cols < required.width() as u16 || rows < required.height() as u16 {
         app.is_terminal_too_small = true;

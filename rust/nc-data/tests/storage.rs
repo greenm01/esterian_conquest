@@ -391,7 +391,7 @@ fn sqlite_store_rejects_legacy_byte_table_schema() {
         matches!(
             err,
             CampaignStoreError::SchemaVersionMismatch {
-                expected: 9,
+                expected: 10,
                 found: None
             }
         ),

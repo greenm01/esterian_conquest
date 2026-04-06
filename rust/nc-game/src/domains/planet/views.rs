@@ -309,17 +309,19 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.database_status.as_deref(),
             app.command_return_menu,
         ),
-        ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => app.planet_database.render_filter_prompt(
-            frame.geometry,
-            &app.planet_database_rows(),
-            app.planet.database_scroll_offset,
-            app.planet.database_cursor,
-            app.planet.database_prompt_mode,
-            &app.planet.database_prompt_default_value,
-            &app.planet.database_input,
-            app.planet.database_status.as_deref(),
-            app.command_return_menu,
-        ),
+        ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => {
+            app.planet_database.render_filter_prompt(
+                frame.geometry,
+                &app.planet_database_rows(),
+                app.planet.database_scroll_offset,
+                app.planet.database_cursor,
+                app.planet.database_prompt_mode,
+                &app.planet.database_prompt_default_value,
+                &app.planet.database_input,
+                app.planet.database_status.as_deref(),
+                app.command_return_menu,
+            )
+        }
         ScreenId::PlanetInfoDetail => app.planet_info.render_detail(
             &frame,
             app.planet

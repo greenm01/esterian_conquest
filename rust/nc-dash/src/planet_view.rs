@@ -17,11 +17,17 @@ pub(crate) struct DetailLine {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SelectedPlanetDetail {
     pub planet_record_index_1_based: usize,
-    pub widget_lines: Vec<String>,
+    pub widget_fields: Vec<DetailLine>,
     pub popup_lines: Vec<DetailLine>,
 }
 
 pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDetail> {
+    projected_sector_details(app)
+        .into_iter()
+        .find(|detail| detail.planet_record_index_1_based == selected_planet_record_index(app))
+}
+
+pub(crate) fn projected_sector_details(app: &DashApp) -> Vec<SelectedPlanetDetail> {
     let viewer_empire_id = app.player_record_index_1_based as u8;
     let snapshot_map = app
         .planet_intel_snapshots
@@ -34,59 +40,32 @@ pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDeta
         &snapshot_map,
         viewer_empire_id,
     );
-    let world = projection
+    projection
         .worlds
         .iter()
-        .find(|world| world.coords == [app.crosshair_x, app.crosshair_y])?;
-    let planet_index_0_based = world.planet_record_index_1_based.checked_sub(1)?;
-    let planet = app.game_data.planets.records.get(planet_index_0_based)?;
-    let snapshot = snapshot_map.get(&world.planet_record_index_1_based);
-
-    if planet.owner_empire_slot_raw() == viewer_empire_id {
-        Some(owned_planet_detail(app, planet_index_0_based, planet))
-    } else {
-        Some(intel_planet_detail(app, world, snapshot))
-    }
+        .filter_map(|world| {
+            let planet_index_0_based = world.planet_record_index_1_based.checked_sub(1)?;
+            let planet = app.game_data.planets.records.get(planet_index_0_based)?;
+            Some(if planet.owner_empire_slot_raw() == viewer_empire_id {
+                owned_planet_detail(app, planet_index_0_based, planet)
+            } else {
+                intel_planet_detail(
+                    app,
+                    world,
+                    snapshot_map.get(&world.planet_record_index_1_based),
+                )
+            })
+        })
+        .collect()
 }
 
 pub(crate) fn preferred_sector_detail_body_width(app: &DashApp) -> usize {
-    let viewer_empire_id = app.player_record_index_1_based as u8;
-    let snapshot_map = app
-        .planet_intel_snapshots
-        .iter()
-        .cloned()
-        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-        .collect::<BTreeMap<_, _>>();
-    let projection = build_player_starmap_projection_from_snapshots(
-        &app.game_data,
-        &snapshot_map,
-        viewer_empire_id,
-    );
-    let mut max_width = "empty sector".chars().count();
-
-    for world in &projection.worlds {
-        let Some(planet_index_0_based) = world.planet_record_index_1_based.checked_sub(1) else {
-            continue;
-        };
-        let Some(planet) = app.game_data.planets.records.get(planet_index_0_based) else {
-            continue;
-        };
-        let detail = if planet.owner_empire_slot_raw() == viewer_empire_id {
-            owned_planet_detail(app, planet_index_0_based, planet)
-        } else {
-            intel_planet_detail(app, world, snapshot_map.get(&world.planet_record_index_1_based))
-        };
-        max_width = max_width.max(
-            detail
-                .widget_lines
-                .iter()
-                .map(|line| line.chars().count())
-                .max()
-                .unwrap_or(0),
-        );
-    }
-
-    max_width
+    projected_sector_details(app)
+        .into_iter()
+        .flat_map(|detail| detail.widget_fields.into_iter())
+        .map(|field| preferred_widget_field_width(&field))
+        .max()
+        .unwrap_or_else(|| "empty sector".chars().count())
 }
 
 fn owned_planet_detail(
@@ -149,38 +128,39 @@ fn owned_planet_detail(
         detail_line("Building", format_build_queue_summary(planet)),
         detail_line("Docked", format_stardock_summary(planet)),
     ];
-    let widget_lines = vec![
-        widget_line("Planet", &planet.status_or_name_summary()),
-        widget_line("Owner", "You"),
-        widget_line(
-            "Econ",
-            &format!(
-                "{}|{}|{}",
-                potential,
-                present,
-                planet.stored_production_points()
-            ),
-        ),
-        widget_line(
-            "Def",
-            &format!(
-                "{}|{}|{}",
-                planet.army_count_raw(),
-                planet.ground_batteries_raw(),
-                active_starbase_count_at(&app.game_data, coords)
-            ),
-        ),
-        widget_line(
+    let widget_fields = vec![
+        widget_field("Planet", planet.status_or_name_summary()),
+        widget_field("Owner", String::from("You")),
+        widget_field(
             "State",
-            &owned_status_widget_label(app, planet_index_0_based, planet),
+            owned_status_widget_label(app, planet_index_0_based, planet),
         ),
-        widget_line("Build", &format_build_queue_summary(planet)),
-        widget_line("Docked", &format_stardock_summary(planet)),
+        widget_field("Current Production", present.to_string()),
+        widget_field("Potential Production", potential.to_string()),
+        widget_field(
+            "Stored Production Points",
+            planet.stored_production_points().to_string(),
+        ),
+        widget_field("Armies", planet.army_count_raw().to_string()),
+        widget_field(
+            "Ground Batteries",
+            planet.ground_batteries_raw().to_string(),
+        ),
+        widget_field(
+            "Starbases",
+            active_starbase_count_at(&app.game_data, coords).to_string(),
+        ),
+        widget_field(
+            "Orbit",
+            format_owned_orbit_summary(app, coords, viewer_empire_id),
+        ),
+        widget_field("Building", format_build_queue_summary(planet)),
+        widget_field("Docked", format_stardock_summary(planet)),
     ];
 
     SelectedPlanetDetail {
         planet_record_index_1_based: planet_index_0_based + 1,
-        widget_lines,
+        widget_fields,
         popup_lines,
     }
 }
@@ -249,41 +229,54 @@ fn intel_planet_detail(
         .and_then(|row| row.last_intel_year)
         .map(|year| format!("Y{year}"))
         .unwrap_or_else(|| String::from("Y?"));
-    let widget_lines = vec![
-        widget_line("Planet", world.known_name.as_deref().unwrap_or("?")),
-        widget_line("Owner", &intel_owner_widget_label(&app.game_data, world)),
-        widget_line(
-            "Econ",
-            &format!(
-                "{}|{}|{}",
-                known_u16(world.known_potential_production),
-                known_u8(world.known_current_production),
-                known_u16(world.known_stored_points)
-            ),
+    let widget_fields = vec![
+        widget_field(
+            "Planet",
+            world
+                .known_name
+                .clone()
+                .unwrap_or_else(|| String::from("?")),
         ),
-        widget_line(
-            "Def",
-            &format!(
-                "{}|{}|{}",
-                known_u8(world.known_armies),
-                known_u8(world.known_ground_batteries),
-                known_u8(world.known_starbase_count)
-            ),
-        ),
-        widget_line(
+        widget_field("Owner", intel_owner_widget_label(&app.game_data, world)),
+        widget_field("State", String::from("?")),
+        widget_field(
             "Intel",
-            &format!("{intel_year} {}", intel_tier_code(snapshot, world)),
+            format!("{intel_year} {}", intel_tier_code(snapshot, world)),
         ),
-        widget_line("Orbit", world.known_orbit_summary.as_deref().unwrap_or("?")),
-        widget_line(
+        widget_field(
+            "Current Production",
+            known_u8(world.known_current_production),
+        ),
+        widget_field(
+            "Potential Production",
+            known_u16(world.known_potential_production),
+        ),
+        widget_field(
+            "Stored Production Points",
+            known_u16(world.known_stored_points),
+        ),
+        widget_field("Armies", known_u8(world.known_armies)),
+        widget_field("Ground Batteries", known_u8(world.known_ground_batteries)),
+        widget_field("Starbases", known_u8(world.known_starbase_count)),
+        widget_field(
+            "Orbit",
+            world
+                .known_orbit_summary
+                .clone()
+                .unwrap_or_else(|| String::from("?")),
+        ),
+        widget_field(
             "Docked",
-            world.known_docked_summary.as_deref().unwrap_or("?"),
+            world
+                .known_docked_summary
+                .clone()
+                .unwrap_or_else(|| String::from("?")),
         ),
     ];
 
     SelectedPlanetDetail {
         planet_record_index_1_based: world.planet_record_index_1_based,
-        widget_lines,
+        widget_fields,
         popup_lines,
     }
 }
@@ -292,12 +285,67 @@ fn detail_line(label: &'static str, value: String) -> DetailLine {
     DetailLine { label, value }
 }
 
-fn widget_line(label: &str, value: &str) -> String {
-    format!("{label:<7} {value}")
+fn widget_field(label: &'static str, value: String) -> DetailLine {
+    DetailLine { label, value }
+}
+
+pub(crate) fn widget_label_for_width(field: &DetailLine, body_width: usize) -> &'static str {
+    let Some(variants) = widget_label_variants(field.label) else {
+        return field.label;
+    };
+
+    variants
+        .iter()
+        .copied()
+        .find(|label| label.chars().count() + 2 + field.value.chars().count() <= body_width)
+        .unwrap_or_else(|| variants.last().copied().unwrap_or(field.label))
+}
+
+fn preferred_widget_field_width(field: &DetailLine) -> usize {
+    widget_label_variants(field.label)
+        .and_then(|variants| variants.first().copied())
+        .unwrap_or(field.label)
+        .chars()
+        .count()
+        + 2
+        + field.value.chars().count()
+}
+
+fn widget_label_variants(label: &'static str) -> Option<&'static [&'static str]> {
+    Some(match label {
+        "Potential Production" => &["Pot Prod"],
+        "Current Production" => &["Curr Prod"],
+        "Stored Production Points" => &["Stored Pts", "Stored"],
+        "Ground Batteries" => &["Grnd Batt", "GBs"],
+        "Armies" => &["Armies", "ARs"],
+        "Starbases" => &["Starbases", "SBs"],
+        _ => return None,
+    })
 }
 
 fn coords_label(coords: [u8; 2]) -> String {
     format!("({:02},{:02})", coords[0], coords[1])
+}
+
+fn selected_planet_record_index(app: &DashApp) -> usize {
+    let viewer_empire_id = app.player_record_index_1_based as u8;
+    let snapshot_map = app
+        .planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>();
+    let projection = build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        &snapshot_map,
+        viewer_empire_id,
+    );
+    projection
+        .worlds
+        .iter()
+        .find(|world| world.coords == [app.crosshair_x, app.crosshair_y])
+        .map(|world| world.planet_record_index_1_based)
+        .unwrap_or(0)
 }
 
 fn known_u8(value: Option<u8>) -> String {
@@ -476,7 +524,7 @@ fn compact_summary_or_nothing(counts_by_kind: BTreeMap<u8, u32>) -> String {
     if parts.is_empty() {
         String::from("Nothing")
     } else {
-        parts.join(", ")
+        parts.join(" ")
     }
 }
 
@@ -493,7 +541,7 @@ fn ordered_compact_summary_parts(counts_by_kind: BTreeMap<u8, u32>) -> Vec<Strin
             let count = counts_by_kind.get(&kind_raw).copied().unwrap_or(0);
             (count != 0).then(|| {
                 format!(
-                    "{}-{}",
+                    "{}{}",
                     count,
                     compact_unit_code(ProductionItemKind::from_raw(kind_raw))
                 )
@@ -645,10 +693,10 @@ fn owned_status_detail_label(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nc_data::GameStateBuilder;
+    use nc_data::{GameStateBuilder, PlanetRecord};
 
     #[test]
-    fn widget_rows_use_pipe_grouping_for_owned_worlds() {
+    fn widget_rows_use_split_owned_world_fields() {
         let mut app = crate::app::state::DashApp::new(
             std::path::PathBuf::from("."),
             GameStateBuilder::new()
@@ -668,7 +716,67 @@ mod tests {
         app.crosshair_y = app.game_data.planets.records[0].coords_raw()[1];
 
         let detail = selected_planet_detail(&app).expect("selected world");
-        assert!(detail.widget_lines.iter().any(|line| line.contains("Econ")));
-        assert!(detail.widget_lines.iter().any(|line| line.contains('|')));
+        assert_eq!(
+            detail
+                .widget_fields
+                .iter()
+                .map(|field| field.label)
+                .collect::<Vec<_>>(),
+            vec![
+                "Planet",
+                "Owner",
+                "State",
+                "Current Production",
+                "Potential Production",
+                "Stored Production Points",
+                "Armies",
+                "Ground Batteries",
+                "Starbases",
+                "Orbit",
+                "Building",
+                "Docked",
+            ]
+        );
+    }
+
+    #[test]
+    fn widget_field_format_prefers_fuller_labels_when_they_fit() {
+        let current = DetailLine {
+            label: "Current Production",
+            value: String::from("9"),
+        };
+        let potential = DetailLine {
+            label: "Potential Production",
+            value: String::from("10"),
+        };
+        let stored = DetailLine {
+            label: "Stored Production Points",
+            value: String::from("125"),
+        };
+        let batteries = DetailLine {
+            label: "Ground Batteries",
+            value: String::from("4"),
+        };
+
+        assert_eq!(widget_label_for_width(&current, 19), "Curr Prod");
+        assert_eq!(widget_label_for_width(&potential, 19), "Pot Prod");
+        assert_eq!(widget_label_for_width(&stored, 19), "Stored Pts");
+        assert_eq!(widget_label_for_width(&batteries, 19), "Grnd Batt");
+        assert_eq!(widget_label_for_width(&current, 14), "Curr Prod");
+        assert_eq!(widget_label_for_width(&stored, 14), "Stored");
+        assert_eq!(widget_label_for_width(&batteries, 14), "Grnd Batt");
+        assert_eq!(widget_label_for_width(&batteries, 6), "GBs");
+    }
+
+    #[test]
+    fn compact_unit_summary_uses_tui_style_without_dashes() {
+        let mut planet = PlanetRecord::new_zeroed();
+        planet.set_build_kind_raw(0, 3);
+        planet.set_build_count_raw(0, 90);
+        planet.set_stardock_kind_raw(0, 2);
+        planet.set_stardock_count_raw(0, 5);
+
+        assert_eq!(format_build_queue_summary(&planet), "2BB");
+        assert_eq!(format_stardock_summary(&planet), "5CA");
     }
 }

@@ -1,12 +1,13 @@
 //! Right panel: unread reports and messages.
 
 use crate::app::state::DashApp;
-use crate::inbox::{project_inbox_items, DashInboxItemType, ReportSummaryBucket};
+use crate::inbox::{DashInboxItemType, ReportSummaryBucket, project_inbox_items};
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "INBOX";
+pub(crate) const MIN_BODY_ROWS: usize = 3;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());
@@ -52,19 +53,35 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     vec![
         (
             layout::format_left_column_value("Total", &total_unread.to_string()),
-            if total_unread > 0 { theme::alert_style() } else { theme::dim_style() },
+            if total_unread > 0 {
+                theme::alert_style()
+            } else {
+                theme::dim_style()
+            },
         ),
         (
             layout::format_left_column_value("Combat Rep", &unread_combat.to_string()),
-            if unread_combat > 0 { theme::enemy_style() } else { theme::dim_style() },
+            if unread_combat > 0 {
+                theme::enemy_style()
+            } else {
+                theme::dim_style()
+            },
         ),
         (
             layout::format_left_column_value("Intel Rep", &unread_intel.to_string()),
-            if unread_intel > 0 { theme::friendly_style() } else { theme::dim_style() },
+            if unread_intel > 0 {
+                theme::friendly_style()
+            } else {
+                theme::dim_style()
+            },
         ),
         (
             layout::format_left_column_value("Messages", &unread_msgs.to_string()),
-            if unread_msgs > 0 { theme::alert_style() } else { theme::dim_style() },
+            if unread_msgs > 0 {
+                theme::alert_style()
+            } else {
+                theme::dim_style()
+            },
         ),
     ]
 }

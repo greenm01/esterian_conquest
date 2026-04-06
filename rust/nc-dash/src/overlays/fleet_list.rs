@@ -70,9 +70,7 @@ pub(crate) struct FleetOverlayRow {
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let rows = table_rows(app);
     let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
-    let selected_default = rows
-        .get(selected)
-        .map(|row| row.id_label.as_str());
+    let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -92,10 +90,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             input: "",
         },
     };
-    let table_cells = rows
-        .iter()
-        .map(|row| row.cells.clone())
-        .collect::<Vec<_>>();
+    let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
 
     let desired_visible_rows = table_cells.len().clamp(1, buf.height().saturating_sub(10));
     let columns = resolve_table_columns(
@@ -236,8 +231,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
             .coords
             .cmp(&right.coords)
             .then_with(|| right.id_label.cmp(&left.id_label)),
-        FleetOverlaySort::Order => left
-            .cells[2]
+        FleetOverlaySort::Order => left.cells[2]
             .cmp(&right.cells[2])
             .then_with(|| right.id_label.cmp(&left.id_label)),
         FleetOverlaySort::Eta => eta_sort_key(&left.eta_label)
@@ -296,7 +290,10 @@ fn eta_sort_key(label: &str) -> (u8, u16) {
         "0" => (0, 0),
         "S" => (1, 0),
         "X" => (3, 0),
-        _ => label.parse::<u16>().map(|value| (0, value)).unwrap_or((2, 0)),
+        _ => label
+            .parse::<u16>()
+            .map(|value| (0, value))
+            .unwrap_or((2, 0)),
     }
 }
 

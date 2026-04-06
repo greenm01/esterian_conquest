@@ -8,7 +8,8 @@ use crate::usage::print_maintenance_usage;
 use nc_compat::import_directory_snapshot;
 use nc_data::{
     CampaignStore, CoreGameData, DiplomacyOverride, DiplomaticRelation, MaintenanceEvents,
-    PlanetIntelSnapshot, apply_inactivity_autopilot_policy, latest_planet_intel_grants_for_viewer,
+    PlanetIntelSnapshot, apply_inactivity_autopilot_policy,
+    apply_maintenance_events_to_player_war_stats, latest_planet_intel_grants_for_viewer,
     merge_player_intel_from_runtime,
 };
 use nc_engine::{
@@ -115,6 +116,8 @@ pub fn run_rust_maintenance_with_options(
     let planet_scorch_orders = runtime_state.planet_scorch_orders;
     let mut player_activity_states =
         campaign_store.latest_player_activity_states(game_data.conquest.player_count())?;
+    let mut player_war_stats =
+        campaign_store.latest_player_war_stats(game_data.conquest.player_count())?;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
     let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&campaign_store, &game_data)?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
@@ -250,13 +253,15 @@ pub fn run_rust_maintenance_with_options(
     );
 
     let report_block_rows = build_results_report_blocks(&mut game_data, &all_events);
-    campaign_store.save_runtime_state_structured_with_intel_and_activity(
+    apply_maintenance_events_to_player_war_stats(&mut player_war_stats, &all_events);
+    campaign_store.save_runtime_state_structured_with_intel_activity_and_war_stats(
         &game_data,
         &planet_scorch_orders,
         &report_block_rows,
         &queued_mail,
         &planet_intel_by_viewer,
         &player_activity_states,
+        &player_war_stats,
     )?;
 
     let rankings_text = build_rankings_text(&game_data);

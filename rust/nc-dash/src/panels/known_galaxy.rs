@@ -10,6 +10,7 @@ use nc_data::build_player_starmap_projection_from_snapshots;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 pub(crate) const TITLE: &str = "KNOWN GALAXY";
+pub(crate) const MIN_BODY_ROWS: usize = 5;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());

@@ -1,11 +1,9 @@
 //! Dashboard application state.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
-
 use nc_data::{CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Which panel has keyboard focus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,6 +12,7 @@ pub enum PanelFocus {
     Economy,
     Planets,
     Fleets,
+    WarRecord,
     Galaxy,
     Diplomacy,
 }
@@ -24,7 +23,8 @@ impl PanelFocus {
             Self::Map => Self::Economy,
             Self::Economy => Self::Planets,
             Self::Planets => Self::Fleets,
-            Self::Fleets => Self::Galaxy,
+            Self::Fleets => Self::WarRecord,
+            Self::WarRecord => Self::Galaxy,
             Self::Galaxy => Self::Diplomacy,
             Self::Diplomacy => Self::Map,
         }
@@ -36,7 +36,8 @@ impl PanelFocus {
             Self::Economy => Self::Map,
             Self::Planets => Self::Economy,
             Self::Fleets => Self::Planets,
-            Self::Galaxy => Self::Fleets,
+            Self::WarRecord => Self::Fleets,
+            Self::Galaxy => Self::WarRecord,
             Self::Diplomacy => Self::Galaxy,
         }
     }
@@ -112,7 +113,6 @@ impl InboxFilter {
 pub struct ListOverlayState {
     pub selected: usize,
     pub scroll: usize,
-    pub jump_input: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -301,13 +301,14 @@ impl Default for InboxOverlayState {
 
 /// Dashboard application state.
 pub struct DashApp {
-    pub game_dir: PathBuf,
+    pub _game_dir: std::path::PathBuf,
     pub game_data: CoreGameData,
     pub owned_planet_years: BTreeMap<usize, u16>,
     pub planet_scorch_orders: BTreeSet<usize>,
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
+    pub player_war_stats: nc_data::PlayerWarStatsState,
     /// Full terminal dimensions (canvas).
     pub geometry: ScreenGeometry,
     /// Dashboard frame dimensions (map + panels + borders).
@@ -315,8 +316,8 @@ pub struct DashApp {
     pub player_record_index_1_based: usize,
 
     // Startup flow
-    pub startup_sequence: StartupSequence,
-    pub startup_phase: StartupPhase,
+    pub _startup_sequence: StartupSequence,
+    pub _startup_phase: StartupPhase,
 
     // Dashboard navigation
     pub focus: PanelFocus,
@@ -349,7 +350,7 @@ pub struct DashApp {
 
 impl DashApp {
     pub fn new(
-        game_dir: PathBuf,
+        game_dir: std::path::PathBuf,
         game_data: CoreGameData,
         owned_planet_years: BTreeMap<usize, u16>,
         planet_scorch_orders: BTreeSet<usize>,
@@ -369,27 +370,30 @@ impl DashApp {
             message_line_count: 0,
         };
         let startup_sequence = StartupSequence::new(&startup_summary);
+        let [crosshair_x, crosshair_y] =
+            initial_crosshair_coords(&game_data, player_record_index_1_based);
         Self {
-            game_dir,
+            _game_dir: game_dir,
             game_data,
             owned_planet_years,
             planet_scorch_orders,
             report_block_rows,
             queued_mail,
             planet_intel_snapshots,
+            player_war_stats: nc_data::PlayerWarStatsState::for_player(player_record_index_1_based),
             geometry,
             frame,
             player_record_index_1_based,
-            startup_phase: StartupPhase::Complete,
-            startup_sequence,
+            _startup_phase: StartupPhase::Complete,
+            _startup_sequence: startup_sequence,
             focus: PanelFocus::Map,
             overlay: ActiveOverlay::None,
             popup: ActivePopup::None,
             help_return_overlay: ActiveOverlay::None,
             help_context: HelpContext::Global,
             autopilot_on: false,
-            crosshair_x: 1,
-            crosshair_y: 1,
+            crosshair_x,
+            crosshair_y,
             map_view_mode: MapViewMode::Readable,
             map_zoom_level: 0,
             map_coord_input: String::new(),
@@ -405,13 +409,69 @@ impl DashApp {
     }
 }
 
+fn initial_crosshair_coords(
+    game_data: &CoreGameData,
+    player_record_index_1_based: usize,
+) -> [u8; 2] {
+    if let Some(coords) = game_data
+        .player_homeworld_seed_coords_current_known()
+        .get(player_record_index_1_based.saturating_sub(1))
+        .and_then(|coords| *coords)
+    {
+        return coords;
+    }
+    let Some(player) = game_data
+        .player
+        .records
+        .get(player_record_index_1_based.saturating_sub(1))
+    else {
+        return [1, 1];
+    };
+    let homeworld_index = player.homeworld_planet_index_1_based_raw() as usize;
+    game_data
+        .planets
+        .records
+        .get(homeworld_index.saturating_sub(1))
+        .map(|planet| planet.coords_raw())
+        .unwrap_or([1, 1])
+}
+
 #[cfg(test)]
 mod tests {
-    use super::PanelFocus;
+    use super::{DashApp, PanelFocus};
+    use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn focus_cycle_skips_removed_reports_panel() {
         assert_eq!(PanelFocus::Diplomacy.next(), PanelFocus::Map);
         assert_eq!(PanelFocus::Map.prev(), PanelFocus::Diplomacy);
+        assert_eq!(PanelFocus::Fleets.next(), PanelFocus::WarRecord);
+        assert_eq!(PanelFocus::Galaxy.prev(), PanelFocus::WarRecord);
+    }
+
+    #[test]
+    fn new_app_starts_crosshair_on_player_homeworld() {
+        let app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let coords = app.game_data.player_homeworld_seed_coords_current_known()[0]
+            .expect("player one homeworld seed");
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], coords);
     }
 }

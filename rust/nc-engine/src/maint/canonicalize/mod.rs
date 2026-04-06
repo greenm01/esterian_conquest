@@ -119,10 +119,12 @@ mod tests {
             friendly_initial: ShipLosses::default(),
             friendly_loaded_armies_initial: 0,
             friendly_losses: ShipLosses::default(),
+            friendly_starbases_lost: 0,
             enemy_initial: ShipLosses::default(),
             enemy_initial_starbases: 0,
             enemy_loaded_armies_initial: 0,
             enemy_losses: ShipLosses::default(),
+            enemy_starbases_destroyed: 0,
             stardate_week: None,
         });
         canonicalize_events(&mut events, &game_data);

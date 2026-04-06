@@ -400,6 +400,9 @@ mod tests {
 
         assert_eq!(wrapped.lines.len(), 3);
         assert!(wrapped.lines.iter().all(|line| line.chars().count() <= 18));
-        assert_eq!(wrapped.lines.join(" "), "Plain helper prose still wraps when needed");
+        assert_eq!(
+            wrapped.lines.join(" "),
+            "Plain helper prose still wraps when needed"
+        );
     }
 }

@@ -65,6 +65,7 @@ pub struct DashboardWidgetFrames {
     pub left_economy: PanelWidgetFrame,
     pub left_planets: PanelWidgetFrame,
     pub left_fleets: PanelWidgetFrame,
+    pub left_war_record: PanelWidgetFrame,
     pub center_map: MapWidgetFrame,
     pub right_comms: PanelWidgetFrame,
     pub right_galaxy: PanelWidgetFrame,
@@ -220,24 +221,47 @@ where
 pub fn left_column_label_width() -> usize {
     label_value_width([
         "Treasury",
+        "Avail Pts",
         "Prod",
         "Pot Prod",
         "Revenue",
+        "Tax Rate",
         "PP Gen",
         "% Growth",
+        "Efficiency",
+        "Prod Rank",
+        "Plnt Rank",
+        "Cmd Limit",
         "Tot Worlds",
-        "Act Docks",
+        "Stardocks",
         "Starbases",
         "Tot Armies",
         "GBs",
+        "Building",
         "Vulnerable",
         "Tot Fleets",
         "Tot Ships",
         "Docked",
-        "In Transit",
-        "Hostile",
-        "Defensive",
-        "Idle",
+        "Moving",
+        "Combat",
+        "Guarding",
+        "Holding",
+        "BBs",
+        "CAs",
+        "DDs",
+        "SCs",
+        "TTs",
+        "ETs",
+        "SBs",
+        "Colonies",
+        "Taken",
+        "Lost",
+        "Bombards",
+        "Invade S/F",
+        "Blitz S/F",
+        "Repelled",
+        "Ships Dest",
+        "Ships Lost",
     ])
 }
 
@@ -278,6 +302,7 @@ mod tests {
         assert!(widgets.center_map.map_block.last_col() <= widgets.center_map.outer.last_col());
         assert!(widgets.left_economy.outer.last_row() < widgets.left_planets.outer.row);
         assert!(widgets.left_planets.outer.last_row() < widgets.left_fleets.outer.row);
+        assert!(widgets.left_fleets.outer.last_row() < widgets.left_war_record.outer.row);
         assert!(widgets.right_galaxy.outer.last_row() < widgets.right_diplomacy.outer.row);
         assert!(widgets.right_diplomacy.outer.last_row() < widgets.right_sector_detail.outer.row);
     }
@@ -310,7 +335,10 @@ mod tests {
             widgets.center_map.bottom_pad_row,
             widgets.center_map.map_block.last_row()
         );
-        assert_eq!(widgets.center_map.bottom_pad_row, widgets.center_map.grid.last_row());
+        assert_eq!(
+            widgets.center_map.bottom_pad_row,
+            widgets.center_map.grid.last_row()
+        );
         assert_eq!(
             widgets.right_divider_col,
             widgets.center_map.outer.last_col() + 1
@@ -370,7 +398,7 @@ mod tests {
     fn left_column_shared_label_width_aligns_colons_across_widgets() {
         let economy = format_left_column_value("Treasury", "820");
         let planets = format_left_column_value("GBs", "12");
-        let fleets = format_left_column_value("In Transit", "3");
+        let fleets = format_left_column_value("Guarding", "3");
 
         let economy_col = economy.find(": ").expect("economy colon");
         let planets_col = planets.find(": ").expect("planets colon");
@@ -386,16 +414,29 @@ mod tests {
             format_left_column_value("Treasury", "217"),
             format_left_column_value("Prod", "332"),
             format_left_column_value("Pot Prod", "775"),
+            format_left_column_value("Avail Pts", "1032"),
+            format_left_column_value("Tax Rate", "50%"),
             format_left_column_value("PP Gen", "+56"),
             format_left_column_value("% Growth", "16.9%"),
             format_left_column_value("Tot Worlds", "9"),
-            format_left_column_value("Act Docks", "3"),
+            format_left_column_value("Stardocks", "3"),
+            format_left_column_value("Building", "12"),
             format_left_column_value("Tot Fleets", "7"),
-            format_left_column_value("In Transit", "0"),
+            format_left_column_value("Guarding", "0"),
+            format_left_column_value("Invade S/F", "2/1"),
+            format_left_column_value("Ships Dest", "18"),
         ];
 
+        let width = rows
+            .iter()
+            .map(|row| row.chars().count())
+            .max()
+            .expect("rows");
         for row in rows {
-            assert!(row.chars().count() <= 20, "{row:?} exceeds compact row budget");
+            assert!(
+                row.chars().count() <= width,
+                "{row:?} exceeds left row budget"
+            );
         }
     }
 
