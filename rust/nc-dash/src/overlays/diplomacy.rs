@@ -4,26 +4,13 @@ use nc_data::DiplomaticRelation;
 use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_hline, draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_hline, draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? J K ^U ^D D S I <Q> ->";
+const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let preferred_width = buf.width().saturating_sub(18).clamp(84, 120);
-    let preferred_height = buf.height().saturating_sub(8).clamp(16, 24);
-    let frame = draw_overlay_frame(buf, "DIPLOMACY", preferred_width, preferred_height, FOOTER);
-
-    write_clipped(
-        buf,
-        frame.body_row,
-        frame.body_col,
-        frame.body_width,
-        "Rnk Empire             Planets Prod State      Relations",
-        theme::section_title_style(),
-    );
-    draw_hline(buf, frame.body_row + 1, frame.body_col, frame.body_width, theme::border_style());
-
     let player_idx = app.player_record_index_1_based.saturating_sub(1);
     let viewer_slot = app.player_record_index_1_based as u8;
     let viewer = app.game_data.player.records.get(player_idx);
@@ -74,6 +61,30 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         })
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| b.1.cmp(&a.1));
+    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(8));
+    let body_width = rows
+        .iter()
+        .map(|(_, _, line)| line.chars().count())
+        .max()
+        .unwrap_or(0)
+        .max(HEADER.chars().count());
+    let frame = draw_overlay_frame_for_body(
+        buf,
+        "DIPLOMACY",
+        body_width,
+        desired_visible_rows + 2,
+        FOOTER,
+    );
+
+    write_clipped(
+        buf,
+        frame.body_row,
+        frame.body_col,
+        frame.body_width,
+        HEADER,
+        theme::section_title_style(),
+    );
+    draw_hline(buf, frame.body_row + 1, frame.body_col, frame.body_width, theme::border_style());
 
     let list_start = frame.body_row + 2;
     let max_rows = frame.body_height.saturating_sub(2);

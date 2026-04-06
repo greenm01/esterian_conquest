@@ -3,12 +3,12 @@
 use nc_data::PlanetIntelSnapshot;
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{
-    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns, table_render_width,
     write_stacked_table_window_with_theme_at,
 };
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? J K ^U ^D S I <Q> ->";
@@ -30,27 +30,31 @@ const COLUMNS: [TableColumn<'static>; 11] = [
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let preferred_width = buf.width().saturating_sub(12).clamp(94, 134);
-    let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
-    let frame = draw_overlay_frame(buf, "TOTAL PLANET DATABASE", preferred_width, preferred_height, FOOTER);
-
     let rows = app
         .planet_intel_snapshots
         .iter()
         .filter(|snapshot| snapshot.intel_tier != nc_data::IntelTier::Unknown)
         .map(|snapshot| format_intel_row(app, snapshot))
         .collect::<Vec<_>>();
-
-    let visible_rows = frame.body_height.saturating_sub(5);
-    let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
-    let scroll = clamp_scroll(app.intel_overlay.scroll, selected, visible_rows, rows.len());
+    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(11));
     let columns = resolve_table_columns(
         &COLUMNS,
         &rows,
-        frame.body_width.saturating_sub(1),
+        buf.width().saturating_sub(12),
         false,
         TableWidthMode::Compact,
     );
+    let body_width = table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
+    let frame = draw_overlay_frame_for_body(
+        buf,
+        "TOTAL PLANET DATABASE",
+        body_width,
+        desired_visible_rows + 5,
+        FOOTER,
+    );
+    let visible_rows = frame.body_height.saturating_sub(5);
+    let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
+    let scroll = clamp_scroll(app.intel_overlay.scroll, selected, visible_rows, rows.len());
     let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
     let metrics = write_stacked_table_window_with_theme_at(
         buf,
@@ -71,8 +75,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         write_clipped(
             buf,
             metrics.bottom_row.saturating_sub(1),
-            table_col + 2,
-            frame.body_width.saturating_sub(4),
+            frame.body_col,
+            frame.body_width,
             "No planet intel is available yet.",
             theme::dim_style(),
         );

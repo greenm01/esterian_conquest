@@ -6,12 +6,12 @@ use nc_data::{
 };
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{
-    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns, table_render_width,
     write_stacked_table_window_with_theme_at,
 };
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? J K ^U ^D B A C L U X S I T <Q> ->";
@@ -34,10 +34,6 @@ const COLUMNS: [TableColumn<'static>; 12] = [
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let preferred_width = buf.width().saturating_sub(12).clamp(96, 136);
-    let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
-    let frame = draw_overlay_frame(buf, "PLANET LIST", preferred_width, preferred_height, FOOTER);
-
     let owner_slot = app.player_record_index_1_based as u8;
     let player_tax_rate = app
         .game_data
@@ -53,12 +49,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .iter()
         .filter(|planet| planet.owner_empire_slot_raw() == owner_slot)
         .collect::<Vec<_>>();
-    let selected = app
-        .planet_overlay
-        .selected
-        .min(planets.len().saturating_sub(1));
-    let visible_rows = frame.body_height.saturating_sub(5);
-    let scroll = clamp_scroll(app.planet_overlay.scroll, selected, visible_rows, planets.len());
 
     let starbase_coords = app
         .game_data
@@ -79,13 +69,29 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             )
         })
         .collect::<Vec<_>>();
+    let desired_visible_rows = planets.len().clamp(1, buf.height().saturating_sub(11));
     let columns = resolve_table_columns(
         &COLUMNS,
         &rows,
-        frame.body_width.saturating_sub(1),
+        buf.width().saturating_sub(12),
         false,
         TableWidthMode::Compact,
     );
+    let body_width =
+        table_render_width(&columns).max("You do not currently control any planets.".chars().count() + 4);
+    let frame = draw_overlay_frame_for_body(
+        buf,
+        "PLANET LIST",
+        body_width,
+        desired_visible_rows + 5,
+        FOOTER,
+    );
+    let selected = app
+        .planet_overlay
+        .selected
+        .min(planets.len().saturating_sub(1));
+    let visible_rows = frame.body_height.saturating_sub(5);
+    let scroll = clamp_scroll(app.planet_overlay.scroll, selected, visible_rows, planets.len());
     let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
     let metrics = write_stacked_table_window_with_theme_at(
         buf,
@@ -106,8 +112,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         write_clipped(
             buf,
             metrics.bottom_row.saturating_sub(1),
-            table_col + 2,
-            frame.body_width.saturating_sub(4),
+            frame.body_col,
+            frame.body_width,
             "You do not currently control any planets.",
             theme::dim_style(),
         );

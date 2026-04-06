@@ -56,6 +56,18 @@ pub fn draw_overlay_frame(
     }
 }
 
+pub fn draw_overlay_frame_for_body(
+    buf: &mut PlayfieldBuffer,
+    title: &str,
+    body_width: usize,
+    body_height: usize,
+    footer: &str,
+) -> OverlayFrame {
+    let preferred_width = (body_width.max(footer.chars().count()) + 4).max(title.chars().count() + 6);
+    let preferred_height = body_height + 4;
+    draw_overlay_frame(buf, title, preferred_width, preferred_height, footer)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,6 +86,21 @@ mod tests {
         assert!(frame.footer_row < buffer.height());
         assert!(frame.body_row < frame.footer_row);
         assert_eq!(buffer.plain_line(frame.footer_row).contains("COMMAND <- ? J K <Q> ->"), true);
+    }
+
+    #[test]
+    fn content_sized_overlay_frame_wraps_requested_body_dimensions() {
+        let mut buffer = PlayfieldBuffer::new(120, 40, theme::body_style());
+        let frame = draw_overlay_frame_for_body(
+            &mut buffer,
+            "FLEET LIST",
+            72,
+            14,
+            "COMMAND <- ? J K ^U ^D O C M T I <Q> ->",
+        );
+
+        assert_eq!(frame.body_width, 72);
+        assert_eq!(frame.body_height, 14);
     }
 }
 

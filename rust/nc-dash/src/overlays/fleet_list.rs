@@ -2,12 +2,12 @@
 
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{
-    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns, table_render_width,
     write_table_window_with_theme_at,
 };
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::panels::fleets::order_abbrev;
 use crate::theme;
 
@@ -25,10 +25,6 @@ const COLUMNS: [TableColumn<'static>; 9] = [
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let preferred_width = buf.width().saturating_sub(12).clamp(96, 138);
-    let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
-    let frame = draw_overlay_frame(buf, "FLEET LIST", preferred_width, preferred_height, FOOTER);
-
     let owner_slot = app.player_record_index_1_based as u8;
     let mut rows = Vec::new();
 
@@ -45,7 +41,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             String::from("--"),
             fleet.rules_of_engagement().to_string(),
             fleet.army_count().to_string(),
-            fleet.ship_composition_summary(),
+            truncate(&fleet.ship_composition_summary(), COLUMNS[8].width),
         ]);
     }
 
@@ -66,16 +62,26 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         ]);
     }
 
-    let visible_rows = frame.body_height.saturating_sub(4);
-    let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
-    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, visible_rows, rows.len());
+    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(10));
     let columns = resolve_table_columns(
         &COLUMNS,
         &rows,
-        frame.body_width.saturating_sub(1),
+        buf.width().saturating_sub(12),
         false,
-        TableWidthMode::Expand,
+        TableWidthMode::Compact,
     );
+    let body_width =
+        table_render_width(&columns).max("You have no active fleets or starbases.".chars().count() + 4);
+    let frame = draw_overlay_frame_for_body(
+        buf,
+        "FLEET LIST",
+        body_width,
+        desired_visible_rows + 4,
+        FOOTER,
+    );
+    let visible_rows = frame.body_height.saturating_sub(4);
+    let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
+    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, visible_rows, rows.len());
     let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
     let metrics = write_table_window_with_theme_at(
         buf,
@@ -95,8 +101,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         write_clipped(
             buf,
             metrics.bottom_row.saturating_sub(1),
-            table_col + 2,
-            frame.body_width.saturating_sub(4),
+            frame.body_col,
+            frame.body_width,
             "You have no active fleets or starbases.",
             theme::dim_style(),
         );
@@ -126,4 +132,8 @@ fn format_target(coords: [u8; 2]) -> String {
     } else {
         format_coords(coords)
     }
+}
+
+fn truncate(value: &str, width: usize) -> String {
+    value.chars().take(width).collect()
 }
