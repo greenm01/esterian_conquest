@@ -100,6 +100,15 @@ pub fn draw_frame(
         buf,
         right_div,
         ox + fw.saturating_sub(1),
+        widgets.right_galaxy.outer.row.saturating_sub(1),
+        '├',
+        '┤',
+        bs,
+    );
+    draw_panel_separator(
+        buf,
+        right_div,
+        ox + fw.saturating_sub(1),
         widgets.right_diplomacy.outer.row.saturating_sub(1),
         '├',
         '┤',

@@ -73,7 +73,7 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         }
     }
 
-    vec![
+    let mut summary_rows = vec![
         (
             layout::format_left_column_value("Tot Fleets", &total_fleets.to_string()),
             status_value_style(),
@@ -86,21 +86,40 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
             layout::format_left_column_value("Docked", &docked.to_string()),
             status_value_style(),
         ),
-        (
-            layout::format_left_column_value("In Transit", &in_transit.to_string()),
-            status_value_style(),
-        ),
-        (
-            layout::format_left_column_value("Hostile", &hostile.to_string()),
-            status_value_style(),
-        ),
-        (
-            layout::format_left_column_value("Defensive", &defensive.to_string()),
-            status_value_style(),
-        ),
-        (
-            layout::format_left_column_value("Idle", &idle.to_string()),
-            status_value_style(),
-        ),
-    ]
+    ];
+
+    if in_transit > 0 {
+        summary_rows.push((layout::format_left_column_value("In Transit", &in_transit.to_string()), crate::theme::dim_style()));
+    }
+    if hostile > 0 {
+        summary_rows.push((layout::format_left_column_value("Hostile", &hostile.to_string()), crate::theme::enemy_style()));
+    }
+    if defensive > 0 {
+        summary_rows.push((layout::format_left_column_value("Defensive", &defensive.to_string()), crate::theme::friendly_style()));
+    }
+    if idle > 0 {
+        summary_rows.push((layout::format_left_column_value("Idle", &idle.to_string()), crate::theme::dim_style()));
+    }
+
+    let active = app.game_data.empire_active_duty_summary(app.player_record_index_1_based);
+    if active.battleships > 0 {
+        summary_rows.push((layout::format_left_column_value("  BBs", &active.battleships.to_string()), crate::theme::dim_style()));
+    }
+    if active.cruisers > 0 {
+        summary_rows.push((layout::format_left_column_value("  CAs", &active.cruisers.to_string()), crate::theme::dim_style()));
+    }
+    if active.destroyers > 0 {
+        summary_rows.push((layout::format_left_column_value("  DDs", &active.destroyers.to_string()), crate::theme::dim_style()));
+    }
+    if active.scouts > 0 {
+        summary_rows.push((layout::format_left_column_value("  SCs", &active.scouts.to_string()), crate::theme::dim_style()));
+    }
+    if active.transports > 0 {
+        summary_rows.push((layout::format_left_column_value("  TRs", &active.transports.to_string()), crate::theme::dim_style()));
+    }
+    if active.etacs > 0 {
+        summary_rows.push((layout::format_left_column_value("  ETs", &active.etacs.to_string()), crate::theme::dim_style()));
+    }
+
+    summary_rows
 }

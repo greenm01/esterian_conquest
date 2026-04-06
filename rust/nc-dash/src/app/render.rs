@@ -11,7 +11,7 @@ use crate::overlays::{
     self,
     frame::{draw_full_backdrop, overlay_backdrop, OverlayBackdrop},
 };
-use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap};
+use crate::panels::{comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap};
 use crate::popups;
 use crate::theme;
 
@@ -41,6 +41,7 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     starmap::draw(&mut buf, app, widgets.center_map);
 
     // Right column panels.
+    comms::draw(&mut buf, app, widgets.right_comms);
     known_galaxy::draw(&mut buf, app, widgets.right_galaxy);
     diplomacy::draw(&mut buf, app, widgets.right_diplomacy);
     sector_detail::draw(&mut buf, app, widgets.right_sector_detail);

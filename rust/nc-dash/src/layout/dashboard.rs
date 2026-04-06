@@ -10,7 +10,7 @@ use crate::layout::geometry::{
 use crate::layout::widgets::{
     DashboardWidgetFrames, MapWidgetFrame, WidgetRect, frame_offset_for, panel_widget_frame,
 };
-use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, sector_detail};
+use crate::panels::{comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DashboardLayout {
@@ -38,6 +38,20 @@ pub fn dashboard_layout(app: &DashApp) -> DashboardLayout {
         MapViewMode::Readable => content_height,
         MapViewMode::Fill => content_height,
     };
+    
+    let comms_height = measurements.right_heights[0];
+    let galaxy_height = measurements.right_heights[1];
+    let detail_height = measurements.right_heights[3];
+    let used_right_height = comms_height + 1 + galaxy_height + 1 + 1 + detail_height;
+    let dyn_diplomacy_height = if content_height > used_right_height {
+        content_height.saturating_sub(used_right_height).min(measurements.right_heights[2])
+    } else {
+        0
+    };
+    
+    let mut actual_right_heights = measurements.right_heights;
+    actual_right_heights[2] = dyn_diplomacy_height;
+
     let widgets = build_widget_frames(
         app.geometry,
         frame,
@@ -45,7 +59,7 @@ pub fn dashboard_layout(app: &DashApp) -> DashboardLayout {
         measurements.left_width,
         measurements.right_width,
         measurements.left_heights,
-        measurements.right_heights,
+        actual_right_heights,
         map_block_width,
         map_block_height,
     );
@@ -74,7 +88,7 @@ struct DashboardMeasurements {
     left_width: usize,
     right_width: usize,
     left_heights: [usize; 3],
-    right_heights: [usize; 3],
+    right_heights: [usize; 4],
     minimum_center_width: usize,
     preferred_center_width: usize,
     minimum_map_height: usize,
@@ -88,6 +102,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
     let economy_rows = economy::body_rows(app);
     let planet_rows = planets::body_rows(app);
     let fleet_rows = fleets::body_rows(app);
+    let comms_rows = comms::body_rows(app);
     let galaxy_rows = known_galaxy::body_rows(app);
     let diplomacy_rows = diplomacy::body_rows(app);
 
@@ -100,6 +115,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
     .max()
     .unwrap_or(1);
     let right_width = [
+        panel_outer_width(comms::TITLE, styled_row_width(&comms_rows)),
         panel_outer_width(known_galaxy::TITLE, styled_row_width(&galaxy_rows)),
         panel_outer_width(diplomacy::TITLE, diplomacy_body_width(&diplomacy_rows)),
         panel_outer_width(sector_detail::TITLE, sector_detail::preferred_body_width(app)),
@@ -113,14 +129,18 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
         panel_outer_height(fleet_rows.len()),
     ];
     let right_heights = [
+        panel_outer_height(comms_rows.len()),
         panel_outer_height(galaxy_rows.len()),
         panel_outer_height(diplomacy_rows.len().max(1)),
         panel_outer_height(sector_detail::MAX_BODY_ROWS),
     ];
     let minimum_map_height = minimum_projected_map_height(map_size);
+    let left_stack = stack_height_3(left_heights);
+    let right_min_stack = right_heights[0] + 1 + right_heights[1] + 1 + right_heights[3] + 2; // comms + galaxy + sector + 1 for diplo min
+    
     let minimum_content_height = minimum_map_height
-        .max(stack_height(left_heights))
-        .max(stack_height(right_heights));
+        .max(left_stack)
+        .max(right_min_stack);
 
     // Dynamic snapping logic for "Readable" mode that fills well without uneven gaps.
     let side_widths = left_width + right_width;
@@ -179,7 +199,7 @@ fn panel_outer_height(body_rows: usize) -> usize {
     1 + body_rows
 }
 
-fn stack_height(heights: [usize; 3]) -> usize {
+fn stack_height_3(heights: [usize; 3]) -> usize {
     heights.into_iter().sum::<usize>() + 2
 }
 
@@ -214,7 +234,7 @@ fn build_widget_frames(
     left_width: usize,
     right_width: usize,
     left_heights: [usize; 3],
-    right_heights: [usize; 3],
+    right_heights: [usize; 4],
     map_block_width: usize,
     map_block_height: usize,
 ) -> DashboardWidgetFrames {
@@ -238,8 +258,10 @@ fn build_widget_frames(
 
     let left_planets_top = content_top + left_heights[0] + 1;
     let left_fleets_top = left_planets_top + left_heights[1] + 1;
-    let right_diplomacy_top = content_top + right_heights[0] + 1;
-    let right_sector_top = right_diplomacy_top + right_heights[1] + 1;
+    
+    let right_galaxy_top = content_top + right_heights[0] + 1;
+    let right_diplomacy_top = right_galaxy_top + right_heights[1] + 1;
+    let right_sector_top = right_diplomacy_top + right_heights[2] + 1;
 
     let center_outer = WidgetRect {
         col: center_col,
@@ -302,23 +324,29 @@ fn build_widget_frames(
             left_fleets_top + left_heights[2].saturating_sub(1),
         ),
         center_map,
-        right_galaxy: panel_widget_frame(
+        right_comms: panel_widget_frame(
             right_col,
             right_width,
             content_top,
             content_top + right_heights[0].saturating_sub(1),
         ),
+        right_galaxy: panel_widget_frame(
+            right_col,
+            right_width,
+            right_galaxy_top,
+            right_galaxy_top + right_heights[1].saturating_sub(1),
+        ),
         right_diplomacy: panel_widget_frame(
             right_col,
             right_width,
             right_diplomacy_top,
-            right_diplomacy_top + right_heights[1].saturating_sub(1),
+            right_diplomacy_top + right_heights[2].saturating_sub(1),
         ),
         right_sector_detail: panel_widget_frame(
             right_col,
             right_width,
             right_sector_top,
-            right_sector_top + right_heights[2].saturating_sub(1),
+            right_sector_top + right_heights[3].saturating_sub(1),
         ),
     }
 }

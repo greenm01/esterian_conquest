@@ -1,5 +1,6 @@
 //! Dashboard side panels and starmap.
 
+pub mod comms;
 pub mod diplomacy;
 pub mod economy;
 pub mod fleets;

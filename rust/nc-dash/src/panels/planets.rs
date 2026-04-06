@@ -101,5 +101,28 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         ));
     }
 
+    let stardock = app.game_data.empire_stardock_summary(app.player_record_index_1_based);
+    if stardock.battleships > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld BBs", &stardock.battleships.to_string()), crate::theme::dim_style()));
+    }
+    if stardock.cruisers > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld CAs", &stardock.cruisers.to_string()), crate::theme::dim_style()));
+    }
+    if stardock.destroyers > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld DDs", &stardock.destroyers.to_string()), crate::theme::dim_style()));
+    }
+    if stardock.scouts > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld SCs", &stardock.scouts.to_string()), crate::theme::dim_style()));
+    }
+    if stardock.transports > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld TRs", &stardock.transports.to_string()), crate::theme::dim_style()));
+    }
+    if stardock.etacs > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld ETs", &stardock.etacs.to_string()), crate::theme::dim_style()));
+    }
+    if stardock.starbases > 0 {
+        summary_rows.push((layout::format_left_column_value("Bld SBs", &stardock.starbases.to_string()), crate::theme::dim_style()));
+    }
+
     summary_rows
 }

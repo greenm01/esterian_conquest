@@ -66,6 +66,7 @@ pub struct DashboardWidgetFrames {
     pub left_planets: PanelWidgetFrame,
     pub left_fleets: PanelWidgetFrame,
     pub center_map: MapWidgetFrame,
+    pub right_comms: PanelWidgetFrame,
     pub right_galaxy: PanelWidgetFrame,
     pub right_diplomacy: PanelWidgetFrame,
     pub right_sector_detail: PanelWidgetFrame,
