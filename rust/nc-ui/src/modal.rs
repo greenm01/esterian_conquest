@@ -182,7 +182,7 @@ where
         .max()
         .unwrap_or(0);
     rows.into_iter()
-        .map(|(command, description)| format!("{command:<command_width$} {description}"))
+        .map(|(command, description)| format!("{command:<command_width$} : {description}"))
         .collect()
 }
 

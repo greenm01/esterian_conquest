@@ -15,10 +15,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         "HELP",
         76,
         lines.len() + 5,
-        TableFooter::CommandPrompt {
-            label: "COMMAND",
-            prompt: "? or <Q> to close ->",
-        },
+        TableFooter::Dismiss,
     );
 
     for (idx, line) in lines.iter().enumerate().take(frame.body_height) {

@@ -65,12 +65,24 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
         }
     }
 
+    let label_width = layout::label_value_width([
+        "Total Worlds",
+        "Active Docks",
+        "Starbases",
+        "Total Armies",
+        "Grnd Batteries",
+        "Vulnerable",
+    ]);
     let summary_rows = vec![
-        format!(" Total Worlds:   {:>4}", owned_count),
-        format!(" Active Docks:   {:>4}", stardocks_active),
-        format!(" Starbases:      {:>4}", starbases_built),
-        format!(" Total Armies:   {:>4}", armies_mustered),
-        format!(" Grnd Batteries: {:>4}", ground_batteries),
+        layout::format_label_value("Total Worlds", label_width, &format!("{owned_count:>4}")),
+        layout::format_label_value("Active Docks", label_width, &format!("{stardocks_active:>4}")),
+        layout::format_label_value("Starbases", label_width, &format!("{starbases_built:>4}")),
+        layout::format_label_value("Total Armies", label_width, &format!("{armies_mustered:>4}")),
+        layout::format_label_value(
+            "Grnd Batteries",
+            label_width,
+            &format!("{ground_batteries:>4}"),
+        ),
     ];
 
     for (i, row) in summary_rows.iter().enumerate() {
@@ -81,7 +93,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     }
 
     if summary_rows.len() < frame.body.height && vulnerable_worlds > 0 {
-        let warning = format!(" Vulnerable:     {:>4}", vulnerable_worlds);
+        let warning = layout::format_label_value(
+            "Vulnerable",
+            label_width,
+            &format!("{vulnerable_worlds:>4}"),
+        );
         layout::write_panel_body_line(
             buf,
             frame,

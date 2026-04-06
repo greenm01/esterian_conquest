@@ -172,6 +172,20 @@ mod tests {
     }
 
     #[test]
+    fn dismiss_footer_keeps_modal_side_borders_intact() {
+        let mut buffer = PlayfieldBuffer::new(40, 20, theme::body_style());
+        let frame = draw_overlay_frame(&mut buffer, "HELP", 18, 8, TableFooter::Dismiss);
+
+        let footer_row = frame.footer_row;
+        let footer_line = buffer.row(footer_row).iter().map(|cell| cell.ch).collect::<String>();
+        let left_border = footer_line.find('│').expect("left footer border");
+        let right_border = footer_line.rfind('│').expect("right footer border");
+
+        assert!(footer_line.contains("(slap a key)"));
+        assert!(left_border < right_border);
+    }
+
+    #[test]
     fn overlay_border_and_title_use_themed_background() {
         let mut buffer = PlayfieldBuffer::new(40, 20, theme::body_style());
         draw_overlay_frame(

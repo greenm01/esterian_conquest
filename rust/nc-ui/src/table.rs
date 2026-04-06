@@ -774,12 +774,9 @@ pub fn draw_table_footer_in_span(
     footer: TableFooter<'_>,
 ) -> usize {
     match footer {
-        TableFooter::Dismiss => shared_prompt::draw_plain_prompt_at_col(
-            buffer,
-            row,
-            col,
-            "(slap a key)",
-        ),
+        TableFooter::Dismiss => {
+            shared_prompt::draw_plain_prompt_in_span(buffer, row, col, width, "(slap a key)")
+        }
         TableFooter::CommandBar {
             hotkeys_markup,
             default,

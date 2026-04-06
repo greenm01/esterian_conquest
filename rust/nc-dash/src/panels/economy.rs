@@ -35,26 +35,31 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     } else {
         0
     };
+    let label_width = layout::label_value_width(["Treasury", "Prod", "Revenue", "Growth"]);
 
     layout::write_panel_body_line(
         buf,
         frame,
         0,
-        &format!(" Treasury:{:>7}", total_treasury),
+        &layout::format_label_value("Treasury", label_width, &format!("{total_treasury:>7}")),
         theme::value_style(),
     );
     layout::write_panel_body_line(
         buf,
         frame,
         1,
-        &format!(" Prod:{}/{}", total_present, total_potential),
+        &layout::format_label_value(
+            "Prod",
+            label_width,
+            &format!("{total_present}/{total_potential}"),
+        ),
         theme::value_style(),
     );
     layout::write_panel_body_line(
         buf,
         frame,
         2,
-        &format!(" Revenue:{:>7}", revenue),
+        &layout::format_label_value("Revenue", label_width, &format!("{revenue:>7}")),
         theme::value_style(),
     );
     let gs = if growth > 0 {
@@ -64,5 +69,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     } else {
         theme::dim_style()
     };
-    layout::write_panel_body_line(buf, frame, 3, &format!(" Growth:{:>+7}", growth), gs);
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        3,
+        &layout::format_label_value("Growth", label_width, &format!("{growth:>+7}")),
+        gs,
+    );
 }

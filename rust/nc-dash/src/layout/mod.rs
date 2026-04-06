@@ -9,7 +9,8 @@ use crate::app::state::DashApp;
 use crate::theme;
 pub use widgets::{
     DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame, dashboard_widget_frames,
-    frame_offset_for, write_clipped, write_panel_body_line, write_panel_title, write_strict_span,
+    format_label_value, frame_offset_for, label_value_width, write_clipped,
+    write_panel_body_line, write_panel_title, write_strict_span,
 };
 
 /// Compute the (col, row) offset to center the frame in the canvas.

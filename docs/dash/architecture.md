@@ -129,6 +129,17 @@ show through behind busy tables:
 Lighter overlays such as diplomacy, help, and settings keep the live
 dashboard visible behind the popup.
 
+Helper modals are dismissal-only. They should use a plain dismissal footer
+like `(slap a key)` instead of a `COMMAND <- ... ->` rail. More generally,
+command-line chrome is reserved for modals that are actually collecting or
+advertising actionable commands. Dismissal footers must render entirely inside
+the modal footer span and must never overwrite the modal borders.
+
+Within any dash modal or widget body that uses colon-separated label/value
+rows, the `:` column should align consistently across that block, matching the
+`INFO ABOUT A PLANET:` detail layout. Ad hoc `Label:value` spacing is not
+allowed for dashboard widgets or modal body text.
+
 These overlays should match `nc-game` behavior and command semantics where
 applicable, but they should use the extra dashboard real estate rather than
 the legacy 80×25 geometry.

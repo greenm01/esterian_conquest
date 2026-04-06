@@ -298,6 +298,21 @@ pub fn write_panel_body_line(
     );
 }
 
+pub fn label_value_width<'a, I>(labels: I) -> usize
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    labels
+        .into_iter()
+        .map(|label| label.chars().count())
+        .max()
+        .unwrap_or(0)
+}
+
+pub fn format_label_value(label: &str, label_width: usize, value: &str) -> String {
+    format!("{label:<label_width$} : {value}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,5 +388,22 @@ mod tests {
             "TOO LONG PANEL TITLE",
             CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false),
         );
+    }
+
+    #[test]
+    fn format_label_value_aligns_colons() {
+        let label_width = label_value_width(["Treasury", "Prod", "Revenue"]);
+        let rows = [
+            format_label_value("Treasury", label_width, "820"),
+            format_label_value("Prod", label_width, "980/1200"),
+            format_label_value("Revenue", label_width, "210"),
+        ];
+
+        let colon_col_1 = rows[0].find(" : ").expect("first colon");
+        let colon_col_2 = rows[1].find(" : ").expect("second colon");
+        let colon_col_3 = rows[2].find(" : ").expect("third colon");
+
+        assert_eq!(colon_col_1, colon_col_2);
+        assert_eq!(colon_col_2, colon_col_3);
     }
 }

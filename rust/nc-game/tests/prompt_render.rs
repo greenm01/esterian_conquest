@@ -67,17 +67,22 @@ fn draw_plain_prompt_highlights_square_and_angle_hotkeys() {
 }
 
 #[test]
-fn shared_help_rows_align_descriptions_to_the_longest_command() {
+fn shared_help_rows_align_colons_and_descriptions_to_the_longest_command() {
     let rows = nc_ui::modal::format_help_rows([
         ("J/K", "move selection"),
         ("^U/^D", "page up/down"),
         ("Backspace", "erase typed input"),
     ]);
 
+    let colon_col_1 = rows[0].find(" : ").expect("first colon");
+    let colon_col_2 = rows[1].find(" : ").expect("second colon");
+    let colon_col_3 = rows[2].find(" : ").expect("third colon");
     let move_col = rows[0].find("move selection").expect("move column");
     let page_col = rows[1].find("page up/down").expect("page column");
     let erase_col = rows[2].find("erase typed input").expect("erase column");
 
+    assert_eq!(colon_col_1, colon_col_2);
+    assert_eq!(colon_col_2, colon_col_3);
     assert_eq!(move_col, page_col);
     assert_eq!(page_col, erase_col);
 }

@@ -25,10 +25,7 @@ pub fn draw(
         .map(|line| line.chars().count())
         .max()
         .unwrap_or(0);
-    let footer = TableFooter::CommandPrompt {
-        label: "COMMAND",
-        prompt: "Enter, Esc, or <Q> to close ->",
-    };
+    let footer = TableFooter::Dismiss;
     let popup = draw_center_map_popup_frame(
         buf,
         map_frame,
@@ -121,13 +118,9 @@ fn draw_center_map_popup_frame(
 }
 
 fn popup_lines(lines: &[crate::planet_view::DetailLine]) -> Vec<String> {
-    let label_width = lines
-        .iter()
-        .map(|line| line.label.chars().count())
-        .max()
-        .unwrap_or(0);
+    let label_width = layout::label_value_width(lines.iter().map(|line| line.label));
     lines
         .iter()
-        .map(|line| format!("{:<label_width$} : {}", line.label, line.value))
+        .map(|line| layout::format_label_value(line.label, label_width, &line.value))
         .collect()
 }

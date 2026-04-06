@@ -483,7 +483,8 @@ pub fn draw_table_command_bar_in_span(
                 StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
             ],
         );
-    cursor_col = write_command_rail_tokens_in_span(buffer, row, cursor_col, span_end, hotkeys_markup);
+    cursor_col =
+        write_command_rail_tokens_in_span(buffer, row, cursor_col, span_end, hotkeys_markup);
     if let Some(default) = default {
         cursor_col += write_spans_clipped_to_span(
             buffer,
@@ -611,6 +612,25 @@ pub fn draw_plain_prompt_at_col(
     cursor_col
 }
 
+pub fn draw_plain_prompt_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    prompt: &str,
+) -> usize {
+    fill_prompt_span(buffer, row, col, width);
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup_in_span(buffer, row, col, col + width, &prompt);
+    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+        let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
+        buffer.set_cursor(clamped as u16, row as u16);
+        clamped
+    } else {
+        cursor_col
+    }
+}
+
 pub fn draw_right_aligned_footer_text(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -647,7 +667,13 @@ fn fill_prompt_span(buffer: &mut PlayfieldBuffer, row: usize, col: usize, width:
     if width == 0 || row >= buffer.height() || col >= buffer.width() {
         return;
     }
-    buffer.fill_rect(row, col, width.min(buffer.width().saturating_sub(col)), 1, classic::prompt_style());
+    buffer.fill_rect(
+        row,
+        col,
+        width.min(buffer.width().saturating_sub(col)),
+        1,
+        classic::prompt_style(),
+    );
 }
 
 fn write_text_clipped_to_span(
@@ -712,7 +738,11 @@ fn write_live_input_clipped_to_span(
 
     let written = write_text_clipped_to_span(buffer, row, col, span_end, input, style);
     let input_width = input.chars().count();
-    let cursor_col = if input_width > written { max_col } else { col + written };
+    let cursor_col = if input_width > written {
+        max_col
+    } else {
+        col + written
+    };
     buffer.set_cursor(cursor_col.min(max_col) as u16, row as u16);
     cursor_col.min(max_col)
 }
@@ -788,7 +818,14 @@ fn write_command_rail_tokens_in_span(
     let mut first = true;
     for token in tokens.split_whitespace() {
         if !first {
-            col += write_text_clipped_to_span(buffer, row, col, span_end, " ", classic::prompt_style());
+            col += write_text_clipped_to_span(
+                buffer,
+                row,
+                col,
+                span_end,
+                " ",
+                classic::prompt_style(),
+            );
         }
         col += write_command_rail_token_in_span(buffer, row, col, span_end, token);
         first = false;
@@ -871,7 +908,14 @@ fn write_command_rail_token_in_span(
             ],
         )
     } else {
-        write_text_clipped_to_span(buffer, row, col, span_end, token, classic::prompt_hotkey_style())
+        write_text_clipped_to_span(
+            buffer,
+            row,
+            col,
+            span_end,
+            token,
+            classic::prompt_hotkey_style(),
+        )
     }
 }
 
@@ -1021,7 +1065,14 @@ fn write_prompt_markup_in_span(
     while idx < chars.len() {
         if let Some((phrase_end, key_start, key_end)) = slap_a_key_phrase(&chars, idx) {
             if !plain.is_empty() {
-                col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    &plain,
+                    classic::prompt_style(),
+                );
                 plain.clear();
             }
             if key_start > idx {
@@ -1036,7 +1087,14 @@ fn write_prompt_markup_in_span(
                 );
             }
             let key = chars[key_start..key_end].iter().collect::<String>();
-            col += write_text_clipped_to_span(buffer, row, col, span_end, &key, classic::prompt_hotkey_style());
+            col += write_text_clipped_to_span(
+                buffer,
+                row,
+                col,
+                span_end,
+                &key,
+                classic::prompt_hotkey_style(),
+            );
             idx = phrase_end;
             continue;
         }
@@ -1047,7 +1105,14 @@ fn write_prompt_markup_in_span(
             let close_idx = idx + 1 + close_idx;
             if is_prompt_angle_hotkey(&chars[idx + 1..close_idx]) {
                 if !plain.is_empty() {
-                    col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                    col += write_text_clipped_to_span(
+                        buffer,
+                        row,
+                        col,
+                        span_end,
+                        &plain,
+                        classic::prompt_style(),
+                    );
                     plain.clear();
                 }
                 col += write_text_clipped_to_span(
@@ -1088,7 +1153,14 @@ fn write_prompt_markup_in_span(
             let close_idx = idx + 1 + close_idx;
             if is_prompt_bracket_hotkey(&chars[idx + 1..close_idx]) {
                 if !plain.is_empty() {
-                    col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                    col += write_text_clipped_to_span(
+                        buffer,
+                        row,
+                        col,
+                        span_end,
+                        &plain,
+                        classic::prompt_style(),
+                    );
                     plain.clear();
                 }
                 col += write_text_clipped_to_span(
@@ -1131,10 +1203,24 @@ fn write_prompt_markup_in_span(
             let token = chars[start..idx].iter().collect::<String>();
             if is_prompt_slash_hotkey_token(&chars, start, idx) {
                 if !plain.is_empty() {
-                    col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+                    col += write_text_clipped_to_span(
+                        buffer,
+                        row,
+                        col,
+                        span_end,
+                        &plain,
+                        classic::prompt_style(),
+                    );
                     plain.clear();
                 }
-                col += write_text_clipped_to_span(buffer, row, col, span_end, &token, classic::prompt_hotkey_style());
+                col += write_text_clipped_to_span(
+                    buffer,
+                    row,
+                    col,
+                    span_end,
+                    &token,
+                    classic::prompt_hotkey_style(),
+                );
             } else {
                 plain.push_str(&token);
             }
@@ -1146,7 +1232,8 @@ fn write_prompt_markup_in_span(
     }
 
     if !plain.is_empty() {
-        col += write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
+        col +=
+            write_text_clipped_to_span(buffer, row, col, span_end, &plain, classic::prompt_style());
     }
 
     col
@@ -1197,7 +1284,8 @@ mod tests {
         command_line_default_input_width_with_cancel, draw_command_line_default_input_at,
         draw_command_line_default_input_with_cancel_at,
         draw_command_line_default_input_with_cancel_in_span, draw_command_line_prompt_text_at,
-        draw_command_prompt_at, draw_plain_prompt, draw_right_aligned_footer_text,
+        draw_command_prompt_at, draw_plain_prompt, draw_plain_prompt_in_span,
+        draw_right_aligned_footer_text,
         draw_table_command_bar_at, draw_table_command_bar_in_span,
         table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
@@ -1435,6 +1523,20 @@ mod tests {
         assert_eq!(cursor_row, 24);
         assert_eq!(cursor_col as usize, 31);
         assert!(buffer.plain_line(24).starts_with("This is a very long"));
+    }
+
+    #[test]
+    fn plain_prompt_in_span_keeps_border_columns_intact() {
+        let mut buffer = PlayfieldBuffer::new(40, 25, classic::body_style());
+        buffer.set_cell(24, 9, '│', classic::table_chrome_style());
+        buffer.set_cell(24, 24, '│', classic::table_chrome_style());
+
+        draw_plain_prompt_in_span(&mut buffer, 24, 10, 14, "(slap a key)");
+
+        assert_eq!(buffer.row(24)[9].ch, '│');
+        assert_eq!(buffer.row(24)[24].ch, '│');
+        assert!(buffer.plain_line(24).contains("(slap a key)"));
+        assert!(buffer.cursor().is_none());
     }
 
     #[test]
