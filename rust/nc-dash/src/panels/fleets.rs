@@ -56,21 +56,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
         }
     }
 
-    let label_width = layout::label_value_width([
-        "Total Fleets",
-        "Total Ships",
-        "In Transit",
-        "Hostile",
-        "Defensive",
-        "Idle",
-    ]);
     let summary_rows = vec![
-        layout::format_label_value("Total Fleets", label_width, &format!("{total_fleets:>4}")),
-        layout::format_label_value("Total Ships", label_width, &format!("{total_ships:>4}")),
-        layout::format_label_value("In Transit", label_width, &format!("{in_transit:>4}")),
-        layout::format_label_value("Hostile", label_width, &format!("{hostile:>4}")),
-        layout::format_label_value("Defensive", label_width, &format!("{defensive:>4}")),
-        layout::format_label_value("Idle", label_width, &format!("{idle:>4}")),
+        layout::format_left_column_value("Tot Fleets", &total_fleets.to_string()),
+        layout::format_left_column_value("Tot Ships", &total_ships.to_string()),
+        layout::format_left_column_value("In Transit", &in_transit.to_string()),
+        layout::format_left_column_value("Hostile", &hostile.to_string()),
+        layout::format_left_column_value("Defensive", &defensive.to_string()),
+        layout::format_left_column_value("Idle", &idle.to_string()),
     ];
 
     for (i, row) in summary_rows.iter().enumerate() {

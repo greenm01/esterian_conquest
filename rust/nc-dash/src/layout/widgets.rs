@@ -314,8 +314,34 @@ where
         .unwrap_or(0)
 }
 
+pub fn left_column_label_width() -> usize {
+    label_value_width([
+        "Treasury",
+        "Prod",
+        "Revenue",
+        "Growth",
+        "Tot Worlds",
+        "Act Docks",
+        "Starbases",
+        "Tot Armies",
+        "GBs",
+        "Vulnerable",
+        "Tot Fleets",
+        "Tot Ships",
+        "In Transit",
+        "Hostile",
+        "Defensive",
+        "Idle",
+    ])
+}
+
 pub fn format_label_value(label: &str, label_width: usize, value: &str) -> String {
     format!("{label:<label_width$} : {value}")
+}
+
+pub fn format_left_column_value(label: &str, value: &str) -> String {
+    let label_width = left_column_label_width();
+    format!("{label:<label_width$}: {value}")
 }
 
 #[cfg(test)]
@@ -429,5 +455,35 @@ mod tests {
 
         assert_eq!(colon_col_1, colon_col_2);
         assert_eq!(colon_col_2, colon_col_3);
+    }
+
+    #[test]
+    fn left_column_shared_label_width_aligns_colons_across_widgets() {
+        let economy = format_left_column_value("Treasury", "820");
+        let planets = format_left_column_value("GBs", "12");
+        let fleets = format_left_column_value("In Transit", "3");
+
+        let economy_col = economy.find(": ").expect("economy colon");
+        let planets_col = planets.find(": ").expect("planets colon");
+        let fleets_col = fleets.find(": ").expect("fleets colon");
+
+        assert_eq!(economy_col, planets_col);
+        assert_eq!(planets_col, fleets_col);
+    }
+
+    #[test]
+    fn compact_left_column_rows_fit_panel_body_width() {
+        let rows = [
+            format_left_column_value("Treasury", "217"),
+            format_left_column_value("Prod", "332/775"),
+            format_left_column_value("Tot Worlds", "9"),
+            format_left_column_value("Act Docks", "3"),
+            format_left_column_value("Tot Fleets", "7"),
+            format_left_column_value("In Transit", "0"),
+        ];
+
+        for row in rows {
+            assert!(row.chars().count() <= 19, "{row:?} exceeds left panel body width");
+        }
     }
 }

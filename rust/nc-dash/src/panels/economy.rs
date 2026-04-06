@@ -35,31 +35,25 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     } else {
         0
     };
-    let label_width = layout::label_value_width(["Treasury", "Prod", "Revenue", "Growth"]);
-
     layout::write_panel_body_line(
         buf,
         frame,
         0,
-        &layout::format_label_value("Treasury", label_width, &format!("{total_treasury:>7}")),
+        &layout::format_left_column_value("Treasury", &total_treasury.to_string()),
         theme::value_style(),
     );
     layout::write_panel_body_line(
         buf,
         frame,
         1,
-        &layout::format_label_value(
-            "Prod",
-            label_width,
-            &format!("{total_present}/{total_potential}"),
-        ),
+        &layout::format_left_column_value("Prod", &format!("{total_present}/{total_potential}")),
         theme::value_style(),
     );
     layout::write_panel_body_line(
         buf,
         frame,
         2,
-        &layout::format_label_value("Revenue", label_width, &format!("{revenue:>7}")),
+        &layout::format_left_column_value("Revenue", &revenue.to_string()),
         theme::value_style(),
     );
     let gs = if growth > 0 {
@@ -73,7 +67,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
         buf,
         frame,
         3,
-        &layout::format_label_value("Growth", label_width, &format!("{growth:>+7}")),
+        &layout::format_left_column_value("Growth", &format!("{growth:+}")),
         gs,
     );
 }

@@ -157,6 +157,11 @@ rows, the `:` column should align consistently across that block, matching the
 `INFO ABOUT A PLANET:` detail layout. Ad hoc `Label:value` spacing is not
 allowed for dashboard widgets or modal body text.
 
+For the three stacked left-column dashboard widgets (`ECONOMY`, `MY PLANETS`,
+and `ACTIVE FLEETS`), treat the whole column as one shared label/value grid:
+their `:` columns should align vertically across the overall dashboard, not
+independently per widget.
+
 These overlays should match `nc-game` behavior and command semantics where
 applicable, but they should use the extra dashboard real estate rather than
 the legacy 80×25 geometry.
@@ -171,15 +176,16 @@ Three stacked sections, all visible simultaneously:
   per turn). The player sees his spending power, capacity gap, and
   whether the empire is growing or stagnating.
 - **My Planets:** Summary of planetary assets:
-  Total Worlds, Active Docks (planets with items in stardock), Starbases
-  (active owned starbases), Total Armies, Grnd Batteries. A "Vulnerable"
-  count appears in red if any owned worlds have 0 armies and 0 batteries.
+  `Tot Worlds`, `Act Docks`, `Starbases`, `Tot Armies`, `GBs`. A
+  `Vulnerable` count appears in red if any owned worlds have 0 armies and 0
+  batteries.
 - **Active Fleets:** Summary of space assets and their current postures:
-  Total Fleets, Total Ships, In Transit (moving or seeking), Hostile
-  (bombarding or invading), Defensive (patrolling or guarding), Idle (holding).
+  `Tot Fleets`, `Tot Ships`, `In Transit`, `Hostile`, `Defensive`, `Idle`.
 
-Both lists use a matching `key: value` format for visual consistency and
-maximum density.
+Both lists use a matching `key : value` format, with the left column sharing
+one common `:` column across all three stacked widgets. Labels may be
+abbreviated where needed to keep the values visible inside the fixed 20-char
+left-column width.
 
 
 
