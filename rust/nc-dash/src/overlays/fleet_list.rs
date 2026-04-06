@@ -1,6 +1,7 @@
 //! F overlay: dashboard-sized fleet and starbase command table.
 
 use nc_ui::PlayfieldBuffer;
+use nc_ui::coords::format_sector_coords_table;
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_table_window_with_theme_at,
@@ -11,7 +12,7 @@ use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::panels::fleets::order_abbrev;
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? J K ^U ^D O C M T I <Q>";
+pub(crate) const HOTKEYS: &str = "? O C M T I <Q>";
 const COLUMNS: [TableColumn<'static>; 9] = [
     TableColumn::right("ID", 4),
     TableColumn::left("Location", 8),
@@ -145,7 +146,7 @@ fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usi
 }
 
 fn format_coords(coords: [u8; 2]) -> String {
-    format!("({:02},{:02})", coords[0], coords[1])
+    format_sector_coords_table(coords)
 }
 
 fn format_target(coords: [u8; 2]) -> String {

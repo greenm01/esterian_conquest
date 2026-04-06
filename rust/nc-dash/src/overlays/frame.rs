@@ -113,7 +113,7 @@ mod tests {
             80,
             20,
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K <Q>",
+                hotkeys_markup: "? <Q>",
                 default: None,
                 input: "",
             },
@@ -124,7 +124,7 @@ mod tests {
         assert_eq!(
             buffer
                 .plain_line(frame.footer_row)
-                .contains("COMMAND <- ? J K <Q> ->"),
+                .contains("COMMAND <- ? <Q> ->"),
             true
         );
     }
@@ -138,7 +138,7 @@ mod tests {
             72,
             14,
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D O C M T I <Q>",
+                hotkeys_markup: "? O C M T I <Q>",
                 default: None,
                 input: "",
             },
@@ -157,7 +157,7 @@ mod tests {
             18,
             8,
             TableFooter::CommandBar {
-                hotkeys_markup: "? J K ^U ^D <Q>",
+                hotkeys_markup: "? <Q>",
                 default: Some("12,03"),
                 input: "1",
             },

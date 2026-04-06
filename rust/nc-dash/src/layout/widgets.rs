@@ -140,22 +140,37 @@ pub fn dashboard_widget_frames(
         footer_bar_row,
         left_divider_col,
         right_divider_col,
-        left_economy: panel_widget_frame(left_col, LEFT_WIDTH, content_top, left_sep_1.saturating_sub(1)),
-        left_planets: panel_widget_frame(left_col, LEFT_WIDTH, left_sep_1 + 1, lower_sep.saturating_sub(1)),
+        left_economy: panel_widget_frame(
+            left_col,
+            LEFT_WIDTH,
+            content_top,
+            left_sep_1.saturating_sub(1),
+        ),
+        left_planets: panel_widget_frame(
+            left_col,
+            LEFT_WIDTH,
+            left_sep_1 + 1,
+            lower_sep.saturating_sub(1),
+        ),
         left_fleets: panel_widget_frame(left_col, LEFT_WIDTH, lower_sep + 1, content_bottom),
         center_map,
-        right_galaxy: panel_widget_frame(right_col, RIGHT_WIDTH, content_top, right_sep_1.saturating_sub(1)),
-        right_diplomacy: panel_widget_frame(right_col, RIGHT_WIDTH, right_sep_1 + 1, lower_sep.saturating_sub(1)),
+        right_galaxy: panel_widget_frame(
+            right_col,
+            RIGHT_WIDTH,
+            content_top,
+            right_sep_1.saturating_sub(1),
+        ),
+        right_diplomacy: panel_widget_frame(
+            right_col,
+            RIGHT_WIDTH,
+            right_sep_1 + 1,
+            lower_sep.saturating_sub(1),
+        ),
         right_reports: panel_widget_frame(right_col, RIGHT_WIDTH, lower_sep + 1, content_bottom),
     }
 }
 
-fn panel_widget_frame(
-    col: usize,
-    width: usize,
-    top: usize,
-    bottom: usize,
-) -> PanelWidgetFrame {
+fn panel_widget_frame(col: usize, width: usize, top: usize, bottom: usize) -> PanelWidgetFrame {
     let outer = WidgetRect {
         col,
         row: top,
@@ -182,12 +197,7 @@ fn assert_text_fits_span(context: &str, text: &str, width: usize) {
     );
 }
 
-fn assert_row_col_in_buffer(
-    buf: &PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    context: &str,
-) {
+fn assert_row_col_in_buffer(buf: &PlayfieldBuffer, row: usize, col: usize, context: &str) {
     assert!(
         row < buf.height(),
         "{context} row {row} is outside buffer height {}",
@@ -294,11 +304,11 @@ mod tests {
         let frame = dashboard_geometry(18);
         let widgets = dashboard_widget_frames(canvas, frame);
 
-        assert_eq!(widgets.left_economy.outer.col, frame_offset_for(canvas, frame).0 + 1);
         assert_eq!(
-            widgets.center_map.outer.col,
-            widgets.left_divider_col + 1,
+            widgets.left_economy.outer.col,
+            frame_offset_for(canvas, frame).0 + 1
         );
+        assert_eq!(widgets.center_map.outer.col, widgets.left_divider_col + 1,);
         assert_eq!(
             widgets.center_map.outer.last_col(),
             widgets.right_divider_col.saturating_sub(1),
@@ -331,13 +341,32 @@ mod tests {
     #[test]
     #[should_panic(expected = "panel title overruns its widget span")]
     fn panel_title_panics_when_it_overruns_widget_span() {
-        let mut buffer = PlayfieldBuffer::new(40, 10, CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false));
+        let mut buffer = PlayfieldBuffer::new(
+            40,
+            10,
+            CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false),
+        );
         let frame = PanelWidgetFrame {
-            outer: WidgetRect { col: 1, row: 1, width: 8, height: 4 },
+            outer: WidgetRect {
+                col: 1,
+                row: 1,
+                width: 8,
+                height: 4,
+            },
             title_row: 1,
-            body: WidgetRect { col: 2, row: 2, width: 7, height: 3 },
+            body: WidgetRect {
+                col: 2,
+                row: 2,
+                width: 7,
+                height: 3,
+            },
         };
 
-        write_panel_title(&mut buffer, frame, "TOO LONG PANEL TITLE", CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false));
+        write_panel_title(
+            &mut buffer,
+            frame,
+            "TOO LONG PANEL TITLE",
+            CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false),
+        );
     }
 }

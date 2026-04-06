@@ -1,5 +1,6 @@
 pub mod branding;
 pub mod buffer;
+pub mod coords;
 pub mod layout;
 pub mod modal;
 pub mod paint;

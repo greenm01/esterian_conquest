@@ -68,13 +68,5 @@ pub fn icd_style() -> CellStyle {
 }
 
 pub fn table_theme() -> TableRenderTheme {
-    TableRenderTheme {
-        header_style: section_title_style(),
-        chrome_style: border_style(),
-        body_style: value_style(),
-        disabled_row_style: dim_style(),
-        selected_style: alert_style(),
-        scroll_track_style: dim_style(),
-        scrollbar_thumb_style: title_style(),
-    }
+    TableRenderTheme::classic()
 }

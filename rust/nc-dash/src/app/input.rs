@@ -55,7 +55,9 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         // Global overlay shortcuts
         KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenOverlay(ActiveOverlay::PlanetList),
         KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenOverlay(ActiveOverlay::FleetList),
-        KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenOverlay(ActiveOverlay::IntelDatabase),
+        KeyCode::Char('i') | KeyCode::Char('I') => {
+            Action::OpenOverlay(ActiveOverlay::IntelDatabase)
+        }
         KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenOverlay(ActiveOverlay::Inbox),
         KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenOverlay(ActiveOverlay::Diplomacy),
         KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenOverlay(ActiveOverlay::Settings),

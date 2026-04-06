@@ -176,7 +176,9 @@ pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .fleets
         .records
         .iter()
-        .filter(|f| f.owner_empire_raw() == app.player_record_index_1_based as u8 && f.has_any_force())
+        .filter(|f| {
+            f.owner_empire_raw() == app.player_record_index_1_based as u8 && f.has_any_force()
+        })
         .count();
     let tax = player.map(|p| p.tax_rate()).unwrap_or(0);
     let ap = if app.autopilot_on { "ON" } else { "OFF" };
@@ -307,22 +309,19 @@ mod tests {
             .collect();
 
         assert_eq!(
-            left_sep_line
-                .chars()
-                .nth(widgets.left_economy.outer.col),
+            left_sep_line.chars().nth(widgets.left_economy.outer.col),
             Some('─')
         );
         assert_eq!(
-            right_sep_line
-                .chars()
-                .nth(widgets.right_galaxy.outer.col),
+            right_sep_line.chars().nth(widgets.right_galaxy.outer.col),
             Some('─')
         );
         assert_eq!(
             line_char(
                 &buffer,
                 widgets.left_planets.outer.row.saturating_sub(1),
-                widgets.outer_top.saturating_sub(widgets.outer_top) + frame_offset_for(canvas, frame).0,
+                widgets.outer_top.saturating_sub(widgets.outer_top)
+                    + frame_offset_for(canvas, frame).0,
             ),
             Some('├')
         );
@@ -354,8 +353,14 @@ mod tests {
         let right_border_col = left_border_col + frame.width().saturating_sub(1);
 
         assert_eq!(line_char(&buffer, left_row, left_border_col), Some('├'));
-        assert_eq!(line_char(&buffer, left_row, widgets.left_divider_col), Some('┤'));
-        assert_eq!(line_char(&buffer, right_row, widgets.right_divider_col), Some('├'));
+        assert_eq!(
+            line_char(&buffer, left_row, widgets.left_divider_col),
+            Some('┤')
+        );
+        assert_eq!(
+            line_char(&buffer, right_row, widgets.right_divider_col),
+            Some('├')
+        );
         assert_eq!(line_char(&buffer, right_row, right_border_col), Some('┤'));
     }
 }

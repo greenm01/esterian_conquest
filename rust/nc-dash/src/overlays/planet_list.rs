@@ -4,6 +4,7 @@ use nc_data::{
     PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
 };
 use nc_ui::PlayfieldBuffer;
+use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
@@ -13,7 +14,7 @@ use crate::app::state::DashApp;
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? J K ^U ^D B A C L U X S I T <Q>";
+pub(crate) const HOTKEYS: &str = "? B A C L U X S I T <Q>";
 const TOP_HEADERS: [&str; 12] = [
     "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
 ];
@@ -35,13 +36,10 @@ const COLUMNS: [TableColumn<'static>; 12] = [
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let rows = table_rows(app);
     let selected = app.planet_overlay.selected.min(rows.len().saturating_sub(1));
-    let selected_default = rows
-        .get(selected)
-        .and_then(|row| row.first())
-        .map(String::as_str);
+    let selected_default = selected_default(app);
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
-        default: selected_default,
+        default: selected_default.as_deref(),
         input: &app.planet_overlay.jump_input,
     };
     let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(11));
@@ -103,6 +101,18 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
         .collect()
 }
 
+fn selected_default(app: &DashApp) -> Option<String> {
+    let owner_slot = app.player_record_index_1_based as u8;
+    let selected = app.planet_overlay.selected;
+    app.game_data
+        .planets
+        .records
+        .iter()
+        .filter(|planet| planet.owner_empire_slot_raw() == owner_slot)
+        .nth(selected)
+        .map(|planet| format_sector_coords_default(planet.coords_raw()))
+}
+
 fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
     let owner_slot = app.player_record_index_1_based as u8;
     let player_tax_rate = app
@@ -161,7 +171,7 @@ fn format_planet_row_cells(planet: &PlanetRecord, has_starbase: bool, tax_rate: 
     let name = planet.planet_name();
 
     vec![
-        format!("({:02},{:02})", coords[0], coords[1]),
+        format_sector_coords_table(coords),
         truncate(&name, 13),
         potential.to_string(),
         present.to_string(),

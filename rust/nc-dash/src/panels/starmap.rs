@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
-    build_player_starmap_projection_from_snapshots,
+    CoreGameData, DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection,
+    PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
 };
 use nc_ui::{CellStyle, GameColor, PlayfieldBuffer};
 
@@ -130,13 +130,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let cy = app.crosshair_y;
     let status = if let Some(world) = projection_world_at(&projection, [cx, cy]) {
         format_world_status(
-            app,
+            &app.game_data,
             [cx, cy],
             world,
             snapshot_map.get(&world.planet_record_index_1_based),
         )
     } else {
-        format!("Sector ({:02},{:02}) — uncharted", cx, cy)
+        format!("({:02},{:02}) uncharted", cx, cy)
     };
     let max_w = frame.outer.width.saturating_sub(2);
     layout::write_clipped(
@@ -234,6 +234,7 @@ fn marker_for_world(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nc_data::{GameStateBuilder, IntelTier};
 
     #[test]
     fn owner_markers_use_empire_slot_colors() {
@@ -262,18 +263,98 @@ mod tests {
             StarmapMarkerKind::Unknown => ('?', theme::dim_style()),
         }
     }
+
+    #[test]
+    fn world_status_uses_compact_grouped_fields() {
+        let game_data = GameStateBuilder::new()
+            .with_player_count(4)
+            .with_year(3006)
+            .build_initialized_baseline()
+            .expect("baseline game data");
+        let world = PlayerStarmapWorld {
+            planet_record_index_1_based: 1,
+            coords: [9, 9],
+            intel_tier: IntelTier::Partial,
+            known_name: Some(String::from("98")),
+            known_owner_empire_id: Some(4),
+            known_owner_empire_name: None,
+            known_potential_production: Some(98),
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: Some(0),
+            known_current_production: Some(45),
+            known_stored_points: Some(12),
+            known_docked_summary: None,
+            known_orbit_summary: None,
+        };
+        let snapshot = PlanetIntelSnapshot {
+            planet_record_index_1_based: 1,
+            intel_tier: IntelTier::Partial,
+            compat_is_orbit_seed: false,
+            last_intel_year: Some(3006),
+            seen_year: Some(3006),
+            scout_year: Some(3005),
+            known_name: Some(String::from("98")),
+            known_owner_empire_id: Some(4),
+            known_potential_production: Some(98),
+            known_armies: None,
+            known_ground_batteries: None,
+            known_starbase_count: Some(0),
+            known_current_production: Some(45),
+            known_stored_points: Some(12),
+            known_docked_summary: None,
+            known_orbit_summary: None,
+            compat_word_1e: None,
+        };
+
+        let status = format_world_status(&game_data, [9, 9], &world, Some(&snapshot));
+        assert_eq!(status, "(09,09) O:#4 E:98/45/12 D:?/?/0 Y:3006");
+        assert!(status.chars().count() <= 55);
+    }
+
+    #[test]
+    fn world_status_handles_unknown_and_special_owners() {
+        let mut game_data = GameStateBuilder::new()
+            .with_player_count(4)
+            .with_year(3006)
+            .build_initialized_baseline()
+            .expect("baseline game data");
+        game_data.player.records[2].set_player_mode_raw(0x00);
+
+        assert_eq!(owner_label(&game_data, Some(0)), "Unowned");
+        assert_eq!(owner_label(&game_data, Some(3)), "ICD");
+        assert_eq!(owner_label(&game_data, None), "?");
+        assert_eq!(known_u16(None), "?");
+        assert_eq!(known_u8(None), "?");
+    }
 }
 
 fn format_world_status(
-    app: &DashApp,
+    game_data: &CoreGameData,
     coords: [u8; 2],
     world: &PlayerStarmapWorld,
     snapshot: Option<&PlanetIntelSnapshot>,
 ) -> String {
-    let owner = match world.known_owner_empire_id {
+    let owner = owner_label(game_data, world.known_owner_empire_id);
+    format!(
+        "({:02},{:02}) O:{} E:{}/{}/{} D:{}/{}/{} Y:{}",
+        coords[0],
+        coords[1],
+        owner,
+        known_u16(world.known_potential_production),
+        known_u8(world.known_current_production),
+        known_u16(world.known_stored_points),
+        known_u8(world.known_armies),
+        known_u8(world.known_ground_batteries),
+        known_u8(world.known_starbase_count),
+        known_u16(snapshot.and_then(|row| row.last_intel_year)),
+    )
+}
+
+fn owner_label(game_data: &CoreGameData, known_owner_empire_id: Option<u8>) -> String {
+    match known_owner_empire_id {
         Some(0) => String::from("Unowned"),
-        Some(owner) => app
-            .game_data
+        Some(owner) => game_data
             .player
             .records
             .get(owner.saturating_sub(1) as usize)
@@ -286,44 +367,17 @@ fn format_world_status(
             })
             .unwrap_or_else(|| format!("#{owner}")),
         None => String::from("?"),
-    };
-    format!(
-        "Sector ({:02},{:02}) {} O:{} Pot:{} Seen:{} AR:{} GB:{} SB:{} Curr:{} Pts:{} Scout:{}",
-        coords[0],
-        coords[1],
-        world.known_name.as_deref().unwrap_or("?"),
-        owner,
-        world
-            .known_potential_production
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        snapshot
-            .and_then(|row| row.last_intel_year)
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_armies
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_ground_batteries
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_starbase_count
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_current_production
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_stored_points
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        snapshot
-            .and_then(|row| row.scout_year)
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-    )
+    }
+}
+
+fn known_u8(value: Option<u8>) -> String {
+    value
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| String::from("?"))
+}
+
+fn known_u16(value: Option<u16>) -> String {
+    value
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| String::from("?"))
 }

@@ -26,11 +26,18 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(
         buf,
         frame,
-        &format!("REPORTS ({R}R,{M}M)", R = summary.report_count, M = summary.message_count),
+        &format!(
+            "REPORTS ({R}R,{M}M)",
+            R = summary.report_count,
+            M = summary.message_count
+        ),
         theme::section_title_style(),
     );
 
-    for (row_idx, row) in summary_rows(summary, frame.body.height).into_iter().enumerate() {
+    for (row_idx, row) in summary_rows(summary, frame.body.height)
+        .into_iter()
+        .enumerate()
+    {
         layout::write_panel_body_line(buf, frame, row_idx, &row.text, row.style);
     }
 }
@@ -51,10 +58,22 @@ fn summary_rows(summary: ReportsPanelSummary, max_rows: usize) -> Vec<SummaryRow
         if remaining >= 3 {
             rows.push(blank_row());
         }
-        rows.push(metric_row("Current", summary.current_count, theme::friendly_style()));
-        rows.push(metric_row("Backlog", summary.backlog_count, theme::dim_style()));
+        rows.push(metric_row(
+            "Current",
+            summary.current_count,
+            theme::friendly_style(),
+        ));
+        rows.push(metric_row(
+            "Backlog",
+            summary.backlog_count,
+            theme::dim_style(),
+        ));
     } else if remaining == 1 {
-        rows.push(metric_row("Current", summary.current_count, theme::friendly_style()));
+        rows.push(metric_row(
+            "Current",
+            summary.current_count,
+            theme::friendly_style(),
+        ));
     }
 
     let remaining = max_rows.saturating_sub(rows.len());
@@ -62,8 +81,16 @@ fn summary_rows(summary: ReportsPanelSummary, max_rows: usize) -> Vec<SummaryRow
         if remaining >= 4 {
             rows.push(blank_row());
         }
-        rows.push(metric_row("Combat", summary.combat_count, theme::enemy_style()));
-        rows.push(metric_row("Intel", summary.intel_count, theme::value_style()));
+        rows.push(metric_row(
+            "Combat",
+            summary.combat_count,
+            theme::enemy_style(),
+        ));
+        rows.push(metric_row(
+            "Intel",
+            summary.intel_count,
+            theme::value_style(),
+        ));
         rows.push(metric_row("Ops", summary.ops_count, theme::label_style()));
     } else if remaining > 0 {
         let buckets = [

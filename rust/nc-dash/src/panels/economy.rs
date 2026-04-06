@@ -11,7 +11,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, "ECONOMY", theme::section_title_style());
 
     let player_idx = app.player_record_index_1_based.saturating_sub(1);
-    let Some(player) = app.game_data.player.records.get(player_idx) else { return };
+    let Some(player) = app.game_data.player.records.get(player_idx) else {
+        return;
+    };
     let tax = player.tax_rate();
     let owner_slot = app.player_record_index_1_based as u8;
 
@@ -19,7 +21,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     let mut total_present: u32 = 0;
     let mut total_potential: u32 = 0;
     for planet in &app.game_data.planets.records {
-        if planet.owner_empire_slot_raw() != owner_slot { continue; }
+        if planet.owner_empire_slot_raw() != owner_slot {
+            continue;
+        }
         total_treasury += planet.stored_goods_raw();
         total_present += planet.present_production_points().unwrap_or(0) as u32;
         total_potential += planet.potential_production_points() as u32;
@@ -28,11 +32,37 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     let revenue = yearly_tax_revenue(total_present as u16, tax);
     let growth: i32 = if total_present < total_potential {
         yearly_growth_delta(total_present as u16, total_potential as u16, tax, false) as i32
-    } else { 0 };
+    } else {
+        0
+    };
 
-    layout::write_panel_body_line(buf, frame, 0, &format!(" Treasury:{:>7}", total_treasury), theme::value_style());
-    layout::write_panel_body_line(buf, frame, 1, &format!(" Prod:{}/{}", total_present, total_potential), theme::value_style());
-    layout::write_panel_body_line(buf, frame, 2, &format!(" Revenue:{:>7}", revenue), theme::value_style());
-    let gs = if growth > 0 { theme::friendly_style() } else if growth < 0 { theme::enemy_style() } else { theme::dim_style() };
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        0,
+        &format!(" Treasury:{:>7}", total_treasury),
+        theme::value_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        1,
+        &format!(" Prod:{}/{}", total_present, total_potential),
+        theme::value_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        2,
+        &format!(" Revenue:{:>7}", revenue),
+        theme::value_style(),
+    );
+    let gs = if growth > 0 {
+        theme::friendly_style()
+    } else if growth < 0 {
+        theme::enemy_style()
+    } else {
+        theme::dim_style()
+    };
     layout::write_panel_body_line(buf, frame, 3, &format!(" Growth:{:>+7}", growth), gs);
 }

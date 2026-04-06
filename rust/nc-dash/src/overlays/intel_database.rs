@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
 use nc_ui::PlayfieldBuffer;
+use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
@@ -13,7 +14,7 @@ use crate::app::state::DashApp;
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? J K ^U ^D S I <Q>";
+pub(crate) const HOTKEYS: &str = "? S I <Q>";
 const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
 const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
@@ -32,13 +33,10 @@ const COLUMNS: [TableColumn<'static>; 11] = [
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let rows = table_rows(app);
     let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
-    let selected_default = rows
-        .get(selected)
-        .and_then(|row| row.first())
-        .map(String::as_str);
+    let selected_default = selected_default(app);
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
-        default: selected_default,
+        default: selected_default.as_deref(),
         input: &app.intel_overlay.jump_input,
     };
     let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(11));
@@ -93,6 +91,16 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
         .into_iter()
         .filter_map(|row| row.first().cloned().map(|cell| vec![cell]))
         .collect()
+}
+
+fn selected_default(app: &DashApp) -> Option<String> {
+    let projection_rows = table_rows(app);
+    let selected = app.intel_overlay.selected.min(projection_rows.len().saturating_sub(1));
+    projection_rows.get(selected).and_then(|row| {
+        row.first().and_then(|cell| {
+            parse_table_coords(cell).map(format_sector_coords_default)
+        })
+    })
 }
 
 fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
@@ -158,7 +166,7 @@ fn format_intel_row(
         None => String::from("?"),
     };
     vec![
-        format!("({:02},{:02})", coords[0], coords[1]),
+        format_sector_coords_table(coords),
         truncate(world.known_name.as_deref().unwrap_or("?"), 11),
         owner_label,
         world
@@ -194,4 +202,25 @@ fn format_intel_row(
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
     ]
+}
+
+fn parse_table_coords(value: &str) -> Option<[u8; 2]> {
+    let trimmed = value.trim().trim_start_matches('(').trim_end_matches(')');
+    let mut parts = trimmed.split(',');
+    let x = parts.next()?.trim().parse().ok()?;
+    let y = parts.next()?.trim().parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some([x, y])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_table_coords;
+
+    #[test]
+    fn parse_table_coords_accepts_rendered_coord_cell() {
+        assert_eq!(parse_table_coords("(02,03)"), Some([2, 3]));
+    }
 }

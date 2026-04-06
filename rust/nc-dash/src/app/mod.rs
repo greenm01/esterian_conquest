@@ -165,7 +165,8 @@ impl DashApp {
                 if self.handle_overlay_close_or_help(key, HelpContext::Diplomacy) {
                     return true;
                 }
-                handle_list_overlay_key(key, &mut self.diplomacy_overlay, 10_000);
+                let total_rows = self.game_data.player.records.len();
+                handle_list_overlay_key(key, &mut self.diplomacy_overlay, total_rows);
                 true
             }
             ActiveOverlay::Inbox => {
@@ -233,7 +234,10 @@ impl DashApp {
             KeyCode::Backspace => {
                 self.planet_overlay.jump_input.pop();
             }
-            _ => handle_list_overlay_key(key, &mut self.planet_overlay, 1_000),
+            _ => {
+                let total_rows = planet_list::selection_rows(self).len();
+                handle_list_overlay_key(key, &mut self.planet_overlay, total_rows);
+            }
         }
     }
 
@@ -250,7 +254,10 @@ impl DashApp {
             KeyCode::Backspace => {
                 self.fleet_overlay.jump_input.pop();
             }
-            _ => handle_list_overlay_key(key, &mut self.fleet_overlay, 1_000),
+            _ => {
+                let total_rows = fleet_list::selection_rows(self).len();
+                handle_list_overlay_key(key, &mut self.fleet_overlay, total_rows);
+            }
         }
     }
 
@@ -268,7 +275,10 @@ impl DashApp {
             KeyCode::Backspace => {
                 self.intel_overlay.jump_input.pop();
             }
-            _ => handle_list_overlay_key(key, &mut self.intel_overlay, 10_000),
+            _ => {
+                let total_rows = intel_database::selection_rows(self).len();
+                handle_list_overlay_key(key, &mut self.intel_overlay, total_rows);
+            }
         }
     }
 
@@ -364,7 +374,9 @@ impl DashApp {
             }
             KeyCode::Up | KeyCode::Char('k') => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    self.inbox_overlay.selected = self.inbox_overlay.selected.saturating_sub(1);
+                    let total_rows = inbox::selection_rows(self).len();
+                    self.inbox_overlay.selected =
+                        wrap_prev_index(self.inbox_overlay.selected, total_rows);
                     if self.inbox_overlay.selected < self.inbox_overlay.scroll {
                         self.inbox_overlay.scroll = self.inbox_overlay.selected;
                     }
@@ -376,7 +388,9 @@ impl DashApp {
             },
             KeyCode::Down | KeyCode::Char('j') => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    self.inbox_overlay.selected += 1;
+                    let total_rows = inbox::selection_rows(self).len();
+                    self.inbox_overlay.selected =
+                        wrap_next_index(self.inbox_overlay.selected, total_rows);
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll += 1;
@@ -384,7 +398,10 @@ impl DashApp {
             },
             KeyCode::PageUp => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
+                    let total_rows = inbox::selection_rows(self).len();
+                    let last = total_rows.saturating_sub(1);
                     self.inbox_overlay.selected = self.inbox_overlay.selected.saturating_sub(10);
+                    self.inbox_overlay.selected = self.inbox_overlay.selected.min(last);
                     self.inbox_overlay.scroll = self.inbox_overlay.scroll.saturating_sub(10);
                 }
                 state::InboxFocus::Preview => {
@@ -394,7 +411,10 @@ impl DashApp {
             },
             KeyCode::PageDown => match self.inbox_overlay.focus {
                 state::InboxFocus::List => {
-                    self.inbox_overlay.selected += 10;
+                    let total_rows = inbox::selection_rows(self).len();
+                    let last = total_rows.saturating_sub(1);
+                    self.inbox_overlay.selected =
+                        self.inbox_overlay.selected.saturating_add(10).min(last);
                 }
                 state::InboxFocus::Preview => {
                     self.inbox_overlay.preview_scroll += 10;
@@ -411,7 +431,8 @@ impl DashApp {
             },
             KeyCode::End => {
                 if matches!(self.inbox_overlay.focus, state::InboxFocus::List) {
-                    self.inbox_overlay.selected = usize::MAX / 4;
+                    let last = inbox::selection_rows(self).len().saturating_sub(1);
+                    self.inbox_overlay.selected = last;
                     self.inbox_overlay.scroll = self.inbox_overlay.selected.saturating_sub(5);
                 } else {
                     self.inbox_overlay.preview_scroll = usize::MAX / 4;
@@ -435,33 +456,55 @@ impl DashApp {
     }
 }
 
-fn handle_list_overlay_key(key: KeyEvent, state: &mut state::ListOverlayState, end_marker: usize) {
+fn handle_list_overlay_key(key: KeyEvent, state: &mut state::ListOverlayState, total_rows: usize) {
+    let last = total_rows.saturating_sub(1);
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
-            state.selected = state.selected.saturating_sub(1);
+            state.selected = wrap_prev_index(state.selected, total_rows);
             if state.selected < state.scroll {
                 state.scroll = state.selected;
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            state.selected += 1;
+            state.selected = wrap_next_index(state.selected, total_rows);
         }
         KeyCode::PageUp => {
             state.selected = state.selected.saturating_sub(10);
+            state.selected = state.selected.min(last);
             state.scroll = state.scroll.saturating_sub(10);
         }
         KeyCode::PageDown => {
-            state.selected += 10;
+            state.selected = state.selected.saturating_add(10).min(last);
         }
         KeyCode::Home => {
             state.selected = 0;
             state.scroll = 0;
         }
         KeyCode::End => {
-            state.selected = end_marker;
-            state.scroll = end_marker.saturating_sub(10);
+            state.selected = last;
+            state.scroll = last.saturating_sub(10);
         }
         _ => {}
+    }
+}
+
+fn wrap_prev_index(selected: usize, total_rows: usize) -> usize {
+    if total_rows == 0 {
+        0
+    } else if selected == 0 {
+        total_rows - 1
+    } else {
+        selected - 1
+    }
+}
+
+fn wrap_next_index(selected: usize, total_rows: usize) -> usize {
+    if total_rows == 0 {
+        0
+    } else if selected + 1 >= total_rows {
+        0
+    } else {
+        selected + 1
     }
 }
 
@@ -503,5 +546,20 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
                 mail.mark_deleted_by_recipient();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{wrap_next_index, wrap_prev_index};
+
+    #[test]
+    fn wrap_prev_goes_from_first_to_last() {
+        assert_eq!(wrap_prev_index(0, 4), 3);
+    }
+
+    #[test]
+    fn wrap_next_goes_from_last_to_first() {
+        assert_eq!(wrap_next_index(3, 4), 0);
     }
 }

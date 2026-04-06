@@ -441,7 +441,7 @@ all overlays. Tab switches focus between item list and preview pane.
        │                   │ continue next turn.                             │
        │                   │ <end of transmission>                           │
        ├───────────────────┴─────────────────────────────────────────────────┤
-       │ COMMAND <- ? Tab J K ^U ^D M R A Y D C <Q> ->                       │
+       │ COMMAND <- ? Tab M R A Y D C <Q> ->                                 │
        └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -514,7 +514,7 @@ Reuse from nc-game planet list:
 ### Command Rail
 
 ```
-COMMAND <- ? J K ^U ^D B A C L U X S I T <Q> ->
+COMMAND <- ? B A C L U X S I T <Q> ->
 ```
 
 Same actions as nc-game planet list: B:Build, A:Auto-commission,
@@ -535,7 +535,7 @@ Reuse from nc-game fleet list, with starbases included as rows:
 ### Command Rail
 
 ```
-COMMAND <- ? J K ^U ^D O C M T <Q> ->
+COMMAND <- ? O C M T <Q> ->
 ```
 
 Same actions as nc-game fleet command: O:Order, C:ROE, M:Merge (disabled
@@ -562,7 +562,7 @@ nc-game database supports filters. Reuse:
 ### Command Rail
 
 ```
-COMMANDS <- ? J K ^U ^D S <Q> ->
+COMMANDS <- ? S <Q> ->
 ```
 
 S:Sort cycles through sort modes. Selecting a planet and pressing Q
@@ -586,7 +586,7 @@ Single table merging leaderboard and diplomatic status:
 ### Command Rail
 
 ```
-COMMAND <- ? J K ^U ^D D S <Q> ->
+COMMAND <- ? D S <Q> ->
 ```
 
 D:Declare enemy/neutral, S:Sort.

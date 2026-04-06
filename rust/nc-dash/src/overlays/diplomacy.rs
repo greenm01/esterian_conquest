@@ -10,7 +10,7 @@ use crate::diplomacy_view::{
 use crate::overlays::frame::{draw_hline, draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-const HOTKEYS: &str = "? J K ^U ^D D S I <Q>";
+const HOTKEYS: &str = "? D S I <Q>";
 const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {

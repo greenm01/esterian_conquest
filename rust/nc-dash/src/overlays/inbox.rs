@@ -2,13 +2,14 @@
 
 use nc_ui::PlayfieldBuffer;
 use nc_ui::table::{TableFooter, draw_scrollbar_at};
+use nc_ui::theme::classic;
 
 use crate::app::state::{DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, project_inbox_items};
 use crate::overlays::frame::{draw_hline, draw_overlay_frame, draw_vline, write_clipped};
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? Tab J K ^U ^D M R A Y D C <Q>";
+pub(crate) const HOTKEYS: &str = "? Tab M R A Y D C <Q>";
 const LIST_WIDTH: usize = 28;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
@@ -25,6 +26,18 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let preview_col = divider_col + 2;
     let preview_width = frame.body_width.saturating_sub(LIST_WIDTH + 2);
     let items = inbox_items(app);
+    let table_theme = theme::table_theme();
+    let list_focus = matches!(app.inbox_overlay.focus, InboxFocus::List);
+    let divider_style = if list_focus {
+        classic::notice_style()
+    } else {
+        theme::border_style()
+    };
+    let list_header_style = if list_focus {
+        classic::notice_style()
+    } else {
+        table_theme.header_style
+    };
 
     let filter_line = format!(
         "Filter:{}  Year:{}  Focus:{}{}",
@@ -64,15 +77,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         frame.body_row + 2,
         divider_col,
         frame.body_height.saturating_sub(2),
-        theme::border_style(),
+        divider_style,
     );
-    buf.set_cell(frame.body_row + 1, divider_col, '┬', theme::border_style());
-    buf.set_cell(
-        frame.footer_row - 1,
-        divider_col,
-        '┴',
-        theme::border_style(),
-    );
+    buf.set_cell(frame.body_row + 1, divider_col, '┬', divider_style);
+    buf.set_cell(frame.footer_row - 1, divider_col, '┴', divider_style);
 
     write_clipped(
         buf,
@@ -80,7 +88,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         frame.body_col,
         LIST_WIDTH.saturating_sub(1),
         "ID  Type Year Subject",
-        theme::section_title_style(),
+        list_header_style,
     );
     write_clipped(
         buf,
@@ -97,7 +105,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         frame.body_width,
         theme::border_style(),
     );
-    buf.set_cell(frame.body_row + 3, divider_col, '┼', theme::border_style());
+    buf.set_cell(frame.body_row + 3, divider_col, '┼', divider_style);
 
     let list_start = frame.body_row + 4;
     let max_rows = frame.body_height.saturating_sub(4);
@@ -111,22 +119,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         let row = list_start + visible_idx;
         let absolute_idx = scroll + visible_idx;
         let is_selected = absolute_idx == selected;
-        let list_style = if is_selected && matches!(app.inbox_overlay.focus, InboxFocus::List) {
-            theme::alert_style()
-        } else if is_selected {
-            theme::value_style()
-        } else {
-            theme::dim_style()
-        };
-        if is_selected {
-            buf.fill_rect(
-                row,
-                frame.body_col,
-                LIST_WIDTH.saturating_sub(1),
-                1,
-                list_style,
-            );
-        }
+        let list_style = table_theme.body_style;
         let line = format!(
             "{:>2}  {}   {:>4} {}",
             absolute_idx + 1,
@@ -142,6 +135,15 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
             &line,
             list_style,
         );
+        if is_selected {
+            highlight_selected_id_cell(
+                buf,
+                row,
+                frame.body_col,
+                absolute_idx + 1,
+                table_theme.selected_style,
+            );
+        }
     }
 
     if items.is_empty() {
@@ -243,4 +245,14 @@ fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usi
 
 fn truncate(value: &str, width: usize) -> String {
     value.chars().take(width).collect()
+}
+
+fn highlight_selected_id_cell(
+    buf: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    visible_id: usize,
+    style: nc_ui::CellStyle,
+) {
+    buf.write_text(row, col, &format!("{visible_id:>2}"), style);
 }

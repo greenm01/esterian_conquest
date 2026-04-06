@@ -2,12 +2,12 @@
 
 use std::collections::BTreeMap;
 
-use nc_data::build_player_starmap_projection_from_snapshots;
-use nc_ui::PlayfieldBuffer;
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
 use crate::panels::starmap::{StarmapMarkerKind, marker_kind_for_world};
 use crate::theme;
+use nc_data::build_player_starmap_projection_from_snapshots;
+use nc_ui::PlayfieldBuffer;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     layout::write_panel_title(buf, frame, "KNOWN GALAXY", theme::section_title_style());
@@ -39,11 +39,53 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
         }
     }
 
-    layout::write_panel_body_line(buf, frame, 0, &format!(" Owned   O{:4}", owned), theme::friendly_style());
-    layout::write_panel_body_line(buf, frame, 1, &format!(" Unowned #{:4}", unowned), theme::dim_style());
-    layout::write_panel_body_line(buf, frame, 2, &format!(" Neutral #{:4}", neutral), theme::label_style());
-    layout::write_panel_body_line(buf, frame, 3, &format!(" Enemy   #{:4}", enemy), theme::enemy_style());
-    layout::write_panel_body_line(buf, frame, 4, &format!(" ICD     ◊{:4}", icd), theme::icd_style());
-    layout::write_panel_body_line(buf, frame, 5, &format!(" Partial *{:4}", partial), theme::value_style());
-    layout::write_panel_body_line(buf, frame, 6, &format!(" Unknown ?{:4}", unknown), theme::dim_style());
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        0,
+        &format!(" Owned   O{:4}", owned),
+        theme::friendly_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        1,
+        &format!(" Unowned #{:4}", unowned),
+        theme::dim_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        2,
+        &format!(" Neutral #{:4}", neutral),
+        theme::label_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        3,
+        &format!(" Enemy   #{:4}", enemy),
+        theme::enemy_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        4,
+        &format!(" ICD     ◊{:4}", icd),
+        theme::icd_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        5,
+        &format!(" Partial *{:4}", partial),
+        theme::value_style(),
+    );
+    layout::write_panel_body_line(
+        buf,
+        frame,
+        6,
+        &format!(" Unknown ?{:4}", unknown),
+        theme::dim_style(),
+    );
 }
