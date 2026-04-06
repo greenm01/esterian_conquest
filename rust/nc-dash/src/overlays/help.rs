@@ -5,14 +5,18 @@ use nc_ui::modal::{format_help_rows, wrap_formatted_help_lines};
 use nc_ui::table::TableFooter;
 
 use crate::app::state::{DashApp, HelpContext};
-use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
+use crate::layout::MapWidgetFrame;
+use crate::overlays::frame::{
+    draw_overlay_frame_for_body_in_map, max_overlay_body_width, write_clipped,
+};
 use crate::theme;
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let lines = help_lines(app.help_context);
-    let wrapped = wrap_formatted_help_lines(&lines, buf.width().saturating_sub(6));
-    let frame = draw_overlay_frame_for_body(
+    let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
+    let frame = draw_overlay_frame_for_body_in_map(
         buf,
+        map_frame,
         "HELP",
         wrapped.content_width,
         wrapped.lines.len(),

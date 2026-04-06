@@ -1,4 +1,4 @@
-//! Centered popup overlay screens (P, F, I, R, D, S, ?).
+//! Map-scoped overlay screens (P, F, I, R, D, S, ?).
 
 pub mod diplomacy;
 pub mod fleet_list;

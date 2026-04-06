@@ -12,7 +12,11 @@ use nc_ui::table::{
 use nc_ui::table_selection;
 
 use crate::app::state::{DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort};
-use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
+use crate::layout::MapWidgetFrame;
+use crate::overlays::frame::{
+    draw_overlay_frame_for_body_in_map, max_overlay_body_height, max_overlay_body_width,
+    write_clipped,
+};
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S I <Q>";
@@ -42,7 +46,7 @@ pub(crate) struct IntelOverlayRow {
     pub cells: Vec<String>,
 }
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let rows = table_rows(app);
     let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
     let selected_default = rows
@@ -98,18 +102,22 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         },
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
-    let desired_visible_rows = table_cells.len().clamp(1, buf.height().saturating_sub(11));
+    let desired_visible_rows = table_cells.len().clamp(
+        1,
+        max_overlay_body_height(map_frame).saturating_sub(5).max(1),
+    );
     let columns = resolve_table_columns(
         &COLUMNS,
         &table_cells,
-        buf.width().saturating_sub(12),
+        max_overlay_body_width(map_frame),
         false,
         TableWidthMode::Compact,
     );
     let body_width =
         table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body(
+    let frame = draw_overlay_frame_for_body_in_map(
         buf,
+        map_frame,
         "TOTAL PLANET DATABASE",
         body_width,
         desired_visible_rows + 5,

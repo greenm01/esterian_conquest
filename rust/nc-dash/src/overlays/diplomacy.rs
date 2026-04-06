@@ -7,13 +7,16 @@ use crate::app::state::DashApp;
 use crate::diplomacy_view::{
     display_name, empire_name_style, relation_label_and_style, state_label_and_style,
 };
-use crate::overlays::frame::{draw_hline, draw_overlay_frame_for_body, write_clipped};
+use crate::layout::MapWidgetFrame;
+use crate::overlays::frame::{
+    draw_hline, draw_overlay_frame_for_body_in_map, max_overlay_body_height, write_clipped,
+};
 use crate::theme;
 
 const HOTKEYS: &str = "? D S I <Q>";
 const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let player_idx = app.player_record_index_1_based.saturating_sub(1);
     let viewer_slot = app.player_record_index_1_based as u8;
     let viewer = app.game_data.player.records.get(player_idx);
@@ -44,15 +47,19 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         })
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| b.production.cmp(&a.production));
-    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(8));
+    let desired_visible_rows = rows.len().clamp(
+        1,
+        max_overlay_body_height(map_frame).saturating_sub(2).max(1),
+    );
     let body_width = HEADER.chars().count() + 1;
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
         default: None,
         input: "",
     };
-    let frame = draw_overlay_frame_for_body(
+    let frame = draw_overlay_frame_for_body_in_map(
         buf,
+        map_frame,
         "DIPLOMACY",
         body_width,
         desired_visible_rows + 2,

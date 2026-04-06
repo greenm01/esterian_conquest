@@ -7,10 +7,7 @@ use crate::layout::{
     self, dashboard_fits_canvas, dashboard_layout, draw_footer, draw_frame, draw_header,
     layout_canvas_requirement, new_dashboard_buffer, required_dashboard_frame,
 };
-use crate::overlays::{
-    self,
-    frame::{OverlayBackdrop, draw_full_backdrop, overlay_backdrop},
-};
+use crate::overlays;
 use crate::panels::{
     comms, diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap, war_record,
 };
@@ -60,18 +57,12 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
 
     let underlay = help_underlay_overlay(app.overlay, app.help_return_overlay);
 
-    // Overlay (drawn over everything if active). Help keeps the calling screen visible
-    // underneath it instead of dropping back to the raw dashboard.
-    if matches!(overlay_backdrop(underlay), OverlayBackdrop::FullBackdrop) {
-        draw_full_backdrop(&mut buf);
-    }
-
     if underlay != ActiveOverlay::None {
-        draw_non_help_overlay(&mut buf, app, underlay);
+        draw_non_help_overlay(&mut buf, app, widgets.center_map, underlay);
     }
 
     if app.overlay == ActiveOverlay::Help {
-        overlays::help::draw(&mut buf, app);
+        overlays::help::draw(&mut buf, app, widgets.center_map);
     }
 
     if app.overlay == ActiveOverlay::None {
@@ -149,15 +140,20 @@ fn help_underlay_overlay(
     }
 }
 
-fn draw_non_help_overlay(buf: &mut PlayfieldBuffer, app: &DashApp, overlay: ActiveOverlay) {
+fn draw_non_help_overlay(
+    buf: &mut PlayfieldBuffer,
+    app: &DashApp,
+    map_frame: crate::layout::MapWidgetFrame,
+    overlay: ActiveOverlay,
+) {
     match overlay {
         ActiveOverlay::None | ActiveOverlay::Help => {}
-        ActiveOverlay::PlanetList => overlays::planet_list::draw(buf, app),
-        ActiveOverlay::FleetList => overlays::fleet_list::draw(buf, app),
-        ActiveOverlay::IntelDatabase => overlays::intel_database::draw(buf, app),
-        ActiveOverlay::Inbox => overlays::inbox::draw(buf, app),
-        ActiveOverlay::Diplomacy => overlays::diplomacy::draw(buf, app),
-        ActiveOverlay::Settings => overlays::settings::draw(buf, app),
+        ActiveOverlay::PlanetList => overlays::planet_list::draw(buf, app, map_frame),
+        ActiveOverlay::FleetList => overlays::fleet_list::draw(buf, app, map_frame),
+        ActiveOverlay::IntelDatabase => overlays::intel_database::draw(buf, app, map_frame),
+        ActiveOverlay::Inbox => overlays::inbox::draw(buf, app, map_frame),
+        ActiveOverlay::Diplomacy => overlays::diplomacy::draw(buf, app, map_frame),
+        ActiveOverlay::Settings => overlays::settings::draw(buf, app, map_frame),
     }
 }
 

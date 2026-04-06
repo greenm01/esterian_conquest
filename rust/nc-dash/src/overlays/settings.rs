@@ -5,7 +5,8 @@ use nc_ui::table::TableFooter;
 
 use crate::app::state::DashApp;
 use crate::layout;
-use crate::overlays::frame::{draw_overlay_frame, write_clipped};
+use crate::layout::MapWidgetFrame;
+use crate::overlays::frame::{draw_overlay_frame_for_body_in_map, write_clipped};
 use crate::theme;
 
 const SETTINGS_LINES: &[(&str, &str)] = &[
@@ -13,13 +14,23 @@ const SETTINGS_LINES: &[(&str, &str)] = &[
     ("Mouse", "Toggle mouse support on/off (M)"),
 ];
 
-pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp) {
+pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp, map_frame: MapWidgetFrame) {
     let label_width = layout::label_value_width(SETTINGS_LINES.iter().map(|(key, _)| *key));
-    let frame = draw_overlay_frame(
+    let body_width = SETTINGS_LINES
+        .iter()
+        .map(|(key, desc)| {
+            layout::format_label_value(key, label_width, desc)
+                .chars()
+                .count()
+        })
+        .max()
+        .unwrap_or(0);
+    let frame = draw_overlay_frame_for_body_in_map(
         buf,
+        map_frame,
         "SETTINGS",
-        68,
-        SETTINGS_LINES.len() + 7,
+        body_width,
+        SETTINGS_LINES.len(),
         TableFooter::Dismiss,
     );
     for (idx, (key, desc)) in SETTINGS_LINES.iter().enumerate() {

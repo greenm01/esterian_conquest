@@ -1,17 +1,11 @@
-//! Shared centered modal shell for dashboard overlays.
+//! Shared modal shell for dashboard overlays.
 
-use crate::app::state::ActiveOverlay;
-use nc_ui::modal::{ModalTheme, draw_modal_frame};
+use nc_ui::modal::{ModalTheme, Rect, draw_modal_frame, draw_modal_frame_in_parent};
 use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
+use crate::layout::MapWidgetFrame;
 use crate::theme;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OverlayBackdrop {
-    None,
-    FullBackdrop,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct OverlayFrame {
@@ -22,21 +16,21 @@ pub struct OverlayFrame {
     pub footer_row: usize,
 }
 
-pub fn overlay_backdrop(overlay: ActiveOverlay) -> OverlayBackdrop {
-    match overlay {
-        ActiveOverlay::PlanetList
-        | ActiveOverlay::FleetList
-        | ActiveOverlay::IntelDatabase
-        | ActiveOverlay::Inbox => OverlayBackdrop::FullBackdrop,
-        ActiveOverlay::None
-        | ActiveOverlay::Diplomacy
-        | ActiveOverlay::Settings
-        | ActiveOverlay::Help => OverlayBackdrop::None,
-    }
+pub fn overlay_parent_rect(map_frame: MapWidgetFrame) -> Rect {
+    Rect::new(
+        (map_frame.outer.col + 1) as u16,
+        (map_frame.outer.row + 1) as u16,
+        map_frame.outer.width.saturating_sub(2) as u16,
+        map_frame.outer.height.saturating_sub(2) as u16,
+    )
 }
 
-pub fn draw_full_backdrop(buf: &mut PlayfieldBuffer) {
-    buf.fill_rect(0, 0, buf.width(), buf.height(), theme::dim_style());
+pub fn max_overlay_body_width(map_frame: MapWidgetFrame) -> usize {
+    map_frame.outer.width.saturating_sub(8).max(1)
+}
+
+pub fn max_overlay_body_height(map_frame: MapWidgetFrame) -> usize {
+    map_frame.outer.height.saturating_sub(8).max(1)
 }
 
 pub fn draw_overlay_frame(
@@ -59,6 +53,39 @@ pub fn draw_overlay_frame(
         },
     );
 
+    overlay_frame_from_popup(buf, popup, footer)
+}
+
+pub fn draw_overlay_frame_in_map(
+    buf: &mut PlayfieldBuffer,
+    map_frame: MapWidgetFrame,
+    title: &str,
+    preferred_width: usize,
+    preferred_height: usize,
+    footer: TableFooter<'_>,
+) -> OverlayFrame {
+    let popup = draw_modal_frame_in_parent(
+        buf,
+        title,
+        preferred_width,
+        preferred_height as u16,
+        overlay_parent_rect(map_frame),
+        ModalTheme {
+            body_style: theme::body_style(),
+            pad_style: theme::dim_style(),
+            chrome_style: theme::border_style(),
+            title_style: theme::title_style(),
+        },
+    );
+
+    overlay_frame_from_popup(buf, popup, footer)
+}
+
+fn overlay_frame_from_popup(
+    buf: &mut PlayfieldBuffer,
+    popup: Rect,
+    footer: TableFooter<'_>,
+) -> OverlayFrame {
     let inner_left = popup.x as usize + 1;
     let inner_right = popup.x as usize + popup.width as usize - 2;
     let footer_row = popup.y as usize + popup.height as usize - 2;
@@ -87,6 +114,27 @@ pub fn draw_overlay_frame(
     }
 }
 
+pub fn draw_overlay_frame_for_body_in_map(
+    buf: &mut PlayfieldBuffer,
+    map_frame: MapWidgetFrame,
+    title: &str,
+    body_width: usize,
+    body_height: usize,
+    footer: TableFooter<'_>,
+) -> OverlayFrame {
+    let preferred_width =
+        (body_width.max(table_footer_scaffold_width(footer)) + 4).max(title.chars().count() + 6);
+    let preferred_height = body_height + 4;
+    draw_overlay_frame_in_map(
+        buf,
+        map_frame,
+        title,
+        preferred_width,
+        preferred_height,
+        footer,
+    )
+}
+
 pub fn draw_overlay_frame_for_body(
     buf: &mut PlayfieldBuffer,
     title: &str,
@@ -103,6 +151,8 @@ pub fn draw_overlay_frame_for_body(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::MapWidgetFrame;
+    use crate::layout::widgets::WidgetRect;
 
     #[test]
     fn overlay_frame_keeps_footer_inside_modal_box() {
@@ -213,40 +263,80 @@ mod tests {
     }
 
     #[test]
-    fn dense_table_overlays_use_full_backdrop() {
-        assert_eq!(
-            overlay_backdrop(ActiveOverlay::PlanetList),
-            OverlayBackdrop::FullBackdrop
+    fn map_scoped_overlay_frame_stays_inside_center_widget() {
+        let mut buffer = PlayfieldBuffer::new(120, 40, theme::body_style());
+        let map_frame = MapWidgetFrame {
+            outer: WidgetRect {
+                col: 20,
+                row: 5,
+                width: 60,
+                height: 24,
+            },
+            map_block: WidgetRect {
+                col: 21,
+                row: 6,
+                width: 58,
+                height: 22,
+            },
+            axis_row: 6,
+            grid: WidgetRect {
+                col: 24,
+                row: 7,
+                width: 54,
+                height: 20,
+            },
+            bottom_pad_row: 27,
+            row_label_cols: 3,
+            cell_width: 3,
+        };
+        let frame = draw_overlay_frame_in_map(
+            &mut buffer,
+            map_frame,
+            "PLANET LIST",
+            80,
+            20,
+            TableFooter::CommandBar {
+                hotkeys_markup: "? <Q>",
+                default: None,
+                input: "",
+            },
         );
-        assert_eq!(
-            overlay_backdrop(ActiveOverlay::FleetList),
-            OverlayBackdrop::FullBackdrop
-        );
-        assert_eq!(
-            overlay_backdrop(ActiveOverlay::IntelDatabase),
-            OverlayBackdrop::FullBackdrop
-        );
-        assert_eq!(
-            overlay_backdrop(ActiveOverlay::Inbox),
-            OverlayBackdrop::FullBackdrop
-        );
-        assert_eq!(
-            overlay_backdrop(ActiveOverlay::Diplomacy),
-            OverlayBackdrop::None
-        );
-        assert_eq!(overlay_backdrop(ActiveOverlay::Help), OverlayBackdrop::None);
+
+        assert!(frame.body_col >= map_frame.outer.col + 2);
+        assert!(frame.body_row >= map_frame.outer.row + 2);
+        assert!(frame.body_col + frame.body_width <= map_frame.outer.last_col());
+        assert!(frame.footer_row < map_frame.outer.last_row());
     }
 
     #[test]
-    fn full_backdrop_clears_existing_dashboard_text() {
-        let mut buffer = PlayfieldBuffer::new(40, 12, theme::body_style());
-        buffer.write_text(2, 4, "dashboard clutter", theme::label_style());
-        buffer.write_text(9, 8, "more clutter", theme::alert_style());
+    fn overlay_body_limits_reflect_center_widget_capacity() {
+        let map_frame = MapWidgetFrame {
+            outer: WidgetRect {
+                col: 10,
+                row: 4,
+                width: 50,
+                height: 22,
+            },
+            map_block: WidgetRect {
+                col: 11,
+                row: 5,
+                width: 48,
+                height: 20,
+            },
+            axis_row: 5,
+            grid: WidgetRect {
+                col: 14,
+                row: 6,
+                width: 44,
+                height: 18,
+            },
+            bottom_pad_row: 24,
+            row_label_cols: 3,
+            cell_width: 3,
+        };
 
-        draw_full_backdrop(&mut buffer);
-
-        assert_eq!(buffer.plain_line(2), "");
-        assert_eq!(buffer.plain_line(9), "");
+        assert_eq!(max_overlay_body_width(map_frame), 42);
+        assert_eq!(max_overlay_body_height(map_frame), 14);
     }
 }
 

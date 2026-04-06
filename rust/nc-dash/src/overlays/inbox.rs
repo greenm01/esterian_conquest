@@ -6,22 +6,33 @@ use nc_ui::theme::classic;
 
 use crate::app::state::{DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, project_inbox_items};
-use crate::overlays::frame::{draw_hline, draw_overlay_frame, draw_vline, write_clipped};
+use crate::layout::MapWidgetFrame;
+use crate::overlays::frame::{
+    draw_hline, draw_overlay_frame_for_body_in_map, draw_vline, max_overlay_body_height,
+    max_overlay_body_width, write_clipped,
+};
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? Tab M R A Y D C <Q>";
 const LIST_WIDTH: usize = 28;
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let selected_default = selected_default(app);
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
         default: selected_default.as_deref(),
         input: &app.inbox_overlay.jump_input,
     };
-    let preferred_width = buf.width().saturating_sub(10).clamp(104, 142);
-    let preferred_height = buf.height().saturating_sub(6).clamp(20, 30);
-    let frame = draw_overlay_frame(buf, "INBOX", preferred_width, preferred_height, footer);
+    let preferred_body_width = max_overlay_body_width(map_frame).clamp(72, 138);
+    let preferred_body_height = max_overlay_body_height(map_frame).clamp(10, 26);
+    let frame = draw_overlay_frame_for_body_in_map(
+        buf,
+        map_frame,
+        "INBOX",
+        preferred_body_width,
+        preferred_body_height,
+        footer,
+    );
     let divider_col = frame.body_col + LIST_WIDTH;
     let preview_col = divider_col + 2;
     let preview_width = frame.body_width.saturating_sub(LIST_WIDTH + 2);

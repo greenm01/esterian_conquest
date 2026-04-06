@@ -9,7 +9,11 @@ use nc_ui::table::{
 use nc_ui::table_selection;
 
 use crate::app::state::{DashApp, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlaySort};
-use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
+use crate::layout::MapWidgetFrame;
+use crate::overlays::frame::{
+    draw_overlay_frame_for_body_in_map, max_overlay_body_height, max_overlay_body_width,
+    write_clipped,
+};
 use nc_data::Order;
 
 pub fn order_abbrev(order: Order) -> &'static str {
@@ -67,7 +71,7 @@ pub(crate) struct FleetOverlayRow {
     pub cells: Vec<String>,
 }
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let rows = table_rows(app);
     let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
@@ -92,18 +96,22 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
 
-    let desired_visible_rows = table_cells.len().clamp(1, buf.height().saturating_sub(10));
+    let desired_visible_rows = table_cells.len().clamp(
+        1,
+        max_overlay_body_height(map_frame).saturating_sub(4).max(1),
+    );
     let columns = resolve_table_columns(
         &COLUMNS,
         &table_cells,
-        buf.width().saturating_sub(12),
+        max_overlay_body_width(map_frame),
         false,
         TableWidthMode::Compact,
     );
     let body_width = table_render_width(&columns)
         .max("You have no active fleets or starbases.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body(
+    let frame = draw_overlay_frame_for_body_in_map(
         buf,
+        map_frame,
         "FLEET LIST",
         body_width,
         desired_visible_rows + 4,
