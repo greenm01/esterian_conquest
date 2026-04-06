@@ -1,9 +1,12 @@
 //! Right panel: world counts by category.
 
-use nc_data::DiplomaticRelation;
+use std::collections::BTreeMap;
+
+use nc_data::build_player_starmap_projection_from_snapshots;
 use nc_ui::PlayfieldBuffer;
 use crate::app::state::DashApp;
 use crate::layout;
+use crate::panels::starmap::{StarmapMarkerKind, marker_kind_for_world};
 use crate::theme;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
@@ -14,27 +17,38 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
 
     layout::write_width_clipped(buf, start_row, col, width, "KNOWN GALAXY", theme::section_title_style());
 
-    let owner_slot = app.player_record_index_1_based as u8;
-    let player = app.game_data.player.records.get(app.player_record_index_1_based.saturating_sub(1));
-    let (mut my, mut neutral, mut enemy, mut icd) = (0u32, 0u32, 0u32, 0u32);
+    let viewer_empire_id = app.player_record_index_1_based as u8;
+    let snapshot_map = app
+        .planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>();
+    let projection = build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        &snapshot_map,
+        viewer_empire_id,
+    );
+    let (mut owned, mut unowned, mut neutral, mut enemy, mut icd, mut partial, mut unknown) =
+        (0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32);
 
-    for planet in &app.game_data.planets.records {
-        let p_owner = planet.owner_empire_slot_raw();
-        if p_owner == 0 { continue; }
-        if p_owner == owner_slot { my += 1; continue; }
-        let is_icd = app.game_data.player.records.get(p_owner.saturating_sub(1) as usize)
-            .map(|p| p.is_civil_disorder_player()).unwrap_or(false);
-        if is_icd { icd += 1; }
-        else if player.and_then(|p| p.diplomatic_relation_toward(p_owner)) == Some(DiplomaticRelation::Enemy) { enemy += 1; }
-        else { neutral += 1; }
+    for world in &projection.worlds {
+        match marker_kind_for_world(app, viewer_empire_id, world) {
+            StarmapMarkerKind::Owned => owned += 1,
+            StarmapMarkerKind::Unowned => unowned += 1,
+            StarmapMarkerKind::Icd => icd += 1,
+            StarmapMarkerKind::Enemy => enemy += 1,
+            StarmapMarkerKind::Neutral => neutral += 1,
+            StarmapMarkerKind::Partial => partial += 1,
+            StarmapMarkerKind::Unknown => unknown += 1,
+        }
     }
 
-    let map_dim = nc_data::map_size_for_player_count(app.game_data.conquest.player_count()) as u32;
-    let uncharted = (map_dim * map_dim).saturating_sub(my + neutral + enemy + icd);
-
-    layout::write_width_clipped(buf, start_row + 1, col, width, &format!(" My      ■{:4}", my), theme::friendly_style());
-    layout::write_width_clipped(buf, start_row + 2, col, width, &format!(" Neutral ○{:4}", neutral), theme::dim_style());
-    layout::write_width_clipped(buf, start_row + 3, col, width, &format!(" Enemy   ●{:4}", enemy), theme::enemy_style());
-    layout::write_width_clipped(buf, start_row + 4, col, width, &format!(" ICD     ◊{:4}", icd), theme::icd_style());
-    layout::write_width_clipped(buf, start_row + 5, col, width, &format!(" Unch    ·{:4}", uncharted), theme::dim_style());
+    layout::write_width_clipped(buf, start_row + 1, col, width, &format!(" Owned   O{:4}", owned), theme::friendly_style());
+    layout::write_width_clipped(buf, start_row + 2, col, width, &format!(" Unowned #{:4}", unowned), theme::dim_style());
+    layout::write_width_clipped(buf, start_row + 3, col, width, &format!(" Neutral #{:4}", neutral), theme::label_style());
+    layout::write_width_clipped(buf, start_row + 4, col, width, &format!(" Enemy   #{:4}", enemy), theme::enemy_style());
+    layout::write_width_clipped(buf, start_row + 5, col, width, &format!(" ICD     ◊{:4}", icd), theme::icd_style());
+    layout::write_width_clipped(buf, start_row + 6, col, width, &format!(" Partial *{:4}", partial), theme::value_style());
+    layout::write_width_clipped(buf, start_row + 7, col, width, &format!(" Unknown ?{:4}", unknown), theme::dim_style());
 }
