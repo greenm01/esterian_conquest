@@ -110,13 +110,9 @@ impl DashApp {
     }
 
     fn handle_popup_key(&mut self, key: KeyEvent) -> bool {
-        match key.code {
-            KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                self.apply_action(Action::ClosePopup);
-                true
-            }
-            _ => true,
-        }
+        let _ = key;
+        self.apply_action(Action::ClosePopup);
+        true
     }
 
     fn jump_crosshair_to_planet(&mut self, direction: starmap::PlanetJumpDirection) {
@@ -212,14 +208,8 @@ impl DashApp {
                 true
             }
             ActiveOverlay::Settings | ActiveOverlay::Help => {
-                let context = match self.overlay {
-                    ActiveOverlay::Settings => HelpContext::Settings,
-                    ActiveOverlay::Help => self.help_context,
-                    _ => HelpContext::Global,
-                };
-                if self.handle_overlay_close_or_help(key, context) {
-                    return true;
-                }
+                let _ = key;
+                self.close_active_overlay();
                 true
             }
         }

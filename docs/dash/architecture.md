@@ -133,7 +133,8 @@ Helper modals are dismissal-only. They should use a plain dismissal footer
 like `(slap a key)` instead of a `COMMAND <- ... ->` rail. More generally,
 command-line chrome is reserved for modals that are actually collecting or
 advertising actionable commands. Dismissal footers must render entirely inside
-the modal footer span and must never overwrite the modal borders.
+the modal footer span and must never overwrite the modal borders. In dash,
+`(slap a key)` means exactly that: any key dismisses the modal.
 
 Within any dash modal or widget body that uses colon-separated label/value
 rows, the `:` column should align consistently across that block, matching the
