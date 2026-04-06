@@ -243,12 +243,10 @@ fn partial_starmap_popup_help_mentions_enter_for_planet_info() {
 
     let popup = app.popup_help.as_ref().expect("popup help should open");
     assert_eq!(popup.title, "MAP COMMANDS");
-    assert!(
-        popup
-            .lines
-            .iter()
-            .any(|line| line.contains("Enter") && line.contains("planet at the current map cursor"))
-    );
+    assert!(popup
+        .lines
+        .iter()
+        .any(|line| line.contains("Enter") && line.contains("planet at the current map cursor")));
     assert!(!popup.lines.iter().any(|line| line.contains("HJKL")));
     assert!(!popup.lines.iter().any(|line| line.contains("1 2 3")));
 }
@@ -479,6 +477,7 @@ fn starmap_dump_page_uses_plain_bottom_left_slap_a_key_prompt() {
     assert!(!buffer.plain_line(24).contains("GALAXY MAP"));
     assert!(!buffer.plain_line(24).contains("->"));
     assert!(!buffer.plain_line(24).contains("<-"));
+    assert_eq!(buffer.cursor().expect("cursor set"), (13, 24));
 }
 
 #[test]
@@ -494,6 +493,7 @@ fn starmap_prompt_uses_plain_dismiss_prompt_below_last_text_line() {
     assert!(!buffer.plain_line(9).contains("GALAXY MAP"));
     assert!(!buffer.plain_line(9).contains("->"));
     assert!(!buffer.plain_line(9).contains("<-"));
+    assert_eq!(buffer.cursor().expect("cursor set"), (13, 9));
 }
 
 #[test]
@@ -548,25 +548,19 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     app.planet.info_selected = Some(planet_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Last Viewed/Scouted"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Last Viewed/Scouted")));
     assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Intel Tier"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Intel Tier")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1]))));
 }
 
 #[test]
@@ -621,18 +615,14 @@ fn planet_info_intel_detail_shows_unowned_for_known_zero_owner() {
     app.planet.info_selected = Some(planet_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Owner") && line.contains("Unowned"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1]))));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Owner") && line.contains("Unowned")));
     assert!(!terminal.lines.iter().any(|line| line.contains("Empire #0")));
 }
 
@@ -665,12 +655,10 @@ fn owned_planet_info_detail_shows_owned_since_year() {
     app.planet.info_selected = Some(owned_idx);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Owned Since") && line.contains("Y3000"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Owned Since") && line.contains("Y3000")));
 }
 
 #[test]

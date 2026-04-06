@@ -2,6 +2,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
+use nc_game::screen::layout::{
+    dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
+    draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
+    draw_inline_planet_info_prompt, draw_plain_prompt, draw_prompt_error_after,
+    draw_prompt_feedback_after, draw_status_line, draw_table_command_prompt,
+    table_dismiss_prompt_row, PromptFeedback, ScreenGeometry, COMMAND_LINE_ROW, PLAYFIELD_HEIGHT,
+    PLAYFIELD_WIDTH,
+};
+use nc_game::screen::render_first_time_join_name;
 use nc_game::screen::MessageComposeScreen;
 use nc_game::screen::PlanetBuildOrder;
 use nc_game::screen::PlanetBuildScreen;
@@ -11,16 +21,6 @@ use nc_game::screen::PlanetCommissionScreen;
 use nc_game::screen::PlanetMenuScreen;
 use nc_game::screen::PlayfieldBuffer;
 use nc_game::screen::StarmapScreen;
-use nc_game::screen::layout::{
-    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, PromptFeedback, ScreenGeometry,
-    dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
-    draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
-    draw_inline_planet_info_prompt, draw_plain_prompt, draw_prompt_error_after,
-    draw_prompt_feedback_after, draw_status_line, draw_table_command_prompt,
-    table_dismiss_prompt_row,
-};
-use nc_game::screen::render_first_time_join_name;
 use nc_game::theme::classic;
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
@@ -361,30 +361,6 @@ fn draw_plain_prompt_highlights_key_in_slap_a_key_phrase() {
 }
 
 #[test]
-fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
-    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt_at(
-        &mut buffer,
-        COMMAND_LINE_ROW,
-        "GENERAL COMMAND",
-        "SLAP A KEY",
-    );
-
-    let row = buffer.row(COMMAND_LINE_ROW);
-    let phrase = find_in_row(&buffer, COMMAND_LINE_ROW, "slap a key");
-    assert_eq!(row[phrase].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 1].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 2].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 3].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 4].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 5].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 6].style, classic::prompt_notice_action_style());
-    assert_eq!(row[phrase + 7].style, classic::prompt_hotkey_style());
-    assert_eq!(row[phrase + 8].style, classic::prompt_hotkey_style());
-    assert_eq!(row[phrase + 9].style, classic::prompt_hotkey_style());
-}
-
-#[test]
 fn draw_command_prompt_places_cursor_after_arrow_space() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     draw_command_prompt_at(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "? X <Q>");
@@ -410,21 +386,6 @@ fn draw_command_prompt_at_col_offsets_label_keys_and_cursor_together() {
     assert!(keys_col > label_col);
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
-}
-
-#[test]
-fn draw_command_prompt_does_not_expose_cursor_for_slap_a_key() {
-    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt_at(
-        &mut buffer,
-        COMMAND_LINE_ROW,
-        "GENERAL COMMAND",
-        "SLAP A KEY",
-    );
-
-    let line = row_text(&buffer, COMMAND_LINE_ROW);
-    assert!(buffer.cursor().is_none());
-    assert!(line.contains("(slap a key)-> "));
 }
 
 #[test]
@@ -588,10 +549,8 @@ fn inline_delete_reviewables_prompt_uses_notice_style_and_cursor_gap() {
     let title_col = find_in_row(&buffer, 12, title);
     let row = buffer.row(12);
     assert_eq!(row[title_col].style, classic::notice_style());
-    assert!(
-        row_text(&buffer, 13)
-            .contains("This will clear all currently reviewable messages and results.")
-    );
+    assert!(row_text(&buffer, 13)
+        .contains("This will clear all currently reviewable messages and results."));
 }
 
 #[test]
@@ -625,10 +584,8 @@ fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
     assert!(row_text(&buffer, 6).contains("COMMAND <- [Y]/N -> "));
     assert!(row_text(&buffer, 7).trim().is_empty());
     assert!(row_text(&buffer, 8).contains("AUTO-COMMISSION SHIPS:"));
-    assert!(
-        row_text(&buffer, 9)
-            .contains("Automatically commission all ships and starbases in stardock?")
-    );
+    assert!(row_text(&buffer, 9)
+        .contains("Automatically commission all ships and starbases in stardock?"));
 }
 
 #[test]
@@ -854,10 +811,8 @@ fn commission_draft_renders_inline_notice_below_command_row() {
         .find(|&row| row_text(&buffer, row).contains("(Slap a key) Fleet 02 Commissioned"))
         .expect("notice row");
     assert_eq!(prompt_row, top_row + 6);
-    assert!(
-        (prompt_row + 1..buffer.height())
-            .all(|row| { !row_text(&buffer, row).contains("Fleet 02 Commissioned") })
-    );
+    assert!((prompt_row + 1..buffer.height())
+        .all(|row| { !row_text(&buffer, row).contains("Fleet 02 Commissioned") }));
 }
 
 #[test]
@@ -1063,10 +1018,18 @@ fn help_panel_reserves_one_blank_row_above_dismiss_prompt() {
     assert!(!row_text(&buffer, COMMAND_LINE_ROW - 2).trim().is_empty());
     assert!(row_text(&buffer, COMMAND_LINE_ROW - 1).trim().is_empty());
     assert!(row_text(&buffer, COMMAND_LINE_ROW).contains("(slap a key)"));
+    let phrase_end = row_text(&buffer, COMMAND_LINE_ROW)
+        .find("(slap a key)")
+        .expect("slap a key")
+        + "(slap a key)".chars().count();
+    assert_eq!(
+        buffer.cursor().expect("cursor set"),
+        ((phrase_end + 1) as u16, COMMAND_LINE_ROW as u16)
+    );
 }
 
 #[test]
-fn startup_intro_page_24_row_door_keeps_slap_a_key_prompt_without_cursor() {
+fn startup_intro_page_24_row_door_keeps_slap_a_key_prompt_with_cursor_after_gap() {
     let buffer = nc_game::screen::startup::render_game_intro_page(
         ScreenGeometry::for_door(Some(24)),
         0,
@@ -1077,5 +1040,12 @@ fn startup_intro_page_24_row_door_keeps_slap_a_key_prompt_without_cursor() {
     assert_eq!(buffer.height(), 24);
     assert_eq!(row_text(&buffer, 16).trim_end(), " (slap a key)");
     assert!(row_text(&buffer, 16).starts_with(' '));
-    assert!(buffer.cursor().is_none());
+    let phrase_end = row_text(&buffer, 16)
+        .find("(slap a key)")
+        .expect("slap a key")
+        + "(slap a key)".chars().count();
+    assert_eq!(
+        buffer.cursor().expect("cursor set"),
+        ((phrase_end + 1) as u16, 16)
+    );
 }

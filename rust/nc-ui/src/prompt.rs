@@ -10,7 +10,7 @@ const DEFAULT_CLOSE_WITH_SUFFIX: &str = "] -> ";
 const SLAP_A_KEY_PROMPT: &str = "(slap a key)";
 
 pub fn plain_prompt_width(prompt: &str) -> usize {
-    ensure_cursor_gap(prompt).chars().count()
+    ensure_cursor_gap(prompt).chars().count() + slap_cursor_padding(prompt)
 }
 
 pub fn dismiss_prompt_width() -> usize {
@@ -106,36 +106,19 @@ pub fn draw_command_prompt_at_col(
     keys: &str,
 ) {
     buffer.fill_row(row, classic::prompt_style());
-    let suffix = "-> ";
-    if keys == "SLAP A KEY" {
-        buffer.write_spans_clipped(
+    let prefix_col = col
+        + buffer.write_spans_clipped(
             row,
             col,
             &[
                 StyledSpan::new(label, classic::title_style()),
-                StyledSpan::new(" <-", classic::prompt_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
             ],
         );
-        let slap_width = SLAP_A_KEY_PROMPT.chars().count();
-        let suffix_col = buffer.width().saturating_sub(suffix.chars().count() + 1);
-        let slap_col = suffix_col.saturating_sub(slap_width);
-        write_slap_a_key(buffer, row, slap_col);
-        let _ = buffer.write_text_clipped(row, suffix_col, suffix, classic::prompt_style());
-    } else {
-        let prefix_col = col
-            + buffer.write_spans_clipped(
-                row,
-                col,
-                &[
-                    StyledSpan::new(label, classic::title_style()),
-                    StyledSpan::new(" <- ", classic::prompt_style()),
-                ],
-            );
-        let mut cursor_col = write_command_rail_tokens(buffer, row, prefix_col, keys);
-        cursor_col += buffer.write_text_clipped(row, cursor_col, " -> ", classic::prompt_style());
-        if buffer.width() > 0 {
-            buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
-        }
+    let mut cursor_col = write_command_rail_tokens(buffer, row, prefix_col, keys);
+    cursor_col += buffer.write_text_clipped(row, cursor_col, " -> ", classic::prompt_style());
+    if buffer.width() > 0 {
+        buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
 }
 
@@ -222,7 +205,9 @@ pub fn draw_command_line_prompt_text_at_col(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+    if contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+        set_slap_cursor(buffer, row, cursor_col, buffer.width() - 1);
+    } else if buffer.width() > 0 {
         buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
 }
@@ -249,7 +234,10 @@ pub fn draw_command_line_prompt_text_in_span(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup_in_span(buffer, row, prefix, col + width, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+    if contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+        let clamped = (col + width - 1).min(buffer.width() - 1);
+        set_slap_cursor(buffer, row, cursor_col, clamped);
+    } else if buffer.width() > 0 && width > 0 {
         let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
         buffer.set_cursor(clamped as u16, row as u16);
     }
@@ -557,7 +545,9 @@ pub fn draw_table_command_prompt_at_col(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+    if contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+        set_slap_cursor(buffer, row, cursor_col, buffer.width() - 1);
+    } else if buffer.width() > 0 {
         buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
     cursor_col
@@ -584,7 +574,10 @@ pub fn draw_table_command_prompt_in_span(
         );
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup_in_span(buffer, row, prefix, col + width, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+    if contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+        let clamped = (col + width - 1).min(buffer.width() - 1);
+        set_slap_cursor(buffer, row, cursor_col, clamped)
+    } else if buffer.width() > 0 && width > 0 {
         let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
         buffer.set_cursor(clamped as u16, row as u16);
         clamped
@@ -606,7 +599,9 @@ pub fn draw_plain_prompt_at_col(
     buffer.fill_row(row, classic::prompt_style());
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup(buffer, row, col, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+    if contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 {
+        set_slap_cursor(buffer, row, cursor_col, buffer.width() - 1);
+    } else if buffer.width() > 0 {
         buffer.set_cursor(cursor_col.min(buffer.width() - 1) as u16, row as u16);
     }
     cursor_col
@@ -622,7 +617,11 @@ pub fn draw_plain_prompt_in_span(
     fill_prompt_span(buffer, row, col, width);
     let prompt = ensure_cursor_gap(prompt);
     let cursor_col = write_prompt_markup_in_span(buffer, row, col, col + width, &prompt);
-    if !contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+    if contains_slap_a_key_phrase(&prompt) && buffer.width() > 0 && width > 0 {
+        let clamped = (col + width - 1).min(buffer.width() - 1);
+        set_slap_cursor(buffer, row, cursor_col, clamped);
+        clamped
+    } else if buffer.width() > 0 && width > 0 {
         let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
         buffer.set_cursor(clamped as u16, row as u16);
         clamped
@@ -660,6 +659,14 @@ fn ensure_cursor_gap(prompt: &str) -> String {
         format!("{prompt} ")
     } else {
         prompt.to_string()
+    }
+}
+
+fn slap_cursor_padding(prompt: &str) -> usize {
+    if contains_slap_a_key_phrase(prompt) {
+        2
+    } else {
+        0
     }
 }
 
@@ -775,18 +782,15 @@ fn write_live_input_clipped(
     cursor_col
 }
 
-fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
-    let after_open = col + buffer.write_text_clipped(row, col, "(", classic::prompt_hotkey_style());
-    let after_text = after_open
-        + buffer.write_text_clipped(
-            row,
-            after_open,
-            "slap a ",
-            classic::prompt_notice_action_style(),
-        );
-    let after_key = after_text
-        + buffer.write_text_clipped(row, after_text, "key", classic::prompt_hotkey_style());
-    after_key + buffer.write_text_clipped(row, after_key, ")", classic::prompt_hotkey_style())
+fn set_slap_cursor(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    prompt_end_col: usize,
+    max_col: usize,
+) -> usize {
+    let cursor_col = prompt_end_col.saturating_add(1).min(max_col);
+    buffer.set_cursor(cursor_col as u16, row as u16);
+    cursor_col
 }
 
 fn write_command_rail_tokens(
@@ -1284,8 +1288,7 @@ mod tests {
         command_line_default_input_width_with_cancel, draw_command_line_default_input_at,
         draw_command_line_default_input_with_cancel_at,
         draw_command_line_default_input_with_cancel_in_span, draw_command_line_prompt_text_at,
-        draw_command_prompt_at, draw_plain_prompt, draw_plain_prompt_in_span,
-        draw_right_aligned_footer_text,
+        draw_plain_prompt, draw_plain_prompt_in_span, draw_right_aligned_footer_text,
         draw_table_command_bar_at, draw_table_command_bar_in_span,
         table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
     };
@@ -1505,10 +1508,18 @@ mod tests {
     }
 
     #[test]
-    fn plain_slap_a_key_prompt_does_not_expose_cursor() {
+    fn plain_slap_a_key_prompt_sets_cursor_after_gap() {
         let mut buffer = buffer();
         draw_plain_prompt(&mut buffer, 24, "(slap a key)");
-        assert!(buffer.cursor().is_none());
+        assert!(!buffer.plain_line(24).contains("COMMAND"));
+        let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
+        let phrase_end = buffer
+            .plain_line(24)
+            .find("(slap a key)")
+            .expect("slap a key")
+            + "(slap a key)".chars().count();
+        assert_eq!(cursor_row, 24);
+        assert_eq!(cursor_col as usize, phrase_end + 1);
     }
 
     #[test]
@@ -1536,21 +1547,22 @@ mod tests {
         assert_eq!(buffer.row(24)[9].ch, '│');
         assert_eq!(buffer.row(24)[24].ch, '│');
         assert!(buffer.plain_line(24).contains("(slap a key)"));
-        assert!(buffer.cursor().is_none());
+        assert!(!buffer.plain_line(24).contains("COMMAND"));
+        assert_eq!(buffer.cursor().expect("cursor"), (23, 24));
     }
 
     #[test]
-    fn command_slap_a_key_prompt_does_not_expose_cursor() {
-        let mut buffer = buffer();
-        draw_command_prompt_at(&mut buffer, 24, "GENERAL COMMAND", "SLAP A KEY");
-        assert!(buffer.cursor().is_none());
-    }
-
-    #[test]
-    fn slap_a_key_for_more_prompt_does_not_expose_cursor() {
+    fn slap_a_key_for_more_prompt_sets_cursor_after_gap() {
         let mut buffer = buffer();
         draw_command_line_prompt_text_at(&mut buffer, 24, "COMMAND", "(Slap a key for more)");
-        assert!(buffer.cursor().is_none());
+        let (cursor_col, cursor_row) = buffer.cursor().expect("cursor");
+        let phrase_end = buffer
+            .plain_line(24)
+            .find("(Slap a key for more)")
+            .expect("slap a key for more")
+            + "(Slap a key for more)".chars().count();
+        assert_eq!(cursor_row, 24);
+        assert_eq!(cursor_col as usize, phrase_end + 1);
     }
 
     #[test]
