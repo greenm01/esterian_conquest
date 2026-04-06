@@ -22,6 +22,10 @@ pub enum Action {
     MoveCrosshairRight,
     JumpPlanetBackward,
     JumpPlanetForward,
+    ToggleMapViewMode,
+    ZoomMapIn,
+    ZoomMapOut,
+    ResetMapZoom,
     OpenPlanetDetailPopup,
     ToggleAutopilot,
     SetTaxRate,
@@ -91,6 +95,14 @@ pub fn key_to_action(key: KeyEvent, focus: PanelFocus, overlay: ActiveOverlay) -
         },
         KeyCode::Char('[') if focus == PanelFocus::Map => Action::JumpPlanetBackward,
         KeyCode::Char(']') if focus == PanelFocus::Map => Action::JumpPlanetForward,
+        KeyCode::Char('v') | KeyCode::Char('V') if focus == PanelFocus::Map => {
+            Action::ToggleMapViewMode
+        }
+        KeyCode::Char('+') | KeyCode::Char('=') if focus == PanelFocus::Map => Action::ZoomMapIn,
+        KeyCode::Char('-') if focus == PanelFocus::Map => Action::ZoomMapOut,
+        KeyCode::Char('z') | KeyCode::Char('Z') if focus == PanelFocus::Map => {
+            Action::ResetMapZoom
+        }
         KeyCode::PageUp => Action::PageUp,
         KeyCode::PageDown => Action::PageDown,
         KeyCode::Home => Action::Home,
@@ -162,6 +174,58 @@ mod tests {
         assert_eq!(
             key_to_action(
                 KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::PlanetList,
+            ),
+            Action::None
+        );
+    }
+
+    #[test]
+    fn zoom_keys_only_apply_on_map_without_overlay() {
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('='), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::ZoomMapIn
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('-'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::ZoomMapOut
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::ResetMapZoom
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE),
+                PanelFocus::Map,
+                ActiveOverlay::None,
+            ),
+            Action::ToggleMapViewMode
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('='), KeyModifiers::NONE),
+                PanelFocus::Economy,
+                ActiveOverlay::None,
+            ),
+            Action::None
+        );
+        assert_eq!(
+            key_to_action(
+                KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE),
                 PanelFocus::Map,
                 ActiveOverlay::PlanetList,
             ),

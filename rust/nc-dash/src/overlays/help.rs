@@ -49,6 +49,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("XX,YY", "Jump crosshair to map coordinates"),
             ("[", "Jump to the previous planet on the map"),
             ("]", "Jump to the next planet on the map"),
+            ("+", "Zoom the map in"),
+            ("-", "Zoom the map out"),
+            ("Z", "Reset the map to fit the full galaxy"),
+            ("V", "Toggle readable and fill map view"),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
             ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
         ],
@@ -229,6 +233,12 @@ mod tests {
         assert!(lines
             .iter()
             .any(|line| line.contains("XX,YY") && line.contains("map coordinates")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("+") && line.contains("Zoom the map in")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("V") && line.contains("fill map view")));
         assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));

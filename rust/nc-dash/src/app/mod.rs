@@ -11,7 +11,7 @@ use nc_ui::Terminal;
 use state::{
     ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter, FleetOverlayPromptMode,
     FleetOverlaySort, HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
-    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+    MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
 };
 
 use crate::inbox::{project_inbox_items, DashInboxItemSource};
@@ -98,6 +98,19 @@ impl DashApp {
             Action::JumpPlanetForward => {
                 self.jump_crosshair_to_planet(starmap::PlanetJumpDirection::Forward);
             }
+            Action::ToggleMapViewMode => {
+                self.map_view_mode = match self.map_view_mode {
+                    MapViewMode::Readable => MapViewMode::Fill,
+                    MapViewMode::Fill => MapViewMode::Readable,
+                };
+            }
+            Action::ZoomMapIn => {
+                self.map_zoom_level = self.map_zoom_level.saturating_add(1).min(5);
+            }
+            Action::ZoomMapOut => {
+                self.map_zoom_level = self.map_zoom_level.saturating_sub(1);
+            }
+            Action::ResetMapZoom => self.map_zoom_level = 0,
             Action::OpenPlanetDetailPopup => self.open_planet_detail_popup_at_cursor(),
             Action::ScrollUp => self.scroll_up(),
             Action::ScrollDown => self.scroll_down(),
@@ -1135,7 +1148,9 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
 #[cfg(test)]
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
-    use crate::app::state::{DashApp, FleetOverlayFilter, IntelOverlayFilter, PlanetOverlayFilter};
+    use crate::app::state::{
+        DashApp, FleetOverlayFilter, IntelOverlayFilter, MapViewMode, PlanetOverlayFilter,
+    };
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crossterm::event::{KeyCode, KeyEvent};
     use nc_data::GameStateBuilder;
@@ -1238,6 +1253,45 @@ mod tests {
         ));
 
         assert!(app.map_coord_input.is_empty());
+    }
+
+    #[test]
+    fn zoom_keys_adjust_map_zoom_level() {
+        let mut app = dash_app();
+
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('='),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('='),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert_eq!(app.map_zoom_level, 2);
+
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('-'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert_eq!(app.map_zoom_level, 1);
+
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('z'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert_eq!(app.map_zoom_level, 0);
+
+        assert_eq!(app.map_view_mode, MapViewMode::Readable);
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('v'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert_eq!(app.map_view_mode, MapViewMode::Fill);
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('v'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert_eq!(app.map_view_mode, MapViewMode::Readable);
     }
 
     #[test]

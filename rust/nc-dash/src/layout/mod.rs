@@ -1,5 +1,6 @@
 //! Three-column frame, border drawing, resize handling.
 
+pub mod dashboard;
 pub mod geometry;
 pub mod widgets;
 
@@ -7,16 +8,12 @@ use nc_ui::{prompt, PlayfieldBuffer, ScreenGeometry};
 
 use crate::app::state::DashApp;
 use crate::theme;
+pub use dashboard::{DashboardLayout, dashboard_layout};
 pub use widgets::{
-    dashboard_widget_frames, format_label_value, format_left_column_value, frame_offset_for,
-    label_value_width, write_clipped, write_panel_body_line, write_panel_title,
-    write_strict_span, DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame,
+    format_label_value, format_left_column_value, frame_offset_for, label_value_width,
+    write_clipped, write_panel_body_line, write_panel_title, write_strict_span,
+    DashboardWidgetFrames, MapWidgetFrame, PanelWidgetFrame,
 };
-
-/// Compute the (col, row) offset to center the frame in the canvas.
-pub fn frame_offset(app: &DashApp) -> (usize, usize) {
-    frame_offset_for(app.geometry, app.frame)
-}
 
 /// Create a new PlayfieldBuffer at the full canvas size, filled with theme bg.
 pub fn new_dashboard_buffer(geometry: ScreenGeometry) -> PlayfieldBuffer {
@@ -120,11 +117,10 @@ pub fn draw_frame(
 }
 
 /// Draw header text on the interior header bar row.
-pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (ox, _) = frame_offset(app);
-    let fw = app.frame.width();
-    let widgets = dashboard_widget_frames(app.geometry, app.frame);
-    let row = widgets.header_bar_row;
+pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp, layout: &DashboardLayout) {
+    let (ox, _) = frame_offset_for(app.geometry, layout.frame);
+    let fw = layout.frame.width();
+    let row = layout.widgets.header_bar_row;
     let inner_right = ox + fw.saturating_sub(2);
 
     // Branding (after left corner).
@@ -192,16 +188,15 @@ pub fn draw_header(buf: &mut PlayfieldBuffer, app: &DashApp) {
 }
 
 /// Draw footer text on the interior footer bar row.
-pub fn draw_footer(buf: &mut PlayfieldBuffer, app: &DashApp) {
-    let (ox, _) = frame_offset(app);
-    let widgets = dashboard_widget_frames(app.geometry, app.frame);
-    let row = widgets.footer_bar_row;
+pub fn draw_footer(buf: &mut PlayfieldBuffer, app: &DashApp, layout: &DashboardLayout) {
+    let (ox, _) = frame_offset_for(app.geometry, layout.frame);
+    let row = layout.widgets.footer_bar_row;
     prompt::draw_table_command_bar_in_span(
         buf,
         row,
         ox + 1,
-        app.frame.width().saturating_sub(2),
-        "? P F I R D A S <Q>",
+        layout.frame.width().saturating_sub(2),
+        "? P F I R D A S V <Q>",
         Some(&current_coord_default(app)),
         &app.map_coord_input,
     );
@@ -257,7 +252,6 @@ fn plain_separator(
 mod tests {
     use super::*;
     use crate::app::state::DashApp;
-    use crate::layout::geometry::dashboard_geometry;
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -285,10 +279,12 @@ mod tests {
 
     #[test]
     fn dashboard_frame_separators_follow_widget_boundaries() {
-        let canvas = ScreenGeometry::new(160, 40);
-        let frame = dashboard_geometry(18);
-        let widgets = dashboard_widget_frames(canvas, frame);
-        let mut buffer = PlayfieldBuffer::new(canvas.width(), canvas.height(), theme::body_style());
+        let app = dash_app();
+        let layout = dashboard_layout(&app);
+        let frame = layout.frame;
+        let widgets = layout.widgets;
+        let mut buffer =
+            PlayfieldBuffer::new(app.geometry.width(), app.geometry.height(), theme::body_style());
 
         draw_frame(&mut buffer, frame, &widgets);
 
@@ -316,7 +312,7 @@ mod tests {
                 &buffer,
                 widgets.left_planets.outer.row.saturating_sub(1),
                 widgets.outer_top.saturating_sub(widgets.outer_top)
-                    + frame_offset_for(canvas, frame).0,
+                    + frame_offset_for(app.geometry, frame).0,
             ),
             Some('├')
         );
@@ -324,9 +320,8 @@ mod tests {
 
     #[test]
     fn dashboard_header_and_footer_rows_are_inside_the_outer_border() {
-        let canvas = ScreenGeometry::new(160, 40);
-        let frame = dashboard_geometry(18);
-        let widgets = dashboard_widget_frames(canvas, frame);
+        let layout = dashboard_layout(&dash_app());
+        let widgets = layout.widgets;
         assert_eq!(widgets.header_bar_row, widgets.outer_top + 1);
         assert_eq!(widgets.header_divider_row, widgets.outer_top + 2);
         assert_eq!(widgets.footer_bar_row, widgets.outer_bottom - 1);
@@ -335,16 +330,18 @@ mod tests {
 
     #[test]
     fn side_panel_separators_draw_t_connectors_into_shell_and_dividers() {
-        let canvas = ScreenGeometry::new(160, 40);
-        let frame = dashboard_geometry(18);
-        let widgets = dashboard_widget_frames(canvas, frame);
-        let mut buffer = PlayfieldBuffer::new(canvas.width(), canvas.height(), theme::body_style());
+        let app = dash_app();
+        let layout = dashboard_layout(&app);
+        let frame = layout.frame;
+        let widgets = layout.widgets;
+        let mut buffer =
+            PlayfieldBuffer::new(app.geometry.width(), app.geometry.height(), theme::body_style());
 
         draw_frame(&mut buffer, frame, &widgets);
 
         let left_row = widgets.left_planets.outer.row.saturating_sub(1);
         let right_row = widgets.right_diplomacy.outer.row.saturating_sub(1);
-        let left_border_col = frame_offset_for(canvas, frame).0;
+        let left_border_col = frame_offset_for(app.geometry, frame).0;
         let right_border_col = left_border_col + frame.width().saturating_sub(1);
 
         assert_eq!(line_char(&buffer, left_row, left_border_col), Some('├'));
@@ -369,12 +366,13 @@ mod tests {
             app.geometry.height(),
             theme::body_style(),
         );
+        let layout = dashboard_layout(&app);
 
-        draw_footer(&mut buffer, &app);
+        draw_footer(&mut buffer, &app, &layout);
 
-        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let widgets = layout.widgets;
         let line = buffer.plain_line(widgets.footer_bar_row);
-        assert!(line.contains("COMMAND <- ? P F I R D A S <Q> [02,03] ->"));
+        assert!(line.contains("COMMAND <- ? P F I R D A S V <Q> [02,03] ->"));
         assert!(!line.contains("P:Planets"));
     }
 
@@ -391,7 +389,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             ScreenGeometry::new(160, 40),
-            dashboard_geometry(18),
+            ScreenGeometry::new(0, 0),
             1,
         )
     }

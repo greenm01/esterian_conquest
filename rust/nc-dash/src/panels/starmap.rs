@@ -29,82 +29,236 @@ pub(crate) enum PlanetJumpDirection {
     Forward,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ProjectedMapGeometry {
+    axis_row: usize,
+    row_label_col: usize,
+    row_label_width: usize,
+    x_min: u8,
+    x_max: u8,
+    y_min: u8,
+    y_max: u8,
+    col_edges: Vec<usize>,
+    row_edges: Vec<usize>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SectorRect {
+    col: usize,
+    row: usize,
+    width: usize,
+    height: usize,
+}
+
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
-    let map_size =
-        nc_data::map_size_for_player_count(app.game_data.conquest.player_count()) as usize;
+    let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
 
     let player_empire = app.player_record_index_1_based as u8;
     let snapshot_map = snapshot_map_for_app(app);
     let projection = projection_for_snapshot_map(app, &snapshot_map);
+    let projected = projected_map_geometry(app, frame, map_size);
 
     // Column axis numbers.
-    for col_idx in 0..map_size {
-        let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
-        if screen_col + 1 > frame.grid.last_col() {
-            break;
-        }
-        layout::write_strict_span(
-            buf,
-            frame.axis_row,
-            screen_col,
-            2,
-            &format!("{:02}", col_idx + 1),
-            theme::dim_style(),
-            "starmap axis label",
-        );
+    for world_x in projected.x_min..=projected.x_max {
+        let Some(rect) = projected.sector_rect([world_x, projected.y_max]) else {
+            continue;
+        };
+        draw_column_axis_label(buf, projected.axis_row, rect, world_x);
     }
 
-    // Grid rows — row_y descends: map_size at top, 1 at bottom.
-    for row_idx in 0..map_size {
-        let row_y = (map_size - row_idx) as u8;
-        let screen_row = frame.grid.row + row_idx;
-        let is_h_crosshair = row_y == app.crosshair_y;
-
-        layout::write_strict_span(
+    // Grid rows — row_y descends: y_max at top, y_min at bottom.
+    for row_y in (projected.y_min..=projected.y_max).rev() {
+        let Some(row_rect) = projected.sector_rect([projected.x_min, row_y]) else {
+            continue;
+        };
+        draw_row_axis_label(
             buf,
-            screen_row,
-            frame.grid.col,
-            frame.row_label_cols,
-            &format!("{:02} ", row_y),
-            theme::dim_style(),
-            "starmap row label",
+            projected.row_label_col,
+            projected.row_label_width,
+            row_rect,
+            row_y,
         );
 
-        for col_idx in 0..map_size {
-            let col_x = (col_idx + 1) as u8;
-            let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
-            if screen_col + frame.cell_width - 1 > frame.grid.last_col() {
-                break;
-            }
+        for col_x in projected.x_min..=projected.x_max {
+            let Some(rect) = projected.sector_rect([col_x, row_y]) else {
+                continue;
+            };
+            let is_h_crosshair = row_y == app.crosshair_y;
             let is_v_crosshair = col_x == app.crosshair_x;
-
             let planet = projection_world_at(&projection, [col_x, row_y]);
-
             let (sym, base_style) = if let Some(snapshot) = planet {
                 marker_for_world(app, player_empire, snapshot)
+            } else if is_h_crosshair && is_v_crosshair {
+                ('+', theme::map_center_style())
+            } else if is_h_crosshair {
+                ('-', theme::map_crosshair_style())
+            } else if is_v_crosshair {
+                ('|', theme::map_crosshair_style())
             } else {
                 ('·', theme::dim_style())
             };
-
-            let (left, mid, right, cell_style) = if is_h_crosshair && is_v_crosshair {
-                (' ', sym, ' ', theme::map_center_style())
-            } else if is_h_crosshair {
-                (' ', sym, ' ', theme::map_crosshair_style())
-            } else if is_v_crosshair {
-                (' ', sym, ' ', theme::map_crosshair_style())
+            let fill_style = if is_h_crosshair && is_v_crosshair {
+                theme::map_center_style()
+            } else if is_h_crosshair || is_v_crosshair {
+                theme::map_crosshair_style()
             } else {
-                (' ', sym, ' ', base_style)
+                theme::body_style()
             };
 
-            buf.set_cell(screen_row, screen_col, left, cell_style);
-            let mid_style = if is_h_crosshair || is_v_crosshair {
-                cell_style
-            } else {
-                base_style
-            };
-            buf.set_cell(screen_row, screen_col + 1, mid, mid_style);
-            buf.set_cell(screen_row, screen_col + 2, right, cell_style);
+            fill_sector_rect(buf, rect, fill_style);
+            if is_h_crosshair || is_v_crosshair {
+                draw_crosshair_lines(buf, rect, is_h_crosshair, is_v_crosshair, fill_style);
+            }
+            draw_sector_marker(
+                buf,
+                rect,
+                sym,
+                if is_h_crosshair || is_v_crosshair {
+                    fill_style
+                } else {
+                    base_style
+                },
+            );
         }
+    }
+}
+
+fn projected_map_geometry(app: &DashApp, frame: MapWidgetFrame, map_size: u8) -> ProjectedMapGeometry {
+    let visible = visible_sector_count(map_size, app.map_zoom_level);
+    let x_min = viewport_start(app.crosshair_x, visible, map_size);
+    let y_min = viewport_start(app.crosshair_y, visible, map_size);
+    let x_max = x_min + visible.saturating_sub(1);
+    let y_max = y_min + visible.saturating_sub(1);
+    let cell_area_col = frame.grid.col + frame.row_label_cols;
+    let cell_area_width = frame.grid.width.saturating_sub(frame.row_label_cols);
+
+    ProjectedMapGeometry {
+        axis_row: frame.axis_row,
+        row_label_col: frame.grid.col,
+        row_label_width: frame.row_label_cols,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        col_edges: partition_edges(cell_area_col, cell_area_width, visible as usize),
+        row_edges: partition_edges(frame.grid.row, frame.grid.height, visible as usize),
+    }
+}
+
+fn visible_sector_count(map_size: u8, zoom_level: u8) -> u8 {
+    let divisor = 1u16 << zoom_level.min(5);
+    let visible = u16::from(map_size).div_ceil(divisor).max(1);
+    visible.min(u16::from(map_size)) as u8
+}
+
+fn viewport_start(center: u8, visible: u8, map_size: u8) -> u8 {
+    let half = visible / 2;
+    let max_start = map_size.saturating_sub(visible).saturating_add(1);
+    center.saturating_sub(half).clamp(1, max_start)
+}
+
+fn partition_edges(start: usize, extent: usize, count: usize) -> Vec<usize> {
+    (0..=count)
+        .map(|idx| start + (idx * extent) / count.max(1))
+        .collect()
+}
+
+impl ProjectedMapGeometry {
+    fn sector_rect(&self, coords: [u8; 2]) -> Option<SectorRect> {
+        if coords[0] < self.x_min || coords[0] > self.x_max || coords[1] < self.y_min || coords[1] > self.y_max {
+            return None;
+        }
+        let x_idx = usize::from(coords[0] - self.x_min);
+        let y_idx = usize::from(self.y_max - coords[1]);
+        let col = self.col_edges.get(x_idx).copied()?;
+        let next_col = self.col_edges.get(x_idx + 1).copied()?;
+        let row = self.row_edges.get(y_idx).copied()?;
+        let next_row = self.row_edges.get(y_idx + 1).copied()?;
+        Some(SectorRect {
+            col,
+            row,
+            width: next_col.saturating_sub(col),
+            height: next_row.saturating_sub(row),
+        })
+    }
+}
+
+fn draw_column_axis_label(buf: &mut PlayfieldBuffer, axis_row: usize, rect: SectorRect, world_x: u8) {
+    if rect.width == 0 {
+        return;
+    }
+    let label = format!("{world_x:02}");
+    if rect.width >= 2 {
+        let write_col = rect.col + rect.width.saturating_sub(2) / 2;
+        layout::write_clipped(buf, axis_row, write_col, 2, &label, theme::dim_style());
+    } else if let Some(ch) = label.chars().last() {
+        buf.set_cell(axis_row, rect.col, ch, theme::dim_style());
+    }
+}
+
+fn draw_row_axis_label(
+    buf: &mut PlayfieldBuffer,
+    col: usize,
+    width: usize,
+    rect: SectorRect,
+    world_y: u8,
+) {
+    if rect.height == 0 {
+        return;
+    }
+    let row = rect.row + rect.height.saturating_sub(1) / 2;
+    layout::write_clipped(
+        buf,
+        row,
+        col,
+        width,
+        &format!("{world_y:02} "),
+        theme::dim_style(),
+    );
+}
+
+fn fill_sector_rect(buf: &mut PlayfieldBuffer, rect: SectorRect, style: CellStyle) {
+    for row in rect.row..rect.row + rect.height {
+        for col in rect.col..rect.col + rect.width {
+            buf.set_cell(row, col, ' ', style);
+        }
+    }
+}
+
+fn draw_sector_marker(buf: &mut PlayfieldBuffer, rect: SectorRect, marker: char, style: CellStyle) {
+    if rect.width == 0 || rect.height == 0 {
+        return;
+    }
+    let row = rect.row + rect.height / 2;
+    let col = rect.col + rect.width / 2;
+    buf.set_cell(row, col, marker, style);
+}
+
+fn draw_crosshair_lines(
+    buf: &mut PlayfieldBuffer,
+    rect: SectorRect,
+    horizontal: bool,
+    vertical: bool,
+    style: CellStyle,
+) {
+    if rect.width == 0 || rect.height == 0 {
+        return;
+    }
+    let mid_row = rect.row + rect.height / 2;
+    let mid_col = rect.col + rect.width / 2;
+
+    if horizontal {
+        for col in rect.col..rect.col + rect.width {
+            buf.set_cell(mid_row, col, '-', style);
+        }
+    }
+    if vertical {
+        for row in rect.row..rect.row + rect.height {
+            buf.set_cell(row, mid_col, '|', style);
+        }
+    }
+    if horizontal && vertical {
+        buf.set_cell(mid_row, mid_col, '+', style);
     }
 }
 
@@ -257,7 +411,7 @@ fn marker_for_world(
 mod tests {
     use super::*;
     use crate::app::state::DashApp;
-    use crate::layout::{dashboard_widget_frames, geometry::dashboard_geometry};
+    use crate::layout::dashboard_layout;
     use crate::theme;
     use nc_data::{GameStateBuilder, IntelTier};
     use nc_ui::{PlayfieldBuffer, ScreenGeometry};
@@ -362,12 +516,12 @@ mod tests {
             Vec::new(),
             Vec::new(),
             ScreenGeometry::new(160, 40),
-            dashboard_geometry(18),
+            ScreenGeometry::new(0, 0),
             1,
         );
         app.crosshair_x = 2;
         app.crosshair_y = 3;
-        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let widgets = dashboard_layout(&app).widgets;
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -380,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    fn draw_uses_full_center_map_width_when_padding_is_zero() {
+    fn readable_mode_uses_capped_map_block_and_shrunk_dashboard_frame() {
         let mut app = DashApp::new(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -393,12 +547,13 @@ mod tests {
             Vec::new(),
             Vec::new(),
             ScreenGeometry::new(160, 45),
-            dashboard_geometry(18),
+            ScreenGeometry::new(0, 0),
             1,
         );
         app.crosshair_x = 2;
         app.crosshair_y = 3;
-        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let widgets = dashboard_layout(&app).widgets;
+        let layout = dashboard_layout(&app);
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -407,15 +562,121 @@ mod tests {
 
         draw(&mut buffer, &app, widgets.center_map);
 
-        assert_eq!(widgets.center_map.axis_row, widgets.center_map.outer.row);
-        assert_eq!(widgets.center_map.grid.col, widgets.center_map.outer.col);
-        assert_eq!(widgets.center_map.bottom_pad_row, widgets.center_map.grid.last_row());
+        let axis_line = buffer.plain_line(widgets.center_map.axis_row);
+
+        assert!(layout.frame.width() < app.geometry.width());
+        assert_eq!(widgets.center_map.map_block.width, widgets.center_map.outer.width);
+        assert!(widgets.center_map.map_block.row >= widgets.center_map.outer.row);
+        assert_eq!(widgets.center_map.axis_row, widgets.center_map.map_block.row);
+        assert_eq!(widgets.center_map.grid.col, widgets.center_map.map_block.col);
         assert_eq!(
-            buffer.row(widgets.center_map.axis_row)
-                [widgets.center_map.outer.col + widgets.center_map.row_label_cols]
-                .ch,
-            '0'
+            widgets.center_map.bottom_pad_row,
+            widgets.center_map.map_block.last_row()
         );
+        assert!(axis_line.contains("01"));
+        assert!(axis_line.contains("18"));
+    }
+
+    #[test]
+    fn projected_geometry_fills_grid_and_follows_zoomed_cursor() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 10;
+        app.crosshair_y = 11;
+        app.map_zoom_level = 1;
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+
+        assert!(projected.x_min <= app.crosshair_x && projected.x_max >= app.crosshair_x);
+        assert!(projected.y_min <= app.crosshair_y && projected.y_max >= app.crosshair_y);
+        assert_eq!(projected.col_edges.first().copied(), Some(frame.grid.col + frame.row_label_cols));
+        assert_eq!(projected.col_edges.last().copied(), Some(frame.grid.last_col() + 1));
+        assert_eq!(projected.row_edges.first().copied(), Some(frame.grid.row));
+        assert_eq!(projected.row_edges.last().copied(), Some(frame.grid.last_row() + 1));
+        assert!(projected.x_max - projected.x_min + 1 < 18);
+        assert!(projected.y_max - projected.y_min + 1 < 18);
+    }
+
+    #[test]
+    fn fill_mode_projects_into_full_center_widget() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.map_view_mode = crate::app::state::MapViewMode::Fill;
+        let frame = dashboard_layout(&app).widgets.center_map;
+
+        assert_eq!(frame.map_block, frame.outer);
+        assert_eq!(frame.axis_row, frame.outer.row);
+        assert_eq!(frame.grid.col, frame.outer.col);
+        assert_eq!(frame.bottom_pad_row, frame.outer.last_row());
+    }
+
+    #[test]
+    fn crosshair_uses_line_glyphs_on_empty_sectors() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 4;
+        app.crosshair_y = 5;
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let rect = projected
+            .sector_rect([app.crosshair_x, app.crosshair_y])
+            .expect("crosshair rect");
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, frame);
+
+        let mid_row = rect.row + rect.height / 2;
+        let mid_col = rect.col + rect.width / 2;
+        assert_eq!(buffer.row(mid_row)[mid_col].ch, '+');
+        if rect.width > 1 {
+            assert_eq!(buffer.row(mid_row)[rect.col].ch, '-');
+        }
+        if rect.height > 1 {
+            assert_eq!(buffer.row(rect.row)[mid_col].ch, '|');
+        }
     }
 
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {

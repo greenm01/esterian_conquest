@@ -248,6 +248,12 @@ mod tests {
                 width: 60,
                 height: 20,
             },
+            map_block: WidgetRect {
+                col: 20,
+                row: 5,
+                width: 60,
+                height: 20,
+            },
             axis_row: 6,
             grid: WidgetRect {
                 col: 22,

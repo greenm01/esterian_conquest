@@ -62,6 +62,12 @@ pub enum ActivePopup {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MapViewMode {
+    Readable,
+    Fill,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelpContext {
     Global,
     PlanetList,
@@ -323,6 +329,8 @@ pub struct DashApp {
     // Starmap crosshair (1-based sector coords)
     pub crosshair_x: u8,
     pub crosshair_y: u8,
+    pub map_view_mode: MapViewMode,
+    pub map_zoom_level: u8,
     pub map_coord_input: String,
 
     // Panel scroll positions
@@ -381,6 +389,8 @@ impl DashApp {
             autopilot_on: false,
             crosshair_x: 1,
             crosshair_y: 1,
+            map_view_mode: MapViewMode::Readable,
+            map_zoom_level: 0,
             map_coord_input: String::new(),
             diplomacy_scroll: 0,
             planet_overlay: PlanetOverlayState::default(),

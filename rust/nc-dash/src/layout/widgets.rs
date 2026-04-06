@@ -4,13 +4,7 @@ use nc_ui::{CellStyle, PlayfieldBuffer, ScreenGeometry};
 
 use crate::layout::geometry::{
     CELL_WIDTH, MAP_LEFT_PADDING, MAP_RIGHT_PADDING, MAP_VERTICAL_PADDING, ROW_LABEL_COLS,
-    SIDE_PANEL_WIDTH,
 };
-
-/// Left content column width.
-pub const LEFT_WIDTH: usize = SIDE_PANEL_WIDTH;
-/// Right content column width.
-pub const RIGHT_WIDTH: usize = SIDE_PANEL_WIDTH;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
@@ -50,6 +44,7 @@ impl PanelWidgetFrame {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MapWidgetFrame {
     pub outer: WidgetRect,
+    pub map_block: WidgetRect,
     pub axis_row: usize,
     pub grid: WidgetRect,
     pub bottom_pad_row: usize,
@@ -82,105 +77,12 @@ pub const fn frame_offset_for(canvas: ScreenGeometry, frame: ScreenGeometry) -> 
     (ox, oy)
 }
 
-pub fn dashboard_widget_frames(
-    canvas: ScreenGeometry,
-    frame: ScreenGeometry,
-) -> DashboardWidgetFrames {
-    let (ox, oy) = frame_offset_for(canvas, frame);
-    let fh = frame.height();
-
-    let outer_top = oy;
-    let outer_bottom = oy + fh.saturating_sub(1);
-    let header_bar_row = outer_top + 1;
-    let header_divider_row = outer_top + 2;
-    let footer_divider_row = outer_bottom.saturating_sub(2);
-    let footer_bar_row = outer_bottom.saturating_sub(1);
-
-    let content_top = header_divider_row + 1;
-    let content_bottom = footer_divider_row.saturating_sub(1);
-    let map_size = fh.saturating_sub(7);
-    let map_render_width =
-        ROW_LABEL_COLS + map_size * CELL_WIDTH + MAP_LEFT_PADDING + MAP_RIGHT_PADDING;
-
-    let left_divider_col = ox + 1 + LEFT_WIDTH;
-
-    let left_col = ox + 1;
-    let center_col = left_divider_col + 1;
-    let center_width = map_render_width;
-    let right_divider_col = center_col + center_width;
-    let right_col = right_divider_col + 1;
-
-    let left_sep_1 = content_top + 5;
-    let right_sep_1 = content_top + 6;
-    let lower_title_row = (oy + fh / 2 + 2).min(footer_divider_row.saturating_sub(5));
-    let lower_sep = lower_title_row.saturating_sub(1);
-
-    let center_outer = WidgetRect {
-        col: center_col,
-        row: content_top,
-        width: center_width,
-        height: content_bottom.saturating_sub(content_top) + 1,
-    };
-    let grid = WidgetRect {
-        col: center_col + MAP_LEFT_PADDING,
-        row: content_top + MAP_VERTICAL_PADDING + 1,
-        width: center_width.saturating_sub(MAP_LEFT_PADDING + MAP_RIGHT_PADDING),
-        height: map_size,
-    };
-    let center_map = MapWidgetFrame {
-        outer: center_outer,
-        axis_row: content_top + MAP_VERTICAL_PADDING,
-        grid,
-        bottom_pad_row: grid.last_row() + MAP_VERTICAL_PADDING,
-        row_label_cols: ROW_LABEL_COLS,
-        cell_width: CELL_WIDTH,
-    };
-
-    DashboardWidgetFrames {
-        outer_top,
-        outer_bottom,
-        header_bar_row,
-        header_divider_row,
-        footer_divider_row,
-        footer_bar_row,
-        left_divider_col,
-        right_divider_col,
-        left_economy: panel_widget_frame(
-            left_col,
-            LEFT_WIDTH,
-            content_top,
-            left_sep_1.saturating_sub(1),
-        ),
-        left_planets: panel_widget_frame(
-            left_col,
-            LEFT_WIDTH,
-            left_sep_1 + 1,
-            lower_sep.saturating_sub(1),
-        ),
-        left_fleets: panel_widget_frame(left_col, LEFT_WIDTH, lower_sep + 1, content_bottom),
-        center_map,
-        right_galaxy: panel_widget_frame(
-            right_col,
-            RIGHT_WIDTH,
-            content_top,
-            right_sep_1.saturating_sub(1),
-        ),
-        right_diplomacy: panel_widget_frame(
-            right_col,
-            RIGHT_WIDTH,
-            right_sep_1 + 1,
-            lower_sep.saturating_sub(1),
-        ),
-        right_sector_detail: panel_widget_frame(
-            right_col,
-            RIGHT_WIDTH,
-            lower_sep + 1,
-            content_bottom,
-        ),
-    }
-}
-
-fn panel_widget_frame(col: usize, width: usize, top: usize, bottom: usize) -> PanelWidgetFrame {
+pub(crate) fn panel_widget_frame(
+    col: usize,
+    width: usize,
+    top: usize,
+    bottom: usize,
+) -> PanelWidgetFrame {
     let outer = WidgetRect {
         col,
         row: top,
@@ -318,8 +220,10 @@ pub fn left_column_label_width() -> usize {
     label_value_width([
         "Treasury",
         "Prod",
+        "Pot Prod",
         "Revenue",
-        "Growth",
+        "PP Gen",
+        "% Growth",
         "Tot Worlds",
         "Act Docks",
         "Starbases",
@@ -328,6 +232,7 @@ pub fn left_column_label_width() -> usize {
         "Vulnerable",
         "Tot Fleets",
         "Tot Ships",
+        "Docked",
         "In Transit",
         "Hostile",
         "Defensive",
@@ -347,23 +252,29 @@ pub fn format_left_column_value(label: &str, value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::geometry::dashboard_geometry;
+    use crate::app::state::DashApp;
+    use crate::layout::dashboard_layout;
+    use nc_data::GameStateBuilder;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn dashboard_widgets_partition_columns_without_overlap() {
-        let canvas = ScreenGeometry::new(160, 40);
-        let frame = dashboard_geometry(18);
-        let widgets = dashboard_widget_frames(canvas, frame);
+        let app = dash_app(ScreenGeometry::new(160, 40));
+        let layout = dashboard_layout(&app);
+        let widgets = layout.widgets;
 
         assert_eq!(
             widgets.left_economy.outer.col,
-            frame_offset_for(canvas, frame).0 + 1
+            frame_offset_for(app.geometry, layout.frame).0 + 1
         );
         assert_eq!(widgets.center_map.outer.col, widgets.left_divider_col + 1,);
         assert_eq!(
             widgets.center_map.outer.last_col(),
             widgets.right_divider_col.saturating_sub(1),
         );
+        assert!(widgets.center_map.map_block.col >= widgets.center_map.outer.col);
+        assert!(widgets.center_map.map_block.last_col() <= widgets.center_map.outer.last_col());
         assert!(widgets.left_economy.outer.last_row() < widgets.left_planets.outer.row);
         assert!(widgets.left_planets.outer.last_row() < widgets.left_fleets.outer.row);
         assert!(widgets.right_galaxy.outer.last_row() < widgets.right_diplomacy.outer.row);
@@ -372,36 +283,33 @@ mod tests {
 
     #[test]
     fn center_map_frame_tracks_zero_padding_geometry() {
-        let canvas = ScreenGeometry::new(160, 40);
-        let frame = dashboard_geometry(18);
-        let widgets = dashboard_widget_frames(canvas, frame);
+        let app = dash_app(ScreenGeometry::new(160, 40));
+        let layout = dashboard_layout(&app);
+        let widgets = layout.widgets;
 
         assert_eq!(
             widgets.center_map.axis_row,
-            widgets.center_map.outer.row + MAP_VERTICAL_PADDING
+            widgets.center_map.map_block.row + MAP_VERTICAL_PADDING
         );
         assert_eq!(
             widgets.center_map.grid.col,
-            widgets.center_map.outer.col + MAP_LEFT_PADDING
+            widgets.center_map.map_block.col + MAP_LEFT_PADDING
         );
         assert_eq!(widgets.center_map.grid.row, widgets.center_map.axis_row + 1);
         assert_eq!(
             widgets.center_map.grid.width,
-            widgets.center_map.outer.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
+            widgets.center_map.map_block.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
         );
         assert_eq!(
-            widgets.center_map.outer.width,
-            ROW_LABEL_COLS + 18 * CELL_WIDTH + MAP_LEFT_PADDING + MAP_RIGHT_PADDING
+            widgets.center_map.grid.width,
+            widgets.center_map.map_block.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
         );
-        assert_eq!(widgets.center_map.grid.height, 18);
-        assert_eq!(
-            widgets.center_map.bottom_pad_row,
-            widgets.center_map.grid.last_row()
-        );
+        assert!(widgets.center_map.map_block.width >= ROW_LABEL_COLS + 18 * CELL_WIDTH);
         assert_eq!(
             widgets.center_map.bottom_pad_row,
-            widgets.center_map.outer.last_row(),
+            widgets.center_map.map_block.last_row()
         );
+        assert_eq!(widgets.center_map.bottom_pad_row, widgets.center_map.grid.last_row());
         assert_eq!(
             widgets.right_divider_col,
             widgets.center_map.outer.last_col() + 1
@@ -475,7 +383,10 @@ mod tests {
     fn compact_left_column_rows_fit_panel_body_width() {
         let rows = [
             format_left_column_value("Treasury", "217"),
-            format_left_column_value("Prod", "332/775"),
+            format_left_column_value("Prod", "332"),
+            format_left_column_value("Pot Prod", "775"),
+            format_left_column_value("PP Gen", "+56"),
+            format_left_column_value("% Growth", "16.9%"),
             format_left_column_value("Tot Worlds", "9"),
             format_left_column_value("Act Docks", "3"),
             format_left_column_value("Tot Fleets", "7"),
@@ -483,7 +394,25 @@ mod tests {
         ];
 
         for row in rows {
-            assert!(row.chars().count() <= 19, "{row:?} exceeds left panel body width");
+            assert!(row.chars().count() <= 20, "{row:?} exceeds compact row budget");
         }
+    }
+
+    fn dash_app(geometry: ScreenGeometry) -> DashApp {
+        DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            geometry,
+            ScreenGeometry::new(0, 0),
+            1,
+        )
     }
 }
