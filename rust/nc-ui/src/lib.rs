@@ -5,6 +5,7 @@ pub mod modal;
 pub mod paint;
 pub mod prompt;
 pub mod session;
+pub mod table;
 pub mod table_layout;
 pub mod terminal;
 pub mod theme;

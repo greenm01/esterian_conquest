@@ -1,28 +1,33 @@
 //! F overlay: dashboard-sized fleet and starbase command table.
 
 use nc_ui::PlayfieldBuffer;
+use nc_ui::table::{
+    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    write_table_window_with_theme_at,
+};
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_hline, draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame, write_clipped};
 use crate::panels::fleets::order_abbrev;
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? J K ^U ^D O C M T I <Q> ->";
+const COLUMNS: [TableColumn<'static>; 9] = [
+    TableColumn::right("ID", 4),
+    TableColumn::left("Location", 8),
+    TableColumn::left("Order", 5),
+    TableColumn::left("Target", 8),
+    TableColumn::right("Spd", 3),
+    TableColumn::right("ETA", 4),
+    TableColumn::right("ROE", 3),
+    TableColumn::right("AR", 3),
+    TableColumn::left_flex("Ships / Forces", 24, 1),
+];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let preferred_width = buf.width().saturating_sub(12).clamp(96, 138);
     let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
     let frame = draw_overlay_frame(buf, "FLEET LIST", preferred_width, preferred_height, FOOTER);
-
-    write_clipped(
-        buf,
-        frame.body_row,
-        frame.body_col,
-        frame.body_width,
-        "Fleet Coords  Ord Spd ROE AR ETA  Ships / Forces",
-        theme::section_title_style(),
-    );
-    draw_hline(buf, frame.body_row + 1, frame.body_col, frame.body_width, theme::border_style());
 
     let owner_slot = app.player_record_index_1_based as u8;
     let mut rows = Vec::new();
@@ -31,68 +36,67 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         if fleet.owner_empire_raw() != owner_slot || !fleet.has_any_force() {
             continue;
         }
-        rows.push((
-            false,
-            format!(
-                "#{:<3} ({:02},{:02}) {:>2} {:>3} {:>3} {:>2} {:>3}  {}",
-                fleet.local_slot_word_raw(),
-                fleet.current_location_coords_raw()[0],
-                fleet.current_location_coords_raw()[1],
-                order_abbrev(fleet.standing_order_kind()),
-                fleet.current_speed(),
-                fleet.rules_of_engagement(),
-                fleet.army_count(),
-                "—",
-                truncate(&fleet.ship_composition_summary(), frame.body_width.saturating_sub(35)),
-            ),
-        ));
+        rows.push(vec![
+            fleet.local_slot_word_raw().to_string(),
+            format_coords(fleet.current_location_coords_raw()),
+            order_abbrev(fleet.standing_order_kind()).to_string(),
+            format_target(fleet.standing_order_target_coords_raw()),
+            fleet.current_speed().to_string(),
+            String::from("--"),
+            fleet.rules_of_engagement().to_string(),
+            fleet.army_count().to_string(),
+            fleet.ship_composition_summary(),
+        ]);
     }
 
     for base in &app.game_data.bases.records {
         if base.owner_empire_raw() != owner_slot || base.active_flag_raw() == 0 {
             continue;
         }
-        rows.push((
-            true,
-            format!(
-                "SB{:<2} ({:02},{:02}) Gs   0   0  0  —    Starbase",
-                base.base_id_raw(),
-                base.coords_raw()[0],
-                base.coords_raw()[1],
-            ),
-        ));
+        rows.push(vec![
+            format!("SB{}", base.base_id_raw()),
+            format_coords(base.coords_raw()),
+            String::from("Gs"),
+            String::from("--"),
+            String::from("0"),
+            String::from("--"),
+            String::from("0"),
+            String::from("0"),
+            String::from("Starbase"),
+        ]);
     }
 
-    let list_start = frame.body_row + 2;
-    let max_rows = frame.body_height.saturating_sub(2);
-    let selected = app
-        .fleet_overlay
-        .selected
-        .min(rows.len().saturating_sub(1));
-    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, max_rows, rows.len());
-
-    for (visible_idx, (is_base, line)) in rows.iter().skip(scroll).take(max_rows).enumerate() {
-        let row = list_start + visible_idx;
-        let absolute_idx = scroll + visible_idx;
-        let style = if absolute_idx == selected {
-            theme::alert_style()
-        } else if *is_base {
-            theme::friendly_style()
-        } else {
-            theme::value_style()
-        };
-        if absolute_idx == selected {
-            buf.fill_rect(row, frame.body_col, frame.body_width, 1, style);
-        }
-        write_clipped(buf, row, frame.body_col, frame.body_width, line, style);
-    }
+    let visible_rows = frame.body_height.saturating_sub(4);
+    let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
+    let scroll = clamp_scroll(app.fleet_overlay.scroll, selected, visible_rows, rows.len());
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &rows,
+        frame.body_width.saturating_sub(1),
+        false,
+        TableWidthMode::Expand,
+    );
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
+    let metrics = write_table_window_with_theme_at(
+        buf,
+        frame.body_row,
+        table_col,
+        &columns,
+        &rows,
+        scroll,
+        visible_rows,
+        theme::table_theme(),
+        rows.get(selected).map(|_| selected),
+        0,
+        None,
+    );
 
     if rows.is_empty() {
         write_clipped(
             buf,
-            list_start,
-            frame.body_col,
-            frame.body_width,
+            metrics.bottom_row.saturating_sub(1),
+            table_col + 2,
+            frame.body_width.saturating_sub(4),
             "You have no active fleets or starbases.",
             theme::dim_style(),
         );
@@ -112,6 +116,14 @@ fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usi
     scroll.min(total_rows.saturating_sub(max_rows))
 }
 
-fn truncate(value: &str, width: usize) -> String {
-    value.chars().take(width).collect()
+fn format_coords(coords: [u8; 2]) -> String {
+    format!("({:02},{:02})", coords[0], coords[1])
+}
+
+fn format_target(coords: [u8; 2]) -> String {
+    if coords[0] == 0 || coords[1] == 0 {
+        String::from("--")
+    } else {
+        format_coords(coords)
+    }
 }

@@ -1,5 +1,6 @@
 //! Dashboard color theme — delegates to nc-ui theme system.
 
+use nc_ui::table::TableRenderTheme;
 use nc_ui::{CellStyle, GameColor};
 
 pub fn body_style() -> CellStyle {
@@ -52,4 +53,16 @@ pub fn friendly_style() -> CellStyle {
 
 pub fn icd_style() -> CellStyle {
     CellStyle::new(GameColor::Yellow, GameColor::Black, false)
+}
+
+pub fn table_theme() -> TableRenderTheme {
+    TableRenderTheme {
+        header_style: section_title_style(),
+        chrome_style: border_style(),
+        body_style: value_style(),
+        disabled_row_style: dim_style(),
+        selected_style: alert_style(),
+        scroll_track_style: dim_style(),
+        scrollbar_thumb_style: title_style(),
+    }
 }

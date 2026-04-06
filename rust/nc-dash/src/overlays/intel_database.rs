@@ -2,27 +2,37 @@
 
 use nc_data::PlanetIntelSnapshot;
 use nc_ui::PlayfieldBuffer;
+use nc_ui::table::{
+    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    write_stacked_table_window_with_theme_at,
+};
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_hline, draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame, write_clipped};
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? J K ^U ^D S I <Q> ->";
+const TOP_HEADERS: [&str; 11] = [
+    "Coord", "", "", "", "", "", "", "", "Curr", "", "",
+];
+const COLUMNS: [TableColumn<'static>; 11] = [
+    TableColumn::left("(XX,YY)", 7),
+    TableColumn::left("Planet Name", 11),
+    TableColumn::left("Owner", 7),
+    TableColumn::right("Prod", 4),
+    TableColumn::right("Seen", 4),
+    TableColumn::right("ARs", 3),
+    TableColumn::right("GBs", 3),
+    TableColumn::right("SBs", 3),
+    TableColumn::right("Prod", 4),
+    TableColumn::right("Points", 6),
+    TableColumn::right("Scout", 5),
+];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let preferred_width = buf.width().saturating_sub(12).clamp(94, 134);
     let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
     let frame = draw_overlay_frame(buf, "TOTAL PLANET DATABASE", preferred_width, preferred_height, FOOTER);
-
-    write_clipped(
-        buf,
-        frame.body_row,
-        frame.body_col,
-        frame.body_width,
-        "Coord   Planet Name  Owner Prod Seen ARs GBs SBs Curr Points Scout",
-        theme::section_title_style(),
-    );
-    draw_hline(buf, frame.body_row + 1, frame.body_col, frame.body_width, theme::border_style());
 
     let rows = app
         .planet_intel_snapshots
@@ -31,31 +41,38 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .map(|snapshot| format_intel_row(app, snapshot))
         .collect::<Vec<_>>();
 
-    let list_start = frame.body_row + 2;
-    let max_rows = frame.body_height.saturating_sub(2);
+    let visible_rows = frame.body_height.saturating_sub(5);
     let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
-    let scroll = clamp_scroll(app.intel_overlay.scroll, selected, max_rows, rows.len());
-
-    for (visible_idx, line) in rows.iter().skip(scroll).take(max_rows).enumerate() {
-        let row = list_start + visible_idx;
-        let absolute_idx = scroll + visible_idx;
-        let style = if absolute_idx == selected {
-            theme::alert_style()
-        } else {
-            theme::value_style()
-        };
-        if absolute_idx == selected {
-            buf.fill_rect(row, frame.body_col, frame.body_width, 1, style);
-        }
-        write_clipped(buf, row, frame.body_col, frame.body_width, line, style);
-    }
+    let scroll = clamp_scroll(app.intel_overlay.scroll, selected, visible_rows, rows.len());
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &rows,
+        frame.body_width.saturating_sub(1),
+        false,
+        TableWidthMode::Compact,
+    );
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
+    let metrics = write_stacked_table_window_with_theme_at(
+        buf,
+        frame.body_row,
+        table_col,
+        &TOP_HEADERS,
+        &columns,
+        &rows,
+        scroll,
+        visible_rows,
+        theme::table_theme(),
+        rows.get(selected).map(|_| selected),
+        0,
+        None,
+    );
 
     if rows.is_empty() {
         write_clipped(
             buf,
-            list_start,
-            frame.body_col,
-            frame.body_width,
+            metrics.bottom_row.saturating_sub(1),
+            table_col + 2,
+            frame.body_width.saturating_sub(4),
             "No planet intel is available yet.",
             theme::dim_style(),
         );
@@ -79,7 +96,7 @@ fn truncate(value: &str, width: usize) -> String {
     value.chars().take(width).collect()
 }
 
-fn format_intel_row(app: &DashApp, snapshot: &PlanetIntelSnapshot) -> String {
+fn format_intel_row(app: &DashApp, snapshot: &PlanetIntelSnapshot) -> Vec<String> {
     let planet = app
         .game_data
         .planets
@@ -87,7 +104,7 @@ fn format_intel_row(app: &DashApp, snapshot: &PlanetIntelSnapshot) -> String {
         .get(snapshot.planet_record_index_1_based.saturating_sub(1));
     let coords = planet.map(|planet| planet.coords_raw()).unwrap_or([0, 0]);
     let owner_label = match snapshot.known_owner_empire_id {
-        Some(0) => String::from("UN"),
+        Some(0) => String::from("Unowned"),
         Some(owner) => app
             .game_data
             .player
@@ -103,10 +120,8 @@ fn format_intel_row(app: &DashApp, snapshot: &PlanetIntelSnapshot) -> String {
             .unwrap_or_else(|| format!("#{owner}")),
         None => String::from("?"),
     };
-    format!(
-        "({:02},{:02}) {:<11} {:>5} {:>4} {:>4} {:>3} {:>3} {:>3} {:>4} {:>6} {:>5}",
-        coords[0],
-        coords[1],
+    vec![
+        format!("({:02},{:02})", coords[0], coords[1]),
         truncate(snapshot.known_name.as_deref().unwrap_or("?"), 11),
         owner_label,
         snapshot
@@ -141,5 +156,5 @@ fn format_intel_row(app: &DashApp, snapshot: &PlanetIntelSnapshot) -> String {
             .scout_year
             .map(|value| value.to_string())
             .unwrap_or_else(|| String::from("?")),
-    )
+    ]
 }

@@ -1,45 +1,51 @@
 //! P overlay: dashboard-sized planet management table.
 
-use nc_data::{PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue};
+use nc_data::{
+    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta,
+    yearly_tax_revenue,
+};
 use nc_ui::PlayfieldBuffer;
+use nc_ui::table::{
+    TableColumn, TableWidthMode, centered_table_start_col, resolve_table_columns,
+    write_stacked_table_window_with_theme_at,
+};
 
 use crate::app::state::DashApp;
-use crate::overlays::frame::{draw_hline, draw_overlay_frame, write_clipped};
+use crate::overlays::frame::{draw_overlay_frame, write_clipped};
 use crate::theme;
 
 const FOOTER: &str = "COMMAND <- ? J K ^U ^D B A C L U X S I T <Q> ->";
+const TOP_HEADERS: [&str; 12] = [
+    "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
+];
+const COLUMNS: [TableColumn<'static>; 12] = [
+    TableColumn::left("(XX,YY)", 7),
+    TableColumn::left("Planet Name", 13),
+    TableColumn::right("Prod", 4),
+    TableColumn::right("Prod", 4),
+    TableColumn::right("Points", 6),
+    TableColumn::right("Rev", 3),
+    TableColumn::right("Grow", 4),
+    TableColumn::right("Queue", 5),
+    TableColumn::right("Dock", 4),
+    TableColumn::right("SBs", 3),
+    TableColumn::right("ARs", 3),
+    TableColumn::right("GBs", 3),
+];
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let preferred_width = buf.width().saturating_sub(12).clamp(96, 136);
     let preferred_height = buf.height().saturating_sub(6).clamp(18, 28);
     let frame = draw_overlay_frame(buf, "PLANET LIST", preferred_width, preferred_height, FOOTER);
-    let body_right = frame.body_col + frame.body_width;
-
-    write_clipped(
-        buf,
-        frame.body_row,
-        frame.body_col,
-        frame.body_width,
-        "Coord   Planet          Max Curr Stored Rev Grow Queue Dock SBs ARs GBs",
-        theme::section_title_style(),
-    );
-    write_clipped(
-        buf,
-        frame.body_row + 1,
-        frame.body_col,
-        frame.body_width,
-        "(XX,YY) Name           Prod Prod Points         Build Star",
-        theme::section_title_style(),
-    );
-    draw_hline(
-        buf,
-        frame.body_row + 2,
-        frame.body_col,
-        frame.body_width.min(body_right.saturating_sub(frame.body_col)),
-        theme::border_style(),
-    );
 
     let owner_slot = app.player_record_index_1_based as u8;
+    let player_tax_rate = app
+        .game_data
+        .player
+        .records
+        .get(app.player_record_index_1_based.saturating_sub(1))
+        .map(|player| player.tax_rate())
+        .unwrap_or(0);
     let planets = app
         .game_data
         .planets
@@ -47,13 +53,12 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .iter()
         .filter(|planet| planet.owner_empire_slot_raw() == owner_slot)
         .collect::<Vec<_>>();
-    let list_start = frame.body_row + 3;
-    let max_rows = frame.body_height.saturating_sub(3);
     let selected = app
         .planet_overlay
         .selected
         .min(planets.len().saturating_sub(1));
-    let scroll = clamp_scroll(app.planet_overlay.scroll, selected, max_rows, planets.len());
+    let visible_rows = frame.body_height.saturating_sub(5);
+    let scroll = clamp_scroll(app.planet_overlay.scroll, selected, visible_rows, planets.len());
 
     let starbase_coords = app
         .game_data
@@ -64,42 +69,45 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         .map(|base| base.coords_raw())
         .collect::<std::collections::BTreeSet<_>>();
 
-    for (visible_idx, planet) in planets.iter().skip(scroll).take(max_rows).enumerate() {
-        let row = list_start + visible_idx;
-        let absolute_idx = scroll + visible_idx;
-        let style = if absolute_idx == selected {
-            theme::alert_style()
-        } else {
-            theme::value_style()
-        };
-        if absolute_idx == selected {
-            buf.fill_rect(row, frame.body_col, frame.body_width, 1, style);
-        }
-        let player = app
-            .game_data
-            .player
-            .records
-            .get(app.player_record_index_1_based.saturating_sub(1));
-        write_clipped(
-            buf,
-            row,
-            frame.body_col,
-            frame.body_width,
-            &format_planet_row(
+    let rows = planets
+        .iter()
+        .map(|planet| {
+            format_planet_row_cells(
                 planet,
                 starbase_coords.contains(&planet.coords_raw()),
-                player.map(|player| player.tax_rate()).unwrap_or(0),
-            ),
-            style,
-        );
-    }
+                player_tax_rate,
+            )
+        })
+        .collect::<Vec<_>>();
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &rows,
+        frame.body_width.saturating_sub(1),
+        false,
+        TableWidthMode::Compact,
+    );
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
+    let metrics = write_stacked_table_window_with_theme_at(
+        buf,
+        frame.body_row,
+        table_col,
+        &TOP_HEADERS,
+        &columns,
+        &rows,
+        scroll,
+        visible_rows,
+        theme::table_theme(),
+        rows.get(selected).map(|_| selected),
+        0,
+        None,
+    );
 
     if planets.is_empty() {
         write_clipped(
             buf,
-            list_start,
-            frame.body_col,
-            frame.body_width,
+            metrics.bottom_row.saturating_sub(1),
+            table_col + 2,
+            frame.body_width.saturating_sub(4),
             "You do not currently control any planets.",
             theme::dim_style(),
         );
@@ -119,7 +127,7 @@ fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usi
     scroll.min(total_rows.saturating_sub(max_rows))
 }
 
-fn format_planet_row(planet: &PlanetRecord, has_starbase: bool, tax_rate: u8) -> String {
+fn format_planet_row_cells(planet: &PlanetRecord, has_starbase: bool, tax_rate: u8) -> Vec<String> {
     let coords = planet.coords_raw();
     let present = planet.present_production_points().unwrap_or(0);
     let potential = planet.potential_production_points();
@@ -130,22 +138,20 @@ fn format_planet_row(planet: &PlanetRecord, has_starbase: bool, tax_rate: u8) ->
     let docked = docked_total(planet);
     let name = planet.planet_name();
 
-    format!(
-        "({:02},{:02}) {:<13} {:>3} {:>4} {:>6} {:>3} {:>+4} {:>5} {:>4} {:>3} {:>3} {:>3}",
-        coords[0],
-        coords[1],
+    vec![
+        format!("({:02},{:02})", coords[0], coords[1]),
         truncate(&name, 13),
-        potential,
-        present,
-        stored,
-        revenue,
-        growth,
-        queue,
-        docked,
-        u8::from(has_starbase),
-        planet.army_count_raw(),
-        planet.ground_batteries_raw(),
-    )
+        potential.to_string(),
+        present.to_string(),
+        stored.to_string(),
+        revenue.to_string(),
+        format!("{growth:+}"),
+        queue.to_string(),
+        docked.to_string(),
+        u8::from(has_starbase).to_string(),
+        planet.army_count_raw().to_string(),
+        planet.ground_batteries_raw().to_string(),
+    ]
 }
 
 fn build_queue_total(planet: &PlanetRecord) -> u32 {
@@ -156,14 +162,7 @@ fn build_queue_total(planet: &PlanetRecord) -> u32 {
             let Some(cost) = kind.build_cost() else {
                 return 0;
             };
-            if matches!(
-                kind,
-                ProductionItemKind::Army | ProductionItemKind::GroundBattery
-            ) {
-                points / cost
-            } else {
-                points / cost
-            }
+            points / cost
         })
         .sum()
 }
