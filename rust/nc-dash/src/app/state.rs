@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use nc_data::CoreGameData;
+use nc_data::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 
@@ -61,6 +61,8 @@ pub enum ActiveOverlay {
 pub struct DashApp {
     pub game_dir: PathBuf,
     pub game_data: CoreGameData,
+    pub report_block_rows: Vec<ReportBlockRow>,
+    pub queued_mail: Vec<QueuedPlayerMail>,
     pub geometry: ScreenGeometry,
     pub player_record_index_1_based: usize,
 
@@ -90,6 +92,8 @@ impl DashApp {
     pub fn new(
         game_dir: PathBuf,
         game_data: CoreGameData,
+        report_block_rows: Vec<ReportBlockRow>,
+        queued_mail: Vec<QueuedPlayerMail>,
         geometry: ScreenGeometry,
         player_record_index_1_based: usize,
     ) -> Self {
@@ -105,6 +109,8 @@ impl DashApp {
         Self {
             game_dir,
             game_data,
+            report_block_rows,
+            queued_mail,
             geometry,
             player_record_index_1_based,
             startup_phase: StartupPhase::Complete,

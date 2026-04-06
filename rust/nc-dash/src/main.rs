@@ -44,7 +44,9 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 
     // Load game data.
     let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
-    let game_data = campaign_store.load_latest_runtime_game_data()?;
+    let state = campaign_store
+        .load_latest_runtime_state()?
+        .ok_or("No runtime snapshots found — run maintenance first.")?;
 
     // Default to player 1. Future: resolve from args/session.
     let player_record_index_1_based = 1;
@@ -58,7 +60,15 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     enable_raw_mode()?;
     execute!(std::io::stdout(), EnterAlternateScreen)?;
 
-    let result = run_dashboard(game_dir, game_data, geometry, player_record_index_1_based, &mut terminal);
+    let result = run_dashboard(
+        game_dir,
+        state.game_data,
+        state.report_block_rows,
+        state.queued_mail,
+        geometry,
+        player_record_index_1_based,
+        &mut terminal,
+    );
 
     // Restore terminal.
     use crossterm::terminal::{disable_raw_mode, LeaveAlternateScreen};
@@ -71,11 +81,20 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 fn run_dashboard(
     game_dir: std::path::PathBuf,
     game_data: nc_data::CoreGameData,
+    report_block_rows: Vec<nc_data::ReportBlockRow>,
+    queued_mail: Vec<nc_data::QueuedPlayerMail>,
     geometry: ScreenGeometry,
     player_record_index_1_based: usize,
     terminal: &mut dyn nc_ui::Terminal,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = DashApp::new(game_dir, game_data, geometry, player_record_index_1_based);
+    let mut app = DashApp::new(
+        game_dir,
+        game_data,
+        report_block_rows,
+        queued_mail,
+        geometry,
+        player_record_index_1_based,
+    );
     app.run(terminal)
 }
 
