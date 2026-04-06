@@ -49,6 +49,46 @@ pub(crate) fn selected_planet_detail(app: &DashApp) -> Option<SelectedPlanetDeta
     }
 }
 
+pub(crate) fn preferred_sector_detail_body_width(app: &DashApp) -> usize {
+    let viewer_empire_id = app.player_record_index_1_based as u8;
+    let snapshot_map = app
+        .planet_intel_snapshots
+        .iter()
+        .cloned()
+        .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+        .collect::<BTreeMap<_, _>>();
+    let projection = build_player_starmap_projection_from_snapshots(
+        &app.game_data,
+        &snapshot_map,
+        viewer_empire_id,
+    );
+    let mut max_width = "empty sector".chars().count();
+
+    for world in &projection.worlds {
+        let Some(planet_index_0_based) = world.planet_record_index_1_based.checked_sub(1) else {
+            continue;
+        };
+        let Some(planet) = app.game_data.planets.records.get(planet_index_0_based) else {
+            continue;
+        };
+        let detail = if planet.owner_empire_slot_raw() == viewer_empire_id {
+            owned_planet_detail(app, planet_index_0_based, planet)
+        } else {
+            intel_planet_detail(app, world, snapshot_map.get(&world.planet_record_index_1_based))
+        };
+        max_width = max_width.max(
+            detail
+                .widget_lines
+                .iter()
+                .map(|line| line.chars().count())
+                .max()
+                .unwrap_or(0),
+        );
+    }
+
+    max_width
+}
+
 fn owned_planet_detail(
     app: &DashApp,
     planet_index_0_based: usize,

@@ -253,10 +253,11 @@ but with their own layout, not the three-column dashboard.
 
 ### Viewport
 
-By default the starmap uses a **Readable** view mode. The full map remains
-visible, but the projected map footprint is capped to a moderate readable
-size and the whole dashboard shrinks back to its measured content before being
-centered in the terminal.
+By default the starmap uses a **Readable** view mode. The whole dashboard
+shrinks back to its measured content before being centered in the terminal.
+In this mode the map uses the same exact-fill projection and zoom behavior as
+fill mode, but inside the smaller readable dashboard frame instead of the
+full terminal canvas.
 
 An alternate **Fill** view mode projects the map into the full center widget
 using exact-fill rasterization, so sector widths/heights may vary by at most
@@ -264,7 +265,8 @@ using exact-fill rasterization, so sector widths/heights may vary by at most
 
 When zoomed in, either mode shows a cursor-following viewport subset of the
 galaxy. The logical crosshair remains in world coordinates and the viewport
-recenters around it when possible.
+recenters around it when possible. `Z` resets the current mode back to its
+default full-map fit for that mode's frame.
 
 ### Display
 
@@ -274,9 +276,9 @@ recenters around it when possible.
 - ICD (Civil Disorder) planets: dimmed or distinct marker (`◊`). These
   are prime expansion targets — visible at a glance on the map.
 - Neutral/unowned planets: gray marker centered in the sector.
-- Crosshair: paints the full projected row and column strips for the selected
-  world-space sector, using `-` and `|` line glyphs across empty sectors and
-  `+` at the empty selected-sector intersection.
+- Crosshair: uses the same exact-fill row/column highlight treatment in both
+  readable and fill modes. Readable mode differs only by using the smaller
+  centered dashboard frame.
 - Selected sector: shown in the `SECTOR DETAIL` widget.
 
 ### Terminal Resize
@@ -374,7 +376,7 @@ padding.
   These keys wrap across map edges; ordinary crosshair movement does not.
 - **+ / =:** Zoom in.
 - **-:** Zoom out.
-- **Z:** Reset to fit the full galaxy.
+- **Z:** Reset the map zoom for the current view mode.
 - **V:** Toggle readable and fill map view.
 - **Enter:** Open planet detail for the world under the crosshair.
 

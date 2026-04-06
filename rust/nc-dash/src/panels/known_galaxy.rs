@@ -7,11 +7,22 @@ use crate::layout::{self, PanelWidgetFrame};
 use crate::panels::starmap::{StarmapMarkerKind, marker_kind_for_world};
 use crate::theme;
 use nc_data::build_player_starmap_projection_from_snapshots;
-use nc_ui::PlayfieldBuffer;
+use nc_ui::{CellStyle, PlayfieldBuffer};
+
+pub(crate) const TITLE: &str = "KNOWN GALAXY";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
-    layout::write_panel_title(buf, frame, "KNOWN GALAXY", theme::section_title_style());
+    layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());
 
+    for (row_idx, (text, style)) in body_rows(app).into_iter().enumerate() {
+        if row_idx >= frame.body.height {
+            break;
+        }
+        layout::write_panel_body_line(buf, frame, row_idx, &text, style);
+    }
+}
+
+pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let viewer_empire_id = app.player_record_index_1_based as u8;
     let snapshot_map = app
         .planet_intel_snapshots
@@ -39,53 +50,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
         }
     }
 
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        0,
-        &format!(" Owned   O{:4}", owned),
-        theme::friendly_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        1,
-        &format!(" Unowned #{:4}", unowned),
-        theme::dim_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        2,
-        &format!(" Neutral #{:4}", neutral),
-        theme::label_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        3,
-        &format!(" Enemy   #{:4}", enemy),
-        theme::enemy_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        4,
-        &format!(" ICD     ◊{:4}", icd),
-        theme::icd_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        5,
-        &format!(" Partial *{:4}", partial),
-        theme::value_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        6,
-        &format!(" Unknown ?{:4}", unknown),
-        theme::dim_style(),
-    );
+    vec![
+        (format!(" Owned   O{:4}", owned), theme::friendly_style()),
+        (format!(" Unowned #{:4}", unowned), theme::dim_style()),
+        (format!(" Neutral #{:4}", neutral), theme::label_style()),
+        (format!(" Enemy   #{:4}", enemy), theme::enemy_style()),
+        (format!(" ICD     ◊{:4}", icd), theme::icd_style()),
+        (format!(" Partial *{:4}", partial), theme::value_style()),
+        (format!(" Unknown ?{:4}", unknown), theme::dim_style()),
+    ]
 }

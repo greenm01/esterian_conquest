@@ -13,12 +13,13 @@ use crate::popups;
 
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buf = layout::new_dashboard_buffer(app.geometry);
-    let widgets = layout::dashboard_widget_frames(app.geometry, app.frame);
+    let dashboard = layout::dashboard_layout(app);
+    let widgets = dashboard.widgets;
 
     // Draw structural borders and header/footer.
-    layout::draw_frame(&mut buf, app.frame, &widgets);
-    layout::draw_header(&mut buf, app);
-    layout::draw_footer(&mut buf, app);
+    layout::draw_frame(&mut buf, dashboard.frame, &widgets);
+    layout::draw_header(&mut buf, app, &dashboard);
+    layout::draw_footer(&mut buf, app, &dashboard);
 
     // Left column panels.
     economy::draw(&mut buf, app, widgets.left_economy);

@@ -1,18 +1,29 @@
-//! Left panel: Treasury, Production/Potential, Revenue, Growth.
+//! Left panel: Treasury, production, revenue, and generated PP growth.
 
 use nc_data::{yearly_growth_delta, yearly_tax_revenue};
-use nc_ui::PlayfieldBuffer;
+use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
 use crate::theme;
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
-    layout::write_panel_title(buf, frame, "ECONOMY", theme::section_title_style());
+pub(crate) const TITLE: &str = "ECONOMY";
 
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
+    layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());
+
+    for (row_idx, (text, style)) in body_rows(app).into_iter().enumerate() {
+        if row_idx >= frame.body.height {
+            break;
+        }
+        layout::write_panel_body_line(buf, frame, row_idx, &text, style);
+    }
+}
+
+pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let player_idx = app.player_record_index_1_based.saturating_sub(1);
     let Some(player) = app.game_data.player.records.get(player_idx) else {
-        return;
+        return Vec::new();
     };
     let tax = player.tax_rate();
     let owner_slot = app.player_record_index_1_based as u8;
@@ -35,27 +46,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     } else {
         0
     };
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        0,
-        &layout::format_left_column_value("Treasury", &total_treasury.to_string()),
-        theme::value_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        1,
-        &layout::format_left_column_value("Prod", &format!("{total_present}/{total_potential}")),
-        theme::value_style(),
-    );
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        2,
-        &layout::format_left_column_value("Revenue", &revenue.to_string()),
-        theme::value_style(),
-    );
+    let growth_percent = if total_present == 0 {
+        String::from("?")
+    } else {
+        format!(
+            "{:.1}%",
+            (f64::from(growth.max(0) as u16) / f64::from(total_present as u16)) * 100.0
+        )
+    };
     let gs = if growth > 0 {
         theme::friendly_style()
     } else if growth < 0 {
@@ -63,11 +61,31 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     } else {
         theme::dim_style()
     };
-    layout::write_panel_body_line(
-        buf,
-        frame,
-        3,
-        &layout::format_left_column_value("Growth", &format!("{growth:+}")),
-        gs,
-    );
+
+    vec![
+        (
+            layout::format_left_column_value("Treasury", &total_treasury.to_string()),
+            theme::value_style(),
+        ),
+        (
+            layout::format_left_column_value("Prod", &total_present.to_string()),
+            theme::value_style(),
+        ),
+        (
+            layout::format_left_column_value("Pot Prod", &total_potential.to_string()),
+            theme::value_style(),
+        ),
+        (
+            layout::format_left_column_value("Revenue", &revenue.to_string()),
+            theme::value_style(),
+        ),
+        (
+            layout::format_left_column_value("PP Gen", &format!("{growth:+}")),
+            gs,
+        ),
+        (
+            layout::format_left_column_value("% Growth", &growth_percent),
+            gs,
+        ),
+    ]
 }

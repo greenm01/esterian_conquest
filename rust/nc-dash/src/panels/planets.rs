@@ -2,17 +2,23 @@
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
-use nc_ui::PlayfieldBuffer;
+use nc_ui::{CellStyle, PlayfieldBuffer};
 use nc_ui::theme::classic::status_value_style;
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
-    layout::write_panel_title(
-        buf,
-        frame,
-        "MY PLANETS",
-        crate::theme::section_title_style(),
-    );
+pub(crate) const TITLE: &str = "MY PLANETS";
 
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
+    layout::write_panel_title(buf, frame, TITLE, crate::theme::section_title_style());
+
+    for (i, (row, style)) in body_rows(app).into_iter().enumerate() {
+        if i >= frame.body.height {
+            break;
+        }
+        layout::write_panel_body_line(buf, frame, i, &row, style);
+    }
+}
+
+pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     let owner_slot = app.player_record_index_1_based as u8;
 
     let mut owned_count = 0;
@@ -65,29 +71,35 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
         }
     }
 
-    let summary_rows = vec![
-        layout::format_left_column_value("Tot Worlds", &owned_count.to_string()),
-        layout::format_left_column_value("Act Docks", &stardocks_active.to_string()),
-        layout::format_left_column_value("Starbases", &starbases_built.to_string()),
-        layout::format_left_column_value("Tot Armies", &armies_mustered.to_string()),
-        layout::format_left_column_value("GBs", &ground_batteries.to_string()),
+    let mut summary_rows = vec![
+        (
+            layout::format_left_column_value("Tot Worlds", &owned_count.to_string()),
+            status_value_style(),
+        ),
+        (
+            layout::format_left_column_value("Act Docks", &stardocks_active.to_string()),
+            status_value_style(),
+        ),
+        (
+            layout::format_left_column_value("Starbases", &starbases_built.to_string()),
+            status_value_style(),
+        ),
+        (
+            layout::format_left_column_value("Tot Armies", &armies_mustered.to_string()),
+            status_value_style(),
+        ),
+        (
+            layout::format_left_column_value("GBs", &ground_batteries.to_string()),
+            status_value_style(),
+        ),
     ];
 
-    for (i, row) in summary_rows.iter().enumerate() {
-        if i >= frame.body.height {
-            break;
-        }
-        layout::write_panel_body_line(buf, frame, i, row, status_value_style());
+    if vulnerable_worlds > 0 {
+        summary_rows.push((
+            layout::format_left_column_value("Vulnerable", &vulnerable_worlds.to_string()),
+            crate::theme::enemy_style(),
+        ));
     }
 
-    if summary_rows.len() < frame.body.height && vulnerable_worlds > 0 {
-        let warning = layout::format_left_column_value("Vulnerable", &vulnerable_worlds.to_string());
-        layout::write_panel_body_line(
-            buf,
-            frame,
-            summary_rows.len(),
-            &warning,
-            crate::theme::enemy_style(),
-        );
-    }
+    summary_rows
 }

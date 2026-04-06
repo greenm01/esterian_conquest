@@ -6,7 +6,6 @@ use crate::app::state::{DashApp, MapViewMode};
 use crate::layout::geometry::{
     CELL_WIDTH, MAP_LEFT_PADDING, MAP_RIGHT_PADDING, MAP_VERTICAL_PADDING, ROW_LABEL_COLS,
     dashboard_frame_geometry, minimum_projected_map_height, minimum_projected_map_width,
-    preferred_readable_map_width,
 };
 use crate::layout::widgets::{
     DashboardWidgetFrames, MapWidgetFrame, WidgetRect, frame_offset_for, panel_widget_frame,
@@ -36,7 +35,7 @@ pub fn dashboard_layout(app: &DashApp) -> DashboardLayout {
         MapViewMode::Fill => center_width,
     };
     let map_block_height = match app.map_view_mode {
-        MapViewMode::Readable => measurements.minimum_map_height.min(content_height),
+        MapViewMode::Readable => content_height,
         MapViewMode::Fill => content_height,
     };
     let widgets = build_widget_frames(
@@ -80,6 +79,7 @@ struct DashboardMeasurements {
     preferred_center_width: usize,
     minimum_map_height: usize,
     minimum_content_height: usize,
+    preferred_content_height: usize,
 }
 
 fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
@@ -122,15 +122,36 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
         .max(stack_height(left_heights))
         .max(stack_height(right_heights));
 
+    // Dynamic snapping logic for "Readable" mode that fills well without uneven gaps.
+    let side_widths = left_width + right_width;
+    let available_width = app.geometry.width().saturating_sub(side_widths + 4);
+    let tile_width = (available_width.saturating_sub(ROW_LABEL_COLS) / map_size).clamp(2, 6);
+    let preferred_center_width = tile_width * map_size + ROW_LABEL_COLS;
+
+    let available_height = app.geometry.height().saturating_sub(6);
+    let tile_height = (available_height.saturating_sub(1) / map_size).clamp(1, 3);
+    let mut preferred_content_height = (tile_height * map_size + 1).max(minimum_content_height);
+
+    // If side panels forced us into an uneven height, try to snap up to the next uniform height
+    // if it still fits in the terminal.
+    if preferred_content_height > (tile_height * map_size + 1) && preferred_content_height <= available_height {
+        let t = (preferred_content_height.saturating_sub(1)).div_ceil(map_size).max(1);
+        let snapped = t * map_size + 1;
+        if snapped <= available_height {
+            preferred_content_height = snapped;
+        }
+    }
+
     DashboardMeasurements {
         left_width,
         right_width,
         left_heights,
         right_heights,
         minimum_center_width: minimum_projected_map_width(map_size),
-        preferred_center_width: preferred_readable_map_width(map_size),
+        preferred_center_width,
         minimum_map_height,
         minimum_content_height,
+        preferred_content_height,
     }
 }
 
@@ -142,7 +163,7 @@ fn preferred_readable_frame(
         measurements.preferred_center_width,
         measurements.left_width,
         measurements.right_width,
-        measurements.minimum_content_height,
+        measurements.preferred_content_height,
     );
     ScreenGeometry::new(
         preferred.width().min(canvas.width()),
@@ -336,6 +357,7 @@ mod tests {
             layout.widgets.center_map.outer.height,
             layout.frame.height().saturating_sub(6)
         );
+        assert_eq!(layout.widgets.center_map.map_block, layout.widgets.center_map.outer);
         assert!(layout.frame.width() < app.geometry.width());
     }
 

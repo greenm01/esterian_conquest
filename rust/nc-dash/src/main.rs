@@ -17,7 +17,6 @@ use nc_ui::ScreenGeometry;
 use nc_ui::{OutputEncoding, StdoutTerminal};
 
 use app::state::DashApp;
-use layout::geometry::{MIN_COLS, MIN_ROWS};
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = args.into_iter().collect();
@@ -32,16 +31,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         .map(std::path::PathBuf::from)
         .ok_or("Usage: nc-dash <game-dir>")?;
 
-    // Check terminal size.
+    // Detect terminal size first; exact dashboard requirements are measured after loading state.
     let (cols, rows) = crossterm::terminal::size()?;
-    if cols < MIN_COLS || rows < MIN_ROWS {
-        eprintln!(
-            "nc-dash requires at least {}×{} terminal (yours is {}×{}).",
-            MIN_COLS, MIN_ROWS, cols, rows
-        );
-        eprintln!("Resize your terminal or use nc-game for the classic 80×25 interface.");
-        std::process::exit(1);
-    }
 
     // Load game data first so we know the map size.
     let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
@@ -49,11 +40,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         .load_latest_runtime_state()?
         .ok_or("No runtime snapshots found — run maintenance first.")?;
 
-    // Canvas = full terminal. Frame = sized to map + panels.
+    // Canvas = full terminal. Frame = measured from current dashboard content.
     let geometry = ScreenGeometry::new(cols as usize, rows as usize);
-    let map_size =
-        nc_data::map_size_for_player_count(state.game_data.conquest.player_count()) as usize;
-    let frame = layout::geometry::dashboard_geometry(map_size);
 
     // Default to player 1. Future: resolve from args/session.
     let player_record_index_1_based = 1;
@@ -61,6 +49,32 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         campaign_store.latest_owned_planet_years_for_empire(player_record_index_1_based as u8)?;
     let planet_intel_snapshots =
         campaign_store.latest_planet_intel_for_viewer(player_record_index_1_based as u8)?;
+
+    let mut app = DashApp::new(
+        game_dir,
+        state.game_data,
+        owned_planet_years,
+        state.planet_scorch_orders,
+        state.report_block_rows,
+        state.queued_mail,
+        planet_intel_snapshots,
+        geometry,
+        ScreenGeometry::new(0, 0),
+        player_record_index_1_based,
+    );
+    let required = layout::dashboard::required_dashboard_frame(&app);
+    if cols < required.width() as u16 || rows < required.height() as u16 {
+        eprintln!(
+            "nc-dash requires at least {}×{} terminal for this game state (yours is {}×{}).",
+            required.width(),
+            required.height(),
+            cols,
+            rows
+        );
+        eprintln!("Resize your terminal or use nc-game for the classic 80×25 interface.");
+        std::process::exit(1);
+    }
+    app.frame = required;
 
     let color_mode = detect_color_mode();
     let mut terminal =
@@ -72,19 +86,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     enable_raw_mode()?;
     execute!(std::io::stdout(), EnterAlternateScreen)?;
 
-    let result = run_dashboard(
-        game_dir,
-        state.game_data,
-        owned_planet_years,
-        state.planet_scorch_orders,
-        state.report_block_rows,
-        state.queued_mail,
-        planet_intel_snapshots,
-        geometry,
-        frame,
-        player_record_index_1_based,
-        &mut terminal,
-    );
+    let result = run_dashboard(app, &mut terminal);
 
     // Restore terminal.
     use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
@@ -95,30 +97,9 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
 }
 
 fn run_dashboard(
-    game_dir: std::path::PathBuf,
-    game_data: nc_data::CoreGameData,
-    owned_planet_years: std::collections::BTreeMap<usize, u16>,
-    planet_scorch_orders: std::collections::BTreeSet<usize>,
-    report_block_rows: Vec<nc_data::ReportBlockRow>,
-    queued_mail: Vec<nc_data::QueuedPlayerMail>,
-    planet_intel_snapshots: Vec<nc_data::PlanetIntelSnapshot>,
-    geometry: ScreenGeometry,
-    frame: ScreenGeometry,
-    player_record_index_1_based: usize,
+    mut app: DashApp,
     terminal: &mut dyn nc_ui::Terminal,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = DashApp::new(
-        game_dir,
-        game_data,
-        owned_planet_years,
-        planet_scorch_orders,
-        report_block_rows,
-        queued_mail,
-        planet_intel_snapshots,
-        geometry,
-        frame,
-        player_record_index_1_based,
-    );
     app.run(terminal)
 }
 

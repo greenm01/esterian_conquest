@@ -38,6 +38,10 @@ struct ProjectedMapGeometry {
     x_max: u8,
     y_min: u8,
     y_max: u8,
+    visible_x: u8,
+    visible_y: u8,
+    tile_width: usize,
+    tile_height: usize,
     col_edges: Vec<usize>,
     row_edges: Vec<usize>,
 }
@@ -105,7 +109,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
                 theme::body_style()
             };
 
-            fill_sector_rect(buf, rect, fill_style);
+            fill_sector_rect(buf, rect, ' ', fill_style);
             if is_h_crosshair || is_v_crosshair {
                 draw_crosshair_lines(buf, rect, is_h_crosshair, is_v_crosshair, fill_style);
             }
@@ -124,24 +128,59 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
 }
 
 fn projected_map_geometry(app: &DashApp, frame: MapWidgetFrame, map_size: u8) -> ProjectedMapGeometry {
-    let visible = visible_sector_count(map_size, app.map_zoom_level);
-    let x_min = viewport_start(app.crosshair_x, visible, map_size);
-    let y_min = viewport_start(app.crosshair_y, visible, map_size);
-    let x_max = x_min + visible.saturating_sub(1);
-    let y_max = y_min + visible.saturating_sub(1);
     let cell_area_col = frame.grid.col + frame.row_label_cols;
     let cell_area_width = frame.grid.width.saturating_sub(frame.row_label_cols);
+    let projection = projected_display_bounds(app, frame, map_size, cell_area_width);
 
     ProjectedMapGeometry {
         axis_row: frame.axis_row,
         row_label_col: frame.grid.col,
         row_label_width: frame.row_label_cols,
+        x_min: projection.x_min,
+        x_max: projection.x_max,
+        y_min: projection.y_min,
+        y_max: projection.y_max,
+        visible_x: projection.visible_x,
+        visible_y: projection.visible_y,
+        tile_width: projection.tile_width,
+        tile_height: projection.tile_height,
+        col_edges: partition_edges(cell_area_col, cell_area_width, projection.visible_x as usize),
+        row_edges: partition_edges(frame.grid.row, frame.grid.height, projection.visible_y as usize),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ProjectionBounds {
+    x_min: u8,
+    x_max: u8,
+    y_min: u8,
+    y_max: u8,
+    visible_x: u8,
+    visible_y: u8,
+    tile_width: usize,
+    tile_height: usize,
+}
+
+fn projected_display_bounds(
+    app: &DashApp,
+    frame: MapWidgetFrame,
+    map_size: u8,
+    cell_area_width: usize,
+) -> ProjectionBounds {
+    let visible = visible_sector_count(map_size, app.map_zoom_level);
+    let x_min = viewport_start(app.crosshair_x, visible, map_size);
+    let y_min = viewport_start(app.crosshair_y, visible, map_size);
+    let x_max = x_min + visible.saturating_sub(1);
+    let y_max = y_min + visible.saturating_sub(1);
+    ProjectionBounds {
         x_min,
         x_max,
         y_min,
         y_max,
-        col_edges: partition_edges(cell_area_col, cell_area_width, visible as usize),
-        row_edges: partition_edges(frame.grid.row, frame.grid.height, visible as usize),
+        visible_x: visible,
+        visible_y: visible,
+        tile_width: exact_fill_tile_hint(cell_area_width, visible),
+        tile_height: exact_fill_tile_hint(frame.grid.height, visible),
     }
 }
 
@@ -149,6 +188,10 @@ fn visible_sector_count(map_size: u8, zoom_level: u8) -> u8 {
     let divisor = 1u16 << zoom_level.min(5);
     let visible = u16::from(map_size).div_ceil(divisor).max(1);
     visible.min(u16::from(map_size)) as u8
+}
+
+fn exact_fill_tile_hint(extent: usize, visible: u8) -> usize {
+    extent.div_ceil(usize::from(visible)).max(1)
 }
 
 fn viewport_start(center: u8, visible: u8, map_size: u8) -> u8 {
@@ -181,6 +224,7 @@ impl ProjectedMapGeometry {
             height: next_row.saturating_sub(row),
         })
     }
+
 }
 
 fn draw_column_axis_label(buf: &mut PlayfieldBuffer, axis_row: usize, rect: SectorRect, world_x: u8) {
@@ -217,10 +261,10 @@ fn draw_row_axis_label(
     );
 }
 
-fn fill_sector_rect(buf: &mut PlayfieldBuffer, rect: SectorRect, style: CellStyle) {
+fn fill_sector_rect(buf: &mut PlayfieldBuffer, rect: SectorRect, ch: char, style: CellStyle) {
     for row in rect.row..rect.row + rect.height {
         for col in rect.col..rect.col + rect.width {
-            buf.set_cell(row, col, ' ', style);
+            buf.set_cell(row, col, ch, style);
         }
     }
 }
@@ -534,7 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn readable_mode_uses_capped_map_block_and_shrunk_dashboard_frame() {
+    fn readable_mode_uses_full_widget_for_projected_map_block() {
         let mut app = DashApp::new(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -565,8 +609,7 @@ mod tests {
         let axis_line = buffer.plain_line(widgets.center_map.axis_row);
 
         assert!(layout.frame.width() < app.geometry.width());
-        assert_eq!(widgets.center_map.map_block.width, widgets.center_map.outer.width);
-        assert!(widgets.center_map.map_block.row >= widgets.center_map.outer.row);
+        assert_eq!(widgets.center_map.map_block, widgets.center_map.outer);
         assert_eq!(widgets.center_map.axis_row, widgets.center_map.map_block.row);
         assert_eq!(widgets.center_map.grid.col, widgets.center_map.map_block.col);
         assert_eq!(
@@ -603,11 +646,51 @@ mod tests {
         assert!(projected.x_min <= app.crosshair_x && projected.x_max >= app.crosshair_x);
         assert!(projected.y_min <= app.crosshair_y && projected.y_max >= app.crosshair_y);
         assert_eq!(projected.col_edges.first().copied(), Some(frame.grid.col + frame.row_label_cols));
+        assert!(projected.col_edges.last().copied().unwrap_or(0) <= frame.grid.last_col() + 1);
+        assert_eq!(projected.row_edges.first().copied(), Some(frame.grid.row));
+        assert!(projected.row_edges.last().copied().unwrap_or(0) <= frame.grid.last_row() + 1);
+        assert_eq!(projected.visible_x, 9);
+        assert_eq!(projected.visible_y, 9);
+        assert_eq!(projected.tile_width, 12);
+        assert_eq!(projected.tile_height, 4);
+        assert_eq!(projected.col_edges.last().copied(), Some(frame.grid.last_col() + 1));
+        assert_eq!(projected.row_edges.last().copied(), Some(frame.grid.last_row() + 1));
+    }
+
+    #[test]
+    fn readable_mode_uses_full_map_fit_inside_shrunk_dashboard_frame() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 10;
+        app.crosshair_y = 11;
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+
+        assert_eq!(projected.x_min, 1);
+        assert_eq!(projected.y_min, 1);
+        assert_eq!(projected.x_max, 18);
+        assert_eq!(projected.y_max, 18);
+        assert_eq!(projected.visible_x, 18);
+        assert_eq!(projected.visible_y, 18);
+        assert_eq!(projected.tile_width, 6);
+        assert_eq!(projected.tile_height, 2);
+        assert_eq!(projected.col_edges.first().copied(), Some(frame.grid.col + frame.row_label_cols));
         assert_eq!(projected.col_edges.last().copied(), Some(frame.grid.last_col() + 1));
         assert_eq!(projected.row_edges.first().copied(), Some(frame.grid.row));
         assert_eq!(projected.row_edges.last().copied(), Some(frame.grid.last_row() + 1));
-        assert!(projected.x_max - projected.x_min + 1 < 18);
-        assert!(projected.y_max - projected.y_min + 1 < 18);
     }
 
     #[test]
@@ -677,6 +760,7 @@ mod tests {
         if rect.height > 1 {
             assert_eq!(buffer.row(rect.row)[mid_col].ch, '|');
         }
+        assert_eq!(buffer.row(rect.row)[rect.col].ch, ' ');
     }
 
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {

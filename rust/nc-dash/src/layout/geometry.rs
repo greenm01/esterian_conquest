@@ -23,10 +23,6 @@ pub const fn minimum_projected_map_height(map_size: usize) -> usize {
     1 + map_size
 }
 
-pub const fn preferred_readable_map_width(map_size: usize) -> usize {
-    ROW_LABEL_COLS + map_size.saturating_mul(4)
-}
-
 pub const fn dashboard_frame_geometry(
     center_width: usize,
     left_width: usize,

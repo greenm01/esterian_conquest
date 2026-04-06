@@ -4,11 +4,14 @@ use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
-use crate::planet_view::selected_planet_detail;
+use crate::planet_view::{preferred_sector_detail_body_width, selected_planet_detail};
 use crate::theme;
 
+pub(crate) const TITLE: &str = "SECTOR DETAIL";
+pub(crate) const MAX_BODY_ROWS: usize = 7;
+
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
-    layout::write_panel_title(buf, frame, "SECTOR DETAIL", theme::section_title_style());
+    layout::write_panel_title(buf, frame, TITLE, theme::section_title_style());
 
     let Some(detail) = selected_planet_detail(app) else {
         layout::write_panel_body_line(buf, frame, 0, "empty sector", theme::dim_style());
@@ -23,15 +26,19 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: PanelWidgetFrame) {
     }
 }
 
+pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
+    preferred_sector_detail_body_width(app).max("empty sector".chars().count())
+}
+
 fn prioritized_widget_rows(rows: &[String], max_rows: usize) -> Vec<String> {
     rows.iter().take(max_rows).cloned().collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::prioritized_widget_rows;
+    use super::{preferred_body_width, prioritized_widget_rows, MAX_BODY_ROWS};
     use crate::app::state::DashApp;
-    use crate::layout::{dashboard_widget_frames, geometry::dashboard_geometry};
+    use crate::layout::dashboard_layout;
     use crate::theme;
     use nc_data::GameStateBuilder;
     use nc_ui::{PlayfieldBuffer, ScreenGeometry};
@@ -67,10 +74,10 @@ mod tests {
             Vec::new(),
             Vec::new(),
             ScreenGeometry::new(160, 40),
-            dashboard_geometry(18),
+            ScreenGeometry::new(0, 0),
             1,
         );
-        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let widgets = dashboard_layout(&app).widgets;
         let mut buffer = PlayfieldBuffer::new(
             app.geometry.width(),
             app.geometry.height(),
@@ -82,5 +89,27 @@ mod tests {
         assert!(buffer
             .plain_line(widgets.right_sector_detail.body.row)
             .contains("empty sector"));
+    }
+
+    #[test]
+    fn preferred_width_covers_empty_and_world_states() {
+        let app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 40),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+
+        assert!(preferred_body_width(&app) >= "empty sector".chars().count());
+        assert_eq!(MAX_BODY_ROWS, 7);
     }
 }

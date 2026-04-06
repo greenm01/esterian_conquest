@@ -1237,6 +1237,34 @@ mod tests {
     }
 
     #[test]
+    fn typed_map_coords_do_not_enter_readable_void_rows() {
+        let mut app = dash_app();
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('0'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('1'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char(','),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('2'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        app.handle_key(KeyEvent::new(
+            KeyCode::Char('3'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+
+        assert!(app.crosshair_x <= 18);
+        assert!(app.crosshair_y <= 18);
+    }
+
+    #[test]
     fn dashboard_actions_clear_partial_map_coord_input() {
         let mut app = dash_app();
         app.handle_key(KeyEvent::new(
