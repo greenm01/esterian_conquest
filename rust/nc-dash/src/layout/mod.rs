@@ -8,7 +8,7 @@ use nc_ui::{prompt, PlayfieldBuffer, ScreenGeometry};
 
 use crate::app::state::DashApp;
 use crate::theme;
-pub use dashboard::{DashboardLayout, dashboard_layout};
+pub use dashboard::{DashboardLayout, dashboard_layout, required_dashboard_frame};
 pub use widgets::{
     format_label_value, format_left_column_value, frame_offset_for, label_value_width,
     write_clipped, write_panel_body_line, write_panel_title, write_strict_span,

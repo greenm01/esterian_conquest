@@ -2,7 +2,7 @@ pub mod cp437;
 pub mod door;
 pub mod stdout;
 
-use crossterm::event::KeyEvent;
+use crossterm::event::{Event, KeyEvent};
 
 use crate::buffer::PlayfieldBuffer;
 
@@ -18,8 +18,7 @@ pub enum OutputEncoding {
 
 /// Color depth supported by the target terminal.
 ///
-/// Controls how [`GameColor::Indexed`] and [`GameColor::Rgb`] values are emitted.
-/// Named 16-color variants are always emitted as-is.
+/// Limits the palette resolution during playfield serialization.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ColorMode {
     /// Classic 16-color ANSI — safe for BBS doors, legacy telnet clients, and SyncTERM.
@@ -38,5 +37,8 @@ pub trait Terminal {
     fn render(&mut self, playfield: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>>;
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>>;
     fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>>;
+    fn read_event(&mut self) -> Result<Event, Box<dyn std::error::Error>> {
+        self.read_key().map(Event::Key)
+    }
     fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>>;
 }

@@ -4,10 +4,10 @@ pub mod input;
 pub mod render;
 pub mod state;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use input::{key_to_action, Action};
 use nc_ui::table_selection;
-use nc_ui::Terminal;
+use nc_ui::{ScreenGeometry, Terminal};
 use state::{
     ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter, FleetOverlayPromptMode,
     FleetOverlaySort, HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
@@ -15,6 +15,7 @@ use state::{
 };
 
 use crate::inbox::{project_inbox_items, DashInboxItemSource};
+use crate::layout::dashboard;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
 use crate::planet_view;
@@ -28,8 +29,26 @@ impl DashApp {
             if self.should_quit {
                 break;
             }
-            let key = terminal.read_key()?;
-            self.handle_key(key);
+            match terminal.read_event()? {
+                Event::Key(key) => {
+                    if !self.is_terminal_too_small {
+                        self.handle_key(key);
+                    } else if key.code == KeyCode::Char('q') || key.code == KeyCode::Char('Q') {
+                        self.should_quit = true;
+                    }
+                }
+                Event::Resize(cols, rows) => {
+                    self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
+                    let required = dashboard::required_dashboard_frame(self);
+                    if self.geometry.width() < required.width() || self.geometry.height() < required.height() {
+                        self.is_terminal_too_small = true;
+                    } else {
+                        self.is_terminal_too_small = false;
+                        self.frame = required;
+                    }
+                }
+                _ => {}
+            }
         }
         Ok(())
     }

@@ -64,17 +64,10 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
     );
     let required = layout::dashboard::required_dashboard_frame(&app);
     if cols < required.width() as u16 || rows < required.height() as u16 {
-        eprintln!(
-            "nc-dash requires at least {}×{} terminal for this game state (yours is {}×{}).",
-            required.width(),
-            required.height(),
-            cols,
-            rows
-        );
-        eprintln!("Resize your terminal or use nc-game for the classic 80×25 interface.");
-        std::process::exit(1);
+        app.is_terminal_too_small = true;
+    } else {
+        app.frame = required;
     }
-    app.frame = required;
 
     let color_mode = detect_color_mode();
     let mut terminal =

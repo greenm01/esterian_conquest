@@ -167,11 +167,14 @@ impl Terminal for StdoutTerminal {
 
     fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
         loop {
-            match event::read()? {
-                Event::Key(key) => return Ok(key),
-                _ => continue,
+            if let Event::Key(key) = self.read_event()? {
+                return Ok(key);
             }
         }
+    }
+
+    fn read_event(&mut self) -> Result<Event, Box<dyn std::error::Error>> {
+        Ok(event::read()?)
     }
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {

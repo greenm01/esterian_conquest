@@ -3,23 +3,34 @@
 use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{ActiveOverlay, ActivePopup, DashApp};
-use crate::layout;
+use crate::layout::{
+    self, dashboard_layout, draw_footer, draw_frame, draw_header, new_dashboard_buffer,
+    required_dashboard_frame,
+};
 use crate::overlays::{
     self,
     frame::{draw_full_backdrop, overlay_backdrop, OverlayBackdrop},
 };
 use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap};
 use crate::popups;
+use crate::theme;
 
 pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-    let mut buf = layout::new_dashboard_buffer(app.geometry);
-    let dashboard = layout::dashboard_layout(app);
+    let mut buf = new_dashboard_buffer(app.geometry);
+
+    let required = required_dashboard_frame(app);
+    if app.geometry.width() < required.width() || app.geometry.height() < required.height() {
+        render_too_small_blocker(&mut buf, app.geometry, required);
+        return Ok(buf);
+    }
+
+    let dashboard = dashboard_layout(app);
     let widgets = dashboard.widgets;
 
     // Draw structural borders and header/footer.
-    layout::draw_frame(&mut buf, dashboard.frame, &widgets);
-    layout::draw_header(&mut buf, app, &dashboard);
-    layout::draw_footer(&mut buf, app, &dashboard);
+    draw_frame(&mut buf, dashboard.frame, &widgets);
+    draw_header(&mut buf, app, &dashboard);
+    draw_footer(&mut buf, app, &dashboard);
 
     // Left column panels.
     economy::draw(&mut buf, app, widgets.left_economy);
@@ -65,6 +76,53 @@ pub fn render(app: &DashApp) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     }
 
     Ok(buf)
+}
+
+fn render_too_small_blocker(
+    buf: &mut PlayfieldBuffer,
+    canvas: nc_ui::ScreenGeometry,
+    required: nc_ui::ScreenGeometry,
+) {
+    let msg1 = "TERMINAL WINDOW TOO SMALL";
+    let msg2 = format!(
+        "Requires {}x{} (Current: {}x{})",
+        required.width(),
+        required.height(),
+        canvas.width(),
+        canvas.height()
+    );
+    let msg3 = "Resize window or press Q to quit.";
+
+    let row_mid = canvas.height() / 2;
+    let col_mid = canvas.width() / 2;
+
+    let start1 = col_mid.saturating_sub(msg1.chars().count() / 2);
+    layout::write_clipped(
+        buf,
+        row_mid.saturating_sub(1),
+        start1,
+        canvas.width().saturating_sub(start1),
+        msg1,
+        theme::error_style(),
+    );
+    let start2 = col_mid.saturating_sub(msg2.chars().count() / 2);
+    layout::write_clipped(
+        buf,
+        row_mid,
+        start2,
+        canvas.width().saturating_sub(start2),
+        &msg2,
+        theme::body_style(),
+    );
+    let start3 = col_mid.saturating_sub(msg3.chars().count() / 2);
+    layout::write_clipped(
+        buf,
+        row_mid.saturating_add(1),
+        start3,
+        canvas.width().saturating_sub(start3),
+        msg3,
+        theme::dim_style(),
+    );
 }
 
 fn help_underlay_overlay(

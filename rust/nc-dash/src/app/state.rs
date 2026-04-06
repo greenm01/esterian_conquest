@@ -343,6 +343,7 @@ pub struct DashApp {
     pub diplomacy_overlay: ListOverlayState,
     pub inbox_overlay: InboxOverlayState,
 
+    pub is_terminal_too_small: bool,
     pub should_quit: bool,
 }
 
@@ -398,6 +399,7 @@ impl DashApp {
             intel_overlay: IntelOverlayState::default(),
             diplomacy_overlay: ListOverlayState::default(),
             inbox_overlay: InboxOverlayState::default(),
+            is_terminal_too_small: false,
             should_quit: false,
         }
     }

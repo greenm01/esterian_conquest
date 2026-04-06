@@ -56,6 +56,10 @@ pub fn alert_style() -> CellStyle {
     on_body(classic::alert_style())
 }
 
+pub fn error_style() -> CellStyle {
+    on_body(classic::error_style())
+}
+
 pub fn dim_style() -> CellStyle {
     classic::disabled_row_style()
 }
