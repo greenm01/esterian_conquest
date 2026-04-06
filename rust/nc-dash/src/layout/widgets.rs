@@ -2,7 +2,10 @@
 
 use nc_ui::{CellStyle, PlayfieldBuffer, ScreenGeometry};
 
-use crate::layout::geometry::{CELL_WIDTH, ROW_LABEL_COLS, SIDE_PANEL_WIDTH};
+use crate::layout::geometry::{
+    CELL_WIDTH, MAP_LEFT_PADDING, MAP_RIGHT_PADDING, MAP_VERTICAL_PADDING, ROW_LABEL_COLS,
+    SIDE_PANEL_WIDTH,
+};
 
 /// Left content column width.
 pub const LEFT_WIDTH: usize = SIDE_PANEL_WIDTH;
@@ -49,7 +52,7 @@ pub struct MapWidgetFrame {
     pub outer: WidgetRect,
     pub axis_row: usize,
     pub grid: WidgetRect,
-    pub status_row: usize,
+    pub bottom_pad_row: usize,
     pub row_label_cols: usize,
     pub cell_width: usize,
 }
@@ -84,7 +87,6 @@ pub fn dashboard_widget_frames(
     frame: ScreenGeometry,
 ) -> DashboardWidgetFrames {
     let (ox, oy) = frame_offset_for(canvas, frame);
-    let fw = frame.width();
     let fh = frame.height();
 
     let outer_top = oy;
@@ -94,17 +96,19 @@ pub fn dashboard_widget_frames(
     let footer_divider_row = outer_bottom.saturating_sub(2);
     let footer_bar_row = outer_bottom.saturating_sub(1);
 
-    let left_divider_col = ox + 1 + LEFT_WIDTH;
-    let right_divider_col = ox + fw.saturating_sub(1 + RIGHT_WIDTH);
-
     let content_top = header_divider_row + 1;
     let content_bottom = footer_divider_row.saturating_sub(1);
-    let map_size = fh.saturating_sub(8);
+    let map_size = fh.saturating_sub(7);
+    let map_render_width =
+        ROW_LABEL_COLS + map_size * CELL_WIDTH + MAP_LEFT_PADDING + MAP_RIGHT_PADDING;
+
+    let left_divider_col = ox + 1 + LEFT_WIDTH;
 
     let left_col = ox + 1;
-    let right_col = right_divider_col + 1;
     let center_col = left_divider_col + 1;
-    let center_width = right_divider_col.saturating_sub(center_col);
+    let center_width = map_render_width;
+    let right_divider_col = center_col + center_width;
+    let right_col = right_divider_col + 1;
 
     let left_sep_1 = content_top + 5;
     let right_sep_1 = content_top + 6;
@@ -117,16 +121,17 @@ pub fn dashboard_widget_frames(
         width: center_width,
         height: content_bottom.saturating_sub(content_top) + 1,
     };
+    let grid = WidgetRect {
+        col: center_col + MAP_LEFT_PADDING,
+        row: content_top + MAP_VERTICAL_PADDING + 1,
+        width: center_width.saturating_sub(MAP_LEFT_PADDING + MAP_RIGHT_PADDING),
+        height: map_size,
+    };
     let center_map = MapWidgetFrame {
         outer: center_outer,
-        axis_row: content_top,
-        grid: WidgetRect {
-            col: center_col,
-            row: content_top + 1,
-            width: center_width,
-            height: map_size,
-        },
-        status_row: content_top + 1 + map_size,
+        axis_row: content_top + MAP_VERTICAL_PADDING,
+        grid,
+        bottom_pad_row: grid.last_row() + MAP_VERTICAL_PADDING,
         row_label_cols: ROW_LABEL_COLS,
         cell_width: CELL_WIDTH,
     };
@@ -340,21 +345,40 @@ mod tests {
     }
 
     #[test]
-    fn center_map_frame_owns_axis_grid_and_status_rows() {
+    fn center_map_frame_tracks_zero_padding_geometry() {
         let canvas = ScreenGeometry::new(160, 40);
         let frame = dashboard_geometry(18);
         let widgets = dashboard_widget_frames(canvas, frame);
 
-        assert_eq!(widgets.center_map.axis_row, widgets.center_map.outer.row);
-        assert_eq!(widgets.center_map.grid.row, widgets.center_map.axis_row + 1);
-        assert_eq!(widgets.center_map.grid.height, 18);
         assert_eq!(
-            widgets.center_map.status_row,
-            widgets.center_map.grid.last_row() + 1,
+            widgets.center_map.axis_row,
+            widgets.center_map.outer.row + MAP_VERTICAL_PADDING
         );
         assert_eq!(
-            widgets.center_map.status_row,
+            widgets.center_map.grid.col,
+            widgets.center_map.outer.col + MAP_LEFT_PADDING
+        );
+        assert_eq!(widgets.center_map.grid.row, widgets.center_map.axis_row + 1);
+        assert_eq!(
+            widgets.center_map.grid.width,
+            widgets.center_map.outer.width - MAP_LEFT_PADDING - MAP_RIGHT_PADDING
+        );
+        assert_eq!(
+            widgets.center_map.outer.width,
+            ROW_LABEL_COLS + 18 * CELL_WIDTH + MAP_LEFT_PADDING + MAP_RIGHT_PADDING
+        );
+        assert_eq!(widgets.center_map.grid.height, 18);
+        assert_eq!(
+            widgets.center_map.bottom_pad_row,
+            widgets.center_map.grid.last_row()
+        );
+        assert_eq!(
+            widgets.center_map.bottom_pad_row,
             widgets.center_map.outer.last_row(),
+        );
+        assert_eq!(
+            widgets.right_divider_col,
+            widgets.center_map.outer.last_col() + 1
         );
     }
 

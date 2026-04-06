@@ -75,13 +75,18 @@ Three-column layout with header and footer bars:
 ```
 
 Classic-style 3-char-wide × 1-row-tall cells with crosshair and axis
-labels. Row numbers on the left flow directly into the grid with no
-separator bar — just `09 ─·──·──` for the crosshair row. Column numbers
-sit on their own row inside the map area, centered over each 3-char cell.
-The crosshair highlights row 09 with dashes. Sector intel lives in the
-right-side `SECTOR DETAIL` widget rather than on a duplicate map status line.
+labels. The center widget is currently sized to the rendered map exactly,
+with no active interior padding. The padding constants still exist in the
+layout code as future knobs, but the current compare state is tight. Row
+numbers on the left flow
+directly into the grid with no separator bar — just `09 ─·──·──` for the
+crosshair row. Column numbers sit on their own row inside the map area,
+centered over each 3-char cell. The crosshair highlights row 09 with dashes.
+Sector intel lives in the right-side `SECTOR DETAIL` widget rather than on a
+duplicate map status line.
 
-The map area is 54 grid columns + 3 for row labels = ~57 columns center.
+The rendered 18x18 map block is 54 grid columns + 3 for row labels = ~57
+columns center.
 Side panels get the full 20+ rows of vertical space alongside the grid —
 room for all economy, planet, fleet, diplomacy, and report data without
 scrolling in most games.
@@ -228,12 +233,12 @@ but with their own layout, not the three-column dashboard.
 
 ### Minimum Terminal Size
 
-- **160 columns × 40 rows** minimum. Assumes 1920×1200 display at
+- **160 columns × 43 rows** minimum. Assumes 1920×1200 display at
   reasonable scaling. Fits all map sizes (up to 36×36 = 111 grid cols)
   with room for side panels.
 - If the terminal is smaller, the dashboard refuses to start and suggests
   using `nc-game` instead.
-- **Max rendering width: ~155 columns** (20 left + 111 grid + 20 right +
+- **Max rendering width: ~155 columns** (20 left + 111 map + 20 right +
   borders). Centered on screen with dark padding if terminal is wider.
 - Max rendering height capped similarly; centered vertically with padding.
 - Side panels are 20 chars wide each — enough for ★ indicators, coords,
@@ -250,8 +255,8 @@ The full map is always rendered — no viewport panning. Each sector is
 on the left, column numbers on top. All map sizes from 18×18 to 36×36
 fit at 3-char-wide on a 1920×1200 minimum display.
 
-Grid width = map_size × 3 + 3 (row labels). Grid height = map_size + 2
-(column labels + one blank/themed row under the grid).
+Rendered map-block width = map_size × 3 + 3 (row labels). Rendered map-block
+height = map_size + 1 (column labels only).
 
 ### Display
 

@@ -349,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn draw_leaves_status_row_blank() {
+    fn draw_bottom_map_row_matches_current_padding_mode() {
         let mut app = DashApp::new(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -376,7 +376,46 @@ mod tests {
 
         draw(&mut buffer, &app, widgets.center_map);
 
-        assert_eq!(buffer.plain_line(widgets.center_map.status_row).trim(), "");
+        assert!(!buffer.plain_line(widgets.center_map.bottom_pad_row).is_empty());
+    }
+
+    #[test]
+    fn draw_uses_full_center_map_width_when_padding_is_zero() {
+        let mut app = DashApp::new(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            dashboard_geometry(18),
+            1,
+        );
+        app.crosshair_x = 2;
+        app.crosshair_y = 3;
+        let widgets = dashboard_widget_frames(app.geometry, app.frame);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, widgets.center_map);
+
+        assert_eq!(widgets.center_map.axis_row, widgets.center_map.outer.row);
+        assert_eq!(widgets.center_map.grid.col, widgets.center_map.outer.col);
+        assert_eq!(widgets.center_map.bottom_pad_row, widgets.center_map.grid.last_row());
+        assert_eq!(
+            buffer.row(widgets.center_map.axis_row)
+                [widgets.center_map.outer.col + widgets.center_map.row_label_cols]
+                .ch,
+            '0'
+        );
     }
 
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {
