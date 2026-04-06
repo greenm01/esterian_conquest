@@ -6,8 +6,8 @@ use crate::domains::planet::state::PlanetCommandContext;
 use crate::domains::planet::{KnownOwnerLabelStyle, PlanetAction, known_owner_label};
 use crate::screen::{
     CommandMenu, PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode,
-    PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListMode, PlanetListSort,
-    ScreenId,
+    PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListFilter,
+    PlanetListFilterMode, PlanetListFilterPromptMode, PlanetListMode, PlanetListSort, ScreenId,
 };
 use nc_data::build_player_starmap_projection_from_snapshots;
 
@@ -37,7 +37,7 @@ impl App {
     }
 
     pub(crate) fn clear_planet_list_status(&mut self) {
-        self.planet.list_sort_status = None;
+        self.planet.list_prompt_status = None;
     }
 
     pub(crate) fn show_planet_context_notice(&mut self, message: impl Into<String>) {
@@ -47,7 +47,7 @@ impl App {
             }
             PlanetCommandContext::List => {
                 self.clear_command_menu_notice();
-                self.planet.list_sort_status = Some(message.into());
+                self.planet.list_prompt_status = Some(message.into());
                 self.current_screen = self.planet_context_screen();
             }
         }
@@ -117,7 +117,9 @@ impl App {
     pub fn open_planet_database(&mut self) {
         if !matches!(
             self.current_screen,
-            ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseFilterPrompt
+            ScreenId::PlanetDatabaseList
+                | ScreenId::PlanetDatabaseFilterPrompt
+                | ScreenId::PlanetDatabaseSortPrompt
         ) {
             self.command_return_menu = self.origin_command_menu();
             let default_index = 0usize;
@@ -160,7 +162,7 @@ impl App {
         self.planet.database_prompt_default_value.clear();
         self.planet.database_pending_range_anchor = None;
         self.planet.database_status = None;
-        self.current_screen = ScreenId::PlanetDatabaseFilterPrompt;
+        self.current_screen = ScreenId::PlanetDatabaseSortPrompt;
     }
 
     pub fn open_planet_database_detail(&mut self) {
@@ -175,7 +177,7 @@ impl App {
     }
 
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
-        if self.sorted_planet_rows(PlanetListSort::Location).is_empty() {
+        if self.planet_list_rows(mode, PlanetListSort::Location).is_empty() {
             self.show_command_menu_notice(
                 Self::command_menu_for_planet_list_mode(mode),
                 "You do not currently control any planets.",
@@ -187,8 +189,25 @@ impl App {
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
     }
 
+    pub fn open_planet_list_filter_prompt(&mut self, mode: PlanetListMode) {
+        if self.planet_list_rows(mode, self.planet.list_sort).is_empty() {
+            self.show_command_menu_notice(
+                Self::command_menu_for_planet_list_mode(mode),
+                "You do not currently control any planets.",
+            );
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.clear_planet_list_status();
+        self.planet.list_prompt_input.clear();
+        self.planet.list_prompt_default_value.clear();
+        self.planet.list_pending_range_anchor = None;
+        self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::FilterMenu;
+        self.current_screen = ScreenId::PlanetListFilterPrompt(mode);
+    }
+
     pub fn submit_planet_list_sort(&mut self, mode: PlanetListMode, sort: PlanetListSort) {
-        let total = self.sorted_planet_rows(sort).len();
+        let total = self.planet_list_rows(mode, sort).len();
         if total == 0 {
             self.show_command_menu_notice(
                 Self::command_menu_for_planet_list_mode(mode),
@@ -202,6 +221,9 @@ impl App {
         self.planet.brief_scroll_offset = 0;
         self.planet.brief_cursor = 0;
         self.planet.brief_input.clear();
+        self.planet.list_prompt_input.clear();
+        self.planet.list_prompt_default_value.clear();
+        self.planet.list_pending_range_anchor = None;
         self.current_screen = match mode {
             PlanetListMode::Brief | PlanetListMode::BuildSelect => {
                 if mode == PlanetListMode::Brief {
@@ -214,6 +236,61 @@ impl App {
         };
     }
 
+    pub fn submit_planet_list_filter(&mut self, mode: PlanetListMode, filter_mode: PlanetListFilterMode) {
+        if self.current_screen != ScreenId::PlanetListFilterPrompt(mode) {
+            return;
+        }
+        match self.planet.list_filter_prompt_mode {
+            PlanetListFilterPromptMode::FilterMenu => match filter_mode {
+                PlanetListFilterMode::All => self.apply_planet_list_filter(mode, PlanetListFilter::All),
+                PlanetListFilterMode::Range => {
+                    self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::RangeCoords;
+                    self.planet.list_prompt_input.clear();
+                    self.planet.list_prompt_default_value =
+                        crate::screen::format_sector_coords_default(self.default_planet_prompt_coords());
+                    self.planet.list_pending_range_anchor = None;
+                    self.planet.list_prompt_status = None;
+                }
+                PlanetListFilterMode::Starbase => self.apply_planet_list_filter(mode, PlanetListFilter::Starbase),
+                PlanetListFilterMode::Stardock => self.apply_planet_list_filter(mode, PlanetListFilter::Stardock),
+            },
+            PlanetListFilterPromptMode::RangeCoords => {
+                let Some(anchor) = resolve_default_coords_input(
+                    &self.planet.list_prompt_input,
+                    self.default_planet_prompt_coords(),
+                ) else {
+                    self.planet.list_prompt_status = Some("Enter coordinates like 5,2".to_string());
+                    return;
+                };
+                self.planet.list_pending_range_anchor = Some(anchor);
+                self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::RangeDistance;
+                self.planet.list_prompt_input.clear();
+                self.planet.list_prompt_default_value = "5".to_string();
+                self.planet.list_prompt_status = None;
+            }
+            PlanetListFilterPromptMode::RangeDistance => {
+                let Some(anchor) = self.planet.list_pending_range_anchor else {
+                    self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::RangeCoords;
+                    self.planet.list_prompt_status = Some("Enter coordinates like 5,2".to_string());
+                    return;
+                };
+                let radius = if self.planet.list_prompt_input.trim().is_empty() {
+                    self.planet.list_prompt_default_value.parse::<u8>().unwrap_or(5)
+                } else {
+                    match self.planet.list_prompt_input.trim().parse::<u8>() {
+                        Ok(value) => value,
+                        Err(_) => {
+                            self.planet.list_prompt_status =
+                                Some("Enter a range from 0 to 255".to_string());
+                            return;
+                        }
+                    }
+                };
+                self.apply_planet_list_filter(mode, PlanetListFilter::Range { anchor, radius });
+            }
+        }
+    }
+
     pub fn close_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         self.clear_planet_list_status();
         self.current_screen = match mode {
@@ -224,11 +301,20 @@ impl App {
         };
     }
 
+    pub fn close_planet_list_filter_prompt(&mut self, mode: PlanetListMode) {
+        self.clear_planet_list_status();
+        self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::FilterMenu;
+        self.planet.list_prompt_input.clear();
+        self.planet.list_prompt_default_value.clear();
+        self.planet.list_pending_range_anchor = None;
+        self.current_screen = ScreenId::PlanetList(mode, self.planet.list_sort);
+    }
+
     pub fn scroll_planet_brief(&mut self, delta: i8) {
-        let ScreenId::PlanetList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(mode, sort) = self.current_screen else {
             return;
         };
-        let total = self.sorted_planet_rows(sort).len();
+        let total = self.planet_list_rows(mode, sort).len();
         let max_offset = total.saturating_sub(self.planet_brief_visible_rows());
         self.planet.brief_scroll_offset = self
             .planet
@@ -238,10 +324,10 @@ impl App {
     }
 
     pub fn move_planet_brief_cursor(&mut self, delta: i8) {
-        let ScreenId::PlanetList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(mode, sort) = self.current_screen else {
             return;
         };
-        let total = self.sorted_planet_rows(sort).len();
+        let total = self.planet_list_rows(mode, sort).len();
         if total == 0 {
             self.planet.brief_cursor = 0;
             return;
@@ -279,11 +365,30 @@ impl App {
         self.clear_planet_list_status();
     }
 
+    pub fn append_planet_list_prompt_char(&mut self, ch: char) {
+        let ScreenId::PlanetListFilterPrompt(_) = self.current_screen else {
+            return;
+        };
+        if self.planet.list_prompt_input.len() >= 16 {
+            return;
+        }
+        self.planet.list_prompt_input.push(ch);
+        self.clear_planet_list_status();
+    }
+
+    pub fn backspace_planet_list_prompt_input(&mut self) {
+        let ScreenId::PlanetListFilterPrompt(_) = self.current_screen else {
+            return;
+        };
+        self.planet.list_prompt_input.pop();
+        self.clear_planet_list_status();
+    }
+
     pub fn submit_planet_brief_input(&mut self) {
         let ScreenId::PlanetList(mode, sort) = self.current_screen else {
             return;
         };
-        let rows = self.sorted_planet_rows(sort);
+        let rows = self.planet_list_rows(mode, sort);
         if rows.is_empty() {
             return;
         }
@@ -312,12 +417,12 @@ impl App {
 
         let Some(coords) = resolve_default_coords_input(&self.planet.brief_input, default_coords)
         else {
-            self.planet.list_sort_status = Some("Enter coordinates like 5,2".to_string());
+            self.planet.list_prompt_status = Some("Enter coordinates like 5,2".to_string());
             return;
         };
 
         let Some(index) = rows.iter().position(|row| row.coords == coords) else {
-            self.planet.list_sort_status = Some(format!(
+            self.planet.list_prompt_status = Some(format!(
                 "No world found at ({:02},{:02})",
                 coords[0], coords[1]
             ));
@@ -332,7 +437,7 @@ impl App {
             visible_rows,
         );
         self.planet.brief_input.clear();
-        self.planet.list_sort_status = None;
+        self.planet.list_prompt_status = None;
         match mode {
             PlanetListMode::Brief => {
                 let _ = self.open_planet_info_detail_at_coords(
@@ -373,7 +478,7 @@ impl App {
     pub fn append_planet_database_char(&mut self, ch: char) {
         let accepts_input = match self.current_screen {
             ScreenId::PlanetDatabaseList => true,
-            ScreenId::PlanetDatabaseFilterPrompt => matches!(
+            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => matches!(
                 self.planet.database_prompt_mode,
                 PlanetDatabasePromptMode::FilterRangeCoords
                     | PlanetDatabasePromptMode::FilterRangeDistance
@@ -385,7 +490,7 @@ impl App {
         };
         let allow_char = match self.current_screen {
             ScreenId::PlanetDatabaseList => is_coordinate_input_char(ch),
-            ScreenId::PlanetDatabaseFilterPrompt => match self.planet.database_prompt_mode {
+            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => match self.planet.database_prompt_mode {
                 PlanetDatabasePromptMode::FilterRangeCoords
                 | PlanetDatabasePromptMode::SortRangeInput => is_coordinate_input_char(ch),
                 PlanetDatabasePromptMode::FilterRangeDistance
@@ -409,7 +514,7 @@ impl App {
     pub fn backspace_planet_database_input(&mut self) {
         let accepts_input = match self.current_screen {
             ScreenId::PlanetDatabaseList => true,
-            ScreenId::PlanetDatabaseFilterPrompt => matches!(
+            ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => matches!(
                 self.planet.database_prompt_mode,
                 PlanetDatabasePromptMode::FilterRangeCoords
                     | PlanetDatabasePromptMode::FilterRangeDistance
@@ -567,7 +672,7 @@ impl App {
     }
 
     pub fn submit_planet_database_sort(&mut self, mode: PlanetDatabaseSortMode) {
-        if self.current_screen != ScreenId::PlanetDatabaseFilterPrompt {
+        if self.current_screen != ScreenId::PlanetDatabaseSortPrompt {
             return;
         }
         match self.planet.database_prompt_mode {
@@ -691,7 +796,11 @@ impl App {
     }
 
     fn sync_planet_brief_cursor_to_input(&mut self, sort: PlanetListSort) -> bool {
-        let rows = self.sorted_planet_rows(sort);
+        let mode = match self.current_screen {
+            ScreenId::PlanetList(mode, _) => mode,
+            _ => PlanetListMode::Brief,
+        };
+        let rows = self.planet_list_rows(mode, sort);
         let match_rows = rows
             .iter()
             .map(|row| vec![crate::screen::format_sector_coords_table(row.coords)])
@@ -778,10 +887,10 @@ impl App {
     pub(crate) fn current_planet_list_row(
         &self,
     ) -> Result<nc_data::EmpirePlanetEconomyRow, String> {
-        let ScreenId::PlanetList(_, sort) = self.current_screen else {
+        let ScreenId::PlanetList(mode, sort) = self.current_screen else {
             return Err("Planet list is not active.".to_string());
         };
-        self.sorted_planet_rows(sort)
+        self.planet_list_rows(mode, sort)
             .get(self.planet.brief_cursor)
             .cloned()
             .ok_or_else(|| "You do not currently control any planets.".to_string())
@@ -850,6 +959,45 @@ impl App {
                 .then_with(|| left.coords.cmp(&right.coords)),
         });
         rows
+    }
+
+    pub(crate) fn planet_list_rows(
+        &self,
+        mode: PlanetListMode,
+        sort: PlanetListSort,
+    ) -> Vec<nc_data::EmpirePlanetEconomyRow> {
+        let rows = self.sorted_planet_rows(sort);
+        if mode != PlanetListMode::Brief {
+            return rows;
+        }
+        rows.into_iter()
+            .filter(|row| self.planet_list_filter_matches(row))
+            .collect()
+    }
+
+    fn planet_list_filter_matches(&self, row: &nc_data::EmpirePlanetEconomyRow) -> bool {
+        match self.planet.list_filter {
+            PlanetListFilter::All => true,
+            PlanetListFilter::Range { anchor, radius } => {
+                planet_database_distance_sq(anchor, row.coords)
+                    <= u32::from(radius) * u32::from(radius)
+            }
+            PlanetListFilter::Starbase => row.has_friendly_starbase,
+            PlanetListFilter::Stardock => self.planet_list_docked_units(row) > 0,
+        }
+    }
+
+    fn planet_list_docked_units(&self, row: &nc_data::EmpirePlanetEconomyRow) -> u32 {
+        self.game_data
+            .planets
+            .records
+            .get(row.planet_record_index_1_based.saturating_sub(1))
+            .map(|planet| {
+                (0..nc_data::STARDOCK_SLOT_COUNT)
+                    .map(|slot| u32::from(planet.stardock_count_raw(slot)))
+                    .sum()
+            })
+            .unwrap_or(0)
     }
 
     pub(crate) fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
@@ -957,6 +1105,7 @@ impl App {
             .planet_database_rows()
             .get(self.planet.database_cursor)
             .map(|row| row.planet_record_index_1_based);
+        let previous_filter = self.planet.database_filter;
         self.planet.database_filter = filter;
         self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
         self.planet.database_status = None;
@@ -967,8 +1116,26 @@ impl App {
 
         let rows = self.planet_database_rows();
         if rows.is_empty() {
-            self.planet.database_cursor = 0;
-            self.planet.database_scroll_offset = 0;
+            self.planet.database_filter = PlanetDatabaseFilter::All;
+            if previous_filter == PlanetDatabaseFilter::All {
+                self.planet.database_cursor = 0;
+                self.planet.database_scroll_offset = 0;
+            } else {
+                let full_rows = self.planet_database_rows();
+                self.planet.database_cursor = selected_record
+                    .and_then(|record| {
+                        full_rows
+                            .iter()
+                            .position(|row| row.planet_record_index_1_based == record)
+                    })
+                    .unwrap_or(0);
+                let visible_rows = self.planet_database_visible_rows();
+                sync_scroll_to_cursor(
+                    &mut self.planet.database_scroll_offset,
+                    self.planet.database_cursor,
+                    visible_rows,
+                );
+            }
             return;
         }
 
@@ -1016,6 +1183,59 @@ impl App {
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
+            visible_rows,
+        );
+    }
+
+    fn apply_planet_list_filter(&mut self, mode: PlanetListMode, filter: PlanetListFilter) {
+        let selected_record = self
+            .planet_list_rows(mode, self.planet.list_sort)
+            .get(self.planet.brief_cursor)
+            .map(|row| row.planet_record_index_1_based);
+        let previous_filter = self.planet.list_filter;
+        self.planet.list_filter = filter;
+        self.planet.list_filter_prompt_mode = PlanetListFilterPromptMode::FilterMenu;
+        self.planet.list_prompt_status = None;
+        self.planet.list_prompt_input.clear();
+        self.planet.list_prompt_default_value.clear();
+        self.planet.list_pending_range_anchor = None;
+        self.current_screen = ScreenId::PlanetList(mode, self.planet.list_sort);
+
+        let rows = self.planet_list_rows(mode, self.planet.list_sort);
+        if rows.is_empty() {
+            self.planet.list_filter = PlanetListFilter::All;
+            if previous_filter == PlanetListFilter::All {
+                self.planet.brief_cursor = 0;
+                self.planet.brief_scroll_offset = 0;
+            } else {
+                let full_rows = self.planet_list_rows(mode, self.planet.list_sort);
+                self.planet.brief_cursor = selected_record
+                    .and_then(|record| {
+                        full_rows
+                            .iter()
+                            .position(|row| row.planet_record_index_1_based == record)
+                    })
+                    .unwrap_or(0);
+                let visible_rows = self.planet_brief_visible_rows();
+                sync_scroll_to_cursor(
+                    &mut self.planet.brief_scroll_offset,
+                    self.planet.brief_cursor,
+                    visible_rows,
+                );
+            }
+            return;
+        }
+
+        self.planet.brief_cursor = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        let visible_rows = self.planet_brief_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.planet.brief_scroll_offset,
+            self.planet.brief_cursor,
             visible_rows,
         );
     }
@@ -1139,14 +1359,14 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let rows = self.build_planet_rows();
         let Some(index) = rows.iter().position(|row| row.coords == coords) else {
-            self.planet.list_sort_status = Some(format!(
+            self.planet.list_prompt_status = Some(format!(
                 "No build target found at ({:02},{:02})",
                 coords[0], coords[1]
             ));
             return Ok(());
         };
         self.planet.build_index = index;
-        self.planet.list_sort_status = None;
+        self.planet.list_prompt_status = None;
         self.open_planet_build_menu();
         Ok(())
     }

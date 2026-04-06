@@ -6,7 +6,7 @@ use crate::app::state::{ActiveOverlay, ActivePopup, DashApp};
 use crate::layout;
 use crate::overlays::{
     self,
-    frame::{OverlayBackdrop, draw_full_backdrop, overlay_backdrop},
+    frame::{draw_full_backdrop, overlay_backdrop, OverlayBackdrop},
 };
 use crate::panels::{diplomacy, economy, fleets, known_galaxy, planets, sector_detail, starmap};
 use crate::popups;

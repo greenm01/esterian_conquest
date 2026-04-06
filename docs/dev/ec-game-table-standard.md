@@ -155,11 +155,11 @@ second prompt line.
 Examples:
 
 ```text
-COMMANDS <- Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->
+SORT <- ? C L M <Q> ->
 ```
 
 ```text
-COMMANDS <- Filter by <L>ocation, <R>ange, <E>mpire, <M>ax Prod, or <Q>uit? [L] ->
+FILTER <- ? A R E M <Q> ->
 ```
 
 Rules:
@@ -168,8 +168,9 @@ Rules:
 - `F` is the standard filter hotkey for filterable tables
 - `Q` is quit/back
 - sort prompts use the first letter of the column they actually sort
-- hotkey letters inside both `<...>` and `[C]` / `[L]` render in the hotkey color
-- outer `< >` and `[ ]` use their delimiter theme styles
+- sort/filter chooser rails stay terse; `?` helper popups explain the choices
+- hotkey letters inside the bare rail hotkeys and `<Q>` render in the hotkey color
+- outer `< >` use their delimiter theme styles
 - `ENTER` remains implicit and is not listed in the hotkey rail
 
 ## Total Planet Database
@@ -181,7 +182,7 @@ shows, not the chrome:
 
 - the same one-row bordered header standard applies
 - `(X,Y)` and `(00,00)` formatting still apply
-- command-bar behavior follows the same `COMMANDS ... ->` grammar
+- command-bar behavior follows the same table grammar, including terse `SORT` / `FILTER` rails
 - the owner column uses `ICD` for worlds known to belong to an empire in civil disorder
 
 ## Split Tables

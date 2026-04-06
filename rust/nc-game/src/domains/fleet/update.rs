@@ -9,6 +9,8 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::OpenReviewPrompt => app.open_fleet_review_prompt(),
         FleetAction::OpenReview => app.open_fleet_review(),
         FleetAction::CloseReview => app.close_fleet_review(),
+        FleetAction::OpenListFilterPrompt => app.open_fleet_list_filter_prompt(),
+        FleetAction::OpenListSortPrompt => app.open_fleet_list_sort_prompt(),
         FleetAction::OpenChangePrompt => app.open_fleet_change_prompt(),
         FleetAction::OpenOrder => app.open_fleet_order(),
         FleetAction::OpenGroupOrder => app.open_fleet_group_order(),
@@ -49,10 +51,13 @@ pub fn update(app: &mut App, action: FleetAction) {
         FleetAction::CancelMenuPrompt => app.cancel_fleet_menu_prompt(),
         FleetAction::CancelTransfer => app.cancel_fleet_transfer(),
         FleetAction::CancelDetach => app.cancel_fleet_detach(),
+        FleetAction::CloseListPrompt => app.close_fleet_list_prompt(),
         FleetAction::ClearTransferSelection => app.clear_fleet_transfer_selection(),
         FleetAction::ClearDetachSelection => app.clear_fleet_detach_selection(),
         FleetAction::CancelOrder => app.cancel_fleet_order(),
         FleetAction::CancelGroupOrder => app.cancel_fleet_group_order(),
+        FleetAction::SubmitListFilter(filter) => app.submit_fleet_list_filter(filter),
+        FleetAction::SubmitListSort(sort) => app.submit_fleet_list_sort(sort),
         FleetAction::SubmitMenuPrompt => app.submit_fleet_menu_prompt(),
         FleetAction::SubmitOrder => {
             if let Err(err) = app.submit_fleet_order() {

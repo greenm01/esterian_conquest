@@ -97,6 +97,12 @@ pub enum TableFooter<'a> {
         default: Option<&'a str>,
         input: &'a str,
     },
+    LabeledCommandBar {
+        label: &'a str,
+        hotkeys_markup: &'a str,
+        default: Option<&'a str>,
+        input: &'a str,
+    },
     CommandText {
         label: &'a str,
         text: &'a str,
@@ -695,6 +701,12 @@ pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
             default,
             input,
         } => shared_prompt::table_command_bar_width(hotkeys_markup, default, input),
+        TableFooter::LabeledCommandBar {
+            label,
+            hotkeys_markup,
+            default,
+            input,
+        } => shared_prompt::table_command_bar_width_for_label(label, hotkeys_markup, default, input),
         TableFooter::CommandText { label, text } => {
             shared_prompt::command_line_text_width(label, text)
         }
@@ -719,6 +731,12 @@ pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
             default,
             ..
         } => shared_prompt::table_command_bar_scaffold_width(hotkeys_markup, default),
+        TableFooter::LabeledCommandBar {
+            label,
+            hotkeys_markup,
+            default,
+            ..
+        } => shared_prompt::table_command_bar_scaffold_width_for_label(label, hotkeys_markup, default),
         TableFooter::CommandText { label, text } => {
             shared_prompt::command_line_text_width(label, text)
         }
@@ -786,6 +804,21 @@ pub fn draw_table_footer_in_span(
             row,
             col,
             width,
+            hotkeys_markup,
+            default,
+            input,
+        ),
+        TableFooter::LabeledCommandBar {
+            label,
+            hotkeys_markup,
+            default,
+            input,
+        } => shared_prompt::draw_labeled_table_command_bar_in_span(
+            buffer,
+            row,
+            col,
+            width,
+            label,
             hotkeys_markup,
             default,
             input,

@@ -1647,8 +1647,8 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     );
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- Filter <A>").trim(),
-        "COMMAND <- Filter <A>, <R>, <E>, <M>, or <Q>? [A] ->"
+        line_containing(&terminal, "FILTER <- ? A R E M <Q> ->").trim(),
+        "FILTER <- ? A R E M <Q> ->"
     );
 
     assert_eq!(
@@ -1680,8 +1680,8 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- Sort <L>").trim(),
-        "COMMAND <- Sort <L>, <R>, <E>, <M>, or <Q>? [L] ->"
+        line_containing(&terminal, "SORT <- ? L R E M <Q> ->").trim(),
+        "SORT <- ? L R E M <Q> ->"
     );
 }
 

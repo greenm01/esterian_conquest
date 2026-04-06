@@ -119,9 +119,9 @@ fn planet_brief_list_terminal_typed_jump_clears_footer_input() {
     app.render(&mut terminal)
         .expect("planet brief list should render");
     assert_eq!(
-        line_containing(&terminal, "COMMAND <- ? S B A C L U X <Q>").trim(),
+        line_containing(&terminal, "COMMAND <- ? F S B A C L U X <Q>").trim(),
         format!(
-            "COMMAND <- ? S B A C L U X <Q> [{:02},{:02}] ->",
+            "COMMAND <- ? F S B A C L U X <Q> [{:02},{:02}] ->",
             target_coords[0], target_coords[1]
         )
     );
@@ -1736,9 +1736,10 @@ fn planet_build_list_help_mentions_delete_hotkey() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet build list help should render");
+    let delete_line = line_containing(&terminal, "delete highlighted build order");
     assert!(
-        line_containing(&terminal, "delete highlighted build order").contains("D/Enter"),
-        "planet build list helper should advertise the delete hotkey"
+        delete_line.contains('D'),
+        "planet build list helper should advertise the delete hotkey as its own row"
     );
 }
 

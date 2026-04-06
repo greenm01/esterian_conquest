@@ -9,7 +9,10 @@ use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::{FleetChangeField, FleetCommandContext, FleetMenuPromptMode};
 use crate::screen::layout::PromptFeedback;
-use crate::screen::{CommandMenu, FleetEtaMode, FleetRow, PlanetTransportMode, ScreenId};
+use crate::screen::{
+    CommandMenu, FleetEtaMode, FleetListFilter, FleetListSort, FleetRow, PlanetTransportMode,
+    ScreenId,
+};
 use nc_data::{FleetRecord, Order};
 use std::cmp::Reverse;
 
@@ -42,6 +45,44 @@ fn fleet_is_combat_only_fallback_candidate(fleet: &FleetRecord) -> bool {
     (fleet.destroyer_count() > 0 || fleet.cruiser_count() > 0 || fleet.battleship_count() > 0)
         && fleet.scout_count() == 0
         && fleet.etac_count() == 0
+}
+
+fn fleet_matches_filter(row: &FleetRow, filter: FleetListFilter) -> bool {
+    let order = Order::from_raw(row.order_code);
+    match filter {
+        FleetListFilter::All => true,
+        FleetListFilter::Holding => order == Order::HoldPosition,
+        FleetListFilter::Moving => matches!(
+            order,
+            Order::MoveOnly
+                | Order::SeekHome
+                | Order::PatrolSector
+                | Order::ViewWorld
+                | Order::ScoutSector
+                | Order::ScoutSolarSystem
+                | Order::ColonizeWorld
+                | Order::JoinAnotherFleet
+                | Order::RendezvousSector
+                | Order::Salvage
+        ),
+        FleetListFilter::Combat => matches!(
+            order,
+            Order::GuardStarbase
+                | Order::GuardBlockadeWorld
+                | Order::BombardWorld
+                | Order::InvadeWorld
+                | Order::BlitzWorld
+        ),
+    }
+}
+
+fn fleet_eta_sort_key(label: &str) -> (u8, u16) {
+    match label {
+        "0" => (0, 0),
+        "S" => (1, 0),
+        "X" => (3, 0),
+        _ => label.parse::<u16>().map(|value| (0, value)).unwrap_or((2, 0)),
+    }
 }
 
 impl App {
@@ -434,6 +475,103 @@ impl App {
         self.fleet.scroll_offset = 0;
         self.fleet.cursor = 0;
         self.current_screen = ScreenId::FleetList;
+    }
+
+    pub fn open_fleet_list_filter_prompt(&mut self) {
+        if self.fleet_list_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.clear_fleet_menu_prompt();
+        self.current_screen = ScreenId::FleetListFilterPrompt;
+    }
+
+    pub fn open_fleet_list_sort_prompt(&mut self) {
+        if self.fleet_list_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.clear_fleet_menu_prompt();
+        self.current_screen = ScreenId::FleetListSortPrompt;
+    }
+
+    pub fn close_fleet_list_prompt(&mut self) {
+        self.current_screen = ScreenId::FleetList;
+    }
+
+    pub fn submit_fleet_list_filter(&mut self, filter: FleetListFilter) {
+        let selected_record = self
+            .fleet_list_rows()
+            .get(self.fleet.cursor)
+            .map(|row| row.fleet_record_index_1_based);
+        let previous = self.fleet.list_filter;
+        self.fleet.list_filter = filter;
+        self.current_screen = ScreenId::FleetList;
+        let rows = self.fleet_list_rows();
+        if rows.is_empty() {
+            self.fleet.list_filter = FleetListFilter::All;
+            if previous == FleetListFilter::All {
+                self.fleet.cursor = 0;
+                self.fleet.scroll_offset = 0;
+            } else {
+                let full_rows = self.fleet_list_rows();
+                self.fleet.cursor = selected_record
+                    .and_then(|record| {
+                        full_rows
+                            .iter()
+                            .position(|row| row.fleet_record_index_1_based == record)
+                    })
+                    .unwrap_or(0);
+                let visible_rows = self.fleet_list_visible_rows();
+                sync_scroll_to_cursor(
+                    &mut self.fleet.scroll_offset,
+                    self.fleet.cursor,
+                    visible_rows,
+                );
+            }
+            return;
+        }
+        self.fleet.cursor = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.fleet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        let visible_rows = self.fleet_list_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
+            visible_rows,
+        );
+    }
+
+    pub fn submit_fleet_list_sort(&mut self, sort: FleetListSort) {
+        let selected_record = self
+            .fleet_list_rows()
+            .get(self.fleet.cursor)
+            .map(|row| row.fleet_record_index_1_based);
+        self.fleet.list_sort = sort;
+        self.current_screen = ScreenId::FleetList;
+        let rows = self.fleet_list_rows();
+        if rows.is_empty() {
+            self.fleet.cursor = 0;
+            self.fleet.scroll_offset = 0;
+            return;
+        }
+        self.fleet.cursor = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.fleet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        let visible_rows = self.fleet_list_visible_rows();
+        sync_scroll_to_cursor(
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
+            visible_rows,
+        );
     }
 
     pub fn open_fleet_review(&mut self) {
@@ -900,7 +1038,36 @@ impl App {
 
     pub(crate) fn fleet_list_rows(&self) -> Vec<FleetRow> {
         let mut rows = self.fleet_rows();
-        rows.sort_by(|left, right| right.fleet_number.cmp(&left.fleet_number));
+        rows.retain(|row| fleet_matches_filter(row, self.fleet.list_filter));
+        rows.sort_by(|left, right| match self.fleet.list_sort {
+            FleetListSort::Id => right.fleet_number.cmp(&left.fleet_number),
+            FleetListSort::Location => left
+                .coords
+                .cmp(&right.coords)
+                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Order => left
+                .order_code
+                .cmp(&right.order_code)
+                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Eta => fleet_eta_sort_key(&left.list_eta_label)
+                .cmp(&fleet_eta_sort_key(&right.list_eta_label))
+                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Strength => self
+                .game_data
+                .fleets
+                .records
+                .get(right.fleet_record_index_1_based.saturating_sub(1))
+                .map(fleet_strength_key)
+                .cmp(
+                    &self
+                        .game_data
+                        .fleets
+                        .records
+                        .get(left.fleet_record_index_1_based.saturating_sub(1))
+                        .map(fleet_strength_key),
+                )
+                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+        });
         rows
     }
 

@@ -53,7 +53,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     assert!(header_line.contains("│Spd│"));
     assert!(header_line.contains("ETA"));
     assert!(header_line.contains("ROE"));
-    assert!(header_line.contains("AR"));
+    assert!(header_line.contains("ARs"));
     assert!(header_line.contains("Ships"));
     assert!(
         !terminal
@@ -195,7 +195,7 @@ fn fleet_group_order_ships_column_matches_sparse_counted_table_format() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("│ 2│") && line.contains("2SC BB 4DD 2TT* ET")),
+            .any(|line| line.contains("│  2│") && line.contains("2SC BB 4DD 2TT* ET")),
         "{:#?}",
         terminal.lines
     );

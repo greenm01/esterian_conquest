@@ -244,6 +244,8 @@ impl App {
                     self.fleet_list.handle_key(key)
                 }
             }
+            ScreenId::FleetListFilterPrompt => self.fleet_list.handle_filter_prompt_key(key),
+            ScreenId::FleetListSortPrompt => self.fleet_list.handle_sort_prompt_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetOrder => self.handle_fleet_order_key(key),
             ScreenId::FleetGroupOrder => self.handle_fleet_group_order_key(key),
@@ -279,6 +281,9 @@ impl App {
             ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => {
                 Action::Planet(PlanetAction::OpenMenu)
             }
+            ScreenId::PlanetListFilterPrompt(mode) => self
+                .planet_list
+                .handle_filter_prompt_key(key, mode, self.planet.list_filter_prompt_mode),
             ScreenId::PlanetListSortPrompt(mode) => {
                 self.planet_list.handle_sort_prompt_key(key, mode)
             }
@@ -293,6 +298,9 @@ impl App {
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
             ScreenId::PlanetDatabaseList => self.planet_database.handle_list_key(key),
             ScreenId::PlanetDatabaseFilterPrompt => self
+                .planet_database
+                .handle_filter_prompt_key_for_mode(key, self.planet.database_prompt_mode),
+            ScreenId::PlanetDatabaseSortPrompt => self
                 .planet_database
                 .handle_filter_prompt_key_for_mode(key, self.planet.database_prompt_mode),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),

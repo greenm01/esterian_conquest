@@ -465,12 +465,12 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
 
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
     let prompt_row = (0..PLAYFIELD_HEIGHT)
-        .find(|row| buffer.plain_line(*row).contains("Filter <A>"))
+        .find(|row| buffer.plain_line(*row).contains("FILTER <- ? A R E M <Q> ->"))
         .expect("filter prompt row");
     assert_eq!(
         buffer
             .plain_line(prompt_row)
-            .find("COMMAND")
+            .find("FILTER")
             .expect("prompt col"),
         border_col + 1
     );
@@ -894,11 +894,7 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
         .expect("table row");
     let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
     let command_row = (0..buffer.height())
-        .find(|row| {
-            buffer
-                .plain_line(*row)
-                .contains("COMMAND <- ? D <Q>")
-        })
+        .find(|row| buffer.plain_line(*row).contains("COMMAND <- ? D <Q>"))
         .expect("command row");
     let command_col = buffer
         .plain_line(command_row)
@@ -1005,11 +1001,7 @@ fn enemies_screen_centers_block_and_pins_prompt_to_table() {
         .expect("table row");
     let table_col = buffer.plain_line(table_row).find('┌').expect("table col");
     let command_row = (0..buffer.height())
-        .find(|row| {
-            buffer
-                .plain_line(*row)
-                .contains("COMMAND <- ? <Q>")
-        })
+        .find(|row| buffer.plain_line(*row).contains("COMMAND <- ? <Q>"))
         .expect("command row");
     let command_col = buffer
         .plain_line(command_row)

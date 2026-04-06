@@ -36,6 +36,11 @@ Read it together with:
   - `FIRST TIME COMMAND`
 - Outside those primary command-center menu rails, the default live prompt label
   is `COMMAND`.
+- Sort and filter chooser rails are the explicit exception:
+  - `SORT <- ? ... <Q> ->`
+  - `FILTER <- ? ... <Q> ->`
+  - they do not use a `COMMAND` / `COMMANDS` prefix
+  - they stay terse, and `?` helper popups explain the choices
 - Explicit startup/naming prompts may keep their classic labels such as:
   - `EMPIRE NAME`
   - `HOMEWORLD`
@@ -85,8 +90,7 @@ Examples:
 
 ```text
 COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <Q> ->
-Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->
-Filter by <L>ocation, <R>ange, <E>mpire, <M>ax Prod, or <Q>uit? [L] ->
+COMMAND <- Change <R>OE, <I>D, or <S>peed [R] <Q> ->
 ```
 
 ### Freeform input with command choices and no default
@@ -223,6 +227,5 @@ MAP COMMAND <- ? <Q> ->
 COMMANDS <- ? <Q> [03,03] ->
 ```
 
-This document does not change the prompt-replacement table rows described in
-[nc-game-table-standard.md](nc-game-table-standard.md). Those still use normal
-prompt markup such as `COMMANDS <- Sort by <C>urrent Prod ... [C] ->`.
+This document also covers terse table submenu rails such as
+`SORT <- ? C L M <Q> ->` and `FILTER <- ? A R E M <Q> ->`.

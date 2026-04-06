@@ -34,6 +34,29 @@ pub enum PlanetListSort {
     PotentialProduction,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetListFilterMode {
+    All,
+    Range,
+    Starbase,
+    Stardock,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetListFilter {
+    All,
+    Range { anchor: [u8; 2], radius: u8 },
+    Starbase,
+    Stardock,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetListFilterPromptMode {
+    FilterMenu,
+    RangeCoords,
+    RangeDistance,
+}
+
 pub struct PlanetListScreen;
 
 const BRIEF_COLUMNS: [TableColumn<'static>; 12] = [
@@ -55,7 +78,9 @@ const BRIEF_TOP_HEADER_CELLS: [&str; 12] = [
     "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
 ];
 
-const BRIEF_SORT_PROMPT: &str = "Sort <C>, <L>, <M>, or <Q>? [C] ->";
+const BRIEF_BROWSE_HOTKEYS: &str = "? F S B A C L U X <Q>";
+const BRIEF_SORT_HOTKEYS: &str = "? C L M <Q>";
+const BRIEF_FILTER_HOTKEYS: &str = "? A R S T <Q>";
 pub(crate) const PLANET_LIST_AUTO_COMMISSION_PROMPT: &str =
     "Auto-Commission: Commission all ships and starbases? [Y]/N -> ";
 pub(crate) const PLANET_LIST_LOAD_FLEET_PROMPT: &str = "Load Armies: Fleet # ";
@@ -117,7 +142,100 @@ impl PlanetListScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let footer = TableFooter::TablePrompt(BRIEF_SORT_PROMPT);
+        let footer = TableFooter::LabeledCommandBar {
+            label: "SORT",
+            hotkeys_markup: BRIEF_SORT_HOTKEYS,
+            default: None,
+            input: "",
+        };
+        let columns = resolve_table_columns_for_widget_with_footer_floor(
+            &BRIEF_COLUMNS,
+            &table_rows,
+            buffer.width(),
+            scrollable,
+            TableWidthMode::Compact,
+            Some(brief_list_title(mode)),
+            Some(footer),
+            planet_list_footer_floor(frame, mode),
+        );
+        let layout = layout_stacked_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            displayed_rows,
+            Some(brief_list_title(mode)),
+            Some(footer),
+            scrollable,
+            HorizontalAlign::Center,
+            VerticalAlign::Top,
+        );
+        draw_table_footer(
+            &mut buffer,
+            frame.geometry,
+            layout.command_col,
+            brief_list_table_bottom_row(frame.geometry, rows.len(), scroll_offset),
+            footer,
+        );
+        Ok(buffer)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_filter_prompt(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
+        rows: &[EmpirePlanetEconomyRow],
+        sort: PlanetListSort,
+        scroll_offset: usize,
+        cursor: usize,
+        prompt_mode: PlanetListFilterPromptMode,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = self.render_brief_list(
+            frame,
+            mode,
+            rows,
+            sort,
+            scroll_offset,
+            cursor,
+            "",
+            status,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )?;
+        let table_rows = planet_table_rows(frame, rows);
+        let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
+        let displayed_rows = table_rows
+            .len()
+            .saturating_sub(scroll_offset)
+            .min(visible_rows);
+        let scrollable = table_rows.len() > visible_rows;
+        let footer = match prompt_mode {
+            PlanetListFilterPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+                label: "FILTER",
+                hotkeys_markup: BRIEF_FILTER_HOTKEYS,
+                default: None,
+                input: "",
+            },
+            PlanetListFilterPromptMode::RangeCoords => TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Range from ",
+                default: prompt_default,
+                input,
+            },
+            PlanetListFilterPromptMode::RangeDistance => TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Range radius ",
+                default: prompt_default,
+                input,
+            },
+        };
         let columns = resolve_table_columns_for_widget_with_footer_floor(
             &BRIEF_COLUMNS,
             &table_rows,
@@ -204,7 +322,7 @@ impl PlanetListScreen {
         } else {
             TableFooter::CommandBar {
                 hotkeys_markup: match mode {
-                    PlanetListMode::Brief => "? S B A C L U X <Q>",
+                    PlanetListMode::Brief => BRIEF_BROWSE_HOTKEYS,
                     PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => "? S <Q>",
                 },
                 default: Some(&default_coords),
@@ -271,6 +389,7 @@ impl PlanetListScreen {
 
     pub fn handle_sort_prompt_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
         match key.code {
+            KeyCode::Char('?') => Action::OpenPopupHelp,
             KeyCode::Char('c') | KeyCode::Char('C') | KeyCode::Enter => Action::Planet(
                 PlanetAction::SubmitListSort(mode, PlanetListSort::CurrentProduction),
             ),
@@ -287,6 +406,59 @@ impl PlanetListScreen {
         }
     }
 
+    pub fn handle_filter_prompt_key(
+        &self,
+        key: KeyEvent,
+        mode: PlanetListMode,
+        prompt_mode: PlanetListFilterPromptMode,
+    ) -> Action {
+        match prompt_mode {
+            PlanetListFilterPromptMode::FilterMenu => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
+                KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Enter => Action::Planet(
+                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::All),
+                ),
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    Action::Planet(PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Range))
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => Action::Planet(
+                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Starbase),
+                ),
+                KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(
+                    PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Stardock),
+                ),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
+                }
+                _ => Action::Noop,
+            },
+            PlanetListFilterPromptMode::RangeCoords
+            | PlanetListFilterPromptMode::RangeDistance => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
+                KeyCode::Enter => {
+                    Action::Planet(PlanetAction::SubmitListFilter(mode, PlanetListFilterMode::Range))
+                }
+                KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceListPromptInput),
+                KeyCode::Char(ch)
+                    if matches!(prompt_mode, PlanetListFilterPromptMode::RangeCoords)
+                        && is_coordinate_input_char(ch) =>
+                {
+                    Action::Planet(PlanetAction::AppendListPromptChar(ch))
+                }
+                KeyCode::Char(ch)
+                    if matches!(prompt_mode, PlanetListFilterPromptMode::RangeDistance)
+                        && ch.is_ascii_digit() =>
+                {
+                    Action::Planet(PlanetAction::AppendListPromptChar(ch))
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    Action::Planet(PlanetAction::CloseListFilterPrompt(mode))
+                }
+                _ => Action::Noop,
+            },
+        }
+    }
+
     pub fn handle_brief_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -297,6 +469,9 @@ impl PlanetListScreen {
             }
             KeyCode::PageUp => Action::Planet(PlanetAction::MoveBrief(-5)),
             KeyCode::PageDown => Action::Planet(PlanetAction::MoveBrief(5)),
+            KeyCode::Char('f') | KeyCode::Char('F') if mode == PlanetListMode::Brief => {
+                Action::Planet(PlanetAction::OpenListFilterPrompt(mode))
+            }
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 Action::Planet(PlanetAction::OpenListSortPrompt(mode))
             }
@@ -368,7 +543,7 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                 .to_string();
             [
                 table_footer_scaffold_width(TableFooter::CommandBar {
-                    hotkeys_markup: "? S B A C L U X <Q>",
+                    hotkeys_markup: BRIEF_BROWSE_HOTKEYS,
                     default: Some("00,00"),
                     input: "",
                 }),
@@ -412,7 +587,18 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                     label: "COMMAND",
                     prompt: PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT,
                 }),
-                table_footer_scaffold_width(TableFooter::TablePrompt(BRIEF_SORT_PROMPT)),
+                table_footer_scaffold_width(TableFooter::LabeledCommandBar {
+                    label: "SORT",
+                    hotkeys_markup: BRIEF_SORT_HOTKEYS,
+                    default: None,
+                    input: "",
+                }),
+                table_footer_scaffold_width(TableFooter::LabeledCommandBar {
+                    label: "FILTER",
+                    hotkeys_markup: BRIEF_FILTER_HOTKEYS,
+                    default: None,
+                    input: "",
+                }),
             ]
             .into_iter()
             .max()
@@ -424,7 +610,12 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
                 default: Some("00,00"),
                 input: "",
             }),
-            table_footer_scaffold_width(TableFooter::TablePrompt(BRIEF_SORT_PROMPT)),
+            table_footer_scaffold_width(TableFooter::LabeledCommandBar {
+                label: "SORT",
+                hotkeys_markup: BRIEF_SORT_HOTKEYS,
+                default: None,
+                input: "",
+            }),
         ]
         .into_iter()
         .max()

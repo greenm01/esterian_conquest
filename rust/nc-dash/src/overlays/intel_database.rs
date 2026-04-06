@@ -9,12 +9,17 @@ use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
 };
+use nc_ui::table_selection;
 
-use crate::app::state::DashApp;
+use crate::app::state::{
+    DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
+};
 use crate::overlays::frame::{draw_overlay_frame_for_body, write_clipped};
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? S I <Q>";
+pub(crate) const HOTKEYS: &str = "? F S I <Q>";
+pub(crate) const SORT_HOTKEYS: &str = "? L R E M <Q>";
+pub(crate) const FILTER_HOTKEYS: &str = "? A R E M <Q>";
 const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
 const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
@@ -30,19 +35,78 @@ const COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::right("Scout", 5),
 ];
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IntelOverlayRow {
+    pub planet_record_index_1_based: usize,
+    pub coords: [u8; 2],
+    pub known_owner_empire_id: Option<u8>,
+    pub known_max_production: Option<u16>,
+    pub cells: Vec<String>,
+}
+
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
     let rows = table_rows(app);
     let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
-    let selected_default = selected_default(app);
-    let footer = TableFooter::CommandBar {
-        hotkeys_markup: HOTKEYS,
-        default: selected_default.as_deref(),
-        input: &app.intel_overlay.jump_input,
+    let selected_default = rows
+        .get(selected)
+        .map(|row| format_sector_coords_default(row.coords));
+    let footer = match app.intel_overlay.prompt_mode {
+        IntelOverlayPromptMode::None => TableFooter::CommandBar {
+            hotkeys_markup: HOTKEYS,
+            default: selected_default.as_deref(),
+            input: &app.intel_overlay.jump_input,
+        },
+        IntelOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
+            label: "SORT",
+            hotkeys_markup: SORT_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        IntelOverlayPromptMode::SortRangeInput => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Sort range from ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+            label: "FILTER",
+            hotkeys_markup: FILTER_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        IntelOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Range from ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Range radius ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterEmpireInput => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Empire ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterMaxProductionInput => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Max production at least ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
     };
-    let desired_visible_rows = rows.len().clamp(1, buf.height().saturating_sub(11));
+    let table_cells = rows
+        .iter()
+        .map(|row| row.cells.clone())
+        .collect::<Vec<_>>();
+    let desired_visible_rows = table_cells.len().clamp(1, buf.height().saturating_sub(11));
     let columns = resolve_table_columns(
         &COLUMNS,
-        &rows,
+        &table_cells,
         buf.width().saturating_sub(12),
         false,
         TableWidthMode::Compact,
@@ -65,11 +129,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
         table_col,
         &TOP_HEADERS,
         &columns,
-        &rows,
+        &table_cells,
         scroll,
         visible_rows,
         theme::table_theme(),
-        rows.get(selected).map(|_| selected),
+        table_cells.get(selected).map(|_| selected),
         0,
         None,
     );
@@ -89,23 +153,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp) {
 pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
     table_rows(app)
         .into_iter()
-        .filter_map(|row| row.first().cloned().map(|cell| vec![cell]))
+        .map(|row| vec![format_sector_coords_table(row.coords)])
         .collect()
 }
 
-fn selected_default(app: &DashApp) -> Option<String> {
-    let projection_rows = table_rows(app);
-    let selected = app
-        .intel_overlay
-        .selected
-        .min(projection_rows.len().saturating_sub(1));
-    projection_rows.get(selected).and_then(|row| {
-        row.first()
-            .and_then(|cell| parse_table_coords(cell).map(format_sector_coords_default))
-    })
-}
-
-fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
+pub(crate) fn table_rows(app: &DashApp) -> Vec<IntelOverlayRow> {
     let snapshot_map = app
         .planet_intel_snapshots
         .iter()
@@ -117,14 +169,42 @@ fn table_rows(app: &DashApp) -> Vec<Vec<String>> {
         &snapshot_map,
         app.player_record_index_1_based as u8,
     );
-    projection
+    let mut rows = projection
         .worlds
         .iter()
         .map(|world| {
             let snapshot = snapshot_map.get(&world.planet_record_index_1_based);
             format_intel_row(app, world, snapshot)
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    rows.retain(|row| match app.intel_overlay.filter {
+        IntelOverlayFilter::All => true,
+        IntelOverlayFilter::Range { anchor, radius } => {
+            distance_sq(anchor, row.coords) <= u32::from(radius) * u32::from(radius)
+        }
+        IntelOverlayFilter::Empire(empire_id) => row.known_owner_empire_id == Some(empire_id),
+        IntelOverlayFilter::MaxProduction(min_prod) => row
+            .known_max_production
+            .is_some_and(|value| value >= min_prod),
+    });
+
+    rows.sort_by(|left, right| match app.intel_overlay.sort {
+        IntelOverlaySort::Location => left.coords.cmp(&right.coords),
+        IntelOverlaySort::Range(anchor) => distance_sq(anchor, left.coords)
+            .cmp(&distance_sq(anchor, right.coords))
+            .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Empire => left
+            .known_owner_empire_id
+            .cmp(&right.known_owner_empire_id)
+            .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::MaxProduction => right
+            .known_max_production
+            .cmp(&left.known_max_production)
+            .then_with(|| left.coords.cmp(&right.coords)),
+    });
+
+    rows
 }
 
 fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {
@@ -148,7 +228,7 @@ fn format_intel_row(
     app: &DashApp,
     world: &nc_data::PlayerStarmapWorld,
     snapshot: Option<&PlanetIntelSnapshot>,
-) -> Vec<String> {
+) -> IntelOverlayRow {
     let coords = world.coords;
     let owner_label = match world.known_owner_empire_id {
         Some(0) => String::from("Unowned"),
@@ -167,62 +247,87 @@ fn format_intel_row(
             .unwrap_or_else(|| format!("#{owner}")),
         None => String::from("?"),
     };
-    vec![
-        format_sector_coords_table(coords),
-        truncate(world.known_name.as_deref().unwrap_or("?"), 11),
-        owner_label,
-        world
-            .known_potential_production
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        snapshot
-            .and_then(|row| row.last_intel_year)
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_armies
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_ground_batteries
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_starbase_count
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_current_production
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        world
-            .known_stored_points
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-        snapshot
-            .and_then(|row| row.scout_year)
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| String::from("?")),
-    ]
+    IntelOverlayRow {
+        planet_record_index_1_based: world.planet_record_index_1_based,
+        coords,
+        known_owner_empire_id: world.known_owner_empire_id,
+        known_max_production: world.known_potential_production,
+        cells: vec![
+            format_sector_coords_table(coords),
+            truncate(world.known_name.as_deref().unwrap_or("?"), 11),
+            owner_label,
+            world
+                .known_potential_production
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            snapshot
+                .and_then(|row| row.last_intel_year)
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            world
+                .known_armies
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            world
+                .known_ground_batteries
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            world
+                .known_starbase_count
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            world
+                .known_current_production
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            world
+                .known_stored_points
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+            snapshot
+                .and_then(|row| row.scout_year)
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| String::from("?")),
+        ],
+    }
 }
 
-fn parse_table_coords(value: &str) -> Option<[u8; 2]> {
-    let trimmed = value.trim().trim_start_matches('(').trim_end_matches(')');
-    let mut parts = trimmed.split(',');
-    let x = parts.next()?.trim().parse().ok()?;
-    let y = parts.next()?.trim().parse().ok()?;
-    if parts.next().is_some() {
-        return None;
+pub(crate) fn parse_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {
+    if input.trim().is_empty() {
+        return Some(default);
     }
-    Some([x, y])
+    let digits = input
+        .split(|ch: char| !ch.is_ascii_digit())
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let [x, y] = digits.as_slice() else {
+        return None;
+    };
+    Some([x.parse().ok()?, y.parse().ok()?])
+}
+
+pub(crate) fn sync_cursor_to_jump_input(app: &mut DashApp) -> bool {
+    let rows = selection_rows(app);
+    let Some(matched) = table_selection::find_typed_jump(&rows, 0, &app.intel_overlay.jump_input)
+    else {
+        return false;
+    };
+    app.intel_overlay.selected = matched.index;
+    matched.is_terminal_exact_match
+}
+
+fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
+    let dx = i32::from(a[0]) - i32::from(b[0]);
+    let dy = i32::from(a[1]) - i32::from(b[1]);
+    (dx * dx + dy * dy) as u32
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_table_coords;
+    use super::parse_coords_input;
 
     #[test]
-    fn parse_table_coords_accepts_rendered_coord_cell() {
-        assert_eq!(parse_table_coords("(02,03)"), Some([2, 3]));
+    fn parse_coords_input_accepts_rendered_coord_cell() {
+        assert_eq!(parse_coords_input("(02,03)", [1, 1]), Some([2, 3]));
     }
 }

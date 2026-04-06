@@ -65,8 +65,15 @@ pub enum ActivePopup {
 pub enum HelpContext {
     Global,
     PlanetList,
+    PlanetListSort,
+    PlanetListFilter,
+    PromptInput,
     FleetList,
+    FleetListSort,
+    FleetListFilter,
     IntelDatabase,
+    IntelDatabaseSort,
+    IntelDatabaseFilter,
     Inbox,
     Diplomacy,
     Settings,
@@ -100,6 +107,163 @@ pub struct ListOverlayState {
     pub selected: usize,
     pub scroll: usize,
     pub jump_input: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetOverlaySort {
+    CurrentProduction,
+    Location,
+    MaxProduction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetOverlayFilter {
+    All,
+    Range { anchor: [u8; 2], radius: u8 },
+    Starbase,
+    Stardock,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetOverlayPromptMode {
+    None,
+    SortMenu,
+    FilterMenu,
+    FilterRangeCoords,
+    FilterRangeDistance,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlanetOverlayState {
+    pub selected: usize,
+    pub scroll: usize,
+    pub jump_input: String,
+    pub sort: PlanetOverlaySort,
+    pub filter: PlanetOverlayFilter,
+    pub prompt_mode: PlanetOverlayPromptMode,
+    pub prompt_input: String,
+    pub prompt_default: String,
+    pub pending_range_anchor: Option<[u8; 2]>,
+}
+
+impl Default for PlanetOverlayState {
+    fn default() -> Self {
+        Self {
+            selected: 0,
+            scroll: 0,
+            jump_input: String::new(),
+            sort: PlanetOverlaySort::CurrentProduction,
+            filter: PlanetOverlayFilter::All,
+            prompt_mode: PlanetOverlayPromptMode::None,
+            prompt_input: String::new(),
+            prompt_default: String::new(),
+            pending_range_anchor: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlaySort {
+    Id,
+    Location,
+    Order,
+    Eta,
+    Strength,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlayFilter {
+    All,
+    Holding,
+    Moving,
+    Combat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlayPromptMode {
+    None,
+    SortMenu,
+    FilterMenu,
+}
+
+#[derive(Debug, Clone)]
+pub struct FleetOverlayState {
+    pub selected: usize,
+    pub scroll: usize,
+    pub jump_input: String,
+    pub sort: FleetOverlaySort,
+    pub filter: FleetOverlayFilter,
+    pub prompt_mode: FleetOverlayPromptMode,
+}
+
+impl Default for FleetOverlayState {
+    fn default() -> Self {
+        Self {
+            selected: 0,
+            scroll: 0,
+            jump_input: String::new(),
+            sort: FleetOverlaySort::Id,
+            filter: FleetOverlayFilter::All,
+            prompt_mode: FleetOverlayPromptMode::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntelOverlaySort {
+    Location,
+    Range([u8; 2]),
+    Empire,
+    MaxProduction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntelOverlayFilter {
+    All,
+    Range { anchor: [u8; 2], radius: u8 },
+    Empire(u8),
+    MaxProduction(u16),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntelOverlayPromptMode {
+    None,
+    SortMenu,
+    SortRangeInput,
+    FilterMenu,
+    FilterRangeCoords,
+    FilterRangeDistance,
+    FilterEmpireInput,
+    FilterMaxProductionInput,
+}
+
+#[derive(Debug, Clone)]
+pub struct IntelOverlayState {
+    pub selected: usize,
+    pub scroll: usize,
+    pub jump_input: String,
+    pub sort: IntelOverlaySort,
+    pub filter: IntelOverlayFilter,
+    pub prompt_mode: IntelOverlayPromptMode,
+    pub prompt_input: String,
+    pub prompt_default: String,
+    pub pending_range_anchor: Option<[u8; 2]>,
+}
+
+impl Default for IntelOverlayState {
+    fn default() -> Self {
+        Self {
+            selected: 0,
+            scroll: 0,
+            jump_input: String::new(),
+            sort: IntelOverlaySort::Location,
+            filter: IntelOverlayFilter::All,
+            prompt_mode: IntelOverlayPromptMode::None,
+            prompt_input: String::new(),
+            prompt_default: String::new(),
+            pending_range_anchor: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -165,9 +329,9 @@ pub struct DashApp {
     pub diplomacy_scroll: usize,
 
     // Overlay-local state
-    pub planet_overlay: ListOverlayState,
-    pub fleet_overlay: ListOverlayState,
-    pub intel_overlay: ListOverlayState,
+    pub planet_overlay: PlanetOverlayState,
+    pub fleet_overlay: FleetOverlayState,
+    pub intel_overlay: IntelOverlayState,
     pub diplomacy_overlay: ListOverlayState,
     pub inbox_overlay: InboxOverlayState,
 
@@ -219,9 +383,9 @@ impl DashApp {
             crosshair_y: 1,
             map_coord_input: String::new(),
             diplomacy_scroll: 0,
-            planet_overlay: ListOverlayState::default(),
-            fleet_overlay: ListOverlayState::default(),
-            intel_overlay: ListOverlayState::default(),
+            planet_overlay: PlanetOverlayState::default(),
+            fleet_overlay: FleetOverlayState::default(),
+            intel_overlay: IntelOverlayState::default(),
             diplomacy_overlay: ListOverlayState::default(),
             inbox_overlay: InboxOverlayState::default(),
             should_quit: false,

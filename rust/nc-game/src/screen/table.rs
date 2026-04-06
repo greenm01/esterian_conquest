@@ -44,6 +44,24 @@ pub fn draw_table_footer(
             draw_table_command_bar_at_col(buffer, row, table_col, hotkeys_markup, default, input);
             row
         }
+        TableFooter::LabeledCommandBar {
+            label,
+            hotkeys_markup,
+            default,
+            input,
+        } => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            crate::screen::layout::draw_labeled_table_command_bar_at_col(
+                buffer,
+                row,
+                table_col,
+                label,
+                hotkeys_markup,
+                default,
+                input,
+            );
+            row
+        }
         TableFooter::CommandText { label, text } => {
             let row = table_prompt_row_for(geometry, bottom_row);
             draw_command_line_text_at_col(buffer, row, table_col, label, text);

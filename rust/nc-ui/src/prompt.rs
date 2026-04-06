@@ -70,13 +70,31 @@ pub fn command_line_default_input_scaffold_width_with_cancel(
 }
 
 pub fn table_command_bar_width(hotkeys_markup: &str, default: Option<&str>, input: &str) -> usize {
-    table_command_bar_scaffold_width(hotkeys_markup, default) + input.chars().count()
+    table_command_bar_width_for_label(COMMAND_LABEL, hotkeys_markup, default, input)
 }
 
 pub fn table_command_bar_scaffold_width(hotkeys_markup: &str, default: Option<&str>) -> usize {
+    table_command_bar_scaffold_width_for_label(COMMAND_LABEL, hotkeys_markup, default)
+}
+
+pub fn table_command_bar_width_for_label(
+    label: &str,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
+    table_command_bar_scaffold_width_for_label(label, hotkeys_markup, default) + input.chars().count()
+}
+
+pub fn table_command_bar_scaffold_width_for_label(
+    label: &str,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+) -> usize {
     let mut width = COMMAND_LABEL.chars().count()
-        + COMMAND_ARROW_PREFIX.chars().count()
-        + command_rail_width(hotkeys_markup);
+        + COMMAND_ARROW_PREFIX.chars().count();
+    width += command_rail_width(hotkeys_markup);
+    width += label.chars().count().saturating_sub(COMMAND_LABEL.chars().count());
     if let Some(default) = default {
         width += " ".chars().count()
             + DEFAULT_OPEN.chars().count()
@@ -400,13 +418,33 @@ pub fn draw_table_command_bar_at_col(
     default: Option<&str>,
     input: &str,
 ) -> usize {
+    draw_labeled_table_command_bar_at_col(
+        buffer,
+        row,
+        col,
+        COMMAND_LABEL,
+        hotkeys_markup,
+        default,
+        input,
+    )
+}
+
+pub fn draw_labeled_table_command_bar_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
     buffer.fill_row(row, classic::prompt_style());
     let mut cursor_col = col
         + buffer.write_spans_clipped(
             row,
             col,
             &[
-                StyledSpan::new(COMMAND_LABEL, classic::title_style()),
+                StyledSpan::new(label, classic::title_style()),
                 StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
             ],
         );
@@ -458,6 +496,28 @@ pub fn draw_table_command_bar_in_span(
     default: Option<&str>,
     input: &str,
 ) -> usize {
+    draw_labeled_table_command_bar_in_span(
+        buffer,
+        row,
+        col,
+        width,
+        COMMAND_LABEL,
+        hotkeys_markup,
+        default,
+        input,
+    )
+}
+
+pub fn draw_labeled_table_command_bar_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    label: &str,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
     fill_prompt_span(buffer, row, col, width);
     let span_end = col + width;
     let mut cursor_col = col
@@ -467,7 +527,7 @@ pub fn draw_table_command_bar_in_span(
             col,
             span_end,
             &[
-                StyledSpan::new(COMMAND_LABEL, classic::title_style()),
+                StyledSpan::new(label, classic::title_style()),
                 StyledSpan::new(COMMAND_ARROW_PREFIX, classic::prompt_style()),
             ],
         );

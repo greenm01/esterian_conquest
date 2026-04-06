@@ -15,8 +15,8 @@ use crate::screen::{
 };
 use crate::theme::classic;
 
-const DATABASE_FILTER_PROMPT: &str = "Filter <A>, <R>, <E>, <M>, or <Q>? [A] ->";
-const DATABASE_SORT_PROMPT: &str = "Sort <L>, <R>, <E>, <M>, or <Q>? [L] ->";
+const DATABASE_FILTER_HOTKEYS: &str = "? A R E M <Q>";
+const DATABASE_SORT_HOTKEYS: &str = "? L R E M <Q>";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetDatabaseFilterMode {
@@ -227,9 +227,12 @@ impl PlanetDatabaseScreen {
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
         let footer = match prompt_mode {
-            PlanetDatabasePromptMode::FilterMenu => {
-                TableFooter::TablePrompt(DATABASE_FILTER_PROMPT)
-            }
+            PlanetDatabasePromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+                label: "FILTER",
+                hotkeys_markup: DATABASE_FILTER_HOTKEYS,
+                default: None,
+                input: "",
+            },
             PlanetDatabasePromptMode::FilterRangeCoords => TableFooter::CommandInput {
                 label: COMMAND_LABEL,
                 prompt: "Range from ",
@@ -254,7 +257,12 @@ impl PlanetDatabaseScreen {
                 default: prompt_default,
                 input,
             },
-            PlanetDatabasePromptMode::SortMenu => TableFooter::TablePrompt(DATABASE_SORT_PROMPT),
+            PlanetDatabasePromptMode::SortMenu => TableFooter::LabeledCommandBar {
+                label: "SORT",
+                hotkeys_markup: DATABASE_SORT_HOTKEYS,
+                default: None,
+                input: "",
+            },
             PlanetDatabasePromptMode::SortRangeInput => TableFooter::CommandInput {
                 label: COMMAND_LABEL,
                 prompt: "Sort range from ",
@@ -329,6 +337,7 @@ impl PlanetDatabaseScreen {
     ) -> Action {
         match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => Action::Planet(
                     PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::All),
                 ),
@@ -347,6 +356,7 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::FilterRangeCoords => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
@@ -360,6 +370,7 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::FilterRangeDistance => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
@@ -373,6 +384,7 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::FilterEmpireInput => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
@@ -386,6 +398,7 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::FilterMaxProductionInput => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }
@@ -399,6 +412,7 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::SortMenu => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
                     PlanetAction::SubmitDatabaseSort(PlanetDatabaseSortMode::Location),
                 ),
@@ -417,6 +431,7 @@ impl PlanetDatabaseScreen {
                 _ => Action::Noop,
             },
             PlanetDatabasePromptMode::SortRangeInput => match key.code {
+                KeyCode::Char('?') => Action::OpenPopupHelp,
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     Action::Planet(PlanetAction::OpenDatabase)
                 }

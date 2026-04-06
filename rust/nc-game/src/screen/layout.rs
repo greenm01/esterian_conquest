@@ -1563,6 +1563,26 @@ pub fn draw_table_command_bar_at_col(
     shared_prompt::draw_table_command_bar_at_col(buffer, row, col, hotkeys_markup, default, input)
 }
 
+pub fn draw_labeled_table_command_bar_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
+    shared_prompt::draw_labeled_table_command_bar_at_col(
+        buffer,
+        row,
+        col,
+        label,
+        hotkeys_markup,
+        default,
+        input,
+    )
+}
+
 pub fn draw_table_command_prompt(buffer: &mut PlayfieldBuffer, prompt: &str) -> usize {
     draw_table_command_prompt_at(buffer, COMMAND_LINE_ROW, prompt)
 }

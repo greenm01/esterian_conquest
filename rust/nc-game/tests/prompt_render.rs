@@ -4,10 +4,11 @@ use std::path::{Path, PathBuf};
 use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use nc_game::screen::layout::{
     dismiss_prompt_row, draw_bottom_aligned_transcript_rows, draw_command_line_default_input_at,
+    draw_labeled_table_command_bar_at_col,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_command_prompt_at_col,
     draw_command_prompt_padded, draw_help_panel, draw_inline_delete_reviewables_prompt,
     draw_inline_planet_info_prompt, draw_plain_prompt, draw_prompt_error_after,
-    draw_prompt_feedback_after, draw_status_line, draw_table_command_prompt,
+    draw_prompt_feedback_after, draw_status_line,
     table_dismiss_prompt_row, PromptFeedback, ScreenGeometry, COMMAND_LINE_ROW, PLAYFIELD_HEIGHT,
     PLAYFIELD_WIDTH,
 };
@@ -129,14 +130,10 @@ fn draw_command_line_prompt_text_highlights_confirm_prompt_hotkeys() {
 #[test]
 fn draw_plain_prompt_highlights_general_letter_commands() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_plain_prompt(
-        &mut buffer,
-        19,
-        "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->",
-    );
+    draw_labeled_table_command_bar_at_col(&mut buffer, 19, 0, "SORT", "? C L M <Q>", None, "");
 
     let row = buffer.row(19);
-    for token in ["<C>", "<L>", "<M>", "<Q>"] {
+    for token in ["<Q>"] {
         let start = find_in_row(&buffer, 19, token);
         assert_eq!(row[start].style, classic::prompt_angle_delimiter_style());
         assert_eq!(row[start + 1].style, classic::prompt_hotkey_style());
@@ -145,20 +142,10 @@ fn draw_plain_prompt_highlights_general_letter_commands() {
             classic::prompt_angle_delimiter_style()
         );
     }
-
-    let default_choice = find_in_row(&buffer, 19, "[C]");
-    assert_eq!(
-        row[default_choice].style,
-        classic::prompt_square_delimiter_style()
-    );
-    assert_eq!(
-        row[default_choice + 1].style,
-        classic::prompt_hotkey_style()
-    );
-    assert_eq!(
-        row[default_choice + 2].style,
-        classic::prompt_square_delimiter_style()
-    );
+    let choices = find_in_row(&buffer, 19, "C L M");
+    assert_eq!(row[choices].style, classic::prompt_hotkey_style());
+    assert_eq!(row[choices + 2].style, classic::prompt_hotkey_style());
+    assert_eq!(row[choices + 4].style, classic::prompt_hotkey_style());
 }
 
 #[test]
@@ -290,9 +277,14 @@ fn first_time_join_name_clips_long_invite_code_without_panicking() {
 #[test]
 fn draw_table_command_prompt_keeps_cursor_inside_playfield_and_highlights_default() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_table_command_prompt(
+    draw_labeled_table_command_bar_at_col(
         &mut buffer,
-        "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->",
+        COMMAND_LINE_ROW,
+        0,
+        "SORT",
+        "? C L M <Q>",
+        None,
+        "",
     );
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
@@ -302,23 +294,27 @@ fn draw_table_command_prompt_keeps_cursor_inside_playfield_and_highlights_defaul
     assert!((cursor_col as usize) < PLAYFIELD_WIDTH);
 
     let row = buffer.row(COMMAND_LINE_ROW);
-    let default_choice = find_in_row(&buffer, COMMAND_LINE_ROW, "[C]");
-    assert_eq!(
-        row[default_choice + 1].style,
-        classic::prompt_hotkey_style()
-    );
+    let sort_label = find_in_row(&buffer, COMMAND_LINE_ROW, "SORT");
+    assert_eq!(row[sort_label].style, classic::title_style());
+    let choices = find_in_row(&buffer, COMMAND_LINE_ROW, "C L M");
+    assert_eq!(row[choices].style, classic::prompt_hotkey_style());
 }
 
 #[test]
 fn draw_table_command_prompt_inserts_space_after_arrow_before_cursor() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_table_command_prompt(
+    draw_labeled_table_command_bar_at_col(
         &mut buffer,
-        "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->",
+        COMMAND_LINE_ROW,
+        0,
+        "SORT",
+        "? C L M <Q>",
+        None,
+        "",
     );
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
-    assert!(line.contains("[C] -> "));
+    assert!(line.contains("<Q> -> "));
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');

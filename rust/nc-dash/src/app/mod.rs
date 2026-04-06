@@ -8,7 +8,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 use input::{key_to_action, Action};
 use nc_ui::table_selection;
 use nc_ui::Terminal;
-use state::{ActiveOverlay, ActivePopup, DashApp, HelpContext};
+use state::{
+    ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter, FleetOverlayPromptMode,
+    FleetOverlaySort, HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
+    PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+};
 
 use crate::inbox::{project_inbox_items, DashInboxItemSource};
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
@@ -216,23 +220,14 @@ impl DashApp {
         match self.overlay {
             ActiveOverlay::None => false,
             ActiveOverlay::PlanetList => {
-                if self.handle_overlay_close_or_help(key, HelpContext::PlanetList) {
-                    return true;
-                }
                 self.handle_planet_overlay_key(key);
                 true
             }
             ActiveOverlay::FleetList => {
-                if self.handle_overlay_close_or_help(key, HelpContext::FleetList) {
-                    return true;
-                }
                 self.handle_fleet_overlay_key(key);
                 true
             }
             ActiveOverlay::IntelDatabase => {
-                if self.handle_overlay_close_or_help(key, HelpContext::IntelDatabase) {
-                    return true;
-                }
                 self.handle_intel_overlay_key(key);
                 true
             }
@@ -241,7 +236,12 @@ impl DashApp {
                     return true;
                 }
                 let total_rows = self.game_data.player.records.len();
-                handle_list_overlay_key(key, &mut self.diplomacy_overlay, total_rows);
+                handle_list_overlay_key(
+                    key,
+                    &mut self.diplomacy_overlay.selected,
+                    &mut self.diplomacy_overlay.scroll,
+                    total_rows,
+                );
                 true
             }
             ActiveOverlay::Inbox => {
@@ -290,13 +290,130 @@ impl DashApp {
     }
 
     fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
+        match self.planet_overlay.prompt_mode {
+            PlanetOverlayPromptMode::SortMenu => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetListSort),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_planet_overlay_prompt();
+                }
+                KeyCode::Enter | KeyCode::Char('c') | KeyCode::Char('C') => {
+                    self.apply_planet_overlay_sort(PlanetOverlaySort::CurrentProduction);
+                }
+                KeyCode::Char('l') | KeyCode::Char('L') => {
+                    self.apply_planet_overlay_sort(PlanetOverlaySort::Location);
+                }
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    self.apply_planet_overlay_sort(PlanetOverlaySort::MaxProduction);
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::FilterMenu => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetListFilter),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_planet_overlay_prompt();
+                }
+                KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
+                    self.apply_planet_overlay_filter(PlanetOverlayFilter::All);
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::FilterRangeCoords;
+                    self.planet_overlay.prompt_input.clear();
+                    self.planet_overlay.prompt_default = planet_list::table_rows(self)
+                        .get(self.planet_overlay.selected)
+                        .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
+                        .unwrap_or_else(|| "00,00".to_string());
+                    self.planet_overlay.pending_range_anchor = None;
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    self.apply_planet_overlay_filter(PlanetOverlayFilter::Starbase);
+                }
+                KeyCode::Char('t') | KeyCode::Char('T') => {
+                    self.apply_planet_overlay_filter(PlanetOverlayFilter::Stardock);
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::FilterRangeCoords => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_planet_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = planet_list::parse_coords_input(
+                        &self.planet_overlay.prompt_default,
+                        [0, 0],
+                    )
+                    .unwrap_or([0, 0]);
+                    if let Some(anchor) =
+                        planet_list::parse_coords_input(&self.planet_overlay.prompt_input, default)
+                    {
+                        self.planet_overlay.pending_range_anchor = Some(anchor);
+                        self.planet_overlay.prompt_mode =
+                            PlanetOverlayPromptMode::FilterRangeDistance;
+                        self.planet_overlay.prompt_input.clear();
+                        self.planet_overlay.prompt_default = "5".to_string();
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.planet_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if table_selection::is_coordinate_input_char(ch) => {
+                    self.planet_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::FilterRangeDistance => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_planet_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = self
+                        .planet_overlay
+                        .prompt_default
+                        .trim()
+                        .parse::<u8>()
+                        .unwrap_or(5);
+                    let radius = if self.planet_overlay.prompt_input.trim().is_empty() {
+                        default
+                    } else {
+                        match self.planet_overlay.prompt_input.trim().parse::<u8>() {
+                            Ok(value) => value,
+                            Err(_) => return,
+                        }
+                    };
+                    let Some(anchor) = self.planet_overlay.pending_range_anchor else {
+                        return;
+                    };
+                    self.apply_planet_overlay_filter(PlanetOverlayFilter::Range { anchor, radius });
+                }
+                KeyCode::Backspace => {
+                    self.planet_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.planet_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            PlanetOverlayPromptMode::None => {}
+        }
+        if self.planet_overlay.prompt_mode != PlanetOverlayPromptMode::None {
+            return;
+        }
         match key.code {
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
+            KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::FilterMenu;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::SortMenu;
+            }
             KeyCode::Char(ch)
                 if self.planet_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
             {
                 self.planet_overlay.jump_input.push(ch);
-                if self.sync_planet_overlay_cursor_to_input() {
+                if planet_list::sync_cursor_to_jump_input(self) {
                     self.planet_overlay.jump_input.clear();
                 }
             }
@@ -305,18 +422,78 @@ impl DashApp {
             }
             _ => {
                 let total_rows = planet_list::selection_rows(self).len();
-                handle_list_overlay_key(key, &mut self.planet_overlay, total_rows);
+                handle_list_overlay_key(
+                    key,
+                    &mut self.planet_overlay.selected,
+                    &mut self.planet_overlay.scroll,
+                    total_rows,
+                );
             }
         }
     }
 
     fn handle_fleet_overlay_key(&mut self, key: KeyEvent) {
+        match self.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::SortMenu => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetListSort),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+                }
+                KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
+                    self.apply_fleet_overlay_sort(FleetOverlaySort::Id);
+                }
+                KeyCode::Char('l') | KeyCode::Char('L') => {
+                    self.apply_fleet_overlay_sort(FleetOverlaySort::Location);
+                }
+                KeyCode::Char('o') | KeyCode::Char('O') => {
+                    self.apply_fleet_overlay_sort(FleetOverlaySort::Order);
+                }
+                KeyCode::Char('e') | KeyCode::Char('E') => {
+                    self.apply_fleet_overlay_sort(FleetOverlaySort::Eta);
+                }
+                KeyCode::Char('t') | KeyCode::Char('T') => {
+                    self.apply_fleet_overlay_sort(FleetOverlaySort::Strength);
+                }
+                _ => {}
+            },
+            FleetOverlayPromptMode::FilterMenu => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetListFilter),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+                }
+                KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
+                    self.apply_fleet_overlay_filter(FleetOverlayFilter::All);
+                }
+                KeyCode::Char('h') | KeyCode::Char('H') => {
+                    self.apply_fleet_overlay_filter(FleetOverlayFilter::Holding);
+                }
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    self.apply_fleet_overlay_filter(FleetOverlayFilter::Moving);
+                }
+                KeyCode::Char('c') | KeyCode::Char('C') => {
+                    self.apply_fleet_overlay_filter(FleetOverlayFilter::Combat);
+                }
+                _ => {}
+            },
+            FleetOverlayPromptMode::None => {}
+        }
+        if self.fleet_overlay.prompt_mode != FleetOverlayPromptMode::None {
+            return;
+        }
         match key.code {
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
+            KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetList),
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::FilterMenu;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::SortMenu;
+            }
             KeyCode::Char(ch)
                 if self.fleet_overlay.jump_input.len() < 8 && ch.is_ascii_alphanumeric() =>
             {
                 self.fleet_overlay.jump_input.push(ch);
-                if self.sync_fleet_overlay_cursor_to_input() {
+                if fleet_list::sync_cursor_to_jump_input(self) {
                     self.fleet_overlay.jump_input.clear();
                 }
             }
@@ -325,19 +502,236 @@ impl DashApp {
             }
             _ => {
                 let total_rows = fleet_list::selection_rows(self).len();
-                handle_list_overlay_key(key, &mut self.fleet_overlay, total_rows);
+                handle_list_overlay_key(
+                    key,
+                    &mut self.fleet_overlay.selected,
+                    &mut self.fleet_overlay.scroll,
+                    total_rows,
+                );
             }
         }
     }
 
     fn handle_intel_overlay_key(&mut self, key: KeyEvent) {
+        match self.intel_overlay.prompt_mode {
+            IntelOverlayPromptMode::SortMenu => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabaseSort),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => {
+                    self.apply_intel_overlay_sort(IntelOverlaySort::Location);
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    self.intel_overlay.prompt_mode = IntelOverlayPromptMode::SortRangeInput;
+                    self.intel_overlay.prompt_input.clear();
+                    self.intel_overlay.prompt_default = intel_database::table_rows(self)
+                        .get(self.intel_overlay.selected)
+                        .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
+                        .unwrap_or_else(|| "00,00".to_string());
+                }
+                KeyCode::Char('e') | KeyCode::Char('E') => {
+                    self.apply_intel_overlay_sort(IntelOverlaySort::Empire);
+                }
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    self.apply_intel_overlay_sort(IntelOverlaySort::MaxProduction);
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::SortRangeInput => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = intel_database::parse_coords_input(
+                        &self.intel_overlay.prompt_default,
+                        [0, 0],
+                    )
+                    .unwrap_or([0, 0]);
+                    if let Some(anchor) =
+                        intel_database::parse_coords_input(&self.intel_overlay.prompt_input, default)
+                    {
+                        self.apply_intel_overlay_sort(IntelOverlaySort::Range(anchor));
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.intel_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if table_selection::is_coordinate_input_char(ch) => {
+                    self.intel_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::FilterMenu => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabaseFilter),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
+                    self.apply_intel_overlay_filter(IntelOverlayFilter::All);
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterRangeCoords;
+                    self.intel_overlay.prompt_input.clear();
+                    self.intel_overlay.prompt_default = intel_database::table_rows(self)
+                        .get(self.intel_overlay.selected)
+                        .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
+                        .unwrap_or_else(|| "00,00".to_string());
+                    self.intel_overlay.pending_range_anchor = None;
+                }
+                KeyCode::Char('e') | KeyCode::Char('E') => {
+                    self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterEmpireInput;
+                    self.intel_overlay.prompt_input.clear();
+                    self.intel_overlay.prompt_default = intel_database::table_rows(self)
+                        .get(self.intel_overlay.selected)
+                        .and_then(|row| row.known_owner_empire_id)
+                        .unwrap_or(self.player_record_index_1_based as u8)
+                        .to_string();
+                }
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    self.intel_overlay.prompt_mode =
+                        IntelOverlayPromptMode::FilterMaxProductionInput;
+                    self.intel_overlay.prompt_input.clear();
+                    self.intel_overlay.prompt_default = intel_database::table_rows(self)
+                        .get(self.intel_overlay.selected)
+                        .and_then(|row| row.known_max_production)
+                        .unwrap_or(100)
+                        .to_string();
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::FilterRangeCoords => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = intel_database::parse_coords_input(
+                        &self.intel_overlay.prompt_default,
+                        [0, 0],
+                    )
+                    .unwrap_or([0, 0]);
+                    if let Some(anchor) =
+                        intel_database::parse_coords_input(&self.intel_overlay.prompt_input, default)
+                    {
+                        self.intel_overlay.pending_range_anchor = Some(anchor);
+                        self.intel_overlay.prompt_mode =
+                            IntelOverlayPromptMode::FilterRangeDistance;
+                        self.intel_overlay.prompt_input.clear();
+                        self.intel_overlay.prompt_default = "5".to_string();
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.intel_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if table_selection::is_coordinate_input_char(ch) => {
+                    self.intel_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::FilterRangeDistance => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = self.intel_overlay.prompt_default.parse::<u8>().unwrap_or(5);
+                    let radius = if self.intel_overlay.prompt_input.trim().is_empty() {
+                        default
+                    } else {
+                        match self.intel_overlay.prompt_input.trim().parse::<u8>() {
+                            Ok(value) => value,
+                            Err(_) => return,
+                        }
+                    };
+                    let Some(anchor) = self.intel_overlay.pending_range_anchor else {
+                        return;
+                    };
+                    self.apply_intel_overlay_filter(IntelOverlayFilter::Range { anchor, radius });
+                }
+                KeyCode::Backspace => {
+                    self.intel_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.intel_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::FilterEmpireInput => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = self
+                        .intel_overlay
+                        .prompt_default
+                        .parse::<u8>()
+                        .unwrap_or(self.player_record_index_1_based as u8);
+                    let empire = if self.intel_overlay.prompt_input.trim().is_empty() {
+                        default
+                    } else {
+                        match self.intel_overlay.prompt_input.trim().parse::<u8>() {
+                            Ok(value) => value,
+                            Err(_) => return,
+                        }
+                    };
+                    self.apply_intel_overlay_filter(IntelOverlayFilter::Empire(empire));
+                }
+                KeyCode::Backspace => {
+                    self.intel_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.intel_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::FilterMaxProductionInput => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.reset_intel_overlay_prompt();
+                }
+                KeyCode::Enter => {
+                    let default = self.intel_overlay.prompt_default.parse::<u16>().unwrap_or(100);
+                    let min_prod = if self.intel_overlay.prompt_input.trim().is_empty() {
+                        default
+                    } else {
+                        match self.intel_overlay.prompt_input.trim().parse::<u16>() {
+                            Ok(value) => value,
+                            Err(_) => return,
+                        }
+                    };
+                    self.apply_intel_overlay_filter(IntelOverlayFilter::MaxProduction(min_prod));
+                }
+                KeyCode::Backspace => {
+                    self.intel_overlay.prompt_input.pop();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.intel_overlay.prompt_input.push(ch);
+                }
+                _ => {}
+            },
+            IntelOverlayPromptMode::None => {}
+        }
+        if self.intel_overlay.prompt_mode != IntelOverlayPromptMode::None {
+            return;
+        }
         match key.code {
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
+            KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabase),
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterMenu;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                self.intel_overlay.prompt_mode = IntelOverlayPromptMode::SortMenu;
+            }
             KeyCode::Char(ch)
                 if self.intel_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
             {
                 self.intel_overlay.jump_input.push(ch);
-                if self.sync_intel_overlay_cursor_to_input() {
+                if intel_database::sync_cursor_to_jump_input(self) {
                     self.intel_overlay.jump_input.clear();
                 }
             }
@@ -346,45 +740,14 @@ impl DashApp {
             }
             _ => {
                 let total_rows = intel_database::selection_rows(self).len();
-                handle_list_overlay_key(key, &mut self.intel_overlay, total_rows);
+                handle_list_overlay_key(
+                    key,
+                    &mut self.intel_overlay.selected,
+                    &mut self.intel_overlay.scroll,
+                    total_rows,
+                );
             }
         }
-    }
-
-    fn sync_planet_overlay_cursor_to_input(&mut self) -> bool {
-        let rows = planet_list::selection_rows(self);
-        let Some(matched) =
-            table_selection::find_typed_jump(&rows, 0, &self.planet_overlay.jump_input)
-        else {
-            return false;
-        };
-        self.planet_overlay.selected = matched.index;
-        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, matched.index, 1_000);
-        matched.is_terminal_exact_match
-    }
-
-    fn sync_fleet_overlay_cursor_to_input(&mut self) -> bool {
-        let rows = fleet_list::selection_rows(self);
-        let Some(matched) =
-            table_selection::find_typed_jump(&rows, 0, &self.fleet_overlay.jump_input)
-        else {
-            return false;
-        };
-        self.fleet_overlay.selected = matched.index;
-        sync_scroll_to_cursor(&mut self.fleet_overlay.scroll, matched.index, 1_000);
-        matched.is_terminal_exact_match
-    }
-
-    fn sync_intel_overlay_cursor_to_input(&mut self) -> bool {
-        let rows = intel_database::selection_rows(self);
-        let Some(matched) =
-            table_selection::find_typed_jump(&rows, 0, &self.intel_overlay.jump_input)
-        else {
-            return false;
-        };
-        self.intel_overlay.selected = matched.index;
-        sync_scroll_to_cursor(&mut self.intel_overlay.scroll, matched.index, 10_000);
-        matched.is_terminal_exact_match
     }
 
     fn handle_inbox_overlay_key(&mut self, key: KeyEvent) {
@@ -525,33 +888,162 @@ impl DashApp {
     }
 }
 
-fn handle_list_overlay_key(key: KeyEvent, state: &mut state::ListOverlayState, total_rows: usize) {
+impl DashApp {
+    fn open_overlay_help(&mut self, help_context: HelpContext) {
+        self.help_return_overlay = self.overlay;
+        self.help_context = help_context;
+        self.overlay = ActiveOverlay::Help;
+    }
+
+    fn reset_planet_overlay_prompt(&mut self) {
+        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::None;
+        self.planet_overlay.prompt_input.clear();
+        self.planet_overlay.prompt_default.clear();
+        self.planet_overlay.pending_range_anchor = None;
+    }
+
+    fn apply_planet_overlay_sort(&mut self, sort: PlanetOverlaySort) {
+        let selected_record = planet_list::table_rows(self)
+            .get(self.planet_overlay.selected)
+            .map(|row| row.planet_record_index_1_based);
+        self.planet_overlay.sort = sort;
+        self.reset_planet_overlay_prompt();
+        let rows = planet_list::table_rows(self);
+        self.planet_overlay.selected = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, self.planet_overlay.selected, 1_000);
+    }
+
+    fn apply_planet_overlay_filter(&mut self, filter: PlanetOverlayFilter) {
+        let selected_record = planet_list::table_rows(self)
+            .get(self.planet_overlay.selected)
+            .map(|row| row.planet_record_index_1_based);
+        self.planet_overlay.filter = filter;
+        self.reset_planet_overlay_prompt();
+        let rows = planet_list::table_rows(self);
+        if rows.is_empty() {
+            self.planet_overlay.filter = PlanetOverlayFilter::All;
+        }
+        let rows = planet_list::table_rows(self);
+        self.planet_overlay.selected = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, self.planet_overlay.selected, 1_000);
+    }
+
+    fn apply_fleet_overlay_sort(&mut self, sort: FleetOverlaySort) {
+        let selected_key = fleet_list::table_rows(self)
+            .get(self.fleet_overlay.selected)
+            .map(|row| row.key);
+        self.fleet_overlay.sort = sort;
+        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+        let rows = fleet_list::table_rows(self);
+        self.fleet_overlay.selected = selected_key
+            .and_then(|key| rows.iter().position(|row| row.key == key))
+            .unwrap_or(0);
+        sync_scroll_to_cursor(&mut self.fleet_overlay.scroll, self.fleet_overlay.selected, 1_000);
+    }
+
+    fn apply_fleet_overlay_filter(&mut self, filter: FleetOverlayFilter) {
+        let selected_key = fleet_list::table_rows(self)
+            .get(self.fleet_overlay.selected)
+            .map(|row| row.key);
+        self.fleet_overlay.filter = filter;
+        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+        let rows = fleet_list::table_rows(self);
+        if rows.is_empty() {
+            self.fleet_overlay.filter = FleetOverlayFilter::All;
+        }
+        let rows = fleet_list::table_rows(self);
+        self.fleet_overlay.selected = selected_key
+            .and_then(|key| rows.iter().position(|row| row.key == key))
+            .unwrap_or(0);
+        sync_scroll_to_cursor(&mut self.fleet_overlay.scroll, self.fleet_overlay.selected, 1_000);
+    }
+
+    fn reset_intel_overlay_prompt(&mut self) {
+        self.intel_overlay.prompt_mode = IntelOverlayPromptMode::None;
+        self.intel_overlay.prompt_input.clear();
+        self.intel_overlay.prompt_default.clear();
+        self.intel_overlay.pending_range_anchor = None;
+    }
+
+    fn apply_intel_overlay_sort(&mut self, sort: IntelOverlaySort) {
+        let selected_record = intel_database::table_rows(self)
+            .get(self.intel_overlay.selected)
+            .map(|row| row.planet_record_index_1_based);
+        self.intel_overlay.sort = sort;
+        self.reset_intel_overlay_prompt();
+        let rows = intel_database::table_rows(self);
+        self.intel_overlay.selected = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        sync_scroll_to_cursor(&mut self.intel_overlay.scroll, self.intel_overlay.selected, 10_000);
+    }
+
+    fn apply_intel_overlay_filter(&mut self, filter: IntelOverlayFilter) {
+        let selected_record = intel_database::table_rows(self)
+            .get(self.intel_overlay.selected)
+            .map(|row| row.planet_record_index_1_based);
+        self.intel_overlay.filter = filter;
+        self.reset_intel_overlay_prompt();
+        let rows = intel_database::table_rows(self);
+        if rows.is_empty() {
+            self.intel_overlay.filter = IntelOverlayFilter::All;
+        }
+        let rows = intel_database::table_rows(self);
+        self.intel_overlay.selected = selected_record
+            .and_then(|record| {
+                rows.iter()
+                    .position(|row| row.planet_record_index_1_based == record)
+            })
+            .unwrap_or(0);
+        sync_scroll_to_cursor(&mut self.intel_overlay.scroll, self.intel_overlay.selected, 10_000);
+    }
+}
+
+fn handle_list_overlay_key(
+    key: KeyEvent,
+    selected: &mut usize,
+    scroll: &mut usize,
+    total_rows: usize,
+) {
     let last = total_rows.saturating_sub(1);
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
-            state.selected = wrap_prev_index(state.selected, total_rows);
-            if state.selected < state.scroll {
-                state.scroll = state.selected;
+            *selected = wrap_prev_index(*selected, total_rows);
+            if *selected < *scroll {
+                *scroll = *selected;
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            state.selected = wrap_next_index(state.selected, total_rows);
+            *selected = wrap_next_index(*selected, total_rows);
         }
         KeyCode::PageUp => {
-            state.selected = state.selected.saturating_sub(10);
-            state.selected = state.selected.min(last);
-            state.scroll = state.scroll.saturating_sub(10);
+            *selected = (*selected).saturating_sub(10);
+            *selected = (*selected).min(last);
+            *scroll = (*scroll).saturating_sub(10);
         }
         KeyCode::PageDown => {
-            state.selected = state.selected.saturating_add(10).min(last);
+            *selected = (*selected).saturating_add(10).min(last);
         }
         KeyCode::Home => {
-            state.selected = 0;
-            state.scroll = 0;
+            *selected = 0;
+            *scroll = 0;
         }
         KeyCode::End => {
-            state.selected = last;
-            state.scroll = last.saturating_sub(10);
+            *selected = last;
+            *scroll = last.saturating_sub(10);
         }
         _ => {}
     }
@@ -643,7 +1135,8 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
 #[cfg(test)]
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
-    use crate::app::state::DashApp;
+    use crate::app::state::{DashApp, FleetOverlayFilter, IntelOverlayFilter, PlanetOverlayFilter};
+    use crate::overlays::{fleet_list, intel_database, planet_list};
     use crossterm::event::{KeyCode, KeyEvent};
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
@@ -745,6 +1238,44 @@ mod tests {
         ));
 
         assert!(app.map_coord_input.is_empty());
+    }
+
+    #[test]
+    fn empty_planet_filter_reverts_to_all_rows() {
+        let mut app = dash_app();
+        let all_rows = planet_list::table_rows(&app).len();
+
+        app.apply_planet_overlay_filter(PlanetOverlayFilter::Range {
+            anchor: [18, 18],
+            radius: 0,
+        });
+
+        assert_eq!(app.planet_overlay.filter, PlanetOverlayFilter::All);
+        assert_eq!(planet_list::table_rows(&app).len(), all_rows);
+    }
+
+    #[test]
+    fn empty_fleet_filter_reverts_to_all_rows() {
+        let mut app = dash_app();
+        app.game_data.fleets.records.clear();
+        app.game_data.bases.records.clear();
+        let all_rows = fleet_list::table_rows(&app).len();
+
+        app.apply_fleet_overlay_filter(FleetOverlayFilter::Combat);
+
+        assert_eq!(app.fleet_overlay.filter, FleetOverlayFilter::All);
+        assert_eq!(fleet_list::table_rows(&app).len(), all_rows);
+    }
+
+    #[test]
+    fn empty_intel_filter_reverts_to_all_rows() {
+        let mut app = dash_app();
+        let all_rows = intel_database::table_rows(&app).len();
+
+        app.apply_intel_overlay_filter(IntelOverlayFilter::Empire(99));
+
+        assert_eq!(app.intel_overlay.filter, IntelOverlayFilter::All);
+        assert_eq!(intel_database::table_rows(&app).len(), all_rows);
     }
 
     fn dash_app() -> DashApp {

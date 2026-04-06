@@ -51,6 +51,8 @@ impl App {
 
             ScreenId::FleetMenu
             | ScreenId::FleetList
+            | ScreenId::FleetListFilterPrompt
+            | ScreenId::FleetListSortPrompt
             | ScreenId::FleetReview
             | ScreenId::FleetOrder
             | ScreenId::FleetGroupOrder
@@ -80,10 +82,12 @@ impl App {
             | ScreenId::PlanetBuildChange
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity
+            | ScreenId::PlanetListFilterPrompt(_)
             | ScreenId::PlanetListSortPrompt(_)
             | ScreenId::PlanetList(_, _)
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseFilterPrompt
+            | ScreenId::PlanetDatabaseSortPrompt
             | ScreenId::PlanetInfoDetail => domains::planet::views::render(self)?,
 
             ScreenId::Enemies

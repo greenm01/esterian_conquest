@@ -1,7 +1,8 @@
 use crate::domains::planet::screens::planet_commission::PlanetCommissionDraftRow;
 use crate::domains::planet::screens::planet_transport::PlanetTransportMode;
 use crate::screen::{
-    PlanetDatabaseFilter, PlanetDatabasePromptMode, PlanetDatabaseSort, PlanetListSort,
+    PlanetDatabaseFilter, PlanetDatabasePromptMode, PlanetDatabaseSort, PlanetListFilter,
+    PlanetListFilterPromptMode, PlanetListSort,
 };
 use crossterm::event::KeyCode;
 use nc_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
@@ -35,6 +36,11 @@ pub struct PlanetState {
     pub brief_cursor: usize,
     pub brief_input: String,
     pub list_sort: PlanetListSort,
+    pub list_filter: PlanetListFilter,
+    pub list_filter_prompt_mode: PlanetListFilterPromptMode,
+    pub list_prompt_input: String,
+    pub list_prompt_default_value: String,
+    pub list_pending_range_anchor: Option<[u8; 2]>,
     pub database_scroll_offset: usize,
     pub database_cursor: usize,
     pub database_input: String,
@@ -110,7 +116,7 @@ pub struct PlanetState {
     pub info_input: String,
     pub info_error: Option<String>,
     pub info_selected: Option<usize>,
-    pub list_sort_status: Option<String>,
+    pub list_prompt_status: Option<String>,
 }
 
 impl PlanetState {
@@ -126,6 +132,11 @@ impl PlanetState {
             brief_cursor: 0,
             brief_input: String::new(),
             list_sort: PlanetListSort::CurrentProduction,
+            list_filter: PlanetListFilter::All,
+            list_filter_prompt_mode: PlanetListFilterPromptMode::FilterMenu,
+            list_prompt_input: String::new(),
+            list_prompt_default_value: String::new(),
+            list_pending_range_anchor: None,
             database_scroll_offset: 0,
             database_cursor: 0,
             database_input: String::new(),
@@ -201,7 +212,7 @@ impl PlanetState {
             info_input: String::new(),
             info_error: None,
             info_selected: None,
-            list_sort_status: None,
+            list_prompt_status: None,
         }
     }
 }

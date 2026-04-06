@@ -59,6 +59,18 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.fleet.menu_prompt_input,
             app.fleet.menu_prompt_status.as_ref(),
         ),
+        ScreenId::FleetListFilterPrompt => app.fleet_list.render_filter_prompt(
+            frame.geometry,
+            &app.fleet_list_rows(),
+            app.fleet.scroll_offset,
+            app.fleet.cursor,
+        ),
+        ScreenId::FleetListSortPrompt => app.fleet_list.render_sort_prompt(
+            frame.geometry,
+            &app.fleet_list_rows(),
+            app.fleet.scroll_offset,
+            app.fleet.cursor,
+        ),
         ScreenId::FleetReview => {
             let rows = if app.fleet.review_return_to_list {
                 app.fleet_list_rows()

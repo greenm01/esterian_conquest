@@ -1,3 +1,5 @@
+use crate::screen::{FleetListFilter, FleetListSort};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetAction {
     OpenMenu,
@@ -16,6 +18,8 @@ pub enum FleetAction {
     CloseEta,
     OpenTransportLoad,
     OpenTransportUnload,
+    OpenListFilterPrompt,
+    OpenListSortPrompt,
     DismissMessage,
     MoveList(i8),
     MoveReview(i8),
@@ -41,10 +45,13 @@ pub enum FleetAction {
     CancelMenuPrompt,
     CancelTransfer,
     CancelDetach,
+    CloseListPrompt,
     ClearTransferSelection,
     ClearDetachSelection,
     CancelOrder,
     CancelGroupOrder,
+    SubmitListFilter(FleetListFilter),
+    SubmitListSort(FleetListSort),
     SubmitMenuPrompt,
     SubmitOrder,
     SubmitGroupOrder,

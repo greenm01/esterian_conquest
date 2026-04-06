@@ -681,7 +681,10 @@ fn theme_picker_wraps_from_top_to_bottom_and_bottom_to_top() {
     app.startup_state.theme_picker_scroll_offset = 0;
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::MoveThemePicker(-1))),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::MoveThemePicker(-1))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.startup_state.theme_picker_cursor, last);

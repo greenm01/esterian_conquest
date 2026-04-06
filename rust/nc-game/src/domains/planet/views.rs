@@ -254,22 +254,34 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::PlanetListSortPrompt(mode) => app.planet_list.render_sort_prompt(
             &frame,
             mode,
-            &app.sorted_planet_rows(app.planet.list_sort),
+            &app.planet_list_rows(mode, app.planet.list_sort),
             app.planet.list_sort,
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
             &app.planet.brief_input,
-            app.planet.list_sort_status.as_deref(),
+            app.planet.list_prompt_status.as_deref(),
+        ),
+        ScreenId::PlanetListFilterPrompt(mode) => app.planet_list.render_filter_prompt(
+            &frame,
+            mode,
+            &app.planet_list_rows(mode, app.planet.list_sort),
+            app.planet.list_sort,
+            app.planet.brief_scroll_offset,
+            app.planet.brief_cursor,
+            app.planet.list_filter_prompt_mode,
+            &app.planet.list_prompt_default_value,
+            &app.planet.list_prompt_input,
+            app.planet.list_prompt_status.as_deref(),
         ),
         ScreenId::PlanetList(mode, sort) => app.planet_list.render_brief_list(
             &frame,
             mode,
-            &app.sorted_planet_rows(sort),
+            &app.planet_list_rows(mode, sort),
             sort,
             app.planet.brief_scroll_offset,
             app.planet.brief_cursor,
             &app.planet.brief_input,
-            app.planet.list_sort_status.as_deref(),
+            app.planet.list_prompt_status.as_deref(),
             app.planet.auto_commission_prompt_active
                 && mode == crate::screen::PlanetListMode::Brief,
             if mode == crate::screen::PlanetListMode::Brief {
@@ -297,7 +309,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.database_status.as_deref(),
             app.command_return_menu,
         ),
-        ScreenId::PlanetDatabaseFilterPrompt => app.planet_database.render_filter_prompt(
+        ScreenId::PlanetDatabaseFilterPrompt | ScreenId::PlanetDatabaseSortPrompt => app.planet_database.render_filter_prompt(
             frame.geometry,
             &app.planet_database_rows(),
             app.planet.database_scroll_offset,

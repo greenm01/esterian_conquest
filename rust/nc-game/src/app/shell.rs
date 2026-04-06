@@ -90,9 +90,12 @@ impl App {
         match self.current_screen {
             ScreenId::MainMenu
             | ScreenId::PlanetDatabaseList
-            | ScreenId::PlanetDatabaseFilterPrompt => CommandMenu::Main,
+            | ScreenId::PlanetDatabaseFilterPrompt
+            | ScreenId::PlanetDatabaseSortPrompt => CommandMenu::Main,
             ScreenId::FleetMenu
             | ScreenId::FleetList
+            | ScreenId::FleetListFilterPrompt
+            | ScreenId::FleetListSortPrompt
             | ScreenId::FleetReview
             | ScreenId::FleetOrder
             | ScreenId::FleetGroupOrder
@@ -125,6 +128,8 @@ impl App {
             | ScreenId::PlanetCommissionDraft
             | ScreenId::PlanetCommissionResult
             | ScreenId::PlanetAutoCommissionReport
+            | ScreenId::PlanetListFilterPrompt(PlanetListMode::Brief)
+            | ScreenId::PlanetListFilterPrompt(PlanetListMode::Stub(_))
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Brief)
             | ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_))
             | ScreenId::PlanetList(PlanetListMode::Brief, _)
@@ -138,6 +143,7 @@ impl App {
             | ScreenId::PlanetBuildChange
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity
+            | ScreenId::PlanetListFilterPrompt(PlanetListMode::BuildSelect)
             | ScreenId::PlanetListSortPrompt(PlanetListMode::BuildSelect)
             | ScreenId::PlanetList(PlanetListMode::BuildSelect, _) => CommandMenu::PlanetBuild,
             ScreenId::Startup(_)

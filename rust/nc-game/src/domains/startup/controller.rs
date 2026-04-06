@@ -674,12 +674,11 @@ impl App {
             self.startup_state.theme_picker_cursor = 0;
             return;
         }
-        self.startup_state.theme_picker_cursor =
-            crate::app::helpers::move_wrapped_cursor(
-                self.startup_state.theme_picker_cursor,
-                delta,
-                len,
-            );
+        self.startup_state.theme_picker_cursor = crate::app::helpers::move_wrapped_cursor(
+            self.startup_state.theme_picker_cursor,
+            delta,
+            len,
+        );
         let visible_rows = self.theme_picker_visible_rows();
         crate::app::helpers::sync_scroll_to_cursor(
             &mut self.startup_state.theme_picker_scroll_offset,

@@ -1,6 +1,6 @@
 use crate::screen::{
-    CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseSortMode, PlanetListMode, PlanetListSort,
-    PlanetTransportMode,
+    CommandMenu, PlanetDatabaseFilterMode, PlanetDatabaseSortMode, PlanetListFilterMode,
+    PlanetListMode, PlanetListSort, PlanetTransportMode,
 };
 use crossterm::event::KeyCode;
 
@@ -39,9 +39,14 @@ pub enum PlanetAction {
     OpenBuildAbortPrompt,
     CloseBuildAbortPrompt,
     OpenBuildSpecify,
+    OpenListFilterPrompt(PlanetListMode),
     OpenListSortPrompt(PlanetListMode),
+    SubmitListFilter(PlanetListMode, PlanetListFilterMode),
     SubmitListSort(PlanetListMode, PlanetListSort),
+    CloseListFilterPrompt(PlanetListMode),
     CloseListSortPrompt(PlanetListMode),
+    AppendListPromptChar(char),
+    BackspaceListPromptInput,
     OpenTaxPrompt,
     CloseTaxPrompt,
     OpenDatabase,

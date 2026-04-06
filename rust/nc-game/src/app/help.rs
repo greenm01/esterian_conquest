@@ -36,6 +36,8 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             &[
                 ("Digits", "jump to a fleet number"),
                 ("Enter", "review highlighted fleet"),
+                ("F", "filter the fleet list"),
+                ("S", "sort the fleet list"),
                 ("O", "assign orders (mission) to selected fleet"),
                 ("C", "change selected fleet: ROE, ID number, or speed"),
                 ("E", "calculate travel time (ETA) for selected fleet"),
@@ -44,6 +46,31 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("T", "transfer ships between fleets"),
                 ("L", "load armies from selected fleet"),
                 ("U", "unload armies from selected fleet"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
+        ScreenId::FleetListFilterPrompt => Some(table_help(
+            "FILTER COMMANDS",
+            &[
+                ("A", "show all fleets"),
+                ("H", "show fleets holding position"),
+                ("M", "show fleets with movement orders"),
+                ("C", "show fleets on combat missions"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
+        ScreenId::FleetListSortPrompt => Some(table_help(
+            "SORT COMMANDS",
+            &[
+                ("I", "sort by fleet ID"),
+                ("L", "sort by location"),
+                ("O", "sort by order"),
+                ("E", "sort by ETA"),
+                ("T", "sort by strength"),
                 ("Q", "return"),
                 ("Esc", "return"),
                 ("?", "open this helper"),
@@ -86,6 +113,7 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
             "PLANET COMMANDS",
             &[
                 ("Coords", "jump to a planet by coordinates"),
+                ("F", "filter the planet list"),
                 ("I", "review highlighted planet"),
                 ("Enter", "review highlighted planet"),
                 ("B", "open build queue for selected planet"),
@@ -100,8 +128,19 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("?", "open this helper"),
             ],
         )),
+        ScreenId::PlanetDatabaseList => Some(table_help(
+            "DATABASE COMMANDS",
+            &[
+                ("Coords", "jump to a world by coordinates"),
+                ("F", "filter the database"),
+                ("S", "sort the database"),
+                ("Enter", "review highlighted world"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
         ScreenId::PlanetList(_, _)
-        | ScreenId::PlanetDatabaseList
         | ScreenId::PlanetCommissionPicker
         | ScreenId::PlanetCommissionMenu
         | ScreenId::PlanetCommissionDraft
@@ -118,9 +157,54 @@ pub fn popup_for_screen(screen: ScreenId, door_mode: bool) -> Option<PopupHelp> 
                 ("?", "open this helper"),
             ],
         )),
-        ScreenId::PlanetListSortPrompt(_)
-        | ScreenId::PlanetDatabaseFilterPrompt
-        | ScreenId::PlanetTransportQuantityPrompt(_)
+        ScreenId::PlanetListSortPrompt(_) => Some(table_help(
+            "SORT COMMANDS",
+            &[
+                ("C", "sort by current production"),
+                ("L", "sort by location"),
+                ("M", "sort by max production"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
+        ScreenId::PlanetListFilterPrompt(_) => Some(table_help(
+            "FILTER COMMANDS",
+            &[
+                ("A", "show all planets"),
+                ("R", "filter by range from a sector"),
+                ("S", "show only planets with a friendly starbase"),
+                ("T", "show only planets with ships in stardock"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
+        ScreenId::PlanetDatabaseFilterPrompt => Some(table_help(
+            "FILTER COMMANDS",
+            &[
+                ("A", "show all worlds"),
+                ("R", "filter by range from a sector"),
+                ("E", "filter by known owner empire"),
+                ("M", "filter by minimum max production"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
+        ScreenId::PlanetDatabaseSortPrompt => Some(table_help(
+            "SORT COMMANDS",
+            &[
+                ("L", "sort by location"),
+                ("R", "sort by range from a sector"),
+                ("E", "sort by known owner empire"),
+                ("M", "sort by max production"),
+                ("Q", "return"),
+                ("Esc", "return"),
+                ("?", "open this helper"),
+            ],
+        )),
+        ScreenId::PlanetTransportQuantityPrompt(_)
         | ScreenId::PlanetBuildSpecify
         | ScreenId::PlanetBuildQuantity
         | ScreenId::PlanetCommissionResult

@@ -124,11 +124,7 @@ fn build_list_renders_queue_columns_without_dock() {
     assert!(buffer.plain_line(5).contains("Armies"));
     assert!(!buffer.plain_line(5).contains("N/A"));
     let command_row = (0..25)
-        .find(|&row| {
-            buffer
-                .plain_line(row)
-                .contains("COMMAND <- ? D <Q> ->")
-        })
+        .find(|&row| buffer.plain_line(row).contains("COMMAND <- ? D <Q> ->"))
         .expect("build list command row should render");
     let _ = command_row;
     assert!(!(0..25).any(|row| {
@@ -376,11 +372,7 @@ fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
 
     assert_eq!(buffer.height(), 24);
     assert_eq!(buffer.plain_line(22).chars().next(), Some('└'));
-    assert!(
-        buffer
-            .plain_line(23)
-            .contains("COMMAND <- ? <Q> ->")
-    );
+    assert!(buffer.plain_line(23).contains("COMMAND <- ? <Q> ->"));
 }
 
 #[test]

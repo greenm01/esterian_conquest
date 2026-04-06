@@ -137,6 +137,23 @@ pub struct FleetDetachScreen;
 pub struct FleetMessageScreen;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetListSort {
+    Id,
+    Location,
+    Order,
+    Eta,
+    Strength,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetListFilter {
+    All,
+    Holding,
+    Moving,
+    Combat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetSingleOrderMode {
     EnteringTarget,
     EnteringTargetX,
@@ -218,6 +235,10 @@ const ROW_4: [MenuEntry<'static>; 4] = [
     MenuEntry::new(FLEET_COL_3, "T", "ransfer Ships"),
     MenuEntry::new(FLEET_COL_4, "U", "nload TT Armies"),
 ];
+
+const FLEET_LIST_BROWSE_HOTKEYS: &str = "? F S O C E D M T L U <Q>";
+const FLEET_LIST_FILTER_HOTKEYS: &str = "? A H M C <Q>";
+const FLEET_LIST_SORT_HOTKEYS: &str = "? I L O E T <Q>";
 
 fn mission_picker_columns() -> Vec<TableColumn<'static>> {
     let columns = [
@@ -509,7 +530,7 @@ impl FleetListScreen {
             }
         } else {
             TableFooter::CommandBar {
-                hotkeys_markup: "? O C E D M T L U <Q>",
+                hotkeys_markup: FLEET_LIST_BROWSE_HOTKEYS,
                 default: Some(&default_fleet_number),
                 input,
             }
@@ -584,6 +605,136 @@ impl FleetListScreen {
         Ok(buffer)
     }
 
+    pub fn render_sort_prompt(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = self.render(
+            geometry,
+            rows,
+            scroll_offset,
+            cursor,
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )?;
+        let max_fleet_number = max_fleet_number(rows);
+        let columns = full_columns(max_fleet_number);
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_table(row.coords),
+                    fleet_table_order_label(row.order_code).to_string(),
+                    fleet_row_target_label(row),
+                    row.current_speed.to_string(),
+                    row.list_eta_label.clone(),
+                    row.rules_of_engagement.to_string(),
+                    row.loaded_armies.to_string(),
+                    row.table_ships_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let visible_rows = fleet_list_visible_rows(geometry);
+        let footer = TableFooter::LabeledCommandBar {
+            label: "SORT",
+            hotkeys_markup: FLEET_LIST_SORT_HOTKEYS,
+            default: None,
+            input: "",
+        };
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            visible_rows,
+            Some("FLEET LIST:"),
+            Some(footer),
+            table_rows.len() > visible_rows,
+            HorizontalAlign::Left,
+            VerticalAlign::Top,
+        );
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            3 + table_rows.len().saturating_sub(scroll_offset).min(visible_rows),
+            footer,
+        );
+        Ok(buffer)
+    }
+
+    pub fn render_filter_prompt(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = self.render(
+            geometry,
+            rows,
+            scroll_offset,
+            cursor,
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )?;
+        let max_fleet_number = max_fleet_number(rows);
+        let columns = full_columns(max_fleet_number);
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_table(row.coords),
+                    fleet_table_order_label(row.order_code).to_string(),
+                    fleet_row_target_label(row),
+                    row.current_speed.to_string(),
+                    row.list_eta_label.clone(),
+                    row.rules_of_engagement.to_string(),
+                    row.loaded_armies.to_string(),
+                    row.table_ships_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let visible_rows = fleet_list_visible_rows(geometry);
+        let footer = TableFooter::LabeledCommandBar {
+            label: "FILTER",
+            hotkeys_markup: FLEET_LIST_FILTER_HOTKEYS,
+            default: None,
+            input: "",
+        };
+        let layout = layout_standard_table_block(
+            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
+            &columns,
+            visible_rows,
+            Some("FLEET LIST:"),
+            Some(footer),
+            table_rows.len() > visible_rows,
+            HorizontalAlign::Left,
+            VerticalAlign::Top,
+        );
+        draw_table_footer(
+            &mut buffer,
+            geometry,
+            layout.command_col,
+            3 + table_rows.len().saturating_sub(scroll_offset).min(visible_rows),
+            footer,
+        );
+        Ok(buffer)
+    }
+
     pub fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -595,6 +746,8 @@ impl FleetListScreen {
             KeyCode::PageUp => Action::Fleet(FleetAction::MoveList(-8)),
             KeyCode::PageDown => Action::Fleet(FleetAction::MoveList(8)),
             KeyCode::Enter => Action::Fleet(FleetAction::OpenReview),
+            KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenListFilterPrompt),
+            KeyCode::Char('s') | KeyCode::Char('S') => Action::Fleet(FleetAction::OpenListSortPrompt),
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Fleet(FleetAction::OpenOrder),
             KeyCode::Char('c') | KeyCode::Char('C') => Action::Fleet(FleetAction::OpenChangePrompt),
             KeyCode::Char('e') | KeyCode::Char('E') => Action::Fleet(FleetAction::OpenEta),
@@ -613,6 +766,53 @@ impl FleetListScreen {
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::OpenMenu)
+            }
+            _ => Action::Noop,
+        }
+    }
+
+    pub fn handle_sort_prompt_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Char('?') => Action::OpenPopupHelp,
+            KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
+                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Id))
+            }
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Location))
+            }
+            KeyCode::Char('o') | KeyCode::Char('O') => {
+                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Order))
+            }
+            KeyCode::Char('e') | KeyCode::Char('E') => {
+                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Eta))
+            }
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                Action::Fleet(FleetAction::SubmitListSort(FleetListSort::Strength))
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Fleet(FleetAction::CloseListPrompt)
+            }
+            _ => Action::Noop,
+        }
+    }
+
+    pub fn handle_filter_prompt_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Char('?') => Action::OpenPopupHelp,
+            KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
+                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::All))
+            }
+            KeyCode::Char('h') | KeyCode::Char('H') => {
+                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::Holding))
+            }
+            KeyCode::Char('m') | KeyCode::Char('M') => {
+                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::Moving))
+            }
+            KeyCode::Char('c') | KeyCode::Char('C') => {
+                Action::Fleet(FleetAction::SubmitListFilter(FleetListFilter::Combat))
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Fleet(FleetAction::CloseListPrompt)
             }
             _ => Action::Noop,
         }
@@ -1733,7 +1933,7 @@ fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 9] {
         TableColumn::right("Spd", 3),
         TableColumn::right("ETA", 4),
         TableColumn::right("ROE", 3),
-        TableColumn::right("AR", 3),
+        TableColumn::right("ARs", 3),
         TableColumn::left("Ships", ships_width),
     ]
 }
@@ -1750,7 +1950,7 @@ fn group_selection_columns(max_fleet_number: u16) -> [TableColumn<'static>; 10] 
         TableColumn::right("Spd", 3),
         TableColumn::right("ETA", 4),
         TableColumn::right("ROE", 3),
-        TableColumn::right("AR", 3),
+        TableColumn::right("ARs", 3),
         TableColumn::left("Ships", ships_width),
     ]
 }
