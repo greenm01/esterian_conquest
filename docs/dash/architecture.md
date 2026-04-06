@@ -630,8 +630,8 @@ palette and fall back to the built-in default slot colors.
 ## Help Overlay (?)
 
 **?** from any screen opens a help overlay covering the center column.
-Shows context-sensitive keyboard shortcuts for the current mode plus
-a general reference.
+Shows context-sensitive commands for the current mode plus a compact
+dashboard reference.
 
 ```
 ┌────────────────────────────────────┐
@@ -644,23 +644,18 @@ a general reference.
 │  X  Tax Rate       S  Settings     │
 │  ?  This Help      Q  Quit         │
 │                                    │
-│ MAP                                │
-│  ↑↓←→ / hjkl  Move crosshair       │
-│  G            Goto coordinates     │
-│  1-9          Jump to fleet        │
-│  Enter        Sector detail        │
-│                                    │
-│ PANELS                             │
-│  Tab          Cycle focus          │
-│  ↑↓ / jk     Scroll list           │
-│  PgUp/Dn     Page scroll           │
-│  Home/End     Top/bottom           │
-│  Enter        Open detail          │
-│  Esc          Back / unfocus       │
+│ DASHBOARD                          │
+│  Tab        Cycle focus            │
+│  Esc        Back / unfocus         │
 │                                    │
 │           Press ? or Esc to close  │
 └────────────────────────────────────┘
 ```
+
+The help overlay is command-focused. It should mirror the visible command
+rails for each overlay and only add unobvious non-rail actions such as typed
+jump, `Enter` review/open behavior, or `Tab` focus switching. It should not
+repeat generic movement, paging, or erase keys.
 
 ## Data Flow
 

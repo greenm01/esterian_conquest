@@ -137,7 +137,10 @@ Rules:
 - entering a valid coordinate opens that target’s detail view
 - quitting from that detail view returns to the originating table
 - generic navigation keys are implied and stay out of the command rail; `?`
-  helper popups document movement and paging instead
+  helper popups should stay action-oriented instead of repeating movement and
+  paging keys
+- helper popups should explain the table’s visible commands plus only
+  unobvious non-rail actions such as typed jump or `ENTER` opening detail
 
 ### Prompt-replacement mode
 

@@ -535,9 +535,12 @@ fn reports_inbox_question_mark_opens_popup_help_with_inbox_commands() {
     let popup = app.popup_help.as_ref().expect("popup help should open");
     assert_eq!(popup.title, "INBOX COMMANDS");
     assert!(popup.lines.iter().any(|line| line.contains("M/R/A")));
-    assert!(popup.lines.iter().any(|line| line.contains("TAB")));
+    assert!(popup.lines.iter().any(|line| line.contains("Tab")));
     assert!(popup.lines.iter().any(|line| line.contains("Digits")));
     assert!(popup.lines.iter().any(|line| line.contains("?")));
+    assert!(!popup.lines.iter().any(|line| line.contains("J/K")));
+    assert!(!popup.lines.iter().any(|line| line.contains("^U/^D")));
+    assert!(!popup.lines.iter().any(|line| line.contains("Backspace")));
 }
 
 #[test]
@@ -1118,6 +1121,9 @@ fn compose_body_popup_help_lists_send_and_cancel_shortcuts() {
     assert_eq!(popup.title, "MESSAGE EDITOR HELP");
     assert!(popup.lines.iter().any(|line| line.contains("^E")));
     assert!(popup.lines.iter().any(|line| line.contains("^X")));
+    assert!(!popup.lines.iter().any(|line| line.contains("Arrows")));
+    assert!(!popup.lines.iter().any(|line| line.contains("Backspace")));
+    assert!(!popup.lines.iter().any(|line| line.contains("Delete")));
 }
 
 #[test]

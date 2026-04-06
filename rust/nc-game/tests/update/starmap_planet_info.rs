@@ -249,6 +249,8 @@ fn partial_starmap_popup_help_mentions_enter_for_planet_info() {
             .iter()
             .any(|line| line.contains("Enter") && line.contains("planet at the current map cursor"))
     );
+    assert!(!popup.lines.iter().any(|line| line.contains("HJKL")));
+    assert!(!popup.lines.iter().any(|line| line.contains("1 2 3")));
 }
 
 #[test]

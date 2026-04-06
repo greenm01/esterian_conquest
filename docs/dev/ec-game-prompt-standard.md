@@ -47,6 +47,11 @@ Read it together with:
 - Command rails also do not list generic navigation keys such as `J/K`,
   arrows, `^U/^D`, `PgUp/PgDn`, or map movement keys. Those belong in `?`
   helper popups, not in the rail.
+- Helper popups should stay command-focused too: list the visible screen
+  commands plus only unobvious non-rail actions such as typed jump, `Enter`
+  review/open actions, `Tab` focus switching, or editor send/cancel shortcuts.
+- Helper popups should not become keyboard-reference sheets for generic
+  movement, paging, or erase keys.
 
 ## Standard Grammar
 

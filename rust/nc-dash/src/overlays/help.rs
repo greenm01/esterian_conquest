@@ -46,50 +46,81 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             format_help_rows([
                 ("P / F / I / R", "Planet, Fleet, Intel, Inbox overlays"),
                 ("D / S / ?", "Diplomacy, Settings, Help"),
-                ("Tab / Shift+Tab", "Cycle dashboard focus"),
                 ("Esc / Q", "Close overlay or quit dashboard"),
             ])
             .join("\n"),
             String::new(),
-            String::from("MAP AND LISTS"),
+            String::from("DASHBOARD"),
             String::new(),
             format_help_rows([
-                ("J/K  Up/Down", "Move selection or crosshair"),
-                ("^U /^D PgUp/PgDn", "Page through long lists"),
-                ("Home / End", "Jump to start or end"),
-                ("Tab", "Switch inbox list/preview focus"),
-                ("M / R / A / Y", "Inbox filters and year scope"),
+                ("Tab / Shift+Tab", "Cycle dashboard focus"),
             ])
             .join("\n"),
         ],
         HelpContext::PlanetList => overlay_help_blocks(
             "PLANET LIST",
-            "Type coords to jump; exact match clears the footer input.",
+            &[
+                ("B / A / C", "Build, auto-commission, or commission"),
+                ("L / U / X", "Load, unload, or scorch"),
+                ("S", "Sort the planet list"),
+                ("I / Enter", "Review highlighted planet"),
+                ("Coords", "Typed jump; exact match clears the footer input"),
+                ("Q / Esc", "Close this overlay"),
+                ("?", "Show this helper"),
+            ],
             &["B A C L U X S I T are TODO in nc-dash overlay."],
         ),
         HelpContext::FleetList => overlay_help_blocks(
             "FLEET LIST",
-            "Type fleet or SB ID to jump; exact match clears the footer input.",
+            &[
+                ("O / C / M / T", "Order, change, merge, or transfer"),
+                ("I / Enter", "Review highlighted fleet"),
+                ("Fleet / SB ID", "Typed jump; exact match clears the footer input"),
+                ("Q / Esc", "Close this overlay"),
+                ("?", "Show this helper"),
+            ],
             &["O C M T I are TODO in nc-dash overlay."],
         ),
         HelpContext::IntelDatabase => overlay_help_blocks(
             "TOTAL PLANET DATABASE",
-            "Type coords to jump; exact match clears the footer input.",
+            &[
+                ("S", "Sort the database"),
+                ("I / Enter", "Inspect highlighted world"),
+                ("Coords", "Typed jump; exact match clears the footer input"),
+                ("Q / Esc", "Close this overlay"),
+                ("?", "Show this helper"),
+            ],
             &["S and I are TODO in nc-dash overlay."],
         ),
         HelpContext::Inbox => overlay_help_blocks(
             "INBOX",
-            "Type visible ID to jump; exact match clears the footer input.",
+            &[
+                ("M / R / A", "Filter messages, reports, or all items"),
+                ("Y", "Toggle current-year filter"),
+                ("D", "Delete the selected item"),
+                ("C", "Compose a message"),
+                ("Tab", "Switch list and preview focus"),
+                ("Enter", "Toggle preview focus when the jump field is empty"),
+                ("Visible ID", "Typed jump; exact match clears the footer input"),
+                ("Q / Esc", "Close this overlay"),
+                ("?", "Show this helper"),
+            ],
             &["C is TODO in nc-dash overlay."],
         ),
         HelpContext::Diplomacy => overlay_help_blocks(
             "DIPLOMACY",
-            "J/K and ^U/^D scroll the standings list.",
+            &[
+                ("D", "Declare enemy or neutral"),
+                ("S", "Sort the standings"),
+                ("I / Enter", "Inspect highlighted empire"),
+                ("Q / Esc", "Close this overlay"),
+                ("?", "Show this helper"),
+            ],
             &["D, S, and I are TODO in nc-dash overlay."],
         ),
         HelpContext::Settings => overlay_help_blocks(
             "SETTINGS",
-            "This screen is informational for now.",
+            &[("Q / Esc", "Close this overlay"), ("?", "Show this helper")],
             &["Theme and mouse actions are TODO in nc-dash overlay."],
         ),
     };
@@ -100,22 +131,11 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         .collect()
 }
 
-fn overlay_help_blocks(title: &str, jump_line: &str, todo_lines: &[&str]) -> Vec<String> {
+fn overlay_help_blocks(title: &str, rows: &[(&str, &str)], todo_lines: &[&str]) -> Vec<String> {
     let mut blocks = vec![
         title.to_string(),
         String::new(),
-        format_help_rows([
-            ("J/K  Up/Down", "Move selection"),
-            ("^U /^D PgUp/PgDn", "Page through the list"),
-            ("Home / End", "Jump to start or end"),
-            ("Q / Esc", "Close this overlay"),
-            ("?", "Show this helper"),
-        ])
-        .join("\n"),
-        String::new(),
-        String::from("TYPED JUMP"),
-        String::new(),
-        jump_line.to_string(),
+        format_help_rows(rows.iter().copied()).join("\n"),
     ];
 
     if !todo_lines.is_empty() {
@@ -137,9 +157,11 @@ mod tests {
     fn fleet_help_mentions_typed_jump_and_todo_actions() {
         let lines = help_lines(HelpContext::FleetList);
 
-        assert!(lines.iter().any(|line| line.contains("Type fleet or SB ID to jump")));
+        assert!(lines.iter().any(|line| line.contains("Typed jump")));
         assert!(lines.iter().any(|line| line.contains("TODO")));
         assert!(lines.iter().any(|line| line.contains("O C M T I are TODO")));
+        assert!(!lines.iter().any(|line| line.contains("Up/Down")));
+        assert!(!lines.iter().any(|line| line.contains("PgUp")));
     }
 
     #[test]
@@ -148,5 +170,6 @@ mod tests {
 
         assert!(lines.iter().any(|line| line.contains("GLOBAL HOTKEYS")));
         assert!(lines.iter().any(|line| line.contains("Planet, Fleet, Intel, Inbox overlays")));
+        assert!(!lines.iter().any(|line| line.contains("Up/Down")));
     }
 }
