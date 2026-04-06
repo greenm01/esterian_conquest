@@ -705,11 +705,11 @@ impl App {
         self.fleet.review_index = match delta {
             i8::MIN => 0,
             i8::MAX => total - 1,
-            _ => self
-                .fleet
-                .review_index
-                .saturating_add_signed(delta as isize)
-                .min(total - 1),
+            _ => crate::app::helpers::move_wrapped_cursor(
+                self.fleet.review_index,
+                delta as isize,
+                total,
+            ),
         };
         self.fleet.cursor = self.fleet.review_index;
         let visible_rows = if self.fleet.review_return_to_list {

@@ -1504,6 +1504,53 @@ fn starbase_list_summarizes_multiple_live_guard_fleets_and_review_lists_them() {
 }
 
 #[test]
+fn starbase_list_wraps_selection_from_top_to_bottom_and_bottom_to_top() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    {
+        let mut base = runtime.game_data.bases.records[0].clone();
+        base.set_base_id_raw(2);
+        base.set_owner_empire_raw(1);
+        base.set_coords_raw([9, 9]);
+        base.set_trailing_coords_raw([9, 9]);
+        runtime.game_data.bases.records.push(base);
+    }
+    save_runtime_state(&fixture_dir, &runtime);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenList)),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(app.starbase.cursor, 0);
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::MoveSelect(-1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.starbase.cursor, 1);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Starbase(StarbaseAction::MoveSelect(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.starbase.cursor, 0);
+}
+
+#[test]
 fn starbase_list_and_review_show_numeric_transit_eta() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);

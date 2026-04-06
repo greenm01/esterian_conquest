@@ -77,11 +77,7 @@ impl StarbaseState {
         if total == 0 {
             return;
         }
-        let max_idx = total - 1;
-        self.cursor = self
-            .cursor
-            .saturating_add_signed(delta as isize)
-            .min(max_idx);
+        self.cursor = crate::app::helpers::move_wrapped_cursor(self.cursor, delta as isize, total);
         self.sync_scroll(total, visible_rows);
     }
 

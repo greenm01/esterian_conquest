@@ -662,6 +662,38 @@ fn theme_picker_cursor_moves_freely_after_reopen_on_non_default_theme() {
 }
 
 #[test]
+fn theme_picker_wraps_from_top_to_bottom_and_bottom_to_top() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    open_theme_picker(&mut app);
+
+    let last = app.startup_state.theme_picker_rows.len().saturating_sub(1);
+    app.startup_state.theme_picker_cursor = 0;
+    app.startup_state.theme_picker_scroll_offset = 0;
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::MoveThemePicker(-1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.startup_state.theme_picker_cursor, last);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::MoveThemePicker(1))),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.startup_state.theme_picker_cursor, 0);
+}
+
+#[test]
 fn theme_picker_q_returns_to_originating_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {

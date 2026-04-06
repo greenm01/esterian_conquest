@@ -22,6 +22,31 @@ pub(crate) fn center_scroll_to_cursor(
     *scroll_offset = cursor.saturating_sub(half).min(max_offset);
 }
 
+pub(crate) fn move_wrapped_cursor(current: usize, delta: isize, total: usize) -> usize {
+    if total == 0 {
+        return 0;
+    }
+    match delta {
+        -1 => {
+            if current == 0 {
+                total - 1
+            } else {
+                current - 1
+            }
+        }
+        1 => {
+            if current + 1 >= total {
+                0
+            } else {
+                current + 1
+            }
+        }
+        _ => current
+            .saturating_add_signed(delta)
+            .min(total.saturating_sub(1)),
+    }
+}
+
 pub(crate) fn is_coordinate_input_char(ch: char) -> bool {
     nc_ui::table_selection::is_coordinate_input_char(ch)
 }
