@@ -58,8 +58,10 @@ pub struct MapWidgetFrame {
 pub struct DashboardWidgetFrames {
     pub outer_top: usize,
     pub outer_bottom: usize,
+    pub header_bar_row: usize,
     pub header_divider_row: usize,
     pub footer_divider_row: usize,
+    pub footer_bar_row: usize,
     pub left_divider_col: usize,
     pub right_divider_col: usize,
     pub left_economy: PanelWidgetFrame,
@@ -87,15 +89,17 @@ pub fn dashboard_widget_frames(
 
     let outer_top = oy;
     let outer_bottom = oy + fh.saturating_sub(1);
-    let header_divider_row = outer_top + 1;
-    let footer_divider_row = outer_bottom.saturating_sub(1);
+    let header_bar_row = outer_top + 1;
+    let header_divider_row = outer_top + 2;
+    let footer_divider_row = outer_bottom.saturating_sub(2);
+    let footer_bar_row = outer_bottom.saturating_sub(1);
 
     let left_divider_col = ox + 1 + LEFT_WIDTH;
     let right_divider_col = ox + fw.saturating_sub(1 + RIGHT_WIDTH);
 
     let content_top = header_divider_row + 1;
     let content_bottom = footer_divider_row.saturating_sub(1);
-    let map_size = fh.saturating_sub(6);
+    let map_size = fh.saturating_sub(8);
 
     let left_col = ox + 1;
     let right_col = right_divider_col + 1;
@@ -130,8 +134,10 @@ pub fn dashboard_widget_frames(
     DashboardWidgetFrames {
         outer_top,
         outer_bottom,
+        header_bar_row,
         header_divider_row,
         footer_divider_row,
+        footer_bar_row,
         left_divider_col,
         right_divider_col,
         left_economy: panel_widget_frame(left_col, LEFT_WIDTH, content_top, left_sep_1.saturating_sub(1)),
@@ -168,6 +174,52 @@ fn panel_widget_frame(
     }
 }
 
+fn assert_text_fits_span(context: &str, text: &str, width: usize) {
+    let text_width = text.chars().count();
+    assert!(
+        text_width <= width,
+        "{context} overruns its widget span: text width {text_width} exceeds allowed width {width}"
+    );
+}
+
+fn assert_row_col_in_buffer(
+    buf: &PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    context: &str,
+) {
+    assert!(
+        row < buf.height(),
+        "{context} row {row} is outside buffer height {}",
+        buf.height()
+    );
+    assert!(
+        col < buf.width(),
+        "{context} col {col} is outside buffer width {}",
+        buf.width()
+    );
+}
+
+pub fn write_strict_span(
+    buf: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    text: &str,
+    style: CellStyle,
+    context: &str,
+) {
+    assert_row_col_in_buffer(buf, row, col, context);
+    assert!(
+        col + width <= buf.width(),
+        "{context} span overruns buffer width: end {} exceeds {}",
+        col + width,
+        buf.width()
+    );
+    assert_text_fits_span(context, text, width);
+    buf.write_text(row, col, text, style);
+}
+
 pub fn write_clipped(
     buf: &mut PlayfieldBuffer,
     row: usize,
@@ -179,6 +231,13 @@ pub fn write_clipped(
     if width == 0 {
         return;
     }
+    assert_row_col_in_buffer(buf, row, col, "clipped widget write");
+    assert!(
+        col + width <= buf.width(),
+        "clipped widget write span overruns buffer width: end {} exceeds {}",
+        col + width,
+        buf.width()
+    );
     let clipped: String = text.chars().take(width).collect();
     buf.write_text_clipped(row, col, &clipped, style);
 }
@@ -189,7 +248,15 @@ pub fn write_panel_title(
     title: &str,
     style: CellStyle,
 ) {
-    write_clipped(buf, frame.title_row, frame.title_col(), frame.title_width(), title, style);
+    write_strict_span(
+        buf,
+        frame.title_row,
+        frame.title_col(),
+        frame.title_width(),
+        title,
+        style,
+        "panel title",
+    );
 }
 
 pub fn write_panel_body_line(
@@ -202,6 +269,10 @@ pub fn write_panel_body_line(
     if body_row_offset >= frame.body.height {
         return;
     }
+    assert!(
+        frame.body.col + frame.body.width <= buf.width(),
+        "panel body write overruns buffer width"
+    );
     write_clipped(
         buf,
         frame.body.row + body_row_offset,
@@ -255,5 +326,18 @@ mod tests {
             widgets.center_map.status_row,
             widgets.center_map.outer.last_row(),
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "panel title overruns its widget span")]
+    fn panel_title_panics_when_it_overruns_widget_span() {
+        let mut buffer = PlayfieldBuffer::new(40, 10, CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false));
+        let frame = PanelWidgetFrame {
+            outer: WidgetRect { col: 1, row: 1, width: 8, height: 4 },
+            title_row: 1,
+            body: WidgetRect { col: 2, row: 2, width: 7, height: 3 },
+        };
+
+        write_panel_title(&mut buffer, frame, "TOO LONG PANEL TITLE", CellStyle::new(nc_ui::GameColor::White, nc_ui::GameColor::Black, false));
     }
 }

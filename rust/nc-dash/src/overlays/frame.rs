@@ -45,7 +45,15 @@ pub fn draw_overlay_frame(
     }
     buf.set_cell(divider_row, inner_left.saturating_sub(1), '├', chrome);
     buf.set_cell(divider_row, inner_right + 1, '┤', chrome);
-    buf.write_text_clipped(footer_row, popup.x as usize + 2, footer, theme::footer_style());
+    write_strict_span(
+        buf,
+        footer_row,
+        popup.x as usize + 2,
+        popup.width.saturating_sub(4) as usize,
+        footer,
+        theme::footer_style(),
+        "overlay footer",
+    );
 
     OverlayFrame {
         body_col: popup.x as usize + 2,
@@ -102,6 +110,19 @@ mod tests {
         assert_eq!(frame.body_width, 72);
         assert_eq!(frame.body_height, 14);
     }
+
+    #[test]
+    #[should_panic(expected = "overlay footer overruns its widget span")]
+    fn overlay_footer_panics_when_it_overruns_modal_footer_row() {
+        let mut buffer = PlayfieldBuffer::new(40, 20, theme::body_style());
+        let _ = draw_overlay_frame(
+            &mut buffer,
+            "TEST",
+            18,
+            8,
+            "COMMAND <- this footer is far too wide for the popup ->",
+        );
+    }
 }
 
 pub fn write_clipped(
@@ -117,6 +138,39 @@ pub fn write_clipped(
     }
     let clipped: String = text.chars().take(width).collect();
     buf.write_text_clipped(row, col, &clipped, style);
+}
+
+pub fn write_strict_span(
+    buf: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    text: &str,
+    style: CellStyle,
+    context: &str,
+) {
+    let text_width = text.chars().count();
+    assert!(
+        row < buf.height(),
+        "{context} row {row} is outside buffer height {}",
+        buf.height()
+    );
+    assert!(
+        col < buf.width(),
+        "{context} col {col} is outside buffer width {}",
+        buf.width()
+    );
+    assert!(
+        col + width <= buf.width(),
+        "{context} span overruns buffer width: end {} exceeds {}",
+        col + width,
+        buf.width()
+    );
+    assert!(
+        text_width <= width,
+        "{context} overruns its widget span: text width {text_width} exceeds allowed width {width}"
+    );
+    buf.write_text(row, col, text, style);
 }
 
 pub fn draw_hline(

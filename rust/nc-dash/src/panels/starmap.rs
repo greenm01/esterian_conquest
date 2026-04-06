@@ -45,7 +45,15 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     for col_idx in 0..map_size {
         let screen_col = frame.grid.col + frame.row_label_cols + col_idx * frame.cell_width;
         if screen_col + 1 > frame.grid.last_col() { break; }
-        buf.write_text(frame.axis_row, screen_col, &format!("{:02}", col_idx + 1), theme::dim_style());
+        layout::write_strict_span(
+            buf,
+            frame.axis_row,
+            screen_col,
+            2,
+            &format!("{:02}", col_idx + 1),
+            theme::dim_style(),
+            "starmap axis label",
+        );
     }
 
     // Grid rows — row_y descends: map_size at top, 1 at bottom.
@@ -54,13 +62,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
         let screen_row = frame.grid.row + row_idx;
         let is_h_crosshair = row_y == app.crosshair_y;
 
-        layout::write_clipped(
+        layout::write_strict_span(
             buf,
             screen_row,
             frame.grid.col,
             frame.row_label_cols,
             &format!("{:02} ", row_y),
             theme::dim_style(),
+            "starmap row label",
         );
 
         for col_idx in 0..map_size {

@@ -62,7 +62,14 @@ pub fn draw_box(
     buffer.set_cell(bottom, right, '┘', chrome_style);
     if !title.is_empty() && rect.width > 4 {
         let bordered = format!(" {title} ");
-        buffer.write_text_clipped(top, left + 2, &bordered, title_style);
+        let available_width = rect.width.saturating_sub(4) as usize;
+        assert!(
+            bordered.chars().count() <= available_width,
+            "modal title overruns its border slot: text width {} exceeds allowed width {}",
+            bordered.chars().count(),
+            available_width
+        );
+        buffer.write_text(top, left + 2, &bordered, title_style);
     }
 }
 
@@ -129,7 +136,7 @@ pub fn render_modal_box(
         .max()
         .unwrap_or(0);
     let width = (content_width + 4)
-        .max(title.chars().count() + 4)
+        .max(title.chars().count() + 6)
         .min(buffer.width().saturating_sub(8));
     let height = (lines.len() + 2) as u16;
     let popup = draw_modal_frame(buffer, title, width, height, theme);

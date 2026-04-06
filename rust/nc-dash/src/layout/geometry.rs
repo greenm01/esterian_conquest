@@ -17,8 +17,9 @@ pub const CELL_WIDTH: usize = 3;
 
 /// Compute the dashboard buffer geometry sized to the actual map.
 ///
-/// Layout height: 1 header + 1 header-divider + 1 col-axis + map_size grid
-///   + 1 status + 1 footer-divider + 1 footer = map_size + 6.
+/// Layout height: 1 top border + 1 header bar + 1 header-divider
+///   + 1 col-axis + map_size grid + 1 status
+///   + 1 footer-divider + 1 footer bar + 1 bottom border = map_size + 8.
 ///
 /// Layout width: 1 left-border + SIDE_PANEL_WIDTH + 1 left-divider
 ///   + ROW_LABEL_COLS + (map_size * CELL_WIDTH) + 1 right-divider
@@ -26,6 +27,6 @@ pub const CELL_WIDTH: usize = 3;
 pub fn dashboard_geometry(map_size: usize) -> ScreenGeometry {
     let grid_width = ROW_LABEL_COLS + map_size * CELL_WIDTH;
     let width = 1 + SIDE_PANEL_WIDTH + 1 + grid_width + 1 + SIDE_PANEL_WIDTH + 1;
-    let height = map_size + 6;
+    let height = map_size + 8;
     ScreenGeometry::new(width, height)
 }

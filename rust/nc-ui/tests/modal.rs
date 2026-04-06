@@ -36,3 +36,16 @@ fn render_modal_box_keeps_bottom_border_when_content_is_too_tall() {
     assert!(line.contains('┘'));
     assert!(!line.contains("seven"));
 }
+
+#[test]
+#[should_panic(expected = "modal title overruns its border slot")]
+fn render_modal_box_panics_when_title_does_not_fit_border_slot() {
+    let mut buffer = PlayfieldBuffer::new(
+        16,
+        6,
+        CellStyle::new(GameColor::White, GameColor::Black, false),
+    );
+    let lines = vec!["one".to_string()];
+
+    let _ = render_modal_box(&mut buffer, "THIS TITLE DOES NOT FIT", &lines, theme());
+}
