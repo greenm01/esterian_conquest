@@ -2,12 +2,12 @@
 
 use std::collections::BTreeMap;
 
+#[cfg(test)]
+use nc_data::CoreGameData;
 use nc_data::{
     DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
     build_player_starmap_projection_from_snapshots,
 };
-#[cfg(test)]
-use nc_data::CoreGameData;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
@@ -181,20 +181,22 @@ fn projected_display_bounds(
     map_size: u8,
     cell_area_width: usize,
 ) -> ProjectionBounds {
-    let visible = visible_sector_count(map_size, app.map_zoom_level);
-    let x_min = viewport_start(app.crosshair_x, visible, map_size);
-    let y_min = viewport_start(app.crosshair_y, visible, map_size);
-    let x_max = x_min + visible.saturating_sub(1);
-    let y_max = y_min + visible.saturating_sub(1);
+    let zoom_visible = visible_sector_count(map_size, app.map_zoom_level);
+    let visible_x = zoom_visible.min(max_visible_sector_count(cell_area_width, map_size));
+    let visible_y = zoom_visible.min(max_visible_sector_count(frame.grid.height, map_size));
+    let x_min = viewport_start(app.crosshair_x, visible_x, map_size);
+    let y_min = viewport_start(app.crosshair_y, visible_y, map_size);
+    let x_max = x_min + visible_x.saturating_sub(1);
+    let y_max = y_min + visible_y.saturating_sub(1);
     ProjectionBounds {
         x_min,
         x_max,
         y_min,
         y_max,
-        visible_x: visible,
-        visible_y: visible,
-        tile_width: exact_fill_tile_hint(cell_area_width, visible),
-        tile_height: exact_fill_tile_hint(frame.grid.height, visible),
+        visible_x,
+        visible_y,
+        tile_width: exact_fill_tile_hint(cell_area_width, visible_x),
+        tile_height: exact_fill_tile_hint(frame.grid.height, visible_y),
     }
 }
 
@@ -202,6 +204,10 @@ fn visible_sector_count(map_size: u8, zoom_level: u8) -> u8 {
     let divisor = 1u16 << zoom_level.min(5);
     let visible = u16::from(map_size).div_ceil(divisor).max(1);
     visible.min(u16::from(map_size)) as u8
+}
+
+fn max_visible_sector_count(extent: usize, map_size: u8) -> u8 {
+    extent.max(1).min(usize::from(map_size)) as u8
 }
 
 fn exact_fill_tile_hint(extent: usize, visible: u8) -> usize {
@@ -480,6 +486,7 @@ mod tests {
     use crate::layout::dashboard_layout;
     use crate::theme;
     use nc_data::{GameStateBuilder, IntelTier};
+    use nc_engine::build_seeded_initialized_game;
     use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -811,6 +818,54 @@ mod tests {
             assert_eq!(buffer.row(rect.row)[mid_col].ch, '|');
         }
         assert_eq!(buffer.row(rect.row)[rect.col].ch, ' ');
+    }
+
+    #[test]
+    fn benchmark_laptop_height_uses_vertical_viewport_on_large_maps() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(187, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 45);
+
+        assert_eq!(projected.visible_x, 45);
+        assert!(projected.visible_y < 45);
+        assert_eq!(projected.visible_y as usize, frame.grid.height);
+        assert!(projected.y_min <= app.crosshair_y && projected.y_max >= app.crosshair_y);
+    }
+
+    #[test]
+    fn narrow_terminal_caps_horizontal_viewport_independently() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(80, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 45);
+
+        assert!(projected.visible_x < 45);
+        assert!(projected.visible_y < 45);
+        assert_eq!(
+            projected.visible_x as usize,
+            frame.grid.width.saturating_sub(frame.row_label_cols)
+        );
     }
 
     fn make_world(coords: [u8; 2]) -> PlayerStarmapWorld {

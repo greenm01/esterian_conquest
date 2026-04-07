@@ -5,7 +5,8 @@ use nc_ui::ScreenGeometry;
 use crate::app::state::{DashApp, MapViewMode};
 use crate::layout::geometry::{
     CELL_WIDTH, MAP_LEFT_PADDING, MAP_RIGHT_PADDING, MAP_VERTICAL_PADDING, ROW_LABEL_COLS,
-    dashboard_frame_geometry, minimum_projected_map_height, minimum_projected_map_width,
+    dashboard_frame_geometry, minimum_projected_map_height, minimum_required_map_height,
+    minimum_required_map_width,
 };
 use crate::layout::widgets::{
     DashboardWidgetFrames, MapWidgetFrame, WidgetRect, frame_offset_for, panel_widget_frame,
@@ -202,12 +203,14 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
         diplomacy::MIN_BODY_ROWS.min(right_preferred_rows[2]),
         sector_detail::MIN_BODY_ROWS.min(right_preferred_rows[3]),
     ];
-    let minimum_map_height = minimum_projected_map_height(map_size);
+    let minimum_map_height = minimum_required_map_height(map_size);
+    let preferred_map_height = minimum_projected_map_height(map_size);
+    let left_min_stack = stack_height_4(left_minimum_rows);
     let left_stack = stack_height_4(left_preferred_rows);
     let right_min_stack = stack_height_4(right_minimum_rows);
 
-    let minimum_content_height = minimum_map_height.max(left_stack).max(right_min_stack);
-    let preferred_content_height = minimum_map_height
+    let minimum_content_height = minimum_map_height.max(left_min_stack).max(right_min_stack);
+    let preferred_content_height = preferred_map_height
         .max(left_stack)
         .max(stack_height_4(right_preferred_rows));
 
@@ -224,7 +227,7 @@ fn measure_dashboard(app: &DashApp) -> DashboardMeasurements {
         left_minimum_rows,
         right_preferred_rows,
         right_minimum_rows,
-        minimum_center_width: minimum_projected_map_width(map_size),
+        minimum_center_width: minimum_required_map_width(map_size),
         preferred_center_width,
         minimum_content_height,
         preferred_content_height,
@@ -443,6 +446,7 @@ mod tests {
     use crate::app::state::{DashApp, MapViewMode};
     use crate::panels::{diplomacy, war_record};
     use nc_data::GameStateBuilder;
+    use nc_engine::build_seeded_initialized_game;
     use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -584,5 +588,28 @@ mod tests {
 
         assert!(!dashboard_fits_canvas(app.geometry, &layout));
         assert!(layout_canvas_requirement(&layout).width() > app.geometry.width());
+    }
+
+    #[test]
+    fn benchmark_laptop_geometry_supports_large_map_dashboard() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            build_seeded_initialized_game(25, 3000, 1515).expect("seeded game"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(187, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let required = required_dashboard_frame(&app);
+        let layout = dashboard_layout(&app);
+
+        assert!(required.width() <= 187);
+        assert!(required.height() <= 45);
+        assert!(dashboard_fits_canvas(app.geometry, &layout));
+        assert!(layout_canvas_requirement(&layout).height() <= app.geometry.height());
     }
 }

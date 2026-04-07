@@ -59,6 +59,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("-", "Zoom the map out"),
             ("Z", "Reset the map zoom for the current view mode"),
             ("V", "Toggle readable and fill map view"),
+            (
+                "Viewport",
+                "Small terminals auto-clip the map around the crosshair",
+            ),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
             ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
         ],
