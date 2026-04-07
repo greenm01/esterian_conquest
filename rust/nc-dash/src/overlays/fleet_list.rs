@@ -117,7 +117,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         | FleetOverlayPromptMode::OrderConfirm
         | FleetOverlayPromptMode::StarbaseMoveDecision
         | FleetOverlayPromptMode::StarbaseMoveDestination
-        | FleetOverlayPromptMode::StarbaseHaltConfirm => unreachable!("order flows render separately"),
+        | FleetOverlayPromptMode::StarbaseHaltConfirm => {
+            unreachable!("order flows render separately")
+        }
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
 
@@ -300,7 +302,11 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: 
     } else {
         vec!["Selected fleet is no longer available.".to_string()]
     };
-    let body_width = lines.iter().map(|line| line.chars().count()).max().unwrap_or(1);
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
@@ -360,7 +366,12 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
             prompt: "Destination ",
             default: &app
                 .selected_starbase_move_row()
-                .map(|row| format!("{},{}", row.destination_coords[0], row.destination_coords[1]))
+                .map(|row| {
+                    format!(
+                        "{},{}",
+                        row.destination_coords[0], row.destination_coords[1]
+                    )
+                })
                 .unwrap_or_default(),
             input: &app.fleet_overlay.starbase_move_input,
         },
@@ -386,7 +397,11 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
     } else {
         vec!["Selected starbase is no longer available.".to_string()]
     };
-    let body_width = lines.iter().map(|line| line.chars().count()).max().unwrap_or(1);
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
@@ -434,7 +449,8 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
 }
 
 fn row_states_from_enabled_flags(flags: &[bool]) -> Vec<nc_ui::table::TableRowState> {
-    flags.iter()
+    flags
+        .iter()
         .map(|enabled| {
             if *enabled {
                 nc_ui::table::TableRowState::Normal

@@ -57,7 +57,9 @@ pub fn owned_starbase_targets(
         .records
         .iter()
         .enumerate()
-        .filter(|(_, base)| base.owner_empire_raw() == owner_empire_id && base.active_flag_raw() != 0)
+        .filter(|(_, base)| {
+            base.owner_empire_raw() == owner_empire_id && base.active_flag_raw() != 0
+        })
         .map(|(idx, base)| OwnedStarbaseTarget {
             base_record_index_1_based: idx + 1,
             base_id: base.base_id_raw(),
@@ -136,7 +138,10 @@ pub fn recommended_coordinate_target_y_for_entered_x(
         return candidates.into_iter().next().map(|coords| coords[1]);
     }
     let target_x = entered_x.parse::<u8>().ok()?;
-    candidates.into_iter().find(|coords| coords[0] == target_x).map(|coords| coords[1])
+    candidates
+        .into_iter()
+        .find(|coords| coords[0] == target_x)
+        .map(|coords| coords[1])
 }
 
 pub fn target_available_for_mission(
@@ -231,7 +236,9 @@ pub fn recommended_coordinate_target_candidates(
             anchor,
             selected_records,
         ),
-        14 => rendezvous_target_candidates_from(game_data, viewer_empire_id, anchor, selected_records),
+        14 => {
+            rendezvous_target_candidates_from(game_data, viewer_empire_id, anchor, selected_records)
+        }
         _ => Vec::new(),
     }
 }
@@ -350,21 +357,15 @@ fn colonize_target_candidates_from(
     anchor: [u8; 2],
     selected_records: &BTreeSet<usize>,
 ) -> Vec<[u8; 2]> {
-    filtered_planet_database_targets_from(
-        game_data,
-        snapshots,
-        viewer_empire_id,
-        anchor,
-        |world| {
-            matches!(world.known_owner_empire_id, None | Some(0))
-                && !friendly_colonize_target_claimed_elsewhere(
-                    game_data,
-                    viewer_empire_id,
-                    world.coords,
-                    selected_records,
-                )
-        },
-    )
+    filtered_planet_database_targets_from(game_data, snapshots, viewer_empire_id, anchor, |world| {
+        matches!(world.known_owner_empire_id, None | Some(0))
+            && !friendly_colonize_target_claimed_elsewhere(
+                game_data,
+                viewer_empire_id,
+                world.coords,
+                selected_records,
+            )
+    })
 }
 
 fn scout_sector_target_candidates_from(
@@ -402,21 +403,15 @@ fn scout_system_target_candidates_from(
     anchor: [u8; 2],
     selected_records: &BTreeSet<usize>,
 ) -> Vec<[u8; 2]> {
-    filtered_planet_database_targets_from(
-        game_data,
-        snapshots,
-        viewer_empire_id,
-        anchor,
-        |world| {
-            world.known_owner_empire_id != Some(viewer_empire_id)
-                && !friendly_scout_target_claimed_elsewhere(
-                    game_data,
-                    viewer_empire_id,
-                    world.coords,
-                    selected_records,
-                )
-        },
-    )
+    filtered_planet_database_targets_from(game_data, snapshots, viewer_empire_id, anchor, |world| {
+        world.known_owner_empire_id != Some(viewer_empire_id)
+            && !friendly_scout_target_claimed_elsewhere(
+                game_data,
+                viewer_empire_id,
+                world.coords,
+                selected_records,
+            )
+    })
 }
 
 fn rendezvous_target_candidates_from(

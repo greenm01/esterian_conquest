@@ -1837,7 +1837,6 @@ fn resolve_default_u16_input(input: &str, default: u16) -> Option<u16> {
     raw.parse::<u16>().ok()
 }
 
-
 pub(super) fn resolve_yes_no_input(input: &str, default: bool) -> bool {
     match input.trim().to_ascii_uppercase().as_str() {
         "" => default,

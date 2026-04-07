@@ -12,7 +12,10 @@ fn production_item_kind_raw_matches_runtime_codes() {
     assert_eq!(production_item_kind_raw(ProductionItemKind::Scout), 4);
     assert_eq!(production_item_kind_raw(ProductionItemKind::Transport), 5);
     assert_eq!(production_item_kind_raw(ProductionItemKind::Etac), 6);
-    assert_eq!(production_item_kind_raw(ProductionItemKind::GroundBattery), 7);
+    assert_eq!(
+        production_item_kind_raw(ProductionItemKind::GroundBattery),
+        7
+    );
     assert_eq!(production_item_kind_raw(ProductionItemKind::Army), 8);
     assert_eq!(production_item_kind_raw(ProductionItemKind::Starbase), 9);
 }
@@ -100,7 +103,8 @@ fn default_transport_fleet_prefers_highest_eligible_capacity() {
     game_data.fleets.records[1].set_troop_transport_count(8);
 
     let rows = game_data.empire_planet_economy_rows(1);
-    let fleet_number = default_fleet_transport_fleet_number(&game_data, 1, ArmyTransportMode::Load, &rows);
+    let fleet_number =
+        default_fleet_transport_fleet_number(&game_data, 1, ArmyTransportMode::Load, &rows);
 
     assert_eq!(fleet_number, Some(2));
 }

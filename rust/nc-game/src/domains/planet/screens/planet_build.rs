@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
+use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use nc_engine::{
     BUILD_UNITS, BuildUnitSpec, build_kind_count_label, build_kind_name, build_unit_spec_by_kind,
     max_quantity,
 };
-use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;

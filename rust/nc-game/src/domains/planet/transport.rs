@@ -825,15 +825,15 @@ impl App {
             engine_transport_mode(mode),
             &self.build_planet_rows(),
         )
-            .into_iter()
-            .map(|row| PlanetTransportPlanetRow {
-                planet_record_index_1_based: row.planet_record_index_1_based,
-                planet_name: row.planet_name,
-                coords: row.coords,
-                planet_armies: row.planet_armies,
-                transport_capacity: row.transport_capacity,
-            })
-            .collect()
+        .into_iter()
+        .map(|row| PlanetTransportPlanetRow {
+            planet_record_index_1_based: row.planet_record_index_1_based,
+            planet_name: row.planet_name,
+            coords: row.coords,
+            planet_armies: row.planet_armies,
+            transport_capacity: row.transport_capacity,
+        })
+        .collect()
     }
 
     pub(crate) fn current_planet_transport_planet_row(
@@ -907,15 +907,15 @@ impl App {
             engine_transport_mode(mode),
             row,
         )
-            .into_iter()
-            .map(|fleet| PlanetTransportFleetRow {
-                fleet_record_index_1_based: fleet.fleet_record_index_1_based,
-                fleet_number: fleet.fleet_number,
-                troop_transports: fleet.troop_transports,
-                loaded_armies: fleet.loaded_armies,
-                available_qty: fleet.available_qty,
-            })
-            .collect()
+        .into_iter()
+        .map(|fleet| PlanetTransportFleetRow {
+            fleet_record_index_1_based: fleet.fleet_record_index_1_based,
+            fleet_number: fleet.fleet_number,
+            troop_transports: fleet.troop_transports,
+            loaded_armies: fleet.loaded_armies,
+            available_qty: fleet.available_qty,
+        })
+        .collect()
     }
 
     fn planet_transport_eligible_fleet_rows_for_planet(

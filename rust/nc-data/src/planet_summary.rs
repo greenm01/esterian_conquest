@@ -71,7 +71,9 @@ pub fn build_queue_unit_counts(planet: &PlanetRecord) -> BTreeMap<u8, u32> {
     counts_by_kind
 }
 
-pub fn ordered_unit_count_entries(counts_by_kind: &BTreeMap<u8, u32>) -> Vec<(ProductionItemKind, u32)> {
+pub fn ordered_unit_count_entries(
+    counts_by_kind: &BTreeMap<u8, u32>,
+) -> Vec<(ProductionItemKind, u32)> {
     let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
     for kind_raw in counts_by_kind.keys() {
         if !ordered_kind_raws.contains(kind_raw) {
@@ -161,7 +163,11 @@ pub fn format_owned_orbit_summary(summary: OrbitPresenceSummary) -> String {
         parts.push(format!(
             "{} {}",
             summary.fleets,
-            if summary.fleets == 1 { "fleet" } else { "fleets" }
+            if summary.fleets == 1 {
+                "fleet"
+            } else {
+                "fleets"
+            }
         ));
     }
     if summary.starbases > 0 {
@@ -212,31 +218,67 @@ pub fn owned_planet_status(
 fn unit_words(kind: ProductionItemKind, count: u32) -> &'static str {
     match kind {
         ProductionItemKind::Destroyer => {
-            if count == 1 { "destroyer" } else { "destroyers" }
+            if count == 1 {
+                "destroyer"
+            } else {
+                "destroyers"
+            }
         }
         ProductionItemKind::Cruiser => {
-            if count == 1 { "cruiser" } else { "cruisers" }
+            if count == 1 {
+                "cruiser"
+            } else {
+                "cruisers"
+            }
         }
         ProductionItemKind::Battleship => {
-            if count == 1 { "battleship" } else { "battleships" }
+            if count == 1 {
+                "battleship"
+            } else {
+                "battleships"
+            }
         }
         ProductionItemKind::Scout => {
-            if count == 1 { "scout" } else { "scouts" }
+            if count == 1 {
+                "scout"
+            } else {
+                "scouts"
+            }
         }
         ProductionItemKind::Transport => {
-            if count == 1 { "troop transport" } else { "troop transports" }
+            if count == 1 {
+                "troop transport"
+            } else {
+                "troop transports"
+            }
         }
         ProductionItemKind::Etac => {
-            if count == 1 { "ETAC" } else { "ETACs" }
+            if count == 1 {
+                "ETAC"
+            } else {
+                "ETACs"
+            }
         }
         ProductionItemKind::Army => {
-            if count == 1 { "army" } else { "armies" }
+            if count == 1 {
+                "army"
+            } else {
+                "armies"
+            }
         }
         ProductionItemKind::GroundBattery => {
-            if count == 1 { "ground battery" } else { "ground batteries" }
+            if count == 1 {
+                "ground battery"
+            } else {
+                "ground batteries"
+            }
         }
         ProductionItemKind::Starbase => {
-            if count == 1 { "starbase" } else { "starbases" }
+            if count == 1 {
+                "starbase"
+            } else {
+                "starbases"
+            }
         }
         ProductionItemKind::Unknown(_) => "unknown units",
     }

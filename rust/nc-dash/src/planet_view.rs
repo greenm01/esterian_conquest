@@ -3,10 +3,11 @@ use std::collections::BTreeMap;
 use nc_data::{
     CampaignState, CompactUnitSummaryStyle, IntelTier, OwnedPlanetStatus, PlanetIntelSnapshot,
     PlanetRecord, PlayerStarmapWorld, active_starbase_count_at,
-    build_player_starmap_projection_from_snapshots, format_build_queue_summary as shared_build_queue_summary,
+    build_player_starmap_projection_from_snapshots,
+    format_build_queue_summary as shared_build_queue_summary,
     format_owned_orbit_summary as shared_owned_orbit_summary,
-    format_stardock_summary as shared_stardock_summary, owned_orbit_presence,
-    owned_planet_status, yearly_tax_revenue,
+    format_stardock_summary as shared_stardock_summary, owned_orbit_presence, owned_planet_status,
+    yearly_tax_revenue,
 };
 
 use crate::app::state::DashApp;
@@ -504,7 +505,11 @@ fn format_build_queue_summary(planet: &PlanetRecord) -> String {
 }
 
 fn format_owned_orbit_summary(app: &DashApp, coords: [u8; 2], viewer_empire_id: u8) -> String {
-    shared_owned_orbit_summary(owned_orbit_presence(&app.game_data, viewer_empire_id, coords))
+    shared_owned_orbit_summary(owned_orbit_presence(
+        &app.game_data,
+        viewer_empire_id,
+        coords,
+    ))
 }
 
 fn owned_status_widget_label(
@@ -541,7 +546,9 @@ fn owned_status_detail_label(
         OwnedPlanetStatus::Scorched => String::from("Planet is scorched!"),
         OwnedPlanetStatus::Homeworld => String::from("Homeworld - fully developed"),
         OwnedPlanetStatus::StarbasePresent => String::from("Regular planet - starbase present"),
-        OwnedPlanetStatus::FactoriesDestroyed => String::from("Regular planet - factories destroyed"),
+        OwnedPlanetStatus::FactoriesDestroyed => {
+            String::from("Regular planet - factories destroyed")
+        }
         OwnedPlanetStatus::FactoriesDamaged => String::from("Regular planet - factories damaged"),
         OwnedPlanetStatus::FactoriesFunctional => {
             String::from("Regular planet - factories fully functional")

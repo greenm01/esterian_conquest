@@ -288,25 +288,29 @@ impl DashApp {
                         return Ok(());
                     }
                     nc_engine::FleetTargetInputKind::StarbaseId => {
-                        let Some(base) = self.resolve_fleet_order_starbase_target_for_current_mission() else {
-                            self.fleet_overlay.order_status =
-                                Some("Enter a starbase number from your starbase list.".to_string());
+                        let Some(base) =
+                            self.resolve_fleet_order_starbase_target_for_current_mission()
+                        else {
+                            self.fleet_overlay.order_status = Some(
+                                "Enter a starbase number from your starbase list.".to_string(),
+                            );
                             return Ok(());
                         };
                         (base.coords, base.base_id, 1)
                     }
                     nc_engine::FleetTargetInputKind::FleetId => {
-                        let Some(host) = self.resolve_fleet_order_host_fleet_for_current_mission() else {
-                            self.fleet_overlay.order_status =
-                                Some("Enter another fleet number from your fleet list.".to_string());
+                        let Some(host) = self.resolve_fleet_order_host_fleet_for_current_mission()
+                        else {
+                            self.fleet_overlay.order_status = Some(
+                                "Enter another fleet number from your fleet list.".to_string(),
+                            );
                             return Ok(());
                         };
                         return self.apply_fleet_single_join_order(host);
                     }
                     nc_engine::FleetTargetInputKind::None => ([0, 0], 0, 0),
                 };
-                if let Err(err) =
-                    self.validate_fleet_target_for_mission(mission_code, destination)
+                if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination)
                 {
                     self.fleet_overlay.order_status = Some(err);
                     return Ok(());
@@ -315,7 +319,11 @@ impl DashApp {
             }
             FleetOverlayPromptMode::OrderTargetX => {
                 let default = self.fleet_order_target_x_default_value().parse::<u8>().ok();
-                match self.resolve_target_axis_input(&self.fleet_overlay.order_target_x_input, default, "XX") {
+                match self.resolve_target_axis_input(
+                    &self.fleet_overlay.order_target_x_input,
+                    default,
+                    "XX",
+                ) {
                     Ok(value) => {
                         if self.fleet_overlay.order_target_x_input.trim().is_empty() {
                             self.fleet_overlay.order_target_x_input = format!("{value:02}");
@@ -341,7 +349,8 @@ impl DashApp {
                 {
                     self.fleet_overlay.order_target_y_input = format!("{default_y:02}");
                 }
-                if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination) {
+                if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination)
+                {
                     self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
                     self.fleet_overlay.order_status = Some(err);
                     return Ok(());
@@ -370,7 +379,8 @@ impl DashApp {
                         return Ok(());
                     }
                 };
-                if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination) {
+                if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination)
+                {
                     self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
                     self.fleet_overlay.order_status = Some(err);
                     return Ok(());
@@ -416,7 +426,8 @@ impl DashApp {
                     'H' => {
                         self.fleet_overlay.starbase_move_input.clear();
                         self.fleet_overlay.starbase_move_status = None;
-                        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseHaltConfirm;
+                        self.fleet_overlay.prompt_mode =
+                            FleetOverlayPromptMode::StarbaseHaltConfirm;
                     }
                     'M' => {
                         self.fleet_overlay.starbase_move_input.clear();
@@ -425,7 +436,8 @@ impl DashApp {
                             FleetOverlayPromptMode::StarbaseMoveDestination;
                     }
                     _ => {
-                        self.fleet_overlay.starbase_move_status = Some("Choose H or M.".to_string());
+                        self.fleet_overlay.starbase_move_status =
+                            Some("Choose H or M.".to_string());
                     }
                 }
                 Ok(())
@@ -501,7 +513,12 @@ impl DashApp {
                 self.resolve_fleet_order_split_target(),
             )
         {
-            return format!("Confirm [{:02},{:02}] for {}.", destination[0], destination[1], self.fleet_order_new_order_label());
+            return format!(
+                "Confirm [{:02},{:02}] for {}.",
+                destination[0],
+                destination[1],
+                self.fleet_order_new_order_label()
+            );
         }
         fleet_target_status_line(self.fleet_overlay.order_mission_code)
     }
@@ -510,9 +527,8 @@ impl DashApp {
         match fleet_target_input_kind(self.fleet_overlay.order_mission_code) {
             nc_engine::FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
             nc_engine::FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
-            nc_engine::FleetTargetInputKind::Coordinates | nc_engine::FleetTargetInputKind::None => {
-                "Target ".to_string()
-            }
+            nc_engine::FleetTargetInputKind::Coordinates
+            | nc_engine::FleetTargetInputKind::None => "Target ".to_string(),
         }
     }
 
@@ -526,7 +542,8 @@ impl DashApp {
                 .fleet_order_default_host_fleet()
                 .map(|row| row.fleet_number.to_string())
                 .unwrap_or_else(|| "1".to_string()),
-            nc_engine::FleetTargetInputKind::Coordinates | nc_engine::FleetTargetInputKind::None => self
+            nc_engine::FleetTargetInputKind::Coordinates
+            | nc_engine::FleetTargetInputKind::None => self
                 .fleet_order_default_target_coords()
                 .map(|target| format!("{},{}", target[0], target[1]))
                 .unwrap_or_default(),
@@ -629,11 +646,21 @@ impl DashApp {
     }
 
     fn resolve_fleet_order_split_target(&self) -> Result<[u8; 2], String> {
-        let default_x = self.fleet_order_default_target_coords().map(|coords| coords[0]);
+        let default_x = self
+            .fleet_order_default_target_coords()
+            .map(|coords| coords[0]);
         let default_y = self.fleet_order_default_target_y_value();
         Ok([
-            self.resolve_target_axis_input(&self.fleet_overlay.order_target_x_input, default_x, "XX")?,
-            self.resolve_target_axis_input(&self.fleet_overlay.order_target_y_input, default_y, "YY")?,
+            self.resolve_target_axis_input(
+                &self.fleet_overlay.order_target_x_input,
+                default_x,
+                "XX",
+            )?,
+            self.resolve_target_axis_input(
+                &self.fleet_overlay.order_target_y_input,
+                default_y,
+                "YY",
+            )?,
         ])
     }
 
@@ -653,21 +680,27 @@ impl DashApp {
         }
         if fleet_order_target_rejects_owned_planet(mission_code)
             && target_planet
-                .map(|planet| planet.owner_empire_slot_raw() as usize == self.player_record_index_1_based)
+                .map(|planet| {
+                    planet.owner_empire_slot_raw() as usize == self.player_record_index_1_based
+                })
                 .unwrap_or(false)
         {
             return Err("You cannot send that mission to your own world.".to_string());
         }
         if fleet_order_target_rejects_owned_scout_target(mission_code)
             && target_planet
-                .map(|planet| planet.owner_empire_slot_raw() as usize == self.player_record_index_1_based)
+                .map(|planet| {
+                    planet.owner_empire_slot_raw() as usize == self.player_record_index_1_based
+                })
                 .unwrap_or(false)
         {
             return Err("You cannot scout your own planet or system.".to_string());
         }
         if fleet_order_target_requires_owned_planet(mission_code)
             && target_planet
-                .map(|planet| planet.owner_empire_slot_raw() as usize != self.player_record_index_1_based)
+                .map(|planet| {
+                    planet.owner_empire_slot_raw() as usize != self.player_record_index_1_based
+                })
                 .unwrap_or(true)
         {
             return Err("That mission requires one of your owned planets.".to_string());
@@ -684,7 +717,9 @@ impl DashApp {
                     &BTreeSet::from([row.fleet_record_index_1_based]),
                 )
                 .map_err(|err| match err {
-                    nc_data::FleetOrderValidationError::DuplicateFriendlyColonizeTarget { .. } => {
+                    nc_data::FleetOrderValidationError::DuplicateFriendlyColonizeTarget {
+                        ..
+                    } => {
                         "Another one of your ETAC fleets is already ordered to colonize that world."
                             .to_string()
                     }
@@ -702,7 +737,8 @@ impl DashApp {
         aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.selected_fleet_order_row() else {
-            self.fleet_overlay.order_status = Some("Selected fleet is no longer available.".to_string());
+            self.fleet_overlay.order_status =
+                Some("Selected fleet is no longer available.".to_string());
             return Ok(());
         };
         let speed = self
@@ -736,7 +772,8 @@ impl DashApp {
         host: OrderFleetRow,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.selected_fleet_order_row() else {
-            self.fleet_overlay.order_status = Some("Selected fleet is no longer available.".to_string());
+            self.fleet_overlay.order_status =
+                Some("Selected fleet is no longer available.".to_string());
             return Ok(());
         };
         self.game_data.set_join_fleet_order(
@@ -838,8 +875,10 @@ impl DashApp {
         destination: [u8; 2],
     ) -> Result<(), Box<dyn std::error::Error>> {
         if destination == row.coords {
-            self.game_data
-                .halt_starbase(self.player_record_index_1_based, row.base_record_index_1_based)?;
+            self.game_data.halt_starbase(
+                self.player_record_index_1_based,
+                row.base_record_index_1_based,
+            )?;
         } else {
             self.game_data.set_starbase_destination(
                 self.player_record_index_1_based,
@@ -880,7 +919,10 @@ impl DashApp {
     }
 
     fn reselect_fleet_overlay_row(&mut self, key: FleetOverlayRowKey) {
-        if let Some(index) = fleet_list::table_rows(self).iter().position(|row| row.key == key) {
+        if let Some(index) = fleet_list::table_rows(self)
+            .iter()
+            .position(|row| row.key == key)
+        {
             self.fleet_overlay.selected = index;
         }
     }

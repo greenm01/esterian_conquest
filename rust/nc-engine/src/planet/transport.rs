@@ -89,9 +89,9 @@ pub fn default_fleet_transport_fleet_number(
         .filter_map(|fleet| {
             let planet = owned_planet_row_for_fleet(owned_planet_rows, fleet)?;
             let ranking_qty = match mode {
-                ArmyTransportMode::Load => {
-                    fleet.troop_transport_count().saturating_sub(fleet.army_count())
-                }
+                ArmyTransportMode::Load => fleet
+                    .troop_transport_count()
+                    .saturating_sub(fleet.army_count()),
                 ArmyTransportMode::Unload => fleet.army_count(),
             };
             if ranking_qty == 0 || transport_available_qty(mode, fleet, planet) == 0 {
@@ -141,10 +141,11 @@ pub fn transport_planet_candidates(
             if mode == ArmyTransportMode::Load && row.armies == 0 {
                 return None;
             }
-            let fleets = transport_fleet_candidates_for_planet(game_data, owner_empire_id, mode, row)
-                .into_iter()
-                .filter(|fleet| fleet.available_qty > 0)
-                .collect::<Vec<_>>();
+            let fleets =
+                transport_fleet_candidates_for_planet(game_data, owner_empire_id, mode, row)
+                    .into_iter()
+                    .filter(|fleet| fleet.available_qty > 0)
+                    .collect::<Vec<_>>();
             if fleets.is_empty() {
                 return None;
             }
@@ -165,14 +166,16 @@ pub fn resolve_planet_transport_fleet_selection(
     mode: ArmyTransportMode,
     fleet_number: u16,
     owned_planet_rows: &[EmpirePlanetEconomyRow],
-) -> Result<(PlanetTransportFleetCandidate, EmpirePlanetEconomyRow), PlanetTransportSelectionError> {
+) -> Result<(PlanetTransportFleetCandidate, EmpirePlanetEconomyRow), PlanetTransportSelectionError>
+{
     let (fleet_record_index_1_based, fleet) = game_data
         .fleets
         .records
         .iter()
         .enumerate()
         .find(|(_, fleet)| {
-            fleet.owner_empire_raw() == owner_empire_id && fleet.local_slot_word_raw() == fleet_number
+            fleet.owner_empire_raw() == owner_empire_id
+                && fleet.local_slot_word_raw() == fleet_number
         })
         .map(|(idx, fleet)| (idx + 1, fleet))
         .ok_or(PlanetTransportSelectionError::NotOwnedFleet)?;
@@ -187,7 +190,11 @@ pub fn resolve_planet_transport_fleet_selection(
 
     match mode {
         ArmyTransportMode::Load => {
-            if fleet.troop_transport_count().saturating_sub(fleet.army_count()) == 0 {
+            if fleet
+                .troop_transport_count()
+                .saturating_sub(fleet.army_count())
+                == 0
+            {
                 return Err(PlanetTransportSelectionError::TroopTransportsFull);
             }
             if planet.armies == 0 {

@@ -177,7 +177,14 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy(
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
         .max(title.chars().count() + 6);
     let preferred_height = requested_body_height + 4;
-    draw_overlay_frame_in_map(buf, map_frame, title, preferred_width, preferred_height, footer)
+    draw_overlay_frame_in_map(
+        buf,
+        map_frame,
+        title,
+        preferred_width,
+        preferred_height,
+        footer,
+    )
 }
 
 pub fn draw_overlay_frame_for_body(

@@ -27,7 +27,8 @@ impl DashApp {
             return Err("dashboard campaign store unavailable".into());
         };
 
-        let planet_intel_by_viewer = planet_intel_by_viewer(&store, self.game_data.conquest.player_count())?;
+        let planet_intel_by_viewer =
+            planet_intel_by_viewer(&store, self.game_data.conquest.player_count())?;
         store.save_runtime_state_structured_with_intel_and_activity(
             &self.game_data,
             &self.planet_scorch_orders,
@@ -37,9 +38,9 @@ impl DashApp {
             &self.player_activity_states,
         )?;
 
-        let runtime_state = store
-            .load_latest_runtime_state()?
-            .ok_or("campaign store has no snapshots; initialize the campaign with nc-sysop first")?;
+        let runtime_state = store.load_latest_runtime_state()?.ok_or(
+            "campaign store has no snapshots; initialize the campaign with nc-sysop first",
+        )?;
         self.game_data = runtime_state.game_data;
         self.report_block_rows = runtime_state.report_block_rows;
         self.queued_mail = runtime_state.queued_mail;

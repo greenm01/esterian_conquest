@@ -154,7 +154,10 @@ pub fn planet_build_max_quantity(
     Ok(max_qty)
 }
 
-pub fn planet_build_unavailable_message(points_left: u32, kind: ProductionItemKind) -> &'static str {
+pub fn planet_build_unavailable_message(
+    points_left: u32,
+    kind: ProductionItemKind,
+) -> &'static str {
     if points_left == 0 {
         return "No points are available to spend.";
     }
@@ -199,7 +202,9 @@ pub fn planet_commission_slot_entries(planet: &PlanetRecord) -> Vec<PlanetCommis
         .collect()
 }
 
-pub fn planet_commission_draft_state(rows: &[PlanetCommissionSlotEntry]) -> PlanetCommissionDraftState {
+pub fn planet_commission_draft_state(
+    rows: &[PlanetCommissionSlotEntry],
+) -> PlanetCommissionDraftState {
     let mut totals = BTreeMap::<u8, (ProductionItemKind, u16)>::new();
     let mut starbase_rows = Vec::new();
     let mut draft_slots = Vec::new();
@@ -220,7 +225,9 @@ pub fn planet_commission_draft_state(rows: &[PlanetCommissionSlotEntry]) -> Plan
         draft_slots.push(row.slot_0_based);
         let kind_raw = production_item_kind_raw(row.kind);
         let entry = totals.entry(kind_raw).or_insert((row.kind, 0));
-        entry.1 = entry.1.saturating_add(row.qty.min(u32::from(u16::MAX)) as u16);
+        entry.1 = entry
+            .1
+            .saturating_add(row.qty.min(u32::from(u16::MAX)) as u16);
     }
 
     let mut draft_rows = Vec::new();
@@ -245,7 +252,10 @@ pub fn planet_commission_draft_state(rows: &[PlanetCommissionSlotEntry]) -> Plan
     }
     draft_rows.extend(starbase_rows);
 
-    PlanetCommissionDraftState { draft_slots, rows: draft_rows }
+    PlanetCommissionDraftState {
+        draft_slots,
+        rows: draft_rows,
+    }
 }
 
 pub fn commission_fleet_draft_from_entries(

@@ -1,8 +1,8 @@
 use nc_data::{EmpirePlanetEconomyRow, GameStateMutationError, ProductionItemKind};
 use nc_engine::{
-    BUILD_UNITS, BuildUnitSpec, build_unit_spec, build_unit_spec_by_kind, planet_build_max_quantity,
-    planet_build_orders, planet_build_unavailable_message, planet_build_view,
-    production_item_kind_raw,
+    BUILD_UNITS, BuildUnitSpec, build_unit_spec, build_unit_spec_by_kind,
+    planet_build_max_quantity, planet_build_orders, planet_build_unavailable_message,
+    planet_build_view, production_item_kind_raw,
 };
 
 use crate::overlays::planet_list;
@@ -25,7 +25,8 @@ pub(crate) struct PlanetBuildOrderLine {
 
 impl DashApp {
     pub(crate) fn planet_build_orders(&self) -> Vec<PlanetBuildOrderLine> {
-        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based() else {
+        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based()
+        else {
             return Vec::new();
         };
         let Some(record) = self
@@ -94,7 +95,8 @@ impl DashApp {
         let Some(row) = rows.get(selected) else {
             return;
         };
-        self.planet_overlay.build_planet_record_index_1_based = Some(row.planet_record_index_1_based);
+        self.planet_overlay.build_planet_record_index_1_based =
+            Some(row.planet_record_index_1_based);
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;
         self.planet_overlay.build_unit_notice = None;
@@ -140,11 +142,13 @@ impl DashApp {
         };
 
         let Ok(max_qty) = self.planet_build_max_quantity_for(unit.kind) else {
-            self.planet_overlay.build_unit_status = Some("No points are available to spend.".to_string());
+            self.planet_overlay.build_unit_status =
+                Some("No points are available to spend.".to_string());
             return;
         };
         if max_qty == 0 {
-            self.planet_overlay.build_unit_status = Some(self.planet_build_unavailable_message(unit.kind));
+            self.planet_overlay.build_unit_status =
+                Some(self.planet_build_unavailable_message(unit.kind));
             return;
         }
 
@@ -167,7 +171,9 @@ impl DashApp {
         self.planet_overlay.build_quantity_status = None;
     }
 
-    pub(crate) fn submit_planet_build_quantity(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) fn submit_planet_build_quantity(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(kind) = self.planet_overlay.build_selected_kind else {
             self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
             return Ok(());
@@ -178,17 +184,24 @@ impl DashApp {
         };
         let max_qty = self.planet_build_max_quantity_for(kind)?;
         if max_qty == 0 {
-            self.planet_overlay.build_quantity_status = Some(self.planet_build_unavailable_message(kind));
+            self.planet_overlay.build_quantity_status =
+                Some(self.planet_build_unavailable_message(kind));
             return Ok(());
         }
 
         let qty = if self.planet_overlay.build_quantity_input.trim().is_empty() {
             max_qty
         } else {
-            match self.planet_overlay.build_quantity_input.trim().parse::<u32>() {
+            match self
+                .planet_overlay
+                .build_quantity_input
+                .trim()
+                .parse::<u32>()
+            {
                 Ok(value) => value,
                 Err(_) => {
-                    self.planet_overlay.build_quantity_status = Some("Enter a valid quantity.".to_string());
+                    self.planet_overlay.build_quantity_status =
+                        Some("Enter a valid quantity.".to_string());
                     return Ok(());
                 }
             }
@@ -205,12 +218,16 @@ impl DashApp {
             return Ok(());
         }
 
-        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based() else {
+        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based()
+        else {
             self.close_planet_build_overlay();
             return Ok(());
         };
 
-        let needs_stardock = !matches!(kind, ProductionItemKind::Army | ProductionItemKind::GroundBattery);
+        let needs_stardock = !matches!(
+            kind,
+            ProductionItemKind::Army | ProductionItemKind::GroundBattery
+        );
         if needs_stardock {
             let capacity = self
                 .game_data

@@ -1,15 +1,14 @@
 //! P overlay: dashboard-sized planet management table.
 
-use nc_engine::BUILD_UNITS;
 use nc_data::{
     PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
 };
+use nc_engine::BUILD_UNITS;
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
-    table_render_width, write_stacked_table_window_with_theme_at,
-    write_table_window_with_theme_at,
+    table_render_width, write_stacked_table_window_with_theme_at, write_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
 
@@ -184,7 +183,8 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWi
     let summary_rows = 4;
     let natural_visible_rows = table_cells.len().max(1);
     let status_rows = usize::from(
-        app.planet_overlay.build_unit_notice.is_some() || app.planet_overlay.build_unit_status.is_some(),
+        app.planet_overlay.build_unit_notice.is_some()
+            || app.planet_overlay.build_unit_status.is_some(),
     );
     let frame = draw_overlay_frame_for_body_in_map(
         buf,

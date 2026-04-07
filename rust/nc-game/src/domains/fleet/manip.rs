@@ -7,8 +7,7 @@ use crate::screen::{
 };
 use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord};
 use nc_engine::{
-    fleet_eta_label as engine_fleet_eta_label,
-    fleet_list_eta_label as engine_fleet_list_eta_label,
+    fleet_eta_label as engine_fleet_eta_label, fleet_list_eta_label as engine_fleet_list_eta_label,
     fleet_target_eta_message,
 };
 

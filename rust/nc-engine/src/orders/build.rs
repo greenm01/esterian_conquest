@@ -76,7 +76,10 @@ pub const BUILD_UNITS: [BuildUnitSpec; 9] = [
 ];
 
 pub fn build_unit_spec(number: u8) -> Option<BuildUnitSpec> {
-    BUILD_UNITS.iter().copied().find(|unit| unit.number == number)
+    BUILD_UNITS
+        .iter()
+        .copied()
+        .find(|unit| unit.number == number)
 }
 
 pub fn build_unit_spec_by_kind(kind: ProductionItemKind) -> Option<BuildUnitSpec> {
