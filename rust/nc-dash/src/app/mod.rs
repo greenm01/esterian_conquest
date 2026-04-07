@@ -1515,7 +1515,11 @@ mod tests {
     use crossterm::event::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
-    use nc_data::{CampaignStore, GameStateBuilder, Order};
+    use nc_data::{CampaignStore, GameStateBuilder, IntelTier, Order, PlanetIntelSnapshot};
+    use nc_engine::{
+        fleet_target_input_kind, recommended_coordinate_target,
+        recommended_coordinate_target_y_for_entered_x,
+    };
     use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -1831,6 +1835,243 @@ mod tests {
         app.handle_key(key(KeyCode::Char('q')));
         assert_eq!(app.overlay, ActiveOverlay::FleetList);
         assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+    }
+
+    #[test]
+    fn empty_coordinate_submissions_accept_defaults() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        select_first_fleet_row(&mut app);
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+
+        let expected_x = app.fleet_order_target_x_default_value();
+        assert!(!expected_x.is_empty());
+
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderTargetY
+        );
+        assert_eq!(app.fleet_overlay.order_target_x_input, expected_x);
+
+        let expected_y = app.fleet_order_target_y_default_value();
+        assert!(!expected_y.is_empty());
+
+        app.handle_key(key(KeyCode::Enter));
+
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderConfirm
+        );
+        assert_eq!(app.fleet_overlay.order_target_y_input, expected_y);
+    }
+
+    #[test]
+    fn fleet_missions_route_to_expected_target_prompt_modes() {
+        let mut app = audit_ready_dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+
+        for mission_code in 0..=15 {
+            select_first_fleet_row(&mut app);
+            app.open_selected_fleet_order_flow();
+            app.fleet_overlay.mission_picker_input = mission_code.to_string();
+
+            app.submit_fleet_mission_picker();
+
+            let expected_prompt_mode = match fleet_target_input_kind(Some(mission_code)) {
+                nc_engine::FleetTargetInputKind::StarbaseId
+                | nc_engine::FleetTargetInputKind::FleetId
+                | nc_engine::FleetTargetInputKind::None => FleetOverlayPromptMode::OrderTarget,
+                nc_engine::FleetTargetInputKind::Coordinates => {
+                    FleetOverlayPromptMode::OrderTargetX
+                }
+            };
+            assert_eq!(
+                app.fleet_overlay.prompt_mode, expected_prompt_mode,
+                "mission {mission_code} routed to wrong prompt"
+            );
+        }
+    }
+
+    #[test]
+    fn coordinate_fleet_order_defaults_match_engine_recommendations() {
+        let mut app = audit_ready_dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+
+        for mission_code in [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15] {
+            select_first_fleet_row(&mut app);
+            app.open_selected_fleet_order_flow();
+            app.fleet_overlay.mission_picker_input = mission_code.to_string();
+            app.submit_fleet_mission_picker();
+
+            let selected_row = app.selected_fleet_order_row().expect("selected fleet row");
+            let snapshots = app
+                .planet_intel_snapshots
+                .iter()
+                .cloned()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>();
+            let expected_target = recommended_coordinate_target(
+                &app.game_data,
+                &snapshots,
+                app.player_record_index_1_based as u8,
+                mission_code,
+                selected_row.coords,
+                &BTreeSet::new(),
+            );
+
+            assert_eq!(
+                app.fleet_order_target_x_default_value(),
+                expected_target
+                    .map(|coords| format!("{:02}", coords[0]))
+                    .unwrap_or_default(),
+                "mission {mission_code} XX default drifted",
+            );
+
+            let expected_y = recommended_coordinate_target_y_for_entered_x(
+                &app.game_data,
+                &snapshots,
+                app.player_record_index_1_based as u8,
+                mission_code,
+                selected_row.coords,
+                &BTreeSet::new(),
+                "",
+            );
+            assert_eq!(
+                app.fleet_order_target_y_default_value(),
+                expected_y
+                    .map(|value| format!("{value:02}"))
+                    .unwrap_or_default(),
+                "mission {mission_code} YY default drifted",
+            );
+
+            app.fleet_overlay.order_target_x_input = app.fleet_order_target_x_default_value();
+            let expected_y_for_entered_x = recommended_coordinate_target_y_for_entered_x(
+                &app.game_data,
+                &snapshots,
+                app.player_record_index_1_based as u8,
+                mission_code,
+                selected_row.coords,
+                &BTreeSet::new(),
+                &app.fleet_overlay.order_target_x_input,
+            );
+            assert_eq!(
+                app.fleet_order_target_y_default_value(),
+                expected_y_for_entered_x
+                    .map(|value| format!("{value:02}"))
+                    .unwrap_or_default(),
+                "mission {mission_code} YY entered-X adaptation drifted",
+            );
+        }
+    }
+
+    #[test]
+    fn join_fleet_empty_submission_uses_default_target() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::FleetList;
+        select_first_fleet_row(&mut app);
+        let selected_record = match fleet_list::table_rows(&app)[app.fleet_overlay.selected].key {
+            FleetOverlayRowKey::Fleet(record_index) => record_index,
+            FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
+        };
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::JoinAnotherFleet.to_raw().to_string();
+
+        app.submit_fleet_mission_picker();
+
+        let expected_host_fleet_number = app
+            .fleet_order_target_default_value()
+            .parse::<u16>()
+            .expect("default host fleet number");
+        app.submit_fleet_order().expect("submit join target");
+
+        let selected_fleet = &app.game_data.fleets.records[selected_record - 1];
+        let expected_host = app
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .find(|fleet| {
+                fleet.owner_empire_raw() == 1
+                    && fleet.local_slot_word_raw() == expected_host_fleet_number
+            })
+            .expect("default host fleet");
+        assert_eq!(
+            selected_fleet.standing_order_kind(),
+            Order::JoinAnotherFleet
+        );
+        assert_eq!(
+            selected_fleet.standing_order_target_coords_raw(),
+            expected_host.current_location_coords_raw()
+        );
+    }
+
+    #[test]
+    fn guard_starbase_empty_submission_uses_default_target() {
+        let mut app = dash_app_with_starbase_store();
+        app.overlay = ActiveOverlay::FleetList;
+        select_first_fleet_row(&mut app);
+        let selected_record = match fleet_list::table_rows(&app)[app.fleet_overlay.selected].key {
+            FleetOverlayRowKey::Fleet(record_index) => record_index,
+            FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
+        };
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::GuardStarbase.to_raw().to_string();
+
+        app.submit_fleet_mission_picker();
+
+        let expected_base_id = app
+            .fleet_order_target_default_value()
+            .parse::<u8>()
+            .expect("default starbase id");
+        app.submit_fleet_order().expect("submit guard target");
+
+        let selected_fleet = &app.game_data.fleets.records[selected_record - 1];
+        let expected_base = app
+            .game_data
+            .bases
+            .records
+            .iter()
+            .find(|base| base.base_id_raw() == expected_base_id)
+            .expect("default starbase");
+        assert_eq!(selected_fleet.standing_order_kind(), Order::GuardStarbase);
+        assert_eq!(
+            selected_fleet.standing_order_target_coords_raw(),
+            expected_base.coords_raw()
+        );
+    }
+
+    #[test]
+    fn view_world_empty_coordinate_submission_uses_unknown_intel_default() {
+        let mut app = audit_ready_dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        select_first_fleet_row(&mut app);
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::ViewWorld.to_raw().to_string();
+
+        app.submit_fleet_mission_picker();
+
+        let expected_x = app.fleet_order_target_x_default_value();
+        let expected_y = app.fleet_order_target_y_default_value();
+        assert!(!expected_x.is_empty());
+        assert!(!expected_y.is_empty());
+
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(app.fleet_overlay.order_target_x_input, expected_x);
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderTargetY
+        );
+
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(app.fleet_overlay.order_target_y_input, expected_y);
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderConfirm
+        );
     }
 
     #[test]
@@ -2229,6 +2470,30 @@ mod tests {
         )
     }
 
+    fn audit_ready_dash_app() -> DashApp {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .with_homeworld_coords(vec![[16, 13], [12, 6], [4, 15], [15, 15]])
+                .with_guard_starbase(1, 1, [16, 13], 1)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            nc_ui::ScreenGeometry::new(160, 40),
+            nc_ui::ScreenGeometry::new(108, 26),
+            1,
+        );
+        seed_unowned_target_world(&mut app.game_data, [8, 8]);
+        strengthen_first_owned_fleet(&mut app.game_data);
+        app.planet_intel_snapshots = view_world_audit_snapshots(&app.game_data, 1);
+        app
+    }
+
     fn dash_app_with_starbase() -> DashApp {
         DashApp::new_for_tests(
             PathBuf::from("."),
@@ -2242,6 +2507,56 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
+            nc_ui::ScreenGeometry::new(160, 40),
+            nc_ui::ScreenGeometry::new(108, 26),
+            1,
+        )
+    }
+
+    fn dash_app_with_starbase_store() -> DashApp {
+        let root = std::env::temp_dir().join(format!(
+            "nc-dash-fleet-order-starbase-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).expect("create temp test dir");
+        let mut game_data = GameStateBuilder::new()
+            .with_player_count(4)
+            .with_guard_starbase(1, 1, [16, 13], 1)
+            .build_initialized_baseline()
+            .expect("baseline with starbase");
+        strengthen_first_owned_fleet(&mut game_data);
+        let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
+        let planet_intel_by_viewer = (0..game_data.conquest.player_count())
+            .map(|_| BTreeMap::new())
+            .collect::<Vec<_>>();
+        let player_activity_states = store
+            .latest_player_activity_states(game_data.conquest.player_count())
+            .expect("default player activity");
+        store
+            .save_runtime_state_structured_with_intel_and_activity(
+                &game_data,
+                &BTreeSet::new(),
+                &[],
+                &[],
+                &planet_intel_by_viewer,
+                &player_activity_states,
+            )
+            .expect("seed campaign store");
+
+        DashApp::new(
+            root,
+            Some(store),
+            game_data,
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            player_activity_states,
             nc_ui::ScreenGeometry::new(160, 40),
             nc_ui::ScreenGeometry::new(108, 26),
             1,
@@ -2294,6 +2609,111 @@ mod tests {
             nc_ui::ScreenGeometry::new(108, 26),
             1,
         )
+    }
+
+    fn strengthen_first_owned_fleet(game_data: &mut nc_data::CoreGameData) {
+        for fleet in game_data
+            .fleets
+            .records
+            .iter_mut()
+            .filter(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
+        {
+            fleet.set_battleship_count(1);
+            fleet.set_destroyer_count(1);
+            fleet.set_troop_transport_count(1);
+            fleet.set_army_count(2);
+            fleet.set_scout_count(1);
+            fleet.set_etac_count(1);
+            fleet.recompute_max_speed_from_composition();
+            fleet.set_current_speed(fleet.max_speed());
+        }
+    }
+
+    fn seed_unowned_target_world(game_data: &mut nc_data::CoreGameData, coords: [u8; 2]) {
+        let planet = game_data
+            .planets
+            .records
+            .iter_mut()
+            .find(|planet| planet.owner_empire_slot_raw() == 0 && planet.coords_raw() == [0, 0])
+            .expect("unused unowned planet slot");
+        planet.set_coords_raw(coords);
+        planet.set_owner_empire_slot_raw(0);
+    }
+
+    fn view_world_audit_snapshots(
+        game_data: &nc_data::CoreGameData,
+        viewer_empire_id: u8,
+    ) -> Vec<PlanetIntelSnapshot> {
+        let target_record_index = game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.owner_empire_slot_raw() != viewer_empire_id && planet.coords_raw() != [0, 0]
+            })
+            .map(|(idx, _)| idx + 1)
+            .expect("non-owned target planet");
+
+        game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(planet_index, planet)| {
+                let planet_record_index_1_based = planet_index + 1;
+                if planet.owner_empire_slot_raw() == viewer_empire_id {
+                    return None;
+                }
+                if planet_record_index_1_based == target_record_index {
+                    return Some(PlanetIntelSnapshot {
+                        planet_record_index_1_based,
+                        intel_tier: IntelTier::Unknown,
+                        compat_is_orbit_seed: false,
+                        last_intel_year: None,
+                        seen_year: None,
+                        scout_year: None,
+                        known_name: None,
+                        known_owner_empire_id: None,
+                        known_potential_production: None,
+                        known_armies: None,
+                        known_ground_batteries: None,
+                        known_starbase_count: None,
+                        known_current_production: None,
+                        known_stored_points: None,
+                        known_docked_summary: None,
+                        known_orbit_summary: None,
+                        compat_word_1e: None,
+                    });
+                }
+                Some(PlanetIntelSnapshot {
+                    planet_record_index_1_based,
+                    intel_tier: IntelTier::Partial,
+                    compat_is_orbit_seed: false,
+                    last_intel_year: Some(game_data.conquest.game_year()),
+                    seen_year: Some(game_data.conquest.game_year()),
+                    scout_year: None,
+                    known_name: None,
+                    known_owner_empire_id: Some(planet.owner_empire_slot_raw()),
+                    known_potential_production: None,
+                    known_armies: None,
+                    known_ground_batteries: None,
+                    known_starbase_count: None,
+                    known_current_production: None,
+                    known_stored_points: None,
+                    known_docked_summary: None,
+                    known_orbit_summary: None,
+                    compat_word_1e: None,
+                })
+            })
+            .collect()
+    }
+
+    fn select_first_fleet_row(app: &mut DashApp) {
+        app.fleet_overlay.selected = fleet_list::table_rows(app)
+            .iter()
+            .position(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
+            .expect("fleet row");
     }
 
     fn select_first_two_fleet_rows(app: &mut DashApp) -> Vec<usize> {

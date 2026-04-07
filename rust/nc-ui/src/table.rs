@@ -123,6 +123,10 @@ pub enum TableFooter<'a> {
         input: &'a str,
     },
     TablePrompt(&'a str),
+    Stacked {
+        rows: &'a [TableFooter<'a>],
+        active_row: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -732,6 +736,11 @@ pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
             input,
         } => shared_prompt::command_line_default_input_width(label, prompt, default, input),
         TableFooter::TablePrompt(prompt) => shared_prompt::table_command_prompt_width(prompt),
+        TableFooter::Stacked { rows, .. } => rows
+            .iter()
+            .map(|row| table_footer_width(*row))
+            .max()
+            .unwrap_or(0),
     }
 }
 
@@ -769,6 +778,18 @@ pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
             ..
         } => shared_prompt::command_line_default_input_scaffold_width(label, prompt, default),
         TableFooter::TablePrompt(prompt) => shared_prompt::table_command_prompt_width(prompt),
+        TableFooter::Stacked { rows, .. } => rows
+            .iter()
+            .map(|row| table_footer_scaffold_width(*row))
+            .max()
+            .unwrap_or(0),
+    }
+}
+
+pub fn table_footer_row_count(footer: TableFooter<'_>) -> usize {
+    match footer {
+        TableFooter::Stacked { rows, .. } => rows.len().max(1),
+        _ => 1,
     }
 }
 
@@ -804,6 +825,31 @@ pub fn draw_table_title(
 }
 
 pub fn draw_table_footer_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    footer: TableFooter<'_>,
+) -> usize {
+    match footer {
+        TableFooter::Stacked { rows, active_row } => {
+            if rows.is_empty() {
+                return col + width;
+            }
+            let active_row = active_row.min(rows.len().saturating_sub(1));
+            for (idx, footer_row) in rows.iter().enumerate() {
+                if idx == active_row {
+                    continue;
+                }
+                draw_single_table_footer_in_span(buffer, row + idx, col, width, *footer_row);
+            }
+            draw_single_table_footer_in_span(buffer, row + active_row, col, width, rows[active_row])
+        }
+        footer => draw_single_table_footer_in_span(buffer, row, col, width, footer),
+    }
+}
+
+fn draw_single_table_footer_in_span(
     buffer: &mut PlayfieldBuffer,
     row: usize,
     col: usize,
@@ -876,6 +922,7 @@ pub fn draw_table_footer_in_span(
         TableFooter::TablePrompt(prompt) => {
             shared_prompt::draw_table_command_prompt_in_span(buffer, row, col, width, prompt)
         }
+        TableFooter::Stacked { .. } => unreachable!("stacked table footers cannot nest"),
     }
 }
 
@@ -1380,4 +1427,78 @@ fn format_cell(cell: &str, column: TableColumn<'_>) -> String {
 
 fn truncate_to_width(value: &str, width: usize) -> String {
     value.chars().take(width).collect::<String>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        TableFooter, draw_table_footer_in_span, table_footer_row_count, table_footer_scaffold_width,
+    };
+    use crate::PlayfieldBuffer;
+    use crate::theme::classic;
+
+    #[test]
+    fn stacked_footer_uses_max_scaffold_width_and_two_rows() {
+        let rows = [
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Target XX ",
+                default: "03",
+                input: "03",
+            },
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Target YY ",
+                default: "11",
+                input: "",
+            },
+        ];
+        let footer = TableFooter::Stacked {
+            rows: &rows,
+            active_row: 1,
+        };
+
+        assert_eq!(table_footer_row_count(footer), 2);
+        assert_eq!(
+            table_footer_scaffold_width(footer),
+            table_footer_scaffold_width(rows[0]).max(table_footer_scaffold_width(rows[1]))
+        );
+    }
+
+    #[test]
+    fn stacked_footer_renders_rows_in_order_and_keeps_cursor_on_active_row() {
+        let rows = [
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Target XX ",
+                default: "03",
+                input: "03",
+            },
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Target YY ",
+                default: "11",
+                input: "",
+            },
+        ];
+        let footer = TableFooter::Stacked {
+            rows: &rows,
+            active_row: 1,
+        };
+        let mut buffer = PlayfieldBuffer::new(80, 6, classic::body_style());
+
+        draw_table_footer_in_span(&mut buffer, 2, 0, 60, footer);
+
+        assert!(
+            buffer
+                .plain_line(2)
+                .contains("COMMAND <- Target XX [03] <Q> ->")
+        );
+        assert!(
+            buffer
+                .plain_line(3)
+                .contains("COMMAND <- Target YY [11] <Q> ->")
+        );
+        assert_eq!(buffer.cursor().expect("cursor").1, 3);
+    }
 }

@@ -6,7 +6,9 @@ use nc_ui::modal::{
     ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent,
     draw_modal_frame_in_parent_with_placement, placed_rect,
 };
-use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
+use nc_ui::table::{
+    TableFooter, draw_table_footer_in_span, table_footer_row_count, table_footer_scaffold_width,
+};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::layout::MapWidgetFrame;
@@ -150,6 +152,7 @@ pub fn overlay_popup_rect_in_map(
     )
 }
 
+#[allow(dead_code)]
 pub fn draw_overlay_frame_in_map_with_origin(
     buf: &mut PlayfieldBuffer,
     map_frame: MapWidgetFrame,
@@ -190,8 +193,10 @@ fn overlay_frame_from_popup(
 ) -> OverlayFrame {
     let inner_left = popup.x as usize + 1;
     let inner_right = popup.x as usize + popup.width as usize - 2;
+    let footer_height = table_footer_row_count(footer);
     let footer_row = popup.y as usize + popup.height as usize - 2;
-    let divider_row = footer_row.saturating_sub(1);
+    let first_footer_row = footer_row.saturating_sub(footer_height.saturating_sub(1));
+    let divider_row = first_footer_row.saturating_sub(1);
     let chrome = theme::border_style();
 
     for col in inner_left..=inner_right {
@@ -201,7 +206,7 @@ fn overlay_frame_from_popup(
     buf.set_cell(divider_row, inner_right + 1, '┤', chrome);
     draw_table_footer_in_span(
         buf,
-        footer_row,
+        first_footer_row,
         popup.x as usize + 2,
         popup.width.saturating_sub(4) as usize,
         footer,
@@ -289,18 +294,32 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy_and_origin(
 ) -> OverlayFrame {
     let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
-    let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
-        .max(title.chars().count() + 6);
-    let preferred_height = requested_body_height + 4;
-    draw_overlay_frame_in_map_with_origin(
+    let footer_width = table_footer_scaffold_width(footer);
+    let preferred_width =
+        (requested_body_width.max(footer_width) + 4).max(title.chars().count() + 6);
+    let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
+    let parent = overlay_parent_rect(map_frame);
+    let placement = origin
+        .map(|origin| ModalPlacement::Origin {
+            x: parent.x.saturating_add(origin.col_offset as u16),
+            y: parent.y.saturating_add(origin.row_offset as u16),
+        })
+        .unwrap_or(ModalPlacement::Centered);
+    let popup = draw_modal_frame_in_parent_with_placement(
         buf,
-        map_frame,
         title,
         preferred_width,
-        preferred_height,
-        footer,
-        origin,
-    )
+        preferred_height as u16,
+        parent,
+        placement,
+        ModalTheme {
+            body_style: theme::body_style(),
+            pad_style: theme::dim_style(),
+            chrome_style: theme::border_style(),
+            title_style: theme::title_style(),
+        },
+    );
+    overlay_frame_from_popup(buf, popup, footer)
 }
 
 pub fn overlay_popup_rect_for_body_in_map(
@@ -316,7 +335,7 @@ pub fn overlay_popup_rect_for_body_in_map(
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
         .max(title.chars().count() + 6);
-    let preferred_height = requested_body_height + 4;
+    let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
     overlay_popup_rect_in_map(map_frame, title, preferred_width, preferred_height, origin)
 }
 
@@ -351,7 +370,7 @@ pub fn draw_overlay_frame_for_body_with_policy(
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
         .max(title.chars().count() + 6);
-    let preferred_height = requested_body_height + 4;
+    let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
     draw_overlay_frame(buf, title, preferred_width, preferred_height, footer)
 }
 
@@ -465,6 +484,52 @@ mod tests {
         assert!(
             !buffer
                 .plain_line(frame.footer_row.saturating_sub(1))
+                .contains("COMMAND <- ")
+        );
+    }
+
+    #[test]
+    fn stacked_footer_adds_a_second_footer_row_without_shrinking_body() {
+        let mut buffer = PlayfieldBuffer::new(60, 24, theme::body_style());
+        let footer_rows = [
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Target XX ",
+                default: "03",
+                input: "03",
+            },
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Target YY ",
+                default: "11",
+                input: "",
+            },
+        ];
+        let frame = draw_overlay_frame_for_body(
+            &mut buffer,
+            "ORDER FLEET",
+            32,
+            6,
+            TableFooter::Stacked {
+                rows: &footer_rows,
+                active_row: 1,
+            },
+        );
+
+        assert_eq!(frame.body_height, 6);
+        assert!(
+            buffer
+                .plain_line(frame.footer_row.saturating_sub(1))
+                .contains("COMMAND <- Target XX [03] <Q> ->")
+        );
+        assert!(
+            buffer
+                .plain_line(frame.footer_row)
+                .contains("COMMAND <- Target YY [11] <Q> ->")
+        );
+        assert!(
+            !buffer
+                .plain_line(frame.footer_row.saturating_sub(2))
                 .contains("COMMAND <- ")
         );
     }

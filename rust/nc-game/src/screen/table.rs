@@ -30,18 +30,35 @@ pub fn draw_table_footer(
     bottom_row: usize,
     footer: TableFooter<'_>,
 ) -> usize {
+    draw_single_table_footer(
+        buffer,
+        geometry,
+        table_col,
+        bottom_row,
+        table_prompt_row_for(geometry, bottom_row),
+        footer,
+    )
+}
+
+fn draw_single_table_footer(
+    buffer: &mut PlayfieldBuffer,
+    geometry: ScreenGeometry,
+    table_col: usize,
+    bottom_row: usize,
+    row: usize,
+    footer: TableFooter<'_>,
+) -> usize {
     match footer {
         TableFooter::Dismiss => {
-            let row = table_dismiss_prompt_row_for(geometry, bottom_row);
-            draw_dismiss_prompt_at_col(buffer, row, table_col);
-            row
+            let dismiss_row = table_dismiss_prompt_row_for(geometry, bottom_row);
+            draw_dismiss_prompt_at_col(buffer, dismiss_row, table_col);
+            dismiss_row
         }
         TableFooter::CommandBar {
             hotkeys_markup,
             default,
             input,
         } => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             draw_table_command_bar_at_col(buffer, row, table_col, hotkeys_markup, default, input);
             row
         }
@@ -51,7 +68,6 @@ pub fn draw_table_footer(
             default,
             input,
         } => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             crate::screen::layout::draw_labeled_table_command_bar_at_col(
                 buffer,
                 row,
@@ -64,12 +80,10 @@ pub fn draw_table_footer(
             row
         }
         TableFooter::CommandText { label, text } => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             draw_command_line_text_at_col(buffer, row, table_col, label, text);
             row
         }
         TableFooter::CommandPrompt { label, prompt } => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             draw_command_line_prompt_text_at_col(buffer, row, table_col, label, prompt);
             row
         }
@@ -78,7 +92,6 @@ pub fn draw_table_footer(
             prompt,
             input,
         } => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             draw_command_line_prompt_input_at_col(buffer, row, table_col, label, prompt, input);
             row
         }
@@ -88,16 +101,43 @@ pub fn draw_table_footer(
             default,
             input,
         } => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             draw_command_line_default_input_at_col(
                 buffer, row, table_col, label, prompt, default, input,
             );
             row
         }
         TableFooter::TablePrompt(prompt) => {
-            let row = table_prompt_row_for(geometry, bottom_row);
             draw_table_command_prompt_at_col(buffer, row, table_col, prompt);
             row
+        }
+        TableFooter::Stacked { rows, active_row } => {
+            if rows.is_empty() {
+                return row;
+            }
+            let active_row = active_row.min(rows.len().saturating_sub(1));
+            let last_row = table_prompt_row_for(geometry, bottom_row);
+            let first_row = last_row.saturating_sub(rows.len().saturating_sub(1));
+            for (idx, footer_row) in rows.iter().enumerate() {
+                if idx == active_row {
+                    continue;
+                }
+                draw_single_table_footer(
+                    buffer,
+                    geometry,
+                    table_col,
+                    bottom_row,
+                    first_row + idx,
+                    *footer_row,
+                );
+            }
+            draw_single_table_footer(
+                buffer,
+                geometry,
+                table_col,
+                bottom_row,
+                first_row + active_row,
+                rows[active_row],
+            )
         }
     }
 }

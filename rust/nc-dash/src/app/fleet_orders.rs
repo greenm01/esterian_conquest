@@ -627,10 +627,18 @@ impl DashApp {
             .unwrap_or_default()
     }
 
+    pub(crate) fn fleet_order_target_x_display_input(&self) -> String {
+        self.fleet_overlay.order_target_x_input.clone()
+    }
+
     pub(crate) fn fleet_order_target_y_default_value(&self) -> String {
         self.default_target_y_value_for_scope()
             .map(|value| format!("{value:02}"))
             .unwrap_or_default()
+    }
+
+    pub(crate) fn fleet_order_target_y_display_input(&self) -> String {
+        self.fleet_overlay.order_target_y_input.clone()
     }
 
     pub(crate) fn fleet_order_current_order_label(&self) -> String {

@@ -49,6 +49,7 @@ pub(crate) const HOTKEYS: &str = "? F S O SPACE <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A H M C <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? I L O E T <Q>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
+
 const COLUMNS: [TableColumn<'static>; 10] = [
     TableColumn::right("ID", 4),
     TableColumn::left("Sel.", 4),
@@ -338,24 +339,42 @@ fn draw_mission_picker(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
 }
 
 fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    let target_prompt = app.fleet_order_target_prompt();
+    let target_default = app.fleet_order_target_default_value();
+    let target_x_default = app.fleet_order_target_x_default_value();
+    let target_x_input = app.fleet_order_target_x_display_input();
+    let target_y_default = app.fleet_order_target_y_default_value();
+    let target_y_input = app.fleet_order_target_y_display_input();
+    let coordinate_rows = [
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target XX ",
+            default: &target_x_default,
+            input: &target_x_input,
+        },
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target YY ",
+            default: &target_y_default,
+            input: &target_y_input,
+        },
+    ];
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::OrderTarget => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: &app.fleet_order_target_prompt(),
-            default: &app.fleet_order_target_default_value(),
+            prompt: &target_prompt,
+            default: &target_default,
             input: &app.fleet_overlay.order_input,
         },
         FleetOverlayPromptMode::OrderTargetX => TableFooter::CommandInput {
             label: "COMMAND",
             prompt: "Target XX ",
-            default: &app.fleet_order_target_x_default_value(),
-            input: &app.fleet_overlay.order_target_x_input,
+            default: &target_x_default,
+            input: &target_x_input,
         },
-        FleetOverlayPromptMode::OrderTargetY => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Target YY ",
-            default: &app.fleet_order_target_y_default_value(),
-            input: &app.fleet_overlay.order_target_y_input,
+        FleetOverlayPromptMode::OrderTargetY => TableFooter::Stacked {
+            rows: &coordinate_rows,
+            active_row: 1,
         },
         FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
@@ -364,35 +383,34 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: 
         },
         _ => unreachable!("fleet order prompt expected"),
     };
+    let status = app.fleet_overlay.order_status.as_deref();
     let lines = if let Some(row) = app.selected_fleet_order_row() {
-        let mut lines = vec![
+        vec![
             format!("Fleet #{}", row.fleet_number),
             format!("Location: {}", format_coords(row.coords)),
             format!("Current Order: {}", app.fleet_order_current_order_label()),
             format!("New Order: {}", app.fleet_order_new_order_label()),
             app.fleet_order_target_status_line(),
-        ];
-        if let Some(status) = app.fleet_overlay.order_status.as_deref() {
-            lines.push(status.to_string());
-        }
-        lines
+        ]
     } else {
         vec!["Selected fleet is no longer available.".to_string()]
     };
     let body_width = lines
         .iter()
         .map(|line| line.chars().count())
+        .chain(status.iter().map(|line| line.chars().count()))
         .max()
         .unwrap_or(1);
+    let body_height = lines.len() + usize::from(status.is_some());
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
         "ORDER FLEET",
         body_width,
-        lines.len(),
+        body_height,
         footer,
     );
-    assert_overlay_body_write_fits(frame, "ORDER FLEET", body_width, lines.len());
+    assert_overlay_body_write_fits(frame, "ORDER FLEET", body_width, body_height);
     if app.selected_fleet_order_row().is_none() {
         write_clipped(
             buf,
@@ -418,10 +436,10 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: 
             },
         );
     }
-    if let Some(status) = app.fleet_overlay.order_status.as_deref() {
+    if let Some(status) = status {
         write_clipped(
             buf,
-            frame.body_row + 5,
+            frame.body_row + lines.len(),
             frame.body_col,
             frame.body_width,
             status,
@@ -435,24 +453,42 @@ fn draw_group_fleet_order_prompt(
     app: &DashApp,
     map_frame: MapWidgetFrame,
 ) {
+    let target_prompt = app.fleet_order_target_prompt();
+    let target_default = app.fleet_order_target_default_value();
+    let target_x_default = app.fleet_order_target_x_default_value();
+    let target_x_input = app.fleet_order_target_x_display_input();
+    let target_y_default = app.fleet_order_target_y_default_value();
+    let target_y_input = app.fleet_order_target_y_display_input();
+    let coordinate_rows = [
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target XX ",
+            default: &target_x_default,
+            input: &target_x_input,
+        },
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target YY ",
+            default: &target_y_default,
+            input: &target_y_input,
+        },
+    ];
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::OrderTarget => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: &app.fleet_order_target_prompt(),
-            default: &app.fleet_order_target_default_value(),
+            prompt: &target_prompt,
+            default: &target_default,
             input: &app.fleet_overlay.order_input,
         },
         FleetOverlayPromptMode::OrderTargetX => TableFooter::CommandInput {
             label: "COMMAND",
             prompt: "Target XX ",
-            default: &app.fleet_order_target_x_default_value(),
-            input: &app.fleet_overlay.order_target_x_input,
+            default: &target_x_default,
+            input: &target_x_input,
         },
-        FleetOverlayPromptMode::OrderTargetY => TableFooter::CommandInput {
-            label: "COMMAND",
-            prompt: "Target YY ",
-            default: &app.fleet_order_target_y_default_value(),
-            input: &app.fleet_overlay.order_target_y_input,
+        FleetOverlayPromptMode::OrderTargetY => TableFooter::Stacked {
+            rows: &coordinate_rows,
+            active_row: 1,
         },
         FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
@@ -461,8 +497,8 @@ fn draw_group_fleet_order_prompt(
         },
         _ => unreachable!("group fleet order prompt expected"),
     };
-
     let selected_summary = app.selected_group_order_fleet_summary();
+    let status = app.fleet_overlay.order_status.as_deref();
     let mut lines = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::OrderConfirm => vec![
             format!("Stardate: {}", app.game_data.conquest.game_year()),
@@ -481,20 +517,21 @@ fn draw_group_fleet_order_prompt(
         .drain(..)
         .flat_map(|line| wrap_group_prompt_line(&line, body_width))
         .collect::<Vec<_>>();
-    let status_rows = usize::from(app.fleet_overlay.order_status.is_some());
+    let status_rows = usize::from(status.is_some());
+    let body_height = wrapped_lines.len() + status_rows;
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
         "GROUP FLEET ORDER",
         body_width,
-        wrapped_lines.len() + status_rows,
+        body_height,
         footer,
     );
     assert_overlay_body_write_fits(
         frame,
         "GROUP FLEET ORDER",
         body_width.min(frame.body_width),
-        wrapped_lines.len() + status_rows,
+        body_height,
     );
     for (idx, line) in wrapped_lines.iter().enumerate().take(frame.body_height) {
         write_clipped(
@@ -514,7 +551,7 @@ fn draw_group_fleet_order_prompt(
             },
         );
     }
-    if let Some(status) = app.fleet_overlay.order_status.as_deref() {
+    if let Some(status) = status {
         write_clipped(
             buf,
             frame.body_row + wrapped_lines.len(),
@@ -901,6 +938,101 @@ mod tests {
     }
 
     #[test]
+    fn fleet_target_x_footer_shows_adaptive_default() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+
+        let lines = render_lines_for_prompt(&app);
+        let expected = format!(
+            "COMMAND <- Target XX [{}] <Q> ->",
+            app.fleet_order_target_x_default_value()
+        );
+
+        assert!(lines.iter().any(|line| line.contains(&expected)));
+    }
+
+    #[test]
+    fn fleet_target_y_step_keeps_x_prompt_visible_and_shows_adaptive_y_default() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+
+        let lines = render_lines_for_prompt(&app);
+        let expected_x = format!(
+            "COMMAND <- Target XX [{}] <Q> ->",
+            app.fleet_order_target_x_default_value()
+        );
+        let expected_y = format!(
+            "COMMAND <- Target YY [{}] <Q> ->",
+            app.fleet_order_target_y_default_value()
+        );
+
+        assert!(lines.iter().any(|line| line.contains(&expected_x)));
+        assert!(lines.iter().any(|line| line.contains(&expected_y)));
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.contains("COMMAND <- Target XX "))
+                .count(),
+            1
+        );
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.contains("COMMAND <- Target YY "))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn fleet_target_y_footer_stacks_x_above_y() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+        app.fleet_overlay.order_target_x_input = "03".to_string();
+
+        let rows = render_prompt_rows(&app);
+
+        assert_eq!(rows.len(), 2);
+        assert!(rows[0].1.contains("COMMAND <- Target XX "));
+        assert!(rows[0].1.contains("03"));
+        assert!(rows[1].1.contains("COMMAND <- Target YY "));
+        assert_eq!(rows[1].0, rows[0].0 + 1);
+    }
+
+    #[test]
+    fn fleet_target_x_step_renders_command_line_in_body_like_nc_game() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+
+        let lines = render_lines_for_prompt(&app);
+
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.contains("COMMAND <- Target XX "))
+                .count(),
+            1
+        );
+        assert!(
+            !lines
+                .iter()
+                .any(|line| line.contains("COMMAND <- Target YY "))
+        );
+    }
+
+    #[test]
     fn fleet_browse_hotkeys_match_supported_commands() {
         assert_eq!(HOTKEYS, "? F S O SPACE <Q>");
     }
@@ -926,6 +1058,81 @@ mod tests {
 
         assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
         assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
+    }
+
+    #[test]
+    fn group_target_y_step_keeps_x_prompt_visible_and_shows_adaptive_y_default() {
+        let mut app = dash_app();
+        configure_group_confirm_prompt(&mut app, &[0, 1]);
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+        app.fleet_overlay.order_target_x_input.clear();
+        app.fleet_overlay.order_target_y_input.clear();
+
+        let lines = render_lines_for_prompt(&app);
+        let expected_x = format!(
+            "COMMAND <- Target XX [{}] <Q> ->",
+            app.fleet_order_target_x_default_value()
+        );
+        let expected_y = format!(
+            "COMMAND <- Target YY [{}] <Q> ->",
+            app.fleet_order_target_y_default_value()
+        );
+
+        assert!(lines.iter().any(|line| line.contains(&expected_x)));
+        assert!(lines.iter().any(|line| line.contains(&expected_y)));
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.contains("COMMAND <- Target XX "))
+                .count(),
+            1
+        );
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.contains("COMMAND <- Target YY "))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn group_target_y_footer_stacks_x_above_y() {
+        let mut app = dash_app();
+        configure_group_confirm_prompt(&mut app, &[0, 1]);
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+        app.fleet_overlay.order_target_x_input = "03".to_string();
+
+        let rows = render_prompt_rows(&app);
+
+        assert_eq!(rows.len(), 2);
+        assert!(rows[0].1.contains("COMMAND <- Target XX "));
+        assert!(rows[0].1.contains("03"));
+        assert!(rows[1].1.contains("COMMAND <- Target YY "));
+        assert_eq!(rows[1].0, rows[0].0 + 1);
+    }
+
+    #[test]
+    fn group_target_x_step_renders_command_line_in_body_like_nc_game() {
+        let mut app = dash_app();
+        configure_group_confirm_prompt(&mut app, &[0, 1]);
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+        app.fleet_overlay.order_target_x_input.clear();
+
+        let lines = render_lines_for_prompt(&app);
+
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line.contains("COMMAND <- Target XX "))
+                .count(),
+            1
+        );
+        assert!(
+            !lines
+                .iter()
+                .any(|line| line.contains("COMMAND <- Target YY "))
+        );
     }
 
     #[test]
@@ -1107,6 +1314,27 @@ mod tests {
                     || line.contains("New Order:")
                     || line.contains("Stardate:")
             })
+            .collect()
+    }
+
+    fn render_lines_for_prompt(app: &DashApp) -> Vec<String> {
+        render_prompt_rows(app)
+            .into_iter()
+            .map(|(_, line)| line)
+            .collect()
+    }
+
+    fn render_prompt_rows(app: &DashApp) -> Vec<(usize, String)> {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| (row, buffer.plain_line(row)))
+            .filter(|(_, line)| line.contains("COMMAND <- Target"))
             .collect()
     }
 }
