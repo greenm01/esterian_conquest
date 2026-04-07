@@ -8,6 +8,8 @@ use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::overlays::frame::RelativePopupOrigin;
+
 /// Which panel has keyboard focus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanelFocus {
@@ -59,6 +61,21 @@ pub enum ActiveOverlay {
     Help,
 }
 
+impl ActiveOverlay {
+    pub const fn is_draggable(self) -> bool {
+        match self {
+            Self::PlanetList
+            | Self::FleetList
+            | Self::IntelDatabase
+            | Self::Inbox
+            | Self::Diplomacy
+            | Self::Settings
+            | Self::Help => true,
+            Self::None => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePopup {
     None,
@@ -69,6 +86,15 @@ pub enum ActivePopup {
 pub enum MapViewMode {
     Readable,
     Fill,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActiveMouseGesture {
+    None,
+    DraggingOverlay {
+        grab_col_offset: usize,
+        grab_row_offset: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -495,6 +521,9 @@ pub struct DashApp {
     pub overlay: ActiveOverlay,
     pub popup: ActivePopup,
     pub help_return_overlay: ActiveOverlay,
+    pub overlay_position: Option<RelativePopupOrigin>,
+    pub help_return_overlay_position: Option<RelativePopupOrigin>,
+    pub mouse_gesture: ActiveMouseGesture,
     pub help_context: HelpContext,
     pub autopilot_on: bool,
 
@@ -565,6 +594,9 @@ impl DashApp {
             overlay: ActiveOverlay::None,
             popup: ActivePopup::None,
             help_return_overlay: ActiveOverlay::None,
+            overlay_position: None,
+            help_return_overlay_position: None,
+            mouse_gesture: ActiveMouseGesture::None,
             help_context: HelpContext::Global,
             autopilot_on: false,
             crosshair_x,
@@ -610,6 +642,16 @@ impl DashApp {
             frame,
             player_record_index_1_based,
         )
+    }
+
+    pub fn overlay_position_for(&self, overlay: ActiveOverlay) -> Option<RelativePopupOrigin> {
+        if self.overlay == overlay {
+            self.overlay_position
+        } else if self.overlay == ActiveOverlay::Help && self.help_return_overlay == overlay {
+            self.help_return_overlay_position
+        } else {
+            None
+        }
     }
 }
 

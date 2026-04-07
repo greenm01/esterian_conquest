@@ -6,6 +6,7 @@ use nc_data::{
 use nc_engine::BUILD_UNITS;
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
+use nc_ui::modal::Rect;
 use nc_ui::table::{
     SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
@@ -13,11 +14,15 @@ use nc_ui::table::{
 };
 use nc_ui::table_selection;
 
-use crate::app::state::{DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort};
+use crate::app::state::{
+    ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
-    stacked_table_body_height, standard_table_body_height, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits,
+    draw_overlay_frame_for_body_in_map, draw_overlay_frame_for_body_in_map_with_origin,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_map, stacked_table_body_height,
+    standard_table_body_height, write_clipped,
 };
 use crate::theme;
 
@@ -118,13 +123,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
     let body_width = table_render_width(&columns)
         .max("You do not currently control any planets.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
         "PLANET LIST",
         body_width,
         stacked_table_body_height(natural_visible_rows),
         footer,
+        app.overlay_position_for(ActiveOverlay::PlanetList),
     );
     let visible_rows = frame.body_height.saturating_sub(5);
     assert_overlay_body_write_fits(
@@ -167,6 +173,77 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     }
 }
 
+pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rect> {
+    match app.planet_overlay.prompt_mode {
+        PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
+            return None;
+        }
+        _ => {}
+    }
+    let rows = table_rows(app);
+    let selected = app
+        .planet_overlay
+        .selected
+        .min(rows.len().saturating_sub(1));
+    let selected_default = rows
+        .get(selected)
+        .map(|row| format_sector_coords_default(row.coords));
+    let footer = match app.planet_overlay.prompt_mode {
+        PlanetOverlayPromptMode::None => TableFooter::CommandBar {
+            hotkeys_markup: HOTKEYS,
+            default: selected_default.as_deref(),
+            input: &app.planet_overlay.jump_input,
+        },
+        PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
+            label: "SORT",
+            hotkeys_markup: SORT_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        PlanetOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+            label: "FILTER",
+            hotkeys_markup: FILTER_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        PlanetOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Range from ",
+            default: &app.planet_overlay.prompt_default,
+            input: &app.planet_overlay.prompt_input,
+        },
+        PlanetOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Range radius ",
+            default: &app.planet_overlay.prompt_default,
+            input: &app.planet_overlay.prompt_input,
+        },
+        PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
+            unreachable!("build flows are not draggable")
+        }
+    };
+    let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
+    let natural_visible_rows = table_cells.len().max(1);
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &table_cells,
+        max_overlay_body_width(map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let body_width = table_render_width(&columns)
+        .max("You do not currently control any planets.".chars().count() + 4);
+    Some(overlay_popup_rect_for_body_in_map(
+        map_frame,
+        "PLANET LIST",
+        body_width,
+        stacked_table_body_height(natural_visible_rows),
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::PlanetList),
+    ))
+}
+
 fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let view = app.planet_build_view();
     let entries = app.planet_build_specify_entries();
@@ -207,7 +284,8 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWi
     };
 
     write_build_points_line(buf, frame, view.points_left, table_width);
-    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
+    let table_col =
+        frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
     let _ = write_split_table_at(
         buf,
         frame.body_row + 1,
@@ -245,7 +323,10 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
     let table_width = build_specify_table_width();
     let status_rows = usize::from(app.planet_overlay.build_quantity_status.is_some());
     let default_qty = max_qty.to_string();
-    let prompt = format!("How many new {} to build (0 - {}) ", unit.singular_label, max_qty);
+    let prompt = format!(
+        "How many new {} to build (0 - {}) ",
+        unit.singular_label, max_qty
+    );
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
@@ -279,7 +360,8 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
     };
 
     write_build_points_line(buf, frame, view.points_left, table_width);
-    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
+    let table_col =
+        frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
     let _ = write_split_table_at(
         buf,
         frame.body_row + 1,
@@ -331,14 +413,17 @@ fn write_build_points_line(
     points_left: u32,
     table_width: usize,
 ) {
-    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
+    let table_col =
+        frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
     let points_left_label = format!("PP LEFT TO SPEND: {}", points_left);
     let points_left_col = table_col + table_width - TABLE_TEXT_INSET - points_left_label.len();
     write_clipped(
         buf,
         frame.body_row,
         points_left_col,
-        frame.body_width.saturating_sub(points_left_col.saturating_sub(frame.body_col)),
+        frame
+            .body_width
+            .saturating_sub(points_left_col.saturating_sub(frame.body_col)),
         &points_left_label,
         theme::title_style(),
     );
@@ -351,14 +436,14 @@ fn build_specify_split_rows(entries: &[nc_engine::PlanetBuildSpecifyEntry]) -> V
     (0..left_units.len())
         .map(|idx| {
             let left = entries[left_units[idx]];
-            let right = right_units.get(idx).and_then(|entry_idx| entries.get(*entry_idx).copied());
+            let right = right_units
+                .get(idx)
+                .and_then(|entry_idx| entries.get(*entry_idx).copied());
             SplitTableRow {
                 left_cells: build_specify_cells(left),
-                right_cells: right
-                    .map(build_specify_cells)
-                    .unwrap_or_else(|| {
-                        vec![String::new(), String::new(), String::new(), String::new()]
-                    }),
+                right_cells: right.map(build_specify_cells).unwrap_or_else(|| {
+                    vec![String::new(), String::new(), String::new(), String::new()]
+                }),
             }
         })
         .collect()

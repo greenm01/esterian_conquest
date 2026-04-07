@@ -1,27 +1,28 @@
 //! ? overlay: keyboard reference, centered on screen.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::{format_help_rows, wrap_formatted_help_lines};
+use nc_ui::modal::{Rect, format_help_rows, wrap_formatted_help_lines};
 use nc_ui::table::TableFooter;
 
-use crate::app::state::{DashApp, HelpContext};
+use crate::app::state::{ActiveOverlay, DashApp, HelpContext};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
-    write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map_with_origin,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_map, write_clipped,
 };
 use crate::theme;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let lines = help_lines(app.help_context);
     let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
         "HELP",
         wrapped.content_width,
         wrapped.lines.len(),
         TableFooter::Dismiss,
+        app.overlay_position_for(ActiveOverlay::Help),
     );
     assert_overlay_body_write_fits(frame, "HELP", wrapped.content_width, wrapped.lines.len());
 
@@ -35,6 +36,20 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             theme::label_style(),
         );
     }
+}
+
+pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let lines = help_lines(app.help_context);
+    let wrapped = wrap_formatted_help_lines(&lines, max_overlay_body_width(map_frame));
+    overlay_popup_rect_for_body_in_map(
+        map_frame,
+        "HELP",
+        wrapped.content_width,
+        wrapped.lines.len(),
+        OverlaySizePolicy::default(),
+        TableFooter::Dismiss,
+        app.overlay_position_for(ActiveOverlay::Help),
+    )
 }
 
 fn help_lines(context: HelpContext) -> Vec<String> {
@@ -63,6 +78,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Viewport",
                 "Small terminals auto-clip the map around the crosshair",
             ),
+            ("Mouse", "Drag top-level overlays by the title bar"),
+            ("Map Click", "Jump the crosshair to a visible sector"),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
             ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
         ],

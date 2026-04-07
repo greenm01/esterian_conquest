@@ -1,8 +1,11 @@
 //! Shared modal shell for dashboard overlays.
 
-use nc_ui::modal::{ModalTheme, Rect, draw_modal_frame_in_parent};
 #[cfg(test)]
 use nc_ui::modal::draw_modal_frame;
+use nc_ui::modal::{
+    ModalPlacement, ModalTheme, Rect, draw_modal_frame_in_parent,
+    draw_modal_frame_in_parent_with_placement, placed_rect,
+};
 use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -16,6 +19,12 @@ pub struct OverlayFrame {
     pub body_width: usize,
     pub body_height: usize,
     pub footer_row: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RelativePopupOrigin {
+    pub col_offset: usize,
+    pub row_offset: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -117,6 +126,63 @@ pub fn draw_overlay_frame_in_map(
     overlay_frame_from_popup(buf, popup, footer)
 }
 
+pub fn overlay_popup_rect_in_map(
+    map_frame: MapWidgetFrame,
+    _title: &str,
+    preferred_width: usize,
+    preferred_height: usize,
+    origin: Option<RelativePopupOrigin>,
+) -> Rect {
+    let parent = overlay_parent_rect(map_frame);
+    let max_width = parent.width.saturating_sub(2).max(1);
+    let max_height = parent.height.saturating_sub(2).max(1);
+    let placement = origin
+        .map(|origin| ModalPlacement::Origin {
+            x: parent.x.saturating_add(origin.col_offset as u16),
+            y: parent.y.saturating_add(origin.row_offset as u16),
+        })
+        .unwrap_or(ModalPlacement::Centered);
+    placed_rect(
+        preferred_width.min(max_width as usize) as u16,
+        preferred_height.min(max_height as usize) as u16,
+        parent,
+        placement,
+    )
+}
+
+pub fn draw_overlay_frame_in_map_with_origin(
+    buf: &mut PlayfieldBuffer,
+    map_frame: MapWidgetFrame,
+    title: &str,
+    preferred_width: usize,
+    preferred_height: usize,
+    footer: TableFooter<'_>,
+    origin: Option<RelativePopupOrigin>,
+) -> OverlayFrame {
+    let parent = overlay_parent_rect(map_frame);
+    let placement = origin
+        .map(|origin| ModalPlacement::Origin {
+            x: parent.x.saturating_add(origin.col_offset as u16),
+            y: parent.y.saturating_add(origin.row_offset as u16),
+        })
+        .unwrap_or(ModalPlacement::Centered);
+    let popup = draw_modal_frame_in_parent_with_placement(
+        buf,
+        title,
+        preferred_width,
+        preferred_height as u16,
+        parent,
+        placement,
+        ModalTheme {
+            body_style: theme::body_style(),
+            pad_style: theme::dim_style(),
+            chrome_style: theme::border_style(),
+            title_style: theme::title_style(),
+        },
+    );
+    overlay_frame_from_popup(buf, popup, footer)
+}
+
 fn overlay_frame_from_popup(
     buf: &mut PlayfieldBuffer,
     popup: Rect,
@@ -169,6 +235,27 @@ pub fn draw_overlay_frame_for_body_in_map(
     )
 }
 
+pub fn draw_overlay_frame_for_body_in_map_with_origin(
+    buf: &mut PlayfieldBuffer,
+    map_frame: MapWidgetFrame,
+    title: &str,
+    body_width: usize,
+    body_height: usize,
+    footer: TableFooter<'_>,
+    origin: Option<RelativePopupOrigin>,
+) -> OverlayFrame {
+    draw_overlay_frame_for_body_in_map_with_policy_and_origin(
+        buf,
+        map_frame,
+        title,
+        body_width,
+        body_height,
+        OverlaySizePolicy::default(),
+        footer,
+        origin,
+    )
+}
+
 pub fn draw_overlay_frame_for_body_in_map_with_policy(
     buf: &mut PlayfieldBuffer,
     map_frame: MapWidgetFrame,
@@ -178,19 +265,59 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy(
     size_policy: OverlaySizePolicy,
     footer: TableFooter<'_>,
 ) -> OverlayFrame {
+    draw_overlay_frame_for_body_in_map_with_policy_and_origin(
+        buf,
+        map_frame,
+        title,
+        natural_body_width,
+        natural_body_height,
+        size_policy,
+        footer,
+        None,
+    )
+}
+
+pub fn draw_overlay_frame_for_body_in_map_with_policy_and_origin(
+    buf: &mut PlayfieldBuffer,
+    map_frame: MapWidgetFrame,
+    title: &str,
+    natural_body_width: usize,
+    natural_body_height: usize,
+    size_policy: OverlaySizePolicy,
+    footer: TableFooter<'_>,
+    origin: Option<RelativePopupOrigin>,
+) -> OverlayFrame {
     let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
         .max(title.chars().count() + 6);
     let preferred_height = requested_body_height + 4;
-    draw_overlay_frame_in_map(
+    draw_overlay_frame_in_map_with_origin(
         buf,
         map_frame,
         title,
         preferred_width,
         preferred_height,
         footer,
+        origin,
     )
+}
+
+pub fn overlay_popup_rect_for_body_in_map(
+    map_frame: MapWidgetFrame,
+    title: &str,
+    natural_body_width: usize,
+    natural_body_height: usize,
+    size_policy: OverlaySizePolicy,
+    footer: TableFooter<'_>,
+    origin: Option<RelativePopupOrigin>,
+) -> Rect {
+    let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
+    let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
+    let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
+        .max(title.chars().count() + 6);
+    let preferred_height = requested_body_height + 4;
+    overlay_popup_rect_in_map(map_frame, title, preferred_width, preferred_height, origin)
 }
 
 #[cfg(test)]
@@ -427,6 +554,52 @@ mod tests {
         assert!(frame.body_row >= map_frame.outer.row + 2);
         assert!(frame.body_col + frame.body_width <= map_frame.outer.last_col());
         assert!(frame.footer_row < map_frame.outer.last_row());
+    }
+
+    #[test]
+    fn map_scoped_overlay_origin_clamps_inside_center_widget() {
+        let map_frame = MapWidgetFrame {
+            outer: WidgetRect {
+                col: 20,
+                row: 5,
+                width: 60,
+                height: 24,
+            },
+            map_block: WidgetRect {
+                col: 21,
+                row: 6,
+                width: 58,
+                height: 22,
+            },
+            axis_row: 6,
+            grid: WidgetRect {
+                col: 24,
+                row: 7,
+                width: 54,
+                height: 20,
+            },
+            bottom_pad_row: 27,
+            row_label_cols: 3,
+            cell_width: 3,
+        };
+        let popup = overlay_popup_rect_for_body_in_map(
+            map_frame,
+            "HELP",
+            48,
+            10,
+            OverlaySizePolicy::default(),
+            TableFooter::Dismiss,
+            Some(RelativePopupOrigin {
+                col_offset: 999,
+                row_offset: 999,
+            }),
+        );
+        let parent = overlay_parent_rect(map_frame);
+
+        assert!(popup.x >= parent.x);
+        assert!(popup.y >= parent.y);
+        assert!(popup.x + popup.width <= parent.x + parent.width);
+        assert!(popup.y + popup.height <= parent.y + parent.height);
     }
 
     #[test]

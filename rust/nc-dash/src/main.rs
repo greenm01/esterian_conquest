@@ -84,17 +84,19 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         StdoutTerminal::with_encoding_and_color_mode(OutputEncoding::Utf8, color_mode);
 
     // Enable alternate screen + raw mode.
+    use crossterm::event::EnableMouseCapture;
     use crossterm::execute;
     use crossterm::terminal::{EnterAlternateScreen, enable_raw_mode};
     enable_raw_mode()?;
-    execute!(std::io::stdout(), EnterAlternateScreen)?;
+    execute!(std::io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
 
     let result = run_dashboard(app, &mut terminal);
 
     // Restore terminal.
+    use crossterm::event::DisableMouseCapture;
     use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
     let _ = disable_raw_mode();
-    let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
+    let _ = execute!(std::io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
 
     result
 }

@@ -7,14 +7,16 @@ pub(crate) mod planet_build;
 pub mod render;
 pub mod state;
 
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
 use nc_ui::table_selection;
+use nc_ui::modal::Rect;
 use nc_ui::{ScreenGeometry, Terminal};
 use state::{
-    ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter, FleetOverlayPromptMode,
-    FleetOverlaySort, HelpContext, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
-    MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter,
+    FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
+    IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, PlanetOverlayFilter,
+    PlanetOverlayPromptMode, PlanetOverlaySort,
 };
 
 use crate::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
@@ -38,6 +40,11 @@ impl DashApp {
                         self.handle_key(key);
                     } else if key.code == KeyCode::Char('q') || key.code == KeyCode::Char('Q') {
                         self.should_quit = true;
+                    }
+                }
+                Event::Mouse(mouse) => {
+                    if !self.is_terminal_too_small {
+                        self.handle_mouse(mouse);
                     }
                 }
                 Event::Resize(cols, rows) => {
@@ -77,11 +84,17 @@ impl DashApp {
                 if overlay == ActiveOverlay::Help {
                     self.help_context = HelpContext::Global;
                     self.help_return_overlay = ActiveOverlay::None;
+                    self.help_return_overlay_position = None;
                 }
+                self.overlay_position = None;
+                self.mouse_gesture = ActiveMouseGesture::None;
                 self.overlay = overlay;
             }
             Action::CloseOverlay => self.close_active_overlay(),
-            Action::ClosePopup => self.popup = ActivePopup::None,
+            Action::ClosePopup => {
+                self.popup = ActivePopup::None;
+                self.mouse_gesture = ActiveMouseGesture::None;
+            }
             Action::MoveCrosshairUp => {
                 // Up arrow → higher Y (row 18 at top of screen).
                 let map_size =
@@ -173,6 +186,110 @@ impl DashApp {
         let _ = key;
         self.apply_action(Action::ClosePopup);
         true
+    }
+
+    fn handle_mouse(&mut self, mouse: MouseEvent) {
+        if self.popup != ActivePopup::None {
+            self.mouse_gesture = ActiveMouseGesture::None;
+            return;
+        }
+
+        let map_frame = dashboard::dashboard_layout(self).widgets.center_map;
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if self.overlay != ActiveOverlay::None {
+                    self.handle_overlay_mouse_down(mouse, map_frame);
+                    return;
+                }
+                self.mouse_gesture = ActiveMouseGesture::None;
+                self.handle_map_mouse_down(mouse, map_frame);
+            }
+            MouseEventKind::Drag(MouseButton::Left) | MouseEventKind::Moved => {
+                self.handle_mouse_move(mouse, map_frame);
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                self.mouse_gesture = ActiveMouseGesture::None;
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_overlay_mouse_down(
+        &mut self,
+        mouse: MouseEvent,
+        map_frame: crate::layout::MapWidgetFrame,
+    ) {
+        let Some(popup) = self.current_overlay_popup_rect(map_frame) else {
+            self.mouse_gesture = ActiveMouseGesture::None;
+            return;
+        };
+        let mouse_col = mouse.column as usize;
+        let mouse_row = mouse.row as usize;
+        if self.overlay.is_draggable() && overlay_title_bar_contains(popup, mouse_col, mouse_row) {
+            self.mouse_gesture = ActiveMouseGesture::DraggingOverlay {
+                grab_col_offset: mouse_col.saturating_sub(popup.x as usize),
+                grab_row_offset: mouse_row.saturating_sub(popup.y as usize),
+            };
+        } else {
+            self.mouse_gesture = ActiveMouseGesture::None;
+        }
+    }
+
+    fn handle_map_mouse_down(
+        &mut self,
+        mouse: MouseEvent,
+        map_frame: crate::layout::MapWidgetFrame,
+    ) {
+        let Some([x, y]) =
+            starmap::screen_sector_at_point(self, map_frame, mouse.column as usize, mouse.row as usize)
+        else {
+            return;
+        };
+        self.crosshair_x = x;
+        self.crosshair_y = y;
+        self.focus = state::PanelFocus::Map;
+        self.map_coord_input.clear();
+    }
+
+    fn handle_mouse_move(
+        &mut self,
+        mouse: MouseEvent,
+        map_frame: crate::layout::MapWidgetFrame,
+    ) {
+        let ActiveMouseGesture::DraggingOverlay {
+            grab_col_offset,
+            grab_row_offset,
+        } = self.mouse_gesture
+        else {
+            return;
+        };
+        if self.overlay == ActiveOverlay::None || !self.overlay.is_draggable() {
+            self.mouse_gesture = ActiveMouseGesture::None;
+            return;
+        }
+        let parent = crate::overlays::frame::overlay_parent_rect(map_frame);
+        let target_x = mouse.column.saturating_sub(grab_col_offset as u16);
+        let target_y = mouse.row.saturating_sub(grab_row_offset as u16);
+        self.overlay_position = Some(crate::overlays::frame::RelativePopupOrigin {
+            col_offset: target_x.saturating_sub(parent.x) as usize,
+            row_offset: target_y.saturating_sub(parent.y) as usize,
+        });
+    }
+
+    fn current_overlay_popup_rect(
+        &self,
+        map_frame: crate::layout::MapWidgetFrame,
+    ) -> Option<Rect> {
+        match self.overlay {
+            ActiveOverlay::None => None,
+            ActiveOverlay::PlanetList => planet_list::popup_rect(self, map_frame),
+            ActiveOverlay::FleetList => fleet_list::popup_rect(self, map_frame),
+            ActiveOverlay::IntelDatabase => Some(intel_database::popup_rect(self, map_frame)),
+            ActiveOverlay::Inbox => Some(inbox::popup_rect(self, map_frame)),
+            ActiveOverlay::Diplomacy => Some(crate::overlays::diplomacy::popup_rect(self, map_frame)),
+            ActiveOverlay::Settings => Some(crate::overlays::settings::popup_rect(self, map_frame)),
+            ActiveOverlay::Help => Some(crate::overlays::help::popup_rect(self, map_frame)),
+        }
     }
 
     fn jump_crosshair_to_planet(&mut self, direction: starmap::PlanetJumpDirection) {
@@ -319,8 +436,10 @@ impl DashApp {
             }
             KeyCode::Char('?') => {
                 self.help_return_overlay = self.overlay;
+                self.help_return_overlay_position = self.overlay_position.take();
                 self.help_context = help_context;
                 self.overlay = ActiveOverlay::Help;
+                self.mouse_gesture = ActiveMouseGesture::None;
                 true
             }
             _ => false,
@@ -331,10 +450,13 @@ impl DashApp {
         if self.overlay == ActiveOverlay::Help {
             self.overlay = self.help_return_overlay;
             self.help_return_overlay = ActiveOverlay::None;
+            self.overlay_position = self.help_return_overlay_position.take();
             self.help_context = HelpContext::Global;
         } else {
             self.overlay = ActiveOverlay::None;
+            self.overlay_position = None;
         }
+        self.mouse_gesture = ActiveMouseGesture::None;
     }
 
     fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
@@ -1110,8 +1232,10 @@ impl DashApp {
 impl DashApp {
     fn open_overlay_help(&mut self, help_context: HelpContext) {
         self.help_return_overlay = self.overlay;
+        self.help_return_overlay_position = self.overlay_position.take();
         self.help_context = help_context;
         self.overlay = ActiveOverlay::Help;
+        self.mouse_gesture = ActiveMouseGesture::None;
     }
 
     fn reset_planet_overlay_prompt(&mut self) {
@@ -1369,6 +1493,12 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
     }
 }
 
+fn overlay_title_bar_contains(popup: Rect, col: usize, row: usize) -> bool {
+    row == popup.y as usize
+        && col >= popup.x as usize
+        && col < popup.x as usize + popup.width as usize
+}
+
 #[cfg(test)]
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
@@ -1376,8 +1506,9 @@ mod tests {
         ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, IntelOverlayFilter,
         IntelOverlayPromptMode, MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode,
     };
+    use crate::layout::dashboard::dashboard_layout;
     use crate::overlays::{fleet_list, intel_database, planet_list};
-    use crossterm::event::{KeyCode, KeyEvent};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use nc_data::{GameStateBuilder, Order};
     use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
@@ -1725,6 +1856,142 @@ mod tests {
         assert_eq!(app.intel_overlay.prompt_mode, IntelOverlayPromptMode::None);
     }
 
+    #[test]
+    fn dragging_top_level_overlay_updates_position() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("inbox popup rect");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            popup.x + 2,
+            popup.y,
+        ));
+        app.handle_mouse(mouse(
+            MouseEventKind::Drag(MouseButton::Left),
+            popup.x + 9,
+            popup.y + 4,
+        ));
+
+        assert!(app.overlay_position.is_some());
+
+        let moved_popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("moved popup rect");
+        assert!(moved_popup.x > popup.x);
+        assert!(moved_popup.y > popup.y);
+    }
+
+    #[test]
+    fn closing_and_reopening_overlay_recenters_dragged_position() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("inbox popup rect");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            popup.x + 2,
+            popup.y,
+        ));
+        app.handle_mouse(mouse(
+            MouseEventKind::Drag(MouseButton::Left),
+            popup.x + 12,
+            popup.y + 3,
+        ));
+        let moved_popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("moved popup rect");
+        assert_ne!(moved_popup.x, popup.x);
+
+        app.close_active_overlay();
+        app.apply_action(super::input::Action::OpenOverlay(ActiveOverlay::Inbox));
+
+        let recentered_popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("reopened popup rect");
+        assert_eq!(recentered_popup.x, popup.x);
+        assert_eq!(recentered_popup.y, popup.y);
+    }
+
+    #[test]
+    fn help_overlay_restores_dragged_underlay_position() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Inbox;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("inbox popup rect");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            popup.x + 2,
+            popup.y,
+        ));
+        app.handle_mouse(mouse(
+            MouseEventKind::Drag(MouseButton::Left),
+            popup.x + 10,
+            popup.y + 2,
+        ));
+        let moved_popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("moved popup rect");
+
+        app.open_overlay_help(crate::app::state::HelpContext::Inbox);
+        app.close_active_overlay();
+
+        let restored_popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("restored popup rect");
+        assert_eq!(restored_popup.x, moved_popup.x);
+        assert_eq!(restored_popup.y, moved_popup.y);
+    }
+
+    #[test]
+    fn clicking_map_sector_moves_crosshair() {
+        let mut app = dash_app();
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let target = crate::panels::starmap::screen_sector_at_point(
+            &app,
+            map_frame,
+            map_frame.grid.col + map_frame.row_label_cols + 5,
+            map_frame.grid.row + 5,
+        )
+        .expect("sector under test point");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            (map_frame.grid.col + map_frame.row_label_cols + 5) as u16,
+            (map_frame.grid.row + 5) as u16,
+        ));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], target);
+    }
+
+    #[test]
+    fn clicks_do_not_leak_through_open_overlay_to_map() {
+        let mut app = dash_app();
+        let starting = [app.crosshair_x, app.crosshair_y];
+        app.overlay = ActiveOverlay::Help;
+        let map_frame = dashboard_layout(&app).widgets.center_map;
+        let popup = app
+            .current_overlay_popup_rect(map_frame)
+            .expect("help popup rect");
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            popup.x + popup.width / 2,
+            popup.y + popup.height / 2,
+        ));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], starting);
+    }
+
     fn dash_app() -> DashApp {
         DashApp::new_for_tests(
             PathBuf::from("."),
@@ -1744,6 +2011,15 @@ mod tests {
     }
 
     fn key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, crossterm::event::KeyModifiers::NONE)
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
+        MouseEvent {
+            kind,
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }
     }
 }

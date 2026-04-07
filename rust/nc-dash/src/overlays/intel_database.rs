@@ -5,17 +5,21 @@ use std::collections::BTreeMap;
 use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
+use nc_ui::modal::Rect;
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
 
-use crate::app::state::{DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort};
+use crate::app::state::{
+    ActiveOverlay, DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
+};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
-    stacked_table_body_height, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits,
+    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_map, stacked_table_body_height, write_clipped,
 };
 use crate::theme;
 
@@ -112,13 +116,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
     let body_width =
         table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
         "TOTAL PLANET DATABASE",
         body_width,
         stacked_table_body_height(natural_visible_rows),
         footer,
+        app.overlay_position_for(ActiveOverlay::IntelDatabase),
     );
     let visible_rows = frame.body_height.saturating_sub(5);
     assert_overlay_body_write_fits(
@@ -154,6 +159,83 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             theme::dim_style(),
         );
     }
+}
+
+pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let rows = table_rows(app);
+    let selected = app.intel_overlay.selected.min(rows.len().saturating_sub(1));
+    let selected_default = rows
+        .get(selected)
+        .map(|row| format_sector_coords_default(row.coords));
+    let footer = match app.intel_overlay.prompt_mode {
+        IntelOverlayPromptMode::None => TableFooter::CommandBar {
+            hotkeys_markup: HOTKEYS,
+            default: selected_default.as_deref(),
+            input: &app.intel_overlay.jump_input,
+        },
+        IntelOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
+            label: "SORT",
+            hotkeys_markup: SORT_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        IntelOverlayPromptMode::SortRangeInput => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Sort range from ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+            label: "FILTER",
+            hotkeys_markup: FILTER_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        IntelOverlayPromptMode::FilterRangeCoords => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Range from ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterRangeDistance => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Range radius ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterEmpireInput => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Empire ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+        IntelOverlayPromptMode::FilterMaxProductionInput => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Max production at least ",
+            default: &app.intel_overlay.prompt_default,
+            input: &app.intel_overlay.prompt_input,
+        },
+    };
+    let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
+    let natural_visible_rows = table_cells.len().max(1);
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &table_cells,
+        max_overlay_body_width(map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let body_width =
+        table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
+    overlay_popup_rect_for_body_in_map(
+        map_frame,
+        "TOTAL PLANET DATABASE",
+        body_width,
+        stacked_table_body_height(natural_visible_rows),
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::IntelDatabase),
+    )
 }
 
 pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {

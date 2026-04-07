@@ -115,6 +115,7 @@ grammar:
 `[XX,YY]` always reflects the current crosshair position. The player may type
 coordinates directly into that footer to jump the crosshair, using the same
 punctuation-insensitive coordinate parser behavior as table typed-jump.
+Left-clicking a visible sector in the map also jumps the crosshair there.
 
 ## Overlay Windows
 
@@ -123,6 +124,7 @@ help, and settings open as centered modal work windows inside the fullscreen
 dashboard canvas:
 
 - centered with visible outer padding
+- draggable by the title bar for the current open instance
 - boxed with proper borders and titles
 - command rails and prompts rendered inside the popup box
 - all table, preview, and prompt content clipped to the popup body

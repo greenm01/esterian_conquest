@@ -250,6 +250,34 @@ impl ProjectedMapGeometry {
     }
 }
 
+impl SectorRect {
+    fn contains_point(&self, col: usize, row: usize) -> bool {
+        col >= self.col
+            && col < self.col + self.width
+            && row >= self.row
+            && row < self.row + self.height
+    }
+}
+
+pub(crate) fn screen_sector_at_point(
+    app: &DashApp,
+    frame: MapWidgetFrame,
+    col: usize,
+    row: usize,
+) -> Option<[u8; 2]> {
+    let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
+    let projected = projected_map_geometry(app, frame, map_size);
+    for world_y in (projected.y_min..=projected.y_max).rev() {
+        for world_x in projected.x_min..=projected.x_max {
+            let rect = projected.sector_rect([world_x, world_y])?;
+            if rect.contains_point(col, row) {
+                return Some([world_x, world_y]);
+            }
+        }
+    }
+    None
+}
+
 fn draw_column_axis_label(
     buf: &mut PlayfieldBuffer,
     axis_row: usize,
@@ -865,6 +893,64 @@ mod tests {
         assert_eq!(
             projected.visible_x as usize,
             frame.grid.width.saturating_sub(frame.row_label_cols)
+        );
+    }
+
+    #[test]
+    fn map_hit_test_returns_visible_sector_coordinates() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let rect = projected.sector_rect([6, 7]).expect("visible sector rect");
+
+        assert_eq!(
+            screen_sector_at_point(&app, frame, rect.col + rect.width / 2, rect.row + rect.height / 2),
+            Some([6, 7])
+        );
+    }
+
+    #[test]
+    fn map_hit_test_ignores_axis_labels_and_padding() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+
+        assert_eq!(screen_sector_at_point(&app, frame, frame.grid.col, frame.axis_row), None);
+        assert_eq!(
+            screen_sector_at_point(
+                &app,
+                frame,
+                frame.grid.col.saturating_sub(1),
+                frame.grid.row.saturating_sub(1)
+            ),
+            None
         );
     }
 

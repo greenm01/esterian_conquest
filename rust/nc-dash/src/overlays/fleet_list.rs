@@ -3,6 +3,7 @@
 use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::format_sector_coords_table;
+use nc_ui::modal::Rect;
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_table_window_with_theme_at,
@@ -10,12 +11,15 @@ use nc_ui::table::{
 use nc_ui::table_selection;
 
 use crate::app::state::{
-    DashApp, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey, FleetOverlaySort,
+    ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey,
+    FleetOverlaySort,
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
-    standard_table_body_height, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits,
+    draw_overlay_frame_for_body_in_map, draw_overlay_frame_for_body_in_map_with_origin,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_map, standard_table_body_height,
+    write_clipped,
 };
 use nc_data::Order;
 
@@ -133,13 +137,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
     let body_width = table_render_width(&columns)
         .max("You have no active fleets or starbases.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
         "FLEET LIST",
         body_width,
         standard_table_body_height(natural_visible_rows),
         footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
     );
     let visible_rows = frame.body_height.saturating_sub(4);
     assert_overlay_body_write_fits(
@@ -174,6 +179,74 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             theme::dim_style(),
         );
     }
+}
+
+pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rect> {
+    match app.fleet_overlay.prompt_mode {
+        FleetOverlayPromptMode::MissionPicker
+        | FleetOverlayPromptMode::OrderTarget
+        | FleetOverlayPromptMode::OrderTargetX
+        | FleetOverlayPromptMode::OrderTargetY
+        | FleetOverlayPromptMode::OrderConfirm
+        | FleetOverlayPromptMode::StarbaseMoveDecision
+        | FleetOverlayPromptMode::StarbaseMoveDestination
+        | FleetOverlayPromptMode::StarbaseHaltConfirm => {
+            return None;
+        }
+        _ => {}
+    }
+    let rows = table_rows(app);
+    let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
+    let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
+    let footer = match app.fleet_overlay.prompt_mode {
+        FleetOverlayPromptMode::None => TableFooter::CommandBar {
+            hotkeys_markup: HOTKEYS,
+            default: selected_default,
+            input: &app.fleet_overlay.jump_input,
+        },
+        FleetOverlayPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+            label: "FILTER",
+            hotkeys_markup: FILTER_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
+            label: "SORT",
+            hotkeys_markup: SORT_HOTKEYS,
+            default: None,
+            input: "",
+        },
+        FleetOverlayPromptMode::MissionPicker
+        | FleetOverlayPromptMode::OrderTarget
+        | FleetOverlayPromptMode::OrderTargetX
+        | FleetOverlayPromptMode::OrderTargetY
+        | FleetOverlayPromptMode::OrderConfirm
+        | FleetOverlayPromptMode::StarbaseMoveDecision
+        | FleetOverlayPromptMode::StarbaseMoveDestination
+        | FleetOverlayPromptMode::StarbaseHaltConfirm => {
+            unreachable!("prompt overlays are not draggable")
+        }
+    };
+    let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
+    let natural_visible_rows = table_cells.len().max(1);
+    let columns = resolve_table_columns(
+        &COLUMNS,
+        &table_cells,
+        max_overlay_body_width(map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let body_width = table_render_width(&columns)
+        .max("You have no active fleets or starbases.".chars().count() + 4);
+    Some(overlay_popup_rect_for_body_in_map(
+        map_frame,
+        "FLEET LIST",
+        body_width,
+        standard_table_body_height(natural_visible_rows),
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
+    ))
 }
 
 fn draw_mission_picker(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {

@@ -1,15 +1,18 @@
 //! D overlay: centered diplomacy and leaderboard table.
 
 use nc_ui::PlayfieldBuffer;
+use nc_ui::modal::Rect;
 use nc_ui::table::{TableFooter, draw_scrollbar_at};
 
-use crate::app::state::DashApp;
+use crate::app::state::{ActiveOverlay, DashApp};
 use crate::diplomacy_view::{
     display_name, empire_name_style, relation_label_and_style, state_label_and_style,
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_hline, draw_overlay_frame_for_body_in_map, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, draw_hline,
+    draw_overlay_frame_for_body_in_map_with_origin, overlay_popup_rect_for_body_in_map,
+    write_clipped,
 };
 use crate::theme;
 
@@ -54,13 +57,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         default: None,
         input: "",
     };
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
         "DIPLOMACY",
         body_width,
         natural_visible_rows + 2,
         footer,
+        app.overlay_position_for(ActiveOverlay::Diplomacy),
     );
     let max_rows = frame.body_height.saturating_sub(2);
     assert_overlay_body_write_fits(frame, "DIPLOMACY", body_width, max_rows + 2);
@@ -121,6 +125,23 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         scroll,
         theme::table_theme(),
     );
+}
+
+pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let natural_visible_rows = app.game_data.player.records.len().max(1);
+    overlay_popup_rect_for_body_in_map(
+        map_frame,
+        "DIPLOMACY",
+        HEADER.chars().count() + 1,
+        natural_visible_rows + 2,
+        OverlaySizePolicy::default(),
+        TableFooter::CommandBar {
+            hotkeys_markup: HOTKEYS,
+            default: None,
+            input: "",
+        },
+        app.overlay_position_for(ActiveOverlay::Diplomacy),
+    )
 }
 
 #[derive(Debug, Clone)]

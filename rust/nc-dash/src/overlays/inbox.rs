@@ -1,15 +1,17 @@
 //! R overlay: centered split-pane inbox for reports and messages.
 
 use nc_ui::PlayfieldBuffer;
+use nc_ui::modal::Rect;
 use nc_ui::table::{TableFooter, draw_scrollbar_at};
 use nc_ui::theme::classic;
 
-use crate::app::state::{DashApp, InboxFocus};
+use crate::app::state::{ActiveOverlay, DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, matches_filter, project_inbox_items};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_hline, draw_overlay_frame_for_body_in_map, draw_vline,
-    max_overlay_body_width, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, draw_hline,
+    draw_overlay_frame_for_body_in_map_with_origin, draw_vline, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_map, write_clipped,
 };
 use crate::theme;
 
@@ -67,13 +69,14 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             .map(|item| item.body_lines.len().max(1))
             .unwrap_or(1),
     );
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
         "INBOX",
         body_width,
         4 + natural_content_rows,
         footer,
+        app.overlay_position_for(ActiveOverlay::Inbox),
     );
     let max_rows = frame.body_height.saturating_sub(4);
     assert_overlay_body_write_fits(frame, "INBOX", frame.body_width, 4 + max_rows);
@@ -226,6 +229,58 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             );
         }
     }
+}
+
+pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let items = inbox_items(app);
+    let selected = app
+        .inbox_overlay
+        .selected
+        .min(items.len().saturating_sub(1));
+    let selected_default = items.get(selected).map(|_| format!("{:02}", selected + 1));
+    let footer = TableFooter::CommandBar {
+        hotkeys_markup: HOTKEYS,
+        default: selected_default.as_deref(),
+        input: &app.inbox_overlay.jump_input,
+    };
+    let filter_line = format!(
+        "Filter:{}  Year:{}  Focus:{}{}",
+        app.inbox_overlay.filter.label(),
+        if app.inbox_overlay.current_year_only {
+            "Current"
+        } else {
+            "All"
+        },
+        match app.inbox_overlay.focus {
+            InboxFocus::List => "List",
+            InboxFocus::Preview => "Preview",
+        },
+        if app.inbox_overlay.delete_confirm {
+            "  Delete this item? Y/[N]"
+        } else {
+            ""
+        }
+    );
+    let target_body_width = filter_line
+        .chars()
+        .count()
+        .max(LIST_WIDTH + SPLIT_GAP_WIDTH + TARGET_PREVIEW_WIDTH);
+    let body_width = target_body_width.min(max_overlay_body_width(map_frame));
+    let natural_content_rows = items.len().max(1).max(
+        items
+            .get(selected)
+            .map(|item| item.body_lines.len().max(1))
+            .unwrap_or(1),
+    );
+    overlay_popup_rect_for_body_in_map(
+        map_frame,
+        "INBOX",
+        body_width,
+        4 + natural_content_rows,
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::Inbox),
+    )
 }
 
 pub(crate) fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {

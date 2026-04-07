@@ -8,6 +8,13 @@ pub struct Rect {
     pub height: u16,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ModalPlacement {
+    #[default]
+    Centered,
+    Origin { x: u16, y: u16 },
+}
+
 impl Rect {
     pub const fn new(x: u16, y: u16, width: u16, height: u16) -> Self {
         Self {
@@ -25,6 +32,19 @@ pub fn centered_rect(width: u16, height: u16, parent: Rect) -> Rect {
     let x = parent.x + parent.width.saturating_sub(width) / 2;
     let y = parent.y + parent.height.saturating_sub(height) / 2;
     Rect::new(x, y, width, height)
+}
+
+pub fn placed_rect(width: u16, height: u16, parent: Rect, placement: ModalPlacement) -> Rect {
+    let width = width.min(parent.width);
+    let height = height.min(parent.height);
+    match placement {
+        ModalPlacement::Centered => centered_rect(width, height, parent),
+        ModalPlacement::Origin { x, y } => {
+            let max_x = parent.x + parent.width.saturating_sub(width);
+            let max_y = parent.y + parent.height.saturating_sub(height);
+            Rect::new(x.clamp(parent.x, max_x), y.clamp(parent.y, max_y), width, height)
+        }
+    }
 }
 
 pub fn modal_content_rect(popup: Rect) -> Rect {
@@ -106,12 +126,33 @@ pub fn draw_modal_frame_in_parent(
     parent: Rect,
     theme: ModalTheme,
 ) -> Rect {
+    draw_modal_frame_in_parent_with_placement(
+        buffer,
+        title,
+        preferred_width,
+        height,
+        parent,
+        ModalPlacement::Centered,
+        theme,
+    )
+}
+
+pub fn draw_modal_frame_in_parent_with_placement(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    preferred_width: usize,
+    height: u16,
+    parent: Rect,
+    placement: ModalPlacement,
+    theme: ModalTheme,
+) -> Rect {
     let max_width = parent.width.saturating_sub(2).max(1);
     let max_height = parent.height.saturating_sub(2).max(1);
-    let popup = centered_rect(
+    let popup = placed_rect(
         preferred_width.min(max_width as usize) as u16,
         height.min(max_height),
         parent,
+        placement,
     );
     let pad_x = popup.x.saturating_sub(1).max(parent.x);
     let pad_y = popup.y.saturating_sub(1).max(parent.y);
