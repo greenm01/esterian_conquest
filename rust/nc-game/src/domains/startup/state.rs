@@ -1,14 +1,7 @@
 use crate::domains::startup::screens::startup::StartupReviewMode;
 use crate::screen::ScreenId;
 use crate::theme::ThemeEntry;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum FirstTimeOnboardingMode {
-    #[default]
-    Generic,
-    BbsReserved,
-    HostedInvite,
-}
+pub use nc_session::onboarding::FirstTimeOnboardingMode;
 
 pub struct StartupState {
     pub startup_status: Option<String>,

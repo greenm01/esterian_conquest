@@ -13,13 +13,14 @@ use nc_gate::serve::routing::{GameEntry, RouteError};
 #[test]
 fn session_ready_payload_json_basic() {
     let payload = SessionReadyPayload {
-        game_id: "friday-night",
-        ssh_host: "play.example.com",
+        game_id: "friday-night".to_string(),
+        ssh_host: "play.example.com".to_string(),
         ssh_port: 22,
-        ssh_user: "ecgame",
-        game_name: "Friday Night EC",
+        ssh_user: "ecgame".to_string(),
+        host_fingerprint: String::new(),
+        game_name: "Friday Night EC".to_string(),
         seat: 2,
-        player_name: "Empire of Sol",
+        player_name: "Empire of Sol".to_string(),
         session_ui: SessionUiMode::ClassicNcGame,
     };
     let json = payload.to_json();
@@ -36,13 +37,14 @@ fn session_ready_payload_json_basic() {
 #[test]
 fn session_ready_payload_is_valid_json_structure() {
     let payload = SessionReadyPayload {
-        game_id: "test",
-        ssh_host: "host",
+        game_id: "test".to_string(),
+        ssh_host: "host".to_string(),
         ssh_port: 2222,
-        ssh_user: "mag",
-        game_name: "Test",
+        ssh_user: "mag".to_string(),
+        host_fingerprint: String::new(),
+        game_name: "Test".to_string(),
         seat: 1,
-        player_name: "Empire",
+        player_name: "Empire".to_string(),
         session_ui: SessionUiMode::FullscreenNcDash,
     };
     let json = payload.to_json();
@@ -152,13 +154,14 @@ fn nip44_round_trip_session_ready_payload() {
     let player_keys = Keys::generate();
 
     let payload = SessionReadyPayload {
-        game_id: "friday-night",
-        ssh_host: "play.example.com",
+        game_id: "friday-night".to_string(),
+        ssh_host: "play.example.com".to_string(),
         ssh_port: 22,
-        ssh_user: "ecgame",
-        game_name: "Friday Night EC",
+        ssh_user: "ecgame".to_string(),
+        host_fingerprint: String::new(),
+        game_name: "Friday Night EC".to_string(),
         seat: 3,
-        player_name: "Commander \"Codex\"",
+        player_name: "Commander \"Codex\"".to_string(),
         session_ui: SessionUiMode::FullscreenNcDash,
     };
     let plaintext = payload.to_json();

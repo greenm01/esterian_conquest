@@ -10,16 +10,18 @@
 //! 5. Decrypt and parse the NIP-44 encrypted payload.
 //! 6. Disconnect from the relay.
 //!
-//! Payload types (`SessionReadyPayload`, `SessionErrorPayload`,
-//! `GameEntry`) are plain data structs.  JSON parsing is done by hand
-//! using a minimal helper so we avoid pulling in `serde_json`.
+//! Payload types live in `nc-nostr`; this module owns the async relay flow.
 
 use std::time::Duration;
 
-use nc_nostr::json::{extract_str, extract_u32};
 use nc_nostr::nonce::random_nonce_hex;
+pub use nc_nostr::session::{
+    GameEntry, SessionErrorPayload, SessionReadyPayload, SessionUiMode, parse_session_error,
+    parse_session_ready,
+};
+use nc_nostr::session::build_session_request_event;
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{Client, EventBuilder, Keys, Kind, PublicKey, Tag, Timestamp};
+use nostr_sdk::{Client, Keys, Kind, PublicKey, Timestamp};
 
 use crate::connect::live_response::{
     build_response_filter, is_matching_response_event, wait_for_matching_response,
@@ -31,69 +33,6 @@ use crate::connect::ssh_key::EphemeralKeypair;
 
 /// How long to wait for a 30502/30503 response before giving up.
 pub const HANDSHAKE_TIMEOUT_SECS: u64 = 15;
-
-// ── Payload types ─────────────────────────────────────────────────────────────
-
-/// Decrypted payload from a 30502 SessionReady event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SessionUiMode {
-    ClassicNcGame,
-    FullscreenNcDash,
-}
-
-impl SessionUiMode {
-    pub const CLASSIC_NC_GAME_WIRE: &'static str = "classic_nc_game";
-    pub const FULLSCREEN_NC_DASH_WIRE: &'static str = "fullscreen_nc_dash";
-
-    pub fn parse_wire(value: &str) -> Result<Self, String> {
-        match value {
-            Self::CLASSIC_NC_GAME_WIRE => Ok(Self::ClassicNcGame),
-            Self::FULLSCREEN_NC_DASH_WIRE => Ok(Self::FullscreenNcDash),
-            other => Err(format!("unknown session_ui {other:?}")),
-        }
-    }
-
-    pub const fn as_wire(self) -> &'static str {
-        match self {
-            Self::ClassicNcGame => Self::CLASSIC_NC_GAME_WIRE,
-            Self::FullscreenNcDash => Self::FULLSCREEN_NC_DASH_WIRE,
-        }
-    }
-}
-
-/// Decrypted payload from a 30502 SessionReady event.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SessionReadyPayload {
-    pub game_id: String,
-    pub ssh_host: String,
-    pub ssh_port: u16,
-    /// SSH username to authenticate as. Empty string if not present (old gate version).
-    pub ssh_user: String,
-    /// SSH server host-key fingerprint for verification, e.g. `"SHA256:…"`.
-    /// Empty string if not present (old gate version).
-    pub host_fingerprint: String,
-    pub game_name: String,
-    pub seat: u32,
-    pub player_name: String,
-    pub session_ui: SessionUiMode,
-}
-
-/// One entry in a `multiple_games` error list.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GameEntry {
-    pub game_id: String,
-    pub name: String,
-    pub seat: u32,
-}
-
-/// Decrypted payload from a 30503 SessionError event.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SessionErrorPayload {
-    pub error: String,
-    pub message: String,
-    /// Only present when `error == "multiple_games"`.
-    pub games: Vec<GameEntry>,
-}
 
 /// Outcome of a completed handshake attempt.
 #[derive(Debug)]
@@ -204,123 +143,14 @@ async fn publish_session_request(
     invite_code: Option<&str>,
     game_id: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut tags = vec![
-        Tag::parse(["d", nonce])?,
-        Tag::parse(["p", &gate_pubkey.to_hex()])?,
-        Tag::parse(["ssh-pubkey", &keypair.openssh_pubkey_string()])?,
-    ];
-    if let Some(gid) = game_id {
-        tags.push(Tag::parse(["game-id", gid])?);
-    }
-
-    let content = invite_code.unwrap_or("");
-    let event = EventBuilder::new(Kind::Custom(30501), content)
-        .tags(tags)
-        .sign_with_keys(player_keys)?;
-
+    let event = build_session_request_event(
+        player_keys,
+        gate_pubkey,
+        nonce,
+        &keypair.openssh_pubkey_string(),
+        invite_code,
+        game_id,
+    )?;
     client.send_event(&event).await?;
     Ok(())
-}
-
-// ── Payload parsing ───────────────────────────────────────────────────────────
-
-/// Parse a 30502 SessionReady JSON payload.
-///
-/// Expected shape (all fields required except `host_fingerprint`,
-/// `player_name`):
-/// ```json
-/// {"game_id":"...","ssh_host":"...","ssh_port":22,"ssh_user":"...",
-///  "host_fingerprint":"...",
-///  "game_name":"...","seat":2,"player_name":"...","session_ui":"classic_nc_game"}
-/// ```
-pub fn parse_session_ready(json: &str) -> Result<SessionReadyPayload, String> {
-    let game_id = extract_str(json, "game_id")?;
-    let ssh_host = extract_str(json, "ssh_host")?;
-    let ssh_port = extract_u32(json, "ssh_port")
-        .map(|v| v as u16)
-        .ok_or("missing or invalid ssh_port")?;
-    let ssh_user = extract_str(json, "ssh_user").unwrap_or_default();
-    let host_fingerprint = extract_str(json, "host_fingerprint").unwrap_or_default();
-    let game_name = extract_str(json, "game_name")?;
-    let seat = extract_u32(json, "seat").ok_or("missing or invalid seat")?;
-    let player_name = extract_str(json, "player_name").unwrap_or_default();
-    let session_ui = SessionUiMode::parse_wire(&extract_str(json, "session_ui")?)?;
-
-    Ok(SessionReadyPayload {
-        game_id,
-        ssh_host,
-        ssh_port,
-        ssh_user,
-        host_fingerprint,
-        game_name,
-        seat,
-        player_name,
-        session_ui,
-    })
-}
-
-/// Parse a 30503 SessionError JSON payload.
-///
-/// Minimal expected shape:
-/// ```json
-/// {"error":"invalid_code","message":"..."}
-/// ```
-/// Optional for `multiple_games`:
-/// ```json
-/// {"error":"multiple_games","message":"...","games":[...]}
-/// ```
-pub fn parse_session_error(json: &str) -> Result<SessionErrorPayload, String> {
-    let error = extract_str(json, "error")?;
-    let message = extract_str(json, "message")?;
-    let games = if error == "multiple_games" {
-        parse_game_entries(json)
-    } else {
-        Vec::new()
-    };
-    Ok(SessionErrorPayload {
-        error,
-        message,
-        games,
-    })
-}
-
-/// Parse the `games` array in a `multiple_games` error payload.
-///
-/// Each element has the shape:
-/// `{"game_id":"...","name":"...","seat":N}`
-fn parse_game_entries(json: &str) -> Vec<GameEntry> {
-    let mut entries = Vec::new();
-    // Find the games array.
-    let Some(arr_start) = json.find("\"games\"") else {
-        return entries;
-    };
-    let after = &json[arr_start + 7..]; // skip `"games"`
-    let Some(bracket) = after.find('[') else {
-        return entries;
-    };
-    let arr_body = &after[bracket + 1..];
-
-    // Walk through `{...}` objects.
-    let mut remaining = arr_body;
-    while let Some(obj_start) = remaining.find('{') {
-        let body = &remaining[obj_start + 1..];
-        let Some(obj_end) = body.find('}') else {
-            break;
-        };
-        let obj = &body[..obj_end];
-        // Wrap in braces for reuse of extract_str/extract_u32.
-        let wrapped = format!("{{{obj}}}");
-        let game_id = extract_str(&wrapped, "game_id").unwrap_or_default();
-        let name = extract_str(&wrapped, "name").unwrap_or_default();
-        let seat = extract_u32(&wrapped, "seat").unwrap_or(0);
-        if !game_id.is_empty() {
-            entries.push(GameEntry {
-                game_id,
-                name,
-                seat,
-            });
-        }
-        remaining = &body[obj_end + 1..];
-    }
-    entries
 }

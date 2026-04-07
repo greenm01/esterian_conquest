@@ -9,6 +9,10 @@ use crate::screen::{
     StartupReviewMode,
 };
 use crate::startup::{StartupPhase, StartupSummary};
+use nc_session::onboarding::{
+    HostedFirstTimeStatus, first_time_onboarding_mode as shared_first_time_onboarding_mode,
+    hosted_first_time_status,
+};
 
 impl App {
     fn record_returning_player_participation_once(
@@ -83,13 +87,10 @@ impl App {
     }
 
     fn first_time_onboarding_mode(&self) -> FirstTimeOnboardingMode {
-        if self.has_hosted_invite_session() {
-            FirstTimeOnboardingMode::HostedInvite
-        } else if self.has_bbs_reserved_seat() {
-            FirstTimeOnboardingMode::BbsReserved
-        } else {
-            FirstTimeOnboardingMode::Generic
-        }
+        shared_first_time_onboarding_mode(
+            self.has_hosted_invite_session(),
+            self.has_bbs_reserved_seat(),
+        )
     }
 
     fn is_bbs_reserved_first_time_login(&self) -> bool {
@@ -112,16 +113,9 @@ impl App {
     }
 
     fn hosted_first_time_entry_screen(&self) -> ScreenId {
-        if self
-            .game_data
-            .player
-            .records
-            .iter()
-            .any(|player| player.occupied_flag() == 0)
-        {
-            ScreenId::FirstTimeJoinEmpireName
-        } else {
-            ScreenId::FirstTimeJoinNoPending
+        match hosted_first_time_status(&self.game_data) {
+            HostedFirstTimeStatus::NeedsEmpireName => ScreenId::FirstTimeJoinEmpireName,
+            HostedFirstTimeStatus::NoPendingSeat => ScreenId::FirstTimeJoinNoPending,
         }
     }
 

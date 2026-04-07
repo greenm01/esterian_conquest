@@ -172,13 +172,14 @@ fn full_pipeline_first_time_join_with_invite_code() {
     assert!(key_file.exists());
 
     let payload = SessionReadyPayload {
-        game_id: &seat.game_id,
-        ssh_host: &config.ssh_host,
+        game_id: seat.game_id.clone(),
+        ssh_host: config.ssh_host.clone(),
         ssh_port: config.ssh_port,
-        ssh_user: &config.ssh_user,
-        game_name: &seat.game_name,
-        seat: seat.player,
-        player_name: "Empire of Sol",
+        ssh_user: config.ssh_user.clone(),
+        host_fingerprint: String::new(),
+        game_name: seat.game_name.clone(),
+        seat: seat.player as u32,
+        player_name: "Empire of Sol".to_string(),
         session_ui: SessionUiMode::ClassicNcGame,
     };
     let plaintext = payload.to_json();

@@ -1,11 +1,10 @@
 use std::time::Duration;
 
-use nc_nostr::json::extract_str;
+pub use nc_nostr::claim::{SeatClaimErrorPayload, parse_seat_claim_error};
+use nc_nostr::claim::build_seat_claim_request_event;
 use nc_nostr::nonce::random_nonce_hex;
 use nostr_sdk::nips::nip44;
-use nostr_sdk::{
-    Client, EventBuilder, Filter, Keys, Kind, PublicKey, RelayPoolNotification, Tag, Timestamp,
-};
+use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, Timestamp};
 use tokio::sync::broadcast;
 use tokio::time::{Instant, sleep_until};
 
@@ -15,12 +14,6 @@ use crate::connect::resolve::ResolvedTarget;
 
 pub const SEAT_CLAIM_TIMEOUT_SECS: u64 = 15;
 const CLAIM_RESUBSCRIBE_DELAYS_SECS: [u64; 3] = [2, 5, 10];
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SeatClaimErrorPayload {
-    pub error: String,
-    pub message: String,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SeatClaimResult {
@@ -151,7 +144,12 @@ async fn wait_for_claim_result(
                                 &event.pubkey,
                                 &event.content,
                             )?;
-                            return Ok(SeatClaimResult::Error(parse_seat_claim_error(&plaintext)?));
+                            return Ok(SeatClaimResult::Error(
+                                parse_seat_claim_error(&plaintext)
+                                    .map_err(|err| -> Box<dyn std::error::Error + Send + Sync> {
+                                        Box::new(std::io::Error::other(err))
+                                    })?,
+                            ));
                         }
 
                         if subscription_id == *game_subscription_id
@@ -211,24 +209,13 @@ async fn publish_seat_claim_request(
     invite_code: &str,
     game_id: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut tags = vec![
-        Tag::parse(["d", nonce])?,
-        Tag::parse(["p", &gate_pubkey.to_hex()])?,
-    ];
-    if let Some(game_id) = game_id {
-        tags.push(Tag::parse(["game-id", game_id])?);
-    }
-    let event = EventBuilder::new(Kind::Custom(30510), invite_code.trim().to_ascii_lowercase())
-        .tags(tags)
-        .sign_with_keys(player_keys)?;
+    let event = build_seat_claim_request_event(
+        player_keys,
+        gate_pubkey,
+        nonce,
+        invite_code,
+        game_id,
+    )?;
     client.send_event(&event).await?;
     Ok(())
-}
-
-pub fn parse_seat_claim_error(
-    json: &str,
-) -> Result<SeatClaimErrorPayload, Box<dyn std::error::Error + Send + Sync>> {
-    let error = extract_str(json, "error")?;
-    let message = extract_str(json, "message")?;
-    Ok(SeatClaimErrorPayload { error, message })
 }

@@ -13,6 +13,12 @@ use crate::terminal::Terminal;
 use crate::terminal::door::{DoorTerminal, DoorTransport};
 use crate::terminal::stdout::StdoutTerminal;
 use nc_data::{BbsGameConfig, CampaignStore};
+use nc_session::launch::{
+    HostedLaunchContext, LaunchBindingRequest, LaunchPlayerBinding, LaunchPlayerBindingSource,
+    resolve_launch_player_binding as shared_resolve_launch_player_binding,
+    validate_and_activate_session_lease,
+};
+use nc_session::lease::SessionLeaseGuard;
 
 struct ParsedLaunchArgs {
     game_dir: PathBuf,
@@ -31,50 +37,6 @@ struct ParsedLaunchArgs {
     use_door_terminal: bool,
     door_transport: DoorTransport,
 }
-
-use nc_session::lease::{SessionLeaseGuard, unix_now};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LaunchPlayerBindingSource {
-    ExplicitPlayer,
-    ReservedAlias,
-    StoredHandle,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LaunchPlayerBinding {
-    Bound {
-        player_record_index_1_based: usize,
-        source: LaunchPlayerBindingSource,
-    },
-    UnboundDropfile,
-}
-
-impl LaunchPlayerBinding {
-    fn player_record_index_1_based(self) -> Option<usize> {
-        match self {
-            Self::Bound {
-                player_record_index_1_based,
-                ..
-            } => Some(player_record_index_1_based),
-            Self::UnboundDropfile => None,
-        }
-    }
-
-    fn source(self) -> Option<LaunchPlayerBindingSource> {
-        match self {
-            Self::Bound { source, .. } => Some(source),
-            Self::UnboundDropfile => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct HostedLaunchContext {
-    player_npub: String,
-    invite_code: Option<String>,
-}
-
 const LOOPBACK_DOOR_HOST: &str = "127.0.0.1";
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -784,105 +746,14 @@ fn resolve_launch_player_binding(
     let runtime_state = campaign_store
         .load_latest_runtime_state()?
         .ok_or("campaign store has no snapshots; initialize the campaign with nc-sysop first")?;
-    let player_count = runtime_state.game_data.player.records.len();
-
-    if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
-        if explicit_player > player_count {
-            return Err(format!(
-                "--player {} exceeds player count {}",
-                explicit_player, player_count
-            )
-            .into());
-        }
-    }
-
-    let alias_reservation = parsed
-        .dropfile_alias
-        .as_deref()
-        .and_then(|alias| game_config.reservation_for_alias(alias));
-
-    if let Some(reservation) = alias_reservation {
-        validate_reserved_seat_runtime(&parsed.game_dir, game_config, reservation)?;
-        if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
-            if explicit_player != reservation.player_record_index_1_based {
-                return Err(format!(
-                    "--player {} does not match reserved seat {} for alias '{}'",
-                    explicit_player, reservation.player_record_index_1_based, reservation.alias
-                )
-                .into());
-            }
-        }
-        return Ok(LaunchPlayerBinding::Bound {
-            player_record_index_1_based: reservation.player_record_index_1_based,
-            source: LaunchPlayerBindingSource::ReservedAlias,
-        });
-    }
-
-    if let Some(alias) = parsed.dropfile_alias.as_deref().map(str::trim) {
-        if !alias.is_empty() {
-            let matching_players = runtime_state
-                .game_data
-                .player
-                .records
-                .iter()
-                .enumerate()
-                .filter_map(|(idx, player)| {
-                    let handle = player.assigned_player_handle_summary();
-                    (!handle.is_empty() && handle.eq_ignore_ascii_case(alias)).then_some(idx + 1)
-                })
-                .collect::<Vec<_>>();
-
-            if matching_players.len() > 1 {
-                return Err(format!(
-                    "caller alias '{}' matches multiple joined empires; reserve the caller explicitly in ncgame.db",
-                    alias
-                )
-                .into());
-            }
-
-            if let Some(player_record_index_1_based) = matching_players.first().copied() {
-                if let Some(reservation) =
-                    game_config.reservation_for_player(player_record_index_1_based)
-                {
-                    if !reservation.alias.eq_ignore_ascii_case(alias) {
-                        return Err(format!(
-                            "caller alias '{}' conflicts with reserved alias '{}' for seat {}; reconcile ncgame.db settings or the campaign state",
-                            alias, reservation.alias, player_record_index_1_based
-                        )
-                        .into());
-                    }
-                }
-                if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
-                    if explicit_player != player_record_index_1_based {
-                        return Err(format!(
-                            "--player {} does not match stored handle seat {} for alias '{}'",
-                            explicit_player, player_record_index_1_based, alias
-                        )
-                        .into());
-                    }
-                }
-                return Ok(LaunchPlayerBinding::Bound {
-                    player_record_index_1_based,
-                    source: LaunchPlayerBindingSource::StoredHandle,
-                });
-            }
-        }
-    }
-
-    if let Some(explicit_player) = parsed.explicit_player_record_index_1_based {
-        return Ok(LaunchPlayerBinding::Bound {
-            player_record_index_1_based: explicit_player,
-            source: LaunchPlayerBindingSource::ExplicitPlayer,
-        });
-    }
-
-    if parsed.use_door_terminal {
-        return Ok(LaunchPlayerBinding::UnboundDropfile);
-    }
-
-    Err(
-        "usage: nc-game --dir <game_dir> --player <1-based empire index>\n       or use --dropfile for BBS/door mode".into(),
-    )
+    shared_resolve_launch_player_binding(LaunchBindingRequest {
+        explicit_player_record_index_1_based: parsed.explicit_player_record_index_1_based,
+        dropfile_alias: parsed.dropfile_alias.as_deref(),
+        use_door_terminal: parsed.use_door_terminal,
+        reservations: &game_config.reservations,
+        game_data: &runtime_state.game_data,
+    })
+    .map_err(Into::into)
 }
 
 fn validate_runtime_game_config(
@@ -900,38 +771,6 @@ fn validate_runtime_game_config(
     Ok(())
 }
 
-fn validate_reserved_seat_runtime(
-    game_dir: &std::path::Path,
-    game_config: &RuntimeConfig,
-    reservation: &nc_data::SeatReservation,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let campaign_store = CampaignStore::open_default_in_dir(game_dir)?;
-    let runtime_state = campaign_store
-        .load_latest_runtime_state()?
-        .ok_or("campaign store has no snapshots; initialize the campaign with nc-sysop first")?;
-    let game_data = runtime_state.game_data;
-    game_config.validate_reservations_for_player_count(game_data.player.records.len())?;
-    let player = game_data
-        .player
-        .records
-        .get(reservation.player_record_index_1_based - 1)
-        .ok_or_else(|| {
-            format!(
-                "reserved player {} is missing from PLAYER.DAT",
-                reservation.player_record_index_1_based
-            )
-        })?;
-    let handle = player.assigned_player_handle_summary();
-    if !handle.is_empty() && !handle.eq_ignore_ascii_case(&reservation.alias) {
-        return Err(format!(
-            "reserved alias '{}' conflicts with stored player handle '{}' for seat {}; reconcile ncgame.db settings or the campaign state",
-            reservation.alias, handle, reservation.player_record_index_1_based
-        )
-        .into());
-    }
-    Ok(())
-}
-
 fn validate_session_lease(
     campaign_store: CampaignStore,
     session_token: String,
@@ -939,31 +778,21 @@ fn validate_session_lease(
     session_timeout_secs: Option<u32>,
     game_config: &RuntimeConfig,
 ) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
-    let lease = campaign_store.load_session_lease(&session_token, unix_now())?;
-    if lease.player_record_index_1_based != player_record_index_1_based {
-        return Err(format!(
-            "session token is for seat {}, not seat {}",
-            lease.player_record_index_1_based, player_record_index_1_based
-        )
-        .into());
-    }
-    SessionLeaseGuard::activate(
+    validate_and_activate_session_lease(
         campaign_store,
         session_token,
-        unix_now(),
-        session_lease_ttl_seconds(session_timeout_secs, game_config),
-        lease.player_npub,
+        player_record_index_1_based,
+        session_timeout_secs,
+        game_config.idle_timeout_secs(),
     )
 }
 
+#[cfg(test)]
 fn session_lease_ttl_seconds(
     session_timeout_secs: Option<u32>,
     game_config: &RuntimeConfig,
 ) -> u64 {
-    session_timeout_secs
-        .map(u64::from)
-        .or_else(|| game_config.idle_timeout_secs())
-        .unwrap_or(120)
+    nc_session::launch::session_lease_ttl_seconds(session_timeout_secs, game_config.idle_timeout_secs())
 }
 
 fn slug_from_dir(dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {

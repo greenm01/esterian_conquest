@@ -1,6 +1,9 @@
+pub mod claim;
+pub mod discovery;
 pub mod hash;
 pub mod hosted;
 pub mod json;
 pub mod nonce;
+pub mod session;
 pub mod tags;
 pub mod timing;

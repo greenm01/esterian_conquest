@@ -1,0 +1,248 @@
+//! Shared launch/session helpers for nc-game and other clients.
+
+use nc_data::{CampaignStore, CoreGameData, SeatReservation};
+
+use crate::lease::{SessionLeaseGuard, unix_now};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchPlayerBindingSource {
+    ExplicitPlayer,
+    ReservedAlias,
+    StoredHandle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchPlayerBinding {
+    Bound {
+        player_record_index_1_based: usize,
+        source: LaunchPlayerBindingSource,
+    },
+    UnboundDropfile,
+}
+
+impl LaunchPlayerBinding {
+    pub fn player_record_index_1_based(self) -> Option<usize> {
+        match self {
+            Self::Bound {
+                player_record_index_1_based,
+                ..
+            } => Some(player_record_index_1_based),
+            Self::UnboundDropfile => None,
+        }
+    }
+
+    pub fn source(self) -> Option<LaunchPlayerBindingSource> {
+        match self {
+            Self::Bound { source, .. } => Some(source),
+            Self::UnboundDropfile => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostedLaunchContext {
+    pub player_npub: String,
+    pub invite_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LaunchBindingRequest<'a> {
+    pub explicit_player_record_index_1_based: Option<usize>,
+    pub dropfile_alias: Option<&'a str>,
+    pub use_door_terminal: bool,
+    pub reservations: &'a [SeatReservation],
+    pub game_data: &'a CoreGameData,
+}
+
+pub fn resolve_launch_player_binding(
+    request: LaunchBindingRequest<'_>,
+) -> Result<LaunchPlayerBinding, String> {
+    let player_count = request.game_data.player.records.len();
+
+    if let Some(explicit_player) = request.explicit_player_record_index_1_based {
+        if explicit_player > player_count {
+            return Err(format!(
+                "--player {} exceeds player count {}",
+                explicit_player, player_count
+            ));
+        }
+    }
+
+    validate_reservations_for_player_count(request.reservations, player_count)?;
+
+    let alias_reservation = request
+        .dropfile_alias
+        .and_then(|alias| reservation_for_alias(request.reservations, alias));
+
+    if let Some(reservation) = alias_reservation {
+        validate_reserved_seat_runtime(request.game_data, request.reservations, reservation)?;
+        if let Some(explicit_player) = request.explicit_player_record_index_1_based {
+            if explicit_player != reservation.player_record_index_1_based {
+                return Err(format!(
+                    "--player {} does not match reserved seat {} for alias '{}'",
+                    explicit_player, reservation.player_record_index_1_based, reservation.alias
+                ));
+            }
+        }
+        return Ok(LaunchPlayerBinding::Bound {
+            player_record_index_1_based: reservation.player_record_index_1_based,
+            source: LaunchPlayerBindingSource::ReservedAlias,
+        });
+    }
+
+    if let Some(alias) = request.dropfile_alias.map(str::trim).filter(|alias| !alias.is_empty()) {
+        let matching_players = request
+            .game_data
+            .player
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, player)| {
+                let handle = player.assigned_player_handle_summary();
+                (!handle.is_empty() && handle.eq_ignore_ascii_case(alias)).then_some(idx + 1)
+            })
+            .collect::<Vec<_>>();
+
+        if matching_players.len() > 1 {
+            return Err(format!(
+                "caller alias '{}' matches multiple joined empires; reserve the caller explicitly in ncgame.db",
+                alias
+            ));
+        }
+
+        if let Some(player_record_index_1_based) = matching_players.first().copied() {
+            if let Some(reservation) =
+                reservation_for_player(request.reservations, player_record_index_1_based)
+            {
+                if !reservation.alias.eq_ignore_ascii_case(alias) {
+                    return Err(format!(
+                        "caller alias '{}' conflicts with reserved alias '{}' for seat {}; reconcile ncgame.db settings or the campaign state",
+                        alias, reservation.alias, player_record_index_1_based
+                    ));
+                }
+            }
+            if let Some(explicit_player) = request.explicit_player_record_index_1_based {
+                if explicit_player != player_record_index_1_based {
+                    return Err(format!(
+                        "--player {} does not match stored handle seat {} for alias '{}'",
+                        explicit_player, player_record_index_1_based, alias
+                    ));
+                }
+            }
+            return Ok(LaunchPlayerBinding::Bound {
+                player_record_index_1_based,
+                source: LaunchPlayerBindingSource::StoredHandle,
+            });
+        }
+    }
+
+    if let Some(explicit_player) = request.explicit_player_record_index_1_based {
+        return Ok(LaunchPlayerBinding::Bound {
+            player_record_index_1_based: explicit_player,
+            source: LaunchPlayerBindingSource::ExplicitPlayer,
+        });
+    }
+
+    if request.use_door_terminal {
+        return Ok(LaunchPlayerBinding::UnboundDropfile);
+    }
+
+    Err(
+        "usage: nc-game --dir <game_dir> --player <1-based empire index>\n       or use --dropfile for BBS/door mode"
+            .to_string(),
+    )
+}
+
+pub fn validate_and_activate_session_lease(
+    campaign_store: CampaignStore,
+    session_token: String,
+    player_record_index_1_based: usize,
+    session_timeout_secs: Option<u32>,
+    idle_timeout_secs: Option<u64>,
+) -> Result<SessionLeaseGuard, Box<dyn std::error::Error>> {
+    let lease = campaign_store.load_session_lease(&session_token, unix_now())?;
+    if lease.player_record_index_1_based != player_record_index_1_based {
+        return Err(format!(
+            "session token is for seat {}, not seat {}",
+            lease.player_record_index_1_based, player_record_index_1_based
+        )
+        .into());
+    }
+    SessionLeaseGuard::activate(
+        campaign_store,
+        session_token,
+        unix_now(),
+        session_lease_ttl_seconds(session_timeout_secs, idle_timeout_secs),
+        lease.player_npub,
+    )
+}
+
+pub fn session_lease_ttl_seconds(
+    session_timeout_secs: Option<u32>,
+    idle_timeout_secs: Option<u64>,
+) -> u64 {
+    session_timeout_secs
+        .map(u64::from)
+        .or(idle_timeout_secs)
+        .unwrap_or(120)
+}
+
+pub fn validate_reservations_for_player_count(
+    reservations: &[SeatReservation],
+    player_count: usize,
+) -> Result<(), String> {
+    for reservation in reservations {
+        if reservation.player_record_index_1_based > player_count {
+            return Err(format!(
+                "reservation player {} exceeds player count {}",
+                reservation.player_record_index_1_based, player_count
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_reserved_seat_runtime(
+    game_data: &CoreGameData,
+    reservations: &[SeatReservation],
+    reservation: &SeatReservation,
+) -> Result<(), String> {
+    validate_reservations_for_player_count(reservations, game_data.player.records.len())?;
+    let player = game_data
+        .player
+        .records
+        .get(reservation.player_record_index_1_based - 1)
+        .ok_or_else(|| {
+            format!(
+                "reserved player {} is missing from PLAYER.DAT",
+                reservation.player_record_index_1_based
+            )
+        })?;
+    let handle = player.assigned_player_handle_summary();
+    if !handle.is_empty() && !handle.eq_ignore_ascii_case(&reservation.alias) {
+        return Err(format!(
+            "reserved alias '{}' conflicts with stored player handle '{}' for seat {}; reconcile ncgame.db settings or the campaign state",
+            reservation.alias, handle, reservation.player_record_index_1_based
+        ));
+    }
+    Ok(())
+}
+
+fn reservation_for_alias<'a>(
+    reservations: &'a [SeatReservation],
+    alias: &str,
+) -> Option<&'a SeatReservation> {
+    let alias = alias.trim();
+    reservations
+        .iter()
+        .find(|reservation| reservation.alias.eq_ignore_ascii_case(alias))
+}
+
+fn reservation_for_player(
+    reservations: &[SeatReservation],
+    player_record_index_1_based: usize,
+) -> Option<&SeatReservation> {
+    reservations
+        .iter()
+        .find(|reservation| reservation.player_record_index_1_based == player_record_index_1_based)
+}
