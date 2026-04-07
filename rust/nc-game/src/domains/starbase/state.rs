@@ -1,6 +1,9 @@
 use crate::domains::starbase::screens::starbase::StarbaseRow;
-use nc_data::{CoreGameData, Order};
-use nc_engine::estimate_direct_eta;
+use nc_data::CoreGameData;
+use nc_engine::{
+    format_starbase_list_guard_label, format_starbase_review_guard_label,
+    guard_fleet_numbers_for_starbase, starbase_eta_label, starbase_operation_label,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StarbaseMovePromptMode {
@@ -43,13 +46,9 @@ impl StarbaseState {
                     base.base_id_raw(),
                 );
                 let destination_coords = base.trailing_coords_raw();
-                let operation_label = if destination_coords == base.coords_raw() {
-                    "Protection & Enhancement".to_string()
-                } else {
-                    "Starbase in transit".to_string()
-                };
-                let eta_label =
-                    estimate_direct_eta(base.coords_raw(), destination_coords, 1, true).to_string();
+                let operation_label =
+                    starbase_operation_label(base.coords_raw(), destination_coords);
+                let eta_label = starbase_eta_label(base.coords_raw(), destination_coords);
                 StarbaseRow {
                     base_record_index_1_based: idx + 1,
                     base_id: base.base_id_raw(),
@@ -133,69 +132,4 @@ impl StarbaseState {
         let max_offset = total - visible_rows;
         self.scroll_offset = self.cursor.saturating_sub(half).min(max_offset);
     }
-}
-
-pub(crate) fn guard_fleet_numbers_for_starbase(
-    game_data: &CoreGameData,
-    player_record_index_1_based: usize,
-    base_id: u8,
-) -> Vec<u16> {
-    let mut fleets = game_data
-        .fleets
-        .records
-        .iter()
-        .filter(|fleet| {
-            fleet.owner_empire_raw() as usize == player_record_index_1_based
-                && fleet.standing_order_kind() == Order::GuardStarbase
-                && fleet.guard_starbase_enable_raw() != 0
-                && fleet.guard_starbase_index_raw() == base_id
-        })
-        .map(|fleet| fleet.local_slot_word_raw())
-        .collect::<Vec<_>>();
-    fleets.sort_unstable();
-    fleets.dedup();
-    fleets
-}
-
-pub(crate) fn format_starbase_list_guard_label(fleet_numbers: &[u16]) -> String {
-    match fleet_numbers {
-        [] => "N/A".to_string(),
-        [fleet] => format!("The {} Fleet", ordinal_number(*fleet as usize)),
-        many => format!("{} guards", many.len()),
-    }
-}
-
-pub(crate) fn format_starbase_review_guard_label(fleet_numbers: &[u16]) -> String {
-    match fleet_numbers {
-        [] => "N/A".to_string(),
-        [fleet] => format!("The {} Fleet", ordinal_number(*fleet as usize)),
-        [first, second] => format!("Guard Fleets {} and {}", first, second),
-        many => {
-            let mut label = String::from("Guard Fleets ");
-            for (idx, fleet) in many.iter().enumerate() {
-                if idx > 0 {
-                    if idx + 1 == many.len() {
-                        label.push_str(", and ");
-                    } else {
-                        label.push_str(", ");
-                    }
-                }
-                label.push_str(&fleet.to_string());
-            }
-            label
-        }
-    }
-}
-
-fn ordinal_number(value: usize) -> String {
-    let suffix = match value % 100 {
-        11..=13 => "th",
-        _ => match value % 10 {
-            1 => "st",
-            2 => "nd",
-            3 => "rd",
-            _ => "th",
-        },
-    };
-    format!("{value}{suffix}")
 }

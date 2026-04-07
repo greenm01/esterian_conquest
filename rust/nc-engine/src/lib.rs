@@ -1,8 +1,22 @@
+pub mod fleet;
 pub mod maint;
 pub mod navigation;
 pub mod orders;
 pub mod setup;
 
+pub use fleet::{
+    OwnedFleetTarget, OwnedStarbaseTarget, default_host_fleet_target, default_starbase_target,
+    fleet_eta_estimate_sort_key, fleet_eta_label, fleet_list_eta_label,
+    fleet_mission_requires_preselected_target, fleet_order_target_rejects_owned_planet,
+    fleet_order_target_rejects_owned_scout_target, fleet_order_target_requires_owned_planet,
+    fleet_order_target_requires_planet_system, fleet_order_target_y_depends_on_entered_x,
+    fleet_target_eta_confirmation_message, fleet_target_eta_estimate, fleet_target_eta_message,
+    format_guard_fleet_clause, format_starbase_list_guard_label,
+    format_starbase_review_guard_label, guard_fleet_numbers_for_starbase, owned_fleet_targets,
+    owned_starbase_targets, recommended_coordinate_target,
+    recommended_coordinate_target_candidates, recommended_coordinate_target_y_for_entered_x,
+    starbase_eta_label, starbase_operation_label, target_available_for_mission,
+};
 pub use maint::{
     build_results_dat, build_results_report_blocks, process_autopilot_ai, run_maintenance_turn,
     run_maintenance_turn_with_context, run_maintenance_turn_with_context_and_seed,

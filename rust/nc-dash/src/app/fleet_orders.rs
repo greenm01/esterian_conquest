@@ -1,10 +1,15 @@
-use nc_data::{
-    IntelTier, Order, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
-    map_size_for_player_count,
-};
+use std::collections::{BTreeMap, BTreeSet};
+
+use nc_data::{Order, PlanetIntelSnapshot, map_size_for_player_count};
 use nc_engine::{
-    FLEET_MISSION_OPTIONS, fleet_mission_option, fleet_record_supports_mission_code,
-    fleet_target_input_kind, fleet_target_status_line,
+    FLEET_MISSION_OPTIONS, default_host_fleet_target, default_starbase_target,
+    fleet_mission_option, fleet_order_target_rejects_owned_planet,
+    fleet_order_target_rejects_owned_scout_target, fleet_order_target_requires_owned_planet,
+    fleet_order_target_requires_planet_system, fleet_record_supports_mission_code,
+    fleet_target_input_kind, fleet_target_status_line, format_guard_fleet_clause,
+    guard_fleet_numbers_for_starbase, owned_fleet_targets, owned_starbase_targets,
+    recommended_coordinate_target, recommended_coordinate_target_y_for_entered_x,
+    target_available_for_mission,
 };
 
 use crate::overlays::fleet_list;
@@ -31,6 +36,14 @@ pub(crate) struct OrderStarbaseRow {
 }
 
 impl DashApp {
+    fn order_intel_snapshots(&self) -> BTreeMap<usize, PlanetIntelSnapshot> {
+        self.planet_intel_snapshots
+            .iter()
+            .cloned()
+            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+            .collect()
+    }
+
     pub(crate) fn open_selected_fleet_order_flow(&mut self) {
         let rows = fleet_list::table_rows(self);
         let selected = self
@@ -138,6 +151,27 @@ impl DashApp {
         {
             self.fleet_overlay.mission_picker_status =
                 Some("That mission does not apply to the selected fleet.".to_string());
+            return;
+        }
+        let snapshots = self.order_intel_snapshots();
+        let anchor = self
+            .selected_fleet_order_row()
+            .map(|row| row.coords)
+            .unwrap_or([self.crosshair_x, self.crosshair_y]);
+        let selected_records = self
+            .selected_fleet_order_row()
+            .map(|row| BTreeSet::from([row.fleet_record_index_1_based]))
+            .unwrap_or_default();
+        if !target_available_for_mission(
+            &self.game_data,
+            &snapshots,
+            self.player_record_index_1_based as u8,
+            mission_code,
+            anchor,
+            &selected_records,
+        ) {
+            self.fleet_overlay.mission_picker_status =
+                Some("That mission does not have a valid target.".to_string());
             return;
         }
         self.fleet_overlay.mission_picker_cursor = index;
@@ -738,17 +772,28 @@ impl DashApp {
 
     fn fleet_order_default_starbase(&self) -> Option<OrderStarbaseRow> {
         let anchor = self.selected_fleet_order_row()?.coords;
+        let target = default_starbase_target(
+            &self.game_data,
+            self.player_record_index_1_based as u8,
+            anchor,
+        )?;
         self.owned_starbase_rows_for_orders()
             .into_iter()
-            .min_by_key(|row| sector_distance_sq(anchor, row.coords))
+            .find(|row| row.base_record_index_1_based == target.base_record_index_1_based)
     }
 
     fn fleet_order_default_host_fleet(&self) -> Option<OrderFleetRow> {
         let selected = self.selected_fleet_order_row()?;
+        let excluded = BTreeSet::from([selected.fleet_record_index_1_based]);
+        let target = default_host_fleet_target(
+            &self.game_data,
+            self.player_record_index_1_based as u8,
+            selected.coords,
+            &excluded,
+        )?;
         self.owned_fleet_rows_for_orders()
             .into_iter()
-            .filter(|row| row.fleet_record_index_1_based != selected.fleet_record_index_1_based)
-            .min_by_key(|row| sector_distance_sq(selected.coords, row.coords))
+            .find(|row| row.fleet_record_index_1_based == target.fleet_record_index_1_based)
     }
 
     fn fleet_order_default_target_coords(&self) -> Option<[u8; 2]> {
@@ -757,107 +802,34 @@ impl DashApp {
         if selected.target_coords != [0, 0] {
             return Some(selected.target_coords);
         }
-        let anchor = selected.coords;
-        match mission_code {
-            0 | 1 | 3 | 14 => Some(anchor),
-            2 | 5 | 15 => self.closest_world_target(anchor, |world| {
-                world.known_owner_empire_id == Some(self.player_record_index_1_based as u8)
-            }),
-            6 | 7 | 8 => self.closest_world_target(anchor, |world| {
-                matches!(
-                    world.known_owner_empire_id,
-                    Some(owner) if owner > 0 && owner != self.player_record_index_1_based as u8
-                )
-            }),
-            9 => self.closest_world_target(anchor, |world| {
-                matches!(world.intel_tier, IntelTier::Unknown)
-            }),
-            10 | 11 => self.closest_world_target(anchor, |world| {
-                world.known_owner_empire_id != Some(self.player_record_index_1_based as u8)
-            }),
-            12 => self.closest_world_target(anchor, |world| {
-                matches!(world.known_owner_empire_id, None | Some(0))
-            }),
-            _ => Some(anchor),
-        }
+        let snapshots = self.order_intel_snapshots();
+        let selected_records = BTreeSet::from([selected.fleet_record_index_1_based]);
+        recommended_coordinate_target(
+            &self.game_data,
+            &snapshots,
+            self.player_record_index_1_based as u8,
+            mission_code,
+            selected.coords,
+            &selected_records,
+        )
     }
 
     fn fleet_order_default_target_y_value(&self) -> Option<u8> {
         let mission_code = self.fleet_overlay.order_mission_code?;
-        let candidates = self.recommended_target_candidates(mission_code);
-        if !matches!(
-            fleet_target_input_kind(Some(mission_code)),
-            nc_engine::FleetTargetInputKind::Coordinates
-        ) {
-            return candidates.into_iter().next().map(|coords| coords[1]);
-        }
-        let entered_x = self.fleet_overlay.order_target_x_input.trim();
-        if entered_x.is_empty() {
-            return candidates.into_iter().next().map(|coords| coords[1]);
-        }
-        let target_x = entered_x.parse::<u8>().ok()?;
-        candidates
-            .into_iter()
-            .find(|coords| coords[0] == target_x)
-            .map(|coords| coords[1])
-    }
-
-    fn recommended_target_candidates(&self, mission_code: u8) -> Vec<[u8; 2]> {
         let Some(selected) = self.selected_fleet_order_row() else {
-            return Vec::new();
+            return None;
         };
-        let anchor = selected.coords;
-        match mission_code {
-            0 | 1 | 3 | 14 => vec![anchor],
-            2 | 5 | 15 => self.filtered_world_targets(anchor, |world| {
-                world.known_owner_empire_id == Some(self.player_record_index_1_based as u8)
-            }),
-            6 | 7 | 8 => self.filtered_world_targets(anchor, |world| {
-                matches!(
-                    world.known_owner_empire_id,
-                    Some(owner) if owner > 0 && owner != self.player_record_index_1_based as u8
-                )
-            }),
-            9 => self.filtered_world_targets(anchor, |world| matches!(world.intel_tier, IntelTier::Unknown)),
-            10 | 11 => self.filtered_world_targets(anchor, |world| {
-                world.known_owner_empire_id != Some(self.player_record_index_1_based as u8)
-            }),
-            12 => self.filtered_world_targets(anchor, |world| {
-                matches!(world.known_owner_empire_id, None | Some(0))
-            }),
-            _ => vec![anchor],
-        }
-    }
-
-    fn closest_world_target<F>(&self, anchor: [u8; 2], predicate: F) -> Option<[u8; 2]>
-    where
-        F: Fn(&PlayerStarmapWorld) -> bool,
-    {
-        self.filtered_world_targets(anchor, predicate).into_iter().next()
-    }
-
-    fn filtered_world_targets<F>(&self, anchor: [u8; 2], predicate: F) -> Vec<[u8; 2]>
-    where
-        F: Fn(&PlayerStarmapWorld) -> bool,
-    {
-        let mut coords = build_player_starmap_projection_from_snapshots(
+        let snapshots = self.order_intel_snapshots();
+        let selected_records = BTreeSet::from([selected.fleet_record_index_1_based]);
+        recommended_coordinate_target_y_for_entered_x(
             &self.game_data,
-            &self
-                .planet_intel_snapshots
-                .iter()
-                .cloned()
-                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-                .collect(),
+            &snapshots,
             self.player_record_index_1_based as u8,
+            mission_code,
+            selected.coords,
+            &selected_records,
+            self.fleet_overlay.order_target_x_input.trim(),
         )
-        .worlds
-        .into_iter()
-        .filter(predicate)
-        .map(|world| world.coords)
-        .collect::<Vec<_>>();
-        coords.sort_by_key(|coords| sector_distance_sq(anchor, *coords));
-        coords.dedup();
-        coords
     }
 
     fn finalize_starbase_destination(
@@ -895,31 +867,16 @@ impl DashApp {
             "Starbase {} is moving to [{:02},{:02}].",
             row.base_id, destination[0], destination[1]
         );
-        let guard_fleets = self.guard_fleet_numbers_for_starbase(row.base_id);
+        let guard_fleets = guard_fleet_numbers_for_starbase(
+            &self.game_data,
+            self.player_record_index_1_based,
+            row.base_id,
+        );
         if let Some(clause) = format_guard_fleet_clause(&guard_fleets) {
             text.push(' ');
             text.push_str(&clause);
         }
         text
-    }
-
-    fn guard_fleet_numbers_for_starbase(&self, base_id: u8) -> Vec<u16> {
-        let mut fleets = self
-            .game_data
-            .fleets
-            .records
-            .iter()
-            .filter(|fleet| {
-                fleet.owner_empire_raw() as usize == self.player_record_index_1_based
-                    && fleet.standing_order_kind() == Order::GuardStarbase
-                    && fleet.guard_starbase_enable_raw() != 0
-                    && fleet.guard_starbase_index_raw() == base_id
-            })
-            .map(|fleet| fleet.local_slot_word_raw())
-            .collect::<Vec<_>>();
-        fleets.sort_unstable();
-        fleets.dedup();
-        fleets
     }
 
     fn reselect_fleet_overlay_row(&mut self, key: FleetOverlayRowKey) {
@@ -929,22 +886,16 @@ impl DashApp {
     }
 
     fn owned_fleet_rows_for_orders(&self) -> Vec<OrderFleetRow> {
-        let owner = self.player_record_index_1_based as u8;
-        let mut rows = self
-            .game_data
-            .fleets
-            .records
-            .iter()
-            .enumerate()
-            .filter(|(_, fleet)| fleet.owner_empire_raw() == owner && fleet.has_any_force())
-            .map(|(idx, fleet)| OrderFleetRow {
-                fleet_record_index_1_based: idx + 1,
-                fleet_number: fleet.local_slot_word_raw(),
-                coords: fleet.current_location_coords_raw(),
-                target_coords: fleet.standing_order_target_coords_raw(),
-                order_code: fleet.standing_order_code_raw(),
-                current_speed: fleet.current_speed(),
-                max_speed: fleet.max_speed(),
+        let mut rows = owned_fleet_targets(&self.game_data, self.player_record_index_1_based as u8)
+            .into_iter()
+            .map(|row| OrderFleetRow {
+                fleet_record_index_1_based: row.fleet_record_index_1_based,
+                fleet_number: row.fleet_number,
+                coords: row.coords,
+                target_coords: row.target_coords,
+                order_code: row.order_code,
+                current_speed: row.current_speed,
+                max_speed: row.max_speed,
             })
             .collect::<Vec<_>>();
         rows.sort_by_key(|row| row.fleet_number);
@@ -952,52 +903,19 @@ impl DashApp {
     }
 
     fn owned_starbase_rows_for_orders(&self) -> Vec<OrderStarbaseRow> {
-        let owner = self.player_record_index_1_based as u8;
-        let mut rows = self
-            .game_data
-            .bases
-            .records
-            .iter()
-            .enumerate()
-            .filter(|(_, base)| base.owner_empire_raw() == owner && base.active_flag_raw() != 0)
-            .map(|(idx, base)| OrderStarbaseRow {
-                base_record_index_1_based: idx + 1,
-                base_id: base.base_id_raw(),
-                coords: base.coords_raw(),
-                destination_coords: base.trailing_coords_raw(),
-            })
-            .collect::<Vec<_>>();
+        let mut rows =
+            owned_starbase_targets(&self.game_data, self.player_record_index_1_based as u8)
+                .into_iter()
+                .map(|row| OrderStarbaseRow {
+                    base_record_index_1_based: row.base_record_index_1_based,
+                    base_id: row.base_id,
+                    coords: row.coords,
+                    destination_coords: row.destination_coords,
+                })
+                .collect::<Vec<_>>();
         rows.sort_by_key(|row| row.base_id);
         rows
     }
-}
-
-pub(crate) fn format_guard_fleet_clause(fleet_numbers: &[u16]) -> Option<String> {
-    match fleet_numbers {
-        [] => None,
-        [fleet] => Some(format!("Guard Fleet {} will follow it.", fleet)),
-        [first, second] => Some(format!(
-            "Guard Fleets {} and {} will follow it.",
-            first, second
-        )),
-        many => Some(format!("Guard Fleets {} will follow it.", join_u16_list(many))),
-    }
-}
-
-fn join_u16_list(values: &[u16]) -> String {
-    values
-        .iter()
-        .enumerate()
-        .map(|(idx, value)| {
-            if idx == 0 {
-                value.to_string()
-            } else if idx + 1 == values.len() {
-                format!(", and {value}")
-            } else {
-                format!(", {value}")
-            }
-        })
-        .collect::<String>()
 }
 
 fn resolve_default_u8_input(input: &str, default: u8) -> Option<u8> {
@@ -1029,28 +947,6 @@ fn resolve_default_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]
     let x = left.trim().parse::<u8>().ok()?;
     let y = right.trim().parse::<u8>().ok()?;
     Some([x, y])
-}
-
-fn sector_distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
-    let dx = i32::from(a[0]) - i32::from(b[0]);
-    let dy = i32::from(a[1]) - i32::from(b[1]);
-    (dx * dx + dy * dy) as u32
-}
-
-fn fleet_order_target_requires_planet_system(order_code: u8) -> bool {
-    matches!(order_code, 2 | 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
-}
-
-fn fleet_order_target_rejects_owned_planet(order_code: u8) -> bool {
-    matches!(order_code, 6 | 7 | 8)
-}
-
-fn fleet_order_target_rejects_owned_scout_target(order_code: u8) -> bool {
-    matches!(order_code, 10 | 11)
-}
-
-fn fleet_order_target_requires_owned_planet(order_code: u8) -> bool {
-    matches!(order_code, 2 | 15)
 }
 
 fn resolve_yes_no_input(input: &str, default: bool) -> bool {

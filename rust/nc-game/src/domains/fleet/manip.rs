@@ -5,8 +5,12 @@ use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FleetDetachClass, FleetDetachMode, FleetRow, FleetTransferMode, ScreenId,
 };
-use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord, Order, map_size_for_player_count};
-use nc_engine::{FleetEtaEstimate, estimate_fleet_eta_to_destination};
+use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord};
+use nc_engine::{
+    fleet_eta_label as engine_fleet_eta_label,
+    fleet_list_eta_label as engine_fleet_list_eta_label,
+    fleet_target_eta_message,
+};
 
 impl App {
     pub(crate) fn submit_inline_fleet_merge(
@@ -1304,75 +1308,25 @@ impl App {
         destination: [u8; 2],
         include_system: bool,
     ) -> String {
-        match estimate_fleet_eta_to_destination(
+        let mission_code = if include_system {
+            nc_data::Order::ScoutSolarSystem.to_raw()
+        } else {
+            nc_data::Order::MoveOnly.to_raw()
+        };
+        fleet_target_eta_message(
             &self.game_data,
-            row.fleet_record_index_1_based - 1,
+            row.fleet_record_index_1_based,
+            row.fleet_number,
+            mission_code,
             destination,
-            include_system,
-            true,
-        ) {
-            FleetEtaEstimate::Arrived => format!(
-                "Fleet {} reaches [{},{}] in 0 year(s), arriving in {}.",
-                row.fleet_number,
-                destination[0],
-                destination[1],
-                self.game_data.conquest.game_year()
-            ),
-            FleetEtaEstimate::Years(years) => {
-                let arrival_year = self.game_data.conquest.game_year() + years;
-                format!(
-                    "Fleet {} reaches [{},{}] in {} year(s), arriving in {}.",
-                    row.fleet_number, destination[0], destination[1], years, arrival_year
-                )
-            }
-            FleetEtaEstimate::Stopped => format!(
-                "Fleet {} is stopped and cannot reach [{},{}].",
-                row.fleet_number, destination[0], destination[1]
-            ),
-            FleetEtaEstimate::Unreachable => {
-                format!("No route found to [{},{}].", destination[0], destination[1])
-            }
-        }
+        )
     }
-}
-
-fn fleet_display_eta_estimate(game_data: &CoreGameData, fleet_idx: usize) -> FleetEtaEstimate {
-    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
-        return FleetEtaEstimate::Unreachable;
-    };
-    if fleet.standing_order_kind() == Order::HoldPosition {
-        return FleetEtaEstimate::Arrived;
-    }
-    let current = fleet.current_location_coords_raw();
-    let target = fleet.standing_order_target_coords_raw();
-    if current == target {
-        return FleetEtaEstimate::Arrived;
-    }
-    let map_size = map_size_for_player_count(game_data.conquest.player_count());
-    if target[0] == 0 || target[1] == 0 || target[0] > map_size || target[1] > map_size {
-        return FleetEtaEstimate::Unreachable;
-    }
-    estimate_fleet_eta_to_destination(game_data, fleet_idx, target, false, true)
 }
 
 pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
-    match fleet_display_eta_estimate(game_data, fleet_idx) {
-        FleetEtaEstimate::Arrived => game_data.conquest.game_year().to_string(),
-        FleetEtaEstimate::Stopped => "STOP".to_string(),
-        FleetEtaEstimate::Unreachable => "N/A".to_string(),
-        FleetEtaEstimate::Years(years) => game_data
-            .conquest
-            .game_year()
-            .saturating_add(years)
-            .to_string(),
-    }
+    engine_fleet_eta_label(game_data, fleet_idx)
 }
 
 pub(super) fn fleet_list_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
-    match fleet_display_eta_estimate(game_data, fleet_idx) {
-        FleetEtaEstimate::Arrived => "0".to_string(),
-        FleetEtaEstimate::Stopped => "S".to_string(),
-        FleetEtaEstimate::Unreachable => "X".to_string(),
-        FleetEtaEstimate::Years(years) => years.to_string(),
-    }
+    engine_fleet_list_eta_label(game_data, fleet_idx)
 }

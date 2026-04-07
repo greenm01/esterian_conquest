@@ -1,7 +1,5 @@
 use super::manip::{fleet_eta_label, fleet_list_eta_label};
-use super::orders::{
-    FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line, resolve_yes_no_input,
-};
+use super::orders::resolve_yes_no_input;
 use crate::app::helpers::{
     is_coordinate_input_char, resolve_default_coords_input, sync_scroll_to_cursor,
 };
@@ -14,6 +12,7 @@ use crate::screen::{
     ScreenId,
 };
 use nc_data::{FleetRecord, Order};
+use nc_engine::{FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line};
 use std::cmp::Reverse;
 
 fn fleet_strength_key(fleet: &FleetRecord) -> (u16, u16, u16, u16, u8, u16, Reverse<u16>) {

@@ -1,6 +1,6 @@
 //! F overlay: dashboard-sized fleet and starbase command table.
 
-use nc_engine::FLEET_MISSION_OPTIONS;
+use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::format_sector_coords_table;
 use nc_ui::table::{
@@ -279,7 +279,7 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: 
         },
         FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Confirm [Y]/N <Q> ",
+            prompt: "Confirm [Y]/N ",
             default: "Y",
             input: &app.fleet_overlay.order_confirm_input,
         },
@@ -465,7 +465,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
             id_label: fleet.local_slot_word_raw().to_string(),
             coords: fleet.current_location_coords_raw(),
             order: fleet.standing_order_kind(),
-            eta_label: String::from("--"),
+            eta_label: fleet_list_eta_label(&app.game_data, idx),
             strength_key: fleet_strength_key(fleet),
             cells: vec![
                 fleet.local_slot_word_raw().to_string(),
@@ -473,7 +473,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                 order_abbrev(fleet.standing_order_kind()).to_string(),
                 format_target(fleet.standing_order_target_coords_raw()),
                 fleet.current_speed().to_string(),
-                String::from("--"),
+                fleet_list_eta_label(&app.game_data, idx),
                 fleet.rules_of_engagement().to_string(),
                 fleet.army_count().to_string(),
                 truncate(&fleet.ship_composition_summary(), COLUMNS[8].width),
@@ -490,7 +490,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
             id_label: format!("SB{}", base.base_id_raw()),
             coords: base.coords_raw(),
             order: Order::GuardStarbase,
-            eta_label: String::from("--"),
+            eta_label: starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
             strength_key: (0, 0, 0, 0, 0, 0, u16::from(base.base_id_raw())),
             cells: vec![
                 format!("SB{}", base.base_id_raw()),
@@ -498,7 +498,7 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
                 String::from("Gs"),
                 String::from("--"),
                 String::from("0"),
-                String::from("--"),
+                starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
                 String::from("0"),
                 String::from("0"),
                 String::from("Starbase"),
@@ -614,4 +614,58 @@ fn fleet_strength_key(fleet: &nc_data::FleetRecord) -> (u16, u16, u16, u16, u8, 
         fleet.etac_count(),
         fleet.local_slot_word_raw(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::draw;
+    use crate::app::state::{ActiveOverlay, DashApp, FleetOverlayPromptMode};
+    use crate::layout::dashboard_layout;
+    use nc_data::{GameStateBuilder, Order};
+    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    #[test]
+    fn fleet_order_confirm_footer_renders_single_cancel_markup() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        app.fleet_overlay.order_target_x_input = "03".to_string();
+        app.fleet_overlay.order_target_y_input = "02".to_string();
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderConfirm;
+
+        let layout = dashboard_layout(&app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, layout.widgets.center_map);
+
+        let footer_line = (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains("COMMAND <- Confirm [Y]/N "))
+            .expect("fleet order confirm footer");
+
+        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
+        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N <Q> [Y] <Q> ->"));
+        assert_eq!(footer_line.matches("<Q>").count(), 1);
+    }
 }

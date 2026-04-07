@@ -4,11 +4,12 @@ use crate::app::helpers::{
 };
 use crate::app::state::App;
 use crate::domains::starbase::StarbaseAction;
-use crate::domains::starbase::state::{StarbaseMovePromptMode, guard_fleet_numbers_for_starbase};
+use crate::domains::starbase::state::StarbaseMovePromptMode;
 use crate::screen::{
     CommandMenu, ScreenId, StarbaseRow, format_sector_coords_default, format_sector_coords_table,
 };
 use nc_data::map_size_for_player_count;
+use nc_engine::{format_guard_fleet_clause, guard_fleet_numbers_for_starbase};
 
 impl App {
     fn starbase_visible_rows(&self) -> usize {
@@ -487,31 +488,5 @@ impl App {
             text.push_str(&clause);
         }
         text
-    }
-}
-
-fn format_guard_fleet_clause(fleet_numbers: &[u16]) -> Option<String> {
-    match fleet_numbers {
-        [] => None,
-        [fleet] => Some(format!("Guard Fleet {} will follow it.", fleet)),
-        [first, second] => Some(format!(
-            "Guard Fleets {} and {} will follow it.",
-            first, second
-        )),
-        many => {
-            let mut label = String::from("Guard Fleets ");
-            for (idx, fleet) in many.iter().enumerate() {
-                if idx > 0 {
-                    if idx + 1 == many.len() {
-                        label.push_str(", and ");
-                    } else {
-                        label.push_str(", ");
-                    }
-                }
-                label.push_str(&fleet.to_string());
-            }
-            label.push_str(" will follow it.");
-            Some(label)
-        }
     }
 }
