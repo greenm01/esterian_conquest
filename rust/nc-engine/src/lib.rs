@@ -1,5 +1,6 @@
 pub mod maint;
 pub mod navigation;
+pub mod orders;
 pub mod setup;
 
 pub use maint::{
@@ -12,6 +13,13 @@ pub use navigation::{
     FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_direct_eta,
     estimate_fleet_eta, estimate_fleet_eta_to_destination, next_path_step, plan_route,
     plan_route_with_intel, visible_hazard_intel_from_snapshots,
+};
+pub use orders::{
+    BUILD_UNITS, BuildUnitSpec, FLEET_MISSION_OPTIONS, FleetMissionOption,
+    FleetMissionRequirement, FleetTargetInputKind, build_kind_count_label, build_kind_name,
+    build_quantity_from_points, build_unit_spec, build_unit_spec_by_kind,
+    fleet_mission_option, fleet_record_supports_mission_code, fleet_record_supports_requirement,
+    fleet_target_input_kind, fleet_target_status_line, max_quantity,
 };
 pub use nc_data::{
     AssaultReportEvent, BaseRecord, BombardEvent, CONQUEST_DAT_SIZE, CampaignOutcome,
