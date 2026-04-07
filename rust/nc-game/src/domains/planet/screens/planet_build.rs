@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use nc_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 use nc_engine::{
-    BUILD_UNITS, BuildUnitSpec, build_kind_count_label, build_kind_name, build_unit_spec_by_kind,
-    max_quantity,
+    BuildUnitSpec, build_kind_count_label, build_kind_name, build_unit_spec_by_kind,
+    planet_build_max_selectable_unit_number, planet_build_specify_entries,
 };
 
 use crate::app::Action;
@@ -436,14 +436,16 @@ impl PlanetBuildScreen {
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view, orders);
-
-        let max_unit_num = BUILD_UNITS
+        let shared_orders = orders
             .iter()
-            .filter(|u| max_quantity(view.points_left, u.cost) > 0)
-            .map(|u| u.number)
-            .max()
-            .unwrap_or(0);
+            .map(|order| nc_engine::PlanetBuildOrderLine {
+                kind: order.kind,
+                points_remaining: order.points_remaining,
+            })
+            .collect::<Vec<_>>();
+        let entries = planet_build_specify_entries(view.points_left, &shared_orders);
+        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view.points_left, &entries);
+        let max_unit_num = planet_build_max_selectable_unit_number(&entries);
         draw_table_footer(
             &mut buffer,
             ScreenGeometry::local_default(),
@@ -470,7 +472,15 @@ impl PlanetBuildScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view, orders);
+        let shared_orders = orders
+            .iter()
+            .map(|order| nc_engine::PlanetBuildOrderLine {
+                kind: order.kind,
+                points_remaining: order.points_remaining,
+            })
+            .collect::<Vec<_>>();
+        let entries = planet_build_specify_entries(view.points_left, &shared_orders);
+        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view.points_left, &entries);
 
         let prompt = format!(
             "How many new {} to build (0 - {}) ",
@@ -807,65 +817,41 @@ impl Screen for PlanetBuildScreen {
 // and render_quantity_prompt.
 fn draw_specify_table(
     buffer: &mut PlayfieldBuffer,
-    view: &PlanetBuildMenuView,
-    orders: &[PlanetBuildOrder],
+    points_left: u32,
+    entries: &[nc_engine::PlanetBuildSpecifyEntry],
 ) -> (crate::screen::table::TableRenderMetrics, usize) {
     let style = classic::status_value_style();
     let title = "SPECIFY BUILD ORDERS:";
-
-    struct HalfEntry {
-        tag: String,
-        name: &'static str,
-        cost: u32,
-        qty: u32,
-    }
-
-    let entry = |unit: &BuildUnitSpec| -> HalfEntry {
-        let max_qty = max_quantity(view.points_left, unit.cost);
-        // Sum quantities across all queued orders for this unit kind.
-        let order_qty = if unit.cost == 0 {
-            0
-        } else {
-            orders
-                .iter()
-                .filter(|o| o.kind == unit.kind)
-                .map(|o| u32::from(o.points_remaining) / unit.cost)
-                .sum()
-        };
-        let tag = if max_qty > 0 {
-            format!("<{:02}>", unit.number)
-        } else {
-            String::new()
-        };
-        HalfEntry {
-            tag,
-            name: unit.label,
-            cost: unit.cost,
-            qty: order_qty,
-        }
-    };
 
     let left_units = [0usize, 1, 2, 3, 4];
     let right_units = [5usize, 6, 7, 8];
 
     let mut rows = Vec::with_capacity(5);
     for i in 0..left_units.len() {
-        let left = entry(&BUILD_UNITS[left_units[i]]);
-        let right = right_units.get(i).map(|idx| entry(&BUILD_UNITS[*idx]));
+        let left = entries[left_units[i]];
+        let right = right_units.get(i).map(|idx| entries[*idx]);
         rows.push(SplitTableRow {
             left_cells: vec![
-                left.tag,
-                left.name.to_string(),
+                if left.selectable {
+                    format!("<{:02}>", left.number)
+                } else {
+                    String::new()
+                },
+                left.label.to_string(),
                 format_build_cost(left.cost),
-                format!("({})", left.qty),
+                format!("({})", left.queued_qty),
             ],
             right_cells: right
                 .map(|right| {
                     vec![
-                        right.tag,
-                        right.name.to_string(),
+                        if right.selectable {
+                            format!("<{:02}>", right.number)
+                        } else {
+                            String::new()
+                        },
+                        right.label.to_string(),
                         format_build_cost(right.cost),
-                        format!("({})", right.qty),
+                        format!("({})", right.queued_qty),
                     ]
                 })
                 .unwrap_or_else(|| {
@@ -882,7 +868,7 @@ fn draw_specify_table(
     let table_width = table_render_width(&table_columns);
     let table_col = centered_table_start_col(buffer.width(), &table_columns);
     draw_table_title(buffer, 1, table_col, title);
-    let points_left_label = format!("PP LEFT TO SPEND: {}", view.points_left);
+    let points_left_label = format!("PP LEFT TO SPEND: {}", points_left);
     let points_left_col = table_col + table_width - TABLE_TEXT_INSET - points_left_label.len();
     debug_assert!(
         points_left_col >= table_col + TABLE_TEXT_INSET + title.len() + 1,

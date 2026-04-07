@@ -7,12 +7,12 @@ use nc_engine::BUILD_UNITS;
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::table::{
-    TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
-    table_render_width, write_stacked_table_window_with_theme_at, write_table_window_with_theme_at,
+    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
+    centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
+    write_stacked_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
 
-use crate::app::planet_build::{PlanetBuildOverlayView, build_order_point_total};
 use crate::app::state::{DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
@@ -169,44 +169,29 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 
 fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let view = app.planet_build_view();
-    let orders = app.planet_build_orders();
-    let table_cells = build_specify_table_rows(app);
-    let columns = resolve_table_columns(
-        &build_specify_columns(),
-        &table_cells,
-        max_overlay_body_width(map_frame),
-        false,
-        TableWidthMode::Compact,
-    );
-    let table_width = table_render_width(&columns);
-    let body_width = table_width.max(40);
-    let summary_rows = 4;
-    let natural_visible_rows = table_cells.len().max(1);
-    let status_rows = usize::from(
-        app.planet_overlay.build_unit_notice.is_some()
-            || app.planet_overlay.build_unit_status.is_some(),
-    );
+    let entries = app.planet_build_specify_entries();
+    let split_rows = build_specify_split_rows(&entries);
+    let table_width = build_specify_table_width();
+    let status_rows = usize::from(app.planet_overlay.build_unit_status.is_some());
+    let max_unit_num = app.planet_build_max_selectable_unit_number();
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
         "SPECIFY BUILD ORDERS",
-        body_width,
-        summary_rows + standard_table_body_height(natural_visible_rows) + status_rows,
+        table_width,
+        1 + standard_table_body_height(split_rows.len()) + status_rows,
         TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Unit number or 0 if done ",
+            prompt: &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
             default: "0",
             input: &app.planet_overlay.build_unit_input,
         },
     );
-    let visible_rows = frame
-        .body_height
-        .saturating_sub(summary_rows + standard_table_body_height(0) + status_rows);
     assert_overlay_body_write_fits(
         frame,
         "SPECIFY BUILD ORDERS",
-        table_render_width(&columns),
-        summary_rows + standard_table_body_height(visible_rows) + status_rows,
+        table_width,
+        1 + standard_table_body_height(split_rows.len()) + status_rows,
     );
 
     let Some(view) = view else {
@@ -221,34 +206,21 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWi
         return;
     };
 
-    write_build_header_lines(buf, frame, &view, &orders);
-    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
-    let _ = write_table_window_with_theme_at(
+    write_build_points_line(buf, frame, view.points_left, table_width);
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
+    let _ = write_split_table_at(
         buf,
-        frame.body_row + summary_rows,
+        frame.body_row + 1,
         table_col,
-        &columns,
-        &table_cells,
-        0,
-        visible_rows,
-        theme::table_theme(),
-        None,
-        0,
-        None,
+        &BUILD_HALF_COLUMNS,
+        &BUILD_HALF_COLUMNS,
+        &split_rows,
+        theme::value_style(),
     );
-    if let Some(notice) = app.planet_overlay.build_unit_notice.as_deref() {
+    if let Some(status) = app.planet_overlay.build_unit_status.as_deref() {
         write_clipped(
             buf,
-            frame.body_row + summary_rows + standard_table_body_height(visible_rows),
-            frame.body_col,
-            frame.body_width,
-            notice,
-            theme::dim_style(),
-        );
-    } else if let Some(status) = app.planet_overlay.build_unit_status.as_deref() {
-        write_clipped(
-            buf,
-            frame.body_row + summary_rows + standard_table_body_height(visible_rows),
+            frame.body_row + 1 + standard_table_body_height(split_rows.len()),
             frame.body_col,
             frame.body_width,
             status,
@@ -259,7 +231,6 @@ fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWi
 
 fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
     let view = app.planet_build_view();
-    let orders = app.planet_build_orders();
     let Some(kind) = app.planet_overlay.build_selected_kind else {
         draw_build_specify(buf, app, map_frame);
         return;
@@ -269,27 +240,18 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         return;
     };
     let max_qty = app.planet_build_max_quantity_for(kind).unwrap_or(0);
-    let table_cells = build_specify_table_rows(app);
-    let columns = resolve_table_columns(
-        &build_specify_columns(),
-        &table_cells,
-        max_overlay_body_width(map_frame),
-        false,
-        TableWidthMode::Compact,
-    );
-    let table_width = table_render_width(&columns);
-    let body_width = table_width.max(44);
-    let summary_rows = 5;
-    let natural_visible_rows = table_cells.len().max(1);
+    let entries = app.planet_build_specify_entries();
+    let split_rows = build_specify_split_rows(&entries);
+    let table_width = build_specify_table_width();
     let status_rows = usize::from(app.planet_overlay.build_quantity_status.is_some());
     let default_qty = max_qty.to_string();
-    let prompt = format!("How many new {} to build ", unit.singular_label);
+    let prompt = format!("How many new {} to build (0 - {}) ", unit.singular_label, max_qty);
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
         "BUILD QUANTITY",
-        body_width,
-        summary_rows + standard_table_body_height(natural_visible_rows) + status_rows,
+        table_width,
+        1 + standard_table_body_height(split_rows.len()) + status_rows,
         TableFooter::CommandInput {
             label: "COMMAND",
             prompt: &prompt,
@@ -297,14 +259,11 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
             input: &app.planet_overlay.build_quantity_input,
         },
     );
-    let visible_rows = frame
-        .body_height
-        .saturating_sub(summary_rows + standard_table_body_height(0) + status_rows);
     assert_overlay_body_write_fits(
         frame,
         "BUILD QUANTITY",
-        table_render_width(&columns),
-        summary_rows + standard_table_body_height(visible_rows) + status_rows,
+        table_width,
+        1 + standard_table_body_height(split_rows.len()) + status_rows,
     );
 
     let Some(view) = view else {
@@ -319,35 +278,21 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         return;
     };
 
-    write_build_header_lines(buf, frame, &view, &orders);
-    write_clipped(
+    write_build_points_line(buf, frame, view.points_left, table_width);
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
+    let _ = write_split_table_at(
         buf,
-        frame.body_row + 4,
-        frame.body_col,
-        frame.body_width,
-        &format!("Selected: {}  Max Qty: {}", unit.label, max_qty),
-        theme::label_style(),
-    );
-    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
-    let _ = write_table_window_with_theme_at(
-        buf,
-        frame.body_row + summary_rows,
+        frame.body_row + 1,
         table_col,
-        &columns,
-        &table_cells,
-        0,
-        visible_rows,
-        theme::table_theme(),
-        table_cells
-            .iter()
-            .position(|row| row.first() == Some(&unit.number.to_string())),
-        0,
-        None,
+        &BUILD_HALF_COLUMNS,
+        &BUILD_HALF_COLUMNS,
+        &split_rows,
+        theme::value_style(),
     );
     if let Some(status) = app.planet_overlay.build_quantity_status.as_deref() {
         write_clipped(
             buf,
-            frame.body_row + summary_rows + standard_table_body_height(visible_rows),
+            frame.body_row + 1 + standard_table_body_height(split_rows.len()),
             frame.body_col,
             frame.body_width,
             status,
@@ -356,84 +301,80 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
     }
 }
 
-fn write_build_header_lines(
-    buf: &mut PlayfieldBuffer,
-    frame: crate::overlays::frame::OverlayFrame,
-    view: &PlanetBuildOverlayView,
-    orders: &[crate::app::planet_build::PlanetBuildOrderLine],
-) {
-    write_clipped(
-        buf,
-        frame.body_row,
-        frame.body_col,
-        frame.body_width,
-        &format!(
-            "{} at {}",
-            view.row.planet_name,
-            format_sector_coords_table(view.row.coords)
-        ),
-        theme::label_style(),
-    );
-    write_clipped(
-        buf,
-        frame.body_row + 1,
-        frame.body_col,
-        frame.body_width,
-        &format!(
-            "Avail {}  Spent {}  Left {}",
-            view.available_points,
-            view.committed_points.min(view.available_points),
-            view.points_left
-        ),
-        theme::label_style(),
-    );
-    write_clipped(
-        buf,
-        frame.body_row + 2,
-        frame.body_col,
-        frame.body_width,
-        &format!(
-            "Queue {}  Points {}",
-            orders.len(),
-            build_order_point_total(orders)
-        ),
-        theme::label_style(),
-    );
-    write_clipped(
-        buf,
-        frame.body_row + 3,
-        frame.body_col,
-        frame.body_width,
-        if view.row.has_friendly_starbase {
-            "Starbase present: standard restrictions do not apply."
-        } else {
-            "No starbase present: standard restrictions apply."
-        },
-        theme::dim_style(),
-    );
-}
+const BUILD_HALF_COLUMNS: [TableColumn<'static>; 4] = [
+    TableColumn::left("NO.", 4),
+    TableColumn::left("UNIT TYPE", 19),
+    TableColumn::right("COST", 4),
+    TableColumn::right("QTY.", 5),
+];
 
-fn build_specify_columns() -> [TableColumn<'static>; 4] {
+fn build_specify_all_columns() -> [TableColumn<'static>; 8] {
     [
-        TableColumn::right("No", 2),
-        TableColumn::left("Unit Type", 18),
-        TableColumn::right("Cost", 4),
-        TableColumn::right("Qty", 4),
+        BUILD_HALF_COLUMNS[0],
+        BUILD_HALF_COLUMNS[1],
+        BUILD_HALF_COLUMNS[2],
+        BUILD_HALF_COLUMNS[3],
+        BUILD_HALF_COLUMNS[0],
+        BUILD_HALF_COLUMNS[1],
+        BUILD_HALF_COLUMNS[2],
+        BUILD_HALF_COLUMNS[3],
     ]
 }
 
-fn build_specify_table_rows(app: &DashApp) -> Vec<Vec<String>> {
-    app.planet_build_available_units()
-        .into_iter()
-        .map(|(unit, max_qty)| {
-            vec![
-                unit.number.to_string(),
-                unit.label.to_string(),
-                unit.cost.to_string(),
-                max_qty.to_string(),
-            ]
+fn build_specify_table_width() -> usize {
+    table_render_width(&build_specify_all_columns())
+}
+
+fn write_build_points_line(
+    buf: &mut PlayfieldBuffer,
+    frame: crate::overlays::frame::OverlayFrame,
+    points_left: u32,
+    table_width: usize,
+) {
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
+    let points_left_label = format!("PP LEFT TO SPEND: {}", points_left);
+    let points_left_col = table_col + table_width - TABLE_TEXT_INSET - points_left_label.len();
+    write_clipped(
+        buf,
+        frame.body_row,
+        points_left_col,
+        frame.body_width.saturating_sub(points_left_col.saturating_sub(frame.body_col)),
+        &points_left_label,
+        theme::title_style(),
+    );
+}
+
+fn build_specify_split_rows(entries: &[nc_engine::PlanetBuildSpecifyEntry]) -> Vec<SplitTableRow> {
+    let left_units = [0usize, 1, 2, 3, 4];
+    let right_units = [5usize, 6, 7, 8];
+
+    (0..left_units.len())
+        .map(|idx| {
+            let left = entries[left_units[idx]];
+            let right = right_units.get(idx).and_then(|entry_idx| entries.get(*entry_idx).copied());
+            SplitTableRow {
+                left_cells: build_specify_cells(left),
+                right_cells: right
+                    .map(build_specify_cells)
+                    .unwrap_or_else(|| {
+                        vec![String::new(), String::new(), String::new(), String::new()]
+                    }),
+            }
         })
         .collect()
+}
+
+fn build_specify_cells(entry: nc_engine::PlanetBuildSpecifyEntry) -> Vec<String> {
+    vec![
+        if entry.selectable {
+            format!("<{:02}>", entry.number)
+        } else {
+            String::new()
+        },
+        entry.label.to_string(),
+        format!("{:02}", entry.cost),
+        format!("({})", entry.queued_qty),
+    ]
 }
 
 pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
@@ -606,4 +547,97 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
     let dx = i32::from(a[0]) - i32::from(b[0]);
     let dy = i32::from(a[1]) - i32::from(b[1]);
     (dx * dx + dy * dy) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nc_data::ProductionItemKind;
+
+    #[test]
+    fn build_specify_rows_keep_all_choices_and_blank_unselectable_tags() {
+        let rows = build_specify_split_rows(&[
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 1,
+                kind: ProductionItemKind::Destroyer,
+                label: "Destroyers",
+                cost: 5,
+                queued_qty: 0,
+                selectable: true,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 2,
+                kind: ProductionItemKind::Cruiser,
+                label: "Cruisers",
+                cost: 15,
+                queued_qty: 0,
+                selectable: false,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 3,
+                kind: ProductionItemKind::Battleship,
+                label: "Battleships",
+                cost: 45,
+                queued_qty: 0,
+                selectable: false,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 4,
+                kind: ProductionItemKind::Scout,
+                label: "Scouts",
+                cost: 15,
+                queued_qty: 0,
+                selectable: false,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 5,
+                kind: ProductionItemKind::Transport,
+                label: "Troop transports",
+                cost: 5,
+                queued_qty: 0,
+                selectable: true,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 6,
+                kind: ProductionItemKind::Etac,
+                label: "ETACs",
+                cost: 20,
+                queued_qty: 0,
+                selectable: false,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 7,
+                kind: ProductionItemKind::Starbase,
+                label: "Starbases",
+                cost: 50,
+                queued_qty: 0,
+                selectable: false,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 9,
+                kind: ProductionItemKind::Army,
+                label: "Armies",
+                cost: 2,
+                queued_qty: 3,
+                selectable: true,
+            },
+            nc_engine::PlanetBuildSpecifyEntry {
+                number: 10,
+                kind: ProductionItemKind::GroundBattery,
+                label: "Ground batteries",
+                cost: 20,
+                queued_qty: 1,
+                selectable: false,
+            },
+        ]);
+
+        assert_eq!(rows.len(), 5);
+        assert_eq!(rows[0].left_cells[0], "<01>");
+        assert_eq!(rows[0].right_cells[0], "");
+        assert_eq!(rows[2].right_cells[0], "<09>");
+        assert_eq!(rows[2].right_cells[3], "(3)");
+        assert_eq!(rows[3].right_cells[0], "");
+        assert_eq!(rows[4].left_cells[0], "<05>");
+        assert!(rows[4].right_cells.iter().all(|cell| cell.is_empty()));
+    }
 }

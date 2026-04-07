@@ -1,8 +1,8 @@
 use nc_data::{EmpirePlanetEconomyRow, GameStateMutationError, ProductionItemKind};
 use nc_engine::{
-    BUILD_UNITS, BuildUnitSpec, build_unit_spec, build_unit_spec_by_kind,
-    planet_build_max_quantity, planet_build_orders, planet_build_unavailable_message,
-    planet_build_view, production_item_kind_raw,
+    build_unit_spec, build_unit_spec_by_kind, planet_build_max_quantity,
+    planet_build_max_selectable_unit_number, planet_build_orders, planet_build_specify_entries,
+    planet_build_unavailable_message, planet_build_view, production_item_kind_raw,
 };
 
 use crate::overlays::planet_list;
@@ -12,40 +12,10 @@ use super::state::{DashApp, HelpContext, PlanetOverlayPromptMode};
 #[derive(Debug, Clone)]
 pub(crate) struct PlanetBuildOverlayView {
     pub row: EmpirePlanetEconomyRow,
-    pub committed_points: u32,
-    pub available_points: u32,
     pub points_left: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct PlanetBuildOrderLine {
-    pub kind: ProductionItemKind,
-    pub points_remaining: u8,
-}
-
 impl DashApp {
-    pub(crate) fn planet_build_orders(&self) -> Vec<PlanetBuildOrderLine> {
-        let Some(planet_record_index_1_based) = self.planet_build_planet_record_index_1_based()
-        else {
-            return Vec::new();
-        };
-        let Some(record) = self
-            .game_data
-            .planets
-            .records
-            .get(planet_record_index_1_based.saturating_sub(1))
-        else {
-            return Vec::new();
-        };
-        planet_build_orders(record)
-            .into_iter()
-            .map(|order| PlanetBuildOrderLine {
-                kind: order.kind,
-                points_remaining: order.points_remaining,
-            })
-            .collect()
-    }
-
     pub(crate) fn planet_build_view(&self) -> Option<PlanetBuildOverlayView> {
         let planet_record_index_1_based = self.planet_build_planet_record_index_1_based()?;
         let row = self
@@ -56,8 +26,6 @@ impl DashApp {
         let view = planet_build_view(&self.game_data, &row).ok()?;
         Some(PlanetBuildOverlayView {
             row,
-            committed_points: view.committed_points,
-            available_points: view.available_points,
             points_left: view.points_left,
         })
     }
@@ -72,18 +40,15 @@ impl DashApp {
         planet_build_max_quantity(&self.game_data, &view.row, kind).map_err(Into::into)
     }
 
-    pub(crate) fn planet_build_available_units(&self) -> Vec<(BuildUnitSpec, u32)> {
+    pub(crate) fn planet_build_specify_entries(&self) -> Vec<nc_engine::PlanetBuildSpecifyEntry> {
         let Some(view) = self.planet_build_view() else {
             return Vec::new();
         };
-        BUILD_UNITS
-            .iter()
-            .copied()
-            .filter_map(|unit| {
-                let max_qty = self.planet_build_max_quantity_for(unit.kind).ok()?;
-                (view.points_left > 0 && max_qty > 0).then_some((unit, max_qty))
-            })
-            .collect()
+        planet_build_specify_entries(view.points_left, &planet_build_orders_for_dash(self))
+    }
+
+    pub(crate) fn planet_build_max_selectable_unit_number(&self) -> u8 {
+        planet_build_max_selectable_unit_number(&self.planet_build_specify_entries())
     }
 
     pub(crate) fn open_planet_build_specify(&mut self) {
@@ -99,7 +64,6 @@ impl DashApp {
             Some(row.planet_record_index_1_based);
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;
-        self.planet_overlay.build_unit_notice = None;
         self.planet_overlay.build_selected_kind = None;
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
@@ -110,14 +74,12 @@ impl DashApp {
         if self.planet_overlay.build_unit_input.len() < 2 {
             self.planet_overlay.build_unit_input.push(ch);
             self.planet_overlay.build_unit_status = None;
-            self.planet_overlay.build_unit_notice = None;
         }
     }
 
     pub(crate) fn backspace_planet_build_unit_input(&mut self) {
         self.planet_overlay.build_unit_input.pop();
         self.planet_overlay.build_unit_status = None;
-        self.planet_overlay.build_unit_notice = None;
     }
 
     pub(crate) fn submit_planet_build_unit(&mut self) {
@@ -155,7 +117,6 @@ impl DashApp {
         self.planet_overlay.build_selected_kind = Some(unit.kind);
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
-        self.planet_overlay.build_unit_notice = None;
         self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildQuantity;
     }
 
@@ -258,7 +219,6 @@ impl DashApp {
         self.reselect_planet_overlay_row(planet_record_index_1_based);
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;
-        self.planet_overlay.build_unit_notice = Some(format!("Queued {} {}.", qty, unit.label));
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
         self.planet_overlay.build_selected_kind = None;
@@ -277,7 +237,6 @@ impl DashApp {
         self.planet_overlay.build_planet_record_index_1_based = None;
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;
-        self.planet_overlay.build_unit_notice = None;
         self.planet_overlay.build_selected_kind = None;
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
@@ -305,9 +264,17 @@ impl DashApp {
     }
 }
 
-pub(crate) fn build_order_point_total(orders: &[PlanetBuildOrderLine]) -> u32 {
-    orders
-        .iter()
-        .map(|order| u32::from(order.points_remaining))
-        .sum()
+fn planet_build_orders_for_dash(app: &DashApp) -> Vec<nc_engine::PlanetBuildOrderLine> {
+    let Some(planet_record_index_1_based) = app.planet_build_planet_record_index_1_based() else {
+        return Vec::new();
+    };
+    let Some(record) = app
+        .game_data
+        .planets
+        .records
+        .get(planet_record_index_1_based.saturating_sub(1))
+    else {
+        return Vec::new();
+    };
+    planet_build_orders(record)
 }

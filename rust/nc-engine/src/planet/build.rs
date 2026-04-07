@@ -5,7 +5,7 @@ use nc_data::{
     PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, build_queue_unit_counts,
 };
 
-use crate::{build_quantity_from_points, build_unit_spec_by_kind, max_quantity};
+use crate::{BUILD_UNITS, build_quantity_from_points, build_unit_spec_by_kind, max_quantity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanetBuildViewStats {
@@ -27,6 +27,16 @@ pub struct PlanetBuildListEntry {
     pub kind: ProductionItemKind,
     pub queue_qty: u32,
     pub points: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanetBuildSpecifyEntry {
+    pub number: u8,
+    pub kind: ProductionItemKind,
+    pub label: &'static str,
+    pub cost: u32,
+    pub queued_qty: u32,
+    pub selectable: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,8 +126,7 @@ pub fn planet_build_view(
             index_1_based: row.planet_record_index_1_based,
         })?;
     let committed_points = planet_build_committed_points(planet);
-    let available_points =
-        u32::from(row.build_capacity).min(row.stored_production_points.min(u32::from(u16::MAX)));
+    let available_points = u32::from(row.build_capacity).min(row.yearly_tax_revenue);
     Ok(PlanetBuildViewStats {
         committed_points,
         available_points,
@@ -186,6 +195,44 @@ pub fn planet_build_list_entries(planet: &PlanetRecord) -> Vec<PlanetBuildListEn
             })
         })
         .collect()
+}
+
+pub fn planet_build_specify_entries(
+    points_left: u32,
+    orders: &[PlanetBuildOrderLine],
+) -> Vec<PlanetBuildSpecifyEntry> {
+    BUILD_UNITS
+        .iter()
+        .copied()
+        .map(|unit| {
+            let queued_qty = if unit.cost == 0 {
+                0
+            } else {
+                orders
+                    .iter()
+                    .filter(|order| order.kind == unit.kind)
+                    .map(|order| u32::from(order.points_remaining) / unit.cost)
+                    .sum()
+            };
+            PlanetBuildSpecifyEntry {
+                number: unit.number,
+                kind: unit.kind,
+                label: unit.label,
+                cost: unit.cost,
+                queued_qty,
+                selectable: max_quantity(points_left, unit.cost) > 0,
+            }
+        })
+        .collect()
+}
+
+pub fn planet_build_max_selectable_unit_number(entries: &[PlanetBuildSpecifyEntry]) -> u8 {
+    entries
+        .iter()
+        .filter(|entry| entry.selectable)
+        .map(|entry| entry.number)
+        .max()
+        .unwrap_or(0)
 }
 
 pub fn planet_commission_slot_entries(planet: &PlanetRecord) -> Vec<PlanetCommissionSlotEntry> {

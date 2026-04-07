@@ -74,7 +74,7 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         ),
         (
             layout::format_left_column_value(
-                "Avail Pts",
+                "Avail PP",
                 &economy.total_available_points.to_string(),
             ),
             theme::value_style(),

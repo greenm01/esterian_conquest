@@ -1,6 +1,7 @@
 use nc_data::{GameStateBuilder, ProductionItemKind};
 use nc_engine::{
-    ArmyTransportMode, default_fleet_transport_fleet_number, planet_build_view,
+    ArmyTransportMode, default_fleet_transport_fleet_number,
+    planet_build_max_selectable_unit_number, planet_build_specify_entries, planet_build_view,
     planet_commission_draft_state, production_item_kind_raw,
 };
 
@@ -38,6 +39,47 @@ fn planet_build_view_counts_queue_and_stardock_units() {
     assert_eq!(view.committed_points, 90);
     assert_eq!(view.building_count, 2);
     assert_eq!(view.docked_count, 5);
+}
+
+#[test]
+fn planet_build_view_uses_selected_planet_available_pp_not_stored_points() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .build_initialized_baseline()
+        .expect("baseline");
+    let row = {
+        let mut row = game_data.empire_planet_economy_rows(1).remove(0);
+        row.stored_production_points = 0;
+        row.yearly_tax_revenue = 50;
+        row.build_capacity = 100;
+        row
+    };
+
+    let view = planet_build_view(&game_data, &row).expect("view");
+
+    assert_eq!(view.available_points, 50);
+    assert_eq!(view.points_left, 50);
+}
+
+#[test]
+fn build_specify_entries_include_all_build_choices_and_blank_unaffordable_rows() {
+    let entries = planet_build_specify_entries(
+        10,
+        &[nc_engine::PlanetBuildOrderLine {
+            kind: ProductionItemKind::GroundBattery,
+            points_remaining: 20,
+        }],
+    );
+
+    assert_eq!(entries.len(), 9);
+    assert_eq!(entries[0].number, 1);
+    assert!(entries[0].selectable);
+    assert_eq!(entries[5].number, 6);
+    assert!(!entries[5].selectable);
+    assert_eq!(entries[8].number, 10);
+    assert_eq!(entries[8].queued_qty, 1);
+    assert!(!entries[8].selectable);
+    assert_eq!(planet_build_max_selectable_unit_number(&entries), 9);
 }
 
 #[test]

@@ -217,7 +217,7 @@ where
 pub fn left_column_label_width() -> usize {
     label_value_width([
         "Treasury",
-        "Avail Pts",
+        "Avail PP",
         "Prod",
         "Pot Prod",
         "Revenue",
@@ -413,7 +413,7 @@ mod tests {
             format_left_column_value("Treasury", "217"),
             format_left_column_value("Prod", "332"),
             format_left_column_value("Pot Prod", "775"),
-            format_left_column_value("Avail Pts", "1032"),
+            format_left_column_value("Avail PP", "1032"),
             format_left_column_value("Tax Rate", "50%"),
             format_left_column_value("PP Gen", "+56"),
             format_left_column_value("% Growth", "16.9%"),
