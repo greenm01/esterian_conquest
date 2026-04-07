@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn economy_rows_render_compact_cmd_limit() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

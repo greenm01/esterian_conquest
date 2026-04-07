@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn planet_summary_includes_total_building_row() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

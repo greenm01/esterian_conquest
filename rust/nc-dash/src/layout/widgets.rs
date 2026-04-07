@@ -441,7 +441,7 @@ mod tests {
     }
 
     fn dash_app(geometry: ScreenGeometry) -> DashApp {
-        DashApp::new(
+        DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

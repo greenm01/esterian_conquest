@@ -697,7 +697,7 @@ mod tests {
 
     #[test]
     fn widget_rows_use_split_owned_world_fields() {
-        let mut app = crate::app::state::DashApp::new(
+        let mut app = crate::app::state::DashApp::new_for_tests(
             std::path::PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

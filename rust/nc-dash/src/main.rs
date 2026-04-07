@@ -54,15 +54,19 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         .get(player_record_index_1_based.saturating_sub(1))
         .copied()
         .unwrap_or_else(|| nc_data::PlayerWarStatsState::for_player(player_record_index_1_based));
+    let player_activity_states =
+        campaign_store.latest_player_activity_states(state.game_data.conquest.player_count())?;
 
     let mut app = DashApp::new(
         game_dir,
+        Some(campaign_store.clone()),
         state.game_data,
         owned_planet_years,
         state.planet_scorch_orders,
         state.report_block_rows,
         state.queued_mail,
         planet_intel_snapshots,
+        player_activity_states,
         geometry,
         ScreenGeometry::new(0, 0),
         player_record_index_1_based,

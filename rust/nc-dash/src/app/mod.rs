@@ -1,6 +1,9 @@
 //! App struct, main loop, and action dispatch.
 
+mod fleet_orders;
 pub mod input;
+mod persistence;
+pub(crate) mod planet_build;
 pub mod render;
 pub mod state;
 
@@ -336,6 +339,32 @@ impl DashApp {
 
     fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
         match self.planet_overlay.prompt_mode {
+            PlanetOverlayPromptMode::BuildSpecify => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetBuildSpecify),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.close_planet_build_overlay();
+                }
+                KeyCode::Enter => self.submit_planet_build_unit(),
+                KeyCode::Backspace => self.backspace_planet_build_unit_input(),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => self.append_planet_build_unit_char(ch),
+                _ => {}
+            },
+            PlanetOverlayPromptMode::BuildQuantity => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetBuildQuantity),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_planet_build_quantity();
+                }
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_planet_build_quantity() {
+                        self.planet_overlay.build_quantity_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_planet_build_quantity_input(),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.append_planet_build_quantity_char(ch)
+                }
+                _ => {}
+            },
             PlanetOverlayPromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetListSort),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
@@ -453,6 +482,7 @@ impl DashApp {
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::SortMenu;
             }
+            KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
             KeyCode::Char(ch)
                 if self.planet_overlay.jump_input.len() < 16
                     && table_selection::is_coordinate_input_char(ch) =>
@@ -479,6 +509,124 @@ impl DashApp {
 
     fn handle_fleet_overlay_key(&mut self, key: KeyEvent) {
         match self.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::MissionPicker => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetMissionPicker),
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    self.move_fleet_mission_picker(-1)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    self.move_fleet_mission_picker(1)
+                }
+                KeyCode::PageUp => self.move_fleet_mission_picker(-8),
+                KeyCode::PageDown => self.move_fleet_mission_picker(8),
+                KeyCode::Enter => self.submit_fleet_mission_picker(),
+                KeyCode::Backspace => self.backspace_fleet_mission_picker_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    self.append_fleet_mission_picker_char(ch)
+                }
+                _ => {}
+            },
+            FleetOverlayPromptMode::OrderTarget => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_fleet_order() {
+                        self.fleet_overlay.order_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_fleet_order_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char(ch)
+                    if match nc_engine::fleet_target_input_kind(self.fleet_overlay.order_mission_code) {
+                        nc_engine::FleetTargetInputKind::Coordinates
+                        | nc_engine::FleetTargetInputKind::None => table_selection::is_coordinate_input_char(ch),
+                        nc_engine::FleetTargetInputKind::StarbaseId
+                        | nc_engine::FleetTargetInputKind::FleetId => ch.is_ascii_digit(),
+                    } =>
+                {
+                    self.append_fleet_order_char(ch)
+                }
+                _ => {}
+            },
+            FleetOverlayPromptMode::OrderTargetX | FleetOverlayPromptMode::OrderTargetY => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_fleet_order() {
+                        self.fleet_overlay.order_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_fleet_order_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => self.append_fleet_order_char(ch),
+                _ => {}
+            },
+            FleetOverlayPromptMode::OrderConfirm => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_fleet_order() {
+                        self.fleet_overlay.order_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_fleet_order_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
+                    self.append_fleet_order_char(ch)
+                }
+                _ => {}
+            },
+            FleetOverlayPromptMode::StarbaseMoveDecision => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::StarbaseMove),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_starbase_move() {
+                        self.fleet_overlay.starbase_move_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_starbase_move_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char(ch) if ch.is_ascii_alphabetic() => self.append_starbase_move_char(ch),
+                _ => {}
+            },
+            FleetOverlayPromptMode::StarbaseMoveDestination => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::StarbaseMove),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_starbase_move() {
+                        self.fleet_overlay.starbase_move_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_starbase_move_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char(ch) if table_selection::is_coordinate_input_char(ch) => {
+                    self.append_starbase_move_char(ch)
+                }
+                _ => {}
+            },
+            FleetOverlayPromptMode::StarbaseHaltConfirm => match key.code {
+                KeyCode::Char('?') => self.open_overlay_help(HelpContext::StarbaseMove),
+                KeyCode::Enter => {
+                    if let Err(err) = self.submit_starbase_move() {
+                        self.fleet_overlay.starbase_move_status = Some(err.to_string());
+                    }
+                }
+                KeyCode::Backspace => self.backspace_starbase_move_input(),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    self.cancel_fleet_order_input();
+                }
+                KeyCode::Char('n') | KeyCode::Char('N') => self.cancel_fleet_order_input(),
+                KeyCode::Char(ch) if matches!(ch, 'y' | 'Y') => self.append_starbase_move_char(ch),
+                _ => {}
+            },
             FleetOverlayPromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetListSort),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
@@ -534,6 +682,7 @@ impl DashApp {
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::SortMenu;
             }
+            KeyCode::Char('o') | KeyCode::Char('O') => self.open_selected_fleet_order_flow(),
             KeyCode::Char(ch)
                 if self.fleet_overlay.jump_input.len() < 8 && ch.is_ascii_alphanumeric() =>
             {
@@ -1438,7 +1587,7 @@ mod tests {
     }
 
     fn dash_app() -> DashApp {
-        DashApp::new(
+        DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

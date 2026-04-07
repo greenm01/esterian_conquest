@@ -1,6 +1,9 @@
 //! Dashboard application state.
 
-use nc_data::{CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
+use nc_data::{
+    CampaignStore, CoreGameData, PlanetIntelSnapshot, PlayerActivityState, ProductionItemKind,
+    QueuedPlayerMail, ReportBlockRow,
+};
 use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 use std::collections::{BTreeMap, BTreeSet};
@@ -74,10 +77,15 @@ pub enum HelpContext {
     PlanetList,
     PlanetListSort,
     PlanetListFilter,
+    PlanetBuildSpecify,
+    PlanetBuildQuantity,
     PromptInput,
     FleetList,
     FleetListSort,
     FleetListFilter,
+    FleetMissionPicker,
+    FleetOrderInput,
+    StarbaseMove,
     IntelDatabase,
     IntelDatabaseSort,
     IntelDatabaseFilter,
@@ -137,6 +145,8 @@ pub enum PlanetOverlayPromptMode {
     FilterMenu,
     FilterRangeCoords,
     FilterRangeDistance,
+    BuildSpecify,
+    BuildQuantity,
 }
 
 #[derive(Debug, Clone)]
@@ -150,6 +160,13 @@ pub struct PlanetOverlayState {
     pub prompt_input: String,
     pub prompt_default: String,
     pub pending_range_anchor: Option<[u8; 2]>,
+    pub build_planet_record_index_1_based: Option<usize>,
+    pub build_unit_input: String,
+    pub build_unit_status: Option<String>,
+    pub build_unit_notice: Option<String>,
+    pub build_selected_kind: Option<ProductionItemKind>,
+    pub build_quantity_input: String,
+    pub build_quantity_status: Option<String>,
 }
 
 impl Default for PlanetOverlayState {
@@ -164,8 +181,21 @@ impl Default for PlanetOverlayState {
             prompt_input: String::new(),
             prompt_default: String::new(),
             pending_range_anchor: None,
+            build_planet_record_index_1_based: None,
+            build_unit_input: String::new(),
+            build_unit_status: None,
+            build_unit_notice: None,
+            build_selected_kind: None,
+            build_quantity_input: String::new(),
+            build_quantity_status: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOverlayRowKey {
+    Fleet(usize),
+    Starbase(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -190,6 +220,14 @@ pub enum FleetOverlayPromptMode {
     None,
     SortMenu,
     FilterMenu,
+    MissionPicker,
+    OrderTarget,
+    OrderTargetX,
+    OrderTargetY,
+    OrderConfirm,
+    StarbaseMoveDecision,
+    StarbaseMoveDestination,
+    StarbaseHaltConfirm,
 }
 
 #[derive(Debug, Clone)]
@@ -200,6 +238,18 @@ pub struct FleetOverlayState {
     pub sort: FleetOverlaySort,
     pub filter: FleetOverlayFilter,
     pub prompt_mode: FleetOverlayPromptMode,
+    pub active_row_key: Option<FleetOverlayRowKey>,
+    pub mission_picker_input: String,
+    pub mission_picker_cursor: usize,
+    pub mission_picker_status: Option<String>,
+    pub order_mission_code: Option<u8>,
+    pub order_status: Option<String>,
+    pub order_input: String,
+    pub order_target_x_input: String,
+    pub order_target_y_input: String,
+    pub order_confirm_input: String,
+    pub starbase_move_input: String,
+    pub starbase_move_status: Option<String>,
 }
 
 impl Default for FleetOverlayState {
@@ -211,6 +261,18 @@ impl Default for FleetOverlayState {
             sort: FleetOverlaySort::Id,
             filter: FleetOverlayFilter::All,
             prompt_mode: FleetOverlayPromptMode::None,
+            active_row_key: None,
+            mission_picker_input: String::new(),
+            mission_picker_cursor: 0,
+            mission_picker_status: None,
+            order_mission_code: None,
+            order_status: None,
+            order_input: String::new(),
+            order_target_x_input: String::new(),
+            order_target_y_input: String::new(),
+            order_confirm_input: String::new(),
+            starbase_move_input: String::new(),
+            starbase_move_status: None,
         }
     }
 }
@@ -302,12 +364,14 @@ impl Default for InboxOverlayState {
 /// Dashboard application state.
 pub struct DashApp {
     pub _game_dir: std::path::PathBuf,
+    pub campaign_store: Option<CampaignStore>,
     pub game_data: CoreGameData,
     pub owned_planet_years: BTreeMap<usize, u16>,
     pub planet_scorch_orders: BTreeSet<usize>,
     pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
+    pub player_activity_states: Vec<PlayerActivityState>,
     pub player_war_stats: nc_data::PlayerWarStatsState,
     /// Full terminal dimensions (canvas).
     pub geometry: ScreenGeometry,
@@ -351,12 +415,14 @@ pub struct DashApp {
 impl DashApp {
     pub fn new(
         game_dir: std::path::PathBuf,
+        campaign_store: Option<CampaignStore>,
         game_data: CoreGameData,
         owned_planet_years: BTreeMap<usize, u16>,
         planet_scorch_orders: BTreeSet<usize>,
         report_block_rows: Vec<ReportBlockRow>,
         queued_mail: Vec<QueuedPlayerMail>,
         planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
+        player_activity_states: Vec<PlayerActivityState>,
         geometry: ScreenGeometry,
         frame: ScreenGeometry,
         player_record_index_1_based: usize,
@@ -374,12 +440,14 @@ impl DashApp {
             initial_crosshair_coords(&game_data, player_record_index_1_based);
         Self {
             _game_dir: game_dir,
+            campaign_store,
             game_data,
             owned_planet_years,
             planet_scorch_orders,
             report_block_rows,
             queued_mail,
             planet_intel_snapshots,
+            player_activity_states,
             player_war_stats: nc_data::PlayerWarStatsState::for_player(player_record_index_1_based),
             geometry,
             frame,
@@ -406,6 +474,35 @@ impl DashApp {
             is_terminal_too_small: false,
             should_quit: false,
         }
+    }
+
+    #[cfg(test)]
+    pub fn new_for_tests(
+        game_dir: std::path::PathBuf,
+        game_data: CoreGameData,
+        owned_planet_years: BTreeMap<usize, u16>,
+        planet_scorch_orders: BTreeSet<usize>,
+        report_block_rows: Vec<ReportBlockRow>,
+        queued_mail: Vec<QueuedPlayerMail>,
+        planet_intel_snapshots: Vec<PlanetIntelSnapshot>,
+        geometry: ScreenGeometry,
+        frame: ScreenGeometry,
+        player_record_index_1_based: usize,
+    ) -> Self {
+        Self::new(
+            game_dir,
+            None,
+            game_data,
+            owned_planet_years,
+            planet_scorch_orders,
+            report_block_rows,
+            queued_mail,
+            planet_intel_snapshots,
+            Vec::new(),
+            geometry,
+            frame,
+            player_record_index_1_based,
+        )
     }
 }
 
@@ -454,7 +551,7 @@ mod tests {
 
     #[test]
     fn new_app_starts_crosshair_on_player_homeworld() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

@@ -449,7 +449,7 @@ mod tests {
 
     #[test]
     fn side_columns_are_measured_from_widget_content() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -484,7 +484,7 @@ mod tests {
 
     #[test]
     fn fill_mode_uses_full_terminal_canvas() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -511,7 +511,7 @@ mod tests {
 
     #[test]
     fn required_frame_stays_based_on_minimum_projected_map() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn diplomacy_keeps_minimum_visible_rows_at_required_size() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -560,7 +560,7 @@ mod tests {
 
     #[test]
     fn layout_fit_helper_detects_widget_overrun() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

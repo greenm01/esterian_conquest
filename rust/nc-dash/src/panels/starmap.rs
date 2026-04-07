@@ -568,7 +568,7 @@ mod tests {
 
     #[test]
     fn draw_bottom_map_row_matches_current_padding_mode() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn readable_mode_uses_full_widget_for_projected_map_block() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn projected_geometry_fills_grid_and_follows_zoomed_cursor() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -698,7 +698,7 @@ mod tests {
 
     #[test]
     fn readable_mode_uses_full_map_fit_inside_shrunk_dashboard_frame() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn fill_mode_projects_into_full_center_widget() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -769,7 +769,7 @@ mod tests {
 
     #[test]
     fn crosshair_uses_line_glyphs_on_empty_sectors() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

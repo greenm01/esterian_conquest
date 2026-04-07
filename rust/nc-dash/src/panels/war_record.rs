@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn war_record_uses_ship_loss_labels() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)

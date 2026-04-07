@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn empty_sector_uses_compact_copy() {
-        let mut app = DashApp::new(
+        let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn preferred_width_covers_empty_and_world_states() {
-        let app = DashApp::new(
+        let app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
                 .with_player_count(4)
