@@ -349,6 +349,7 @@ fn reports_screen_uses_themed_scrollbar_thumb_style() {
                 week: None,
                 subject: format!("Message {}", idx + 1),
                 body_lines: vec![format!("Body {}", idx + 1)],
+                report_bucket: None,
             },
         })
         .collect::<Vec<_>>();

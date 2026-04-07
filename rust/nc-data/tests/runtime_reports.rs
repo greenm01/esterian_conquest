@@ -1,0 +1,165 @@
+use std::path::PathBuf;
+
+use nc_data::{
+    CoreGameData, InboxItemType, QueuedPlayerMail, ReportBlockRow, ReportSummaryBucket,
+    ReportsPreview, runtime_inbox_items, runtime_inbox_preview_lines,
+};
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn fixture_game_data() -> CoreGameData {
+    CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5")).expect("load fixture")
+}
+
+fn visible_mail(
+    sender: u8,
+    recipient: u8,
+    year: u16,
+    subject: &str,
+    body: &str,
+) -> QueuedPlayerMail {
+    QueuedPlayerMail {
+        sender_empire_id: sender,
+        recipient_empire_id: recipient,
+        year,
+        subject: subject.to_string(),
+        body: body.to_string(),
+        recipient_deleted: false,
+    }
+}
+
+fn report_row(viewer_empire_id: u8, block_index: usize, decoded_text: &str) -> ReportBlockRow {
+    ReportBlockRow {
+        viewer_empire_id,
+        block_index,
+        decoded_text: decoded_text.to_string(),
+        raw_bytes: None,
+        recipient_deleted: false,
+    }
+}
+
+#[test]
+fn runtime_inbox_items_classify_subjects_and_report_buckets() {
+    let game_data = fixture_game_data();
+    let items = runtime_inbox_items(
+        &game_data,
+        1,
+        &[
+            report_row(0, 0, "Stardate: 03/3003\nFleet contact report"),
+            report_row(0, 1, "Stardate: 11/3003\nBombardment complete."),
+            report_row(0, 2, "Starbase 1 is moving to (08,12)."),
+        ],
+        &[],
+    );
+
+    assert!(
+        items.iter().any(|item| item.subject == "Scout"
+            && item.report_bucket == Some(ReportSummaryBucket::Intel))
+    );
+    assert!(
+        items.iter().any(|item| item.subject == "Bombard"
+            && item.report_bucket == Some(ReportSummaryBucket::Combat))
+    );
+    assert!(
+        items.iter().any(|item| item.subject == "Starbase"
+            && item.report_bucket == Some(ReportSummaryBucket::Ops))
+    );
+}
+
+#[test]
+fn runtime_inbox_items_sort_newest_to_oldest_by_stardate() {
+    let game_data = fixture_game_data();
+    let items = runtime_inbox_items(
+        &game_data,
+        1,
+        &[
+            report_row(0, 0, "Stardate: 01/3003\nPatrol mission update."),
+            report_row(0, 0, "Stardate: 02/3003\nFleet contact report"),
+            report_row(0, 0, "Stardate: 03/3003\nGeneral command advisory."),
+            report_row(0, 1, "Stardate: 52/3002\nBombardment complete."),
+        ],
+        &[visible_mail(2, 1, 3003, "Diplomatic", "")],
+    );
+
+    let labels = items
+        .iter()
+        .map(|item| format!("{} {}", item.stardate_label(), item.subject))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        vec![
+            "03/3003 General".to_string(),
+            "02/3003 Scout".to_string(),
+            "01/3003 Patrol".to_string(),
+            "00/3003 Diplomatic".to_string(),
+            "52/3002 Bombard".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn reports_preview_collects_visible_report_and_message_blocks() {
+    let game_data = fixture_game_data();
+    let preview = ReportsPreview::from_block_rows(
+        &game_data,
+        1,
+        &[
+            report_row(0, 0, "Stardate: 03/3003\nFleet contact report"),
+            report_row(2, 1, "Stardate: 04/3003\nPlayer 2 only report."),
+        ],
+        &[visible_mail(2, 1, 3003, "Diplomatic", "Need aid.")],
+    );
+
+    assert_eq!(preview.result_blocks.len(), 1);
+    assert_eq!(preview.message_blocks.len(), 1);
+    assert!(
+        preview
+            .results_lines
+            .iter()
+            .any(|line| line.contains("Fleet contact report"))
+    );
+    assert!(
+        preview
+            .message_lines
+            .iter()
+            .any(|line| line.contains("Subject: Diplomatic"))
+    );
+    assert!(
+        preview
+            .message_lines
+            .iter()
+            .any(|line| line.contains("<end of message>"))
+    );
+}
+
+#[test]
+fn runtime_inbox_preview_lines_wrap_and_preserve_blank_lines() {
+    let lines = vec![
+        "This is a long line that should wrap cleanly.".to_string(),
+        String::new(),
+        "Tail".to_string(),
+    ];
+
+    let wrapped = runtime_inbox_preview_lines(&lines, 12);
+    assert!(wrapped.len() >= 4);
+    assert!(wrapped.iter().any(|line| line.is_empty()));
+    assert_eq!(wrapped.last().expect("tail"), "Tail");
+}
+
+#[test]
+fn message_rows_display_zero_week_stardate() {
+    let game_data = fixture_game_data();
+    let items = runtime_inbox_items(
+        &game_data,
+        1,
+        &[],
+        &[visible_mail(2, 1, 3003, "Diplomatic", "")],
+    );
+    let message = items
+        .iter()
+        .find(|item| item.item_type == InboxItemType::Message)
+        .expect("message row");
+    assert_eq!(message.stardate_label(), "00/3003");
+}

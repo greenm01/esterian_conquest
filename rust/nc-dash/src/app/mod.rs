@@ -17,7 +17,7 @@ use state::{
     MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
 };
 
-use crate::inbox::{DashInboxItemSource, project_inbox_items};
+use crate::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
 use crate::layout::dashboard;
 use crate::overlays::{fleet_list, inbox, intel_database, planet_list};
 use crate::panels::starmap;
@@ -541,9 +541,13 @@ impl DashApp {
                     self.cancel_fleet_order_input();
                 }
                 KeyCode::Char(ch)
-                    if match nc_engine::fleet_target_input_kind(self.fleet_overlay.order_mission_code) {
+                    if match nc_engine::fleet_target_input_kind(
+                        self.fleet_overlay.order_mission_code,
+                    ) {
                         nc_engine::FleetTargetInputKind::Coordinates
-                        | nc_engine::FleetTargetInputKind::None => table_selection::is_coordinate_input_char(ch),
+                        | nc_engine::FleetTargetInputKind::None => {
+                            table_selection::is_coordinate_input_char(ch)
+                        }
                         nc_engine::FleetTargetInputKind::StarbaseId
                         | nc_engine::FleetTargetInputKind::FleetId => ch.is_ascii_digit(),
                     } =>
@@ -552,20 +556,22 @@ impl DashApp {
                 }
                 _ => {}
             },
-            FleetOverlayPromptMode::OrderTargetX | FleetOverlayPromptMode::OrderTargetY => match key.code {
-                KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
-                KeyCode::Enter => {
-                    if let Err(err) = self.submit_fleet_order() {
-                        self.fleet_overlay.order_status = Some(err.to_string());
+            FleetOverlayPromptMode::OrderTargetX | FleetOverlayPromptMode::OrderTargetY => {
+                match key.code {
+                    KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
+                    KeyCode::Enter => {
+                        if let Err(err) = self.submit_fleet_order() {
+                            self.fleet_overlay.order_status = Some(err.to_string());
+                        }
                     }
+                    KeyCode::Backspace => self.backspace_fleet_order_input(),
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                        self.cancel_fleet_order_input();
+                    }
+                    KeyCode::Char(ch) if ch.is_ascii_digit() => self.append_fleet_order_char(ch),
+                    _ => {}
                 }
-                KeyCode::Backspace => self.backspace_fleet_order_input(),
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.cancel_fleet_order_input();
-                }
-                KeyCode::Char(ch) if ch.is_ascii_digit() => self.append_fleet_order_char(ch),
-                _ => {}
-            },
+            }
             FleetOverlayPromptMode::OrderConfirm => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetOrderInput),
                 KeyCode::Enter => {
@@ -1334,7 +1340,7 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
         &app.queued_mail,
     )
     .into_iter()
-    .filter(|item| item.matches_filter(state.filter, state.current_year_only, current_year))
+    .filter(|item| matches_filter(item, state.filter, state.current_year_only, current_year))
     .collect::<Vec<_>>();
 
     let selected = state.selected.min(items.len().saturating_sub(1));

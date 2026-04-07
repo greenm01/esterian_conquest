@@ -24,13 +24,14 @@ mod intel;
 pub mod maintenance_types;
 mod map_dimensions;
 mod map_export;
+mod planet_summary;
 mod player_activity;
 mod player_mail;
 mod player_war_stats;
-mod planet_summary;
 mod records;
 mod report_blocks;
 mod rng;
+mod runtime_reports;
 mod starmap;
 mod storage;
 mod support;
@@ -72,6 +73,12 @@ pub use map_export::{
     PlayerMapExportData, PlayerMapExportFile, STARMAP_CSV_FILE_NAME, STARMAP_DETAILS_CSV_FILE_NAME,
     STARMAP_TEXT_FILE_NAME, build_player_map_export_data,
 };
+pub use planet_summary::{
+    CompactUnitSummaryStyle, OrbitPresenceSummary, OwnedPlanetStatus, build_queue_unit_counts,
+    compact_unit_code, format_build_queue_summary, format_owned_orbit_summary,
+    format_stardock_summary, format_unit_counts, ordered_unit_count_entries, owned_orbit_presence,
+    owned_planet_status, stardock_unit_counts,
+};
 pub use player_activity::{
     DEFAULT_INACTIVITY_AUTOPILOT_AFTER_TURNS, apply_inactivity_autopilot_policy,
     clear_inactivity_autopilot_pending, default_player_activity_states,
@@ -85,12 +92,6 @@ pub use player_mail::{
 pub use player_war_stats::{
     apply_maintenance_events_to_player_war_stats, default_player_war_stats_states,
 };
-pub use planet_summary::{
-    CompactUnitSummaryStyle, OrbitPresenceSummary, OwnedPlanetStatus, build_queue_unit_counts,
-    compact_unit_code, format_build_queue_summary, format_owned_orbit_summary,
-    format_stardock_summary, format_unit_counts, ordered_unit_count_entries,
-    owned_orbit_presence, owned_planet_status, stardock_unit_counts,
-};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::fleet::{FleetDat, FleetRecord, Order};
@@ -102,6 +103,11 @@ pub use report_blocks::ReportBlockRow;
 pub use rng::{
     GameRng, RNG_TAG_COMBAT, RNG_TAG_MAPGEN, derive_campaign_seed_from_runtime,
     generate_campaign_seed, mix_seed,
+};
+pub use runtime_reports::{
+    InboxItem, InboxItemSource, InboxItemType, ReportSummaryBucket, ReportsPreview, ReviewBlock,
+    has_visible_runtime_messages, has_visible_runtime_reports, runtime_inbox_items,
+    runtime_inbox_preview_lines, wrap_review_text_preserving_spacing,
 };
 pub use starmap::{
     PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,

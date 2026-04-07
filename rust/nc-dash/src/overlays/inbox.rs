@@ -5,7 +5,7 @@ use nc_ui::table::{TableFooter, draw_scrollbar_at};
 use nc_ui::theme::classic;
 
 use crate::app::state::{DashApp, InboxFocus};
-use crate::inbox::{DashInboxItem, project_inbox_items};
+use crate::inbox::{DashInboxItem, matches_filter, project_inbox_items};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
     assert_overlay_body_write_fits, draw_hline, draw_overlay_frame_for_body_in_map, draw_vline,
@@ -61,14 +61,12 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         .chars()
         .count()
         .max(LIST_WIDTH + 2 + preview_natural_width);
-    let natural_content_rows = items
-        .len()
-        .max(1)
-        .max(
-            items.get(selected)
-                .map(|item| item.body_lines.len().max(1))
-                .unwrap_or(1),
-        );
+    let natural_content_rows = items.len().max(1).max(
+        items
+            .get(selected)
+            .map(|item| item.body_lines.len().max(1))
+            .unwrap_or(1),
+    );
     let frame = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
@@ -240,7 +238,8 @@ pub(crate) fn inbox_items(app: &DashApp) -> Vec<DashInboxItem> {
     )
     .into_iter()
     .filter(|item| {
-        item.matches_filter(
+        matches_filter(
+            item,
             app.inbox_overlay.filter,
             app.inbox_overlay.current_year_only,
             current_year,
