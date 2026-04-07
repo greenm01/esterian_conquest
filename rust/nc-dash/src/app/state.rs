@@ -150,6 +150,14 @@ pub enum PlanetOverlayPromptMode {
 }
 
 #[derive(Debug, Clone)]
+pub struct PlanetOverlayPromptFrame {
+    pub mode: PlanetOverlayPromptMode,
+    pub prompt_input: String,
+    pub prompt_default: String,
+    pub pending_range_anchor: Option<[u8; 2]>,
+}
+
+#[derive(Debug, Clone)]
 pub struct PlanetOverlayState {
     pub selected: usize,
     pub scroll: usize,
@@ -160,6 +168,7 @@ pub struct PlanetOverlayState {
     pub prompt_input: String,
     pub prompt_default: String,
     pub pending_range_anchor: Option<[u8; 2]>,
+    pub prompt_stack: Vec<PlanetOverlayPromptFrame>,
     pub build_planet_record_index_1_based: Option<usize>,
     pub build_unit_input: String,
     pub build_unit_status: Option<String>,
@@ -180,6 +189,7 @@ impl Default for PlanetOverlayState {
             prompt_input: String::new(),
             prompt_default: String::new(),
             pending_range_anchor: None,
+            prompt_stack: Vec::new(),
             build_planet_record_index_1_based: None,
             build_unit_input: String::new(),
             build_unit_status: None,
@@ -187,6 +197,39 @@ impl Default for PlanetOverlayState {
             build_quantity_input: String::new(),
             build_quantity_status: None,
         }
+    }
+}
+
+impl PlanetOverlayState {
+    pub fn open_prompt(&mut self, mode: PlanetOverlayPromptMode) {
+        if self.prompt_mode != PlanetOverlayPromptMode::None {
+            self.prompt_stack.push(PlanetOverlayPromptFrame {
+                mode: self.prompt_mode,
+                prompt_input: self.prompt_input.clone(),
+                prompt_default: self.prompt_default.clone(),
+                pending_range_anchor: self.pending_range_anchor,
+            });
+        }
+        self.prompt_mode = mode;
+    }
+
+    pub fn close_prompt(&mut self) {
+        if let Some(frame) = self.prompt_stack.pop() {
+            self.prompt_mode = frame.mode;
+            self.prompt_input = frame.prompt_input;
+            self.prompt_default = frame.prompt_default;
+            self.pending_range_anchor = frame.pending_range_anchor;
+            return;
+        }
+        self.clear_prompt();
+    }
+
+    pub fn clear_prompt(&mut self) {
+        self.prompt_mode = PlanetOverlayPromptMode::None;
+        self.prompt_input.clear();
+        self.prompt_default.clear();
+        self.pending_range_anchor = None;
+        self.prompt_stack.clear();
     }
 }
 
@@ -248,6 +291,7 @@ pub struct FleetOverlayState {
     pub order_confirm_input: String,
     pub starbase_move_input: String,
     pub starbase_move_status: Option<String>,
+    pub prompt_stack: Vec<FleetOverlayPromptMode>,
 }
 
 impl Default for FleetOverlayState {
@@ -271,7 +315,29 @@ impl Default for FleetOverlayState {
             order_confirm_input: String::new(),
             starbase_move_input: String::new(),
             starbase_move_status: None,
+            prompt_stack: Vec::new(),
         }
+    }
+}
+
+impl FleetOverlayState {
+    pub fn open_prompt(&mut self, mode: FleetOverlayPromptMode) {
+        if self.prompt_mode != FleetOverlayPromptMode::None {
+            self.prompt_stack.push(self.prompt_mode);
+        }
+        self.prompt_mode = mode;
+    }
+
+    pub fn close_prompt(&mut self) {
+        self.prompt_mode = self
+            .prompt_stack
+            .pop()
+            .unwrap_or(FleetOverlayPromptMode::None);
+    }
+
+    pub fn clear_prompt(&mut self) {
+        self.prompt_mode = FleetOverlayPromptMode::None;
+        self.prompt_stack.clear();
     }
 }
 
@@ -304,6 +370,14 @@ pub enum IntelOverlayPromptMode {
 }
 
 #[derive(Debug, Clone)]
+pub struct IntelOverlayPromptFrame {
+    pub mode: IntelOverlayPromptMode,
+    pub prompt_input: String,
+    pub prompt_default: String,
+    pub pending_range_anchor: Option<[u8; 2]>,
+}
+
+#[derive(Debug, Clone)]
 pub struct IntelOverlayState {
     pub selected: usize,
     pub scroll: usize,
@@ -314,6 +388,7 @@ pub struct IntelOverlayState {
     pub prompt_input: String,
     pub prompt_default: String,
     pub pending_range_anchor: Option<[u8; 2]>,
+    pub prompt_stack: Vec<IntelOverlayPromptFrame>,
 }
 
 impl Default for IntelOverlayState {
@@ -328,7 +403,41 @@ impl Default for IntelOverlayState {
             prompt_input: String::new(),
             prompt_default: String::new(),
             pending_range_anchor: None,
+            prompt_stack: Vec::new(),
         }
+    }
+}
+
+impl IntelOverlayState {
+    pub fn open_prompt(&mut self, mode: IntelOverlayPromptMode) {
+        if self.prompt_mode != IntelOverlayPromptMode::None {
+            self.prompt_stack.push(IntelOverlayPromptFrame {
+                mode: self.prompt_mode,
+                prompt_input: self.prompt_input.clone(),
+                prompt_default: self.prompt_default.clone(),
+                pending_range_anchor: self.pending_range_anchor,
+            });
+        }
+        self.prompt_mode = mode;
+    }
+
+    pub fn close_prompt(&mut self) {
+        if let Some(frame) = self.prompt_stack.pop() {
+            self.prompt_mode = frame.mode;
+            self.prompt_input = frame.prompt_input;
+            self.prompt_default = frame.prompt_default;
+            self.pending_range_anchor = frame.pending_range_anchor;
+            return;
+        }
+        self.clear_prompt();
+    }
+
+    pub fn clear_prompt(&mut self) {
+        self.prompt_mode = IntelOverlayPromptMode::None;
+        self.prompt_input.clear();
+        self.prompt_default.clear();
+        self.pending_range_anchor = None;
+        self.prompt_stack.clear();
     }
 }
 

@@ -69,13 +69,15 @@ impl DashApp {
         match row.key {
             FleetOverlayRowKey::Fleet(_) => {
                 self.fleet_overlay.order_mission_code = None;
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::MissionPicker;
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::MissionPicker);
                 self.fleet_overlay.mission_picker_cursor =
                     self.first_enabled_fleet_mission_index().unwrap_or(0);
                 self.help_context = HelpContext::FleetMissionPicker;
             }
             FleetOverlayRowKey::Starbase(_) => {
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseMoveDecision;
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::StarbaseMoveDecision);
                 self.help_context = HelpContext::StarbaseMove;
             }
         }
@@ -182,12 +184,13 @@ impl DashApp {
         self.fleet_overlay.order_target_x_input.clear();
         self.fleet_overlay.order_target_y_input.clear();
         self.fleet_overlay.order_confirm_input.clear();
-        self.fleet_overlay.prompt_mode = match fleet_target_input_kind(Some(mission_code)) {
+        let next_prompt = match fleet_target_input_kind(Some(mission_code)) {
             nc_engine::FleetTargetInputKind::Coordinates => FleetOverlayPromptMode::OrderTargetX,
             nc_engine::FleetTargetInputKind::StarbaseId
             | nc_engine::FleetTargetInputKind::FleetId
             | nc_engine::FleetTargetInputKind::None => FleetOverlayPromptMode::OrderTarget,
         };
+        self.fleet_overlay.open_prompt(next_prompt);
         self.help_context = HelpContext::FleetOrderInput;
     }
 
@@ -195,26 +198,30 @@ impl DashApp {
         self.fleet_overlay.order_status = None;
         match self.fleet_overlay.prompt_mode {
             FleetOverlayPromptMode::MissionPicker => self.close_fleet_order_overlay(),
-            FleetOverlayPromptMode::OrderTarget | FleetOverlayPromptMode::OrderTargetX => {
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::MissionPicker;
-                self.help_context = HelpContext::FleetMissionPicker;
-            }
-            FleetOverlayPromptMode::OrderTargetY => {
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
-            }
-            FleetOverlayPromptMode::OrderConfirm => {
-                self.fleet_overlay.order_confirm_input.clear();
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+            FleetOverlayPromptMode::OrderTarget
+            | FleetOverlayPromptMode::OrderTargetX
+            | FleetOverlayPromptMode::OrderTargetY
+            | FleetOverlayPromptMode::OrderConfirm => {
+                self.fleet_overlay.close_prompt();
+                if self.fleet_overlay.prompt_mode == FleetOverlayPromptMode::MissionPicker {
+                    self.help_context = HelpContext::FleetMissionPicker;
+                }
             }
             FleetOverlayPromptMode::StarbaseMoveDecision => self.close_fleet_order_overlay(),
             FleetOverlayPromptMode::StarbaseMoveDestination
             | FleetOverlayPromptMode::StarbaseHaltConfirm => {
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseMoveDecision;
-                self.help_context = HelpContext::StarbaseMove;
+                self.fleet_overlay.close_prompt();
+                if self.fleet_overlay.prompt_mode == FleetOverlayPromptMode::StarbaseMoveDecision {
+                    self.help_context = HelpContext::StarbaseMove;
+                }
             }
-            FleetOverlayPromptMode::FilterMenu
-            | FleetOverlayPromptMode::SortMenu
-            | FleetOverlayPromptMode::None => {}
+            FleetOverlayPromptMode::FilterMenu | FleetOverlayPromptMode::SortMenu => {
+                self.fleet_overlay.close_prompt();
+            }
+            FleetOverlayPromptMode::None => {}
+        }
+        if self.fleet_overlay.prompt_mode == FleetOverlayPromptMode::OrderTargetY {
+            self.fleet_overlay.order_confirm_input.clear();
         }
     }
 
@@ -284,7 +291,8 @@ impl DashApp {
             FleetOverlayPromptMode::OrderTarget => {
                 let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
                     nc_engine::FleetTargetInputKind::Coordinates => {
-                        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+                        self.fleet_overlay
+                            .open_prompt(FleetOverlayPromptMode::OrderTargetX);
                         return Ok(());
                     }
                     nc_engine::FleetTargetInputKind::StarbaseId => {
@@ -328,7 +336,8 @@ impl DashApp {
                         if self.fleet_overlay.order_target_x_input.trim().is_empty() {
                             self.fleet_overlay.order_target_x_input = format!("{value:02}");
                         }
-                        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetY;
+                        self.fleet_overlay
+                            .open_prompt(FleetOverlayPromptMode::OrderTargetY);
                         self.fleet_overlay.order_status = None;
                     }
                     Err(err) => self.fleet_overlay.order_status = Some(err),
@@ -339,7 +348,7 @@ impl DashApp {
                 let destination = match self.resolve_fleet_order_split_target() {
                     Ok(coords) => coords,
                     Err(err) => {
-                        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+                        self.fleet_overlay.close_prompt();
                         self.fleet_overlay.order_status = Some(err);
                         return Ok(());
                     }
@@ -351,37 +360,41 @@ impl DashApp {
                 }
                 if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination)
                 {
-                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+                    self.fleet_overlay.close_prompt();
                     self.fleet_overlay.order_status = Some(err);
                     return Ok(());
                 }
                 self.fleet_overlay.order_confirm_input.clear();
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderConfirm;
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::OrderConfirm);
                 self.fleet_overlay.order_status = None;
                 Ok(())
             }
             FleetOverlayPromptMode::OrderConfirm => {
                 if !resolve_yes_no_input(&self.fleet_overlay.order_confirm_input, true) {
                     self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::MissionPicker;
+                    self.help_context = HelpContext::FleetMissionPicker;
+                    self.fleet_overlay.prompt_stack.clear();
                     self.fleet_overlay.order_mission_code = None;
                     self.fleet_overlay.order_input.clear();
                     self.fleet_overlay.order_target_x_input.clear();
                     self.fleet_overlay.order_target_y_input.clear();
                     self.fleet_overlay.order_confirm_input.clear();
-                    self.help_context = HelpContext::FleetMissionPicker;
                     return Ok(());
                 }
                 let destination = match self.resolve_fleet_order_split_target() {
                     Ok(coords) => coords,
                     Err(err) => {
-                        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+                        self.fleet_overlay.close_prompt();
+                        self.fleet_overlay.close_prompt();
                         self.fleet_overlay.order_status = Some(err);
                         return Ok(());
                     }
                 };
                 if let Err(err) = self.validate_fleet_target_for_mission(mission_code, destination)
                 {
-                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+                    self.fleet_overlay.close_prompt();
+                    self.fleet_overlay.close_prompt();
                     self.fleet_overlay.order_status = Some(err);
                     return Ok(());
                 }
@@ -426,14 +439,14 @@ impl DashApp {
                     'H' => {
                         self.fleet_overlay.starbase_move_input.clear();
                         self.fleet_overlay.starbase_move_status = None;
-                        self.fleet_overlay.prompt_mode =
-                            FleetOverlayPromptMode::StarbaseHaltConfirm;
+                        self.fleet_overlay
+                            .open_prompt(FleetOverlayPromptMode::StarbaseHaltConfirm);
                     }
                     'M' => {
                         self.fleet_overlay.starbase_move_input.clear();
                         self.fleet_overlay.starbase_move_status = None;
-                        self.fleet_overlay.prompt_mode =
-                            FleetOverlayPromptMode::StarbaseMoveDestination;
+                        self.fleet_overlay
+                            .open_prompt(FleetOverlayPromptMode::StarbaseMoveDestination);
                     }
                     _ => {
                         self.fleet_overlay.starbase_move_status =
@@ -463,7 +476,7 @@ impl DashApp {
             FleetOverlayPromptMode::StarbaseHaltConfirm => {
                 if !resolve_yes_no_input(&self.fleet_overlay.starbase_move_input, true) {
                     self.fleet_overlay.starbase_move_input.clear();
-                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseMoveDecision;
+                    self.fleet_overlay.close_prompt();
                     return Ok(());
                 }
                 self.finalize_starbase_destination(row, row.coords)
@@ -473,7 +486,7 @@ impl DashApp {
     }
 
     pub(crate) fn close_fleet_order_overlay(&mut self) {
-        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+        self.fleet_overlay.close_prompt();
         self.fleet_overlay.active_row_key = None;
         self.fleet_overlay.mission_picker_input.clear();
         self.fleet_overlay.mission_picker_status = None;

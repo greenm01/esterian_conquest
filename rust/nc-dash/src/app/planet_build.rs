@@ -67,7 +67,8 @@ impl DashApp {
         self.planet_overlay.build_selected_kind = None;
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
-        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
+        self.planet_overlay
+            .open_prompt(PlanetOverlayPromptMode::BuildSpecify);
     }
 
     pub(crate) fn append_planet_build_unit_char(&mut self, ch: char) {
@@ -117,7 +118,8 @@ impl DashApp {
         self.planet_overlay.build_selected_kind = Some(unit.kind);
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
-        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildQuantity;
+        self.planet_overlay
+            .open_prompt(PlanetOverlayPromptMode::BuildQuantity);
     }
 
     pub(crate) fn append_planet_build_quantity_char(&mut self, ch: char) {
@@ -136,11 +138,11 @@ impl DashApp {
         &mut self,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(kind) = self.planet_overlay.build_selected_kind else {
-            self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
+            self.planet_overlay.close_prompt();
             return Ok(());
         };
         let Some(unit) = build_unit_spec_by_kind(kind) else {
-            self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
+            self.planet_overlay.close_prompt();
             return Ok(());
         };
         let max_qty = self.planet_build_max_quantity_for(kind)?;
@@ -169,8 +171,9 @@ impl DashApp {
         };
 
         if qty == 0 {
-            self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
+            self.planet_overlay.close_prompt();
             self.planet_overlay.build_quantity_input.clear();
+            self.planet_overlay.build_selected_kind = None;
             return Ok(());
         }
         if qty > max_qty {
@@ -222,18 +225,19 @@ impl DashApp {
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
         self.planet_overlay.build_selected_kind = None;
-        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
+        self.planet_overlay.close_prompt();
         Ok(())
     }
 
     pub(crate) fn cancel_planet_build_quantity(&mut self) {
         self.planet_overlay.build_quantity_input.clear();
         self.planet_overlay.build_quantity_status = None;
-        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::BuildSpecify;
+        self.planet_overlay.build_selected_kind = None;
+        self.planet_overlay.close_prompt();
     }
 
     pub(crate) fn close_planet_build_overlay(&mut self) {
-        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::None;
+        self.planet_overlay.close_prompt();
         self.planet_overlay.build_planet_record_index_1_based = None;
         self.planet_overlay.build_unit_input.clear();
         self.planet_overlay.build_unit_status = None;

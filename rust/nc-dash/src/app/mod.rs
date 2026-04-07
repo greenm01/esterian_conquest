@@ -338,7 +338,8 @@ impl DashApp {
     }
 
     fn handle_planet_overlay_key(&mut self, key: KeyEvent) {
-        match self.planet_overlay.prompt_mode {
+        let prompt_mode = self.planet_overlay.prompt_mode;
+        match prompt_mode {
             PlanetOverlayPromptMode::BuildSpecify => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetBuildSpecify),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
@@ -368,7 +369,7 @@ impl DashApp {
             PlanetOverlayPromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetListSort),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_planet_overlay_prompt();
+                    self.planet_overlay.close_prompt();
                 }
                 KeyCode::Enter | KeyCode::Char('c') | KeyCode::Char('C') => {
                     self.apply_planet_overlay_sort(PlanetOverlaySort::CurrentProduction);
@@ -384,13 +385,14 @@ impl DashApp {
             PlanetOverlayPromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetListFilter),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_planet_overlay_prompt();
+                    self.planet_overlay.close_prompt();
                 }
                 KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
                     self.apply_planet_overlay_filter(PlanetOverlayFilter::All);
                 }
                 KeyCode::Char('r') | KeyCode::Char('R') => {
-                    self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::FilterRangeCoords;
+                    self.planet_overlay
+                        .open_prompt(PlanetOverlayPromptMode::FilterRangeCoords);
                     self.planet_overlay.prompt_input.clear();
                     self.planet_overlay.prompt_default = planet_list::table_rows(self)
                         .get(self.planet_overlay.selected)
@@ -409,7 +411,7 @@ impl DashApp {
             PlanetOverlayPromptMode::FilterRangeCoords => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_planet_overlay_prompt();
+                    self.planet_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = planet_list::parse_coords_input(
@@ -421,8 +423,8 @@ impl DashApp {
                         planet_list::parse_coords_input(&self.planet_overlay.prompt_input, default)
                     {
                         self.planet_overlay.pending_range_anchor = Some(anchor);
-                        self.planet_overlay.prompt_mode =
-                            PlanetOverlayPromptMode::FilterRangeDistance;
+                        self.planet_overlay
+                            .open_prompt(PlanetOverlayPromptMode::FilterRangeDistance);
                         self.planet_overlay.prompt_input.clear();
                         self.planet_overlay.prompt_default = "5".to_string();
                     }
@@ -438,7 +440,7 @@ impl DashApp {
             PlanetOverlayPromptMode::FilterRangeDistance => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_planet_overlay_prompt();
+                    self.planet_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = self
@@ -470,17 +472,19 @@ impl DashApp {
             },
             PlanetOverlayPromptMode::None => {}
         }
-        if self.planet_overlay.prompt_mode != PlanetOverlayPromptMode::None {
+        if prompt_mode != PlanetOverlayPromptMode::None {
             return;
         }
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::PlanetList),
             KeyCode::Char('f') | KeyCode::Char('F') => {
-                self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::FilterMenu;
+                self.planet_overlay
+                    .open_prompt(PlanetOverlayPromptMode::FilterMenu);
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::SortMenu;
+                self.planet_overlay
+                    .open_prompt(PlanetOverlayPromptMode::SortMenu);
             }
             KeyCode::Char('b') | KeyCode::Char('B') => self.open_planet_build_specify(),
             KeyCode::Char(ch)
@@ -508,7 +512,8 @@ impl DashApp {
     }
 
     fn handle_fleet_overlay_key(&mut self, key: KeyEvent) {
-        match self.fleet_overlay.prompt_mode {
+        let prompt_mode = self.fleet_overlay.prompt_mode;
+        match prompt_mode {
             FleetOverlayPromptMode::MissionPicker => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetMissionPicker),
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -636,7 +641,7 @@ impl DashApp {
             FleetOverlayPromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetListSort),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+                    self.fleet_overlay.close_prompt();
                 }
                 KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
                     self.apply_fleet_overlay_sort(FleetOverlaySort::Id);
@@ -658,7 +663,7 @@ impl DashApp {
             FleetOverlayPromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetListFilter),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+                    self.fleet_overlay.close_prompt();
                 }
                 KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
                     self.apply_fleet_overlay_filter(FleetOverlayFilter::All);
@@ -676,17 +681,19 @@ impl DashApp {
             },
             FleetOverlayPromptMode::None => {}
         }
-        if self.fleet_overlay.prompt_mode != FleetOverlayPromptMode::None {
+        if prompt_mode != FleetOverlayPromptMode::None {
             return;
         }
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::FleetList),
             KeyCode::Char('f') | KeyCode::Char('F') => {
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::FilterMenu;
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::FilterMenu);
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::SortMenu;
+                self.fleet_overlay
+                    .open_prompt(FleetOverlayPromptMode::SortMenu);
             }
             KeyCode::Char('o') | KeyCode::Char('O') => self.open_selected_fleet_order_flow(),
             KeyCode::Char(ch)
@@ -713,17 +720,19 @@ impl DashApp {
     }
 
     fn handle_intel_overlay_key(&mut self, key: KeyEvent) {
-        match self.intel_overlay.prompt_mode {
+        let prompt_mode = self.intel_overlay.prompt_mode;
+        match prompt_mode {
             IntelOverlayPromptMode::SortMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabaseSort),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter | KeyCode::Char('l') | KeyCode::Char('L') => {
                     self.apply_intel_overlay_sort(IntelOverlaySort::Location);
                 }
                 KeyCode::Char('r') | KeyCode::Char('R') => {
-                    self.intel_overlay.prompt_mode = IntelOverlayPromptMode::SortRangeInput;
+                    self.intel_overlay
+                        .open_prompt(IntelOverlayPromptMode::SortRangeInput);
                     self.intel_overlay.prompt_input.clear();
                     self.intel_overlay.prompt_default = intel_database::table_rows(self)
                         .get(self.intel_overlay.selected)
@@ -741,7 +750,7 @@ impl DashApp {
             IntelOverlayPromptMode::SortRangeInput => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = intel_database::parse_coords_input(
@@ -767,13 +776,14 @@ impl DashApp {
             IntelOverlayPromptMode::FilterMenu => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabaseFilter),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('A') => {
                     self.apply_intel_overlay_filter(IntelOverlayFilter::All);
                 }
                 KeyCode::Char('r') | KeyCode::Char('R') => {
-                    self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterRangeCoords;
+                    self.intel_overlay
+                        .open_prompt(IntelOverlayPromptMode::FilterRangeCoords);
                     self.intel_overlay.prompt_input.clear();
                     self.intel_overlay.prompt_default = intel_database::table_rows(self)
                         .get(self.intel_overlay.selected)
@@ -782,7 +792,8 @@ impl DashApp {
                     self.intel_overlay.pending_range_anchor = None;
                 }
                 KeyCode::Char('e') | KeyCode::Char('E') => {
-                    self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterEmpireInput;
+                    self.intel_overlay
+                        .open_prompt(IntelOverlayPromptMode::FilterEmpireInput);
                     self.intel_overlay.prompt_input.clear();
                     self.intel_overlay.prompt_default = intel_database::table_rows(self)
                         .get(self.intel_overlay.selected)
@@ -791,8 +802,8 @@ impl DashApp {
                         .to_string();
                 }
                 KeyCode::Char('m') | KeyCode::Char('M') => {
-                    self.intel_overlay.prompt_mode =
-                        IntelOverlayPromptMode::FilterMaxProductionInput;
+                    self.intel_overlay
+                        .open_prompt(IntelOverlayPromptMode::FilterMaxProductionInput);
                     self.intel_overlay.prompt_input.clear();
                     self.intel_overlay.prompt_default = intel_database::table_rows(self)
                         .get(self.intel_overlay.selected)
@@ -805,7 +816,7 @@ impl DashApp {
             IntelOverlayPromptMode::FilterRangeCoords => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = intel_database::parse_coords_input(
@@ -818,8 +829,8 @@ impl DashApp {
                         default,
                     ) {
                         self.intel_overlay.pending_range_anchor = Some(anchor);
-                        self.intel_overlay.prompt_mode =
-                            IntelOverlayPromptMode::FilterRangeDistance;
+                        self.intel_overlay
+                            .open_prompt(IntelOverlayPromptMode::FilterRangeDistance);
                         self.intel_overlay.prompt_input.clear();
                         self.intel_overlay.prompt_default = "5".to_string();
                     }
@@ -835,7 +846,7 @@ impl DashApp {
             IntelOverlayPromptMode::FilterRangeDistance => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = self.intel_overlay.prompt_default.parse::<u8>().unwrap_or(5);
@@ -863,7 +874,7 @@ impl DashApp {
             IntelOverlayPromptMode::FilterEmpireInput => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = self
@@ -892,7 +903,7 @@ impl DashApp {
             IntelOverlayPromptMode::FilterMaxProductionInput => match key.code {
                 KeyCode::Char('?') => self.open_overlay_help(HelpContext::PromptInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    self.reset_intel_overlay_prompt();
+                    self.intel_overlay.close_prompt();
                 }
                 KeyCode::Enter => {
                     let default = self
@@ -920,17 +931,19 @@ impl DashApp {
             },
             IntelOverlayPromptMode::None => {}
         }
-        if self.intel_overlay.prompt_mode != IntelOverlayPromptMode::None {
+        if prompt_mode != IntelOverlayPromptMode::None {
             return;
         }
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.close_active_overlay(),
             KeyCode::Char('?') => self.open_overlay_help(HelpContext::IntelDatabase),
             KeyCode::Char('f') | KeyCode::Char('F') => {
-                self.intel_overlay.prompt_mode = IntelOverlayPromptMode::FilterMenu;
+                self.intel_overlay
+                    .open_prompt(IntelOverlayPromptMode::FilterMenu);
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                self.intel_overlay.prompt_mode = IntelOverlayPromptMode::SortMenu;
+                self.intel_overlay
+                    .open_prompt(IntelOverlayPromptMode::SortMenu);
             }
             KeyCode::Char(ch)
                 if self.intel_overlay.jump_input.len() < 16
@@ -1102,10 +1115,7 @@ impl DashApp {
     }
 
     fn reset_planet_overlay_prompt(&mut self) {
-        self.planet_overlay.prompt_mode = PlanetOverlayPromptMode::None;
-        self.planet_overlay.prompt_input.clear();
-        self.planet_overlay.prompt_default.clear();
-        self.planet_overlay.pending_range_anchor = None;
+        self.planet_overlay.clear_prompt();
     }
 
     fn apply_planet_overlay_sort(&mut self, sort: PlanetOverlaySort) {
@@ -1157,7 +1167,7 @@ impl DashApp {
             .get(self.fleet_overlay.selected)
             .map(|row| row.key);
         self.fleet_overlay.sort = sort;
-        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+        self.fleet_overlay.clear_prompt();
         let rows = fleet_list::table_rows(self);
         self.fleet_overlay.selected = selected_key
             .and_then(|key| rows.iter().position(|row| row.key == key))
@@ -1174,7 +1184,7 @@ impl DashApp {
             .get(self.fleet_overlay.selected)
             .map(|row| row.key);
         self.fleet_overlay.filter = filter;
-        self.fleet_overlay.prompt_mode = FleetOverlayPromptMode::None;
+        self.fleet_overlay.clear_prompt();
         let rows = fleet_list::table_rows(self);
         if rows.is_empty() {
             self.fleet_overlay.filter = FleetOverlayFilter::All;
@@ -1191,10 +1201,7 @@ impl DashApp {
     }
 
     fn reset_intel_overlay_prompt(&mut self) {
-        self.intel_overlay.prompt_mode = IntelOverlayPromptMode::None;
-        self.intel_overlay.prompt_input.clear();
-        self.intel_overlay.prompt_default.clear();
-        self.intel_overlay.pending_range_anchor = None;
+        self.intel_overlay.clear_prompt();
     }
 
     fn apply_intel_overlay_sort(&mut self, sort: IntelOverlaySort) {
@@ -1366,11 +1373,12 @@ fn delete_selected_inbox_item(app: &mut DashApp) {
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
     use crate::app::state::{
-        DashApp, FleetOverlayFilter, IntelOverlayFilter, MapViewMode, PlanetOverlayFilter,
+        ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, IntelOverlayFilter,
+        IntelOverlayPromptMode, MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode,
     };
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crossterm::event::{KeyCode, KeyEvent};
-    use nc_data::GameStateBuilder;
+    use nc_data::{GameStateBuilder, Order};
     use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
@@ -1592,6 +1600,131 @@ mod tests {
         assert_eq!(intel_database::table_rows(&app).len(), all_rows);
     }
 
+    #[test]
+    fn closing_planet_build_modal_returns_to_planet_list_overlay() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+        app.open_planet_build_specify();
+
+        app.handle_key(key(KeyCode::Char('q')));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::None
+        );
+    }
+
+    #[test]
+    fn nested_planet_filter_modals_unwind_one_level_at_a_time() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::PlanetList;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        app.handle_key(key(KeyCode::Char('r')));
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::FilterRangeDistance
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::FilterRangeCoords
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::FilterMenu
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(
+            app.planet_overlay.prompt_mode,
+            PlanetOverlayPromptMode::None
+        );
+    }
+
+    #[test]
+    fn closing_fleet_order_modal_returns_to_fleet_list_overlay() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+
+        app.handle_key(key(KeyCode::Char('q')));
+
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+    }
+
+    #[test]
+    fn nested_fleet_order_modals_unwind_one_level_at_a_time() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::MoveOnly.to_raw().to_string();
+        app.submit_fleet_mission_picker();
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderTargetX
+        );
+
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderTargetY
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::OrderTargetX
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::MissionPicker
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+    }
+
+    #[test]
+    fn nested_intel_filter_modals_unwind_one_level_at_a_time() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::IntelDatabase;
+
+        app.handle_key(key(KeyCode::Char('f')));
+        app.handle_key(key(KeyCode::Char('r')));
+        app.handle_key(key(KeyCode::Enter));
+        assert_eq!(
+            app.intel_overlay.prompt_mode,
+            IntelOverlayPromptMode::FilterRangeDistance
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(
+            app.intel_overlay.prompt_mode,
+            IntelOverlayPromptMode::FilterRangeCoords
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(
+            app.intel_overlay.prompt_mode,
+            IntelOverlayPromptMode::FilterMenu
+        );
+
+        app.handle_key(key(KeyCode::Char('q')));
+        assert_eq!(app.overlay, ActiveOverlay::IntelDatabase);
+        assert_eq!(app.intel_overlay.prompt_mode, IntelOverlayPromptMode::None);
+    }
+
     fn dash_app() -> DashApp {
         DashApp::new_for_tests(
             PathBuf::from("."),
@@ -1608,5 +1741,9 @@ mod tests {
             nc_ui::ScreenGeometry::new(108, 26),
             1,
         )
+    }
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, crossterm::event::KeyModifiers::NONE)
     }
 }
