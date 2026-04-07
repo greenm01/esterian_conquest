@@ -23,7 +23,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S I <Q>";
+pub(crate) const HOTKEYS: &str = "? F S <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? L R E M <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A R E M <Q>";
 const TOP_HEADERS: [&str; 11] = ["Coord", "", "", "", "", "", "", "", "Curr", "", ""];
@@ -412,7 +412,12 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_coords_input;
+    use super::{HOTKEYS, parse_coords_input};
+
+    #[test]
+    fn browse_hotkeys_match_supported_intel_commands() {
+        assert_eq!(HOTKEYS, "? F S <Q>");
+    }
 
     #[test]
     fn parse_coords_input_accepts_rendered_coord_cell() {

@@ -1446,6 +1446,17 @@ pub fn draw_command_line_prompt_text_at_col(
     shared_prompt::draw_command_line_prompt_text_at_col(buffer, row, col, label, prompt);
 }
 
+pub fn draw_command_line_prompt_input_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+    input: &str,
+) {
+    shared_prompt::draw_command_line_prompt_input_at_col(buffer, row, col, label, prompt, input);
+}
+
 pub fn draw_command_line_default_input_at(
     buffer: &mut PlayfieldBuffer,
     row: usize,

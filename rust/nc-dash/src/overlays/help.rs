@@ -7,8 +7,9 @@ use nc_ui::table::TableFooter;
 use crate::app::state::{ActiveOverlay, DashApp, HelpContext};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map_with_origin,
-    max_overlay_body_width, overlay_popup_rect_for_body_in_map, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits,
+    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_map, write_clipped,
 };
 use crate::theme;
 
@@ -87,14 +88,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("F", "Open the planet-list filter menu"),
             ("S", "Open the planet-list sort menu"),
             ("B", "Open build orders for the selected planet"),
-            ("A", "TODO - auto-commission ships from stardock"),
-            ("C", "TODO - commission ships into a fleet"),
-            ("L", "TODO - load armies onto transports"),
-            ("U", "TODO - unload armies from transports"),
-            ("X", "TODO - scorch the selected planet"),
-            ("I", "TODO - review the highlighted planet"),
-            ("Enter", "TODO - review the highlighted planet"),
-            ("T", "TODO - transfer focus to a typed target"),
             ("Coords", "Typed jump; exact match clears the footer input"),
             ("Q", "Close this overlay"),
             ("Esc", "Close this overlay"),
@@ -144,11 +137,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("S", "Open the fleet-list sort menu"),
             ("SPACE", "Toggle the checked state of the current fleet row"),
             ("O", "Order checked fleets, or the selected fleet/starbase"),
-            ("C", "TODO - change the selected fleet"),
-            ("M", "TODO - merge the selected fleet"),
-            ("T", "TODO - transfer ships between fleets"),
-            ("I", "TODO - review the highlighted fleet"),
-            ("Enter", "TODO - review the highlighted fleet"),
             (
                 "Fleet / SB ID",
                 "Typed jump; exact match clears the footer input",
@@ -181,7 +169,10 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Enter", "Choose the current mission"),
             ("Up/Down", "Move between enabled missions"),
             ("PgUp/PgDn", "Page through the mission list"),
-            ("Filter", "Only missions valid for all selected fleets stay enabled"),
+            (
+                "Filter",
+                "Only missions valid for all selected fleets stay enabled",
+            ),
             ("Q", "Return to the fleet list"),
             ("Esc", "Return to the fleet list"),
             ("?", "Open this helper"),
@@ -204,8 +195,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::IntelDatabase => vec![
             ("F", "Open the database filter menu"),
             ("S", "Open the database sort menu"),
-            ("I", "TODO - inspect the highlighted world"),
-            ("Enter", "TODO - inspect the highlighted world"),
             ("Coords", "Typed jump; exact match clears the footer input"),
             ("Q", "Close this overlay"),
             ("Esc", "Close this overlay"),
@@ -235,9 +224,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("A", "Filter to all items"),
             ("Y", "Toggle the current-year filter"),
             ("D", "Delete the selected item"),
-            ("C", "TODO - compose a message"),
             ("Tab", "Switch list and preview focus"),
-            ("Enter", "Toggle preview focus when the jump field is empty"),
             (
                 "Visible ID",
                 "Typed jump; exact match clears the footer input",
@@ -247,10 +234,6 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::Diplomacy => vec![
-            ("D", "TODO - declare enemy or neutral"),
-            ("S", "TODO - sort the standings"),
-            ("I", "TODO - inspect the highlighted empire"),
-            ("Enter", "TODO - inspect the highlighted empire"),
             ("Q", "Close this overlay"),
             ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
@@ -271,7 +254,7 @@ mod tests {
     use crate::app::state::HelpContext;
 
     #[test]
-    fn fleet_help_mentions_typed_jump_and_todo_actions() {
+    fn fleet_help_mentions_typed_jump_and_real_actions() {
         let lines = help_lines(HelpContext::FleetList);
 
         assert!(lines.iter().any(|line| line.contains("Typed jump")));
@@ -280,13 +263,42 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("O") && line.contains("Order checked fleets"))
         );
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("Enter") && line.contains("review the highlighted fleet")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("SPACE") && line.contains("checked state"))
+        );
         assert!(!lines.iter().any(|line| line.contains("O / C / M / T")));
+        assert!(!lines.iter().any(|line| line.contains("TODO")));
         assert!(!lines.iter().any(|line| line.contains("FLEET LIST")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));
         assert!(!lines.iter().any(|line| line.contains("PgUp")));
+    }
+
+    #[test]
+    fn overlay_help_omits_stale_browse_commands() {
+        let planet = help_lines(HelpContext::PlanetList);
+        assert!(
+            planet
+                .iter()
+                .any(|line| line.contains("B") && line.contains("build orders"))
+        );
+        assert!(!planet.iter().any(|line| line.contains("TODO")));
+        assert!(!planet.iter().any(|line| line.contains("Enter")));
+
+        let intel = help_lines(HelpContext::IntelDatabase);
+        assert!(intel.iter().any(|line| line.contains("Coords")));
+        assert!(!intel.iter().any(|line| line.contains("TODO")));
+        assert!(!intel.iter().any(|line| line.contains("Enter")));
+
+        let inbox = help_lines(HelpContext::Inbox);
+        assert!(inbox.iter().any(|line| line.contains("Tab")));
+        assert!(!inbox.iter().any(|line| line.contains("TODO")));
+        assert!(!inbox.iter().any(|line| line.contains("Enter")));
+
+        let diplomacy = help_lines(HelpContext::Diplomacy);
+        assert_eq!(diplomacy.len(), 3);
+        assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
     }
 
     #[test]

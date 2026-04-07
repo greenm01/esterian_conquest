@@ -9,8 +9,8 @@ pub mod state;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
-use nc_ui::table_selection;
 use nc_ui::modal::Rect;
+use nc_ui::table_selection;
 use nc_ui::{ScreenGeometry, Terminal};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter,
@@ -240,9 +240,12 @@ impl DashApp {
         mouse: MouseEvent,
         map_frame: crate::layout::MapWidgetFrame,
     ) {
-        let Some([x, y]) =
-            starmap::screen_sector_at_point(self, map_frame, mouse.column as usize, mouse.row as usize)
-        else {
+        let Some([x, y]) = starmap::screen_sector_at_point(
+            self,
+            map_frame,
+            mouse.column as usize,
+            mouse.row as usize,
+        ) else {
             return;
         };
         self.crosshair_x = x;
@@ -251,11 +254,7 @@ impl DashApp {
         self.map_coord_input.clear();
     }
 
-    fn handle_mouse_move(
-        &mut self,
-        mouse: MouseEvent,
-        map_frame: crate::layout::MapWidgetFrame,
-    ) {
+    fn handle_mouse_move(&mut self, mouse: MouseEvent, map_frame: crate::layout::MapWidgetFrame) {
         let ActiveMouseGesture::DraggingOverlay {
             grab_col_offset,
             grab_row_offset,
@@ -276,17 +275,16 @@ impl DashApp {
         });
     }
 
-    fn current_overlay_popup_rect(
-        &self,
-        map_frame: crate::layout::MapWidgetFrame,
-    ) -> Option<Rect> {
+    fn current_overlay_popup_rect(&self, map_frame: crate::layout::MapWidgetFrame) -> Option<Rect> {
         match self.overlay {
             ActiveOverlay::None => None,
             ActiveOverlay::PlanetList => planet_list::popup_rect(self, map_frame),
             ActiveOverlay::FleetList => fleet_list::popup_rect(self, map_frame),
             ActiveOverlay::IntelDatabase => Some(intel_database::popup_rect(self, map_frame)),
             ActiveOverlay::Inbox => Some(inbox::popup_rect(self, map_frame)),
-            ActiveOverlay::Diplomacy => Some(crate::overlays::diplomacy::popup_rect(self, map_frame)),
+            ActiveOverlay::Diplomacy => {
+                Some(crate::overlays::diplomacy::popup_rect(self, map_frame))
+            }
             ActiveOverlay::Settings => Some(crate::overlays::settings::popup_rect(self, map_frame)),
             ActiveOverlay::Help => Some(crate::overlays::help::popup_rect(self, map_frame)),
         }
@@ -1514,9 +1512,11 @@ mod tests {
     };
     use crate::layout::dashboard::dashboard_layout;
     use crate::overlays::{fleet_list, intel_database, planet_list};
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     use nc_data::{CampaignStore, GameStateBuilder, Order};
-    use nc_ui::ScreenGeometry;
+    use nc_ui::{PlayfieldBuffer, ScreenGeometry};
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -1989,6 +1989,63 @@ mod tests {
     }
 
     #[test]
+    fn guard_starbase_mission_reports_specific_unavailable_target_message() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::GuardStarbase.to_raw().to_string();
+
+        app.submit_fleet_mission_picker();
+
+        assert_eq!(
+            app.fleet_overlay.mission_picker_status.as_deref(),
+            Some("You have no starbases available to guard.")
+        );
+    }
+
+    #[test]
+    fn join_fleet_mission_reports_specific_unavailable_target_message() {
+        let mut app = dash_app();
+        app.game_data.fleets.records.truncate(1);
+        app.overlay = ActiveOverlay::FleetList;
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::JoinAnotherFleet.to_raw().to_string();
+
+        app.submit_fleet_mission_picker();
+
+        assert_eq!(
+            app.fleet_overlay.mission_picker_status.as_deref(),
+            Some("You need another fleet available to join.")
+        );
+    }
+
+    #[test]
+    fn fleet_order_default_target_ignores_existing_target_coords_shortcut() {
+        let mut baseline = dash_app();
+        baseline.overlay = ActiveOverlay::FleetList;
+        baseline.open_selected_fleet_order_flow();
+        baseline.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        baseline.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+        let baseline_footer = render_fleet_footer_line(&baseline, "COMMAND <- Target XX ");
+
+        let mut stale_target = dash_app();
+        let selected_record =
+            match fleet_list::table_rows(&stale_target)[stale_target.fleet_overlay.selected].key {
+                FleetOverlayRowKey::Fleet(record_index) => record_index,
+                FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
+            };
+        stale_target.game_data.fleets.records[selected_record - 1]
+            .set_standing_order_target_coords_raw([18, 18]);
+        stale_target.overlay = ActiveOverlay::FleetList;
+        stale_target.open_selected_fleet_order_flow();
+        stale_target.fleet_overlay.order_mission_code = Some(Order::MoveOnly.to_raw());
+        stale_target.fleet_overlay.prompt_mode = FleetOverlayPromptMode::OrderTargetX;
+        let stale_footer = render_fleet_footer_line(&stale_target, "COMMAND <- Target XX ");
+
+        assert_eq!(stale_footer, baseline_footer);
+    }
+
+    #[test]
     fn nested_intel_filter_modals_unwind_one_level_at_a_time() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::IntelDatabase;
@@ -2260,6 +2317,20 @@ mod tests {
             .into_iter()
             .map(|(_, record_index)| record_index)
             .collect()
+    }
+
+    fn render_fleet_footer_line(app: &DashApp, needle: &str) -> String {
+        let layout = dashboard_layout(app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        fleet_list::draw(&mut buffer, app, layout.widgets.center_map);
+        (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains(needle))
+            .expect("fleet footer")
     }
 
     fn key(code: KeyCode) -> KeyEvent {

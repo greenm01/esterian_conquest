@@ -68,7 +68,9 @@ impl DashApp {
         self.fleet_overlay.starbase_move_input.clear();
         self.fleet_overlay.starbase_move_status = None;
         match row.key {
-            FleetOverlayRowKey::Fleet(idx) if !self.fleet_overlay.selected_fleet_record_indexes.is_empty() => {
+            FleetOverlayRowKey::Fleet(idx)
+                if !self.fleet_overlay.selected_fleet_record_indexes.is_empty() =>
+            {
                 self.fleet_overlay.order_scope = FleetOrderScope::Group;
                 self.fleet_overlay.active_row_key = Some(FleetOverlayRowKey::Fleet(idx));
                 self.fleet_overlay.order_mission_code = None;
@@ -116,13 +118,12 @@ impl DashApp {
     pub(crate) fn move_fleet_mission_picker(&mut self, delta: i8) {
         let enabled = self.fleet_mission_picker_enabled_flags();
         if !enabled.iter().any(|flag| *flag) {
-            self.fleet_overlay.mission_picker_status =
-                Some(match self.fleet_overlay.order_scope {
-                    FleetOrderScope::Group => {
-                        "No missions are available for the selected fleets.".to_string()
-                    }
-                    _ => "No missions are available for the selected fleet.".to_string(),
-                });
+            self.fleet_overlay.mission_picker_status = Some(match self.fleet_overlay.order_scope {
+                FleetOrderScope::Group => {
+                    "No missions are available for the selected fleets.".to_string()
+                }
+                _ => "No missions are available for the selected fleet.".to_string(),
+            });
             return;
         }
         let total = FLEET_MISSION_OPTIONS.len();
@@ -171,30 +172,21 @@ impl DashApp {
             .copied()
             .unwrap_or(false)
         {
-            self.fleet_overlay.mission_picker_status =
-                Some(match self.fleet_overlay.order_scope {
-                    FleetOrderScope::Group => {
-                        "That mission does not apply to all selected fleets.".to_string()
-                    }
-                    _ => "That mission does not apply to the selected fleet.".to_string(),
-                });
+            self.fleet_overlay.mission_picker_status = Some(match self.fleet_overlay.order_scope {
+                FleetOrderScope::Group => {
+                    "That mission does not apply to all selected fleets.".to_string()
+                }
+                _ => "That mission does not apply to the selected fleet.".to_string(),
+            });
             return;
         }
-        let snapshots = self.order_intel_snapshots();
-        let anchor = self
-            .fleet_order_anchor_coords()
-            .unwrap_or([self.crosshair_x, self.crosshair_y]);
-        let selected_records = self.selected_fleet_order_record_indexes();
-        if !target_available_for_mission(
-            &self.game_data,
-            &snapshots,
-            self.player_record_index_1_based as u8,
-            mission_code,
-            anchor,
-            &selected_records,
-        ) {
+        let has_target_available = match self.fleet_overlay.order_scope {
+            FleetOrderScope::Group => self.fleet_group_has_target_available(mission_code),
+            _ => self.fleet_order_has_target_available(mission_code),
+        };
+        if !has_target_available {
             self.fleet_overlay.mission_picker_status =
-                Some("That mission does not have a valid target.".to_string());
+                Some(self.fleet_target_unavailable_message(mission_code));
             return;
         }
         self.fleet_overlay.mission_picker_cursor = index;
@@ -323,9 +315,7 @@ impl DashApp {
                         return Ok(());
                     }
                     nc_engine::FleetTargetInputKind::StarbaseId => {
-                        let Some(base) =
-                            self.resolve_starbase_target_for_current_mission()
-                        else {
+                        let Some(base) = self.resolve_starbase_target_for_current_mission() else {
                             self.fleet_overlay.order_status = Some(
                                 "Enter a starbase number from your starbase list.".to_string(),
                             );
@@ -334,8 +324,7 @@ impl DashApp {
                         (base.coords, base.base_id, 1)
                     }
                     nc_engine::FleetTargetInputKind::FleetId => {
-                        let Some(host) = self.resolve_host_fleet_for_current_mission()
-                        else {
+                        let Some(host) = self.resolve_host_fleet_for_current_mission() else {
                             self.fleet_overlay.order_status = Some(
                                 "Enter another fleet number from your fleet list.".to_string(),
                             );
@@ -728,7 +717,9 @@ impl DashApp {
     }
 
     fn resolve_fleet_order_split_target(&self) -> Result<[u8; 2], String> {
-        let default_x = self.default_target_coords_for_scope().map(|coords| coords[0]);
+        let default_x = self
+            .default_target_coords_for_scope()
+            .map(|coords| coords[0]);
         let default_y = self.default_target_y_value_for_scope();
         Ok([
             self.resolve_target_axis_input(
@@ -994,22 +985,17 @@ impl DashApp {
             .find(|row| row.fleet_record_index_1_based == target.fleet_record_index_1_based)
     }
 
+    fn fleet_order_default_target_for_mission(&self, mission_code: u8) -> Option<[u8; 2]> {
+        let selected = self
+            .selected_fleet_order_row()
+            .map(|row| vec![row])
+            .unwrap_or_default();
+        self.recommended_fleet_target(mission_code, &selected, BTreeSet::new())
+    }
+
     fn fleet_order_default_target_coords(&self) -> Option<[u8; 2]> {
         let mission_code = self.fleet_overlay.order_mission_code?;
-        let selected = self.selected_fleet_order_row()?;
-        if selected.target_coords != [0, 0] {
-            return Some(selected.target_coords);
-        }
-        let snapshots = self.order_intel_snapshots();
-        let selected_records = BTreeSet::from([selected.fleet_record_index_1_based]);
-        recommended_coordinate_target(
-            &self.game_data,
-            &snapshots,
-            self.player_record_index_1_based as u8,
-            mission_code,
-            selected.coords,
-            &selected_records,
-        )
+        self.fleet_order_default_target_for_mission(mission_code)
     }
 
     fn fleet_order_default_target_y_value(&self) -> Option<u8> {
@@ -1192,13 +1178,6 @@ impl DashApp {
         }
     }
 
-    fn fleet_order_anchor_coords(&self) -> Option<[u8; 2]> {
-        match self.fleet_overlay.order_scope {
-            FleetOrderScope::Group => self.selected_group_order_rows().first().map(|row| row.coords),
-            _ => self.selected_fleet_order_row().map(|row| row.coords),
-        }
-    }
-
     fn fleet_row_supports_mission(&self, row: &OrderFleetRow, mission_code: u8) -> bool {
         let Some(fleet) = self
             .game_data
@@ -1241,7 +1220,9 @@ impl DashApp {
 
     fn resolve_starbase_target_for_current_mission(&self) -> Option<OrderStarbaseRow> {
         match self.fleet_overlay.order_scope {
-            FleetOrderScope::Group => self.resolve_fleet_group_starbase_target_for_current_mission(),
+            FleetOrderScope::Group => {
+                self.resolve_fleet_group_starbase_target_for_current_mission()
+            }
             _ => self.resolve_fleet_order_starbase_target_for_current_mission(),
         }
     }
@@ -1253,22 +1234,18 @@ impl DashApp {
         }
     }
 
+    fn fleet_group_default_target_for_mission(&self, mission_code: u8) -> Option<[u8; 2]> {
+        let selected = self.selected_group_order_rows();
+        self.recommended_fleet_target(
+            mission_code,
+            &selected,
+            self.fleet_overlay.selected_fleet_record_indexes.clone(),
+        )
+    }
+
     fn fleet_group_default_target_coords(&self) -> Option<[u8; 2]> {
         let mission_code = self.fleet_overlay.order_mission_code?;
-        let selected = self.selected_group_order_rows();
-        let anchor = selected.first()?.coords;
-        if selected.iter().all(|row| row.target_coords != [0, 0]) {
-            return selected.first().map(|row| row.target_coords);
-        }
-        let snapshots = self.order_intel_snapshots();
-        recommended_coordinate_target(
-            &self.game_data,
-            &snapshots,
-            self.player_record_index_1_based as u8,
-            mission_code,
-            anchor,
-            &self.fleet_overlay.selected_fleet_record_indexes,
-        )
+        self.fleet_group_default_target_for_mission(mission_code)
     }
 
     fn fleet_group_default_target_y_value(&self) -> Option<u8> {
@@ -1333,6 +1310,70 @@ impl DashApp {
         })
     }
 
+    fn fleet_order_has_target_available(&self, mission_code: u8) -> bool {
+        let anchor = self
+            .selected_fleet_order_row()
+            .map(|row| row.coords)
+            .unwrap_or([self.crosshair_x, self.crosshair_y]);
+        let selected_records = self
+            .selected_fleet_order_row()
+            .map(|row| BTreeSet::from([row.fleet_record_index_1_based]))
+            .unwrap_or_default();
+        target_available_for_mission(
+            &self.game_data,
+            &self.order_intel_snapshots(),
+            self.player_record_index_1_based as u8,
+            mission_code,
+            anchor,
+            &selected_records,
+        )
+    }
+
+    fn fleet_group_has_target_available(&self, mission_code: u8) -> bool {
+        let selected = self.selected_group_order_rows();
+        let anchor = selected
+            .first()
+            .map(|row| row.coords)
+            .unwrap_or([self.crosshair_x, self.crosshair_y]);
+        target_available_for_mission(
+            &self.game_data,
+            &self.order_intel_snapshots(),
+            self.player_record_index_1_based as u8,
+            mission_code,
+            anchor,
+            &self.fleet_overlay.selected_fleet_record_indexes,
+        )
+    }
+
+    fn recommended_fleet_target(
+        &self,
+        mission_code: u8,
+        selected_rows: &[OrderFleetRow],
+        selected_records: BTreeSet<usize>,
+    ) -> Option<[u8; 2]> {
+        let anchor = selected_rows
+            .first()
+            .map(|row| row.coords)
+            .unwrap_or([self.crosshair_x, self.crosshair_y]);
+        recommended_coordinate_target(
+            &self.game_data,
+            &self.order_intel_snapshots(),
+            self.player_record_index_1_based as u8,
+            mission_code,
+            anchor,
+            &selected_records,
+        )
+    }
+
+    fn fleet_target_unavailable_message(&self, mission_code: u8) -> String {
+        match mission_code {
+            4 => "You have no starbases available to guard.".to_string(),
+            12 => "No colonize target available.".to_string(),
+            13 => "You need another fleet available to join.".to_string(),
+            _ => "No valid target available for that mission.".to_string(),
+        }
+    }
+
     fn fleet_group_confirmation_eta_message(
         &self,
         mission_code: u8,
@@ -1362,7 +1403,8 @@ impl DashApp {
         mission_code: u8,
         destination: [u8; 2],
     ) -> nc_engine::FleetEtaEstimate {
-        if fleet_target_input_kind(Some(mission_code)) != nc_engine::FleetTargetInputKind::Coordinates
+        if fleet_target_input_kind(Some(mission_code))
+            != nc_engine::FleetTargetInputKind::Coordinates
         {
             return nc_engine::FleetEtaEstimate::Arrived;
         }

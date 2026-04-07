@@ -16,10 +16,9 @@ use crate::app::state::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits,
-    draw_overlay_frame_for_body_in_map, draw_overlay_frame_for_body_in_map_with_origin,
-    max_overlay_body_width, overlay_popup_rect_for_body_in_map, standard_table_body_height,
-    write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map,
+    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_map, standard_table_body_height, write_clipped,
 };
 use nc_data::Order;
 
@@ -46,7 +45,7 @@ pub fn order_abbrev(order: Order) -> &'static str {
 }
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S O SPACE C M T I <Q>";
+pub(crate) const HOTKEYS: &str = "? F S O SPACE <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A H M C <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? I L O E T <Q>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
@@ -358,10 +357,9 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: 
             default: &app.fleet_order_target_y_default_value(),
             input: &app.fleet_overlay.order_target_y_input,
         },
-        FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandInput {
+        FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Confirm [Y]/N ",
-            default: "Y",
+            prompt: "Confirm [Y]/N <Q> -> ",
             input: &app.fleet_overlay.order_confirm_input,
         },
         _ => unreachable!("fleet order prompt expected"),
@@ -456,10 +454,9 @@ fn draw_group_fleet_order_prompt(
             default: &app.fleet_order_target_y_default_value(),
             input: &app.fleet_overlay.order_target_y_input,
         },
-        FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandInput {
+        FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Confirm [Y]/N ",
-            default: "Y",
+            prompt: "Confirm [Y]/N <Q> -> ",
             input: &app.fleet_overlay.order_confirm_input,
         },
         _ => unreachable!("group fleet order prompt expected"),
@@ -506,8 +503,10 @@ fn draw_group_fleet_order_prompt(
             frame.body_col,
             frame.body_width,
             line,
-            if matches!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::OrderConfirm)
-                && idx == 2
+            if matches!(
+                app.fleet_overlay.prompt_mode,
+                FleetOverlayPromptMode::OrderConfirm
+            ) && idx == 2
             {
                 theme::dim_style()
             } else {
@@ -531,7 +530,7 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::StarbaseMoveDecision => TableFooter::CommandInput {
             label: "COMMAND",
-            prompt: "Choose <H>alt or [M]ove ",
+            prompt: "Halt or move <H>, <M> ",
             default: "M",
             input: &app.fleet_overlay.starbase_move_input,
         },
@@ -549,10 +548,9 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
                 .unwrap_or_default(),
             input: &app.fleet_overlay.starbase_move_input,
         },
-        FleetOverlayPromptMode::StarbaseHaltConfirm => TableFooter::CommandInput {
+        FleetOverlayPromptMode::StarbaseHaltConfirm => TableFooter::CommandPromptInput {
             label: "COMMAND",
-            prompt: "Halt this starbase? [Y]/N ",
-            default: "Y",
+            prompt: "Halt this starbase? [Y]/N <Q> -> ",
             input: &app.fleet_overlay.starbase_move_input,
         },
         _ => unreachable!("starbase move prompt expected"),
@@ -851,8 +849,8 @@ fn fleet_strength_key(fleet: &nc_data::FleetRecord) -> (u16, u16, u16, u16, u8, 
 
 #[cfg(test)]
 mod tests {
-    use super::{draw, table_rows};
-    use crate::app::state::{ActiveOverlay, DashApp, FleetOverlayPromptMode, FleetOrderScope};
+    use super::{HOTKEYS, draw, table_rows};
+    use crate::app::state::{ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode};
     use crate::layout::dashboard_layout;
     use nc_data::{GameStateBuilder, Order};
     use nc_ui::{PlayfieldBuffer, ScreenGeometry};
@@ -860,7 +858,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn fleet_order_confirm_footer_renders_single_cancel_markup() {
+    fn fleet_order_confirm_footer_renders_standard_yes_no_prompt() {
         let mut app = DashApp::new_for_tests(
             PathBuf::from("."),
             GameStateBuilder::new()
@@ -897,9 +895,76 @@ mod tests {
             .find(|line| line.contains("COMMAND <- Confirm [Y]/N "))
             .expect("fleet order confirm footer");
 
-        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
-        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N <Q> [Y] <Q> ->"));
+        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
+        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
         assert_eq!(footer_line.matches("<Q>").count(), 1);
+    }
+
+    #[test]
+    fn fleet_browse_hotkeys_match_supported_commands() {
+        assert_eq!(HOTKEYS, "? F S O SPACE <Q>");
+    }
+
+    #[test]
+    fn group_fleet_order_confirm_footer_renders_standard_yes_no_prompt() {
+        let mut app = dash_app();
+        configure_group_confirm_prompt(&mut app, &[0, 1]);
+
+        let layout = dashboard_layout(&app);
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, layout.widgets.center_map);
+
+        let footer_line = (0..buffer.height())
+            .map(|row| buffer.plain_line(row))
+            .find(|line| line.contains("COMMAND <- Confirm [Y]/N "))
+            .expect("group fleet order confirm footer");
+
+        assert!(footer_line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
+        assert!(!footer_line.contains("COMMAND <- Confirm [Y]/N [Y] <Q> ->"));
+    }
+
+    #[test]
+    fn starbase_prompts_follow_standard_command_line_grammar() {
+        let mut app = dash_app_with_starbase();
+        app.overlay = ActiveOverlay::FleetList;
+        let starbase_index = table_rows(&app)
+            .iter()
+            .position(|row| matches!(row.key, crate::app::state::FleetOverlayRowKey::Starbase(_)))
+            .expect("starbase row");
+        app.fleet_overlay.selected = starbase_index;
+        app.open_selected_fleet_order_flow();
+
+        let layout = dashboard_layout(&app);
+        let mut decision_buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        draw(&mut decision_buffer, &app, layout.widgets.center_map);
+        let decision_line = (0..decision_buffer.height())
+            .map(|row| decision_buffer.plain_line(row))
+            .find(|line| line.contains("COMMAND <- Halt or move"))
+            .expect("starbase decision footer");
+        assert!(decision_line.contains("COMMAND <- Halt or move <H>, <M> [M] <Q> ->"));
+
+        app.fleet_overlay.prompt_mode = FleetOverlayPromptMode::StarbaseHaltConfirm;
+        let mut confirm_buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            crate::theme::body_style(),
+        );
+        draw(&mut confirm_buffer, &app, layout.widgets.center_map);
+        let confirm_line = (0..confirm_buffer.height())
+            .map(|row| confirm_buffer.plain_line(row))
+            .find(|line| line.contains("Halt this starbase?"))
+            .expect("starbase halt confirm footer");
+        assert!(confirm_line.contains("COMMAND <- Halt this starbase? [Y]/N <Q> ->"));
+        assert!(!confirm_line.contains("[Y] <Q> ->"));
     }
 
     #[test]
@@ -942,12 +1007,16 @@ mod tests {
         let wide_title = render_group_order_title(&wide);
 
         assert_eq!(short_title, wide_title);
-        assert!(render_group_order_body(&wide)
-            .iter()
-            .any(|line| line.contains("Selected fleets:")));
-        assert!(render_group_order_body(&wide)
-            .iter()
-            .any(|line| line.contains("New Order:")));
+        assert!(
+            render_group_order_body(&wide)
+                .iter()
+                .any(|line| line.contains("Selected fleets:"))
+        );
+        assert!(
+            render_group_order_body(&wide)
+                .iter()
+                .any(|line| line.contains("New Order:"))
+        );
     }
 
     fn dash_app() -> DashApp {

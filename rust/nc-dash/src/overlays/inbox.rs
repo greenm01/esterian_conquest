@@ -15,7 +15,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? Tab M R A Y D C <Q>";
+pub(crate) const HOTKEYS: &str = "? M R A Y D <Q>";
 const LIST_WIDTH: usize = 28;
 const SPLIT_GAP_WIDTH: usize = 2;
 const TARGET_PREVIEW_WIDTH: usize = 72;
@@ -361,13 +361,18 @@ fn highlight_selected_id_cell(
 
 #[cfg(test)]
 mod tests {
-    use super::{inbox_pane_layout, target_inbox_body_width};
+    use super::{HOTKEYS, inbox_pane_layout, target_inbox_body_width};
     use crate::app::render;
     use crate::app::state::{ActiveOverlay, DashApp};
     use nc_data::{GameStateBuilder, QueuedPlayerMail, ReportBlockRow};
     use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
+
+    #[test]
+    fn browse_hotkeys_match_supported_inbox_commands() {
+        assert_eq!(HOTKEYS, "? M R A Y D <Q>");
+    }
 
     #[test]
     fn inbox_pane_layout_keeps_default_list_width_when_space_allows() {

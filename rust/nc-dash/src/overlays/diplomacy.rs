@@ -16,7 +16,7 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-const HOTKEYS: &str = "? D S I <Q>";
+const HOTKEYS: &str = "? <Q>";
 const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
@@ -142,6 +142,16 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         },
         app.overlay_position_for(ActiveOverlay::Diplomacy),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HOTKEYS;
+
+    #[test]
+    fn browse_hotkeys_match_supported_diplomacy_commands() {
+        assert_eq!(HOTKEYS, "? <Q>");
+    }
 }
 
 #[derive(Debug, Clone)]

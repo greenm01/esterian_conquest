@@ -19,14 +19,14 @@ use crate::app::state::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits,
-    draw_overlay_frame_for_body_in_map, draw_overlay_frame_for_body_in_map_with_origin,
-    max_overlay_body_width, overlay_popup_rect_for_body_in_map, stacked_table_body_height,
-    standard_table_body_height, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map,
+    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_map, stacked_table_body_height, standard_table_body_height,
+    write_clipped,
 };
 use crate::theme;
 
-pub(crate) const HOTKEYS: &str = "? F S B A C L U X I T <Q>";
+pub(crate) const HOTKEYS: &str = "? F S B <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? C L M <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A R S T <Q>";
 const TOP_HEADERS: [&str; 12] = [
@@ -638,6 +638,11 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
 mod tests {
     use super::*;
     use nc_data::ProductionItemKind;
+
+    #[test]
+    fn browse_hotkeys_match_supported_planet_list_commands() {
+        assert_eq!(HOTKEYS, "? F S B <Q>");
+    }
 
     #[test]
     fn build_specify_rows_keep_all_choices_and_blank_unselectable_tags() {

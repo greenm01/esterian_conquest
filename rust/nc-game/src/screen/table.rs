@@ -1,8 +1,9 @@
 use crate::screen::PlayfieldBuffer;
 use crate::screen::layout::{
-    ScreenGeometry, draw_command_line_default_input_at_col, draw_command_line_prompt_text_at_col,
-    draw_command_line_text_at_col, draw_dismiss_prompt_at_col, draw_table_command_bar_at_col,
-    draw_table_command_prompt_at_col, table_dismiss_prompt_row_for, table_prompt_row_for,
+    ScreenGeometry, draw_command_line_default_input_at_col, draw_command_line_prompt_input_at_col,
+    draw_command_line_prompt_text_at_col, draw_command_line_text_at_col,
+    draw_dismiss_prompt_at_col, draw_table_command_bar_at_col, draw_table_command_prompt_at_col,
+    table_dismiss_prompt_row_for, table_prompt_row_for,
 };
 use crate::theme::classic;
 
@@ -70,6 +71,15 @@ pub fn draw_table_footer(
         TableFooter::CommandPrompt { label, prompt } => {
             let row = table_prompt_row_for(geometry, bottom_row);
             draw_command_line_prompt_text_at_col(buffer, row, table_col, label, prompt);
+            row
+        }
+        TableFooter::CommandPromptInput {
+            label,
+            prompt,
+            input,
+        } => {
+            let row = table_prompt_row_for(geometry, bottom_row);
+            draw_command_line_prompt_input_at_col(buffer, row, table_col, label, prompt, input);
             row
         }
         TableFooter::CommandInput {

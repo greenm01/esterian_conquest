@@ -25,6 +25,10 @@ pub fn command_line_prompt_text_width(label: &str, prompt: &str) -> usize {
     label.chars().count() + COMMAND_ARROW_PREFIX.chars().count() + plain_prompt_width(prompt)
 }
 
+pub fn command_line_prompt_input_width(label: &str, prompt: &str, input: &str) -> usize {
+    command_line_prompt_text_width(label, prompt) + input.chars().count()
+}
+
 pub fn command_line_default_input_width(
     label: &str,
     prompt: &str,
@@ -262,6 +266,69 @@ pub fn draw_command_line_prompt_text_in_span(
         let clamped = cursor_col.min(col + width - 1).min(buffer.width() - 1);
         buffer.set_cursor(clamped as u16, row as u16);
     }
+}
+
+pub fn draw_command_line_prompt_input_at_col(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    label: &str,
+    prompt: &str,
+    input: &str,
+) {
+    buffer.fill_row(row, classic::prompt_style());
+    let prefix = col
+        + buffer.write_spans_clipped(
+            row,
+            col,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
+    let _ = write_live_input_clipped(
+        buffer,
+        row,
+        cursor_col,
+        input,
+        classic::prompt_hotkey_style(),
+    );
+}
+
+pub fn draw_command_line_prompt_input_in_span(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    col: usize,
+    width: usize,
+    label: &str,
+    prompt: &str,
+    input: &str,
+) {
+    fill_prompt_span(buffer, row, col, width);
+    let span_end = col + width;
+    let prefix = col
+        + write_spans_clipped_to_span(
+            buffer,
+            row,
+            col,
+            span_end,
+            &[
+                StyledSpan::new(label, classic::title_style()),
+                StyledSpan::new(" <- ", classic::prompt_style()),
+            ],
+        );
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup_in_span(buffer, row, prefix, span_end, &prompt);
+    let _ = write_live_input_clipped_to_span(
+        buffer,
+        row,
+        cursor_col,
+        span_end,
+        input,
+        classic::prompt_hotkey_style(),
+    );
 }
 
 pub fn draw_command_line_default_input_at(
@@ -1348,9 +1415,10 @@ mod tests {
     use super::{
         command_line_default_input_scaffold_width,
         command_line_default_input_scaffold_width_with_cancel, command_line_default_input_width,
-        command_line_default_input_width_with_cancel, draw_command_line_default_input_at,
-        draw_command_line_default_input_with_cancel_at,
-        draw_command_line_default_input_with_cancel_in_span, draw_command_line_prompt_text_at,
+        command_line_default_input_width_with_cancel, command_line_prompt_input_width,
+        draw_command_line_default_input_at, draw_command_line_default_input_with_cancel_at,
+        draw_command_line_default_input_with_cancel_in_span,
+        draw_command_line_prompt_input_in_span, draw_command_line_prompt_text_at,
         draw_plain_prompt, draw_plain_prompt_in_span, draw_right_aligned_footer_text,
         draw_table_command_bar_at, draw_table_command_bar_in_span,
         table_command_bar_scaffold_width, table_command_bar_width, table_command_prompt_width,
@@ -1465,6 +1533,30 @@ mod tests {
             "<ESC> -> ",
         );
         assert_eq!(width, "COMMAND <- Qty [12] <ESC> -> 345".chars().count());
+    }
+
+    #[test]
+    fn prompt_input_width_matches_rendered_confirmation_footer() {
+        let width = command_line_prompt_input_width("COMMAND", "Confirm [Y]/N <Q> -> ", "Y");
+        assert_eq!(width, "COMMAND <- Confirm [Y]/N <Q> -> Y".chars().count());
+    }
+
+    #[test]
+    fn prompt_input_in_span_renders_yes_no_without_extra_default_block() {
+        let mut buffer = buffer();
+        draw_command_line_prompt_input_in_span(
+            &mut buffer,
+            10,
+            0,
+            80,
+            "COMMAND",
+            "Confirm [Y]/N <Q> -> ",
+            "",
+        );
+
+        let line = buffer.plain_line(10);
+        assert!(line.contains("COMMAND <- Confirm [Y]/N <Q> ->"));
+        assert!(!line.contains("[Y] <Q> ->"));
     }
 
     #[test]

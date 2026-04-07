@@ -111,6 +111,11 @@ pub enum TableFooter<'a> {
         label: &'a str,
         prompt: &'a str,
     },
+    CommandPromptInput {
+        label: &'a str,
+        prompt: &'a str,
+        input: &'a str,
+    },
     CommandInput {
         label: &'a str,
         prompt: &'a str,
@@ -715,6 +720,11 @@ pub fn table_footer_width(footer: TableFooter<'_>) -> usize {
         TableFooter::CommandPrompt { label, prompt } => {
             shared_prompt::command_line_prompt_text_width(label, prompt)
         }
+        TableFooter::CommandPromptInput {
+            label,
+            prompt,
+            input,
+        } => shared_prompt::command_line_prompt_input_width(label, prompt, input),
         TableFooter::CommandInput {
             label,
             prompt,
@@ -747,6 +757,9 @@ pub fn table_footer_scaffold_width(footer: TableFooter<'_>) -> usize {
             shared_prompt::command_line_text_width(label, text)
         }
         TableFooter::CommandPrompt { label, prompt } => {
+            shared_prompt::command_line_prompt_text_width(label, prompt)
+        }
+        TableFooter::CommandPromptInput { label, prompt, .. } => {
             shared_prompt::command_line_prompt_text_width(label, prompt)
         }
         TableFooter::CommandInput {
@@ -836,6 +849,16 @@ pub fn draw_table_footer_in_span(
         TableFooter::CommandPrompt { label, prompt } => {
             shared_prompt::draw_command_line_prompt_text_in_span(
                 buffer, row, col, width, label, prompt,
+            );
+            col + width
+        }
+        TableFooter::CommandPromptInput {
+            label,
+            prompt,
+            input,
+        } => {
+            shared_prompt::draw_command_line_prompt_input_in_span(
+                buffer, row, col, width, label, prompt, input,
             );
             col + width
         }
