@@ -2250,7 +2250,7 @@ fn fleet_group_view_world_defaults_avoid_unknown_worlds_targeted_by_other_friend
 }
 
 #[test]
-fn fleet_order_view_world_uses_manual_entry_when_no_unknown_worlds_exist() {
+fn fleet_order_view_world_falls_back_to_closest_non_owned_world_when_no_unknown_worlds_exist() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     let viewer_index = 0usize;
@@ -2262,6 +2262,16 @@ fn fleet_order_view_world_uses_manual_entry_when_no_unknown_worlds_exist() {
         .find(|fleet| fleet.owner_empire_raw() == 1)
         .expect("player should have a fleet")
         .local_slot_word_raw();
+    let fleet_coords = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| {
+            fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == selected_fleet_number
+        })
+        .expect("selected fleet should exist")
+        .current_location_coords_raw();
     for planet in state
         .game_data
         .planets
@@ -2275,15 +2285,23 @@ fn fleet_order_view_world_uses_manual_entry_when_no_unknown_worlds_exist() {
         latest_planet_intel_by_viewer(&fixture_dir, state.game_data.conquest.player_count());
     let year = state.game_data.conquest.game_year();
     planet_intel_by_viewer[viewer_index].clear();
+    let mut fallback_candidates = Vec::new();
     for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
         if planet.owner_empire_slot_raw() == 1 {
             continue;
         }
+        fallback_candidates.push(planet.coords_raw());
         planet_intel_by_viewer[viewer_index].insert(
             idx + 1,
             partial_known_world_snapshot(idx + 1, planet, 2, year),
         );
     }
+    fallback_candidates.sort_by_key(|coords| {
+        let dx = i32::from(fleet_coords[0]) - i32::from(coords[0]);
+        let dy = i32::from(fleet_coords[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let fallback_coords = fallback_candidates[0];
     save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
 
     let mut app = App::load(AppConfig {
@@ -2318,8 +2336,10 @@ fn fleet_order_view_world_uses_manual_entry_when_no_unknown_worlds_exist() {
     app.render(&mut terminal)
         .expect("view-world target prompt should render");
     let prompt = line_containing(&terminal, "Target XX ");
-    assert!(prompt.contains("Target XX "));
-    assert!(!prompt.contains('['), "{prompt}");
+    assert!(
+        prompt.contains(&format!("Target XX [{:02}] <Q> ->", fallback_coords[0])),
+        "{prompt}"
+    );
 }
 
 #[test]

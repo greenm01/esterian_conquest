@@ -2075,6 +2075,52 @@ mod tests {
     }
 
     #[test]
+    fn view_world_falls_back_to_closest_non_owned_world_when_unknowns_are_exhausted() {
+        let mut app = audit_ready_dash_app();
+        for snapshot in &mut app.planet_intel_snapshots {
+            if snapshot.known_owner_empire_id == Some(1) {
+                continue;
+            }
+            snapshot.intel_tier = IntelTier::Partial;
+            if snapshot.known_owner_empire_id.is_none() {
+                snapshot.known_owner_empire_id = Some(0);
+            }
+        }
+        app.overlay = ActiveOverlay::FleetList;
+        select_first_fleet_row(&mut app);
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::ViewWorld.to_raw().to_string();
+
+        app.submit_fleet_mission_picker();
+
+        let selected_row = app.selected_fleet_order_row().expect("selected fleet row");
+        let snapshots = app
+            .planet_intel_snapshots
+            .iter()
+            .cloned()
+            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+            .collect::<BTreeMap<_, _>>();
+        let expected_target = recommended_coordinate_target(
+            &app.game_data,
+            &snapshots,
+            app.player_record_index_1_based as u8,
+            Order::ViewWorld.to_raw(),
+            selected_row.coords,
+            &BTreeSet::new(),
+        )
+        .expect("fallback target");
+
+        assert_eq!(
+            app.fleet_order_target_x_default_value(),
+            format!("{:02}", expected_target[0])
+        );
+        assert_eq!(
+            app.fleet_order_target_y_default_value(),
+            format!("{:02}", expected_target[1])
+        );
+    }
+
+    #[test]
     fn fleet_selection_toggles_on_space() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::FleetList;

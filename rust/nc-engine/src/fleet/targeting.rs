@@ -329,11 +329,20 @@ fn view_world_target_candidates_from(
     anchor: [u8; 2],
     selected_records: &BTreeSet<usize>,
 ) -> Vec<[u8; 2]> {
-    let mut coords = player_planet_database_worlds(game_data, snapshots, viewer_empire_id)
+    let worlds = player_planet_database_worlds(game_data, snapshots, viewer_empire_id);
+    let mut coords = worlds
+        .iter()
         .into_iter()
         .filter(|world| matches!(world.intel_tier, nc_data::IntelTier::Unknown))
         .map(|world| world.coords)
         .collect::<Vec<_>>();
+    if coords.is_empty() {
+        coords = worlds
+            .into_iter()
+            .filter(|world| world.known_owner_empire_id != Some(viewer_empire_id))
+            .map(|world| world.coords)
+            .collect();
+    }
     coords.sort_by_key(|coords| {
         (
             friendly_target_claimed_elsewhere(
