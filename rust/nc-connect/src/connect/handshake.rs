@@ -15,11 +15,11 @@
 use std::time::Duration;
 
 use nc_nostr::nonce::random_nonce_hex;
+use nc_nostr::session::build_session_request_event;
 pub use nc_nostr::session::{
     GameEntry, SessionErrorPayload, SessionReadyPayload, SessionUiMode, parse_session_error,
     parse_session_ready,
 };
-use nc_nostr::session::build_session_request_event;
 use nostr_sdk::nips::nip44;
 use nostr_sdk::{Client, Keys, Kind, PublicKey, Timestamp};
 

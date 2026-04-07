@@ -44,7 +44,10 @@ fn session_payloads_round_trip_through_json_helpers() {
         player_name: "Empire Two".to_string(),
         session_ui: SessionUiMode::FullscreenNcDash,
     };
-    assert_eq!(parse_session_ready(&ready.to_json()).expect("parse ready"), ready);
+    assert_eq!(
+        parse_session_ready(&ready.to_json()).expect("parse ready"),
+        ready
+    );
 
     let error = SessionErrorPayload {
         error: "multiple_games".to_string(),
@@ -55,7 +58,10 @@ fn session_payloads_round_trip_through_json_helpers() {
             seat: 2,
         }],
     };
-    assert_eq!(parse_session_error(&error.to_json()).expect("parse error"), error);
+    assert_eq!(
+        parse_session_error(&error.to_json()).expect("parse error"),
+        error
+    );
 }
 
 #[test]

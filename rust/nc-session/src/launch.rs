@@ -90,7 +90,11 @@ pub fn resolve_launch_player_binding(
         });
     }
 
-    if let Some(alias) = request.dropfile_alias.map(str::trim).filter(|alias| !alias.is_empty()) {
+    if let Some(alias) = request
+        .dropfile_alias
+        .map(str::trim)
+        .filter(|alias| !alias.is_empty())
+    {
         let matching_players = request
             .game_data
             .player

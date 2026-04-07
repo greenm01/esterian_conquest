@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-pub use nc_nostr::claim::{SeatClaimErrorPayload, parse_seat_claim_error};
 use nc_nostr::claim::build_seat_claim_request_event;
+pub use nc_nostr::claim::{SeatClaimErrorPayload, parse_seat_claim_error};
 use nc_nostr::nonce::random_nonce_hex;
 use nostr_sdk::nips::nip44;
 use nostr_sdk::{Client, Filter, Keys, Kind, PublicKey, RelayPoolNotification, Timestamp};
@@ -209,13 +209,8 @@ async fn publish_seat_claim_request(
     invite_code: &str,
     game_id: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let event = build_seat_claim_request_event(
-        player_keys,
-        gate_pubkey,
-        nonce,
-        invite_code,
-        game_id,
-    )?;
+    let event =
+        build_seat_claim_request_event(player_keys, gate_pubkey, nonce, invite_code, game_id)?;
     client.send_event(&event).await?;
     Ok(())
 }

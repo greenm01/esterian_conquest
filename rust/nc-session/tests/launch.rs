@@ -92,7 +92,9 @@ fn hosted_first_time_status_detects_pending_joinable_seat() {
     let mut joined = joinable.clone();
     joined.join_player(1, "Empire One").expect("join player 1");
     joined.join_player(2, "Empire Two").expect("join player 2");
-    joined.join_player(3, "Empire Three").expect("join player 3");
+    joined
+        .join_player(3, "Empire Three")
+        .expect("join player 3");
     joined.join_player(4, "Empire Four").expect("join player 4");
     assert_eq!(
         hosted_first_time_status(&joined),

@@ -235,6 +235,13 @@ cd rust
 cargo run -q -p nc-cli -- inspect-messages /tmp/nc-game
 ```
 
+Seed one `nc-dash` stress lab with all four map-size tiers:
+
+```bash
+cd rust
+cargo run -q -p nc-cli -- harness seed-nc-dash-lab --root /tmp/nc-dash-lab
+```
+
 Submit a turn file without opening the TUI:
 
 ```bash

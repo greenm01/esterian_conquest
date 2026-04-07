@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-pub use nc_nostr::discovery::{DiscoveredGame, InviteResolution};
 use nc_nostr::discovery::select_discovered_game_from_events as shared_select_discovered_game_from_events;
+pub use nc_nostr::discovery::{DiscoveredGame, InviteResolution};
 use nc_nostr::hosted::PublishedGameDefinition;
 use nostr_sdk::{Client, Event, Filter, Keys, Kind};
 

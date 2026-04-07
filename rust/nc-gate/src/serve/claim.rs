@@ -18,12 +18,8 @@ pub async fn publish_seat_claim_error(
         error: code.to_string(),
         message: message.to_string(),
     };
-    let event = nc_nostr::claim::build_seat_claim_error_event(
-        gate_keys,
-        player_pubkey,
-        nonce,
-        &payload,
-    )?;
+    let event =
+        nc_nostr::claim::build_seat_claim_error_event(gate_keys, player_pubkey, nonce, &payload)?;
     let event_id = event.id.to_hex();
     client.send_event(&event).await?;
     Ok(event_id)

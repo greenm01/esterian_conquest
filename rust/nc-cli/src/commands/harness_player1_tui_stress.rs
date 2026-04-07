@@ -85,11 +85,34 @@ const FOREIGN_INTEL_STARDOCK_SPECS: [(usize, usize, u8, u16); 5] = [
     (31, 0, 3, 1),
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Player1TuiStressSeedReport {
+    pub planets: usize,
+    pub fleets: usize,
+    pub report_blocks: usize,
+    pub player1_mail: usize,
+    pub player1_full_intel: usize,
+    pub player1_partial_intel: usize,
+    pub commissioned_starbases: usize,
+}
+
 pub(crate) fn run_seed_player1_tui_stress_args(
     args: Vec<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dir = parse_dir_only(args)?;
-    seed_player1_tui_stress(&dir)
+    let report = seed_player1_tui_stress(&dir)?;
+    println!(
+        "Seeded player-1 TUI stress runtime state at {}.",
+        dir.display()
+    );
+    println!("  planets={}", report.planets);
+    println!("  fleets={}", report.fleets);
+    println!("  report_blocks={}", report.report_blocks);
+    println!("  player1_mail={}", report.player1_mail);
+    println!("  player1_full_intel={}", report.player1_full_intel);
+    println!("  player1_partial_intel={}", report.player1_partial_intel);
+    println!("  commissioned_starbases={}", report.commissioned_starbases);
+    Ok(())
 }
 
 fn parse_dir_only(args: Vec<String>) -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -109,7 +132,9 @@ fn parse_dir_only(args: Vec<String>) -> Result<PathBuf, Box<dyn std::error::Erro
     dir.ok_or_else(|| "harness seed-player1-tui-stress requires --dir <campaign_dir>".into())
 }
 
-fn seed_player1_tui_stress(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn seed_player1_tui_stress(
+    dir: &Path,
+) -> Result<Player1TuiStressSeedReport, Box<dyn std::error::Error>> {
     let store = CampaignStore::open_default_in_dir(dir)?;
     let mut state = load_runtime_state_preferring_live_directory(dir, &store)?;
     let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
@@ -161,25 +186,19 @@ fn seed_player1_tui_stress(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
         &planet_intel_by_viewer,
     )?;
 
-    println!(
-        "Seeded player-1 TUI stress runtime state at {}.",
-        dir.display()
-    );
-    println!("  planets={}", state.game_data.planets.records.len());
-    println!("  fleets={}", state.game_data.fleets.records.len());
-    println!("  report_blocks={}", state.report_block_rows.len());
-    println!(
-        "  player1_mail={}",
-        state
+    Ok(Player1TuiStressSeedReport {
+        planets: state.game_data.planets.records.len(),
+        fleets: state.game_data.fleets.records.len(),
+        report_blocks: state.report_block_rows.len(),
+        player1_mail: state
             .queued_mail
             .iter()
             .filter(|mail| mail.recipient_empire_id == 1 && !mail.recipient_deleted)
-            .count()
-    );
-    println!("  player1_full_intel={}", intel_summary.full);
-    println!("  player1_partial_intel={}", intel_summary.partial);
-    println!("  commissioned_starbases={commissioned_starbases}");
-    Ok(())
+            .count(),
+        player1_full_intel: intel_summary.full,
+        player1_partial_intel: intel_summary.partial,
+        commissioned_starbases,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -248,7 +267,7 @@ fn configure_planets(game_data: &mut CoreGameData) -> Result<(), Box<dyn std::er
         clear_planet_stardock(planet);
     }
 
-    apply_stardock_specs(game_data, &PLAYER_ONE_STARDOCK_SPECS);
+    apply_player_owned_stardock_specs(game_data, 1, &PLAYER_ONE_STARDOCK_SPECS);
     apply_stardock_specs(game_data, &FOREIGN_INTEL_STARDOCK_SPECS);
     Ok(())
 }
@@ -279,9 +298,35 @@ fn apply_stardock_specs(game_data: &mut CoreGameData, specs: &[(usize, usize, u8
     }
 }
 
+fn apply_player_owned_stardock_specs(
+    game_data: &mut CoreGameData,
+    owner_empire_id: u8,
+    specs: &[(usize, usize, u8, u16)],
+) {
+    let owned_planet_records = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() == owner_empire_id)
+        .map(|(idx, _)| idx + 1)
+        .collect::<Vec<_>>();
+    for (owned_ordinal_1_based, slot, kind_raw, count) in specs {
+        let Some(&record_index_1_based) = owned_planet_records.get(owned_ordinal_1_based - 1)
+        else {
+            continue;
+        };
+        if *slot >= nc_data::STARDOCK_SLOT_COUNT {
+            continue;
+        }
+        let planet = &mut game_data.planets.records[record_index_1_based - 1];
+        planet.set_stardock_kind_raw(*slot, *kind_raw);
+        planet.set_stardock_count_raw(*slot, *count);
+    }
+}
+
 fn ownership_sequence_for_players(player_count: u8, total_planets: usize) -> Vec<u8> {
     let player_count = player_count as usize;
-    let desired_totals = &DESIRED_OWNED_PLANET_TOTALS[..player_count];
     let mut totals = vec![1usize; player_count];
     let mut remaining = total_planets.saturating_sub(player_count);
 
@@ -297,7 +342,7 @@ fn ownership_sequence_for_players(player_count: u8, total_planets: usize) -> Vec
     while remaining > 0 && progress {
         progress = false;
         for idx in 0..player_count {
-            if totals[idx] < desired_totals[idx] {
+            if totals[idx] < desired_owned_planet_total(idx) {
                 totals[idx] += 1;
                 remaining -= 1;
                 progress = true;
@@ -317,6 +362,13 @@ fn ownership_sequence_for_players(player_count: u8, total_planets: usize) -> Vec
     }
     owners.resize(total_planets, 0);
     owners
+}
+
+fn desired_owned_planet_total(player_index_zero_based: usize) -> usize {
+    DESIRED_OWNED_PLANET_TOTALS
+        .get(player_index_zero_based)
+        .copied()
+        .unwrap_or(2)
 }
 
 fn planet_payload(

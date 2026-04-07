@@ -142,7 +142,8 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::FleetList => vec![
             ("F", "Open the fleet-list filter menu"),
             ("S", "Open the fleet-list sort menu"),
-            ("O", "Open orders for the selected fleet or starbase"),
+            ("SPACE", "Toggle the checked state of the current fleet row"),
+            ("O", "Order checked fleets, or the selected fleet/starbase"),
             ("C", "TODO - change the selected fleet"),
             ("M", "TODO - merge the selected fleet"),
             ("T", "TODO - transfer ships between fleets"),
@@ -180,6 +181,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Enter", "Choose the current mission"),
             ("Up/Down", "Move between enabled missions"),
             ("PgUp/PgDn", "Page through the mission list"),
+            ("Filter", "Only missions valid for all selected fleets stay enabled"),
             ("Q", "Return to the fleet list"),
             ("Esc", "Return to the fleet list"),
             ("?", "Open this helper"),
@@ -276,7 +278,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("O") && line.contains("Open orders"))
+                .any(|line| line.contains("O") && line.contains("Order checked fleets"))
         );
         assert!(lines
             .iter()

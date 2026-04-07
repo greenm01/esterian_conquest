@@ -37,6 +37,7 @@ pub fn print_usage() {
     println!("  nc-cli harness scan-turn --dir <campaign_dir>");
     println!("  nc-cli harness apply-turn-batch --dir <campaign_dir>");
     println!("  nc-cli harness seed-player1-tui-stress --dir <campaign_dir>");
+    println!("  nc-cli harness seed-nc-dash-lab [--root </tmp/nc-dash-lab>] [--seed-base <u64>]");
     println!(
         "  nc-cli harness play-until --file <scenario.kdl> --dir <campaign_dir> --game-id <id> --turn <n> [--bundle-profile <human|llm>] [--export-classic]"
     );

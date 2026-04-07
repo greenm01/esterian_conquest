@@ -297,6 +297,14 @@ pub enum FleetOverlayPromptMode {
     StarbaseHaltConfirm,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOrderScope {
+    None,
+    SingleFleet,
+    Group,
+    StarbaseMove,
+}
+
 #[derive(Debug, Clone)]
 pub struct FleetOverlayState {
     pub selected: usize,
@@ -304,7 +312,9 @@ pub struct FleetOverlayState {
     pub jump_input: String,
     pub sort: FleetOverlaySort,
     pub filter: FleetOverlayFilter,
+    pub selected_fleet_record_indexes: BTreeSet<usize>,
     pub prompt_mode: FleetOverlayPromptMode,
+    pub order_scope: FleetOrderScope,
     pub active_row_key: Option<FleetOverlayRowKey>,
     pub mission_picker_input: String,
     pub mission_picker_cursor: usize,
@@ -328,7 +338,9 @@ impl Default for FleetOverlayState {
             jump_input: String::new(),
             sort: FleetOverlaySort::Id,
             filter: FleetOverlayFilter::All,
+            selected_fleet_record_indexes: BTreeSet::new(),
             prompt_mode: FleetOverlayPromptMode::None,
+            order_scope: FleetOrderScope::None,
             active_row_key: None,
             mission_picker_input: String::new(),
             mission_picker_cursor: 0,
@@ -364,6 +376,10 @@ impl FleetOverlayState {
     pub fn clear_prompt(&mut self) {
         self.prompt_mode = FleetOverlayPromptMode::None;
         self.prompt_stack.clear();
+    }
+
+    pub fn clear_group_selection(&mut self) {
+        self.selected_fleet_record_indexes.clear();
     }
 }
 

@@ -444,7 +444,8 @@ impl PlanetBuildScreen {
             })
             .collect::<Vec<_>>();
         let entries = planet_build_specify_entries(view.points_left, &shared_orders);
-        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view.points_left, &entries);
+        let (table_metrics, table_col) =
+            draw_specify_table(&mut buffer, view.points_left, &entries);
         let max_unit_num = planet_build_max_selectable_unit_number(&entries);
         draw_table_footer(
             &mut buffer,
@@ -480,7 +481,8 @@ impl PlanetBuildScreen {
             })
             .collect::<Vec<_>>();
         let entries = planet_build_specify_entries(view.points_left, &shared_orders);
-        let (table_metrics, table_col) = draw_specify_table(&mut buffer, view.points_left, &entries);
+        let (table_metrics, table_col) =
+            draw_specify_table(&mut buffer, view.points_left, &entries);
 
         let prompt = format!(
             "How many new {} to build (0 - {}) ",

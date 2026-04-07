@@ -240,3 +240,77 @@ fn harness_seed_player1_tui_stress_populates_player1_runtime_backlog_and_intel()
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn harness_seed_nc_dash_lab_creates_one_seeded_campaign_per_map_size_tier() {
+    let root = unique_temp_dir("nc-cli-harness-dash-lab");
+    let stdout = run_nc_cli(&[
+        "harness",
+        "seed-nc-dash-lab",
+        "--root",
+        root.to_str().unwrap(),
+        "--seed-base",
+        "4000",
+    ]);
+    assert!(stdout.contains("Seeded nc-dash lab"));
+    let mut saw_active_player1_starbase = false;
+
+    for (dir_name, player_count, map_size) in [
+        ("map18-p4", 4u8, 18u8),
+        ("map27-p9", 9u8, 27u8),
+        ("map36-p16", 16u8, 36u8),
+        ("map45-p25", 25u8, 45u8),
+    ] {
+        let dir = root.join(dir_name);
+        assert!(
+            dir.join("ncgame.db").exists(),
+            "expected ncgame.db in {dir_name}"
+        );
+        let store = CampaignStore::open_default_in_dir(&dir).unwrap();
+        let state = store.load_latest_runtime_state().unwrap().unwrap();
+        assert_eq!(state.game_data.conquest.player_count(), player_count);
+        assert_eq!(
+            state.game_data.planets.records.len(),
+            player_count as usize * 5
+        );
+        assert!(
+            state.game_data.planets.records.iter().all(|planet| {
+                (1..=map_size).contains(&planet.coords_raw()[0])
+                    && (1..=map_size).contains(&planet.coords_raw()[1])
+            }),
+            "expected all planet coordinates to fit inside {map_size}x{map_size} for {dir_name}"
+        );
+        assert!(state.report_block_rows.len() >= 8);
+        assert!(state.queued_mail.len() >= 10);
+        assert_eq!(
+            state.game_data.player.records[0].controlled_empire_name_summary(),
+            "Aurora League"
+        );
+        assert_eq!(
+            state.game_data.player.records[0].assigned_player_handle_summary(),
+            "p01"
+        );
+        let viewer1 = store.latest_planet_intel_for_viewer(1).unwrap();
+        assert!(
+            viewer1
+                .iter()
+                .any(|snapshot| snapshot.intel_tier == IntelTier::Partial)
+        );
+        saw_active_player1_starbase |= state
+            .game_data
+            .bases
+            .records
+            .iter()
+            .any(|base| base.owner_empire_raw() == 1 && base.active_flag_raw() != 0);
+    }
+
+    let manifest = fs::read_to_string(root.join("README.txt")).unwrap();
+    assert!(manifest.contains("map45-p25"));
+    assert!(manifest.contains("launch=cargo run -q -p nc-dash --"));
+    assert!(
+        saw_active_player1_starbase,
+        "expected at least one lab campaign to include an active player-1 starbase"
+    );
+
+    cleanup_dir(&root);
+}

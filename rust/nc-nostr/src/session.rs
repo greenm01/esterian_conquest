@@ -120,9 +120,11 @@ pub fn build_session_request_event(
     if let Some(game_id) = game_id {
         tags.push(Tag::parse(["game-id", game_id])?);
     }
-    Ok(EventBuilder::new(Kind::Custom(30501), invite_code.unwrap_or(""))
-        .tags(tags)
-        .sign_with_keys(player_keys)?)
+    Ok(
+        EventBuilder::new(Kind::Custom(30501), invite_code.unwrap_or(""))
+            .tags(tags)
+            .sign_with_keys(player_keys)?,
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -228,9 +230,7 @@ impl SessionErrorPayload {
                 .map(game_entry_json)
                 .collect::<Vec<_>>()
                 .join(",");
-            format!(
-                r#"{{"error":"{error}","message":"{message}","games":[{entries}]}}"#
-            )
+            format!(r#"{{"error":"{error}","message":"{message}","games":[{entries}]}}"#)
         } else {
             format!(r#"{{"error":"{error}","message":"{message}"}}"#)
         }

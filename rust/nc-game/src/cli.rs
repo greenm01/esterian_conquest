@@ -792,7 +792,10 @@ fn session_lease_ttl_seconds(
     session_timeout_secs: Option<u32>,
     game_config: &RuntimeConfig,
 ) -> u64 {
-    nc_session::launch::session_lease_ttl_seconds(session_timeout_secs, game_config.idle_timeout_secs())
+    nc_session::launch::session_lease_ttl_seconds(
+        session_timeout_secs,
+        game_config.idle_timeout_secs(),
+    )
 }
 
 fn slug_from_dir(dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {

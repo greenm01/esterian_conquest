@@ -48,15 +48,15 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         ),
         (
             layout::format_left_column_value(
-                "Invade S/F",
-                &format!("{}/{}", stats.invade_successes, stats.invade_failures()),
+                "Invade S|F",
+                &format!("{}|{}", stats.invade_successes, stats.invade_failures()),
             ),
             theme::value_style(),
         ),
         (
             layout::format_left_column_value(
-                "Blitz S/F",
-                &format!("{}/{}", stats.blitz_successes, stats.blitz_failures()),
+                "Blitz S|F",
+                &format!("{}|{}", stats.blitz_successes, stats.blitz_failures()),
             ),
             theme::value_style(),
         ),

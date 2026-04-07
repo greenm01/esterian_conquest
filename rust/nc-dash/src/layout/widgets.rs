@@ -253,8 +253,8 @@ pub fn left_column_label_width() -> usize {
         "Taken",
         "Lost",
         "Bombards",
-        "Invade S/F",
-        "Blitz S/F",
+        "Invade S|F",
+        "Blitz S|F",
         "Repelled",
         "Ships Dest",
         "Ships Lost",
@@ -422,7 +422,7 @@ mod tests {
             format_left_column_value("Building", "12"),
             format_left_column_value("Tot Fleets", "7"),
             format_left_column_value("Guarding", "0"),
-            format_left_column_value("Invade S/F", "2/1"),
+            format_left_column_value("Invade S|F", "2|1"),
             format_left_column_value("Ships Dest", "18"),
         ];
 

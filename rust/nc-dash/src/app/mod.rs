@@ -453,6 +453,9 @@ impl DashApp {
             self.overlay_position = self.help_return_overlay_position.take();
             self.help_context = HelpContext::Global;
         } else {
+            if self.overlay == ActiveOverlay::FleetList {
+                self.fleet_overlay.clear_group_selection();
+            }
             self.overlay = ActiveOverlay::None;
             self.overlay_position = None;
         }
@@ -818,6 +821,7 @@ impl DashApp {
                     .open_prompt(FleetOverlayPromptMode::SortMenu);
             }
             KeyCode::Char('o') | KeyCode::Char('O') => self.open_selected_fleet_order_flow(),
+            KeyCode::Char(' ') => self.toggle_selected_fleet_row_for_group_order(),
             KeyCode::Char(ch)
                 if self.fleet_overlay.jump_input.len() < 8 && ch.is_ascii_alphanumeric() =>
             {
@@ -1308,6 +1312,7 @@ impl DashApp {
             .get(self.fleet_overlay.selected)
             .map(|row| row.key);
         self.fleet_overlay.filter = filter;
+        self.fleet_overlay.clear_group_selection();
         self.fleet_overlay.clear_prompt();
         let rows = fleet_list::table_rows(self);
         if rows.is_empty() {
@@ -1503,16 +1508,18 @@ fn overlay_title_bar_contains(popup: Rect, col: usize, row: usize) -> bool {
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
     use crate::app::state::{
-        ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, IntelOverlayFilter,
-        IntelOverlayPromptMode, MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode,
+        ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayFilter, FleetOverlayPromptMode,
+        FleetOverlayRowKey, IntelOverlayFilter, IntelOverlayPromptMode, MapViewMode,
+        PlanetOverlayFilter, PlanetOverlayPromptMode,
     };
     use crate::layout::dashboard::dashboard_layout;
     use crate::overlays::{fleet_list, intel_database, planet_list};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-    use nc_data::{GameStateBuilder, Order};
+    use nc_data::{CampaignStore, GameStateBuilder, Order};
     use nc_ui::ScreenGeometry;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn wrap_prev_goes_from_first_to_last() {
@@ -1827,6 +1834,161 @@ mod tests {
     }
 
     #[test]
+    fn fleet_selection_toggles_on_space() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        let rows = fleet_list::table_rows(&app);
+        let record_index = match rows[0].key {
+            FleetOverlayRowKey::Fleet(record_index) => record_index,
+            FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
+        };
+
+        app.handle_key(key(KeyCode::Char(' ')));
+        assert!(
+            app.fleet_overlay
+                .selected_fleet_record_indexes
+                .contains(&record_index)
+        );
+
+        app.handle_key(key(KeyCode::Char(' ')));
+        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+    }
+
+    #[test]
+    fn fleet_sort_preserves_checked_selection() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        let rows = fleet_list::table_rows(&app);
+        let record_index = match rows[0].key {
+            FleetOverlayRowKey::Fleet(record_index) => record_index,
+            FleetOverlayRowKey::Starbase(_) => panic!("expected fleet row"),
+        };
+        app.handle_key(key(KeyCode::Char(' ')));
+
+        app.apply_fleet_overlay_sort(crate::app::state::FleetOverlaySort::Eta);
+
+        assert!(
+            app.fleet_overlay
+                .selected_fleet_record_indexes
+                .contains(&record_index)
+        );
+    }
+
+    #[test]
+    fn fleet_filter_clears_checked_selection() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.handle_key(key(KeyCode::Char(' ')));
+
+        app.apply_fleet_overlay_filter(FleetOverlayFilter::Combat);
+
+        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+    }
+
+    #[test]
+    fn starbase_rows_do_not_toggle_checked_selection() {
+        let mut app = dash_app_with_starbase();
+        app.overlay = ActiveOverlay::FleetList;
+        app.fleet_overlay.selected = fleet_list::table_rows(&app)
+            .iter()
+            .position(|row| matches!(row.key, FleetOverlayRowKey::Starbase(_)))
+            .expect("starbase row");
+
+        app.handle_key(key(KeyCode::Char(' ')));
+
+        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+    }
+
+    #[test]
+    fn checked_fleets_open_group_order_flow() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        app.handle_key(key(KeyCode::Char(' ')));
+        app.fleet_overlay.selected = 1;
+        app.handle_key(key(KeyCode::Char(' ')));
+        app.fleet_overlay.selected = 0;
+
+        app.handle_key(key(KeyCode::Char('o')));
+
+        assert_eq!(app.fleet_overlay.order_scope, FleetOrderScope::Group);
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::MissionPicker
+        );
+    }
+
+    #[test]
+    fn starbase_orders_still_open_starbase_flow_when_fleets_are_checked() {
+        let mut app = dash_app_with_starbase();
+        app.overlay = ActiveOverlay::FleetList;
+        app.fleet_overlay.selected = fleet_list::table_rows(&app)
+            .iter()
+            .position(|row| matches!(row.key, FleetOverlayRowKey::Fleet(_)))
+            .expect("fleet row");
+        app.handle_key(key(KeyCode::Char(' ')));
+        app.fleet_overlay.selected = fleet_list::table_rows(&app)
+            .iter()
+            .position(|row| matches!(row.key, FleetOverlayRowKey::Starbase(_)))
+            .expect("starbase row");
+
+        app.handle_key(key(KeyCode::Char('o')));
+
+        assert_eq!(app.fleet_overlay.order_scope, FleetOrderScope::StarbaseMove);
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::StarbaseMoveDecision
+        );
+        assert_eq!(app.fleet_overlay.selected_fleet_record_indexes.len(), 1);
+    }
+
+    #[test]
+    fn group_order_success_clears_checked_selection_and_unwinds_prompts() {
+        let mut app = dash_app_with_store();
+        app.overlay = ActiveOverlay::FleetList;
+        let selected_records = select_first_two_fleet_rows(&mut app);
+
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::MoveOnly.to_raw().to_string();
+        app.submit_fleet_mission_picker();
+        app.fleet_overlay.order_target_x_input = "10".to_string();
+        app.submit_fleet_order().expect("submit x");
+        app.fleet_overlay.order_target_y_input = "10".to_string();
+        app.submit_fleet_order().expect("submit y");
+        app.fleet_overlay.order_confirm_input = "Y".to_string();
+        app.submit_fleet_order().expect("submit confirm");
+
+        assert!(app.fleet_overlay.selected_fleet_record_indexes.is_empty());
+        assert_eq!(app.fleet_overlay.prompt_mode, FleetOverlayPromptMode::None);
+        assert_eq!(app.fleet_overlay.order_scope, FleetOrderScope::None);
+        for record_index in selected_records {
+            let fleet = &app.game_data.fleets.records[record_index - 1];
+            assert_eq!(fleet.standing_order_kind(), Order::MoveOnly);
+            assert_eq!(fleet.standing_order_target_coords_raw(), [10, 10]);
+        }
+    }
+
+    #[test]
+    fn backing_out_of_group_order_keeps_checked_selection() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::FleetList;
+        let selected_records = select_first_two_fleet_rows(&mut app);
+
+        app.open_selected_fleet_order_flow();
+        app.fleet_overlay.mission_picker_input = Order::MoveOnly.to_raw().to_string();
+        app.submit_fleet_mission_picker();
+        app.handle_key(key(KeyCode::Char('q')));
+
+        assert_eq!(
+            app.fleet_overlay.prompt_mode,
+            FleetOverlayPromptMode::MissionPicker
+        );
+        assert_eq!(
+            app.fleet_overlay.selected_fleet_record_indexes,
+            selected_records.into_iter().collect()
+        );
+    }
+
+    #[test]
     fn nested_intel_filter_modals_unwind_one_level_at_a_time() {
         let mut app = dash_app();
         app.overlay = ActiveOverlay::IntelDatabase;
@@ -2008,6 +2170,96 @@ mod tests {
             nc_ui::ScreenGeometry::new(108, 26),
             1,
         )
+    }
+
+    fn dash_app_with_starbase() -> DashApp {
+        DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .with_guard_starbase(1, 1, [16, 13], 1)
+                .build_initialized_baseline()
+                .expect("baseline with starbase"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            nc_ui::ScreenGeometry::new(160, 40),
+            nc_ui::ScreenGeometry::new(108, 26),
+            1,
+        )
+    }
+
+    fn dash_app_with_store() -> DashApp {
+        let root = std::env::temp_dir().join(format!(
+            "nc-dash-fleet-order-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).expect("create temp test dir");
+        let game_data = GameStateBuilder::new()
+            .with_player_count(4)
+            .build_initialized_baseline()
+            .expect("baseline");
+        let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
+        let planet_intel_by_viewer = (0..game_data.conquest.player_count())
+            .map(|_| BTreeMap::new())
+            .collect::<Vec<_>>();
+        let player_activity_states = store
+            .latest_player_activity_states(game_data.conquest.player_count())
+            .expect("default player activity");
+        store
+            .save_runtime_state_structured_with_intel_and_activity(
+                &game_data,
+                &BTreeSet::new(),
+                &[],
+                &[],
+                &planet_intel_by_viewer,
+                &player_activity_states,
+            )
+            .expect("seed campaign store");
+
+        DashApp::new(
+            root,
+            Some(store),
+            game_data,
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            player_activity_states,
+            nc_ui::ScreenGeometry::new(160, 40),
+            nc_ui::ScreenGeometry::new(108, 26),
+            1,
+        )
+    }
+
+    fn select_first_two_fleet_rows(app: &mut DashApp) -> Vec<usize> {
+        let rows = fleet_list::table_rows(app);
+        let fleet_indexes = rows
+            .iter()
+            .enumerate()
+            .filter_map(|(row_index, row)| match row.key {
+                FleetOverlayRowKey::Fleet(record_index) => Some((row_index, record_index)),
+                FleetOverlayRowKey::Starbase(_) => None,
+            })
+            .take(2)
+            .collect::<Vec<_>>();
+        assert_eq!(fleet_indexes.len(), 2, "expected at least two fleet rows");
+        app.fleet_overlay.selected = fleet_indexes[0].0;
+        app.handle_key(key(KeyCode::Char(' ')));
+        app.fleet_overlay.selected = fleet_indexes[1].0;
+        app.handle_key(key(KeyCode::Char(' ')));
+        app.fleet_overlay.selected = fleet_indexes[0].0;
+        fleet_indexes
+            .into_iter()
+            .map(|(_, record_index)| record_index)
+            .collect()
     }
 
     fn key(code: KeyCode) -> KeyEvent {

@@ -7,7 +7,7 @@
 //! - `LaunchArgs` — parsed CLI arguments shared between frontends
 
 pub mod args;
-pub mod lease;
 pub mod launch;
+pub mod lease;
 pub mod onboarding;
 pub mod startup;

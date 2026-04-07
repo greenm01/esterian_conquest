@@ -1,10 +1,10 @@
 //! 30502 SessionReady and 30503 SessionError publishing built on `nc-nostr`.
 
-pub use nc_nostr::session::{SessionReadyPayload, SessionUiMode};
 use nc_nostr::session::{
     GameEntry as SessionGameEntry, SessionErrorPayload, build_session_error_event,
     build_session_ready_event,
 };
+pub use nc_nostr::session::{SessionReadyPayload, SessionUiMode};
 use nostr_sdk::{Client, Keys, PublicKey};
 
 use crate::config::GateConfig;
