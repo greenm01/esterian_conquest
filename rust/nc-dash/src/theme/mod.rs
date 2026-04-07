@@ -12,10 +12,6 @@ pub fn body_style() -> CellStyle {
     classic::body_style()
 }
 
-pub fn empire_slot_color(slot: u8) -> GameColor {
-    classic::empire_slot_color(slot)
-}
-
 pub fn empire_slot_style(slot: u8) -> CellStyle {
     classic::empire_slot_style(slot)
 }
@@ -30,10 +26,6 @@ pub fn border_style() -> CellStyle {
 
 pub fn header_style() -> CellStyle {
     classic::shell_label_style()
-}
-
-pub fn footer_style() -> CellStyle {
-    classic::prompt_style()
 }
 
 pub fn title_style() -> CellStyle {
@@ -98,7 +90,7 @@ mod tests {
         let styles = [
             border_style(),
             header_style(),
-            footer_style(),
+            classic::prompt_style(),
             title_style(),
             section_title_style(),
             label_style(),

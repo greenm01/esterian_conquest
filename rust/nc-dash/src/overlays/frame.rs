@@ -1,6 +1,8 @@
 //! Shared modal shell for dashboard overlays.
 
-use nc_ui::modal::{ModalTheme, Rect, draw_modal_frame, draw_modal_frame_in_parent};
+use nc_ui::modal::{ModalTheme, Rect, draw_modal_frame_in_parent};
+#[cfg(test)]
+use nc_ui::modal::draw_modal_frame;
 use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -20,6 +22,7 @@ pub struct OverlayFrame {
 pub enum OverlayAxisSize {
     #[default]
     FitContent,
+    #[allow(dead_code)]
     Fixed(usize),
 }
 
@@ -30,6 +33,7 @@ pub struct OverlaySizePolicy {
 }
 
 impl OverlaySizePolicy {
+    #[allow(dead_code)]
     pub const fn fixed(width: usize, height: usize) -> Self {
         Self {
             width: OverlayAxisSize::Fixed(width),
@@ -51,6 +55,7 @@ pub fn max_overlay_body_width(map_frame: MapWidgetFrame) -> usize {
     map_frame.outer.width.saturating_sub(8).max(1)
 }
 
+#[cfg(test)]
 pub fn max_overlay_body_height(map_frame: MapWidgetFrame) -> usize {
     map_frame.outer.height.saturating_sub(8).max(1)
 }
@@ -63,6 +68,7 @@ pub const fn stacked_table_body_height(visible_rows: usize) -> usize {
     visible_rows + 5
 }
 
+#[cfg(test)]
 pub fn draw_overlay_frame(
     buf: &mut PlayfieldBuffer,
     title: &str,
@@ -187,6 +193,7 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy(
     )
 }
 
+#[cfg(test)]
 pub fn draw_overlay_frame_for_body(
     buf: &mut PlayfieldBuffer,
     title: &str,
@@ -204,6 +211,7 @@ pub fn draw_overlay_frame_for_body(
     )
 }
 
+#[cfg(test)]
 pub fn draw_overlay_frame_for_body_with_policy(
     buf: &mut PlayfieldBuffer,
     title: &str,

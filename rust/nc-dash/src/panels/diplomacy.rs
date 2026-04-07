@@ -106,6 +106,7 @@ pub(crate) fn preferred_body_width(app: &DashApp) -> usize {
     ))
 }
 
+#[cfg(test)]
 pub(crate) fn minimum_body_width(app: &DashApp) -> usize {
     let rows = body_rows(app);
     let metrics = column_metrics(&rows, usize::MAX / 2);

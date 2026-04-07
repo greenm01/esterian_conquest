@@ -2,10 +2,6 @@
 
 use nc_ui::{CellStyle, PlayfieldBuffer, ScreenGeometry};
 
-use crate::layout::geometry::{
-    CELL_WIDTH, MAP_LEFT_PADDING, MAP_RIGHT_PADDING, MAP_VERTICAL_PADDING, ROW_LABEL_COLS,
-};
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
     pub col: usize,
@@ -279,6 +275,9 @@ mod tests {
     use super::*;
     use crate::app::state::DashApp;
     use crate::layout::dashboard_layout;
+    use crate::layout::geometry::{
+        CELL_WIDTH, MAP_LEFT_PADDING, MAP_RIGHT_PADDING, MAP_VERTICAL_PADDING, ROW_LABEL_COLS,
+    };
     use nc_data::GameStateBuilder;
     use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;

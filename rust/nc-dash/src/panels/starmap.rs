@@ -3,9 +3,11 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    CoreGameData, DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection,
-    PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
+    DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
+    build_player_starmap_projection_from_snapshots,
 };
+#[cfg(test)]
+use nc_data::CoreGameData;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
@@ -485,7 +487,7 @@ mod tests {
     #[test]
     fn owner_markers_use_empire_slot_colors() {
         let owner = Some(4);
-        let expected = theme::empire_slot_color(4);
+        let expected = nc_ui::theme::classic::empire_slot_color(4);
 
         let (_, owned_style) = marker_for_world_kind(owner, StarmapMarkerKind::Owned);
         let (_, enemy_style) = marker_for_world_kind(owner, StarmapMarkerKind::Enemy);
@@ -831,6 +833,7 @@ mod tests {
     }
 }
 
+#[cfg(test)]
 fn owner_label(game_data: &CoreGameData, known_owner_empire_id: Option<u8>) -> String {
     match known_owner_empire_id {
         Some(0) => String::from("Unowned"),
@@ -850,12 +853,14 @@ fn owner_label(game_data: &CoreGameData, known_owner_empire_id: Option<u8>) -> S
     }
 }
 
+#[cfg(test)]
 fn known_u8(value: Option<u8>) -> String {
     value
         .map(|value| value.to_string())
         .unwrap_or_else(|| String::from("?"))
 }
 
+#[cfg(test)]
 fn known_u16(value: Option<u16>) -> String {
     value
         .map(|value| value.to_string())
