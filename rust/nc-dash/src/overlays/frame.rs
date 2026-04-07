@@ -16,6 +16,28 @@ pub struct OverlayFrame {
     pub footer_row: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OverlayAxisSize {
+    #[default]
+    FitContent,
+    Fixed(usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct OverlaySizePolicy {
+    pub width: OverlayAxisSize,
+    pub height: OverlayAxisSize,
+}
+
+impl OverlaySizePolicy {
+    pub const fn fixed(width: usize, height: usize) -> Self {
+        Self {
+            width: OverlayAxisSize::Fixed(width),
+            height: OverlayAxisSize::Fixed(height),
+        }
+    }
+}
+
 pub fn overlay_parent_rect(map_frame: MapWidgetFrame) -> Rect {
     Rect::new(
         (map_frame.outer.col + 1) as u16,
@@ -31,6 +53,14 @@ pub fn max_overlay_body_width(map_frame: MapWidgetFrame) -> usize {
 
 pub fn max_overlay_body_height(map_frame: MapWidgetFrame) -> usize {
     map_frame.outer.height.saturating_sub(8).max(1)
+}
+
+pub const fn standard_table_body_height(visible_rows: usize) -> usize {
+    visible_rows + 4
+}
+
+pub const fn stacked_table_body_height(visible_rows: usize) -> usize {
+    visible_rows + 5
 }
 
 pub fn draw_overlay_frame(
@@ -122,17 +152,32 @@ pub fn draw_overlay_frame_for_body_in_map(
     body_height: usize,
     footer: TableFooter<'_>,
 ) -> OverlayFrame {
-    let preferred_width =
-        (body_width.max(table_footer_scaffold_width(footer)) + 4).max(title.chars().count() + 6);
-    let preferred_height = body_height + 4;
-    draw_overlay_frame_in_map(
+    draw_overlay_frame_for_body_in_map_with_policy(
         buf,
         map_frame,
         title,
-        preferred_width,
-        preferred_height,
+        body_width,
+        body_height,
+        OverlaySizePolicy::default(),
         footer,
     )
+}
+
+pub fn draw_overlay_frame_for_body_in_map_with_policy(
+    buf: &mut PlayfieldBuffer,
+    map_frame: MapWidgetFrame,
+    title: &str,
+    natural_body_width: usize,
+    natural_body_height: usize,
+    size_policy: OverlaySizePolicy,
+    footer: TableFooter<'_>,
+) -> OverlayFrame {
+    let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
+    let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
+    let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
+        .max(title.chars().count() + 6);
+    let preferred_height = requested_body_height + 4;
+    draw_overlay_frame_in_map(buf, map_frame, title, preferred_width, preferred_height, footer)
 }
 
 pub fn draw_overlay_frame_for_body(
@@ -142,10 +187,55 @@ pub fn draw_overlay_frame_for_body(
     body_height: usize,
     footer: TableFooter<'_>,
 ) -> OverlayFrame {
-    let preferred_width =
-        (body_width.max(table_footer_scaffold_width(footer)) + 4).max(title.chars().count() + 6);
-    let preferred_height = body_height + 4;
+    draw_overlay_frame_for_body_with_policy(
+        buf,
+        title,
+        body_width,
+        body_height,
+        OverlaySizePolicy::default(),
+        footer,
+    )
+}
+
+pub fn draw_overlay_frame_for_body_with_policy(
+    buf: &mut PlayfieldBuffer,
+    title: &str,
+    natural_body_width: usize,
+    natural_body_height: usize,
+    size_policy: OverlaySizePolicy,
+    footer: TableFooter<'_>,
+) -> OverlayFrame {
+    let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
+    let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
+    let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
+        .max(title.chars().count() + 6);
+    let preferred_height = requested_body_height + 4;
     draw_overlay_frame(buf, title, preferred_width, preferred_height, footer)
+}
+
+pub fn assert_overlay_body_write_fits(
+    frame: OverlayFrame,
+    title: &str,
+    used_width: usize,
+    used_height: usize,
+) {
+    assert!(
+        used_width <= frame.body_width,
+        "{title} overlay write width overruns body: need {used_width}, have {}",
+        frame.body_width
+    );
+    assert!(
+        used_height <= frame.body_height,
+        "{title} overlay write height overruns body: need {used_height}, have {}",
+        frame.body_height
+    );
+}
+
+fn resolve_requested_axis(natural: usize, policy: OverlayAxisSize) -> usize {
+    match policy {
+        OverlayAxisSize::FitContent => natural,
+        OverlayAxisSize::Fixed(size) => size,
+    }
 }
 
 #[cfg(test)]
@@ -196,6 +286,22 @@ mod tests {
 
         assert_eq!(frame.body_width, 72);
         assert_eq!(frame.body_height, 14);
+    }
+
+    #[test]
+    fn overlay_frame_can_lock_width_and_height() {
+        let mut buffer = PlayfieldBuffer::new(120, 40, theme::body_style());
+        let frame = draw_overlay_frame_for_body_with_policy(
+            &mut buffer,
+            "TEST",
+            10,
+            4,
+            OverlaySizePolicy::fixed(22, 9),
+            TableFooter::Dismiss,
+        );
+
+        assert_eq!(frame.body_width, 22);
+        assert_eq!(frame.body_height, 9);
     }
 
     #[test]
@@ -337,6 +443,23 @@ mod tests {
 
         assert_eq!(max_overlay_body_width(map_frame), 42);
         assert_eq!(max_overlay_body_height(map_frame), 14);
+    }
+
+    #[test]
+    #[should_panic(expected = "overlay write height overruns body")]
+    fn overlay_body_write_assert_catches_height_overrun() {
+        assert_overlay_body_write_fits(
+            OverlayFrame {
+                body_col: 0,
+                body_row: 0,
+                body_width: 10,
+                body_height: 4,
+                footer_row: 0,
+            },
+            "TEST",
+            8,
+            5,
+        );
     }
 }
 

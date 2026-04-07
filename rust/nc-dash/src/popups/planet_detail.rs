@@ -1,11 +1,11 @@
 //! Planet info popup rendered over the center map pane.
 
 use nc_ui::PlayfieldBuffer;
-use nc_ui::modal::{ModalTheme, Rect, draw_modal_frame_in_parent};
-use nc_ui::table::{TableFooter, draw_table_footer_in_span, table_footer_scaffold_width};
+use nc_ui::table::TableFooter;
 
 use crate::app::state::DashApp;
 use crate::layout::{self, MapWidgetFrame};
+use crate::overlays::frame::draw_overlay_frame_for_body_in_map;
 use crate::planet_view::selected_planet_detail;
 use crate::theme;
 
@@ -26,14 +26,13 @@ pub fn draw(
         .map(|line| line.chars().count())
         .max()
         .unwrap_or(0);
-    let footer = TableFooter::Dismiss;
-    let popup = draw_center_map_popup_frame(
+    let popup = draw_overlay_frame_for_body_in_map(
         buf,
         map_frame,
         "INFO ABOUT A PLANET:",
         body_width,
         lines.len(),
-        footer,
+        TableFooter::Dismiss,
     );
     for (idx, line) in lines.into_iter().enumerate().take(popup.body_height) {
         layout::write_clipped(
@@ -44,75 +43,6 @@ pub fn draw(
             &line,
             theme::value_style(),
         );
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct PopupFrame {
-    body_col: usize,
-    body_row: usize,
-    body_width: usize,
-    body_height: usize,
-}
-
-fn draw_center_map_popup_frame(
-    buf: &mut PlayfieldBuffer,
-    map_frame: MapWidgetFrame,
-    title: &str,
-    body_width: usize,
-    body_height: usize,
-    footer: TableFooter<'_>,
-) -> PopupFrame {
-    let parent = Rect::new(
-        (map_frame.outer.col + 1) as u16,
-        (map_frame.outer.row + 1) as u16,
-        map_frame.outer.width.saturating_sub(2) as u16,
-        map_frame.outer.height.saturating_sub(2) as u16,
-    );
-    let preferred_width =
-        (body_width.max(table_footer_scaffold_width(footer)) + 4).max(title.chars().count() + 6);
-    let preferred_height = (body_height + 4) as u16;
-    let popup = draw_modal_frame_in_parent(
-        buf,
-        title,
-        preferred_width,
-        preferred_height,
-        parent,
-        ModalTheme {
-            body_style: theme::body_style(),
-            pad_style: theme::dim_style(),
-            chrome_style: theme::border_style(),
-            title_style: theme::title_style(),
-        },
-    );
-
-    let inner_left = popup.x as usize + 1;
-    let inner_right = popup.x as usize + popup.width as usize - 2;
-    let footer_row = popup.y as usize + popup.height as usize - 2;
-    let divider_row = footer_row.saturating_sub(1);
-    for col in inner_left..=inner_right {
-        buf.set_cell(divider_row, col, '─', theme::border_style());
-    }
-    buf.set_cell(
-        divider_row,
-        inner_left.saturating_sub(1),
-        '├',
-        theme::border_style(),
-    );
-    buf.set_cell(divider_row, inner_right + 1, '┤', theme::border_style());
-    draw_table_footer_in_span(
-        buf,
-        footer_row,
-        popup.x as usize + 2,
-        popup.width.saturating_sub(4) as usize,
-        footer,
-    );
-
-    PopupFrame {
-        body_col: popup.x as usize + 2,
-        body_row: popup.y as usize + 1,
-        body_width: popup.width.saturating_sub(4) as usize,
-        body_height: divider_row.saturating_sub(popup.y as usize + 1),
     }
 }
 
@@ -215,8 +145,9 @@ fn chunk_word(word: &str, width: usize) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{draw_center_map_popup_frame, popup_lines};
+    use super::popup_lines;
     use crate::layout::widgets::WidgetRect;
+    use crate::overlays::frame::draw_overlay_frame_for_body_in_map;
     use crate::planet_view::DetailLine;
     use crate::theme;
     use nc_ui::PlayfieldBuffer;
@@ -266,7 +197,7 @@ mod tests {
             cell_width: 3,
         };
 
-        let popup = draw_center_map_popup_frame(
+        let popup = draw_overlay_frame_for_body_in_map(
             &mut buffer,
             map_frame,
             "INFO ABOUT A PLANET:",

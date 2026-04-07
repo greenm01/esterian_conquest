@@ -1,5 +1,6 @@
 //! P overlay: dashboard-sized planet management table.
 
+use nc_engine::BUILD_UNITS;
 use nc_data::{
     PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
 };
@@ -8,14 +9,16 @@ use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::table::{
     TableColumn, TableFooter, TableWidthMode, centered_table_start_col, resolve_table_columns,
     table_render_width, write_stacked_table_window_with_theme_at,
+    write_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
 
+use crate::app::planet_build::{PlanetBuildOverlayView, build_order_point_total};
 use crate::app::state::{DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    draw_overlay_frame_for_body_in_map, max_overlay_body_height, max_overlay_body_width,
-    write_clipped,
+    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
+    stacked_table_body_height, standard_table_body_height, write_clipped,
 };
 use crate::theme;
 
@@ -52,6 +55,17 @@ pub(crate) struct PlanetOverlayRow {
 }
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    match app.planet_overlay.prompt_mode {
+        PlanetOverlayPromptMode::BuildSpecify => {
+            draw_build_specify(buf, app, map_frame);
+            return;
+        }
+        PlanetOverlayPromptMode::BuildQuantity => {
+            draw_build_quantity(buf, app, map_frame);
+            return;
+        }
+        _ => {}
+    }
     let rows = table_rows(app);
     let selected = app
         .planet_overlay
@@ -90,12 +104,12 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             default: &app.planet_overlay.prompt_default,
             input: &app.planet_overlay.prompt_input,
         },
+        PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
+            unreachable!("build flows render separately")
+        }
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
-    let desired_visible_rows = table_cells.len().clamp(
-        1,
-        max_overlay_body_height(map_frame).saturating_sub(5).max(1),
-    );
+    let natural_visible_rows = table_cells.len().max(1);
     let columns = resolve_table_columns(
         &COLUMNS,
         &table_cells,
@@ -110,10 +124,16 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         map_frame,
         "PLANET LIST",
         body_width,
-        desired_visible_rows + 5,
+        stacked_table_body_height(natural_visible_rows),
         footer,
     );
     let visible_rows = frame.body_height.saturating_sub(5);
+    assert_overlay_body_write_fits(
+        frame,
+        "PLANET LIST",
+        table_render_width(&columns),
+        stacked_table_body_height(visible_rows),
+    );
     let scroll = clamp_scroll(
         app.planet_overlay.scroll,
         selected,
@@ -146,6 +166,274 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             theme::dim_style(),
         );
     }
+}
+
+fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    let view = app.planet_build_view();
+    let orders = app.planet_build_orders();
+    let table_cells = build_specify_table_rows(app);
+    let columns = resolve_table_columns(
+        &build_specify_columns(),
+        &table_cells,
+        max_overlay_body_width(map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let table_width = table_render_width(&columns);
+    let body_width = table_width.max(40);
+    let summary_rows = 4;
+    let natural_visible_rows = table_cells.len().max(1);
+    let status_rows = usize::from(
+        app.planet_overlay.build_unit_notice.is_some() || app.planet_overlay.build_unit_status.is_some(),
+    );
+    let frame = draw_overlay_frame_for_body_in_map(
+        buf,
+        map_frame,
+        "SPECIFY BUILD ORDERS",
+        body_width,
+        summary_rows + standard_table_body_height(natural_visible_rows) + status_rows,
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Unit number or 0 if done ",
+            default: "0",
+            input: &app.planet_overlay.build_unit_input,
+        },
+    );
+    let visible_rows = frame
+        .body_height
+        .saturating_sub(summary_rows + standard_table_body_height(0) + status_rows);
+    assert_overlay_body_write_fits(
+        frame,
+        "SPECIFY BUILD ORDERS",
+        table_render_width(&columns),
+        summary_rows + standard_table_body_height(visible_rows) + status_rows,
+    );
+
+    let Some(view) = view else {
+        write_clipped(
+            buf,
+            frame.body_row,
+            frame.body_col,
+            frame.body_width,
+            "No owned planets available for building.",
+            theme::dim_style(),
+        );
+        return;
+    };
+
+    write_build_header_lines(buf, frame, &view, &orders);
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
+    let _ = write_table_window_with_theme_at(
+        buf,
+        frame.body_row + summary_rows,
+        table_col,
+        &columns,
+        &table_cells,
+        0,
+        visible_rows,
+        theme::table_theme(),
+        None,
+        0,
+        None,
+    );
+    if let Some(notice) = app.planet_overlay.build_unit_notice.as_deref() {
+        write_clipped(
+            buf,
+            frame.body_row + summary_rows + standard_table_body_height(visible_rows),
+            frame.body_col,
+            frame.body_width,
+            notice,
+            theme::dim_style(),
+        );
+    } else if let Some(status) = app.planet_overlay.build_unit_status.as_deref() {
+        write_clipped(
+            buf,
+            frame.body_row + summary_rows + standard_table_body_height(visible_rows),
+            frame.body_col,
+            frame.body_width,
+            status,
+            theme::error_style(),
+        );
+    }
+}
+
+fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    let view = app.planet_build_view();
+    let orders = app.planet_build_orders();
+    let Some(kind) = app.planet_overlay.build_selected_kind else {
+        draw_build_specify(buf, app, map_frame);
+        return;
+    };
+    let Some(unit) = BUILD_UNITS.iter().copied().find(|unit| unit.kind == kind) else {
+        draw_build_specify(buf, app, map_frame);
+        return;
+    };
+    let max_qty = app.planet_build_max_quantity_for(kind).unwrap_or(0);
+    let table_cells = build_specify_table_rows(app);
+    let columns = resolve_table_columns(
+        &build_specify_columns(),
+        &table_cells,
+        max_overlay_body_width(map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let table_width = table_render_width(&columns);
+    let body_width = table_width.max(44);
+    let summary_rows = 5;
+    let natural_visible_rows = table_cells.len().max(1);
+    let status_rows = usize::from(app.planet_overlay.build_quantity_status.is_some());
+    let default_qty = max_qty.to_string();
+    let prompt = format!("How many new {} to build ", unit.singular_label);
+    let frame = draw_overlay_frame_for_body_in_map(
+        buf,
+        map_frame,
+        "BUILD QUANTITY",
+        body_width,
+        summary_rows + standard_table_body_height(natural_visible_rows) + status_rows,
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: &prompt,
+            default: &default_qty,
+            input: &app.planet_overlay.build_quantity_input,
+        },
+    );
+    let visible_rows = frame
+        .body_height
+        .saturating_sub(summary_rows + standard_table_body_height(0) + status_rows);
+    assert_overlay_body_write_fits(
+        frame,
+        "BUILD QUANTITY",
+        table_render_width(&columns),
+        summary_rows + standard_table_body_height(visible_rows) + status_rows,
+    );
+
+    let Some(view) = view else {
+        write_clipped(
+            buf,
+            frame.body_row,
+            frame.body_col,
+            frame.body_width,
+            "No owned planets available for building.",
+            theme::dim_style(),
+        );
+        return;
+    };
+
+    write_build_header_lines(buf, frame, &view, &orders);
+    write_clipped(
+        buf,
+        frame.body_row + 4,
+        frame.body_col,
+        frame.body_width,
+        &format!("Selected: {}  Max Qty: {}", unit.label, max_qty),
+        theme::label_style(),
+    );
+    let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
+    let _ = write_table_window_with_theme_at(
+        buf,
+        frame.body_row + summary_rows,
+        table_col,
+        &columns,
+        &table_cells,
+        0,
+        visible_rows,
+        theme::table_theme(),
+        table_cells
+            .iter()
+            .position(|row| row.first() == Some(&unit.number.to_string())),
+        0,
+        None,
+    );
+    if let Some(status) = app.planet_overlay.build_quantity_status.as_deref() {
+        write_clipped(
+            buf,
+            frame.body_row + summary_rows + standard_table_body_height(visible_rows),
+            frame.body_col,
+            frame.body_width,
+            status,
+            theme::error_style(),
+        );
+    }
+}
+
+fn write_build_header_lines(
+    buf: &mut PlayfieldBuffer,
+    frame: crate::overlays::frame::OverlayFrame,
+    view: &PlanetBuildOverlayView,
+    orders: &[crate::app::planet_build::PlanetBuildOrderLine],
+) {
+    write_clipped(
+        buf,
+        frame.body_row,
+        frame.body_col,
+        frame.body_width,
+        &format!(
+            "{} at {}",
+            view.row.planet_name,
+            format_sector_coords_table(view.row.coords)
+        ),
+        theme::label_style(),
+    );
+    write_clipped(
+        buf,
+        frame.body_row + 1,
+        frame.body_col,
+        frame.body_width,
+        &format!(
+            "Avail {}  Spent {}  Left {}",
+            view.available_points,
+            view.committed_points.min(view.available_points),
+            view.points_left
+        ),
+        theme::label_style(),
+    );
+    write_clipped(
+        buf,
+        frame.body_row + 2,
+        frame.body_col,
+        frame.body_width,
+        &format!(
+            "Queue {}  Points {}",
+            orders.len(),
+            build_order_point_total(orders)
+        ),
+        theme::label_style(),
+    );
+    write_clipped(
+        buf,
+        frame.body_row + 3,
+        frame.body_col,
+        frame.body_width,
+        if view.row.has_friendly_starbase {
+            "Starbase present: standard restrictions do not apply."
+        } else {
+            "No starbase present: standard restrictions apply."
+        },
+        theme::dim_style(),
+    );
+}
+
+fn build_specify_columns() -> [TableColumn<'static>; 4] {
+    [
+        TableColumn::right("No", 2),
+        TableColumn::left("Unit Type", 18),
+        TableColumn::right("Cost", 4),
+        TableColumn::right("Qty", 4),
+    ]
+}
+
+fn build_specify_table_rows(app: &DashApp) -> Vec<Vec<String>> {
+    app.planet_build_available_units()
+        .into_iter()
+        .map(|(unit, max_qty)| {
+            vec![
+                unit.number.to_string(),
+                unit.label.to_string(),
+                unit.cost.to_string(),
+                max_qty.to_string(),
+            ]
+        })
+        .collect()
 }
 
 pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {

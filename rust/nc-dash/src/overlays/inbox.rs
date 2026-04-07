@@ -8,8 +8,8 @@ use crate::app::state::{DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, project_inbox_items};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    draw_hline, draw_overlay_frame_for_body_in_map, draw_vline, max_overlay_body_height,
-    max_overlay_body_width, write_clipped,
+    assert_overlay_body_write_fits, draw_hline, draw_overlay_frame_for_body_in_map, draw_vline,
+    write_clipped,
 };
 use crate::theme;
 
@@ -17,39 +17,17 @@ pub(crate) const HOTKEYS: &str = "? Tab M R A Y D C <Q>";
 const LIST_WIDTH: usize = 28;
 
 pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
-    let selected_default = selected_default(app);
+    let items = inbox_items(app);
+    let selected = app
+        .inbox_overlay
+        .selected
+        .min(items.len().saturating_sub(1));
+    let selected_default = items.get(selected).map(|_| format!("{:02}", selected + 1));
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
         default: selected_default.as_deref(),
         input: &app.inbox_overlay.jump_input,
     };
-    let preferred_body_width = max_overlay_body_width(map_frame).clamp(72, 138);
-    let preferred_body_height = max_overlay_body_height(map_frame).clamp(10, 26);
-    let frame = draw_overlay_frame_for_body_in_map(
-        buf,
-        map_frame,
-        "INBOX",
-        preferred_body_width,
-        preferred_body_height,
-        footer,
-    );
-    let divider_col = frame.body_col + LIST_WIDTH;
-    let preview_col = divider_col + 2;
-    let preview_width = frame.body_width.saturating_sub(LIST_WIDTH + 2);
-    let items = inbox_items(app);
-    let table_theme = theme::table_theme();
-    let list_focus = matches!(app.inbox_overlay.focus, InboxFocus::List);
-    let divider_style = if list_focus {
-        classic::notice_style()
-    } else {
-        theme::border_style()
-    };
-    let list_header_style = if list_focus {
-        classic::notice_style()
-    } else {
-        table_theme.header_style
-    };
-
     let filter_line = format!(
         "Filter:{}  Year:{}  Focus:{}{}",
         app.inbox_overlay.filter.label(),
@@ -68,6 +46,55 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             ""
         }
     );
+    let preview_natural_width = items
+        .get(selected)
+        .map(|item| {
+            item.body_lines
+                .iter()
+                .map(|line| line.chars().count())
+                .max()
+                .unwrap_or(0)
+                .max("Preview".chars().count())
+        })
+        .unwrap_or("Preview".chars().count());
+    let body_width = filter_line
+        .chars()
+        .count()
+        .max(LIST_WIDTH + 2 + preview_natural_width);
+    let natural_content_rows = items
+        .len()
+        .max(1)
+        .max(
+            items.get(selected)
+                .map(|item| item.body_lines.len().max(1))
+                .unwrap_or(1),
+        );
+    let frame = draw_overlay_frame_for_body_in_map(
+        buf,
+        map_frame,
+        "INBOX",
+        body_width,
+        4 + natural_content_rows,
+        footer,
+    );
+    let max_rows = frame.body_height.saturating_sub(4);
+    assert_overlay_body_write_fits(frame, "INBOX", body_width, 4 + max_rows);
+    let divider_col = frame.body_col + LIST_WIDTH;
+    let preview_col = divider_col + 2;
+    let preview_width = frame.body_width.saturating_sub(LIST_WIDTH + 2);
+    let table_theme = theme::table_theme();
+    let list_focus = matches!(app.inbox_overlay.focus, InboxFocus::List);
+    let divider_style = if list_focus {
+        classic::notice_style()
+    } else {
+        theme::border_style()
+    };
+    let list_header_style = if list_focus {
+        classic::notice_style()
+    } else {
+        table_theme.header_style
+    };
+
     write_clipped(
         buf,
         frame.body_row,
@@ -119,11 +146,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     buf.set_cell(frame.body_row + 3, divider_col, '┼', divider_style);
 
     let list_start = frame.body_row + 4;
-    let max_rows = frame.body_height.saturating_sub(4);
-    let selected = app
-        .inbox_overlay
-        .selected
-        .min(items.len().saturating_sub(1));
     let scroll = clamp_scroll(app.inbox_overlay.scroll, selected, max_rows, items.len());
 
     for (visible_idx, item) in items.iter().skip(scroll).take(max_rows).enumerate() {
@@ -233,15 +255,6 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
         .enumerate()
         .map(|(idx, _)| vec![format!("{:02}", idx + 1)])
         .collect()
-}
-
-fn selected_default(app: &DashApp) -> Option<String> {
-    let items = inbox_items(app);
-    let selected = app
-        .inbox_overlay
-        .selected
-        .min(items.len().saturating_sub(1));
-    items.get(selected).map(|_| format!("{:02}", selected + 1))
 }
 
 fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usize) -> usize {

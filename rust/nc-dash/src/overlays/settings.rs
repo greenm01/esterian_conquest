@@ -6,7 +6,9 @@ use nc_ui::table::TableFooter;
 use crate::app::state::DashApp;
 use crate::layout;
 use crate::layout::MapWidgetFrame;
-use crate::overlays::frame::{draw_overlay_frame_for_body_in_map, write_clipped};
+use crate::overlays::frame::{
+    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, write_clipped,
+};
 use crate::theme;
 
 const SETTINGS_LINES: &[(&str, &str)] = &[
@@ -33,6 +35,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp, map_frame: MapWidgetFrame
         SETTINGS_LINES.len(),
         TableFooter::Dismiss,
     );
+    assert_overlay_body_write_fits(frame, "SETTINGS", body_width, SETTINGS_LINES.len());
     for (idx, (key, desc)) in SETTINGS_LINES.iter().enumerate() {
         write_clipped(
             buf,

@@ -7,7 +7,8 @@ use nc_ui::table::TableFooter;
 use crate::app::state::{DashApp, HelpContext};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    draw_overlay_frame_for_body_in_map, max_overlay_body_width, write_clipped,
+    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
+    write_clipped,
 };
 use crate::theme;
 
@@ -22,6 +23,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         wrapped.lines.len(),
         TableFooter::Dismiss,
     );
+    assert_overlay_body_write_fits(frame, "HELP", wrapped.content_width, wrapped.lines.len());
 
     for (idx, line) in wrapped.lines.iter().enumerate().take(frame.body_height) {
         write_clipped(
@@ -63,7 +65,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         HelpContext::PlanetList => vec![
             ("F", "Open the planet-list filter menu"),
             ("S", "Open the planet-list sort menu"),
-            ("B", "TODO - build queue for the selected planet"),
+            ("B", "Open build orders for the selected planet"),
             ("A", "TODO - auto-commission ships from stardock"),
             ("C", "TODO - commission ships into a fleet"),
             ("L", "TODO - load armies onto transports"),
@@ -101,10 +103,25 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("Esc", "Return to the table"),
             ("?", "Open this helper"),
         ],
+        HelpContext::PlanetBuildSpecify => vec![
+            ("Type", "Enter a build-unit number"),
+            ("0", "Return to the planet list"),
+            ("Enter", "Accept the selected unit"),
+            ("Q", "Return to the planet list"),
+            ("Esc", "Return to the planet list"),
+            ("?", "Open this helper"),
+        ],
+        HelpContext::PlanetBuildQuantity => vec![
+            ("Type", "Enter the quantity to queue"),
+            ("Enter", "Queue that many units"),
+            ("Q", "Return to unit selection"),
+            ("Esc", "Return to unit selection"),
+            ("?", "Open this helper"),
+        ],
         HelpContext::FleetList => vec![
             ("F", "Open the fleet-list filter menu"),
             ("S", "Open the fleet-list sort menu"),
-            ("O", "TODO - assign orders to the selected fleet"),
+            ("O", "Open orders for the selected fleet or starbase"),
             ("C", "TODO - change the selected fleet"),
             ("M", "TODO - merge the selected fleet"),
             ("T", "TODO - transfer ships between fleets"),
@@ -135,6 +152,30 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("C", "Show fleets on combat missions"),
             ("Q", "Return to the table"),
             ("Esc", "Return to the table"),
+            ("?", "Open this helper"),
+        ],
+        HelpContext::FleetMissionPicker => vec![
+            ("Type", "Enter a mission number from 0 to 15"),
+            ("Enter", "Choose the current mission"),
+            ("Up/Down", "Move between enabled missions"),
+            ("PgUp/PgDn", "Page through the mission list"),
+            ("Q", "Return to the fleet list"),
+            ("Esc", "Return to the fleet list"),
+            ("?", "Open this helper"),
+        ],
+        HelpContext::FleetOrderInput => vec![
+            ("Type", "Enter the requested target or confirm input"),
+            ("Enter", "Accept the current step"),
+            ("Q", "Return to the previous order step"),
+            ("Esc", "Return to the previous order step"),
+            ("?", "Open this helper"),
+        ],
+        HelpContext::StarbaseMove => vec![
+            ("M", "Move the selected starbase"),
+            ("H", "Halt the selected starbase"),
+            ("Enter", "Accept the current move step"),
+            ("Q", "Return to the fleet list"),
+            ("Esc", "Return to the fleet list"),
             ("?", "Open this helper"),
         ],
         HelpContext::IntelDatabase => vec![
@@ -214,7 +255,7 @@ mod tests {
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("O") && line.contains("assign orders"))
+                .any(|line| line.contains("O") && line.contains("Open orders"))
         );
         assert!(lines
             .iter()

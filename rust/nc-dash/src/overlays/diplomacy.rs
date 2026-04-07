@@ -9,7 +9,7 @@ use crate::diplomacy_view::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    draw_hline, draw_overlay_frame_for_body_in_map, max_overlay_body_height, write_clipped,
+    assert_overlay_body_write_fits, draw_hline, draw_overlay_frame_for_body_in_map, write_clipped,
 };
 use crate::theme;
 
@@ -47,10 +47,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         })
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| b.production.cmp(&a.production));
-    let desired_visible_rows = rows.len().clamp(
-        1,
-        max_overlay_body_height(map_frame).saturating_sub(2).max(1),
-    );
+    let natural_visible_rows = rows.len().max(1);
     let body_width = HEADER.chars().count() + 1;
     let footer = TableFooter::CommandBar {
         hotkeys_markup: HOTKEYS,
@@ -62,9 +59,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         map_frame,
         "DIPLOMACY",
         body_width,
-        desired_visible_rows + 2,
+        natural_visible_rows + 2,
         footer,
     );
+    let max_rows = frame.body_height.saturating_sub(2);
+    assert_overlay_body_write_fits(frame, "DIPLOMACY", body_width, max_rows + 2);
 
     write_clipped(
         buf,
@@ -83,7 +82,6 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
 
     let list_start = frame.body_row + 2;
-    let max_rows = frame.body_height.saturating_sub(2);
     let selected = app
         .diplomacy_overlay
         .selected

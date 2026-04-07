@@ -14,8 +14,8 @@ use nc_ui::table_selection;
 use crate::app::state::{DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort};
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    draw_overlay_frame_for_body_in_map, max_overlay_body_height, max_overlay_body_width,
-    write_clipped,
+    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map, max_overlay_body_width,
+    stacked_table_body_height, write_clipped,
 };
 use crate::theme;
 
@@ -102,10 +102,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         },
     };
     let table_cells = rows.iter().map(|row| row.cells.clone()).collect::<Vec<_>>();
-    let desired_visible_rows = table_cells.len().clamp(
-        1,
-        max_overlay_body_height(map_frame).saturating_sub(5).max(1),
-    );
+    let natural_visible_rows = table_cells.len().max(1);
     let columns = resolve_table_columns(
         &COLUMNS,
         &table_cells,
@@ -120,10 +117,16 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         map_frame,
         "TOTAL PLANET DATABASE",
         body_width,
-        desired_visible_rows + 5,
+        stacked_table_body_height(natural_visible_rows),
         footer,
     );
     let visible_rows = frame.body_height.saturating_sub(5);
+    assert_overlay_body_write_fits(
+        frame,
+        "TOTAL PLANET DATABASE",
+        table_render_width(&columns),
+        stacked_table_body_height(visible_rows),
+    );
     let scroll = clamp_scroll(app.intel_overlay.scroll, selected, visible_rows, rows.len());
     let table_col = frame.body_col + centered_table_start_col(frame.body_width, &columns);
     let metrics = write_stacked_table_window_with_theme_at(
