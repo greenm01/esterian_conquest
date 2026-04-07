@@ -8,14 +8,18 @@ use crate::app::state::{ActiveOverlay, DashApp};
 use crate::layout;
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map_with_origin,
-    overlay_popup_rect_for_body_in_map, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits,
+    draw_overlay_frame_for_body_in_map_with_origin, overlay_popup_rect_for_body_in_map,
+    write_clipped,
 };
 use crate::theme;
 
 const SETTINGS_LINES: &[(&str, &str)] = &[
     ("Theme", "Select color theme (T to open theme picker)"),
-    ("Mouse", "Always on: drag overlays by title bar, click map to jump"),
+    (
+        "Mouse",
+        "Always on: drag overlays by title bar, click map to jump",
+    ),
 ];
 
 pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp, map_frame: MapWidgetFrame) {

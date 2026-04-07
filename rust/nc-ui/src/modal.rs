@@ -12,7 +12,10 @@ pub struct Rect {
 pub enum ModalPlacement {
     #[default]
     Centered,
-    Origin { x: u16, y: u16 },
+    Origin {
+        x: u16,
+        y: u16,
+    },
 }
 
 impl Rect {
@@ -42,7 +45,12 @@ pub fn placed_rect(width: u16, height: u16, parent: Rect, placement: ModalPlacem
         ModalPlacement::Origin { x, y } => {
             let max_x = parent.x + parent.width.saturating_sub(width);
             let max_y = parent.y + parent.height.saturating_sub(height);
-            Rect::new(x.clamp(parent.x, max_x), y.clamp(parent.y, max_y), width, height)
+            Rect::new(
+                x.clamp(parent.x, max_x),
+                y.clamp(parent.y, max_y),
+                width,
+                height,
+            )
         }
     }
 }
