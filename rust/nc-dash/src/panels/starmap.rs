@@ -14,6 +14,10 @@ use crate::app::state::DashApp;
 use crate::layout::{self, MapWidgetFrame};
 use crate::theme;
 
+const CROSSHAIR_HORIZONTAL: char = '─';
+const CROSSHAIR_VERTICAL: char = '│';
+const CROSSHAIR_CENTER: char = '┼';
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StarmapMarkerKind {
     Owned,
@@ -95,11 +99,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             let (sym, base_style) = if let Some(snapshot) = planet {
                 marker_for_world(app, player_empire, snapshot)
             } else if is_h_crosshair && is_v_crosshair {
-                ('+', theme::map_center_style())
+                (CROSSHAIR_CENTER, theme::map_center_style())
             } else if is_h_crosshair {
-                ('-', theme::map_crosshair_style())
+                (CROSSHAIR_HORIZONTAL, theme::map_crosshair_style())
             } else if is_v_crosshair {
-                ('|', theme::map_crosshair_style())
+                (CROSSHAIR_VERTICAL, theme::map_crosshair_style())
             } else {
                 ('·', theme::dim_style())
             };
@@ -349,16 +353,16 @@ fn draw_crosshair_lines(
 
     if horizontal {
         for col in rect.col..rect.col + rect.width {
-            buf.set_cell(mid_row, col, '-', style);
+            buf.set_cell(mid_row, col, CROSSHAIR_HORIZONTAL, style);
         }
     }
     if vertical {
         for row in rect.row..rect.row + rect.height {
-            buf.set_cell(row, mid_col, '|', style);
+            buf.set_cell(row, mid_col, CROSSHAIR_VERTICAL, style);
         }
     }
     if horizontal && vertical {
-        buf.set_cell(mid_row, mid_col, '+', style);
+        buf.set_cell(mid_row, mid_col, CROSSHAIR_CENTER, style);
     }
 }
 
@@ -838,12 +842,12 @@ mod tests {
 
         let mid_row = rect.row + rect.height / 2;
         let mid_col = rect.col + rect.width / 2;
-        assert_eq!(buffer.row(mid_row)[mid_col].ch, '+');
+        assert_eq!(buffer.row(mid_row)[mid_col].ch, CROSSHAIR_CENTER);
         if rect.width > 1 {
-            assert_eq!(buffer.row(mid_row)[rect.col].ch, '-');
+            assert_eq!(buffer.row(mid_row)[rect.col].ch, CROSSHAIR_HORIZONTAL);
         }
         if rect.height > 1 {
-            assert_eq!(buffer.row(rect.row)[mid_col].ch, '|');
+            assert_eq!(buffer.row(rect.row)[mid_col].ch, CROSSHAIR_VERTICAL);
         }
         assert_eq!(buffer.row(rect.row)[rect.col].ch, ' ');
     }
@@ -918,7 +922,12 @@ mod tests {
         let rect = projected.sector_rect([6, 7]).expect("visible sector rect");
 
         assert_eq!(
-            screen_sector_at_point(&app, frame, rect.col + rect.width / 2, rect.row + rect.height / 2),
+            screen_sector_at_point(
+                &app,
+                frame,
+                rect.col + rect.width / 2,
+                rect.row + rect.height / 2
+            ),
             Some([6, 7])
         );
     }
@@ -942,7 +951,10 @@ mod tests {
         );
         let frame = dashboard_layout(&app).widgets.center_map;
 
-        assert_eq!(screen_sector_at_point(&app, frame, frame.grid.col, frame.axis_row), None);
+        assert_eq!(
+            screen_sector_at_point(&app, frame, frame.grid.col, frame.axis_row),
+            None
+        );
         assert_eq!(
             screen_sector_at_point(
                 &app,
