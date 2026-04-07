@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
-use crate::{CoreGameData, PlanetIntelEvent, PlanetIntelSource, ProductionItemKind};
+use crate::{CoreGameData, PlanetIntelEvent, PlanetIntelSource};
 
 pub fn merge_player_intel_from_runtime(
     game_data: &CoreGameData,
@@ -275,7 +275,10 @@ fn snapshot_from_runtime_grant(
                 .map(|value| value.min(u16::from(u8::MAX)) as u8);
             snapshot.known_stored_points =
                 Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16);
-            snapshot.known_docked_summary = Some(format_stardock_summary(planet));
+            snapshot.known_docked_summary = Some(crate::format_stardock_summary(
+                planet,
+                crate::CompactUnitSummaryStyle::Words,
+            ));
             snapshot.known_orbit_summary = Some(format_orbit_summary(orbit_presence));
             snapshot.compat_word_1e = Some(0x23);
             snapshot.last_intel_year = Some(compat_year);
@@ -466,7 +469,10 @@ fn refresh_visible_snapshot_from_runtime(
             .map(|value| value.min(u16::from(u8::MAX)) as u8);
         refreshed.known_stored_points =
             Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16);
-        refreshed.known_docked_summary = Some(format_stardock_summary(planet));
+        refreshed.known_docked_summary = Some(crate::format_stardock_summary(
+            planet,
+            crate::CompactUnitSummaryStyle::Words,
+        ));
         refreshed.known_orbit_summary = Some(format_orbit_summary(orbit_presence));
     }
 
@@ -489,98 +495,6 @@ fn snapshot_fingerprint_matches(left: &PlanetIntelSnapshot, right: &PlanetIntelS
         && left.seen_year == right.seen_year
         && left.scout_year == right.scout_year
         && left.compat_word_1e == right.compat_word_1e
-}
-
-fn format_stardock_summary(planet: &crate::PlanetRecord) -> String {
-    let mut parts = Vec::new();
-    for slot in 0..crate::STARDOCK_SLOT_COUNT {
-        let count = u32::from(planet.stardock_count_raw(slot));
-        if count == 0 {
-            continue;
-        }
-        let kind = planet.stardock_item_kind_current_known(slot);
-        parts.push(format!("{} {}", count, stardock_unit_label(kind, count)));
-    }
-    if parts.is_empty() {
-        "Nothing".to_string()
-    } else {
-        parts.join(", ")
-    }
-}
-
-fn stardock_unit_label(kind: ProductionItemKind, count: u32) -> &'static str {
-    match kind {
-        ProductionItemKind::Destroyer => {
-            if count == 1 {
-                "destroyer"
-            } else {
-                "destroyers"
-            }
-        }
-        ProductionItemKind::Cruiser => {
-            if count == 1 {
-                "cruiser"
-            } else {
-                "cruisers"
-            }
-        }
-        ProductionItemKind::Battleship => {
-            if count == 1 {
-                "battleship"
-            } else {
-                "battleships"
-            }
-        }
-        ProductionItemKind::Scout => {
-            if count == 1 {
-                "scout"
-            } else {
-                "scouts"
-            }
-        }
-        ProductionItemKind::Transport => {
-            if count == 1 {
-                "troop transport"
-            } else {
-                "troop transports"
-            }
-        }
-        ProductionItemKind::Etac => {
-            if count == 1 {
-                "ETAC"
-            } else {
-                "ETACs"
-            }
-        }
-        ProductionItemKind::Army => {
-            if count == 1 {
-                "army"
-            } else {
-                "armies"
-            }
-        }
-        ProductionItemKind::GroundBattery => {
-            if count == 1 {
-                "ground battery"
-            } else {
-                "ground batteries"
-            }
-        }
-        ProductionItemKind::Starbase => {
-            if count == 1 {
-                "starbase"
-            } else {
-                "starbases"
-            }
-        }
-        ProductionItemKind::Unknown(_) => {
-            if count == 1 {
-                "unit"
-            } else {
-                "units"
-            }
-        }
-    }
 }
 
 fn orbit_presence(game_data: &CoreGameData, coords: [u8; 2]) -> OrbitPresence {

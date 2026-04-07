@@ -1,10 +1,13 @@
 use crossterm::event::KeyEvent;
 use nc_data::{
-    IntelTier, PlanetIntelSnapshot, ProductionItemKind,
+    CompactUnitSummaryStyle, IntelTier, OwnedPlanetStatus, PlanetIntelSnapshot,
     build_player_starmap_projection_from_snapshots,
+    format_build_queue_summary as shared_build_queue_summary,
+    format_owned_orbit_summary as shared_owned_orbit_summary,
+    format_stardock_summary as shared_stardock_summary, owned_orbit_presence, owned_planet_status,
 };
 use nc_engine::yearly_tax_revenue;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::domains::planet::{KnownOwnerLabelStyle, known_owner_label};
@@ -12,10 +15,7 @@ use crate::screen::layout::{
     aligned_label_width, dismiss_prompt_row, draw_aligned_detail_line, draw_aligned_status_line,
     draw_dismiss_prompt_padded, draw_title_bar_padded, new_playfield,
 };
-use crate::screen::{
-    CommandMenu, PlayfieldBuffer, ScreenFrame, build_quantity_from_points,
-    format_sector_coords_zero_padded,
-};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, format_sector_coords_zero_padded};
 
 pub struct PlanetInfoScreen;
 
@@ -363,127 +363,19 @@ fn intel_efficiency_label(current: Option<u8>, potential: Option<u16>) -> String
 }
 
 fn format_stardock_summary(planet: &nc_data::PlanetRecord) -> String {
-    let mut counts_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
-    for slot in 0..nc_data::STARDOCK_SLOT_COUNT {
-        let count = u32::from(planet.stardock_count_raw(slot));
-        let kind_raw = planet.stardock_kind_raw(slot);
-        if count == 0 || kind_raw == 0 {
-            continue;
-        }
-        *counts_by_kind.entry(kind_raw).or_default() += count;
-    }
-    let parts = ordered_compact_summary_parts(counts_by_kind);
-    if parts.is_empty() {
-        "Nothing".to_string()
-    } else {
-        parts.join(", ")
-    }
+    shared_stardock_summary(planet, CompactUnitSummaryStyle::DashedCodes)
 }
 
 fn format_build_queue_summary(planet: &nc_data::PlanetRecord) -> String {
-    let mut counts_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
-    for slot in 0..10 {
-        let points = u32::from(planet.build_count_raw(slot));
-        let kind_raw = planet.build_kind_raw(slot);
-        if points == 0 || kind_raw == 0 {
-            continue;
-        }
-        let kind = ProductionItemKind::from_raw(kind_raw);
-        *counts_by_kind.entry(kind_raw).or_default() += build_quantity_from_points(kind, points);
-    }
-    let parts = ordered_compact_summary_parts(counts_by_kind);
-    if parts.is_empty() {
-        "Nothing".to_string()
-    } else {
-        parts.join(", ")
-    }
-}
-
-fn ordered_compact_summary_parts(counts_by_kind: BTreeMap<u8, u32>) -> Vec<String> {
-    let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
-    for kind_raw in counts_by_kind.keys() {
-        if !ordered_kind_raws.contains(kind_raw) {
-            ordered_kind_raws.push(*kind_raw);
-        }
-    }
-    ordered_kind_raws
-        .into_iter()
-        .filter_map(|kind_raw| {
-            let count = counts_by_kind.get(&kind_raw).copied().unwrap_or(0);
-            if count == 0 {
-                return None;
-            }
-            Some(format!(
-                "{}-{}",
-                count,
-                compact_unit_code(ProductionItemKind::from_raw(kind_raw))
-            ))
-        })
-        .collect()
+    shared_build_queue_summary(planet, CompactUnitSummaryStyle::DashedCodes)
 }
 
 fn format_owned_orbit_summary(frame: &ScreenFrame<'_>, coords: [u8; 2]) -> String {
-    let fleet_count = frame
-        .game_data
-        .fleets
-        .records
-        .iter()
-        .filter(|fleet| {
-            fleet.current_location_coords_raw() == coords
-                && fleet.owner_empire_raw() as usize == frame.player.record_index_1_based
-                && fleet.has_any_force()
-        })
-        .count();
-    let starbase_count = frame
-        .game_data
-        .bases
-        .records
-        .iter()
-        .filter(|base| {
-            base.coords_raw() == coords
-                && base.owner_empire_raw() as usize == frame.player.record_index_1_based
-                && base.active_flag_raw() != 0
-        })
-        .count();
-    let mut parts = Vec::new();
-    if fleet_count > 0 {
-        parts.push(format!(
-            "{} {}",
-            fleet_count,
-            if fleet_count == 1 { "fleet" } else { "fleets" }
-        ));
-    }
-    if starbase_count > 0 {
-        parts.push(format!(
-            "{} {}",
-            starbase_count,
-            if starbase_count == 1 {
-                "starbase"
-            } else {
-                "starbases"
-            }
-        ));
-    }
-    if parts.is_empty() {
-        "Nothing".to_string()
-    } else {
-        parts.join(", ")
-    }
-}
-
-fn compact_unit_code(kind: nc_data::ProductionItemKind) -> &'static str {
-    match kind {
-        nc_data::ProductionItemKind::Destroyer => "DD",
-        nc_data::ProductionItemKind::Cruiser => "CA",
-        nc_data::ProductionItemKind::Battleship => "BB",
-        nc_data::ProductionItemKind::Scout => "SC",
-        nc_data::ProductionItemKind::Transport => "TT",
-        nc_data::ProductionItemKind::Etac => "ET",
-        nc_data::ProductionItemKind::Army => "AR",
-        nc_data::ProductionItemKind::GroundBattery => "GB",
-        nc_data::ProductionItemKind::Starbase => "SB",
-        nc_data::ProductionItemKind::Unknown(_) => "UN",
-    }
+    shared_owned_orbit_summary(owned_orbit_presence(
+        frame.game_data,
+        frame.player.record_index_1_based as u8,
+        coords,
+    ))
 }
 
 fn owned_status_summary(
@@ -492,27 +384,21 @@ fn owned_status_summary(
     coords: [u8; 2],
     planet_scorch_orders: &BTreeSet<usize>,
 ) -> String {
-    if planet_scorch_orders.contains(&(planet_idx + 1)) {
-        return "Planet is scorched!".to_string();
-    }
-    let planet = &frame.game_data.planets.records[planet_idx];
-    if planet.is_homeworld_seed_ignoring_name() {
-        return "Homeworld - fully developed".to_string();
-    }
-    if frame
-        .game_data
-        .planet_has_friendly_starbase(frame.player.record_index_1_based as u8, coords)
-    {
-        return "Regular planet - starbase present".to_string();
-    }
-    let present = planet.present_production_points().unwrap_or(0);
-    let potential = planet.potential_production_points();
-    if present == 0 && potential > 0 {
-        "Regular planet - factories destroyed".to_string()
-    } else if present < potential {
-        "Regular planet - factories damaged".to_string()
-    } else {
-        "Regular planet - factories fully functional".to_string()
+    let _ = coords;
+    match owned_planet_status(
+        frame.game_data,
+        frame.player.record_index_1_based as u8,
+        planet_idx,
+        planet_scorch_orders,
+    ) {
+        OwnedPlanetStatus::Scorched => "Planet is scorched!".to_string(),
+        OwnedPlanetStatus::Homeworld => "Homeworld - fully developed".to_string(),
+        OwnedPlanetStatus::StarbasePresent => "Regular planet - starbase present".to_string(),
+        OwnedPlanetStatus::FactoriesDestroyed => "Regular planet - factories destroyed".to_string(),
+        OwnedPlanetStatus::FactoriesDamaged => "Regular planet - factories damaged".to_string(),
+        OwnedPlanetStatus::FactoriesFunctional => {
+            "Regular planet - factories fully functional".to_string()
+        }
     }
 }
 

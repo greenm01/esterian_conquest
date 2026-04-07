@@ -3,8 +3,8 @@ use crate::app::state::App;
 use crate::screen::{
     CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetCommissionDraftRow, PlanetCommissionPickerRow, PlanetCommissionRow, PlanetCommissionView,
-    PlanetListSort, ScreenId, build_quantity_from_points, build_unit_spec, build_unit_spec_by_kind,
-    format_fleet_number, format_sector_coords, format_sector_coords_table, max_quantity,
+    PlanetListSort, ScreenId, build_unit_spec, build_unit_spec_by_kind, format_fleet_number,
+    format_sector_coords, format_sector_coords_table,
 };
 use crossterm::event::KeyCode;
 use nc_data::{
@@ -12,7 +12,12 @@ use nc_data::{
     AutoCommissionStarbaseEntry, CommissionFleetDraft, CommissionResult, GameStateMutationError,
     ProductionItemKind, STARDOCK_SLOT_COUNT,
 };
-use std::collections::BTreeMap;
+use nc_engine::{
+    commission_fleet_draft_from_entries, planet_build_committed_points, planet_build_list_entries,
+    planet_build_max_quantity, planet_build_orders, planet_build_unavailable_message,
+    planet_build_view, planet_commission_draft_state, planet_commission_slot_entries,
+    production_item_kind_raw,
+};
 
 impl App {
     fn planet_commission_picker_visible_rows(&self) -> usize {
@@ -570,7 +575,17 @@ impl App {
             .count();
         let ship_count = selected_rows
             .iter()
-            .filter(|row| is_commission_ship_kind(row.kind))
+            .filter(|row| {
+                matches!(
+                    row.kind,
+                    ProductionItemKind::Destroyer
+                        | ProductionItemKind::Cruiser
+                        | ProductionItemKind::Battleship
+                        | ProductionItemKind::Scout
+                        | ProductionItemKind::Transport
+                        | ProductionItemKind::Etac
+                )
+            })
             .count();
         if starbase_count > 1 || (starbase_count == 1 && ship_count > 0) {
             self.planet.commission_status =
@@ -758,14 +773,31 @@ impl App {
         };
         self.remember_newly_commissioned_fleet_record(fleet_record_index_1_based);
         let notice = self.commission_fleet_notice(fleet_record_index_1_based)?;
-        let remaining_rows = self.current_planet_commission_rows_for(planet_record);
-        let (remaining_slots, remaining_rows) =
-            build_planet_commission_draft_state(&remaining_rows);
+        let remaining_entries = self
+            .current_planet_commission_rows_for(planet_record)
+            .into_iter()
+            .map(|row| nc_engine::PlanetCommissionSlotEntry {
+                slot_0_based: row.slot_0_based,
+                kind: row.kind,
+                qty: row.qty,
+            })
+            .collect::<Vec<_>>();
+        let draft_state = planet_commission_draft_state(&remaining_entries);
         self.planet.commission_selected_slots.clear();
         self.planet.commission_draft_input.clear();
         self.planet.commission_draft_status = None;
 
-        let has_remaining_ships = remaining_rows.iter().any(|row| row.accepts_fleet_qty());
+        let has_remaining_ships = draft_state.rows.iter().any(|row| {
+            matches!(
+                row.kind,
+                ProductionItemKind::Destroyer
+                    | ProductionItemKind::Cruiser
+                    | ProductionItemKind::Battleship
+                    | ProductionItemKind::Scout
+                    | ProductionItemKind::Transport
+                    | ProductionItemKind::Etac
+            ) && row.direct_slot_0_based.is_none()
+        });
         if !has_remaining_ships {
             self.clear_planet_commission_draft_state();
             self.planet.commission_result_title = Some(draft_title);
@@ -775,8 +807,25 @@ impl App {
             return Ok(());
         }
 
-        self.planet.commission_draft_slots = remaining_slots;
-        self.planet.commission_draft_rows = remaining_rows;
+        self.planet.commission_draft_slots = draft_state.draft_slots;
+        self.planet.commission_draft_rows = draft_state
+            .rows
+            .into_iter()
+            .map(|row| {
+                let unit_label = build_unit_spec_by_kind(row.kind)
+                    .map(|spec| spec.label.to_string())
+                    .unwrap_or_else(|| {
+                        format!("Unknown (kind {})", production_item_kind_raw(row.kind))
+                    });
+                PlanetCommissionDraftRow {
+                    direct_slot_0_based: row.direct_slot_0_based,
+                    kind: row.kind,
+                    unit_label,
+                    remaining_qty: row.remaining_qty,
+                    fleet_qty: row.fleet_qty,
+                }
+            })
+            .collect();
         self.planet.commission_draft_cursor = self
             .planet
             .commission_draft_cursor
@@ -1340,24 +1389,20 @@ impl App {
         else {
             return vec![];
         };
-        (0..STARDOCK_SLOT_COUNT)
-            .filter_map(|slot| {
-                let qty = u32::from(record.stardock_count_raw(slot));
-                let kind = ProductionItemKind::from_raw(record.stardock_kind_raw(slot));
-                if qty == 0 || !kind.requires_stardock() {
-                    return None;
-                }
-                let unit_label = build_unit_spec_by_kind(kind)
+        planet_commission_slot_entries(record)
+            .into_iter()
+            .map(|entry| {
+                let unit_label = build_unit_spec_by_kind(entry.kind)
                     .map(|spec| spec.label.to_string())
                     .unwrap_or_else(|| {
-                        format!("Unknown (kind {})", record.stardock_kind_raw(slot))
+                        format!("Unknown (kind {})", production_item_kind_raw(entry.kind))
                     });
-                Some(PlanetCommissionRow {
-                    slot_0_based: slot,
-                    kind,
+                PlanetCommissionRow {
+                    slot_0_based: entry.slot_0_based,
+                    kind: entry.kind,
                     unit_label,
-                    qty,
-                })
+                    qty: entry.qty,
+                }
             })
             .collect()
     }
@@ -1373,9 +1418,34 @@ impl App {
 
     fn load_planet_commission_draft_for_current_planet(&mut self) {
         let rows = self.current_planet_commission_rows();
-        let (draft_slots, draft_rows) = build_planet_commission_draft_state(&rows);
-        self.planet.commission_draft_slots = draft_slots;
-        self.planet.commission_draft_rows = draft_rows;
+        let entries = rows
+            .iter()
+            .map(|row| nc_engine::PlanetCommissionSlotEntry {
+                slot_0_based: row.slot_0_based,
+                kind: row.kind,
+                qty: row.qty,
+            })
+            .collect::<Vec<_>>();
+        let draft_state = planet_commission_draft_state(&entries);
+        self.planet.commission_draft_slots = draft_state.draft_slots;
+        self.planet.commission_draft_rows = draft_state
+            .rows
+            .into_iter()
+            .map(|row| {
+                let unit_label = build_unit_spec_by_kind(row.kind)
+                    .map(|spec| spec.label.to_string())
+                    .unwrap_or_else(|| {
+                        format!("Unknown (kind {})", production_item_kind_raw(row.kind))
+                    });
+                PlanetCommissionDraftRow {
+                    direct_slot_0_based: row.direct_slot_0_based,
+                    kind: row.kind,
+                    unit_label,
+                    remaining_qty: row.remaining_qty,
+                    fleet_qty: row.fleet_qty,
+                }
+            })
+            .collect();
         self.planet.commission_draft_cursor = 0;
         self.planet.commission_draft_input.clear();
         self.planet.commission_draft_status = None;
@@ -1431,22 +1501,18 @@ impl App {
     fn current_planet_commission_draft(
         &self,
     ) -> Result<CommissionFleetDraft, Box<dyn std::error::Error>> {
-        let mut draft = CommissionFleetDraft::default();
-        for row in &self.planet.commission_draft_rows {
-            if !row.accepts_fleet_qty() {
-                continue;
-            }
-            match row.kind {
-                ProductionItemKind::Destroyer => draft.destroyers = row.fleet_qty,
-                ProductionItemKind::Cruiser => draft.cruisers = row.fleet_qty,
-                ProductionItemKind::Battleship => draft.battleships = row.fleet_qty,
-                ProductionItemKind::Scout => draft.scouts = row.fleet_qty,
-                ProductionItemKind::Transport => draft.transports = row.fleet_qty,
-                ProductionItemKind::Etac => draft.etacs = row.fleet_qty,
-                _ => return Err("invalid ship kind in commission draft".into()),
-            }
-        }
-        Ok(draft)
+        let entries = self
+            .planet
+            .commission_draft_rows
+            .iter()
+            .map(|row| nc_engine::PlanetCommissionDraftEntry {
+                direct_slot_0_based: row.direct_slot_0_based,
+                kind: row.kind,
+                remaining_qty: row.remaining_qty,
+                fleet_qty: row.fleet_qty,
+            })
+            .collect::<Vec<_>>();
+        commission_fleet_draft_from_entries(&entries).map_err(Into::into)
     }
 
     fn current_planet_commission_title(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -1562,18 +1628,11 @@ impl App {
         else {
             return vec![];
         };
-        (0..10)
-            .filter_map(|slot| {
-                let points = record.build_count_raw(slot);
-                let kind_raw = record.build_kind_raw(slot);
-                if points == 0 || kind_raw == 0 {
-                    None
-                } else {
-                    Some(PlanetBuildOrder {
-                        kind: ProductionItemKind::from_raw(kind_raw),
-                        points_remaining: points,
-                    })
-                }
+        planet_build_orders(record)
+            .into_iter()
+            .map(|order| PlanetBuildOrder {
+                kind: order.kind,
+                points_remaining: order.points_remaining,
             })
             .collect()
     }
@@ -1608,34 +1667,14 @@ impl App {
                 });
             }
         };
-        let committed_points =
-            self.current_build_committed_points(row.planet_record_index_1_based)?;
-        let available_points = u32::from(row.build_capacity)
-            .min(row.stored_production_points.min(u32::from(u16::MAX)));
-        let points_left = available_points.saturating_sub(committed_points);
-        let record = self
-            .game_data
-            .planets
-            .records
-            .get(row.planet_record_index_1_based - 1)
-            .ok_or("planet record missing")?;
-        let building_count = (0..10)
-            .map(|slot| {
-                let points = u32::from(record.build_count_raw(slot));
-                let kind = ProductionItemKind::from_raw(record.build_kind_raw(slot));
-                build_quantity_from_points(kind, points)
-            })
-            .sum::<u32>();
-        let docked_count = (0..nc_data::STARDOCK_SLOT_COUNT)
-            .map(|slot| u32::from(record.stardock_count_raw(slot)))
-            .sum::<u32>();
+        let view_stats = planet_build_view(&self.game_data, &row)?;
         Ok(PlanetBuildMenuView {
             row,
-            committed_points,
-            available_points,
-            points_left,
-            building_count,
-            docked_count,
+            committed_points: view_stats.committed_points,
+            available_points: view_stats.available_points,
+            points_left: view_stats.points_left,
+            building_count: view_stats.building_count,
+            docked_count: view_stats.docked_count,
         })
     }
 
@@ -1649,9 +1688,7 @@ impl App {
             .records
             .get(planet_record_index_1_based - 1)
             .ok_or("planet record missing")?;
-        Ok((0..10)
-            .map(|slot| u32::from(record.build_count_raw(slot)))
-            .sum::<u32>())
+        Ok(planet_build_committed_points(record))
     }
 
     pub(crate) fn current_planet_build_max_quantity(
@@ -1669,27 +1706,7 @@ impl App {
         kind: ProductionItemKind,
     ) -> Result<u32, Box<dyn std::error::Error>> {
         let view = self.current_planet_build_view()?;
-        let unit = build_unit_spec_by_kind(kind).ok_or("unit spec missing")?;
-        let queue_capacity = self
-            .game_data
-            .planet_additional_build_points_capacity(view.row.planet_record_index_1_based, kind)?;
-        let mut max_qty = max_quantity(view.points_left.min(queue_capacity), unit.cost);
-        match kind {
-            ProductionItemKind::Army => {
-                let free = self
-                    .game_data
-                    .planet_free_army_capacity(view.row.planet_record_index_1_based)?;
-                max_qty = max_qty.min(u32::from(free));
-            }
-            ProductionItemKind::GroundBattery => {
-                let free = self
-                    .game_data
-                    .planet_free_ground_battery_capacity(view.row.planet_record_index_1_based)?;
-                max_qty = max_qty.min(u32::from(free));
-            }
-            _ => {}
-        }
-        Ok(max_qty)
+        planet_build_max_quantity(&self.game_data, &view.row, kind).map_err(Into::into)
     }
 
     fn planet_build_unavailable_message(
@@ -1697,17 +1714,7 @@ impl App {
         kind: ProductionItemKind,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let view = self.current_planet_build_view()?;
-        if view.points_left == 0 {
-            return Ok("No points are available to spend.".to_string());
-        }
-        Ok(match kind {
-            ProductionItemKind::Army => "Planet already has the maximum 255 armies.",
-            ProductionItemKind::GroundBattery => {
-                "Planet already has the maximum 255 ground batteries."
-            }
-            _ => "No points are available to spend.",
-        }
-        .to_string())
+        Ok(planet_build_unavailable_message(view.points_left, kind).to_string())
     }
 
     pub(crate) fn planet_build_list_rows(&self) -> Vec<PlanetBuildListRow> {
@@ -1722,43 +1729,20 @@ impl App {
         else {
             return vec![];
         };
-        let mut queue_qty_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
-
-        for slot in 0..10 {
-            let points = u32::from(record.build_count_raw(slot));
-            let kind_raw = record.build_kind_raw(slot);
-            if points == 0 || kind_raw == 0 {
-                continue;
-            }
-            let kind = ProductionItemKind::from_raw(kind_raw);
-            let qty = build_quantity_from_points(kind, points);
-            *queue_qty_by_kind.entry(kind_raw).or_default() += qty;
-        }
-
-        let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
-        for kind_raw in queue_qty_by_kind.keys() {
-            if !ordered_kind_raws.contains(kind_raw) {
-                ordered_kind_raws.push(*kind_raw);
-            }
-        }
-
-        ordered_kind_raws
+        planet_build_list_entries(record)
             .into_iter()
-            .filter_map(|kind_raw| {
-                let queue_qty = queue_qty_by_kind.get(&kind_raw).copied().unwrap_or(0);
-                if queue_qty == 0 {
-                    return None;
-                }
-                let kind = ProductionItemKind::from_raw(kind_raw);
-                let (unit_label, cost) = build_unit_spec_by_kind(kind)
-                    .map(|u| (u.label.to_string(), u.cost))
-                    .unwrap_or_else(|| (format!("Unknown (kind {})", kind_raw), 0));
-                Some(PlanetBuildListRow {
-                    kind,
+            .map(|entry| {
+                let unit_label = build_unit_spec_by_kind(entry.kind)
+                    .map(|u| u.label.to_string())
+                    .unwrap_or_else(|| {
+                        format!("Unknown (kind {})", production_item_kind_raw(entry.kind))
+                    });
+                PlanetBuildListRow {
+                    kind: entry.kind,
                     unit_label,
-                    points: u32::from(cost),
-                    queue_qty,
-                })
+                    points: entry.points,
+                    queue_qty: entry.queue_qty,
+                }
             })
             .collect()
     }
@@ -1769,89 +1753,6 @@ impl App {
         self.planet.build_list_delete_qty_input.clear();
         self.planet.build_list_delete_qty_status = None;
         self.planet.build_list_delete_qty_pending = None;
-    }
-}
-
-fn is_commission_ship_kind(kind: ProductionItemKind) -> bool {
-    matches!(
-        kind,
-        ProductionItemKind::Destroyer
-            | ProductionItemKind::Cruiser
-            | ProductionItemKind::Battleship
-            | ProductionItemKind::Scout
-            | ProductionItemKind::Transport
-            | ProductionItemKind::Etac
-    )
-}
-
-fn build_planet_commission_draft_state(
-    rows: &[PlanetCommissionRow],
-) -> (Vec<usize>, Vec<PlanetCommissionDraftRow>) {
-    let mut totals = BTreeMap::<u8, (ProductionItemKind, String, u16)>::new();
-    let mut starbase_rows = Vec::new();
-    let mut draft_slots = Vec::new();
-    for row in rows {
-        if row.kind == ProductionItemKind::Starbase {
-            starbase_rows.push(PlanetCommissionDraftRow {
-                direct_slot_0_based: Some(row.slot_0_based),
-                kind: row.kind,
-                unit_label: row.unit_label.clone(),
-                remaining_qty: row.qty.min(u32::from(u16::MAX)) as u16,
-                fleet_qty: 0,
-            });
-            continue;
-        }
-        if !is_commission_ship_kind(row.kind) {
-            continue;
-        }
-        draft_slots.push(row.slot_0_based);
-        let kind_raw = production_item_kind_raw(row.kind);
-        let entry = totals
-            .entry(kind_raw)
-            .or_insert_with(|| (row.kind, row.unit_label.clone(), 0));
-        entry.2 = entry
-            .2
-            .saturating_add(row.qty.min(u32::from(u16::MAX)) as u16);
-    }
-
-    let mut draft_rows = Vec::new();
-    for kind in [
-        ProductionItemKind::Destroyer,
-        ProductionItemKind::Cruiser,
-        ProductionItemKind::Battleship,
-        ProductionItemKind::Scout,
-        ProductionItemKind::Transport,
-        ProductionItemKind::Etac,
-    ] {
-        let kind_raw = production_item_kind_raw(kind);
-        let Some((kind, label, qty)) = totals.remove(&kind_raw) else {
-            continue;
-        };
-        draft_rows.push(PlanetCommissionDraftRow {
-            direct_slot_0_based: None,
-            kind,
-            unit_label: label,
-            remaining_qty: qty,
-            fleet_qty: 0,
-        });
-    }
-    draft_rows.extend(starbase_rows);
-
-    (draft_slots, draft_rows)
-}
-
-fn production_item_kind_raw(kind: ProductionItemKind) -> u8 {
-    match kind {
-        ProductionItemKind::Destroyer => 1,
-        ProductionItemKind::Cruiser => 2,
-        ProductionItemKind::Battleship => 3,
-        ProductionItemKind::Scout => 4,
-        ProductionItemKind::Transport => 5,
-        ProductionItemKind::Etac => 6,
-        ProductionItemKind::GroundBattery => 7,
-        ProductionItemKind::Army => 8,
-        ProductionItemKind::Starbase => 9,
-        ProductionItemKind::Unknown(raw) => raw,
     }
 }
 

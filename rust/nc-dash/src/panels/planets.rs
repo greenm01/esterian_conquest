@@ -2,7 +2,7 @@
 
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
-use nc_data::ProductionItemKind;
+use nc_data::{ProductionItemKind, build_queue_unit_counts};
 use nc_ui::theme::classic::status_value_style;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -64,10 +64,8 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         let batteries = planet.ground_batteries_raw();
         ground_batteries += batteries as u32;
 
-        for slot in 0..10 {
-            let points = u32::from(planet.build_count_raw(slot));
-            let kind = ProductionItemKind::from_raw(planet.build_kind_raw(slot));
-            let qty = build_quantity_from_points(kind, points);
+        for (kind_raw, qty) in build_queue_unit_counts(planet) {
+            let kind = ProductionItemKind::from_raw(kind_raw);
             building += qty;
             match kind {
                 ProductionItemKind::Battleship => build_bbs += qty,
@@ -176,12 +174,6 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
     }
 
     summary_rows
-}
-
-fn build_quantity_from_points(kind: ProductionItemKind, points: u32) -> u32 {
-    kind.build_cost()
-        .map(|cost| points.div_ceil(cost))
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

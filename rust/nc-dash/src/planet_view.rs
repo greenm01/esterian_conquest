@@ -1,9 +1,12 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    CampaignState, IntelTier, PlanetIntelSnapshot, PlanetRecord, PlayerStarmapWorld,
-    ProductionItemKind, STARDOCK_SLOT_COUNT, active_starbase_count_at,
-    build_player_starmap_projection_from_snapshots, yearly_tax_revenue,
+    CampaignState, CompactUnitSummaryStyle, IntelTier, OwnedPlanetStatus, PlanetIntelSnapshot,
+    PlanetRecord, PlayerStarmapWorld, active_starbase_count_at,
+    build_player_starmap_projection_from_snapshots, format_build_queue_summary as shared_build_queue_summary,
+    format_owned_orbit_summary as shared_owned_orbit_summary,
+    format_stardock_summary as shared_stardock_summary, owned_orbit_presence,
+    owned_planet_status, yearly_tax_revenue,
 };
 
 use crate::app::state::DashApp;
@@ -493,200 +496,56 @@ fn intel_tier_code(
 }
 
 fn format_stardock_summary(planet: &PlanetRecord) -> String {
-    let mut counts_by_kind = BTreeMap::<u8, u32>::new();
-    for slot in 0..STARDOCK_SLOT_COUNT {
-        let count = u32::from(planet.stardock_count_raw(slot));
-        let kind_raw = planet.stardock_kind_raw(slot);
-        if count == 0 || kind_raw == 0 {
-            continue;
-        }
-        *counts_by_kind.entry(kind_raw).or_default() += count;
-    }
-    compact_summary_or_nothing(counts_by_kind)
+    shared_stardock_summary(planet, CompactUnitSummaryStyle::JoinedCodes)
 }
 
 fn format_build_queue_summary(planet: &PlanetRecord) -> String {
-    let mut counts_by_kind = BTreeMap::<u8, u32>::new();
-    for slot in 0..10 {
-        let points = u32::from(planet.build_count_raw(slot));
-        let kind_raw = planet.build_kind_raw(slot);
-        if points == 0 || kind_raw == 0 {
-            continue;
-        }
-        let kind = ProductionItemKind::from_raw(kind_raw);
-        *counts_by_kind.entry(kind_raw).or_default() += build_quantity_from_points(kind, points);
-    }
-    compact_summary_or_nothing(counts_by_kind)
-}
-
-fn compact_summary_or_nothing(counts_by_kind: BTreeMap<u8, u32>) -> String {
-    let parts = ordered_compact_summary_parts(counts_by_kind);
-    if parts.is_empty() {
-        String::from("Nothing")
-    } else {
-        parts.join(" ")
-    }
-}
-
-fn ordered_compact_summary_parts(counts_by_kind: BTreeMap<u8, u32>) -> Vec<String> {
-    let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
-    for kind_raw in counts_by_kind.keys() {
-        if !ordered_kind_raws.contains(kind_raw) {
-            ordered_kind_raws.push(*kind_raw);
-        }
-    }
-    ordered_kind_raws
-        .into_iter()
-        .filter_map(|kind_raw| {
-            let count = counts_by_kind.get(&kind_raw).copied().unwrap_or(0);
-            (count != 0).then(|| {
-                format!(
-                    "{}{}",
-                    count,
-                    compact_unit_code(ProductionItemKind::from_raw(kind_raw))
-                )
-            })
-        })
-        .collect()
-}
-
-fn compact_unit_code(kind: ProductionItemKind) -> &'static str {
-    match kind {
-        ProductionItemKind::Destroyer => "DD",
-        ProductionItemKind::Cruiser => "CA",
-        ProductionItemKind::Battleship => "BB",
-        ProductionItemKind::Scout => "SC",
-        ProductionItemKind::Transport => "TT",
-        ProductionItemKind::Etac => "ET",
-        ProductionItemKind::Army => "AR",
-        ProductionItemKind::GroundBattery => "GB",
-        ProductionItemKind::Starbase => "SB",
-        ProductionItemKind::Unknown(_) => "UN",
-    }
-}
-
-fn build_quantity_from_points(kind: ProductionItemKind, points: u32) -> u32 {
-    if points == 0 {
-        return 0;
-    }
-    let Some(cost) = kind.build_cost() else {
-        return points;
-    };
-    if cost == 0 {
-        points
-    } else {
-        ((points.saturating_sub(1)) / cost) + 1
-    }
+    shared_build_queue_summary(planet, CompactUnitSummaryStyle::JoinedCodes)
 }
 
 fn format_owned_orbit_summary(app: &DashApp, coords: [u8; 2], viewer_empire_id: u8) -> String {
-    let fleet_count = app
-        .game_data
-        .fleets
-        .records
-        .iter()
-        .filter(|fleet| {
-            fleet.current_location_coords_raw() == coords
-                && fleet.owner_empire_raw() == viewer_empire_id
-                && fleet.has_any_force()
-        })
-        .count();
-    let starbase_count = app
-        .game_data
-        .bases
-        .records
-        .iter()
-        .filter(|base| {
-            base.coords_raw() == coords
-                && base.owner_empire_raw() == viewer_empire_id
-                && base.active_flag_raw() != 0
-        })
-        .count();
-    let mut parts = Vec::new();
-    if fleet_count > 0 {
-        parts.push(format!(
-            "{} {}",
-            fleet_count,
-            if fleet_count == 1 { "fleet" } else { "fleets" }
-        ));
-    }
-    if starbase_count > 0 {
-        parts.push(format!(
-            "{} {}",
-            starbase_count,
-            if starbase_count == 1 {
-                "starbase"
-            } else {
-                "starbases"
-            }
-        ));
-    }
-    if parts.is_empty() {
-        String::from("Nothing")
-    } else {
-        parts.join(", ")
-    }
+    shared_owned_orbit_summary(owned_orbit_presence(&app.game_data, viewer_empire_id, coords))
 }
 
 fn owned_status_widget_label(
     app: &DashApp,
     planet_index_0_based: usize,
-    planet: &PlanetRecord,
+    _planet: &PlanetRecord,
 ) -> String {
-    if app
-        .planet_scorch_orders
-        .contains(&(planet_index_0_based + 1))
-    {
-        return String::from("Scorched");
-    }
-    if planet.is_homeworld_seed_ignoring_name() {
-        return String::from("Homeworld");
-    }
-    if app
-        .game_data
-        .planet_has_friendly_starbase(app.player_record_index_1_based as u8, planet.coords_raw())
-    {
-        return String::from("Starbase");
-    }
-    let present = planet.present_production_points().unwrap_or(0);
-    let potential = planet.potential_production_points();
-    if present == 0 && potential > 0 {
-        String::from("Destroyed")
-    } else if present < potential {
-        String::from("Damaged")
-    } else {
-        String::from("Normal")
+    match owned_planet_status(
+        &app.game_data,
+        app.player_record_index_1_based as u8,
+        planet_index_0_based,
+        &app.planet_scorch_orders,
+    ) {
+        OwnedPlanetStatus::Scorched => String::from("Scorched"),
+        OwnedPlanetStatus::Homeworld => String::from("Homeworld"),
+        OwnedPlanetStatus::StarbasePresent => String::from("Starbase"),
+        OwnedPlanetStatus::FactoriesDestroyed => String::from("Destroyed"),
+        OwnedPlanetStatus::FactoriesDamaged => String::from("Damaged"),
+        OwnedPlanetStatus::FactoriesFunctional => String::from("Normal"),
     }
 }
 
 fn owned_status_detail_label(
     app: &DashApp,
     planet_index_0_based: usize,
-    planet: &PlanetRecord,
+    _planet: &PlanetRecord,
 ) -> String {
-    if app
-        .planet_scorch_orders
-        .contains(&(planet_index_0_based + 1))
-    {
-        return String::from("Planet is scorched!");
-    }
-    if planet.is_homeworld_seed_ignoring_name() {
-        return String::from("Homeworld - fully developed");
-    }
-    if app
-        .game_data
-        .planet_has_friendly_starbase(app.player_record_index_1_based as u8, planet.coords_raw())
-    {
-        return String::from("Regular planet - starbase present");
-    }
-    let present = planet.present_production_points().unwrap_or(0);
-    let potential = planet.potential_production_points();
-    if present == 0 && potential > 0 {
-        String::from("Regular planet - factories destroyed")
-    } else if present < potential {
-        String::from("Regular planet - factories damaged")
-    } else {
-        String::from("Regular planet - factories fully functional")
+    match owned_planet_status(
+        &app.game_data,
+        app.player_record_index_1_based as u8,
+        planet_index_0_based,
+        &app.planet_scorch_orders,
+    ) {
+        OwnedPlanetStatus::Scorched => String::from("Planet is scorched!"),
+        OwnedPlanetStatus::Homeworld => String::from("Homeworld - fully developed"),
+        OwnedPlanetStatus::StarbasePresent => String::from("Regular planet - starbase present"),
+        OwnedPlanetStatus::FactoriesDestroyed => String::from("Regular planet - factories destroyed"),
+        OwnedPlanetStatus::FactoriesDamaged => String::from("Regular planet - factories damaged"),
+        OwnedPlanetStatus::FactoriesFunctional => {
+            String::from("Regular planet - factories fully functional")
+        }
     }
 }
 
