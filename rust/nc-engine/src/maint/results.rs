@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
+use crate::maint::{timing::format_report_first_line, FleetBattlePerspective};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
@@ -296,7 +296,11 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 { 0 } else { line_count + 1 }
+    if line_count == 0 {
+        0
+    } else {
+        line_count + 1
+    }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -524,11 +528,11 @@ fn aborted_mission_follow_on_text(
     if fleet.standing_order_kind() == Order::SeekHome && fleet.current_speed() > 0 {
         let retreat_target = fleet.standing_order_target_coords_raw();
         format!(
-            "seeking safety at {}",
+            "withdrawing toward {}",
             nearest_owned_destination_text(game_data, empire_raw, retreat_target)
         )
     } else {
-        "holding position and awaiting new orders".to_string()
+        "holding position and awaiting orders".to_string()
     }
 }
 
@@ -578,8 +582,8 @@ fn fleet_abort_disposition(fleet: &nc_data::FleetRecord) -> AbortDisposition {
 
 fn fleet_abort_disposition_text(disposition: AbortDisposition) -> &'static str {
     match disposition {
-        AbortDisposition::Retreating => "seeking safety at their nearest colony",
-        AbortDisposition::Holding => "holding position and awaiting new orders",
+        AbortDisposition::Retreating => "withdrawing toward safety",
+        AbortDisposition::Holding => "holding position and awaiting orders",
     }
 }
 
@@ -939,6 +943,8 @@ struct ReportEntry {
     tail: [u8; 10],
     target: ReportTarget,
     repeat_next_pointer: bool,
+    stardate_week: Option<u8>,
+    narrative_phase: NarrativePhase,
 }
 
 /// Build the right-justified Stardate first-line header for a report entry.
@@ -962,23 +968,16 @@ enum NarrativePhase {
     Generic,
 }
 
-fn stardate_week_from_report_text(text: &str) -> u8 {
-    text.split("Stardate: ")
-        .nth(1)
-        .and_then(|rest| rest.split('/').next())
-        .and_then(|week| week.trim().parse::<u8>().ok())
-        .unwrap_or(1)
-}
-
 fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
     if text.contains("Sensor contact") && text.contains("detected and identified")
-        || text.contains("We have located and identified the alien fleet")
-        || text.contains("we are avoiding this enemy fleet")
+        || text.contains("We identified an alien fleet")
+        || text.contains("we are avoiding engagement")
     {
         NarrativePhase::ContactIdentify
     } else if text.contains("We lost all contact")
         || text.contains("We successfully intercepted")
         || text.contains("We were attacked by")
+        || text.contains("We engaged")
         || text.contains("We attempted to disengage")
     {
         NarrativePhase::BattleResolution
@@ -1008,14 +1007,13 @@ fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
             || text.contains("compiled the following data")
         {
             NarrativePhase::IntelObservation
-        } else if text.contains("We were attacked before")
+        } else if text.contains("Hostile action forced us to abort")
             || text.contains("forced us to break off")
-            || text.contains("Hostile action forced us to abort")
         {
             NarrativePhase::CombatFollowOn
         } else if text.contains("Sensor contact") && text.contains("detected and identified") {
             NarrativePhase::ContactIdentify
-        } else if text.contains("We have located and identified") {
+        } else if text.contains("We identified an alien fleet") {
             NarrativePhase::ContactIdentify
         } else {
             NarrativePhase::MovementPrelude
@@ -1028,8 +1026,9 @@ fn narrative_phase_for_report_text(text: &str) -> NarrativePhase {
         || text.contains("Rendezvous mission report:")
         || text.contains("Colonization mission report:")
         || text.contains("Salvage mission report:")
+        || text.contains("Join mission report:")
     {
-        if text.contains("Hostile action forced") {
+        if text.contains("Hostile action forced") || text.contains("was destroyed") {
             NarrativePhase::CombatFollowOn
         } else {
             NarrativePhase::MovementPrelude
@@ -1128,6 +1127,8 @@ fn generate_report_entries(
                 recipient: event.defender_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1233,6 +1234,8 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1254,11 +1257,10 @@ fn generate_report_entries(
         let source = "From your Fleet Command Center:";
         let header = report_header(source, event.stardate_week, year);
         let body = format!(
-            " We lost all contact with the {} shortly after it {} {} in System({x},{y}). Records show the {} was composed of {}. According to a burnt flight recorder we recovered, the alien force initially contained {}. The flight recorder recorded alien ship casualties of {}.",
+            " We lost all contact with the {} shortly after it {} {} in System({x},{y}). It was composed of {}. Recovered telemetry indicates the alien force contained {} and suffered casualties of {}.",
             fleet_label(event.fleet_number),
             verb,
             enemy,
-            fleet_label(event.fleet_number),
             fleet_force_summary(event.friendly_initial, event.friendly_loaded_armies_initial),
             fleet_force_summary(event.enemy_initial, event.enemy_loaded_armies_initial),
             ship_loss_summary(event.enemy_losses),
@@ -1271,6 +1273,8 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1287,7 +1291,7 @@ fn generate_report_entries(
         let source = "From your Fleet Command Center:";
         let header = report_header(source, event.stardate_week, year);
         let body = format!(
-            " We lost all contact with Starbase {} shortly after it was attacked by {} in System({x},{y}). According to a burnt flight recorder we recovered, the alien force initially contained {}. The flight recorder recorded alien ship casualties of {}.",
+            " We lost all contact with Starbase {} after it was attacked by {} in System({x},{y}). Recovered telemetry indicates the alien force contained {} and suffered casualties of {}.",
             event.starbase_id,
             enemy,
             ship_loss_summary(event.enemy_initial),
@@ -1301,6 +1305,8 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1320,6 +1326,8 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1337,6 +1345,8 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::ResultsOnly,
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1354,6 +1364,8 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::ResultsOnly,
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1373,6 +1385,8 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1475,6 +1489,8 @@ fn generate_report_entries(
                 recipient: event.attacker_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1560,6 +1576,8 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
                 });
             }
             ContactReportSource::Fleet(fleet_id) => {
@@ -1587,6 +1605,8 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
                 });
             }
             ContactReportSource::Starbase(starbase_id) => {
@@ -1614,6 +1634,8 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
                 });
             }
         }
@@ -1651,6 +1673,8 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1702,6 +1726,8 @@ fn generate_report_entries(
                 recipient: colonizer_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -1789,6 +1815,8 @@ fn generate_report_entries(
                     recipient: empire_raw,
                 },
                 repeat_next_pointer: false,
+            stardate_week: week,
+            narrative_phase: narrative_phase_for_report_text(&body),
             });
             for (ev_idx, _, _, _) in &fleet_entries {
                 batched_abort_indices.insert(*ev_idx);
@@ -2176,6 +2204,8 @@ fn generate_report_entries(
                 recipient: event.owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -2271,6 +2301,8 @@ fn generate_report_entries(
                 recipient: owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -2353,7 +2385,7 @@ fn generate_report_entries(
                 {
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
                     format!(
-                        "{prefix} We successfully intercepted {}. Alien force contained {}. In accordance to our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
+                        "{prefix} We engaged {}. The alien force contained {}. In accordance with our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
                         fleet_force_summary(enemy_initial, 0),
                         retreat_target_coords[0],
@@ -2386,8 +2418,7 @@ fn generate_report_entries(
                 {
                     let prefix = mission.map(mission_report_prefix).unwrap_or_default();
                     format!(
-                        "{prefix} We attempted to disengage from {} but were intercepted by {} and suffered pursuit fire. We withdrew toward System({},{}) after suffering losses of {}. {}",
-                        classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
+                        "{prefix} We attempted to disengage from {} but suffered pursuit fire. We withdrew toward System({},{}) after suffering losses of {}. {}",
                         classic_enemy_reference(game_data, target_fleet_number, target_empire_raw),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
@@ -2417,6 +2448,8 @@ fn generate_report_entries(
                 recipient: owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -2436,13 +2469,13 @@ fn generate_report_entries(
                 let fleet = &game_data.fleets.records[fleet_idx];
                 let body = if capability_loss_invalid_order_reason(reason) {
                     format!(
-                        " Maintenance aborted this fleet's {order_name} mission because {}. The fleet is {}.",
+                        " Hostile action forced us to abort the {order_name} mission because {}. The fleet is {}.",
                         fleet_order_validation_reason_text(reason),
                         aborted_mission_follow_on_text(game_data, fleet, owner_empire_raw)
                     )
                 } else {
                     format!(
-                        " Maintenance canceled this fleet's {order_name} order because {}. The fleet is holding position and awaiting new orders.",
+                        " The {order_name} order was canceled because {}. The fleet is holding position and awaiting orders.",
                         fleet_order_validation_reason_text(reason)
                     )
                 };
@@ -2470,7 +2503,7 @@ fn generate_report_entries(
                     &format!("Sector({},{})", coords[0], coords[1]),
                 ),
                 format!(
-                    " Maintenance corrected invalid fleet input because {}.",
+                    " Invalid fleet input was corrected because {}.",
                     fleet_player_input_validation_reason_text(reason)
                 ),
             ),
@@ -2483,7 +2516,7 @@ fn generate_report_entries(
                 owner_empire_raw.max(1),
                 format!("From planet in System({},{}) :", coords[0], coords[1]),
                 format!(
-                    " Maintenance cleared invalid player input because {}.",
+                    " Invalid planetary input was cleared because {}.",
                     planet_input_validation_reason_text(reason)
                 ),
             ),
@@ -2508,7 +2541,7 @@ fn generate_report_entries(
                 owner_empire_raw,
                 "From your foreign ministry:".to_string(),
                 format!(
-                    " Maintenance reset invalid diplomacy input for {} because {}.",
+                    " Invalid diplomacy input for {} was reset because {}.",
                     empire_label(game_data, owner_empire_raw),
                     diplomacy_input_validation_reason_text(reason)
                 ),
@@ -2524,6 +2557,8 @@ fn generate_report_entries(
                 recipient: owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: None,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -2580,6 +2615,8 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
+            stardate_week: stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
             });
         }
     }
@@ -2646,6 +2683,8 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
+            stardate_week: stardate_week,
+            narrative_phase: narrative_phase_for_report_text(&body),
             });
         }
     }
@@ -2692,7 +2731,7 @@ fn generate_report_entries(
                         &format!("Sector({x},{y})"),
                     ),
                     format!(
-                        " Join mission report: In light of the destruction of the {}, we are holding our current position in Sector({x},{y}) and are awaiting new orders.",
+                        " Join mission report: Our intended host fleet ({}) was destroyed. We are holding our position in Sector({x},{y}) and awaiting orders.",
                         fleet_label(destroyed_host_fleet_number)
                     ),
                 )
@@ -2705,6 +2744,8 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient },
             repeat_next_pointer: false,
+            stardate_week: None,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
@@ -2738,7 +2779,7 @@ fn generate_report_entries(
             } => (
                 owner_empire_raw,
                 format!(
-                    "Seek-Home mission report: Our original refuge at Sector({},{}) is no longer suitable, so we are now seeking home at Sector({},{}) instead.",
+                    " Seek-Home mission report: Our original destination at Sector({},{}) was lost. We are seeking refuge at Sector({},{}).",
                     previous_target_coords[0],
                     previous_target_coords[1],
                     new_target_coords[0],
@@ -2753,22 +2794,20 @@ fn generate_report_entries(
             } => (
                 owner_empire_raw,
                 format!(
-                    "Seek-Home mission report: With no owned planets remaining, we are holding our current position in Sector({},{}) and are awaiting new orders.",
+                    " Seek-Home mission report: With no friendly planets remaining, we are holding our position in Sector({},{}) and awaiting orders.",
                     coords[0], coords[1]
                 ),
             ),
             nc_data::MissionRetargetEvent::Retargeted {
                 owner_empire_raw,
                 mission: Mission::GuardStarbase,
-                previous_target_coords,
+                previous_target_coords: _,
                 new_target_coords,
                 ..
             } => (
                 owner_empire_raw,
                 format!(
-                    "Guard Starbase mission report: The guarded starbase is no longer at Sector({},{}) and we are now moving to Sector({},{}) to resume escort duty.",
-                    previous_target_coords[0],
-                    previous_target_coords[1],
+                    " Guard Starbase mission report: The guarded starbase relocated. We are moving to Sector({},{}) to resume escort duty.",
                     new_target_coords[0],
                     new_target_coords[1]
                 ),
@@ -2781,22 +2820,20 @@ fn generate_report_entries(
             } => (
                 owner_empire_raw,
                 format!(
-                    "Guard Starbase mission report: We can no longer locate the guarded starbase, so we are holding our current position in Sector({},{}) and awaiting new orders.",
+                    " Guard Starbase mission report: The guarded starbase was destroyed or lost. We are holding our position in Sector({},{}) and awaiting orders.",
                     coords[0], coords[1]
                 ),
             ),
             nc_data::MissionRetargetEvent::Retargeted {
                 owner_empire_raw,
                 mission: Mission::JoinAnotherFleet,
-                previous_target_coords,
+                previous_target_coords: _,
                 new_target_coords,
                 ..
             } => (
                 owner_empire_raw,
                 format!(
-                    "Join mission report: Our host fleet has changed position from Sector({},{}) to Sector({},{}) and we are continuing pursuit.",
-                    previous_target_coords[0],
-                    previous_target_coords[1],
+                    " Join mission report: Our host fleet moved. We are continuing pursuit to Sector({},{}).",
                     new_target_coords[0],
                     new_target_coords[1]
                 ),
@@ -2810,15 +2847,12 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient },
             repeat_next_pointer: false,
+            stardate_week: None,
+            narrative_phase: narrative_phase_for_report_text(&body),
         });
     }
 
-    entries.sort_by_key(|entry| {
-        (
-            stardate_week_from_report_text(&entry.text),
-            narrative_phase_for_report_text(&entry.text),
-        )
-    });
+    entries.sort_by_key(|e| (e.stardate_week.unwrap_or(0), e.narrative_phase));
     entries
 }
 
@@ -3021,6 +3055,8 @@ fn clone_report_entry(entry: &ReportEntry) -> ReportEntry {
         tail: entry.tail,
         target: entry.target,
         repeat_next_pointer: entry.repeat_next_pointer,
+        stardate_week: entry.stardate_week,
+        narrative_phase: entry.narrative_phase,
     }
 }
 
@@ -3038,8 +3074,7 @@ fn clone_report_entry(entry: &ReportEntry) -> ReportEntry {
 ///   1. Empire #1 "Alpha"  — 12 planets, 480 production
 ///   ...
 /// ```
-#[allow(dead_code)]
-pub(crate) fn build_rankings_text(game_data: &CoreGameData) -> String {
+pub fn build_rankings_text(game_data: &CoreGameData) -> String {
     let year = game_data.conquest.game_year();
     let stardate = crate::maint::timing::format_rankings_stardate(year);
     let rows = game_data.empire_production_ranking_rows(EmpireProductionRankingSort::Production);

@@ -654,7 +654,7 @@ fn maint_rust_scout_contact_is_single_merged_classic_report() {
             i != merged_idx
                 && lines
                     .iter()
-                    .any(|l| l.contains("We have located and identified the alien fleet"))
+                    .any(|l| l.contains("We identified an alien fleet"))
         }),
         "identification should not appear as a separate standalone report"
     );
@@ -1190,9 +1190,9 @@ fn maint_rust_invalidated_scout_mission_reports_abort_before_contact_loss() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Maintenance aborted this fleet's scout sector mission because"));
+    assert!(text.contains("Hostile action forced us to abort the scout sector mission because"));
     assert!(text.contains("lacks the required scout ship"));
-    assert!(text.contains("seeking safety"));
+    assert!(text.contains("withdrawing toward"));
     assert!(!text.contains("flight recorder"));
     assert!(!text.contains("We lost all contact"));
     assert!(!text.contains("Scout mission report: We were attacked by"));
@@ -1295,9 +1295,9 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("From Starbase"));
+    assert!(text.contains("From your Fleet Command Center"));
     assert!(text.contains("We lost all contact with Starbase"));
-    assert!(text.contains("burnt flight recorder"));
+    assert!(text.contains("telemetry"));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
@@ -2406,7 +2406,7 @@ fn maint_rust_dominant_invalidated_invade_report_retreats_after_capability_loss(
         .join(" ");
     assert!(normalized.contains("Invasion mission report"));
     assert!(normalized.contains("Hostile action stripped us of our invasion capability"));
-    assert!(normalized.contains("seeking safety at planet"));
+    assert!(normalized.contains("withdrawing toward planet"));
 
     cleanup_dir(&target);
 }
@@ -2461,7 +2461,7 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
         .map(result_record_text)
         .collect::<Vec<_>>();
     let normalized = lines.join(" ");
-    assert!(normalized.contains("In accordance to our ROE, we withdrew"));
+    assert!(normalized.contains("In accordance with our ROE, we withdrew"));
     assert!(normalized.contains("Alien force contained"));
     assert!(normalized.contains("suffering losses of no ship losses"));
     assert!(normalized.contains("unable to inflict any losses"));
@@ -2494,7 +2494,7 @@ fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Maintenance aborted this fleet's"));
+    assert!(text.contains("Hostile action forced us to abort the"));
     assert!(text.contains("required combat ships"));
 
     cleanup_dir(&target);
@@ -2524,7 +2524,7 @@ fn maint_rust_invalid_planet_inputs_generate_admin_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Maintenance cleared invalid player input because"));
+    assert!(text.contains("Invalid planetary input was cleared because"));
     assert!(text.contains("Tax rate input 255%"));
 
     cleanup_dir(&target);
@@ -2572,9 +2572,9 @@ fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state()
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let result_text = decode_chunked_report(&results);
-    assert!(result_text.contains("Maintenance aborted this fleet's"));
-    assert!(result_text.contains("Maintenance corrected invalid fleet input because"));
-    assert!(result_text.contains("Maintenance cleared invalid player input because"));
+    assert!(result_text.contains("Hostile action forced us to abort the"));
+    assert!(result_text.contains("Invalid fleet input was corrected because"));
+    assert!(result_text.contains("Invalid planetary input was cleared because"));
     assert!(result_text.contains("Tax rate input 255%"));
 
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
@@ -2631,7 +2631,7 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
         assert!(
             result_text.contains("Maintenance canceled this fleet's")
                 || result_text.contains("Maintenance aborted this fleet's")
-                || result_text.contains("Maintenance corrected invalid fleet input because"),
+                || result_text.contains("Invalid fleet input was corrected because"),
             "RESULTS.DAT decoded text was: {:?}",
             result_text
         );
@@ -2692,7 +2692,7 @@ fn maint_rust_survives_multi_fixture_invalid_input_sweep() {
         assert!(
             text.contains("Maintenance canceled this fleet's")
                 || text.contains("Maintenance aborted this fleet's")
-                || text.contains("Maintenance corrected invalid fleet input because")
+                || text.contains("Invalid fleet input was corrected because")
                 || text.contains("foreign ministry"),
             "fixture {fixture} produced unexpected RESULTS.DAT text: {:?}",
             text
@@ -2724,7 +2724,7 @@ fn maint_rust_reports_invalid_diplomacy_input_sanitization() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("foreign ministry"));
-    assert!(text.contains("invalid diplomacy input"));
+    assert!(text.contains("Invalid diplomacy input"));
 
     cleanup_dir(&target);
 }
