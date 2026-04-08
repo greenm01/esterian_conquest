@@ -5,8 +5,8 @@ use common::production::{
     single_planet_game, zeroed_conquest, zeroed_setup,
 };
 use nc_data::{
-    BaseDat, BaseRecord, CoreGameData, EmpireProductionRankingSort, FleetDat, IpbmDat, PlanetDat,
-    PlayerDat, decode_real48, encode_real48, starbase_growth_bonus_percent,
+    decode_real48, encode_real48, starbase_growth_bonus_percent, BaseDat, BaseRecord, CoreGameData,
+    EmpireProductionRankingSort, FleetDat, IpbmDat, PlanetDat, PlayerDat,
 };
 use nc_engine::{build_seeded_new_game, run_maintenance_turn};
 
@@ -158,8 +158,8 @@ fn maintenance_adds_tax_revenue_and_grows_planets_faster_under_lower_tax() {
 
     let low_planet = &low_game.planets.records[0];
     let high_planet = &high_game.planets.records[0];
-    assert_eq!(low_planet.stored_goods_raw(), 6);
-    assert_eq!(high_planet.stored_goods_raw(), 20);
+    assert_eq!(low_planet.stored_goods_raw(), 10);
+    assert_eq!(high_planet.stored_goods_raw(), 22);
     assert!(
         low_planet.present_production_points().unwrap()
             > high_planet.present_production_points().unwrap()
@@ -245,7 +245,7 @@ fn maintenance_high_tax_above_65_can_reduce_present_production() {
     run_maintenance_turn(&mut game).expect("maintenance should succeed");
 
     let planet = &game.planets.records[0];
-    assert_eq!(planet.stored_goods_raw(), 20);
+    assert_eq!(planet.stored_goods_raw(), 22);
     assert_eq!(planet.present_production_points().unwrap(), 28);
 }
 
@@ -305,8 +305,8 @@ fn maintenance_starbases_do_not_shift_the_high_tax_penalty_threshold() {
     run_maintenance_turn(&mut with_base).expect("maintenance should succeed");
     run_maintenance_turn(&mut without_base).expect("maintenance should succeed");
 
-    assert_eq!(with_base.planets.records[0].stored_goods_raw(), 35);
-    assert_eq!(without_base.planets.records[0].stored_goods_raw(), 35);
+    assert_eq!(with_base.planets.records[0].stored_goods_raw(), 37);
+    assert_eq!(without_base.planets.records[0].stored_goods_raw(), 37);
     assert_eq!(
         with_base.planets.records[0]
             .present_production_points()
@@ -369,8 +369,8 @@ fn maintenance_starbases_still_help_at_moderate_tax_rates() {
     run_maintenance_turn(&mut with_base).expect("maintenance should succeed");
     run_maintenance_turn(&mut without_base).expect("maintenance should succeed");
 
-    assert_eq!(with_base.planets.records[0].stored_goods_raw(), 25);
-    assert_eq!(without_base.planets.records[0].stored_goods_raw(), 25);
+    assert_eq!(with_base.planets.records[0].stored_goods_raw(), 30);
+    assert_eq!(without_base.planets.records[0].stored_goods_raw(), 28);
     assert_eq!(
         without_base.planets.records[0]
             .present_production_points()

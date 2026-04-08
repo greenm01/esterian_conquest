@@ -1,6 +1,6 @@
 use nc_data::{
-    BaseDat, BaseRecord, ConquestDat, CoreGameData, FleetDat, GameStateBuilder, IpbmDat, PlanetDat,
-    PlanetRecord, PlayerDat, PlayerRecord, SetupDat, encode_real48,
+    encode_real48, BaseDat, BaseRecord, ConquestDat, CoreGameData, FleetDat, GameStateBuilder,
+    IpbmDat, PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat,
 };
 
 pub fn zeroed_setup() -> SetupDat {

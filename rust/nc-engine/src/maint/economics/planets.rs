@@ -42,7 +42,6 @@ pub(super) fn process_planet_economics(
             game_data.planets.records[planet_idx].coords_raw(),
         );
 
-        let revenue = yearly_tax_revenue(current_production, tax_rate);
         let growth = yearly_growth_delta(
             current_production,
             potential_production,
@@ -51,14 +50,19 @@ pub(super) fn process_planet_economics(
         );
         let penalty = yearly_high_tax_penalty(current_production, tax_rate);
 
-        let planet = &mut game_data.planets.records[planet_idx];
-        planet.set_economy_marker_raw(tax_rate);
-        planet.set_stored_goods_raw(planet.stored_goods_raw().saturating_add(revenue));
+        // Apply growth first so that revenue is credited at the post-growth
+        // production level.  This keeps the treasury consistent with the Rev
+        // column, which is always displayed at the current (post-growth) value.
         let new_current_production = current_production
             .saturating_add(growth)
             .saturating_sub(penalty)
             .min(potential_production);
+        let revenue = yearly_tax_revenue(new_current_production, tax_rate);
+
+        let planet = &mut game_data.planets.records[planet_idx];
+        planet.set_economy_marker_raw(tax_rate);
         let _ = planet.set_present_production_points(new_current_production);
+        planet.set_stored_goods_raw(planet.stored_goods_raw().saturating_add(revenue));
     }
 
     Ok(())

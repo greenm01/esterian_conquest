@@ -3,45 +3,47 @@
 use std::cmp::Ordering;
 
 use nc_data::{
-    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
+    build_capacity, yearly_growth_delta, yearly_tax_revenue, PlanetRecord, ProductionItemKind,
+    STARDOCK_SLOT_COUNT,
 };
 use nc_engine::BUILD_UNITS;
-use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
 use nc_ui::table::{
-    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
-    write_stacked_table_window_with_theme_at,
+    write_stacked_table_window_with_theme_at, SplitTableRow, TableColumn, TableFooter,
+    TableWidthMode, TABLE_TEXT_INSET,
 };
 use nc_ui::table_selection;
+use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     SortDirection,
 };
-use crate::layout::MapWidgetFrame;
 use crate::layout::dashboard;
+use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
     overlay_popup_rect_for_body_in_parent, stacked_table_body_height, standard_table_body_height,
-    write_clipped,
+    write_clipped, OverlaySizePolicy,
 };
 use crate::theme;
 
 pub(crate) const HOTKEYS: &str = "? F S B <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? C L M <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A R S T <Q>";
-const TOP_HEADERS: [&str; 12] = [
-    "Coord", "", "Max", "Curr", "Trsry", "", "", "Build", "Star", "", "", "",
+const TOP_HEADERS: [&str; 13] = [
+    "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
-const COLUMNS: [TableColumn<'static>; 12] = [
+const COLUMNS: [TableColumn<'static>; 13] = [
     TableColumn::left("(XX,YY)", 7),
     TableColumn::left("Planet Name", 13),
     TableColumn::right("Prod", 4),
     TableColumn::right("Prod", 4),
     TableColumn::right("Points", 6),
+    TableColumn::right("Bdgt", 5),
     TableColumn::right("Rev", 3),
     TableColumn::right("Grow", 4),
     TableColumn::right("Queue", 5),
@@ -633,6 +635,7 @@ fn format_planet_row_cells(
     let potential = planet.potential_production_points();
     let stored = planet.stored_production_points();
     let revenue = yearly_tax_revenue(present, tax_rate);
+    let budget = u32::from(build_capacity(present, has_starbase)).min(stored);
     let growth = yearly_growth_delta(present, potential, tax_rate, has_starbase) as i16;
     let queue = build_queue_total(planet);
     let docked = docked_total(planet);
@@ -651,6 +654,7 @@ fn format_planet_row_cells(
             potential.to_string(),
             present.to_string(),
             stored.to_string(),
+            budget.to_string(),
             revenue.to_string(),
             format!("{growth:+}"),
             queue.to_string(),

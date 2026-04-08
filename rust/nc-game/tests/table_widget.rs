@@ -5,12 +5,12 @@ use nc_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 use nc_game::model::{ClassicLoginState, PlayerContext};
 use nc_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use nc_game::screen::table::{
-    HorizontalAlign, LayoutRect, SplitTableRow, TableColumn, TableFooter, TableRowState,
-    TableWidthMode, VerticalAlign, layout_standard_table_block, resolve_table_columns_for_widget,
+    layout_standard_table_block, resolve_table_columns_for_widget,
     resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
     table_footer_width, table_render_width, write_split_table,
     write_stacked_table_window_with_states, write_table_row, write_table_window_with_cursor,
-    write_table_window_with_cursor_at, write_table_window_with_states,
+    write_table_window_with_cursor_at, write_table_window_with_states, HorizontalAlign, LayoutRect,
+    SplitTableRow, TableColumn, TableFooter, TableRowState, TableWidthMode, VerticalAlign,
 };
 use nc_game::screen::{
     CommandMenu, EmpireProfileScreen, EnemiesScreen, FleetListFilter, FleetListScreen,
@@ -720,7 +720,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(2).contains("Trsry"));
     assert!(buffer.plain_line(2).contains("Build"));
     assert!(buffer.plain_line(2).contains("Star"));
-    assert_eq!(buffer.plain_line(2).matches('│').count(), 13);
+    assert_eq!(buffer.plain_line(2).matches('│').count(), 14);
     assert!(buffer.plain_line(3).contains("(XX,YY)"));
     assert!(buffer.plain_line(3).contains("Planet Name"));
     assert!(buffer.plain_line(3).contains("Prod"));
@@ -807,7 +807,7 @@ fn planet_brief_list_shows_zero_build_queue_when_no_orders_are_queued() {
 
     let line = buffer.plain_line(5);
     let cells = line.split('│').collect::<Vec<_>>();
-    assert_eq!(cells[8].trim(), "0");
+    assert_eq!(cells[9].trim(), "0");
 }
 
 #[test]
@@ -1142,10 +1142,8 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
     assert_eq!(title_col, table_col + 1);
     assert_eq!(command_col, table_col + 1);
     assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("Available empires:")));
-    assert!(
-        (0..buffer.height())
-            .all(|row| !buffer.plain_line(row).contains("queued outgoing messages"))
-    );
+    assert!((0..buffer.height())
+        .all(|row| !buffer.plain_line(row).contains("queued outgoing messages")));
 }
 
 #[test]

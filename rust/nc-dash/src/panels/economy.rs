@@ -164,8 +164,10 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        assert!(body_rows(&app)
-            .iter()
-            .any(|(row, _)| row.contains("Cmd Limit") && row.contains('|')));
+        assert!(
+            body_rows(&app)
+                .iter()
+                .any(|(row, _)| row.contains("Cmd Limit") && row.contains('|'))
+        );
     }
 }

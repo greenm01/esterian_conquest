@@ -1,22 +1,22 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use nc_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 
-use crate::app::Action;
 use crate::app::helpers::is_coordinate_input_char;
+use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     dismiss_prompt_row_for, draw_dismiss_prompt_padded, draw_status_line, draw_title_bar_padded,
     new_playfield_for, stacked_table_visible_rows_for,
 };
 use crate::screen::table::{
-    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
     draw_table_footer, draw_table_title, layout_stacked_table_block,
     resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
-    write_stacked_table_window_with_states_at,
+    write_stacked_table_window_with_states_at, HorizontalAlign, LayoutRect, TableColumn,
+    TableFooter, TableWidthMode, VerticalAlign,
 };
 use crate::screen::{
-    PlayfieldBuffer, ScreenFrame, SortDirection, build_quantity_from_points,
-    format_sector_coords_default, format_sector_coords_table,
+    build_quantity_from_points, format_sector_coords_default, format_sector_coords_table,
+    PlayfieldBuffer, ScreenFrame, SortDirection,
 };
 use crate::theme::classic;
 
@@ -63,12 +63,13 @@ struct RenderedPlanetList {
     buffer: PlayfieldBuffer,
 }
 
-const BRIEF_COLUMNS: [TableColumn<'static>; 12] = [
+const BRIEF_COLUMNS: [TableColumn<'static>; 13] = [
     TableColumn::left("(XX,YY)", 7),
     TableColumn::left("Planet Name", 11),
     TableColumn::right("Prod", 4),
     TableColumn::right("Prod", 4),
     TableColumn::right("Points", 6),
+    TableColumn::right("Bdgt", 5),
     TableColumn::right("Rev", 3),
     TableColumn::right("Grow", 4),
     TableColumn::right("Queue", 6),
@@ -78,8 +79,8 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 12] = [
     TableColumn::right("GBs", 3),
 ];
 
-const BRIEF_TOP_HEADER_CELLS: [&str; 12] = [
-    "Coord", "", "Max", "Curr", "Trsry", "", "", "Build", "Star", "", "", "",
+const BRIEF_TOP_HEADER_CELLS: [&str; 13] = [
+    "Coord", "", "Max", "Curr", "Trsry", "", "", "", "Build", "Star", "", "", "",
 ];
 
 const BRIEF_BROWSE_HOTKEYS: &str = "? F S B A C L U X <Q>";
@@ -613,12 +614,14 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
 fn planet_table_rows(frame: &ScreenFrame<'_>, rows: &[EmpirePlanetEconomyRow]) -> Vec<Vec<String>> {
     rows.iter()
         .map(|row| {
+            let budget = u32::from(row.build_capacity).min(row.stored_production_points);
             vec![
                 format_sector_coords_table(row.coords),
                 row.planet_name.clone(),
                 row.potential_production.to_string(),
                 row.present_production.to_string(),
                 row.stored_production_points.to_string(),
+                budget.to_string(),
                 row.yearly_tax_revenue.to_string(),
                 format_signed_growth(row.yearly_growth_delta),
                 queued_build_units(frame, row).to_string(),

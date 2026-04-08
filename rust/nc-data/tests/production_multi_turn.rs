@@ -5,8 +5,8 @@ use common::production::{
     owned_planet_with_present_production, player_with_empire_name, zeroed_setup,
 };
 use nc_data::{
-    BaseDat, CoreGameData, FleetDat, IpbmDat, PlanetDat, PlayerDat, ProductionItemKind,
-    yearly_tax_revenue,
+    yearly_tax_revenue, BaseDat, CoreGameData, FleetDat, IpbmDat, PlanetDat, PlayerDat,
+    ProductionItemKind,
 };
 use nc_engine::run_maintenance_turn;
 
@@ -112,7 +112,7 @@ fn multiple_build_slots_share_one_planet_spend_budget_per_turn() {
     assert_eq!(planet.build_kind_raw(0), 0);
     assert_eq!(planet.build_count_raw(1), 15);
     assert_eq!(planet.build_kind_raw(1), 6);
-    assert_eq!(planet.stored_production_points(), 175);
+    assert_eq!(planet.stored_production_points(), 178);
     assert_eq!(planet.stardock_kind_raw(0), 1);
     assert_eq!(planet.stardock_count_raw(0), 5);
     assert_eq!(planet.stardock_kind_raw(1), 6);
@@ -173,7 +173,7 @@ fn multi_turn_empire_economy_tracks_growth_and_revenue_across_owned_planets() {
 
     run_maintenance_turn(&mut game).expect("maintenance should succeed");
     assert_eq!(game.planets.records[0].stored_production_points(), 50);
-    assert_eq!(game.planets.records[1].stored_production_points(), 12);
+    assert_eq!(game.planets.records[1].stored_production_points(), 17);
     assert_eq!(
         game.planets.records[1].present_production_points(),
         Some(35)
@@ -186,7 +186,7 @@ fn multi_turn_empire_economy_tracks_growth_and_revenue_across_owned_planets() {
 
     run_maintenance_turn(&mut game).expect("second maintenance should succeed");
     assert_eq!(game.planets.records[0].stored_production_points(), 100);
-    assert_eq!(game.planets.records[1].stored_production_points(), 29);
+    assert_eq!(game.planets.records[1].stored_production_points(), 39);
     assert_eq!(
         game.planets.records[1].present_production_points(),
         Some(44)
@@ -226,8 +226,8 @@ fn commissioned_starbase_changes_multi_turn_growth_and_build_capacity_but_not_re
 
     assert_eq!(with_base.empire_available_production_points(1), 30);
     assert_eq!(without_base.empire_available_production_points(1), 28);
-    assert_eq!(with_base_planet.stored_production_points(), 25);
-    assert_eq!(without_base_planet.stored_production_points(), 175);
+    assert_eq!(with_base_planet.stored_production_points(), 30);
+    assert_eq!(without_base_planet.stored_production_points(), 178);
     assert_eq!(with_base_planet.build_count_raw(0), 0);
     assert_eq!(without_base_planet.build_count_raw(0), 150);
     assert_eq!(with_base_planet.present_production_points(), Some(61));

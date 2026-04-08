@@ -5,8 +5,8 @@ use nc_ui::PlayfieldBuffer;
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
 use crate::planet_view::{
-    preferred_sector_detail_body_width, projected_sector_details, selected_planet_detail,
-    widget_label_for_width, DetailLine,
+    DetailLine, preferred_sector_detail_body_width, projected_sector_details,
+    selected_planet_detail, widget_label_for_width,
 };
 use crate::theme;
 
@@ -177,8 +177,8 @@ fn row_priority(label: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{
-        preferred_body_rows, preferred_body_width, rendered_widget_lines, wrap_field_value_lines,
-        MAX_BODY_ROWS,
+        MAX_BODY_ROWS, preferred_body_rows, preferred_body_width, rendered_widget_lines,
+        wrap_field_value_lines,
     };
     use crate::app::state::DashApp;
     use crate::layout::dashboard_layout;
@@ -293,9 +293,11 @@ mod tests {
 
         super::draw(&mut buffer, &app, widgets.right_sector_detail);
 
-        assert!(buffer
-            .plain_line(widgets.right_sector_detail.body.row)
-            .contains("empty sector"));
+        assert!(
+            buffer
+                .plain_line(widgets.right_sector_detail.body.row)
+                .contains("empty sector")
+        );
     }
 
     #[test]
