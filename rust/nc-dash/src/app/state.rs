@@ -8,6 +8,7 @@ use nc_session::startup::{StartupPhase, StartupSequence, StartupSummary};
 use nc_ui::ScreenGeometry;
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::client_settings::DashClientSettings;
 use crate::overlays::frame::RelativePopupOrigin;
 
 /// Which panel has keyboard focus.
@@ -147,6 +148,11 @@ impl InboxFilter {
 pub struct ListOverlayState {
     pub selected: usize,
     pub scroll: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SettingsOverlayState {
+    pub status_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -555,6 +561,8 @@ pub struct DashApp {
     pub map_view_mode: MapViewMode,
     pub map_zoom_level: u8,
     pub map_coord_input: String,
+    pub client_settings: DashClientSettings,
+    pub client_settings_path: Option<std::path::PathBuf>,
 
     // Panel scroll positions
     pub diplomacy_scroll: usize,
@@ -565,6 +573,7 @@ pub struct DashApp {
     pub intel_overlay: IntelOverlayState,
     pub diplomacy_overlay: ListOverlayState,
     pub inbox_overlay: InboxOverlayState,
+    pub settings_overlay: SettingsOverlayState,
 
     pub is_terminal_too_small: bool,
     pub should_quit: bool,
@@ -626,12 +635,15 @@ impl DashApp {
             map_view_mode: MapViewMode::Readable,
             map_zoom_level: 0,
             map_coord_input: String::new(),
+            client_settings: DashClientSettings::default(),
+            client_settings_path: None,
             diplomacy_scroll: 0,
             planet_overlay: PlanetOverlayState::default(),
             fleet_overlay: FleetOverlayState::default(),
             intel_overlay: IntelOverlayState::default(),
             diplomacy_overlay: ListOverlayState::default(),
             inbox_overlay: InboxOverlayState::default(),
+            settings_overlay: SettingsOverlayState::default(),
             is_terminal_too_small: false,
             should_quit: false,
         }

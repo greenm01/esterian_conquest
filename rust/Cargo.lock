@@ -2146,6 +2146,8 @@ name = "nc-dash"
 version = "1.0.0-beta.2"
 dependencies = [
  "crossterm",
+ "dirs",
+ "kdl",
  "nc-data",
  "nc-engine",
  "nc-log",

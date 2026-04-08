@@ -10,6 +10,8 @@ path = "src/main.rs"
 
 [dependencies]
 crossterm = "0.29"
+dirs = "5"
+kdl = "6"
 nc-data = { path = "../nc-data" }
 nc-engine = { path = "../nc-engine" }
 nc-session = { path = "../nc-session" }

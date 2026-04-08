@@ -79,12 +79,12 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Viewport",
                 "Small terminals auto-clip the map around the crosshair",
             ),
-            ("Mouse", "Hover visible sectors to move the map crosshair"),
+            ("Mouse", "Hover-follow can be toggled in Settings"),
             ("Left Click", "Open player fleets at that sector, if any"),
             ("Right Click", "Open planet list/info for the clicked world"),
             (
                 "Map Exit",
-                "Leaving the map widget resets the crosshair home",
+                "Leaving the map widget resets home when hover-follow is on",
             ),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
             ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
@@ -244,8 +244,9 @@ fn help_lines(context: HelpContext) -> Vec<String> {
             ("?", "Open this helper"),
         ],
         HelpContext::Settings => vec![
-            ("Theme", "TODO - choose a dashboard theme"),
-            ("Mouse", "Hover moves the map; left fleets; right planets"),
+            ("M", "Toggle hover-follow crosshair on the map"),
+            ("G", "Toggle full dense map-grid dots"),
+            ("Clicks", "Always move the crosshair and run sector actions"),
             ("Q", "Close this overlay"),
             ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
@@ -309,13 +310,9 @@ mod tests {
         assert!(
             settings
                 .iter()
-                .any(|line| line.contains("Hover moves the map"))
+                .any(|line| line.contains("hover-follow crosshair"))
         );
-        assert!(
-            !settings
-                .iter()
-                .any(|line| line.contains("TODO - configure"))
-        );
+        assert!(!settings.iter().any(|line| line.contains("TODO")));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! S overlay: settings — theme picker and mouse notes.
+//! S overlay: settings — local map behavior toggles.
 
 use nc_ui::PlayfieldBuffer;
 use nc_ui::modal::Rect;
@@ -14,21 +14,14 @@ use crate::overlays::frame::{
 };
 use crate::theme;
 
-const SETTINGS_LINES: &[(&str, &str)] = &[
-    ("Theme", "Select color theme (T to open theme picker)"),
-    (
-        "Mouse",
-        "Hover map to move, left-click fleets, right-click planets",
-    ),
-];
-
 pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp, map_frame: MapWidgetFrame) {
     draw_with_origin(buf, _app, map_frame);
 }
 
 fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
-    let label_width = layout::label_value_width(SETTINGS_LINES.iter().map(|(key, _)| *key));
-    let body_width = SETTINGS_LINES
+    let lines = settings_lines(app);
+    let label_width = layout::label_value_width(lines.iter().map(|(key, _)| key.as_str()));
+    let body_width = lines
         .iter()
         .map(|(key, desc)| {
             layout::format_label_value(key, label_width, desc)
@@ -42,12 +35,12 @@ fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidg
         map_frame,
         "SETTINGS",
         body_width,
-        SETTINGS_LINES.len(),
+        lines.len(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Settings),
     );
-    assert_overlay_body_write_fits(frame, "SETTINGS", body_width, SETTINGS_LINES.len());
-    for (idx, (key, desc)) in SETTINGS_LINES.iter().enumerate() {
+    assert_overlay_body_write_fits(frame, "SETTINGS", body_width, lines.len());
+    for (idx, (key, desc)) in lines.iter().enumerate() {
         write_clipped(
             buf,
             frame.body_row + idx,
@@ -60,8 +53,9 @@ fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidg
 }
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
-    let label_width = layout::label_value_width(SETTINGS_LINES.iter().map(|(key, _)| *key));
-    let body_width = SETTINGS_LINES
+    let lines = settings_lines(app);
+    let label_width = layout::label_value_width(lines.iter().map(|(key, _)| key.as_str()));
+    let body_width = lines
         .iter()
         .map(|(key, desc)| {
             layout::format_label_value(key, label_width, desc)
@@ -74,9 +68,80 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         map_frame,
         "SETTINGS",
         body_width,
-        SETTINGS_LINES.len(),
+        lines.len(),
         OverlaySizePolicy::default(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Settings),
     )
+}
+
+fn settings_lines(app: &DashApp) -> Vec<(String, String)> {
+    let mut lines = vec![
+        (
+            String::from("Mouse Follow"),
+            format!(
+                "{} (M toggles hover-follow crosshair)",
+                on_off(app.client_settings.follow_mouse_on_map)
+            ),
+        ),
+        (
+            String::from("Grid Dots"),
+            format!(
+                "{} (G toggles full dense map-grid dots)",
+                on_off(app.client_settings.dense_empty_sector_dots)
+            ),
+        ),
+        (
+            String::from("Map Clicks"),
+            String::from("Always move crosshair and open sector actions"),
+        ),
+    ];
+    if let Some(status) = app.settings_overlay.status_message.as_ref() {
+        lines.push((String::from("Status"), status.clone()));
+    }
+    lines
+}
+
+fn on_off(enabled: bool) -> &'static str {
+    if enabled { "ON" } else { "OFF" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::settings_lines;
+    use crate::app::state::DashApp;
+    use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    #[test]
+    fn settings_overlay_shows_live_toggle_values() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.client_settings.follow_mouse_on_map = false;
+        app.client_settings.dense_empty_sector_dots = true;
+
+        let lines = settings_lines(&app);
+
+        assert!(lines.iter().any(|(key, value)| {
+            key == "Mouse Follow" && value.contains("OFF") && value.contains("M toggles")
+        }));
+        assert!(lines.iter().any(|(key, value)| {
+            key == "Grid Dots" && value.contains("ON") && value.contains("G toggles")
+        }));
+    }
 }

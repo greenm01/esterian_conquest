@@ -56,6 +56,11 @@ pub fn dim_style() -> CellStyle {
     classic::disabled_row_style()
 }
 
+pub fn dim_style_on(bg: GameColor, bold: bool) -> CellStyle {
+    let style = dim_style();
+    CellStyle::new(style.fg, bg, bold)
+}
+
 pub fn enemy_style() -> CellStyle {
     on_body(classic::error_style())
 }

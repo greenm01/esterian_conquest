@@ -1,6 +1,7 @@
 //! nc-dash — Full-screen dashboard TUI for Nostrian Conquest.
 
 mod app;
+mod client_settings;
 mod diplomacy_view;
 mod inbox;
 mod layout;
@@ -65,6 +66,9 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         player_record_index_1_based,
     );
     app.player_war_stats = player_war_stats;
+    let client_settings_path = client_settings::settings_path();
+    app.client_settings = client_settings::load_client_settings_from(&client_settings_path)?;
+    app.client_settings_path = Some(client_settings_path);
     let required = layout::dashboard::required_dashboard_frame(&app);
     app.geometry = required;
     app.frame = required;

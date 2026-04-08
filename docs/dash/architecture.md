@@ -657,8 +657,8 @@ Accessible from the Settings overlay (**S**). Reuses nc-game's
 ### Settings Overlay
 
 Accessible via **S** from the dashboard. Provides:
-- **Theme:** Select color theme (opens theme picker)
-- **Mouse:** Toggle mouse support on/off
+- **Mouse Follow:** Toggle whether hover moves the grid-locked map crosshair
+- **Grid Dots:** Toggle a full dense dot fill across the visible map grid
 - **Sound:** Toggle notification sounds (future)
 
 Settings are minimal — the game is keyboard-first and most config is

@@ -5,6 +5,7 @@ pub mod input;
 mod persistence;
 pub(crate) mod planet_build;
 pub mod render;
+mod settings;
 pub mod state;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
@@ -80,6 +81,9 @@ impl DashApp {
                 }
                 if overlay == ActiveOverlay::FleetList {
                     self.fleet_overlay.clear_transient_location_filter();
+                }
+                if overlay == ActiveOverlay::Settings {
+                    self.clear_settings_status();
                 }
                 self.overlay_position = None;
                 self.mouse_gesture = ActiveMouseGesture::None;
@@ -210,7 +214,7 @@ impl DashApp {
             MouseEventKind::Drag(MouseButton::Left) => {
                 if self.overlay != ActiveOverlay::None {
                     self.handle_mouse_move(mouse, map_frame);
-                } else {
+                } else if self.client_settings.follow_mouse_on_map {
                     self.handle_map_hover(mouse, map_frame);
                 }
             }
@@ -219,7 +223,9 @@ impl DashApp {
                     self.mouse_gesture = ActiveMouseGesture::None;
                     return;
                 }
-                self.handle_map_hover(mouse, map_frame);
+                if self.client_settings.follow_mouse_on_map {
+                    self.handle_map_hover(mouse, map_frame);
+                }
             }
             MouseEventKind::Up(MouseButton::Left) => {
                 self.mouse_gesture = ActiveMouseGesture::None;
@@ -539,7 +545,15 @@ impl DashApp {
                 if self.handle_overlay_close_or_help(key, HelpContext::Settings) {
                     return true;
                 }
-                self.close_active_overlay();
+                match key.code {
+                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                        self.toggle_follow_mouse_on_map_setting();
+                    }
+                    KeyCode::Char('g') | KeyCode::Char('G') => {
+                        self.toggle_dense_empty_sector_dots_setting();
+                    }
+                    _ => {}
+                }
                 true
             }
             ActiveOverlay::Help => {
@@ -582,6 +596,9 @@ impl DashApp {
             if self.overlay == ActiveOverlay::FleetList {
                 self.fleet_overlay.clear_group_selection();
                 self.fleet_overlay.clear_transient_location_filter();
+            }
+            if self.overlay == ActiveOverlay::Settings {
+                self.clear_settings_status();
             }
             self.overlay = ActiveOverlay::None;
             self.overlay_position = None;
@@ -2611,6 +2628,19 @@ mod tests {
     }
 
     #[test]
+    fn hovering_visible_sector_does_not_move_crosshair_when_hover_follow_is_disabled() {
+        let mut app = dash_app();
+        let starting = [app.crosshair_x, app.crosshair_y];
+        let target = [4, 7];
+        let (column, row) = screen_point_for_sector(&app, target);
+        app.client_settings.follow_mouse_on_map = false;
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], starting);
+    }
+
+    #[test]
     fn moving_mouse_outside_map_widget_resets_crosshair_to_homeworld() {
         let mut app = dash_app();
         let homeworld = [app.crosshair_x, app.crosshair_y];
@@ -2624,6 +2654,19 @@ mod tests {
         app.handle_mouse(mouse(MouseEventKind::Moved, outside.0, outside.1));
 
         assert_eq!([app.crosshair_x, app.crosshair_y], homeworld);
+    }
+
+    #[test]
+    fn settings_overlay_toggle_keys_update_client_settings() {
+        let mut app = dash_app();
+        app.overlay = ActiveOverlay::Settings;
+
+        app.handle_key(key(KeyCode::Char('m')));
+        app.handle_key(key(KeyCode::Char('g')));
+
+        assert!(!app.client_settings.follow_mouse_on_map);
+        assert!(app.client_settings.dense_empty_sector_dots);
+        assert_eq!(app.overlay, ActiveOverlay::Settings);
     }
 
     #[test]
