@@ -5,7 +5,7 @@ use nc_data::{
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
-use nc_engine::maint::{timing::format_report_first_line, FleetBattlePerspective};
+use nc_engine::maint::{FleetBattlePerspective, timing::format_report_first_line};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -295,11 +295,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -879,6 +875,7 @@ struct ReportEntry {
     tail: [u8; 10],
     target: ReportTarget,
     repeat_next_pointer: bool,
+    stardate_week: Option<u8>,
 }
 
 /// Build the right-justified Stardate first-line header for a report entry.
@@ -942,6 +939,7 @@ fn generate_report_entries(
                 recipient: event.defender_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1044,6 +1042,7 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1082,6 +1081,7 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1112,6 +1112,7 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1131,6 +1132,7 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1148,6 +1150,7 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::ResultsOnly,
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1165,6 +1168,7 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::ResultsOnly,
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1184,6 +1188,7 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1286,6 +1291,7 @@ fn generate_report_entries(
                 recipient: event.attacker_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1367,6 +1373,7 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
                 });
             }
             ContactReportSource::Fleet(fleet_id) => {
@@ -1394,6 +1401,7 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
                 });
             }
             ContactReportSource::Starbase(starbase_id) => {
@@ -1421,6 +1429,7 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
                 });
             }
         }
@@ -1458,6 +1467,7 @@ fn generate_report_entries(
                 recipient: event.reporting_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -1509,6 +1519,7 @@ fn generate_report_entries(
                 recipient: colonizer_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event_week,
         });
     }
 
@@ -1596,6 +1607,7 @@ fn generate_report_entries(
                     recipient: empire_raw,
                 },
                 repeat_next_pointer: false,
+            stardate_week: week,
             });
             for (ev_idx, _, _, _) in &fleet_entries {
                 batched_abort_indices.insert(*ev_idx);
@@ -1916,6 +1928,7 @@ fn generate_report_entries(
                 recipient: event.owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event.stardate_week,
         });
     }
 
@@ -2011,6 +2024,7 @@ fn generate_report_entries(
                 recipient: owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event_week,
         });
     }
 
@@ -2139,6 +2153,7 @@ fn generate_report_entries(
                 recipient: owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: event_week,
         });
     }
 
@@ -2236,6 +2251,7 @@ fn generate_report_entries(
                 recipient: owner_empire_raw,
             },
             repeat_next_pointer: false,
+            stardate_week: None,
         });
     }
 
@@ -2292,6 +2308,7 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
+            stardate_week: stardate_week,
             });
         }
     }
@@ -2358,6 +2375,7 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
+            stardate_week: stardate_week,
             });
         }
     }
@@ -2417,6 +2435,7 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient },
             repeat_next_pointer: false,
+            stardate_week: None,
         });
     }
 
@@ -2522,9 +2541,11 @@ fn generate_report_entries(
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient },
             repeat_next_pointer: false,
+            stardate_week: None,
         });
     }
 
+    entries.sort_by_key(|e| e.stardate_week.unwrap_or(0));
     entries
 }
 
