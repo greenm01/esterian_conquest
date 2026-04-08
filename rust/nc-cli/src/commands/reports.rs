@@ -5,7 +5,7 @@ use nc_data::{
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
-use nc_engine::maint::{FleetBattlePerspective, timing::format_report_first_line};
+use nc_engine::maint::{timing::format_report_first_line, FleetBattlePerspective};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -295,7 +295,11 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 { 0 } else { line_count + 1 }
+    if line_count == 0 {
+        0
+    } else {
+        line_count + 1
+    }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -949,9 +953,43 @@ fn generate_report_entries(
             (event.fleet_number != 0).then_some((event.reporting_empire_raw, event.fleet_number))
         })
         .collect();
+    // Suppress FleetBattleEvent reports for fleets already covered by an
+    // EncounterDispositionEvent::Retreated or ::PursuitFire report. The disposition
+    // report is more informative (it includes the ROE context and retreat destination)
+    // so the generic FleetBattleEvent is redundant and produces a duplicate report.
+    let roe_covered_fleet_keys: std::collections::HashSet<(u8, u8)> = events
+        .encounter_disposition_events
+        .iter()
+        .filter_map(|event| match *event {
+            nc_data::EncounterDispositionEvent::Retreated {
+                fleet_idx,
+                owner_empire_raw,
+                ..
+            }
+            | nc_data::EncounterDispositionEvent::PursuitFire {
+                fleet_idx,
+                owner_empire_raw,
+                ..
+            } => {
+                let fleet_number = game_data
+                    .fleets
+                    .records
+                    .get(fleet_idx)
+                    .map(|f| f.local_slot_word_raw() as u8)
+                    .filter(|n| *n != 0)?;
+                Some((owner_empire_raw, fleet_number))
+            }
+            _ => None,
+        })
+        .collect();
     for event in &events.fleet_battle_events {
         if event.reporting_fleet_number.is_some_and(|fleet_number| {
             destroyed_fleet_report_keys.contains(&(event.reporting_empire_raw, fleet_number))
+        }) {
+            continue;
+        }
+        if event.reporting_fleet_number.is_some_and(|fleet_number| {
+            roe_covered_fleet_keys.contains(&(event.reporting_empire_raw, fleet_number))
         }) {
             continue;
         }

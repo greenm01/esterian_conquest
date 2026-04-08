@@ -2,12 +2,12 @@ mod arrivals;
 mod salvage;
 mod stepper;
 
-use super::MovementEvents;
+use super::{ColonizationEvent, MovementEvents};
 use crate::{CoreGameData, Order, VisibleHazardIntel};
 use arrivals::handle_fleet_arrival;
 use nc_data::fleet_motion_state::decode_exact_position;
 use salvage::{queue_salvage_resolution, remap_movement_event_fleet_indices_after_removal};
-use stepper::process_single_fleet_movement;
+use stepper::{process_single_fleet_movement, set_fleet_to_local_hold};
 
 /// Process fleet movement for all fleets with active movement.
 ///
@@ -38,6 +38,21 @@ pub(super) fn process_fleet_movement(
                 fleet.owner_empire_raw(),
             )
         };
+        // ColonizeWorld on-station: fleet already at target (or arrived with speed still set).
+        // Queue colonization and reset to HoldPosition immediately; do not enter the
+        // should_move gate which would skip the fleet with no side-effects.
+        if matches!(order_kind, Order::ColonizeWorld)
+            && target_x == current_x
+            && target_y == current_y
+        {
+            set_fleet_to_local_hold(&mut game_data.fleets.records[i]);
+            movement_events.colonization_events.push(ColonizationEvent {
+                fleet_idx: i,
+                coords: [target_x, target_y],
+                owner_empire,
+            });
+            continue;
+        }
         if matches!(order_kind, Order::Salvage) && target_x == current_x && target_y == current_y {
             let planet_idx = game_data
                 .planets

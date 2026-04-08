@@ -159,6 +159,11 @@ fn test_fleet_movement_arrival_state() {
         0,
         "Fleet 0 order should be cleared to HoldPosition (0) after arrival"
     );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "Fleet 0 should be HoldPosition after colonization arrival"
+    );
 }
 
 #[test]
@@ -227,6 +232,17 @@ fn test_colonization_emits_success_event() {
             && event.outcome == MissionOutcome::Succeeded
             && event.planet_idx == Some(13)
     }));
+    // Fleet must be reset to HoldPosition with speed 0 after successful colonization.
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "Fleet should be HoldPosition after colonization"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].current_speed(),
+        0,
+        "Fleet should have speed 0 after colonization"
+    );
 }
 
 #[test]
@@ -1704,6 +1720,71 @@ fn test_view_world_on_station_reverts_to_hold_position() {
     assert_eq!(
         game_data.fleets.records[0].tuple_c_payload_raw(),
         [0x80, 0xb9, 0xff, 0xff, 0xff]
+    );
+}
+
+#[test]
+fn test_colonize_world_on_station_colonizes_and_resets() {
+    // Fleet already at its target planet from a prior turn (on-station path).
+    // ColonizeWorld is one-shot: the colonization must fire AND the order must
+    // reset to HoldPosition with speed 0 — even though should_move is false.
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let planet_coords = game_data.planets.records[13].coords_raw(); // unowned planet at (15,13)
+    let colonizer = &mut game_data.fleets.records[0];
+    colonizer.set_current_location_coords_raw(planet_coords);
+    colonizer.set_standing_order_kind(Order::ColonizeWorld);
+    colonizer.set_standing_order_target_coords_raw(planet_coords);
+    colonizer.set_current_speed(3); // speed > 0 to confirm the gate is the blocker
+    colonizer.set_etac_count(3);
+    colonizer.set_scout_count(0);
+    reset_motion_state_for_new_orders(colonizer);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    // Planet must be colonized.
+    assert_eq!(
+        game_data.planets.records[13].owner_empire_slot_raw(),
+        1,
+        "on-station ColonizeWorld must colonize the planet"
+    );
+    assert_eq!(
+        game_data.planets.records[13].ownership_status_raw(),
+        2,
+        "on-station ColonizeWorld must set ownership_status to 2"
+    );
+
+    // Fleet must be reset to HoldPosition with speed 0.
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "on-station ColonizeWorld must reset to HoldPosition after firing"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].current_speed(),
+        0,
+        "on-station ColonizeWorld must set speed to 0 after firing"
+    );
+
+    // Events must be emitted.
+    assert!(
+        events.colonization_events.iter().any(|e| matches!(
+            e,
+            ColonizationResolvedEvent::Succeeded {
+                fleet_idx: 0,
+                planet_idx: 13,
+                colonizer_empire_raw: 1,
+                ..
+            }
+        )),
+        "on-station ColonizeWorld must emit a Succeeded colonization event"
+    );
+    assert!(
+        events.mission_events.iter().any(|e| {
+            e.fleet_idx == 0
+                && e.kind == Mission::ColonizeWorld
+                && e.outcome == MissionOutcome::Succeeded
+        }),
+        "on-station ColonizeWorld must emit a Succeeded mission event"
     );
 }
 

@@ -1133,9 +1133,43 @@ fn generate_report_entries(
             (event.fleet_number != 0).then_some((event.reporting_empire_raw, event.fleet_number))
         })
         .collect();
+    // Suppress FleetBattleEvent reports for fleets already covered by an
+    // EncounterDispositionEvent::Retreated or ::PursuitFire report. The disposition
+    // report is more informative (it includes the ROE context and retreat destination)
+    // so the generic FleetBattleEvent is redundant and produces a duplicate report.
+    let roe_covered_fleet_keys: std::collections::HashSet<(u8, u8)> = events
+        .encounter_disposition_events
+        .iter()
+        .filter_map(|event| match *event {
+            nc_data::EncounterDispositionEvent::Retreated {
+                fleet_idx,
+                owner_empire_raw,
+                ..
+            }
+            | nc_data::EncounterDispositionEvent::PursuitFire {
+                fleet_idx,
+                owner_empire_raw,
+                ..
+            } => {
+                let fleet_number = game_data
+                    .fleets
+                    .records
+                    .get(fleet_idx)
+                    .map(|f| f.local_slot_word_raw() as u8)
+                    .filter(|n| *n != 0)?;
+                Some((owner_empire_raw, fleet_number))
+            }
+            _ => None,
+        })
+        .collect();
     for event in &events.fleet_battle_events {
         if event.reporting_fleet_number.is_some_and(|fleet_number| {
             destroyed_fleet_report_keys.contains(&(event.reporting_empire_raw, fleet_number))
+        }) {
+            continue;
+        }
+        if event.reporting_fleet_number.is_some_and(|fleet_number| {
+            roe_covered_fleet_keys.contains(&(event.reporting_empire_raw, fleet_number))
         }) {
             continue;
         }
