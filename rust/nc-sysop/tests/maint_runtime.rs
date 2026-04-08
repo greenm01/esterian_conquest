@@ -100,10 +100,12 @@ fn nc_sysop_maint_persists_view_world_reports_and_runtime_intel() {
         .load_latest_runtime_state()
         .expect("load runtime state")
         .expect("runtime snapshot should exist");
-    assert!(runtime
-        .report_block_rows
-        .iter()
-        .any(|row| row.decoded_text.contains("Viewing mission report")));
+    assert!(
+        runtime
+            .report_block_rows
+            .iter()
+            .any(|row| row.decoded_text.contains("Viewing mission report"))
+    );
 
     let intel = store
         .latest_planet_intel_for_viewer(1)
@@ -153,10 +155,12 @@ fn nc_sysop_maint_persists_scout_system_reports_and_runtime_intel() {
         .load_latest_runtime_state()
         .expect("load runtime state")
         .expect("runtime snapshot should exist");
-    assert!(runtime
-        .report_block_rows
-        .iter()
-        .any(|row| row.decoded_text.contains("Scouting mission report")));
+    assert!(
+        runtime
+            .report_block_rows
+            .iter()
+            .any(|row| row.decoded_text.contains("Scouting mission report"))
+    );
 
     let intel = store
         .latest_planet_intel_for_viewer(1)
@@ -261,9 +265,11 @@ fn nc_sysop_maint_scopes_runtime_reports_and_intel_per_viewer() {
         |row| row.viewer_empire_id == 1 && row.decoded_text.contains("Viewing mission report")
     ));
     assert_eq!(viewing_reports.len(), 2);
-    assert!(!player_1_reports
-        .iter()
-        .any(|text| text.contains("13th Fleet")));
+    assert!(
+        !player_1_reports
+            .iter()
+            .any(|text| text.contains("13th Fleet"))
+    );
     assert!(runtime.report_block_rows.iter().any(
         |row| row.viewer_empire_id == 4 && row.decoded_text.contains("Viewing mission report")
     ));

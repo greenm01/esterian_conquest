@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use crate::{ConquestDat, CONQUEST_DAT_SIZE};
+use crate::{CONQUEST_DAT_SIZE, ConquestDat};
 
 /// Result of a maintenance schedule gate check.
 #[derive(Debug, Clone, PartialEq, Eq)]
