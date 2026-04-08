@@ -52,6 +52,7 @@ struct NativeDashShell {
     current_pointer: Option<PendingPointer>,
     left_mouse_down: bool,
     needs_redraw: bool,
+    redraw_requested: bool,
 }
 
 impl NativeDashShell {
@@ -65,6 +66,7 @@ impl NativeDashShell {
             current_pointer: None,
             left_mouse_down: false,
             needs_redraw: true,
+            redraw_requested: false,
         }
     }
 
@@ -83,8 +85,8 @@ impl NativeDashShell {
                 self.modifiers = modifiers;
             }
             DashMsg::MouseButton { button, pressed } => {
-                if let Some(pointer_effects) = self.flush_pointer() {
-                    effects.extend(pointer_effects);
+                if self.flush_pointer(false) {
+                    self.push_state_effects(&mut effects, false);
                 }
                 if let Some(mouse_button) = map_mouse_button(button) {
                     if mouse_button == MouseButton::Left {
@@ -105,15 +107,15 @@ impl NativeDashShell {
             }
             DashMsg::QueuePointer(pointer) => {
                 coalesce_pointer_move(&mut self.pending_pointer, pointer);
-                if self.left_mouse_down {
-                    if let Some(pointer_effects) = self.flush_pointer() {
-                        effects.extend(pointer_effects);
-                    }
+                if self.left_mouse_down
+                    && next_pointer_dispatch(self.current_pointer, self.pending_pointer).is_some()
+                {
+                    self.push_state_effects(&mut effects, true);
                 }
             }
             DashMsg::FlushPointer => {
-                if let Some(pointer_effects) = self.flush_pointer() {
-                    effects.extend(pointer_effects);
+                if self.flush_pointer(true) {
+                    self.push_state_effects(&mut effects, true);
                 }
             }
             DashMsg::WindowResized {
@@ -128,11 +130,12 @@ impl NativeDashShell {
         effects
     }
 
-    fn flush_pointer(&mut self) -> Option<Vec<DashEffect>> {
-        let pending = next_pointer_dispatch(self.current_pointer, self.pending_pointer.take())?;
-        if self.current_pointer == Some(pending) {
-            return None;
-        }
+    fn flush_pointer(&mut self, request_redraw: bool) -> bool {
+        let Some(pending) =
+            next_pointer_dispatch(self.current_pointer, self.pending_pointer.take())
+        else {
+            return false;
+        };
         self.current_pointer = Some(pending);
         let kind = pointer_event_kind(self.left_mouse_down);
         let (column, row) = pointer_coords(Some(pending));
@@ -142,9 +145,10 @@ impl NativeDashShell {
             row,
             modifiers: key_modifiers(self.modifiers),
         });
-        let mut effects = Vec::new();
-        self.push_state_effects(&mut effects, true);
-        Some(effects)
+        if request_redraw {
+            self.needs_redraw = true;
+        }
+        true
     }
 
     fn pointer_column(&self) -> u16 {
@@ -279,7 +283,13 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                     dispatch(&mut shell, window, DashMsg::KeyInput(key), true);
                 }
                 WindowEvent::RedrawRequested => {
+                    shell.redraw_requested = false;
                     sync_window_size(&mut shell, window);
+                    let _ = shell.flush_pointer(false);
+                    if shell.app.should_quit {
+                        elwt.exit();
+                        return;
+                    }
                     let size = window.inner_size();
                     match shell.app.render_playfield() {
                         Ok(buffer) => {
@@ -302,11 +312,14 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
             },
             Event::AboutToWait => {
                 sync_window_size(&mut shell, window);
-                dispatch(&mut shell, window, DashMsg::FlushPointer, false);
+                if !shell.redraw_requested {
+                    dispatch(&mut shell, window, DashMsg::FlushPointer, false);
+                }
                 if shell.app.should_quit {
                     elwt.exit();
-                } else if shell.needs_redraw {
+                } else if shell.needs_redraw && !shell.redraw_requested {
                     window.request_redraw();
+                    shell.redraw_requested = true;
                 }
             }
             _ => {}
@@ -341,8 +354,9 @@ fn apply_effects(
             DashEffect::Exit => {}
         }
     }
-    if shell.needs_redraw {
+    if shell.needs_redraw && !shell.redraw_requested {
         window.request_redraw();
+        shell.redraw_requested = true;
     }
 }
 
@@ -421,8 +435,8 @@ fn key_modifiers(modifiers: ModifiersState) -> KeyModifiers {
 #[cfg(test)]
 mod tests {
     use super::{
-        NativeDashShell, PendingPointer, coalesce_pointer_move, next_pointer_dispatch,
-        pointer_coords, pointer_event_kind,
+        DashEffect, DashMsg, NativeDashShell, PendingPointer, coalesce_pointer_move,
+        next_pointer_dispatch, pointer_coords, pointer_event_kind,
     };
     use crossterm::event::MouseEventKind;
     use nc_data::GameStateBuilder;
@@ -491,6 +505,45 @@ mod tests {
 
         assert!(!shell.resize_to_window_pixels(100, 54));
         assert_eq!(shell.app.geometry, ScreenGeometry::new(10, 3));
+    }
+
+    #[test]
+    fn drag_queue_requests_redraw_without_immediate_pointer_dispatch() {
+        let mut shell = test_shell(ScreenGeometry::new(10, 3), 100, 54);
+        shell.left_mouse_down = true;
+        shell.current_pointer = Some(PendingPointer::Cell(3, 1));
+
+        let effects = shell.update(DashMsg::QueuePointer(PendingPointer::Cell(7, 2)));
+
+        assert_eq!(effects, vec![DashEffect::RequestRedraw]);
+        assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(3, 1)));
+        assert_eq!(shell.pending_pointer, Some(PendingPointer::Cell(7, 2)));
+    }
+
+    #[test]
+    fn flushing_pointer_uses_latest_coalesced_drag_position() {
+        let mut shell = test_shell(ScreenGeometry::new(10, 3), 100, 54);
+        shell.left_mouse_down = true;
+        shell.current_pointer = Some(PendingPointer::Cell(3, 1));
+
+        shell.update(DashMsg::QueuePointer(PendingPointer::Cell(4, 1)));
+        shell.update(DashMsg::QueuePointer(PendingPointer::Cell(8, 2)));
+
+        assert!(shell.flush_pointer(false));
+        assert_eq!(shell.current_pointer, Some(PendingPointer::Cell(8, 2)));
+        assert_eq!(shell.pending_pointer, None);
+    }
+
+    #[test]
+    fn unchanged_drag_cell_does_not_request_redraw() {
+        let mut shell = test_shell(ScreenGeometry::new(10, 3), 100, 54);
+        shell.left_mouse_down = true;
+        shell.current_pointer = Some(PendingPointer::Cell(3, 1));
+
+        let effects = shell.update(DashMsg::QueuePointer(PendingPointer::Cell(3, 1)));
+
+        assert!(effects.is_empty());
+        assert_eq!(shell.pending_pointer, Some(PendingPointer::Cell(3, 1)));
     }
 
     fn test_shell(

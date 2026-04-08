@@ -6,7 +6,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-use crate::buffer::PlayfieldBuffer;
+use crate::buffer::{Cell, PlayfieldBuffer};
 use crate::theme::classic;
 
 use self::font::{FontRenderer, color_to_rgb, pack_rgb};
@@ -17,6 +17,53 @@ pub const DEFAULT_CELL_HEIGHT: usize = 18;
 pub struct CellGridWindowRenderer {
     surface: softbuffer::Surface<&'static winit::window::Window, &'static winit::window::Window>,
     font: FontRenderer,
+    previous_frame: RenderSnapshot,
+    has_previous_frame: bool,
+    cached_pixels: Vec<u32>,
+    cached_frame_width: usize,
+    cached_frame_height: usize,
+    cached_grid_pixel_width: usize,
+    cached_grid_pixel_height: usize,
+    cached_background: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ChangedSpan {
+    start: usize,
+    end: usize,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct RenderSnapshot {
+    width: usize,
+    height: usize,
+    cells: Vec<Cell>,
+    row_fingerprints: Vec<u64>,
+    cursor: Option<(usize, usize)>,
+}
+
+impl RenderSnapshot {
+    fn capture_from_buffer(&mut self, buffer: &PlayfieldBuffer) {
+        self.width = buffer.width();
+        self.height = buffer.height();
+        self.cursor = buffer
+            .cursor()
+            .map(|(col, row)| (usize::from(col), usize::from(row)));
+        self.cells.clear();
+        self.row_fingerprints.clear();
+        self.cells.reserve(self.width * self.height);
+        self.row_fingerprints.reserve(self.height);
+        for row_idx in 0..self.height {
+            let row = buffer.row(row_idx);
+            self.row_fingerprints.push(fingerprint_row(row));
+            self.cells.extend_from_slice(row);
+        }
+    }
+
+    fn row(&self, row: usize) -> &[Cell] {
+        let start = row * self.width;
+        &self.cells[start..start + self.width]
+    }
 }
 
 impl CellGridWindowRenderer {
@@ -26,6 +73,14 @@ impl CellGridWindowRenderer {
         Ok(Self {
             surface,
             font: FontRenderer::new()?,
+            previous_frame: RenderSnapshot::default(),
+            has_previous_frame: false,
+            cached_pixels: Vec::new(),
+            cached_frame_width: 0,
+            cached_frame_height: 0,
+            cached_grid_pixel_width: 0,
+            cached_grid_pixel_height: 0,
+            cached_background: 0,
         })
     }
 
@@ -45,17 +100,56 @@ impl CellGridWindowRenderer {
             NonZeroU32::new(window_pixel_width).ok_or("pixel width must be non-zero")?,
             NonZeroU32::new(window_pixel_height).ok_or("pixel height must be non-zero")?,
         )?;
+        let mut current_frame = RenderSnapshot::default();
+        current_frame.capture_from_buffer(buffer);
+        let background = pack_rgb(frame_background(buffer));
+        let frame_width = window_pixel_width as usize;
+        let frame_height = window_pixel_height as usize;
+        let full_repaint = !self.has_previous_frame
+            || self.cached_frame_width != frame_width
+            || self.cached_frame_height != frame_height
+            || self.cached_grid_pixel_width != grid_pixel_width
+            || self.cached_grid_pixel_height != grid_pixel_height
+            || self.cached_background != background
+            || self.previous_frame.width != current_frame.width
+            || self.previous_frame.height != current_frame.height;
+
+        if full_repaint {
+            self.cached_pixels
+                .resize(frame_width * frame_height, background);
+            self.cached_pixels.fill(background);
+            draw_snapshot(
+                &current_frame,
+                &mut self.cached_pixels,
+                frame_width,
+                frame_height,
+                grid_pixel_width,
+                grid_pixel_height,
+                &mut self.font,
+            );
+            self.cached_frame_width = frame_width;
+            self.cached_frame_height = frame_height;
+            self.cached_grid_pixel_width = grid_pixel_width;
+            self.cached_grid_pixel_height = grid_pixel_height;
+            self.cached_background = background;
+        } else {
+            redraw_snapshot_diff(
+                &self.previous_frame,
+                &current_frame,
+                &mut self.cached_pixels,
+                frame_width,
+                frame_height,
+                grid_pixel_width,
+                grid_pixel_height,
+                &mut self.font,
+            );
+        }
+
         let mut frame = self.surface.buffer_mut()?;
-        draw_buffer(
-            buffer,
-            &mut frame,
-            window_pixel_width as usize,
-            window_pixel_height as usize,
-            grid_pixel_width,
-            grid_pixel_height,
-            &mut self.font,
-        );
+        frame.copy_from_slice(&self.cached_pixels);
         frame.present()?;
+        self.previous_frame = current_frame;
+        self.has_previous_frame = true;
         Ok(())
     }
 }
@@ -165,8 +259,8 @@ pub fn crossterm_key_event_from_winit(
     Some(KeyEvent::new(code, key_modifiers))
 }
 
-fn draw_buffer(
-    buffer: &PlayfieldBuffer,
+fn draw_snapshot(
+    snapshot: &RenderSnapshot,
     frame: &mut [u32],
     frame_width: usize,
     frame_height: usize,
@@ -174,25 +268,111 @@ fn draw_buffer(
     grid_pixel_height: usize,
     font: &mut FontRenderer,
 ) {
-    let background = pack_rgb(frame_background(buffer));
-    frame.fill(background);
     let x_offset = frame_width.saturating_sub(grid_pixel_width) / 2;
     let y_offset = frame_height.saturating_sub(grid_pixel_height) / 2;
-    let cursor = buffer
-        .cursor()
-        .map(|(col, row)| (usize::from(col), usize::from(row)));
+    for row in 0..snapshot.height {
+        redraw_span(
+            snapshot,
+            row,
+            0,
+            snapshot.width,
+            frame,
+            frame_width,
+            frame_height,
+            x_offset,
+            y_offset,
+            font,
+        );
+    }
+}
 
-    for row in 0..buffer.height() {
-        for col in 0..buffer.width() {
-            let cell = buffer.row(row)[col];
-            let invert = cursor == Some((col, row));
-            let x = x_offset + col * DEFAULT_CELL_WIDTH;
-            let y = y_offset + row * DEFAULT_CELL_HEIGHT;
-            if x + DEFAULT_CELL_WIDTH > frame_width || y + DEFAULT_CELL_HEIGHT > frame_height {
-                continue;
-            }
-            font.draw_cell(frame, frame_width, x, y, cell.ch, cell.style, false, invert);
+fn redraw_snapshot_diff(
+    previous: &RenderSnapshot,
+    current: &RenderSnapshot,
+    frame: &mut [u32],
+    frame_width: usize,
+    frame_height: usize,
+    grid_pixel_width: usize,
+    grid_pixel_height: usize,
+    font: &mut FontRenderer,
+) {
+    let x_offset = frame_width.saturating_sub(grid_pixel_width) / 2;
+    let y_offset = frame_height.saturating_sub(grid_pixel_height) / 2;
+
+    for row in 0..current.height {
+        if previous.row_fingerprints[row] == current.row_fingerprints[row] {
+            continue;
         }
+        for span in changed_spans(previous.row(row), current.row(row)) {
+            redraw_span(
+                current,
+                row,
+                span.start,
+                span.end,
+                frame,
+                frame_width,
+                frame_height,
+                x_offset,
+                y_offset,
+                font,
+            );
+        }
+    }
+
+    if previous.cursor != current.cursor {
+        if let Some((col, row)) = previous.cursor {
+            redraw_span(
+                current,
+                row,
+                col,
+                col.saturating_add(1),
+                frame,
+                frame_width,
+                frame_height,
+                x_offset,
+                y_offset,
+                font,
+            );
+        }
+        if let Some((col, row)) = current.cursor {
+            redraw_span(
+                current,
+                row,
+                col,
+                col.saturating_add(1),
+                frame,
+                frame_width,
+                frame_height,
+                x_offset,
+                y_offset,
+                font,
+            );
+        }
+    }
+}
+
+fn redraw_span(
+    snapshot: &RenderSnapshot,
+    row: usize,
+    start_col: usize,
+    end_col: usize,
+    frame: &mut [u32],
+    frame_width: usize,
+    frame_height: usize,
+    x_offset: usize,
+    y_offset: usize,
+    font: &mut FontRenderer,
+) {
+    let row_cells = snapshot.row(row);
+    for col in start_col..end_col.min(snapshot.width) {
+        let cell = row_cells[col];
+        let invert = snapshot.cursor == Some((col, row));
+        let x = x_offset + col * DEFAULT_CELL_WIDTH;
+        let y = y_offset + row * DEFAULT_CELL_HEIGHT;
+        if x + DEFAULT_CELL_WIDTH > frame_width || y + DEFAULT_CELL_HEIGHT > frame_height {
+            continue;
+        }
+        font.draw_cell(frame, frame_width, x, y, cell.ch, cell.style, false, invert);
     }
 }
 
@@ -216,4 +396,154 @@ fn modifiers_to_crossterm(modifiers: ModifiersState) -> KeyModifiers {
         mapped.insert(KeyModifiers::ALT);
     }
     mapped
+}
+
+fn changed_spans(previous_row: &[Cell], current_row: &[Cell]) -> Vec<ChangedSpan> {
+    assert_eq!(
+        previous_row.len(),
+        current_row.len(),
+        "diff rows must have matching widths"
+    );
+    let mut spans = Vec::new();
+    let mut current_span_start = None;
+
+    for idx in 0..current_row.len() {
+        if previous_row[idx] != current_row[idx] {
+            current_span_start.get_or_insert(idx);
+            continue;
+        }
+        if let Some(start) = current_span_start.take() {
+            spans.push(ChangedSpan { start, end: idx });
+        }
+    }
+
+    if let Some(start) = current_span_start {
+        spans.push(ChangedSpan {
+            start,
+            end: current_row.len(),
+        });
+    }
+
+    spans
+}
+
+fn fingerprint_row(row: &[Cell]) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for cell in row {
+        hash = mix_u32(hash, cell.ch as u32);
+        hash = mix_u32(hash, color_code(cell.style.fg));
+        hash = mix_u32(hash, color_code(cell.style.bg));
+        hash = mix_u32(hash, u32::from(cell.style.bold));
+    }
+    hash
+}
+
+fn mix_u32(mut hash: u64, value: u32) -> u64 {
+    for byte in value.to_le_bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+fn color_code(color: crate::buffer::GameColor) -> u32 {
+    match color {
+        crate::buffer::GameColor::Black => 0,
+        crate::buffer::GameColor::Red => 1,
+        crate::buffer::GameColor::Green => 2,
+        crate::buffer::GameColor::Yellow => 3,
+        crate::buffer::GameColor::Blue => 4,
+        crate::buffer::GameColor::Magenta => 5,
+        crate::buffer::GameColor::Cyan => 6,
+        crate::buffer::GameColor::White => 7,
+        crate::buffer::GameColor::BrightBlack => 8,
+        crate::buffer::GameColor::BrightRed => 9,
+        crate::buffer::GameColor::BrightGreen => 10,
+        crate::buffer::GameColor::BrightYellow => 11,
+        crate::buffer::GameColor::BrightBlue => 12,
+        crate::buffer::GameColor::BrightMagenta => 13,
+        crate::buffer::GameColor::BrightCyan => 14,
+        crate::buffer::GameColor::BrightWhite => 15,
+        crate::buffer::GameColor::Indexed(idx) => 0x0100_0000 | u32::from(idx),
+        crate::buffer::GameColor::Rgb(r, g, b) => {
+            0x0200_0000 | (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RenderSnapshot, changed_spans, fingerprint_row, redraw_snapshot_diff};
+    use crate::buffer::{CellStyle, GameColor, PlayfieldBuffer};
+
+    fn style() -> CellStyle {
+        CellStyle::new(GameColor::White, GameColor::Black, false)
+    }
+
+    fn snapshot_for(buffer: &PlayfieldBuffer) -> RenderSnapshot {
+        let mut snapshot = RenderSnapshot::default();
+        snapshot.capture_from_buffer(buffer);
+        snapshot
+    }
+
+    #[test]
+    fn changed_spans_collapse_contiguous_cell_changes() {
+        let previous = [
+            crate::buffer::Cell::new('A', style()),
+            crate::buffer::Cell::new('B', style()),
+            crate::buffer::Cell::new('C', style()),
+        ];
+        let current = [
+            crate::buffer::Cell::new('A', style()),
+            crate::buffer::Cell::new('X', style()),
+            crate::buffer::Cell::new('Y', style()),
+        ];
+
+        assert_eq!(
+            changed_spans(&previous, &current),
+            vec![super::ChangedSpan { start: 1, end: 3 }]
+        );
+    }
+
+    #[test]
+    fn fingerprint_changes_when_row_style_changes() {
+        let previous = [crate::buffer::Cell::new('A', style())];
+        let current = [crate::buffer::Cell::new(
+            'A',
+            CellStyle::new(GameColor::Black, GameColor::White, true),
+        )];
+
+        assert_ne!(fingerprint_row(&previous), fingerprint_row(&current));
+    }
+
+    #[test]
+    fn cursor_change_redraws_both_old_and_new_cells() {
+        let mut previous = PlayfieldBuffer::new(2, 1, style());
+        previous.write_text(0, 0, "AB", style());
+        previous.set_cursor(0, 0);
+        let previous = snapshot_for(&previous);
+
+        let mut current = PlayfieldBuffer::new(2, 1, style());
+        current.write_text(0, 0, "AB", style());
+        current.set_cursor(1, 0);
+        let current = snapshot_for(&current);
+
+        let width = 2 * super::DEFAULT_CELL_WIDTH;
+        let height = super::DEFAULT_CELL_HEIGHT;
+        let mut pixels = vec![0u32; width * height];
+        let mut font = super::font::FontRenderer::new().expect("font renderer");
+
+        redraw_snapshot_diff(
+            &previous,
+            &current,
+            &mut pixels,
+            width,
+            height,
+            width,
+            height,
+            &mut font,
+        );
+
+        assert!(pixels.iter().any(|pixel| *pixel != 0));
+    }
 }

@@ -77,21 +77,38 @@ drifting native stacks across two clients.
 - resize requests redraw
 - key actions request redraw
 - mouse button actions request redraw
-- pointer motion is coalesced and only redraws when the effective hovered cell
-  changes
+- passive pointer motion is coalesced and only redraws when the effective
+  hovered cell changes
+- active modal dragging uses a latest-pointer-wins path: many raw drag events
+  collapse to the newest pending cell and the app consumes that position once
+  on the next redraw cycle
 
 There is no fixed-FPS render loop. The window loop uses `ControlFlow::Wait`.
 
 ## Pointer Coalescing
 
-High-rate pointer motion is queued as pending cell movement and flushed once on
-`AboutToWait`.
+High-rate pointer motion is queued as pending cell movement.
 
+- hover motion flushes once on `AboutToWait`
+- drag motion schedules redraw and flushes once on `RedrawRequested`
 - many raw `CursorMoved` events collapse to the latest pending cell
 - repeated movement within the same cell does not dispatch again
 - leaving the rendered grid becomes a synthetic outside-pointer event
 
-This is the first concrete fix for the old “molasses” crosshair behavior.
+This avoids replaying stale intermediate drag positions and keeps the client
+aligned to the latest pointer location instead of building a backlog.
+
+## Native Rendering
+
+The native renderer now keeps a cached pixel backbuffer plus the previous
+`PlayfieldBuffer` snapshot.
+
+- first frame, resize, or geometry/background change triggers a full repaint
+- stable frames use row fingerprints and changed spans to redraw only dirty
+  cells into the cached pixel backbuffer
+- glyph rasterization stays cached in the font renderer
+- the final softbuffer present is still whole-surface, but the expensive
+  per-cell redraw work is limited to changed regions
 
 ## Preserved UI Contract
 
