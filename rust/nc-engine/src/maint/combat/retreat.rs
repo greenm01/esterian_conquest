@@ -34,7 +34,7 @@ pub(super) fn set_fleet_to_hold_current_position(fleet: &mut nc_data::FleetRecor
 fn apply_retreat_order(fleet: &mut nc_data::FleetRecord, retreat_target: [u8; 2]) {
     fleet.set_standing_order_kind(Order::SeekHome);
     fleet.set_standing_order_target_coords_raw(retreat_target);
-    fleet.set_current_speed(fleet.max_speed().clamp(1, 3));
+    fleet.set_current_speed(fleet.max_speed());
     fleet.set_extended_tuple_a_payload_raw([0x7f, 0xc0, 0x00, 0xff, 0xff, 0x7f]);
     fleet.set_extended_tuple_c_payload_raw([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
     fleet.set_join_host_fleet_id_raw(0);

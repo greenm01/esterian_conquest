@@ -17,9 +17,8 @@ use super::reporting::{
     push_contact_event_for_task_force, report_perspective_for_mission, single_named_fleet_number,
 };
 use super::retreat::{
-    abort_mission_to_seek_home_or_hold, apply_roe_retreat_to_task_force,
-    clear_empty_withdrawn_fleets, dominant_empire_after_battle, nearest_owned_planet,
-    retreat_task_force,
+    apply_roe_retreat_to_task_force, clear_empty_withdrawn_fleets, dominant_empire_after_battle,
+    nearest_owned_planet, retreat_task_force, set_fleet_to_hold_current_position,
 };
 use super::state::{
     BattleRole, EncounterContext, FleetCombatState, IDX_SB, TaskForce,
@@ -311,10 +310,11 @@ fn abort_invalid_dominant_missions_after_battle(
             }
 
             let owner_empire_raw = game_data.fleets.records[fleet_idx].owner_empire_raw();
-            let retreat_target = nearest_owned_planet(game_data, owner_empire_raw, coords);
             {
                 let fleet = &mut game_data.fleets.records[fleet_idx];
-                abort_mission_to_seek_home_or_hold(fleet, retreat_target);
+                set_fleet_to_hold_current_position(fleet);
+                fleet.set_join_host_fleet_id_raw(0);
+                fleet.set_mission_aux_bytes([0, 0]);
             }
             events.mission_events.push(MissionEvent {
                 fleet_idx,
