@@ -1,4 +1,4 @@
-use crate::{build_capacity, CoreGameData, ProductionItemKind};
+use crate::{CoreGameData, ProductionItemKind, build_capacity};
 
 pub(super) fn process_build_completion(
     game_data: &mut CoreGameData,

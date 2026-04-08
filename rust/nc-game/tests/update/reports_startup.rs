@@ -504,6 +504,20 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         after_delete
             .lines
             .iter()
+            .filter(|line| line.contains("Messages: Current game year is"))
+            .count()
+            <= 1
+    );
+    assert!(
+        after_delete
+            .lines
+            .iter()
+            .any(|line| line.contains("Empire #2"))
+    );
+    assert!(
+        after_delete
+            .lines
+            .iter()
             .any(|line| line.contains(" -> From") && line.contains("Empire #3"))
     );
 
@@ -964,6 +978,69 @@ fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
         1
     );
     assert!(!terminal.lines.iter().any(|line| line.contains("----")));
+}
+
+#[test]
+fn startup_results_second_block_does_not_reinsert_roll_header() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    set_runtime_report_blocks(
+        &mut state,
+        classic_chunked_report_blocks(&["From Alpha\nBody one", "From Beta\nBody two"]),
+    );
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    app.advance_startup();
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("second startup report should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .filter(|line| line.contains("Reports: Current game year is"))
+            .count()
+            <= 1
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("From Alpha"))
+    );
+    assert!(terminal.lines.iter().any(|line| line.contains("From Beta")));
 }
 
 #[test]

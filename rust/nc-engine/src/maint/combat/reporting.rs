@@ -6,7 +6,7 @@ use crate::{
 use super::super::FleetBattlePerspective;
 
 use super::state::{
-    BattleRole, FleetCombatState, TaskForce, IDX_BB, IDX_CA, IDX_DD, IDX_ET, IDX_SC, IDX_TT,
+    BattleRole, FleetCombatState, IDX_BB, IDX_CA, IDX_DD, IDX_ET, IDX_SC, IDX_TT, TaskForce,
 };
 
 pub(super) fn push_contact_event_for_task_force(

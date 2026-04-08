@@ -139,10 +139,12 @@ impl StartupScreen {
         results_scroll_offset: usize,
         results_mode: StartupReviewMode,
         results_nonstop: bool,
+        results_history_rows: &[String],
         messages_block: usize,
         messages_scroll_offset: usize,
         messages_mode: StartupReviewMode,
         messages_nonstop: bool,
+        messages_history_rows: &[String],
         results_deleted_any: bool,
         messages_deleted_any: bool,
         game_year: u16,
@@ -164,6 +166,7 @@ impl StartupScreen {
                 self.summary.pending_results,
                 "Reports are marked pending, but no review text is available yet.",
                 &[],
+                results_history_rows,
                 results_block,
                 results_scroll_offset,
                 results_mode,
@@ -172,38 +175,24 @@ impl StartupScreen {
                 game_year,
                 status,
             ),
-            StartupPhase::Messages => {
-                let prior_results_rows = if self.summary.pending_results {
-                    completed_review_history_rows(
-                        &self.result_blocks,
-                        "Reports are marked pending, but no review text is available yet.",
-                        "report",
-                        "reports",
-                        results_deleted_any,
-                        game_year,
-                        "Reports",
-                    )
-                } else {
-                    Vec::new()
-                };
-                self.render_review(
-                    frame,
-                    "message",
-                    "messages",
-                    "Messages",
-                    &self.message_blocks,
-                    self.summary.pending_messages,
-                    "Messages are marked pending, but no review text is available yet.",
-                    &prior_results_rows,
-                    messages_block,
-                    messages_scroll_offset,
-                    messages_mode,
-                    messages_nonstop,
-                    messages_deleted_any,
-                    game_year,
-                    status,
-                )
-            }
+            StartupPhase::Messages => self.render_review(
+                frame,
+                "message",
+                "messages",
+                "Messages",
+                &self.message_blocks,
+                self.summary.pending_messages,
+                "Messages are marked pending, but no review text is available yet.",
+                results_history_rows,
+                messages_history_rows,
+                messages_block,
+                messages_scroll_offset,
+                messages_mode,
+                messages_nonstop,
+                messages_deleted_any,
+                game_year,
+                status,
+            ),
             StartupPhase::Complete => Ok(new_playfield_for(frame.geometry)),
         }
     }
@@ -219,6 +208,7 @@ impl StartupScreen {
         pending: bool,
         empty_notice: &str,
         prior_transcript_rows: &[String],
+        review_history_rows: &[String],
         block: usize,
         scroll_offset: usize,
         mode: StartupReviewMode,
@@ -257,20 +247,24 @@ impl StartupScreen {
                 }
             }
             StartupReviewMode::ItemBody | StartupReviewMode::DeletePrompt => {
-                let mut transcript_rows = vec![format!(
-                    "{section_label}: Current game year is {game_year} A.D."
-                )];
-                transcript_rows.push(String::new());
-                for previous_block in 0..block {
-                    let previous_rows =
-                        block_review_rows(block_lines(blocks, previous_block), empty_notice);
-                    push_completed_block_transcript(
-                        &mut transcript_rows,
-                        previous_rows,
-                        &delete_prompt,
-                        &continue_prompt,
-                        true,
-                    );
+                let mut transcript_rows = active_review_transcript_rows(
+                    prior_transcript_rows,
+                    review_history_rows,
+                    section_label,
+                    game_year,
+                );
+                if review_history_rows.is_empty() {
+                    for previous_block in 0..block {
+                        let previous_rows =
+                            block_review_rows(block_lines(blocks, previous_block), empty_notice);
+                        push_completed_block_transcript(
+                            &mut transcript_rows,
+                            previous_rows,
+                            &delete_prompt,
+                            &continue_prompt,
+                            true,
+                        );
+                    }
                 }
 
                 let rows = block_review_rows(block_lines(blocks, block), empty_notice);
@@ -292,36 +286,40 @@ impl StartupScreen {
                 }
             }
             StartupReviewMode::ContinuePrompt => {
-                let mut transcript_rows = vec![format!(
-                    "{section_label}: Current game year is {game_year} A.D."
-                )];
-                transcript_rows.push(String::new());
-                for previous_block in 0..block {
-                    let previous_rows =
-                        block_review_rows(block_lines(blocks, previous_block), empty_notice);
-                    let include_continue_prompt = previous_block + 1 < block;
-                    push_completed_block_transcript(
-                        &mut transcript_rows,
-                        previous_rows,
-                        &delete_prompt,
-                        &continue_prompt,
-                        include_continue_prompt,
-                    );
+                let mut transcript_rows = active_review_transcript_rows(
+                    prior_transcript_rows,
+                    review_history_rows,
+                    section_label,
+                    game_year,
+                );
+                if review_history_rows.is_empty() {
+                    for previous_block in 0..block {
+                        let previous_rows =
+                            block_review_rows(block_lines(blocks, previous_block), empty_notice);
+                        let include_continue_prompt = previous_block + 1 < block;
+                        push_completed_block_transcript(
+                            &mut transcript_rows,
+                            previous_rows,
+                            &delete_prompt,
+                            &continue_prompt,
+                            include_continue_prompt,
+                        );
+                    }
                 }
                 render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
                 draw_plain_prompt_padded(&mut buffer, command_line_row, &continue_prompt);
             }
             StartupReviewMode::EndStatus => {
-                let mut transcript_rows = Vec::new();
-                transcript_rows.extend(completed_review_history_rows(
-                    blocks,
-                    empty_notice,
-                    singular,
-                    plural,
-                    deleted_any,
-                    game_year,
+                let mut transcript_rows = active_review_transcript_rows(
+                    prior_transcript_rows,
+                    review_history_rows,
                     section_label,
-                ));
+                    game_year,
+                );
+                if deleted_any {
+                    transcript_rows.push(String::new());
+                    transcript_rows.push(format!("{} deleted.", capitalize(plural)));
+                }
                 render_review_transcript(frame.geometry, &mut buffer, &transcript_rows);
                 draw_plain_prompt_padded(
                     &mut buffer,
@@ -537,7 +535,7 @@ fn block_lines<'a>(blocks: &'a [ReviewBlock], block: usize) -> &'a [String] {
     blocks.get(block).map(|b| b.lines.as_slice()).unwrap_or(&[])
 }
 
-fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
+pub(crate) fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
     if lines.is_empty() {
         if empty_notice.is_empty() {
             return Vec::new();
@@ -581,6 +579,33 @@ fn push_completed_block_transcript(
         transcript_rows.push(continue_prompt.to_string());
         transcript_rows.push(String::new());
     }
+}
+
+pub(crate) fn completed_block_transcript_rows(
+    singular: &str,
+    plural: &str,
+    block_rows: Vec<String>,
+    include_header: bool,
+    section_label: &str,
+    game_year: u16,
+    include_continue_prompt: bool,
+) -> Vec<String> {
+    let delete_prompt = format!("Delete this {singular} [Y]/N ->");
+    let continue_prompt =
+        format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
+    let mut transcript_rows = if include_header {
+        review_roll_header_rows(section_label, game_year)
+    } else {
+        Vec::new()
+    };
+    push_completed_block_transcript(
+        &mut transcript_rows,
+        block_rows,
+        &delete_prompt,
+        &continue_prompt,
+        include_continue_prompt,
+    );
+    transcript_rows
 }
 
 const REVIEW_FROM_HEADER_MARKER: &str = " -> From";
@@ -689,38 +714,34 @@ fn startup_login_summary_rows(frame: &ScreenFrame<'_>, game_year: u16) -> Vec<St
     ]
 }
 
-fn completed_review_history_rows(
-    blocks: &[ReviewBlock],
-    empty_notice: &str,
-    singular: &str,
-    plural: &str,
-    deleted_any: bool,
-    game_year: u16,
+fn active_review_transcript_rows(
+    prior_transcript_rows: &[String],
+    review_history_rows: &[String],
     section_label: &str,
+    game_year: u16,
 ) -> Vec<String> {
-    let delete_prompt = format!("Delete this {singular} [Y]/N ->");
-    let continue_prompt =
-        format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
-    let mut transcript_rows = vec![format!(
-        "{section_label}: Current game year is {game_year} A.D."
-    )];
-    transcript_rows.push(String::new());
-    for previous_block in 0..blocks.len() {
-        let previous_rows = block_review_rows(block_lines(blocks, previous_block), empty_notice);
-        let include_continue_prompt = previous_block + 1 < blocks.len();
-        push_completed_block_transcript(
-            &mut transcript_rows,
-            previous_rows,
-            &delete_prompt,
-            &continue_prompt,
-            include_continue_prompt,
-        );
+    let mut transcript_rows = Vec::new();
+    if !prior_transcript_rows.is_empty() {
+        transcript_rows.extend_from_slice(prior_transcript_rows);
     }
-    if deleted_any {
+    if !prior_transcript_rows.is_empty()
+        && (!review_history_rows.is_empty() || !section_label.is_empty())
+    {
         transcript_rows.push(String::new());
-        transcript_rows.push(format!("{} deleted.", capitalize(plural)));
+    }
+    if review_history_rows.is_empty() {
+        transcript_rows.extend(review_roll_header_rows(section_label, game_year));
+    } else {
+        transcript_rows.extend_from_slice(review_history_rows);
     }
     transcript_rows
+}
+
+fn review_roll_header_rows(section_label: &str, game_year: u16) -> Vec<String> {
+    vec![
+        format!("{section_label}: Current game year is {game_year} A.D."),
+        String::new(),
+    ]
 }
 
 fn capitalize(s: &str) -> String {

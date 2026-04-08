@@ -1,6 +1,7 @@
 use nc_data::{
-    BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent, GameStateBuilder,
-    MaintenanceEvents, Mission, PlanetRecord, ScoutContactEvent, ShipLosses,
+    AssaultReportEvent, BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent,
+    GameStateBuilder, MaintenanceEvents, Mission, MissionOutcome, PlanetRecord, ScoutContactEvent,
+    ShipLosses,
 };
 use nc_engine::{
     apply_results_reviewable_flags, build_results_report_blocks, maint::FleetBattlePerspective,
@@ -241,6 +242,49 @@ fn bombardment_defender_report_uses_first_person_loss_wording() {
     assert!(bombard.contains("We also lost"));
     assert!(bombard.contains("2 stardock items"));
     assert!(!bombard.contains("Bombardment also destroyed"));
+}
+
+#[test]
+fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3014)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [8, 2];
+    seed_target_world(&mut game_data, coords, "half");
+    game_data.planets.records[0].set_ground_batteries_raw(2);
+    game_data.planets.records[0].set_army_count_raw(5);
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::BlitzWorld,
+        attacker_fleet_number: Some(4),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 2,
+        attacker_initial: ShipLosses {
+            cruisers: 1,
+            ..ShipLosses::default()
+        },
+        defender_batteries_initial: 2,
+        defender_armies_initial: 5,
+        attacker_ship_losses: ShipLosses::default(),
+        attacker_army_losses: 3,
+        transport_army_losses: 0,
+        defender_battery_losses: 2,
+        defender_army_losses: 5,
+        outcome: MissionOutcome::Succeeded,
+        stardate_week: Some(3),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let blitz = viewer_report_texts(1, &rows).join(" ");
+
+    assert!(blitz.contains("Friendly losses: no ship losses and 3 armies."));
+    assert!(blitz.contains("No troops were lost in"));
+    assert!(blitz.contains("destroyed troop transports during the landing."));
+    assert!(!blitz.contains("No troops were lost during the landing."));
 }
 
 #[test]

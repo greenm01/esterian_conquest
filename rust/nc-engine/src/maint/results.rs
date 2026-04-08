@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::maint::{timing::format_report_first_line, FleetBattlePerspective};
+use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
@@ -296,11 +296,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -1409,6 +1405,8 @@ fn generate_report_entries(
                 " {} troop(s) died in destroyed troop transports during the landing.",
                 event.transport_army_losses
             )
+        } else if event.attacker_army_losses > 0 {
+            " No troops were lost in destroyed troop transports during the landing.".to_string()
         } else {
             " No troops were lost during the landing.".to_string()
         };
@@ -1583,8 +1581,8 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
-            stardate_week: event.stardate_week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+                    stardate_week: event.stardate_week,
+                    narrative_phase: narrative_phase_for_report_text(&body),
                 });
             }
             ContactReportSource::Fleet(fleet_id) => {
@@ -1612,8 +1610,8 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
-            stardate_week: event.stardate_week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+                    stardate_week: event.stardate_week,
+                    narrative_phase: narrative_phase_for_report_text(&body),
                 });
             }
             ContactReportSource::Starbase(starbase_id) => {
@@ -1641,8 +1639,8 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
-            stardate_week: event.stardate_week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+                    stardate_week: event.stardate_week,
+                    narrative_phase: narrative_phase_for_report_text(&body),
                 });
             }
         }
@@ -1822,8 +1820,8 @@ fn generate_report_entries(
                     recipient: empire_raw,
                 },
                 repeat_next_pointer: false,
-            stardate_week: week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+                stardate_week: week,
+                narrative_phase: narrative_phase_for_report_text(&body),
             });
             for (ev_idx, _, _, _) in &fleet_entries {
                 batched_abort_indices.insert(*ev_idx);
@@ -2622,8 +2620,8 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
-            stardate_week: stardate_week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+                stardate_week: stardate_week,
+                narrative_phase: narrative_phase_for_report_text(&body),
             });
         }
     }
@@ -2690,8 +2688,8 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
-            stardate_week: stardate_week,
-            narrative_phase: narrative_phase_for_report_text(&body),
+                stardate_week: stardate_week,
+                narrative_phase: narrative_phase_for_report_text(&body),
             });
         }
     }
@@ -2815,8 +2813,7 @@ fn generate_report_entries(
                 owner_empire_raw,
                 format!(
                     " Guard Starbase mission report: The guarded starbase relocated. We are moving to Sector({},{}) to resume escort duty.",
-                    new_target_coords[0],
-                    new_target_coords[1]
+                    new_target_coords[0], new_target_coords[1]
                 ),
             ),
             nc_data::MissionRetargetEvent::Abandoned {
@@ -2841,8 +2838,7 @@ fn generate_report_entries(
                 owner_empire_raw,
                 format!(
                     " Join mission report: Our host fleet moved. We are continuing pursuit to Sector({},{}).",
-                    new_target_coords[0],
-                    new_target_coords[1]
+                    new_target_coords[0], new_target_coords[1]
                 ),
             ),
             _ => continue,

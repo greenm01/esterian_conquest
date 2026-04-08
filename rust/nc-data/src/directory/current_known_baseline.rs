@@ -114,7 +114,8 @@ impl CoreGameData {
         let player_count = self.conquest.player_count() as usize;
         for (idx, record) in self.bases.records.iter().enumerate() {
             let owner = record.owner_empire_raw() as usize;
-            if owner == 0 || owner > player_count {
+            let is_active = record.active_flag_raw() != 0;
+            if (is_active && owner == 0) || owner > player_count {
                 errors.push(format!(
                     "BASES[{}].owner_empire expected 1..={}, got {}",
                     idx + 1,

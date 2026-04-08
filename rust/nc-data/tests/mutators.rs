@@ -1367,6 +1367,7 @@ fn core_game_data_owner_range_errors_catch_invalid_planet_and_base_owners() {
     };
 
     data.planets.records[0].raw[0x5D] = 9;
+    data.bases.records[0].set_active_flag_raw(1);
     data.bases.records[0].set_owner_empire_raw(0);
 
     assert_eq!(
@@ -1377,6 +1378,9 @@ fn core_game_data_owner_range_errors_catch_invalid_planet_and_base_owners() {
         data.current_known_base_owner_empire_errors(),
         vec!["BASES[1].owner_empire expected 1..=4, got 0".to_string()]
     );
+
+    data.bases.records[0].set_active_flag_raw(0);
+    assert!(data.current_known_base_owner_empire_errors().is_empty());
 }
 
 #[test]

@@ -1,6 +1,9 @@
 use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
+use crate::domains::startup::screens::startup::{
+    block_review_rows, completed_block_transcript_rows,
+};
 use crate::domains::startup::state::FirstTimeOnboardingMode;
 use crate::model::{ClassicLoginState, MainMenuSummary};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
@@ -184,6 +187,7 @@ impl App {
         &mut self,
         is_results: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        self.append_current_startup_review_block_to_history(is_results, false);
         if is_results {
             let block_idx = self.startup_state.results_block;
             let row_idx = self
@@ -235,6 +239,7 @@ impl App {
     }
 
     fn skip_current_startup_review_block(&mut self, is_results: bool) {
+        self.append_current_startup_review_block_to_history(is_results, false);
         if is_results {
             let next_block = self.startup_state.results_block + 1;
             self.startup_state.results_block = next_block;
@@ -366,6 +371,7 @@ impl App {
                 if page < max_scroll {
                     self.set_startup_review_page(is_results, page + 1);
                 } else if nonstop {
+                    self.append_current_startup_review_block_to_history(is_results, false);
                     let next_block = block + 1;
                     if next_block < block_count {
                         self.set_startup_review_block(is_results, next_block);
@@ -403,11 +409,13 @@ impl App {
             self.startup_state.results_page = 0;
             self.startup_state.results_mode = StartupReviewMode::ViewPrompt;
             self.startup_state.results_nonstop = false;
+            self.startup_state.results_review_history_rows.clear();
         } else {
             self.startup_state.messages_block = 0;
             self.startup_state.messages_page = 0;
             self.startup_state.messages_mode = StartupReviewMode::ViewPrompt;
             self.startup_state.messages_nonstop = false;
+            self.startup_state.messages_review_history_rows.clear();
         }
         let next = self.startup_sequence.advance();
         self.current_screen = self.startup_target_screen(next);
@@ -435,6 +443,61 @@ impl App {
         } else {
             self.startup_state.messages_page = page;
         }
+    }
+
+    fn append_current_startup_review_block_to_history(
+        &mut self,
+        is_results: bool,
+        include_continue_prompt: bool,
+    ) {
+        let (
+            block_idx,
+            blocks,
+            empty_notice,
+            singular,
+            plural,
+            section_label,
+            game_year,
+            history_rows,
+        ) = if is_results {
+            (
+                self.startup_state.results_block,
+                self.startup.result_blocks(),
+                "Reports are marked pending, but no review text is available yet.",
+                "report",
+                "reports",
+                "Reports",
+                self.game_data.conquest.game_year(),
+                &mut self.startup_state.results_review_history_rows,
+            )
+        } else {
+            (
+                self.startup_state.messages_block,
+                self.startup.message_blocks(),
+                "Messages are marked pending, but no review text is available yet.",
+                "message",
+                "messages",
+                "Messages",
+                self.game_data.conquest.game_year(),
+                &mut self.startup_state.messages_review_history_rows,
+            )
+        };
+
+        let lines = blocks
+            .get(block_idx)
+            .map(|block| block.lines.as_slice())
+            .unwrap_or(&[]);
+        let block_rows = block_review_rows(lines, empty_notice);
+        let completed_rows = completed_block_transcript_rows(
+            singular,
+            plural,
+            block_rows,
+            history_rows.is_empty(),
+            section_label,
+            game_year,
+            include_continue_prompt,
+        );
+        history_rows.extend(completed_rows);
     }
 
     pub fn skip_startup_intro(&mut self) {
@@ -1479,6 +1542,7 @@ impl App {
             self.startup_state.results_mode = StartupReviewMode::ViewPrompt;
             self.startup_state.results_nonstop = false;
             self.startup_state.results_deleted_any = false;
+            self.startup_state.results_review_history_rows.clear();
         }
         if self.current_screen != ScreenId::Startup(StartupPhase::Messages) {
             self.startup_state.messages_block = 0;
@@ -1486,6 +1550,7 @@ impl App {
             self.startup_state.messages_mode = StartupReviewMode::ViewPrompt;
             self.startup_state.messages_nonstop = false;
             self.startup_state.messages_deleted_any = false;
+            self.startup_state.messages_review_history_rows.clear();
         }
     }
 
