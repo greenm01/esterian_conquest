@@ -136,6 +136,11 @@ pub struct FleetEtaScreen;
 pub struct FleetDetachScreen;
 pub struct FleetMessageScreen;
 
+struct RenderedFleetList {
+    buffer: PlayfieldBuffer,
+    bottom_row: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetListSort {
     Id,
@@ -487,7 +492,7 @@ impl FleetListScreen {
         Self
     }
 
-    pub fn render(
+    fn render_table(
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
@@ -496,14 +501,9 @@ impl FleetListScreen {
         filter: FleetListFilter,
         scroll_offset: usize,
         cursor: usize,
-        input: &str,
-        status: Option<&str>,
-        dismiss_message: Option<&str>,
-        prompt_label: Option<&str>,
-        prompt_default: &str,
-        prompt_input: &str,
-        prompt_status: Option<&PromptFeedback>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        footer: TableFooter<'_>,
+        prompt_feedback_inline: Option<&PromptFeedback>,
+    ) -> Result<RenderedFleetList, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
         let title = fleet_list_title(sort, direction, filter);
         let max_fleet_number = max_fleet_number(rows);
@@ -528,49 +528,8 @@ impl FleetListScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let default_fleet_number = rows
-            .get(cursor)
-            .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
-            .unwrap_or_else(|| {
-                rows.first()
-                    .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
-                    .unwrap_or_else(|| format_fleet_number(1, max_fleet_number))
-            });
-        let prompt_feedback_inline =
-            prompt_status.filter(|feedback| fleet_list_feedback_fits_inline(geometry, *feedback));
         let visible_rows = fleet_list_visible_rows(geometry)
             .saturating_sub(usize::from(prompt_feedback_inline.is_some()));
-        let dismiss_prompt = dismiss_message
-            .map(|message| fleet_list_dismiss_prompt(geometry, TABLE_TEXT_INSET, message));
-        let footer = if table_rows.is_empty() {
-            TableFooter::CommandText {
-                label: COMMAND_LABEL,
-                text: "You have no active fleets.",
-            }
-        } else if let Some(prompt) = dismiss_prompt.as_deref() {
-            TableFooter::CommandPrompt {
-                label: COMMAND_LABEL,
-                prompt,
-            }
-        } else if let Some(prompt_label) = prompt_label {
-            TableFooter::CommandInput {
-                label: COMMAND_LABEL,
-                prompt: prompt_label,
-                default: prompt_default,
-                input: prompt_input,
-            }
-        } else if let Some(status) = status {
-            TableFooter::CommandText {
-                label: COMMAND_LABEL,
-                text: status,
-            }
-        } else {
-            TableFooter::CommandBar {
-                hotkeys_markup: FLEET_LIST_BROWSE_HOTKEYS,
-                default: Some(&default_fleet_number),
-                input,
-            }
-        };
         let layout = layout_standard_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
@@ -606,9 +565,87 @@ impl FleetListScreen {
             metrics.bottom_row,
             footer,
         );
+        Ok(RenderedFleetList {
+            buffer,
+            bottom_row: metrics.bottom_row,
+        })
+    }
+
+    pub fn render(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
+        scroll_offset: usize,
+        cursor: usize,
+        input: &str,
+        status: Option<&str>,
+        dismiss_message: Option<&str>,
+        prompt_label: Option<&str>,
+        prompt_default: &str,
+        prompt_input: &str,
+        prompt_status: Option<&PromptFeedback>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let max_fleet_number = max_fleet_number(rows);
+        let default_fleet_number = rows
+            .get(cursor)
+            .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
+            .unwrap_or_else(|| {
+                rows.first()
+                    .map(|row| format_fleet_number(row.fleet_number, max_fleet_number))
+                    .unwrap_or_else(|| format_fleet_number(1, max_fleet_number))
+            });
+        let prompt_feedback_inline =
+            prompt_status.filter(|feedback| fleet_list_feedback_fits_inline(geometry, *feedback));
+        let dismiss_prompt = dismiss_message
+            .map(|message| fleet_list_dismiss_prompt(geometry, TABLE_TEXT_INSET, message));
+        let footer = if rows.is_empty() {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: "You have no active fleets.",
+            }
+        } else if let Some(prompt) = dismiss_prompt.as_deref() {
+            TableFooter::CommandPrompt {
+                label: COMMAND_LABEL,
+                prompt,
+            }
+        } else if let Some(prompt_label) = prompt_label {
+            TableFooter::CommandInput {
+                label: COMMAND_LABEL,
+                prompt: prompt_label,
+                default: prompt_default,
+                input: prompt_input,
+            }
+        } else if let Some(status) = status {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: status,
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: FLEET_LIST_BROWSE_HOTKEYS,
+                default: Some(&default_fleet_number),
+                input,
+            }
+        };
+        let RenderedFleetList {
+            mut buffer,
+            bottom_row,
+        } = self.render_table(
+            geometry,
+            rows,
+            sort,
+            direction,
+            filter,
+            scroll_offset,
+            cursor,
+            footer,
+            prompt_feedback_inline,
+        )?;
         if let Some(feedback) = prompt_feedback_inline {
-            let status_row =
-                crate::screen::layout::table_prompt_row_for(geometry, metrics.bottom_row) + 1;
+            let status_row = crate::screen::layout::table_prompt_row_for(geometry, bottom_row) + 1;
             match feedback {
                 PromptFeedback::Notice(value) => {
                     draw_notice_line_at_col(&mut buffer, status_row, TABLE_TEXT_INSET, value);
@@ -646,70 +683,26 @@ impl FleetListScreen {
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render(
-            geometry,
-            rows,
-            sort,
-            direction,
-            filter,
-            scroll_offset,
-            cursor,
-            "",
-            None,
-            None,
-            None,
-            "",
-            "",
-            None,
-        )?;
-        let max_fleet_number = max_fleet_number(rows);
-        let columns = full_columns(max_fleet_number);
-        let title = fleet_list_title(sort, direction, filter);
         let footer_label = sort_footer_label(direction);
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    fleet_table_order_label(row.order_code).to_string(),
-                    fleet_row_target_label(row),
-                    row.current_speed.to_string(),
-                    row.list_eta_label.clone(),
-                    row.rules_of_engagement.to_string(),
-                    row.loaded_armies.to_string(),
-                    row.table_ships_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let visible_rows = fleet_list_visible_rows(geometry);
         let footer = TableFooter::LabeledCommandBar {
             label: &footer_label,
             hotkeys_markup: FLEET_LIST_SORT_HOTKEYS,
             default: None,
             input: "",
         };
-        let layout = layout_standard_table_block(
-            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
-            &columns,
-            visible_rows,
-            Some(&title),
-            Some(footer),
-            table_rows.len() > visible_rows,
-            HorizontalAlign::Left,
-            VerticalAlign::Top,
-        );
-        draw_table_footer(
-            &mut buffer,
-            geometry,
-            layout.command_col,
-            3 + table_rows
-                .len()
-                .saturating_sub(scroll_offset)
-                .min(visible_rows),
-            footer,
-        );
-        Ok(buffer)
+        Ok(self
+            .render_table(
+                geometry,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+                None,
+            )?
+            .buffer)
     }
 
     pub fn render_filter_prompt(
@@ -722,69 +715,25 @@ impl FleetListScreen {
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render(
-            geometry,
-            rows,
-            sort,
-            direction,
-            filter,
-            scroll_offset,
-            cursor,
-            "",
-            None,
-            None,
-            None,
-            "",
-            "",
-            None,
-        )?;
-        let max_fleet_number = max_fleet_number(rows);
-        let columns = full_columns(max_fleet_number);
-        let title = fleet_list_title(sort, direction, filter);
-        let table_rows = rows
-            .iter()
-            .map(|row| {
-                vec![
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    format_sector_coords_table(row.coords),
-                    fleet_table_order_label(row.order_code).to_string(),
-                    fleet_row_target_label(row),
-                    row.current_speed.to_string(),
-                    row.list_eta_label.clone(),
-                    row.rules_of_engagement.to_string(),
-                    row.loaded_armies.to_string(),
-                    row.table_ships_label.clone(),
-                ]
-            })
-            .collect::<Vec<_>>();
-        let visible_rows = fleet_list_visible_rows(geometry);
         let footer = TableFooter::LabeledCommandBar {
             label: "FILTER",
             hotkeys_markup: FLEET_LIST_FILTER_HOTKEYS,
             default: None,
             input: "",
         };
-        let layout = layout_standard_table_block(
-            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
-            &columns,
-            visible_rows,
-            Some(&title),
-            Some(footer),
-            table_rows.len() > visible_rows,
-            HorizontalAlign::Left,
-            VerticalAlign::Top,
-        );
-        draw_table_footer(
-            &mut buffer,
-            geometry,
-            layout.command_col,
-            3 + table_rows
-                .len()
-                .saturating_sub(scroll_offset)
-                .min(visible_rows),
-            footer,
-        );
-        Ok(buffer)
+        Ok(self
+            .render_table(
+                geometry,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+                None,
+            )?
+            .buffer)
     }
 
     pub fn handle_key(&self, key: KeyEvent) -> Action {

@@ -12,7 +12,6 @@ fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    let mut terminal = CaptureTerminal::new();
     advance_to_main_menu(&mut app);
 
     assert_eq!(
@@ -62,7 +61,6 @@ fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    let mut terminal = CaptureTerminal::new();
     advance_to_main_menu(&mut app);
     app.open_planet_menu();
     app.current_screen = ScreenId::PlanetAutoCommissionReport;
@@ -106,6 +104,7 @@ fn planet_list_auto_commission_prompt_and_report_return_to_list() {
         game_config: Default::default(),
     })
     .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
     advance_to_main_menu(&mut app);
     app.open_planet_menu();
     app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
@@ -1125,7 +1124,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     );
     assert_eq!(
         terminal.line(15).trim_end(),
-        " You have spent 0 out of 50 points.  You have 50 points left to spend."
+        " Spent: 0 of 50 PP.  Budget remaining: 50."
     );
     assert_eq!(terminal.lines[17].trim_end(), " Building: 0   Docked: 0");
 }
@@ -1597,7 +1596,7 @@ fn planet_database_render_uses_classic_stacked_headers() {
     assert!(terminal.line(2).contains("Max"));
     assert!(terminal.line(2).contains("Year"));
     assert!(terminal.line(2).contains("Curr"));
-    assert!(terminal.line(2).contains("Stored"));
+    assert!(terminal.line(2).contains("Trsry"));
     assert_eq!(terminal.line(2).matches('│').count(), 12);
     assert!(terminal.line(3).contains("(XX,YY)"));
     assert!(terminal.line(3).contains("Planet Name"));
