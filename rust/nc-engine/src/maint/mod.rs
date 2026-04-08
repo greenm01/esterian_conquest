@@ -504,6 +504,11 @@ fn fleet_has_presence(fleet: &FleetRecord) -> bool {
 /// HoldPosition by the stepper to avoid interfering with combat resolution).
 /// Also generate per-turn observation reports for scout fleets already on station
 /// from a previous turn.
+///
+/// This "Revert-then-Restore" mechanism is the engine's implementation of
+/// "Persistent Stealth" defined in the player manual: fleets appear stationary
+/// to avoid forced combat triggers, but maintain their standing scouting
+/// mission across maintenance turns.
 fn restore_scout_orders_and_generate_on_station_observations(
     game_data: &mut CoreGameData,
     movement_events: &mut MovementEvents,
@@ -527,6 +532,7 @@ fn restore_scout_orders_and_generate_on_station_observations(
         .collect();
 
     // Restore scout orders for fleets that just arrived and survived combat.
+    // This completes the persistence cycle for newly-arrived scouts.
     for (&fleet_idx, &kind) in &scout_arrivals {
         let Some(fleet) = game_data.fleets.records.get_mut(fleet_idx) else {
             continue;
@@ -753,6 +759,11 @@ fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {
             f.set_fleet_id_word_raw(remap_id(fleet.fleet_id_word_raw()));
             f.set_next_fleet_link_word_raw(remap_id(fleet.next_fleet_link_word_raw()));
             f.set_previous_fleet_id(remap_id(u16::from(fleet.previous_fleet_id())) as u8);
+            if fleet.standing_order_kind() == Order::JoinAnotherFleet {
+                f.set_join_host_fleet_id_raw(
+                    remap_id(u16::from(fleet.join_host_fleet_id_raw())) as u8
+                );
+            }
             f
         })
         .collect();

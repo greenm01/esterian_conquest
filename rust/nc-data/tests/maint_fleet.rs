@@ -1513,6 +1513,84 @@ fn test_salvage_converts_fleet_value_into_owned_planet_production_and_removes_fl
 }
 
 #[test]
+fn test_salvage_zero_value_fleet_resets_to_hold_without_removing() {
+    // A fleet with no ships has zero salvage value.  It should not be removed
+    // (the fleet still exists), but the Salvage order must be reset to
+    // HoldPosition so the fleet does not re-attempt salvage every turn.
+    let mut game_data = load_fixture("ecmaint-post");
+    let (planet_idx, target_coords) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain an owned planet");
+    let start_coords = if target_coords[0] > 1 {
+        [target_coords[0] - 1, target_coords[1]]
+    } else {
+        [target_coords[0] + 1, target_coords[1]]
+    };
+    let stored_before = game_data.planets.records[planet_idx].stored_production_points();
+    let fleet_count_before = game_data.fleets.records.len();
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(start_coords);
+    fleet.set_standing_order_kind(Order::Salvage);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    // Zero out all ship counts so fleet_salvage_value returns 0.
+    fleet.set_destroyer_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x00;
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    // Fleet is not removed — nothing was scrapped.
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before);
+    // Fleet order must be reset to HoldPosition (not left on Salvage).
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "zero-value salvage fleet must be reset to HoldPosition"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].current_speed(),
+        0,
+        "zero-value salvage fleet must have speed 0 after reset"
+    );
+    // Planet treasury must be unchanged — no points were recovered.
+    assert_eq!(
+        game_data.planets.records[planet_idx].stored_production_points(),
+        stored_before,
+        "planet treasury must not change when recovered_points == 0"
+    );
+    // Succeeded event emitted with recovered_points == 0.
+    assert!(events.salvage_events.iter().any(|event| {
+        matches!(
+            event,
+            SalvageResolvedEvent::Succeeded {
+                owner_empire_raw,
+                planet_idx: event_planet_idx,
+                coords,
+                recovered_points,
+                ..
+            } if *owner_empire_raw == 1
+                && *event_planet_idx == planet_idx
+                && *coords == target_coords
+                && *recovered_points == 0
+        )
+    }));
+}
+
+#[test]
 fn test_salvage_fails_at_foreign_planet_without_removing_fleet() {
     let mut game_data = load_fixture("ecmaint-post");
     let (planet_idx, target_coords) = game_data
@@ -2037,5 +2115,95 @@ fn test_blitz_world_executes_on_second_turn() {
                 && e.planet_idx == target_idx
                 && e.attacker_empire_raw == 1),
         "AssaultReportEvent must reference BlitzWorld, the target planet, and attacker empire"
+    );
+}
+
+#[test]
+fn test_join_succeeds_when_fleet_id_remapped_by_prior_salvage_removal() {
+    // Regression: apply_fleet_removal_remap previously left join_host_fleet_id_raw
+    // stale after a salvage removal shifted fleet IDs.  When fleet 1 (fleet_id=2)
+    // is removed by salvage during movement, fleet 2 compresses from fleet_id=3 to
+    // fleet_id=2.  Without the fix, the joiner's stored host_id=3 no longer
+    // resolves and the join silently fails.  With the fix the remap also updates
+    // join_host_fleet_id_raw and the join succeeds on the same turn.
+    let mut game_data = load_fixture("ecmaint-post");
+    // Disable early consolidation so it cannot merge or remove fleets before
+    // the salvage-triggered remap this test is exercising.
+    game_data.player.records[0].raw[0x00] = 0x00;
+
+    // Find a planet owned by player 1 for the salvage fleet to target.
+    let (_, planet_coords) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain an owned planet for player 1");
+
+    // Fleet 2 (fleet_id=3) is the host — stationary at a fixed location.
+    let host_coords = [10u8, 10u8];
+    let host_id = game_data.fleets.records[2].fleet_id(); // invariant: == 3
+    {
+        let host = &mut game_data.fleets.records[2];
+        host.set_current_location_coords_raw(host_coords);
+        host.set_standing_order_kind(Order::HoldPosition);
+        host.set_current_speed(0);
+        host.raw[0x0d] = 0x00;
+        host.raw[0x0f] = 0;
+        host.raw[0x19] = 0x00;
+    }
+
+    // Fleet 0 (fleet_id=1) is the joiner — co-located with the host, storing
+    // the host's current fleet_id (3) in join_host_fleet_id_raw.
+    {
+        let joiner = &mut game_data.fleets.records[0];
+        joiner.set_current_location_coords_raw(host_coords);
+        joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+        joiner.set_join_host_fleet_id_raw(host_id);
+        joiner.set_standing_order_target_coords_raw(host_coords);
+        joiner.set_current_speed(0);
+    }
+
+    // Fleet 1 (fleet_id=2) is the salvage fleet — one sector from the planet,
+    // carrying ships so recovered_points > 0 and the fleet is removed on arrival.
+    let salvage_start = if planet_coords[0] > 1 {
+        [planet_coords[0] - 1, planet_coords[1]]
+    } else {
+        [planet_coords[0] + 1, planet_coords[1]]
+    };
+    {
+        let salvager = &mut game_data.fleets.records[1];
+        salvager.set_current_location_coords_raw(salvage_start);
+        salvager.set_standing_order_kind(Order::Salvage);
+        salvager.set_standing_order_target_coords_raw(planet_coords);
+        salvager.set_current_speed(3);
+        salvager.set_destroyer_count(1);
+        salvager.set_cruiser_count(0);
+        salvager.set_battleship_count(0);
+        salvager.set_scout_count(0);
+        salvager.set_troop_transport_count(0);
+        salvager.set_army_count(0);
+        salvager.set_etac_count(0);
+        salvager.raw[0x0d] = 0x80;
+        salvager.raw[0x0f] = 0;
+        salvager.raw[0x19] = 0x00;
+    }
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    // Salvage removes fleet 1 (-1); join merges fleet 0 into the host (-1).
+    assert_eq!(
+        game_data.fleets.records.len(),
+        fleet_count_before - 2,
+        "salvage removal and join merge must each reduce the fleet count by one"
+    );
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .any(|event| event.kind == Mission::JoinAnotherFleet && !event.survivor_side),
+        "JoinAnotherFleet merge event must be emitted — join must not silently fail after remap"
     );
 }

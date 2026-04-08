@@ -33,6 +33,12 @@ pub(super) fn queue_salvage_resolution(
             movement_events.salvage_events.push(salvage_event);
             if recovered_points > 0 {
                 to_remove[fleet_idx] = true;
+            } else {
+                // Fleet has zero salvage value — nothing to scrap but the
+                // mission is done.  Reset to HoldPosition so the fleet does
+                // not re-attempt the Salvage order on every subsequent turn.
+                let fleet = &mut game_data.fleets.records[fleet_idx];
+                set_fleet_to_local_hold(fleet);
             }
         }
         SalvageResolvedEvent::Failed { .. } => {

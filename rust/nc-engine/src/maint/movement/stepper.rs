@@ -17,6 +17,12 @@ pub(super) fn set_fleet_to_local_hold(fleet: &mut nc_data::FleetRecord) {
 }
 
 fn order_persists_on_arrival(order: Order) -> bool {
+    // Note: Scout missions (ScoutSector, ScoutSolarSystem) are intentionally
+    // excluded here. Although the manual defines them as persistent, the engine
+    // reverts them to HoldPosition during the arrival phase to "clean" the
+    // fleet's context for combat resolution (avoiding forced System Entry
+    // hostility). The order is restored at the end of maintenance in mod.rs;
+    // this "Revert-then-Restore" cycle is what implements persistent stealth.
     matches!(
         order,
         Order::PatrolSector
