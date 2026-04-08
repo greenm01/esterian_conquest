@@ -79,8 +79,13 @@ fn help_lines(context: HelpContext) -> Vec<String> {
                 "Viewport",
                 "Small terminals auto-clip the map around the crosshair",
             ),
-            ("Mouse", "Drag top-level overlays by the title bar"),
-            ("Map Click", "Jump the crosshair to a visible sector"),
+            ("Mouse", "Hover visible sectors to move the map crosshair"),
+            ("Left Click", "Open player fleets at that sector, if any"),
+            ("Right Click", "Open planet list/info for the clicked world"),
+            (
+                "Map Exit",
+                "Leaving the map widget resets the crosshair home",
+            ),
             ("E:Pot|Curr|Pts", "Potential, current, and stored points"),
             ("D:AR|GB|SB", "Armies, ground batteries, and starbases"),
         ],
@@ -240,7 +245,7 @@ fn help_lines(context: HelpContext) -> Vec<String> {
         ],
         HelpContext::Settings => vec![
             ("Theme", "TODO - choose a dashboard theme"),
-            ("Mouse", "TODO - configure mouse actions"),
+            ("Mouse", "Hover moves the map; left fleets; right planets"),
             ("Q", "Close this overlay"),
             ("Esc", "Close this overlay"),
             ("?", "Open this helper"),
@@ -299,6 +304,18 @@ mod tests {
         let diplomacy = help_lines(HelpContext::Diplomacy);
         assert_eq!(diplomacy.len(), 3);
         assert!(!diplomacy.iter().any(|line| line.contains("TODO")));
+
+        let settings = help_lines(HelpContext::Settings);
+        assert!(
+            settings
+                .iter()
+                .any(|line| line.contains("Hover moves the map"))
+        );
+        assert!(
+            !settings
+                .iter()
+                .any(|line| line.contains("TODO - configure"))
+        );
     }
 
     #[test]
@@ -331,6 +348,9 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("V") && line.contains("fill map view"))
         );
+        assert!(lines.iter().any(|line| line.contains("Left Click")));
+        assert!(lines.iter().any(|line| line.contains("Right Click")));
+        assert!(lines.iter().any(|line| line.contains("Map Exit")));
         assert!(lines.iter().any(|line| line.contains("Potential, current")));
         assert!(!lines.iter().any(|line| line.contains("P / F / I / R")));
         assert!(!lines.iter().any(|line| line.contains("Up/Down")));

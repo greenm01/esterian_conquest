@@ -312,6 +312,7 @@ pub struct FleetOverlayState {
     pub jump_input: String,
     pub sort: FleetOverlaySort,
     pub filter: FleetOverlayFilter,
+    pub location_filter: Option<[u8; 2]>,
     pub selected_fleet_record_indexes: BTreeSet<usize>,
     pub prompt_mode: FleetOverlayPromptMode,
     pub order_scope: FleetOrderScope,
@@ -338,6 +339,7 @@ impl Default for FleetOverlayState {
             jump_input: String::new(),
             sort: FleetOverlaySort::Id,
             filter: FleetOverlayFilter::All,
+            location_filter: None,
             selected_fleet_record_indexes: BTreeSet::new(),
             prompt_mode: FleetOverlayPromptMode::None,
             order_scope: FleetOrderScope::None,
@@ -380,6 +382,10 @@ impl FleetOverlayState {
 
     pub fn clear_group_selection(&mut self) {
         self.selected_fleet_record_indexes.clear();
+    }
+
+    pub fn clear_transient_location_filter(&mut self) {
+        self.location_filter = None;
     }
 }
 
@@ -671,7 +677,7 @@ impl DashApp {
     }
 }
 
-fn initial_crosshair_coords(
+pub(crate) fn initial_crosshair_coords(
     game_data: &CoreGameData,
     player_record_index_1_based: usize,
 ) -> [u8; 2] {

@@ -18,6 +18,13 @@ impl WidgetRect {
     pub const fn last_row(self) -> usize {
         self.row + self.height.saturating_sub(1)
     }
+
+    pub const fn contains_point(self, col: usize, row: usize) -> bool {
+        col >= self.col
+            && col < self.col + self.width
+            && row >= self.row
+            && row < self.row + self.height
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

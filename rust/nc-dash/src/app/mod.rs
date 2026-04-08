@@ -13,7 +13,7 @@ use nc_ui::modal::Rect;
 use nc_ui::table_selection;
 use nc_ui::{ScreenGeometry, Terminal};
 use state::{
-    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOverlayFilter,
+    ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
     FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
     IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, PlanetOverlayFilter,
     PlanetOverlayPromptMode, PlanetOverlaySort,
@@ -85,6 +85,9 @@ impl DashApp {
                     self.help_context = HelpContext::Global;
                     self.help_return_overlay = ActiveOverlay::None;
                     self.help_return_overlay_position = None;
+                }
+                if overlay == ActiveOverlay::FleetList {
+                    self.fleet_overlay.clear_transient_location_filter();
                 }
                 self.overlay_position = None;
                 self.mouse_gesture = ActiveMouseGesture::None;
@@ -202,10 +205,29 @@ impl DashApp {
                     return;
                 }
                 self.mouse_gesture = ActiveMouseGesture::None;
-                self.handle_map_mouse_down(mouse, map_frame);
+                self.handle_map_left_click(mouse, map_frame);
             }
-            MouseEventKind::Drag(MouseButton::Left) | MouseEventKind::Moved => {
-                self.handle_mouse_move(mouse, map_frame);
+            MouseEventKind::Down(MouseButton::Right) => {
+                if self.overlay != ActiveOverlay::None {
+                    self.mouse_gesture = ActiveMouseGesture::None;
+                    return;
+                }
+                self.mouse_gesture = ActiveMouseGesture::None;
+                self.handle_map_right_click(mouse, map_frame);
+            }
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if self.overlay != ActiveOverlay::None {
+                    self.handle_mouse_move(mouse, map_frame);
+                } else {
+                    self.handle_map_hover(mouse, map_frame);
+                }
+            }
+            MouseEventKind::Moved => {
+                if self.overlay != ActiveOverlay::None {
+                    self.mouse_gesture = ActiveMouseGesture::None;
+                    return;
+                }
+                self.handle_map_hover(mouse, map_frame);
             }
             MouseEventKind::Up(MouseButton::Left) => {
                 self.mouse_gesture = ActiveMouseGesture::None;
@@ -235,12 +257,12 @@ impl DashApp {
         }
     }
 
-    fn handle_map_mouse_down(
+    fn handle_map_left_click(
         &mut self,
         mouse: MouseEvent,
         map_frame: crate::layout::MapWidgetFrame,
     ) {
-        let Some([x, y]) = starmap::screen_sector_at_point(
+        let Some(coords) = starmap::screen_sector_at_point(
             self,
             map_frame,
             mouse.column as usize,
@@ -248,10 +270,124 @@ impl DashApp {
         ) else {
             return;
         };
+        self.set_crosshair_coords(coords);
+        if !self.player_has_fleets_at(coords) {
+            return;
+        }
+        self.open_fleet_overlay_for_location(coords);
+    }
+
+    fn handle_map_right_click(
+        &mut self,
+        mouse: MouseEvent,
+        map_frame: crate::layout::MapWidgetFrame,
+    ) {
+        let Some(coords) = starmap::screen_sector_at_point(
+            self,
+            map_frame,
+            mouse.column as usize,
+            mouse.row as usize,
+        ) else {
+            return;
+        };
+        self.set_crosshair_coords(coords);
+        let Some(detail) = planet_view::selected_planet_detail(self) else {
+            return;
+        };
+        let owner = self
+            .game_data
+            .planets
+            .records
+            .get(detail.planet_record_index_1_based.saturating_sub(1))
+            .map(|planet| planet.owner_empire_slot_raw())
+            .unwrap_or(0);
+        if owner == self.player_record_index_1_based as u8 {
+            self.open_planet_overlay_for_record(detail.planet_record_index_1_based);
+        } else {
+            self.open_planet_detail_popup_at_cursor();
+        }
+    }
+
+    fn handle_map_hover(&mut self, mouse: MouseEvent, map_frame: crate::layout::MapWidgetFrame) {
+        self.mouse_gesture = ActiveMouseGesture::None;
+        let mouse_col = mouse.column as usize;
+        let mouse_row = mouse.row as usize;
+        if let Some(coords) = starmap::screen_sector_at_point(self, map_frame, mouse_col, mouse_row)
+        {
+            self.set_crosshair_coords(coords);
+        } else if !map_frame.outer.contains_point(mouse_col, mouse_row) {
+            self.reset_crosshair_to_homeworld();
+        }
+    }
+
+    fn set_crosshair_coords(&mut self, [x, y]: [u8; 2]) {
         self.crosshair_x = x;
         self.crosshair_y = y;
         self.focus = state::PanelFocus::Map;
         self.map_coord_input.clear();
+    }
+
+    fn reset_crosshair_to_homeworld(&mut self) {
+        let coords =
+            state::initial_crosshair_coords(&self.game_data, self.player_record_index_1_based);
+        self.set_crosshair_coords(coords);
+    }
+
+    fn player_has_fleets_at(&self, coords: [u8; 2]) -> bool {
+        let owner_slot = self.player_record_index_1_based as u8;
+        self.game_data.fleets.records.iter().any(|fleet| {
+            fleet.owner_empire_raw() == owner_slot
+                && fleet.has_any_force()
+                && fleet.current_location_coords_raw() == coords
+        })
+    }
+
+    fn open_fleet_overlay_for_location(&mut self, coords: [u8; 2]) {
+        self.fleet_overlay.location_filter = Some(coords);
+        self.fleet_overlay.filter = FleetOverlayFilter::All;
+        self.fleet_overlay.selected = 0;
+        self.fleet_overlay.scroll = 0;
+        self.fleet_overlay.jump_input.clear();
+        self.fleet_overlay.clear_group_selection();
+        self.fleet_overlay.clear_prompt();
+        self.fleet_overlay.order_scope = FleetOrderScope::None;
+        self.fleet_overlay.active_row_key = None;
+        self.overlay_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
+        self.overlay = ActiveOverlay::FleetList;
+        let rows = fleet_list::table_rows(self);
+        self.fleet_overlay.selected = rows
+            .iter()
+            .position(|row| matches!(row.key, state::FleetOverlayRowKey::Fleet(_)))
+            .unwrap_or(0);
+        sync_scroll_to_cursor(
+            &mut self.fleet_overlay.scroll,
+            self.fleet_overlay.selected,
+            1_000,
+        );
+    }
+
+    fn open_planet_overlay_for_record(&mut self, planet_record_index_1_based: usize) {
+        if !planet_list::table_rows(self)
+            .iter()
+            .any(|row| row.planet_record_index_1_based == planet_record_index_1_based)
+        {
+            self.planet_overlay.filter = PlanetOverlayFilter::All;
+        }
+        self.planet_overlay.clear_prompt();
+        self.planet_overlay.jump_input.clear();
+        let rows = planet_list::table_rows(self);
+        let Some(selected) = rows
+            .iter()
+            .position(|row| row.planet_record_index_1_based == planet_record_index_1_based)
+        else {
+            return;
+        };
+        self.planet_overlay.selected = selected;
+        sync_scroll_to_cursor(&mut self.planet_overlay.scroll, selected, 1_000);
+        self.overlay_position = None;
+        self.mouse_gesture = ActiveMouseGesture::None;
+        self.overlay = ActiveOverlay::PlanetList;
     }
 
     fn handle_mouse_move(&mut self, mouse: MouseEvent, map_frame: crate::layout::MapWidgetFrame) {
@@ -453,6 +589,7 @@ impl DashApp {
         } else {
             if self.overlay == ActiveOverlay::FleetList {
                 self.fleet_overlay.clear_group_selection();
+                self.fleet_overlay.clear_transient_location_filter();
             }
             self.overlay = ActiveOverlay::None;
             self.overlay_position = None;
@@ -1506,12 +1643,13 @@ fn overlay_title_bar_contains(popup: Rect, col: usize, row: usize) -> bool {
 mod tests {
     use super::{map_coord_rows, parse_table_coord, wrap_next_index, wrap_prev_index};
     use crate::app::state::{
-        ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayFilter, FleetOverlayPromptMode,
-        FleetOverlayRowKey, IntelOverlayFilter, IntelOverlayPromptMode, MapViewMode,
-        PlanetOverlayFilter, PlanetOverlayPromptMode,
+        ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
+        FleetOverlayPromptMode, FleetOverlayRowKey, IntelOverlayFilter, IntelOverlayPromptMode,
+        MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode,
     };
     use crate::layout::dashboard::dashboard_layout;
     use crate::overlays::{fleet_list, intel_database, planet_list};
+    use crate::planet_view;
     use crossterm::event::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
@@ -2461,22 +2599,131 @@ mod tests {
     #[test]
     fn clicking_map_sector_moves_crosshair() {
         let mut app = dash_app();
-        let map_frame = dashboard_layout(&app).widgets.center_map;
-        let target = crate::panels::starmap::screen_sector_at_point(
-            &app,
-            map_frame,
-            map_frame.grid.col + map_frame.row_label_cols + 5,
-            map_frame.grid.row + 5,
-        )
-        .expect("sector under test point");
+        let target = [5, 5];
+        let (column, row) = screen_point_for_sector(&app, target);
 
-        app.handle_mouse(mouse(
-            MouseEventKind::Down(MouseButton::Left),
-            (map_frame.grid.col + map_frame.row_label_cols + 5) as u16,
-            (map_frame.grid.row + 5) as u16,
-        ));
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), column, row));
 
         assert_eq!([app.crosshair_x, app.crosshair_y], target);
+    }
+
+    #[test]
+    fn hovering_visible_sector_moves_crosshair() {
+        let mut app = dash_app();
+        let target = [4, 7];
+        let (column, row) = screen_point_for_sector(&app, target);
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], target);
+    }
+
+    #[test]
+    fn moving_mouse_outside_map_widget_resets_crosshair_to_homeworld() {
+        let mut app = dash_app();
+        let homeworld = [app.crosshair_x, app.crosshair_y];
+        let target = [4, 7];
+        let (column, row) = screen_point_for_sector(&app, target);
+        let outside = outside_map_point(&app);
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
+        assert_eq!([app.crosshair_x, app.crosshair_y], target);
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, outside.0, outside.1));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], homeworld);
+    }
+
+    #[test]
+    fn left_click_on_sector_with_player_fleets_opens_filtered_fleet_list() {
+        let mut app = dash_app_with_starbase();
+        let fleet_coords = first_owned_fleet_coords(&app);
+        let (column, row) = screen_point_for_sector(&app, fleet_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), column, row));
+
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert_eq!(app.fleet_overlay.location_filter, Some(fleet_coords));
+        assert!(fleet_list::table_rows(&app).iter().all(|row| {
+            matches!(row.key, FleetOverlayRowKey::Fleet(_)) && row.coords == fleet_coords
+        }));
+    }
+
+    #[test]
+    fn left_click_on_empty_sector_fleet_glyph_opens_filtered_fleet_list() {
+        let mut app = dash_app();
+        let empty_coords = first_empty_sector_coords(&app);
+        let fleet = app
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
+            .expect("owned fleet");
+        fleet.set_current_location_coords_raw(empty_coords);
+        let (column, row) = screen_point_for_sector(&app, empty_coords);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), column, row));
+
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert_eq!(app.fleet_overlay.location_filter, Some(empty_coords));
+        assert!(
+            fleet_list::table_rows(&app)
+                .iter()
+                .all(|row| row.coords == empty_coords)
+        );
+    }
+
+    #[test]
+    fn left_click_without_player_fleets_does_not_open_anything() {
+        let mut app = audit_ready_dash_app();
+        let target = first_visible_foreign_planet_coords(&mut app);
+        let (column, row) = screen_point_for_sector(&app, target);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), column, row));
+
+        assert_eq!(app.overlay, ActiveOverlay::None);
+        assert_eq!(app.popup, ActivePopup::None);
+        assert_eq!([app.crosshair_x, app.crosshair_y], target);
+    }
+
+    #[test]
+    fn right_click_on_owned_planet_opens_planet_list_and_selects_it() {
+        let mut app = dash_app();
+        let owned_coords = first_owned_planet_coords(&app);
+        let expected_record = app
+            .game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(_, planet)| {
+                planet.owner_empire_slot_raw() == 1 && planet.coords_raw() == owned_coords
+            })
+            .map(|(idx, _)| idx + 1)
+            .expect("owned planet");
+        let (column, row) = screen_point_for_sector(&app, owned_coords);
+
+        app.planet_overlay.filter = PlanetOverlayFilter::Starbase;
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+
+        assert_eq!(app.overlay, ActiveOverlay::PlanetList);
+        assert_eq!(app.planet_overlay.filter, PlanetOverlayFilter::All);
+        assert_eq!(
+            planet_list::table_rows(&app)[app.planet_overlay.selected].planet_record_index_1_based,
+            expected_record
+        );
+    }
+
+    #[test]
+    fn right_click_on_visible_foreign_planet_opens_planet_detail_popup() {
+        let mut app = audit_ready_dash_app();
+        let target = first_visible_foreign_planet_coords(&mut app);
+        let (column, row) = screen_point_for_sector(&app, target);
+
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), column, row));
+
+        assert!(matches!(app.popup, ActivePopup::PlanetDetail { .. }));
     }
 
     #[test]
@@ -2496,6 +2743,48 @@ mod tests {
         ));
 
         assert_eq!([app.crosshair_x, app.crosshair_y], starting);
+    }
+
+    #[test]
+    fn hover_and_clicks_do_not_leak_through_open_popup_to_map() {
+        let mut app = dash_app();
+        let starting = [app.crosshair_x, app.crosshair_y];
+        app.popup = ActivePopup::PlanetDetail {
+            planet_record_index_1_based: 1,
+        };
+        let target = [5, 5];
+        let (column, row) = screen_point_for_sector(&app, target);
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, column, row));
+        app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), column, row));
+
+        assert_eq!([app.crosshair_x, app.crosshair_y], starting);
+    }
+
+    #[test]
+    fn closing_location_filtered_fleet_overlay_clears_transient_filter() {
+        let mut app = dash_app();
+        let fleet_coords = first_owned_fleet_coords(&app);
+
+        app.open_fleet_overlay_for_location(fleet_coords);
+        assert_eq!(app.fleet_overlay.location_filter, Some(fleet_coords));
+
+        app.close_active_overlay();
+
+        assert_eq!(app.overlay, ActiveOverlay::None);
+        assert_eq!(app.fleet_overlay.location_filter, None);
+    }
+
+    #[test]
+    fn keyboard_opening_fleet_list_clears_transient_location_filter() {
+        let mut app = dash_app();
+        let fleet_coords = first_owned_fleet_coords(&app);
+        app.fleet_overlay.location_filter = Some(fleet_coords);
+
+        app.apply_action(super::input::Action::OpenOverlay(ActiveOverlay::FleetList));
+
+        assert_eq!(app.overlay, ActiveOverlay::FleetList);
+        assert_eq!(app.fleet_overlay.location_filter, None);
     }
 
     fn dash_app() -> DashApp {
@@ -2753,6 +3042,83 @@ mod tests {
                 })
             })
             .collect()
+    }
+
+    fn screen_point_for_sector(app: &DashApp, target: [u8; 2]) -> (u16, u16) {
+        let map_frame = dashboard_layout(app).widgets.center_map;
+        for row in map_frame.grid.row..map_frame.grid.row + map_frame.grid.height {
+            for col in map_frame.grid.col..map_frame.grid.col + map_frame.grid.width {
+                if crate::panels::starmap::screen_sector_at_point(app, map_frame, col, row)
+                    == Some(target)
+                {
+                    return (col as u16, row as u16);
+                }
+            }
+        }
+        panic!("no screen point for sector {target:?}");
+    }
+
+    fn outside_map_point(app: &DashApp) -> (u16, u16) {
+        let outer = dashboard_layout(app).widgets.center_map.outer;
+        if outer.col > 0 {
+            return ((outer.col - 1) as u16, outer.row as u16);
+        }
+        ((outer.last_col() + 1) as u16, outer.row as u16)
+    }
+
+    fn first_owned_fleet_coords(app: &DashApp) -> [u8; 2] {
+        app.game_data
+            .fleets
+            .records
+            .iter()
+            .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.has_any_force())
+            .map(|fleet| fleet.current_location_coords_raw())
+            .expect("owned fleet")
+    }
+
+    fn first_owned_planet_coords(app: &DashApp) -> [u8; 2] {
+        app.game_data
+            .planets
+            .records
+            .iter()
+            .find(|planet| planet.owner_empire_slot_raw() == 1 && planet.coords_raw() != [0, 0])
+            .map(|planet| planet.coords_raw())
+            .expect("owned planet")
+    }
+
+    fn first_empty_sector_coords(app: &DashApp) -> [u8; 2] {
+        let map_size = nc_data::map_size_for_player_count(app.game_data.conquest.player_count());
+        for x in 1..=map_size {
+            for y in 1..=map_size {
+                let coords = [x, y];
+                if app
+                    .game_data
+                    .planets
+                    .records
+                    .iter()
+                    .all(|planet| planet.coords_raw() != coords)
+                {
+                    return coords;
+                }
+            }
+        }
+        panic!("expected empty sector");
+    }
+
+    fn first_visible_foreign_planet_coords(app: &mut DashApp) -> [u8; 2] {
+        for planet in
+            app.game_data.planets.records.iter().filter(|planet| {
+                planet.owner_empire_slot_raw() != 1 && planet.coords_raw() != [0, 0]
+            })
+        {
+            let coords = planet.coords_raw();
+            app.crosshair_x = coords[0];
+            app.crosshair_y = coords[1];
+            if planet_view::selected_planet_detail(app).is_some() {
+                return coords;
+            }
+        }
+        panic!("visible foreign planet");
     }
 
     fn select_first_fleet_row(app: &mut DashApp) {

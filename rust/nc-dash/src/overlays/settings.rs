@@ -18,7 +18,7 @@ const SETTINGS_LINES: &[(&str, &str)] = &[
     ("Theme", "Select color theme (T to open theme picker)"),
     (
         "Mouse",
-        "Always on: drag overlays by title bar, click map to jump",
+        "Hover map to move, left-click fleets, right-click planets",
     ),
 ];
 

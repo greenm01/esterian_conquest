@@ -712,10 +712,14 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
 
 pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
     let owner_slot = app.player_record_index_1_based as u8;
+    let location_filter = app.fleet_overlay.location_filter;
     let mut rows = Vec::new();
 
     for (idx, fleet) in app.game_data.fleets.records.iter().enumerate() {
         if fleet.owner_empire_raw() != owner_slot || !fleet.has_any_force() {
+            continue;
+        }
+        if location_filter.is_some_and(|coords| fleet.current_location_coords_raw() != coords) {
             continue;
         }
         rows.push(FleetOverlayRow {
@@ -748,30 +752,32 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
         });
     }
 
-    for (idx, base) in app.game_data.bases.records.iter().enumerate() {
-        if base.owner_empire_raw() != owner_slot || base.active_flag_raw() == 0 {
-            continue;
+    if location_filter.is_none() {
+        for (idx, base) in app.game_data.bases.records.iter().enumerate() {
+            if base.owner_empire_raw() != owner_slot || base.active_flag_raw() == 0 {
+                continue;
+            }
+            rows.push(FleetOverlayRow {
+                key: FleetOverlayRowKey::Starbase(idx + 1),
+                id_label: format!("SB{}", base.base_id_raw()),
+                coords: base.coords_raw(),
+                order: Order::GuardStarbase,
+                eta_label: starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
+                strength_key: (0, 0, 0, 0, 0, 0, u16::from(base.base_id_raw())),
+                cells: vec![
+                    format!("SB{}", base.base_id_raw()),
+                    String::new(),
+                    format_coords(base.coords_raw()),
+                    String::from("Gs"),
+                    String::from("--"),
+                    String::from("0"),
+                    starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
+                    String::from("0"),
+                    String::from("0"),
+                    String::from("Starbase"),
+                ],
+            });
         }
-        rows.push(FleetOverlayRow {
-            key: FleetOverlayRowKey::Starbase(idx + 1),
-            id_label: format!("SB{}", base.base_id_raw()),
-            coords: base.coords_raw(),
-            order: Order::GuardStarbase,
-            eta_label: starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
-            strength_key: (0, 0, 0, 0, 0, 0, u16::from(base.base_id_raw())),
-            cells: vec![
-                format!("SB{}", base.base_id_raw()),
-                String::new(),
-                format_coords(base.coords_raw()),
-                String::from("Gs"),
-                String::from("--"),
-                String::from("0"),
-                starbase_eta_label(base.coords_raw(), base.trailing_coords_raw()),
-                String::from("0"),
-                String::from("0"),
-                String::from("Starbase"),
-            ],
-        });
     }
 
     rows.retain(|row| match app.fleet_overlay.filter {
