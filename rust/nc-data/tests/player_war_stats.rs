@@ -104,6 +104,7 @@ fn maintenance_events_accumulate_lifetime_war_stats() {
         primary_enemy_fleet_number: Some(4),
         held_field: true,
         friendly_initial: ShipLosses::default(),
+        friendly_initial_starbases: 1,
         friendly_loaded_armies_initial: 0,
         friendly_losses: ShipLosses {
             cruisers: 1,

@@ -165,6 +165,10 @@ fn hostile_target_priority(
         .map(|(tf, reason)| (tf.empire, reason))
 }
 
+fn defending_starbase_holds_planet(task_force: &TaskForce) -> bool {
+    matches!(task_force.role, BattleRole::IncumbentDefender) && task_force.state.counts[IDX_SB] > 0
+}
+
 pub(super) fn distribute_fleet_losses(
     game_data: &mut CoreGameData,
     fleet_indices: &[usize],
@@ -494,8 +498,9 @@ pub(crate) fn process_fleet_battles(
                     .max()
                     .unwrap_or(0);
                 let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
-                let kind = if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as)
-                {
+                let kind = if defending_starbase_holds_planet(tf) {
+                    RoundActionKind::Fight
+                } else if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     RoundActionKind::Withdraw
                 } else {
                     RoundActionKind::Fight
@@ -691,6 +696,9 @@ pub(crate) fn process_fleet_battles(
                     })
                     .max()
                     .unwrap_or(0);
+                if defending_starbase_holds_planet(tf) {
+                    continue;
+                }
                 if !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     let is_guard = matches!(
                         tf.role,
@@ -771,7 +779,11 @@ pub(crate) fn process_fleet_battles(
                 Some(survivors[0].empire)
             }
         };
-        let dominant_empire = dominant_empire_after_battle(&task_forces, winner_empire);
+        let dominant_empire = task_forces
+            .iter()
+            .find(|tf| defending_starbase_holds_planet(tf) && tf.state.has_units())
+            .map(|tf| tf.empire)
+            .or_else(|| dominant_empire_after_battle(&task_forces, winner_empire));
 
         let mut destroyed_starbases_by_empire: HashMap<u8, Vec<u8>> = HashMap::new();
         for tf in &task_forces {
@@ -948,6 +960,7 @@ pub(crate) fn process_fleet_battles(
                 primary_enemy_fleet_number,
                 held_field: dominant_empire == Some(empire),
                 friendly_initial: ship_counts_from_state(before),
+                friendly_initial_starbases: before.counts[IDX_SB],
                 friendly_loaded_armies_initial: original_loaded_armies
                     .get(&empire)
                     .copied()

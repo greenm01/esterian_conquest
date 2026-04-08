@@ -877,6 +877,46 @@ fn canonical_starbase_defender_repels_orbital_attacker() {
 }
 
 #[test]
+fn starbase_only_planet_defender_cannot_concede_the_field() {
+    let mut game_data = configured_assault_state(Order::BombardWorld.to_raw());
+    let coords = [15, 13];
+
+    for fleet in game_data.fleets.records.iter_mut().skip(1) {
+        let current = fleet.current_location_coords_raw();
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(current);
+        fleet.set_destroyer_count(0);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(0);
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.set_etac_count(0);
+    }
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_destroyer_count(1);
+    attacker.set_cruiser_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_rules_of_engagement(10);
+
+    add_active_starbase(&mut game_data, 2, coords);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.bases.records.len(), 1);
+    assert_eq!(game_data.bases.records[0].owner_empire_raw(), 2);
+    assert!(
+        events
+            .fleet_battle_events
+            .iter()
+            .any(|event| event.reporting_empire_raw == 1 && !event.held_field),
+        "attacker should not hold the field while the defending starbase survives"
+    );
+}
+
+#[test]
 fn canonical_invade_failure_removes_attacker_armies_and_holds_planet() {
     let mut game_data = configured_assault_state(7);
 

@@ -216,6 +216,13 @@ fn battle_outcome_sentence(held_field: bool) -> &'static str {
     }
 }
 
+fn battle_verb_for_perspective(perspective: FleetBattlePerspective) -> &'static str {
+    match perspective {
+        FleetBattlePerspective::Intercepted => "intercepted",
+        FleetBattlePerspective::Attacked => "was attacked by",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{classic_results_lines, ordinal_number};
@@ -622,6 +629,40 @@ fn ship_loss_summary(losses: ShipLosses) -> String {
     }
 }
 
+fn combat_loss_summary(losses: ShipLosses, starbases: u32, no_loss_text: &str) -> String {
+    let ship_summary = ship_loss_summary(losses);
+    let mut parts = Vec::new();
+    if ship_summary != "no ship losses" {
+        parts.push(ship_summary);
+    }
+    if starbases > 0 {
+        parts.push(unit_count_text(starbases, "starbase", "starbases"));
+    }
+    if parts.is_empty() {
+        no_loss_text.to_string()
+    } else {
+        join_report_parts(&parts)
+    }
+}
+
+fn combined_friendly_losses_sentence(losses: ShipLosses, starbases: u32) -> String {
+    let summary = combat_loss_summary(losses, starbases, "no losses");
+    if summary == "no losses" {
+        "We suffered no losses.".to_string()
+    } else {
+        format!("We suffered losses of {summary}.")
+    }
+}
+
+fn combined_enemy_losses_sentence(losses: ShipLosses, starbases: u32) -> String {
+    let summary = combat_loss_summary(losses, starbases, "no losses");
+    if summary == "no losses" {
+        "We were unable to inflict any losses.".to_string()
+    } else {
+        format!("We inflicted losses of {summary}.")
+    }
+}
+
 fn fleet_force_summary(losses: ShipLosses, loaded_armies: u32) -> String {
     let mut parts = Vec::new();
     if losses.battleships > 0 {
@@ -684,6 +725,10 @@ fn fleet_force_summary_with_starbases(
     } else {
         ship_summary
     }
+}
+
+fn is_starbase_only_force(losses: ShipLosses, loaded_armies: u32, starbases: u32) -> bool {
+    losses == ShipLosses::default() && loaded_armies == 0 && starbases > 0
 }
 
 fn unit_count_text(count: u32, singular: &str, plural: &str) -> String {
@@ -1136,6 +1181,17 @@ fn generate_report_entries(
     }
 
     // ----- Fleet battle events -----
+    let surviving_fleet_report_keys: BTreeSet<(u8, u8)> = game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.has_any_force())
+        .filter_map(|fleet| {
+            let fleet_number = fleet.local_slot_word_raw() as u8;
+            (fleet.owner_empire_raw() != 0 && fleet_number != 0)
+                .then_some((fleet.owner_empire_raw(), fleet_number))
+        })
+        .collect();
     let destroyed_fleet_report_keys: BTreeSet<(u8, u8)> = events
         .fleet_destroyed_events
         .iter()
@@ -1183,6 +1239,9 @@ fn generate_report_entries(
         }) {
             continue;
         }
+        let reporting_fleet_survives = event.reporting_fleet_number.is_some_and(|fleet_number| {
+            surviving_fleet_report_keys.contains(&(event.reporting_empire_raw, fleet_number))
+        });
         let enemy_list = join_report_parts(
             &event
                 .enemy_empires_raw
@@ -1191,9 +1250,6 @@ fn generate_report_entries(
                 .collect::<Vec<_>>(),
         );
         let [x, y] = event.coords;
-        let source =
-            owned_fleet_source_clause(event.reporting_fleet_number, &format!("System({x},{y})"));
-        let header = report_header(&source, event.stardate_week, year);
         let enemy = if event.enemy_empires_raw.len() == 1 {
             classic_enemy_reference(
                 game_data,
@@ -1207,26 +1263,93 @@ fn generate_report_entries(
             .reporting_mission
             .map(mission_report_prefix)
             .unwrap_or_default();
-        let friendly_initial =
-            fleet_force_summary(event.friendly_initial, event.friendly_loaded_armies_initial);
+        let friendly_initial = fleet_force_summary_with_starbases(
+            event.friendly_initial,
+            event.friendly_loaded_armies_initial,
+            event.friendly_initial_starbases,
+        );
         let enemy_initial = fleet_force_summary_with_starbases(
             event.enemy_initial,
             event.enemy_loaded_armies_initial,
             event.enemy_initial_starbases,
         );
+        let starbase_only_defender = is_starbase_only_force(
+            event.friendly_initial,
+            event.friendly_loaded_armies_initial,
+            event.friendly_initial_starbases,
+        );
+        if starbase_only_defender
+            && event.friendly_starbases_lost == event.friendly_initial_starbases
+        {
+            continue;
+        }
+        if !reporting_fleet_survives
+            && event.reporting_fleet_number.is_some()
+            && event.friendly_initial == event.friendly_losses
+        {
+            let source = "From your Fleet Command Center:";
+            let header = report_header(source, event.stardate_week, year);
+            let body = format!(
+                " We lost all contact with the {} shortly after it {} {} in System({x},{y}). It was composed of {}. Recovered telemetry indicates the alien force contained {} and suffered casualties of {}.",
+                fleet_label(event.reporting_fleet_number.unwrap_or(0)),
+                battle_verb_for_perspective(event.perspective),
+                enemy,
+                friendly_initial,
+                enemy_initial,
+                combat_loss_summary(
+                    event.enemy_losses,
+                    event.enemy_starbases_destroyed,
+                    "no losses",
+                ),
+            );
+            entries.push(ReportEntry {
+                text: format!("{header}{body}"),
+                kind: 0x06,
+                tail: RESULTS_TAIL_FLEET,
+                target: ReportTarget::Both {
+                    recipient: event.reporting_empire_raw,
+                },
+                repeat_next_pointer: false,
+                stardate_week: event.stardate_week,
+                narrative_phase: narrative_phase_for_report_text(&body),
+            });
+            continue;
+        }
+        let reporting_fleet = event
+            .reporting_fleet_number
+            .filter(|_| reporting_fleet_survives);
+        let source = if reporting_fleet.is_some() {
+            owned_fleet_source_clause(reporting_fleet, &format!("System({x},{y})"))
+        } else if starbase_only_defender {
+            "From your Fleet Command Center:".to_string()
+        } else {
+            owned_fleet_source_clause(None, &format!("System({x},{y})"))
+        };
+        let header = report_header(&source, event.stardate_week, year);
+        let defended_force_text = if starbase_only_defender {
+            format!("Our defenses contained {friendly_initial}.")
+        } else {
+            format!("Our force contained {friendly_initial}.")
+        };
         let body = if matches!(event.perspective, FleetBattlePerspective::Intercepted) {
             format!(
                 "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {} {} {}",
                 battle_outcome_sentence(event.held_field),
-                friendly_losses_sentence(event.friendly_losses),
-                enemy_losses_sentence(event.enemy_losses),
+                combined_friendly_losses_sentence(
+                    event.friendly_losses,
+                    event.friendly_starbases_lost,
+                ),
+                combined_enemy_losses_sentence(event.enemy_losses, event.enemy_starbases_destroyed,),
             )
         } else {
             format!(
-                "{prefix} We were attacked by {enemy} in System({x},{y}). Our force contained {friendly_initial}. Alien force contained {enemy_initial}. {} {} {}",
+                "{prefix} We were attacked by {enemy} in System({x},{y}). {defended_force_text} Alien force contained {enemy_initial}. {} {} {}",
                 battle_outcome_sentence(event.held_field),
-                friendly_losses_sentence(event.friendly_losses),
-                enemy_losses_sentence(event.enemy_losses),
+                combined_friendly_losses_sentence(
+                    event.friendly_losses,
+                    event.friendly_starbases_lost,
+                ),
+                combined_enemy_losses_sentence(event.enemy_losses, event.enemy_starbases_destroyed,),
             )
         };
         entries.push(ReportEntry {
@@ -1665,11 +1788,32 @@ fn generate_report_entries(
             planet.planet_name()
         );
         let header = report_header(&source, event.stardate_week, year);
-        let body = format!(
-            " We have been invaded and captured by {} from {}.",
-            classic_empire_clause(game_data, event.new_owner_empire_raw),
-            from
-        );
+        let body = if let Some(assault) = events.assault_report_events.iter().find(|assault| {
+            assault.planet_idx == event.planet_idx
+                && assault.attacker_empire_raw == event.new_owner_empire_raw
+                && assault.defender_empire_raw == event.reporting_empire_raw
+                && assault.outcome == MissionOutcome::Succeeded
+        }) {
+            format!(
+                " We have been invaded and captured by {} from {}. The attacking force initially contained {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies. Enemy losses: {}.",
+                classic_empire_clause(game_data, event.new_owner_empire_raw),
+                from,
+                fleet_force_summary(assault.attacker_initial, 0),
+                planet_defense_summary(
+                    assault.defender_batteries_initial,
+                    assault.defender_armies_initial
+                ),
+                assault.defender_battery_losses,
+                assault.defender_army_losses,
+                ship_loss_summary(assault.attacker_ship_losses),
+            )
+        } else {
+            format!(
+                " We have been invaded and captured by {} from {}.",
+                classic_empire_clause(game_data, event.new_owner_empire_raw),
+                from
+            )
+        };
         entries.push(ReportEntry {
             text: format!("{header}{body}"),
             kind: 0x0c,

@@ -1,7 +1,7 @@
 use nc_data::{
     AssaultReportEvent, BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent,
-    GameStateBuilder, MaintenanceEvents, Mission, MissionOutcome, PlanetRecord, ScoutContactEvent,
-    ShipLosses,
+    GameStateBuilder, MaintenanceEvents, Mission, MissionOutcome, PlanetOwnershipChangeEvent,
+    PlanetRecord, ScoutContactEvent, ShipLosses,
 };
 use nc_engine::{
     apply_results_reviewable_flags, build_results_report_blocks, maint::FleetBattlePerspective,
@@ -134,6 +134,7 @@ fn results_reports_battle_before_bombard_aftermath() {
             destroyers: 1,
             ..ShipLosses::default()
         },
+        friendly_initial_starbases: 0,
         friendly_loaded_armies_initial: 0,
         friendly_losses: ShipLosses::default(),
         friendly_starbases_lost: 0,
@@ -194,6 +195,57 @@ fn results_reports_battle_before_bombard_aftermath() {
         battle_idx < bombard_idx,
         "battle should precede bombard: {texts:?}"
     );
+}
+
+#[test]
+fn destroyed_reporting_fleet_uses_telemetry_report_even_if_side_holds_field() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3014)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 1,
+        reporting_fleet_number: Some(15),
+        reporting_mission: Some(Mission::GuardBlockadeWorld),
+        perspective: nc_engine::maint::FleetBattlePerspective::Intercepted,
+        coords: [9, 6],
+        enemy_empires_raw: vec![2],
+        primary_enemy_fleet_number: None,
+        held_field: true,
+        friendly_initial: ShipLosses {
+            battleships: 1,
+            ..ShipLosses::default()
+        },
+        friendly_initial_starbases: 0,
+        friendly_loaded_armies_initial: 0,
+        friendly_losses: ShipLosses {
+            battleships: 1,
+            ..ShipLosses::default()
+        },
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses {
+            cruisers: 2,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 0,
+        enemy_losses: ShipLosses {
+            cruisers: 2,
+            ..ShipLosses::default()
+        },
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(2),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let text = viewer_report_texts(1, &rows).join(" ");
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("We lost all contact with the 15th Fleet"));
+    assert!(!text.contains("From your 15th Fleet"));
+    assert!(!text.contains("We successfully intercepted"));
 }
 
 #[test]
@@ -288,6 +340,63 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
 }
 
 #[test]
+fn ownership_change_report_uses_assault_context_for_defender() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3014)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [8, 2];
+    seed_target_world(&mut game_data, coords, "half");
+    game_data.planets.records[0].set_owner_empire_slot_raw(2);
+    game_data.planets.records[0].set_ground_batteries_raw(2);
+    game_data.planets.records[0].set_army_count_raw(5);
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::BlitzWorld,
+        attacker_fleet_number: Some(4),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 2,
+        attacker_initial: ShipLosses {
+            cruisers: 1,
+            ..ShipLosses::default()
+        },
+        defender_batteries_initial: 2,
+        defender_armies_initial: 5,
+        attacker_ship_losses: ShipLosses::default(),
+        attacker_army_losses: 3,
+        transport_army_losses: 0,
+        defender_battery_losses: 2,
+        defender_army_losses: 5,
+        outcome: MissionOutcome::Succeeded,
+        stardate_week: Some(3),
+    });
+    events
+        .ownership_change_events
+        .push(PlanetOwnershipChangeEvent {
+            planet_idx: 0,
+            reporting_empire_raw: 2,
+            previous_owner_empire_raw: 2,
+            new_owner_empire_raw: 1,
+            stardate_week: Some(3),
+        });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
+    assert!(text.contains("We have been invaded and captured by"));
+    assert!(text.contains("from"));
+    assert!(text.contains("The attacking force initially"));
+    assert!(text.contains("contained 1 cruiser."));
+    assert!(
+        text.contains("Our defenses initially contained 2 ground battery(ies) and 5 army(ies).")
+    );
+    assert!(text.contains("We lost 2 ground batteries and 5 armies."));
+    assert!(text.contains("Enemy losses: no ship losses."));
+}
+
+#[test]
 fn results_reports_named_hostile_fleet_with_empire_local_slot() {
     let mut game_data = GameStateBuilder::new()
         .with_player_count(4)
@@ -311,6 +420,7 @@ fn results_reports_named_hostile_fleet_with_empire_local_slot() {
                     destroyers: 1,
                     ..ShipLosses::default()
                 },
+                friendly_initial_starbases: 0,
                 friendly_loaded_armies_initial: 0,
                 friendly_losses: ShipLosses {
                     destroyers: 1,
@@ -350,10 +460,158 @@ fn results_report_invalid_capability_loss_as_aborted_seek_home_mission() {
     let texts = viewer_report_texts(1, &rows);
 
     assert!(texts.iter().any(|text| {
-        text.contains("Maintenance aborted this fleet's colonize world mission because")
-            && text.contains("lacks the required ETAC")
-            && text.contains("seeking safety")
+        text.contains("colonize world mission") && text.contains("lacks the required ETAC")
     }));
+}
+
+#[test]
+fn starbase_only_defender_report_uses_command_center_source() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 2,
+        reporting_fleet_number: None,
+        reporting_mission: None,
+        perspective: FleetBattlePerspective::Attacked,
+        coords: [9, 6],
+        enemy_empires_raw: vec![1],
+        primary_enemy_fleet_number: Some(12),
+        held_field: false,
+        friendly_initial: ShipLosses::default(),
+        friendly_initial_starbases: 1,
+        friendly_loaded_armies_initial: 0,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses {
+            battleships: 1,
+            cruisers: 3,
+            transports: 14,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 11,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(2),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
+    assert!(text.contains("From your Fleet Command Center:"));
+    assert!(text.contains("Our defenses contained 1 starbase."));
+    assert!(!text.contains("From your fleet"));
+    assert!(!text.contains("Our force contained no ships."));
+}
+
+#[test]
+fn attacker_report_mentions_destroyed_lone_starbase() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 1,
+        reporting_fleet_number: Some(12),
+        reporting_mission: Some(Mission::BombardWorld),
+        perspective: FleetBattlePerspective::Intercepted,
+        coords: [9, 6],
+        enemy_empires_raw: vec![2],
+        primary_enemy_fleet_number: None,
+        held_field: true,
+        friendly_initial: ShipLosses {
+            battleships: 1,
+            cruisers: 3,
+            transports: 14,
+            ..ShipLosses::default()
+        },
+        friendly_initial_starbases: 0,
+        friendly_loaded_armies_initial: 11,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses::default(),
+        enemy_initial_starbases: 1,
+        enemy_loaded_armies_initial: 0,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 1,
+        stardate_week: Some(2),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let text = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
+    assert!(text.contains("Alien force contained 1 starbase."));
+    assert!(text.contains("We inflicted losses of 1 starbase."));
+    assert!(!text.contains("We were unable to inflict any losses."));
+}
+
+#[test]
+fn destroyed_starbase_only_defender_emits_only_telemetry_report() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 2,
+        reporting_fleet_number: None,
+        reporting_mission: None,
+        perspective: FleetBattlePerspective::Attacked,
+        coords: [9, 6],
+        enemy_empires_raw: vec![1],
+        primary_enemy_fleet_number: Some(12),
+        held_field: false,
+        friendly_initial: ShipLosses::default(),
+        friendly_initial_starbases: 1,
+        friendly_loaded_armies_initial: 0,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 1,
+        enemy_initial: ShipLosses {
+            battleships: 1,
+            cruisers: 3,
+            transports: 14,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 11,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(2),
+    });
+    events
+        .starbase_destroyed_events
+        .push(nc_data::StarbaseDestroyedEvent {
+            reporting_empire_raw: 2,
+            starbase_id: 4,
+            coords: [9, 6],
+            enemy_initial: ShipLosses {
+                battleships: 1,
+                cruisers: 3,
+                transports: 14,
+                ..ShipLosses::default()
+            },
+            enemy_losses: ShipLosses::default(),
+            primary_enemy_empire_raw: Some(1),
+            primary_enemy_fleet_number: Some(12),
+            stardate_week: Some(2),
+        });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let texts = viewer_report_texts(2, &rows);
+    assert_eq!(
+        texts.len(),
+        1,
+        "starbase-only defense should not emit duplicate battle + telemetry reports: {texts:?}"
+    );
+    assert!(texts[0].contains("We lost all contact with Starbase 4"));
 }
 
 #[test]

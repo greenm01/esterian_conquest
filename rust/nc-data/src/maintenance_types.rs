@@ -159,6 +159,8 @@ pub struct FleetBattleEvent {
     pub held_field: bool,
     /// Initial composition of the reporting force.
     pub friendly_initial: ShipLosses,
+    /// Initial friendly starbases participating in the battle.
+    pub friendly_initial_starbases: u32,
     /// Loaded armies aboard the reporting force at battle start.
     pub friendly_loaded_armies_initial: u32,
     /// Exact losses suffered by the reporting empire.

@@ -117,6 +117,7 @@ mod tests {
             primary_enemy_fleet_number: Some(5),
             held_field: true,
             friendly_initial: ShipLosses::default(),
+            friendly_initial_starbases: 0,
             friendly_loaded_armies_initial: 0,
             friendly_losses: ShipLosses::default(),
             friendly_starbases_lost: 0,
