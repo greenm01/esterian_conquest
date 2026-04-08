@@ -7,7 +7,7 @@ use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{Event, MouseButton as WinitMouseButton, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::ModifiersState;
-use winit::window::WindowBuilder;
+use winit::window::{Fullscreen, WindowBuilder};
 
 use crate::app::state::DashApp;
 
@@ -115,15 +115,7 @@ impl NativeDashShell {
                 pixel_width,
                 pixel_height,
             } => {
-                let pixel_width = pixel_width.max(1);
-                let pixel_height = pixel_height.max(1);
-                if self.window_pixel_width != pixel_width
-                    || self.window_pixel_height != pixel_height
-                {
-                    self.window_pixel_width = pixel_width;
-                    self.window_pixel_height = pixel_height;
-                    let (cols, rows) = terminal_grid_for_pixels(pixel_width, pixel_height);
-                    self.app.resize_canvas(cols, rows);
+                if self.resize_to_window_pixels(pixel_width, pixel_height) {
                     self.push_state_effects(&mut effects, true);
                 }
             }
@@ -167,6 +159,25 @@ impl NativeDashShell {
             effects.push(DashEffect::Exit);
         }
     }
+
+    fn resize_to_window_pixels(&mut self, pixel_width: u32, pixel_height: u32) -> bool {
+        let pixel_width = pixel_width.max(1);
+        let pixel_height = pixel_height.max(1);
+        let (cols, rows) = terminal_grid_for_pixels(pixel_width, pixel_height);
+        let geometry_changed = self.app.geometry.width() != cols as usize
+            || self.app.geometry.height() != rows as usize;
+        if self.window_pixel_width == pixel_width
+            && self.window_pixel_height == pixel_height
+            && !geometry_changed
+        {
+            return false;
+        }
+
+        self.window_pixel_width = pixel_width;
+        self.window_pixel_height = pixel_height;
+        self.app.resize_canvas(cols, rows);
+        true
+    }
 }
 
 pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
@@ -177,6 +188,7 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
         WindowBuilder::new()
             .with_title(WINDOW_TITLE)
             .with_inner_size(LogicalSize::new(logical_width, logical_height))
+            .with_fullscreen(Some(Fullscreen::Borderless(None)))
             .with_resizable(true)
             .build(&event_loop)?,
     );
@@ -262,6 +274,7 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                     dispatch(&mut shell, window, DashMsg::KeyInput(key), true);
                 }
                 WindowEvent::RedrawRequested => {
+                    sync_window_size(&mut shell, window);
                     let size = window.inner_size();
                     match shell.app.render_playfield() {
                         Ok(buffer) => {
@@ -283,6 +296,7 @@ pub fn run(app: DashApp) -> Result<(), Box<dyn std::error::Error>> {
                 _ => {}
             },
             Event::AboutToWait => {
+                sync_window_size(&mut shell, window);
                 dispatch(&mut shell, window, DashMsg::FlushPointer, false);
                 if shell.app.should_quit {
                     elwt.exit();
@@ -324,6 +338,13 @@ fn apply_effects(
     }
     if shell.needs_redraw {
         window.request_redraw();
+    }
+}
+
+fn sync_window_size(shell: &mut NativeDashShell, window: &winit::window::Window) {
+    let size = window.inner_size();
+    if shell.resize_to_window_pixels(size.width, size.height) {
+        shell.needs_redraw = true;
     }
 }
 
@@ -395,10 +416,16 @@ fn key_modifiers(modifiers: ModifiersState) -> KeyModifiers {
 #[cfg(test)]
 mod tests {
     use super::{
-        PendingPointer, coalesce_pointer_move, next_pointer_dispatch, pointer_coords,
-        pointer_event_kind,
+        NativeDashShell, PendingPointer, coalesce_pointer_move, next_pointer_dispatch,
+        pointer_coords, pointer_event_kind,
     };
     use crossterm::event::MouseEventKind;
+    use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
+
+    use crate::app::state::DashApp;
 
     #[test]
     fn outside_pointer_maps_to_sentinel_coords() {
@@ -443,5 +470,44 @@ mod tests {
             ),
             Some(PendingPointer::Outside)
         );
+    }
+
+    #[test]
+    fn resize_updates_app_geometry_even_when_cached_pixels_match() {
+        let mut shell = test_shell(ScreenGeometry::new(1, 1), 100, 54);
+
+        assert!(shell.resize_to_window_pixels(100, 54));
+        assert_eq!(shell.app.geometry, ScreenGeometry::new(10, 3));
+    }
+
+    #[test]
+    fn resize_noops_when_pixels_and_grid_are_already_current() {
+        let mut shell = test_shell(ScreenGeometry::new(10, 3), 100, 54);
+
+        assert!(!shell.resize_to_window_pixels(100, 54));
+        assert_eq!(shell.app.geometry, ScreenGeometry::new(10, 3));
+    }
+
+    fn test_shell(
+        app_geometry: ScreenGeometry,
+        window_pixel_width: u32,
+        window_pixel_height: u32,
+    ) -> NativeDashShell {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            app_geometry,
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        NativeDashShell::new(app, window_pixel_width, window_pixel_height)
     }
 }
