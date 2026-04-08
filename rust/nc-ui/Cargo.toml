@@ -10,3 +10,6 @@ path = "src/lib.rs"
 [dependencies]
 crossterm = "0.29"
 kdl = "6"
+fontdue = "0.9"
+softbuffer = "0.4"
+winit = "0.29"

@@ -2119,7 +2119,6 @@ dependencies = [
  "crossterm",
  "dirs",
  "ed25519-dalek",
- "fontdue",
  "kdl",
  "libc",
  "nc-log",
@@ -2133,7 +2132,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "softbuffer",
  "tokio",
  "tracing",
  "url",
@@ -2154,6 +2152,7 @@ dependencies = [
  "nc-session",
  "nc-ui",
  "tracing",
+ "winit",
 ]
 
 [[package]]
@@ -2266,7 +2265,10 @@ name = "nc-ui"
 version = "1.0.0-beta.2"
 dependencies = [
  "crossterm",
+ "fontdue",
  "kdl",
+ "softbuffer",
+ "winit",
 ]
 
 [[package]]

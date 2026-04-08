@@ -1,4 +1,5 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::KeyEvent;
+use nc_ui::native::crossterm_key_event_from_winit;
 use winit::event::{ElementState, KeyEvent as WinitKeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
@@ -25,57 +26,7 @@ pub fn is_paste_shortcut(event: &WinitKeyEvent, modifiers: ModifiersState) -> bo
 }
 
 pub fn picker_key(event: &WinitKeyEvent, modifiers: ModifiersState) -> Option<KeyEvent> {
-    if !is_key_press(event) {
-        return None;
-    }
-    let key_modifiers = modifiers_to_crossterm(modifiers);
-    let code = match &event.logical_key {
-        Key::Named(NamedKey::ArrowUp) => KeyCode::Up,
-        Key::Named(NamedKey::ArrowDown) => KeyCode::Down,
-        Key::Named(NamedKey::ArrowLeft) => KeyCode::Left,
-        Key::Named(NamedKey::ArrowRight) => KeyCode::Right,
-        Key::Named(NamedKey::PageUp) => KeyCode::PageUp,
-        Key::Named(NamedKey::PageDown) => KeyCode::PageDown,
-        Key::Named(NamedKey::Home) => KeyCode::Home,
-        Key::Named(NamedKey::End) => KeyCode::End,
-        Key::Named(NamedKey::Enter) => KeyCode::Enter,
-        Key::Named(NamedKey::Escape) => KeyCode::Esc,
-        Key::Named(NamedKey::Backspace) => KeyCode::Backspace,
-        Key::Named(NamedKey::Delete) => KeyCode::Delete,
-        Key::Named(NamedKey::Insert) => KeyCode::Insert,
-        Key::Named(NamedKey::Tab) if modifiers.shift_key() => KeyCode::BackTab,
-        Key::Named(NamedKey::Tab) => KeyCode::Tab,
-        Key::Named(NamedKey::F1) => KeyCode::F(1),
-        Key::Named(NamedKey::F2) => KeyCode::F(2),
-        Key::Named(NamedKey::F3) => KeyCode::F(3),
-        Key::Named(NamedKey::F4) => KeyCode::F(4),
-        Key::Named(NamedKey::F5) => KeyCode::F(5),
-        Key::Named(NamedKey::F6) => KeyCode::F(6),
-        Key::Named(NamedKey::F7) => KeyCode::F(7),
-        Key::Named(NamedKey::F8) => KeyCode::F(8),
-        Key::Named(NamedKey::F9) => KeyCode::F(9),
-        Key::Named(NamedKey::F10) => KeyCode::F(10),
-        Key::Named(NamedKey::F11) => KeyCode::F(11),
-        Key::Named(NamedKey::F12) => KeyCode::F(12),
-        _ => {
-            let ch = event
-                .text
-                .as_ref()
-                .and_then(|text| text.chars().next())
-                .filter(|ch| !ch.is_control())
-                .or_else(|| match &event.logical_key {
-                    Key::Character(text) => text.chars().next(),
-                    _ => None,
-                })?;
-            let ch = if key_modifiers.contains(KeyModifiers::CONTROL) {
-                ch.to_ascii_lowercase()
-            } else {
-                ch
-            };
-            KeyCode::Char(ch)
-        }
-    };
-    Some(KeyEvent::new(code, key_modifiers))
+    crossterm_key_event_from_winit(event, modifiers)
 }
 
 pub fn terminal_key_bytes(
@@ -155,20 +106,6 @@ pub fn encode_paste(text: &str, bracketed: bool) -> Vec<u8> {
 pub fn pasteable_text(text: &str) -> impl Iterator<Item = char> + '_ {
     text.chars()
         .filter(|ch| !matches!(ch, '\r' | '\n' | '\u{7f}'))
-}
-
-fn modifiers_to_crossterm(modifiers: ModifiersState) -> KeyModifiers {
-    let mut mapped = KeyModifiers::empty();
-    if modifiers.shift_key() {
-        mapped.insert(KeyModifiers::SHIFT);
-    }
-    if modifiers.control_key() {
-        mapped.insert(KeyModifiers::CONTROL);
-    }
-    if modifiers.alt_key() {
-        mapped.insert(KeyModifiers::ALT);
-    }
-    mapped
 }
 
 fn cursor_sequence(mode: TermMode, final_byte: u8) -> Vec<u8> {

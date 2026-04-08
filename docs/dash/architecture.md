@@ -1,10 +1,10 @@
-# nc-dash — Full-Screen Dashboard TUI
+# nc-dash — Full-Screen Dashboard
 
 ## Overview
 
-`nc-dash` is a modern full-screen terminal dashboard for Nostrian Conquest.
-It replaces the legacy 80×25 BBS-style interface with a three-column layout
-built for SSH and local play on modern terminals.
+`nc-dash` is a modern full-screen native dashboard for Nostrian Conquest. It
+preserves the terminal-style cell-grid look while running in a local native
+window instead of a PTY-bound terminal loop.
 
 The legacy TUI (`nc-game`) remains unchanged for BBS door mode and players
 who prefer the classic interface. Both crates share the same game data model
@@ -15,13 +15,13 @@ who prefer the classic interface. Both crates share the same game data model
 ```
 nc-game   ← legacy 80×25 BBS/door TUI (unchanged)
 nc-dash   ← full-screen dashboard (this crate)
-nc-ui     ← shared: PlayfieldBuffer, crossterm, themes, diff renderer
+nc-ui     ← shared: PlayfieldBuffer, native cell-grid renderer, terminal helpers, themes
 nc-data   ← shared: game state, records, economy formulas
 nc-engine ← shared: maintenance engine, combat, reports
 ```
 
 `nc-dash` produces its own binary. The sysop deploys `nc-game` for BBS
-doors and retro terminals, `nc-dash` for modern SSH or local play.
+doors and retro terminals, `nc-dash` for modern local play.
 
 `nc-dash` must not call into `nc-game`. The legacy crate is the UX and
 workflow reference only. Shared neutral rendering primitives belong in
@@ -30,16 +30,18 @@ inside `nc-dash`.
 
 ## Rendering Model
 
-`nc-dash` uses the same `PlayfieldBuffer` + crossterm pipeline as `nc-game`.
-No new rendering dependencies are needed.
+`nc-dash` still renders from `PlayfieldBuffer`, but the presentation shell is
+now native rather than PTY-driven.
 
 - `PlayfieldBuffer` already supports arbitrary dimensions.
-- The diff-based renderer (row fingerprinting) is size-agnostic.
-- crossterm handles raw mode, alternate screen, color, and terminal size.
+- `nc-ui` now owns the shared native cell-grid renderer used by both
+  `nc-dash` and `nc-connect`.
+- `winit` drives native window/input events and `softbuffer` presents the
+  rendered cell grid.
 - No widget framework — direct cell-by-cell rendering for full control.
 
-The dashboard creates a `PlayfieldBuffer` at the actual terminal size
-(detected at startup and on resize) rather than the fixed 80×25 grid.
+The dashboard creates a `PlayfieldBuffer` at the actual window cell-grid size
+(detected on startup and resize) rather than the fixed 80×25 grid.
 
 ## Layout
 
@@ -303,14 +305,14 @@ default full-map fit for that mode's frame.
   centered dashboard frame.
 - Selected sector: shown in the `SECTOR DETAIL` widget.
 
-### Terminal Resize
+### Window Resize
 
-If the player resizes the terminal mid-session:
-- Re-detect terminal dimensions on the next render cycle.
+If the player resizes the window mid-session:
+- Re-detect window cell-grid dimensions on the next render cycle.
 - Recompute panel geometry and re-render the full frame.
 - Compact widget bodies before giving up: side widgets keep minimum visible
   bodies and the center map remains the main elastic surface.
-- If the terminal drops below the newly measured frame requirement for the
+- If the window drops below the newly measured frame requirement for the
   current game state, show a warning overlay asking the player to resize or
   press Q to quit.
 

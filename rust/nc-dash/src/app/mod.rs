@@ -7,11 +7,11 @@ pub(crate) mod planet_build;
 pub mod render;
 pub mod state;
 
-use crossterm::event::{Event, KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use input::{Action, key_to_action};
 use nc_ui::modal::Rect;
 use nc_ui::table_selection;
-use nc_ui::{ScreenGeometry, Terminal};
+use nc_ui::{PlayfieldBuffer, ScreenGeometry};
 use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
     FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
@@ -26,35 +26,27 @@ use crate::panels::starmap;
 use crate::planet_view;
 
 impl DashApp {
-    /// Run the main event loop.
-    pub fn run(&mut self, terminal: &mut dyn Terminal) -> Result<(), Box<dyn std::error::Error>> {
-        loop {
-            let playfield = render::render(self)?;
-            terminal.render(&playfield)?;
-            if self.should_quit {
-                break;
-            }
-            match terminal.read_event()? {
-                Event::Key(key) => {
-                    if !self.is_terminal_too_small {
-                        self.handle_key(key);
-                    } else if key.code == KeyCode::Char('q') || key.code == KeyCode::Char('Q') {
-                        self.should_quit = true;
-                    }
-                }
-                Event::Mouse(mouse) => {
-                    if !self.is_terminal_too_small {
-                        self.handle_mouse(mouse);
-                    }
-                }
-                Event::Resize(cols, rows) => {
-                    self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
-                    self.refresh_terminal_fit_state();
-                }
-                _ => {}
-            }
+    pub(crate) fn dispatch_key_event(&mut self, key: crossterm::event::KeyEvent) {
+        if !self.is_terminal_too_small {
+            self.handle_key(key);
+        } else if key.code == KeyCode::Char('q') || key.code == KeyCode::Char('Q') {
+            self.should_quit = true;
         }
-        Ok(())
+    }
+
+    pub(crate) fn dispatch_mouse_event(&mut self, mouse: MouseEvent) {
+        if !self.is_terminal_too_small {
+            self.handle_mouse(mouse);
+        }
+    }
+
+    pub(crate) fn resize_canvas(&mut self, cols: u16, rows: u16) {
+        self.geometry = ScreenGeometry::new(cols as usize, rows as usize);
+        self.refresh_terminal_fit_state();
+    }
+
+    pub(crate) fn render_playfield(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        render::render(self)
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {

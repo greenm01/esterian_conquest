@@ -31,7 +31,12 @@ Currently, NC uses Nostr for **identity and session establishment**, but relies 
 
 ## 2. The Target State: Hybrid Transport (Local vs Remote)
 
-In the target architecture, **nc-dash** becomes a local client using full Nostr transport (state sync + async orders). **nc-connect** remains the dedicated utility for launching **nc-game** via the classic SSH/PTY stack.
+In the target architecture, **nc-dash** is a native local client using full
+Nostr transport (state sync + async orders). It preserves the existing
+terminal-style dashboard look, but it no longer runs inside the SSH/PTY event
+loop. Instead it uses a native on-demand cell-grid renderer and a TEA-style
+window event loop. **nc-connect** remains the dedicated utility for launching
+**nc-game** via the classic SSH/PTY stack.
 
 ### Block Diagram (Target Hybrid)
 
@@ -64,7 +69,8 @@ In the target architecture, **nc-dash** becomes a local client using full Nostr 
 ```
 
 ### Path A: nc-dash (Modern / Low Resource)
-1. **Local Execution:** The client runs entirely on the player's machine, reading from a local SQLite cache.
+1. **Local Execution:** The client runs entirely on the player's machine in a
+   native window, reading from a local SQLite cache.
 2. **Command Submission:** Players submit turns via Nostr event `30522 TurnCommands`.
 3. **Turn Resolution:** The VPS resolver (`nc-engine`) stages orders and computes deltas.
 4. **State Sync:** VPS publishes deltas (`30521 StateDelta`) to update the local client.
@@ -82,7 +88,9 @@ In the target architecture, **nc-dash** becomes a local client using full Nostr 
 
 While `nc-connect` persists as the primary bridge for the SSH stack, its core logic will be "folded into" the broader `nc-dash` codebase to ensure a single source of truth for identity and discovery.
 
-- **nc-dash:** The primary modern client. Manages the Nostr wallet, provides the game picker, and renders the dashboard locally using Nostr state sync.
+- **nc-dash:** The primary modern client. Manages the Nostr wallet, provides
+  the game picker, and renders the dashboard locally in a native window using
+  Nostr state sync.
 - **nc-connect:** Maintained as the specialized bridge utility for the classic `nc-game` stack. Shares the same underlying identity (wallet) and discovery logic as `nc-dash`.
 
 ---
@@ -97,6 +105,21 @@ Expand `nc-gate` to push the full, fog-of-war filtered `PlayerState` via Nostr.
 ### Phase 2: Fold nc-connect Logic into nc-dash
 - Reorganize the workspace so `nc-dash` and `nc-connect` share the same library for wallet management, Nostr handshake, and SSH provisioning.
 - Both clients use `~/.local/share/nc/wallet.kdl` as the shared identity source.
+- Share the native cell-grid renderer/input layer out of `nc-ui` so both
+  clients use one `PlayfieldBuffer`-driven window stack.
+
+### Native Client Event Model
+
+The `nc-dash` local client should follow this shape:
+
+```text
+WindowEvent -> DashMsg -> update(Model, Msg) -> Effects -> redraw if dirty
+```
+
+This is intentionally TEA-like rather than SAM-like. It keeps Rust-side input
+handling explicit, makes hover coalescing straightforward, and fits the future
+path where async Nostr/database completions re-enter the client as typed
+messages.
 
 ### Phase 3: Nostr Command Submission (nc-dash only)
 - `nc-dash` gains the ability to build and submit `turn.kdl` locally.

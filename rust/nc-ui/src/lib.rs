@@ -3,6 +3,7 @@ pub mod buffer;
 pub mod coords;
 pub mod layout;
 pub mod modal;
+pub mod native;
 pub mod paint;
 pub mod prompt;
 pub mod session;

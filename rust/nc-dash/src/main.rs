@@ -4,6 +4,7 @@ mod app;
 mod diplomacy_view;
 mod inbox;
 mod layout;
+mod native;
 mod overlays;
 mod panels;
 mod planet_view;
@@ -12,9 +13,7 @@ mod startup;
 mod theme;
 
 use nc_data::CampaignStore;
-use nc_session::args::detect_color_mode;
 use nc_ui::ScreenGeometry;
-use nc_ui::{OutputEncoding, StdoutTerminal};
 
 use app::state::DashApp;
 
@@ -31,17 +30,11 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         .map(std::path::PathBuf::from)
         .ok_or("Usage: nc-dash <game-dir>")?;
 
-    // Detect terminal size first; exact dashboard requirements are measured after loading state.
-    let (cols, rows) = crossterm::terminal::size()?;
-
     // Load game data first so we know the map size.
     let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
     let state = campaign_store
         .load_latest_runtime_state()?
         .ok_or("No runtime snapshots found — run maintenance first.")?;
-
-    // Canvas = full terminal. Frame = measured from current dashboard content.
-    let geometry = ScreenGeometry::new(cols as usize, rows as usize);
 
     // Default to player 1. Future: resolve from args/session.
     let player_record_index_1_based: usize = 1;
@@ -67,49 +60,25 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::er
         state.queued_mail,
         planet_intel_snapshots,
         player_activity_states,
-        geometry,
+        ScreenGeometry::new(1, 1),
         ScreenGeometry::new(0, 0),
         player_record_index_1_based,
     );
     app.player_war_stats = player_war_stats;
     let required = layout::dashboard::required_dashboard_frame(&app);
-    if cols < required.width() as u16 || rows < required.height() as u16 {
-        app.is_terminal_too_small = true;
-    } else {
-        app.frame = required;
-    }
+    app.geometry = required;
+    app.frame = required;
+    app.is_terminal_too_small = false;
 
-    let color_mode = detect_color_mode();
-    let mut terminal =
-        StdoutTerminal::with_encoding_and_color_mode(OutputEncoding::Utf8, color_mode);
-
-    // Enable alternate screen + raw mode.
-    use crossterm::event::EnableMouseCapture;
-    use crossterm::execute;
-    use crossterm::terminal::{EnterAlternateScreen, enable_raw_mode};
-    enable_raw_mode()?;
-    execute!(std::io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-
-    let result = run_dashboard(app, &mut terminal);
-
-    // Restore terminal.
-    use crossterm::event::DisableMouseCapture;
-    use crossterm::terminal::{LeaveAlternateScreen, disable_raw_mode};
-    let _ = disable_raw_mode();
-    let _ = execute!(std::io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
-
-    result
-}
-
-fn run_dashboard(
-    mut app: DashApp,
-    terminal: &mut dyn nc_ui::Terminal,
-) -> Result<(), Box<dyn std::error::Error>> {
-    app.run(terminal)
+    native::run(app)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     run(std::env::args())
+}
+
+pub(crate) fn show_fatal_error(message: &str) {
+    eprintln!("error: {message}");
 }
 
 fn print_usage() {

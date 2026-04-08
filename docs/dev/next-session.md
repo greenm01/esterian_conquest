@@ -13,6 +13,9 @@ Keep this file short. Historical detail belongs in
   host game-registry commands directly instead of delegating to `nc-cli`.
 - `nc-game` and `nc-sysop` normal dependency graphs no longer pull
   `nc-compat` / `nc-classic`.
+- `nc-dash` now runs as a native local window instead of a terminal/PTY app.
+  It still renders the same cell-grid dashboard, but the shell now uses
+  `winit` + shared `nc-ui` native rendering with coalesced pointer updates.
 - `nc-gate` now reads game names and seat/session metadata from `ncgame.db`
   and issues per-seat session leases to block duplicate logins.
 - `nc-sysop nostr` now has one-shot `publish` / `verify` repair commands for
@@ -91,6 +94,9 @@ Keep this file short. Historical detail belongs in
   `https://relay.nostrian-conquest.com`, but no new VPS relay or `nc-nostr`
   logs appear during the hang. Treat this as a Windows `nc-connect`
   relay/websocket/discovery-path issue first, not a game-daemon issue.
+- `nc-dash` now has the right native shell shape, but the client model still
+  uses an internal crossterm-shaped compatibility layer; future Nostr sync work
+  should push more state changes through typed client messages directly.
 - `nc-sysop nostr verify` still fails against the live VPS relay with
   `could not fetch 30500 ...: no relays`; the one-shot `publish` path works,
   but the `verify` fetch path needs a follow-up fix before relying on it in
@@ -109,18 +115,20 @@ Keep this file short. Historical detail belongs in
 
 1. Reproduce the Windows/QEMU `CLAIMING INVITE...` hang with better client-side
    signal, ideally from a Windows build that can emit relay/discovery logs.
-2. Fix the `nc-sysop nostr verify` live-relay fetch bug (`no relays`) so the
+2. Start moving `nc-dash` local-state refresh and future Nostr async completions
+   onto typed native client messages instead of direct imperative calls.
+3. Fix the `nc-sysop nostr verify` live-relay fetch bug (`no relays`) so the
    new repair command is actually usable on VPS hosts.
-3. Run more VPS and live multi-game playtests against the DB-only hosted
+4. Run more VPS and live multi-game playtests against the DB-only hosted
    layout once the Windows hosted join path is unblocked.
-4. Preserve the storage roundtrip tests and source-policy guardrails so runtime
+5. Preserve the storage roundtrip tests and source-policy guardrails so runtime
    code does not drift back toward raw-offset dependence.
-5. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
+6. Revisit a future universal `Ctrl-/` bordered help popup with visible padding
    so screen-local key discoverability can move out of crowded command rails.
-6. Add the Windows half of the `nc-connect` bridge stdin shutdown fix so
+7. Add the Windows half of the `nc-connect` bridge stdin shutdown fix so
    post-game return behavior matches Linux/macOS and the first keypress works
    immediately after leaving `nc-game`.
-7. Revisit multi-relay support for `nc-connect` join/handshake flows if relay
+8. Revisit multi-relay support for `nc-connect` join/handshake flows if relay
    reliability remains a recurring playtest problem.
-8. Only do deeper semantic cleanup when it materially helps a real gameplay,
+9. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.

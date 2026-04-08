@@ -16,3 +16,4 @@ nc-session = { path = "../nc-session" }
 nc-ui = { path = "../nc-ui" }
 nc-log = { path = "../nc-log" }
 tracing = "0.1"
+winit = "0.29"

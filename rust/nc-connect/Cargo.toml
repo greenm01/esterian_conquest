@@ -63,8 +63,6 @@ libc = "0.2"
 tracing = "0.1"
 alacritty_terminal = "0.25"
 arboard = { version = "3", features = ["wayland-data-control"] }
-fontdue = "0.9"
-softbuffer = "0.4"
 winit = "0.29"
 
 [target.'cfg(windows)'.dependencies]

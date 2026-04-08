@@ -1,6 +1,5 @@
 mod app;
 mod clipboard;
-mod font;
 mod input;
 mod render;
 mod terminal;
@@ -8,6 +7,7 @@ mod terminal;
 use std::env;
 
 use crate::config::load_config;
+use nc_ui::native::{DEFAULT_CELL_HEIGHT, DEFAULT_CELL_WIDTH, terminal_grid_for_pixels};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -20,8 +20,8 @@ use render::WindowRenderer;
 
 pub(crate) const TERM_COLS: u16 = 80;
 pub(crate) const TERM_ROWS: u16 = 25;
-pub(crate) const CELL_WIDTH: usize = 10;
-pub(crate) const CELL_HEIGHT: usize = 18;
+pub(crate) const CELL_WIDTH: usize = DEFAULT_CELL_WIDTH;
+pub(crate) const CELL_HEIGHT: usize = DEFAULT_CELL_HEIGHT;
 const WINDOW_TITLE: &str = "Nostrian Conquest";
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -149,16 +149,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-pub(crate) fn terminal_grid_for_pixels(pixel_width: u32, pixel_height: u32) -> (u16, u16) {
-    let cols = (pixel_width.max(1) as usize / CELL_WIDTH).max(1);
-    let rows = (pixel_height.max(1) as usize / CELL_HEIGHT).max(1);
-    (
-        cols.min(u16::MAX as usize) as u16,
-        rows.min(u16::MAX as usize) as u16,
-    )
-}
-
 fn sync_window_mode(
     window: &winit::window::Window,
     app: &App,

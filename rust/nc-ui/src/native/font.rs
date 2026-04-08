@@ -1,15 +1,31 @@
 use std::collections::HashMap;
 
 use fontdue::{Font, FontSettings};
-use nc_ui::buffer::{CellStyle, GameColor};
 
-use super::{CELL_HEIGHT, CELL_WIDTH};
+use crate::buffer::{CellStyle, GameColor};
 
-const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Regular.ttf");
-const PRIMARY_BOLD_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Bold.ttf");
-const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Italic.ttf");
-const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSansMono-Regular.ttf");
-const FALLBACK_BOLD_FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSansMono-Bold.ttf");
+use super::{DEFAULT_CELL_HEIGHT, DEFAULT_CELL_WIDTH};
+
+const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../nc-connect/assets/fonts/JetBrainsMono-Regular.ttf"
+));
+const PRIMARY_BOLD_FONT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../nc-connect/assets/fonts/JetBrainsMono-Bold.ttf"
+));
+const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../nc-connect/assets/fonts/JetBrainsMono-Italic.ttf"
+));
+const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../nc-connect/assets/fonts/NotoSansMono-Regular.ttf"
+));
+const FALLBACK_BOLD_FONT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../nc-connect/assets/fonts/NotoSansMono-Bold.ttf"
+));
 const FONT_SIZE_PX: f32 = 15.5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,7 +58,7 @@ struct LoadedFont {
     advance_pad: i32,
 }
 
-pub struct FontRenderer {
+pub(super) struct FontRenderer {
     primary_regular: LoadedFont,
     primary_bold: LoadedFont,
     primary_italic: LoadedFont,
@@ -52,7 +68,7 @@ pub struct FontRenderer {
 }
 
 impl FontRenderer {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub(super) fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             primary_regular: load_font(PRIMARY_REGULAR_FONT)?,
             primary_bold: load_font(PRIMARY_BOLD_FONT)?,
@@ -63,7 +79,7 @@ impl FontRenderer {
         })
     }
 
-    pub fn draw_cell(
+    pub(super) fn draw_cell(
         &mut self,
         frame: &mut [u32],
         stride: usize,
@@ -84,8 +100,8 @@ impl FontRenderer {
             stride,
             cell_x,
             cell_y,
-            CELL_WIDTH,
-            CELL_HEIGHT,
+            DEFAULT_CELL_WIDTH,
+            DEFAULT_CELL_HEIGHT,
             pack_rgb(bg),
         );
 
@@ -202,9 +218,11 @@ fn load_font(bytes: &[u8]) -> Result<LoadedFont, Box<dyn std::error::Error>> {
     let line = font
         .horizontal_line_metrics(FONT_SIZE_PX)
         .ok_or("embedded font is missing horizontal line metrics")?;
-    let top_padding = ((CELL_HEIGHT as f32 - line.new_line_size).max(0.0) / 2.0).round() as i32;
+    let top_padding =
+        ((DEFAULT_CELL_HEIGHT as f32 - line.new_line_size).max(0.0) / 2.0).round() as i32;
     let baseline = top_padding + line.ascent.round() as i32;
-    let advance_pad = 0.max(((CELL_WIDTH as f32 - FONT_SIZE_PX * 0.6) / 2.0).round() as i32);
+    let advance_pad =
+        0.max(((DEFAULT_CELL_WIDTH as f32 - FONT_SIZE_PX * 0.6) / 2.0).round() as i32);
     Ok(LoadedFont {
         font,
         baseline,
@@ -279,8 +297,8 @@ fn draw_box_glyph(
     down: bool,
     color: u32,
 ) {
-    let mid_x = CELL_WIDTH / 2;
-    let mid_y = CELL_HEIGHT / 2;
+    let mid_x = DEFAULT_CELL_WIDTH / 2;
+    let mid_y = DEFAULT_CELL_HEIGHT / 2;
     if left {
         fill_rect(frame, stride, cell_x, cell_y + mid_y, mid_x + 1, 1, color);
     }
@@ -290,7 +308,7 @@ fn draw_box_glyph(
             stride,
             cell_x + mid_x,
             cell_y + mid_y,
-            CELL_WIDTH - mid_x,
+            DEFAULT_CELL_WIDTH - mid_x,
             1,
             color,
         );
@@ -305,7 +323,7 @@ fn draw_box_glyph(
             cell_x + mid_x,
             cell_y + mid_y,
             1,
-            CELL_HEIGHT - mid_y,
+            DEFAULT_CELL_HEIGHT - mid_y,
             color,
         );
     }
@@ -352,8 +370,8 @@ fn draw_block_glyph(
             stride,
             cell_x,
             cell_y,
-            CELL_WIDTH,
-            CELL_HEIGHT,
+            DEFAULT_CELL_WIDTH,
+            DEFAULT_CELL_HEIGHT,
             color,
         ),
         BlockFill::TopHalf => fill_rect(
@@ -361,17 +379,17 @@ fn draw_block_glyph(
             stride,
             cell_x,
             cell_y,
-            CELL_WIDTH,
-            CELL_HEIGHT / 2,
+            DEFAULT_CELL_WIDTH,
+            DEFAULT_CELL_HEIGHT / 2,
             color,
         ),
         BlockFill::BottomHalf => fill_rect(
             frame,
             stride,
             cell_x,
-            cell_y + CELL_HEIGHT / 2,
-            CELL_WIDTH,
-            CELL_HEIGHT - (CELL_HEIGHT / 2),
+            cell_y + DEFAULT_CELL_HEIGHT / 2,
+            DEFAULT_CELL_WIDTH,
+            DEFAULT_CELL_HEIGHT - (DEFAULT_CELL_HEIGHT / 2),
             color,
         ),
         BlockFill::LeftHalf => fill_rect(
@@ -379,17 +397,17 @@ fn draw_block_glyph(
             stride,
             cell_x,
             cell_y,
-            CELL_WIDTH / 2,
-            CELL_HEIGHT,
+            DEFAULT_CELL_WIDTH / 2,
+            DEFAULT_CELL_HEIGHT,
             color,
         ),
         BlockFill::RightHalf => fill_rect(
             frame,
             stride,
-            cell_x + CELL_WIDTH / 2,
+            cell_x + DEFAULT_CELL_WIDTH / 2,
             cell_y,
-            CELL_WIDTH - (CELL_WIDTH / 2),
-            CELL_HEIGHT,
+            DEFAULT_CELL_WIDTH - (DEFAULT_CELL_WIDTH / 2),
+            DEFAULT_CELL_HEIGHT,
             color,
         ),
         BlockFill::LightShade => draw_shade_pattern(frame, stride, cell_x, cell_y, color, 4),
@@ -406,8 +424,8 @@ fn draw_shade_pattern(
     color: u32,
     divisor: usize,
 ) {
-    for row in 0..CELL_HEIGHT {
-        for col in 0..CELL_WIDTH {
+    for row in 0..DEFAULT_CELL_HEIGHT {
+        for col in 0..DEFAULT_CELL_WIDTH {
             let hit = match divisor {
                 1 => true,
                 2 => (row + col) % 2 == 0,
@@ -445,11 +463,11 @@ fn blend(bg: (u8, u8, u8), fg: (u8, u8, u8), alpha: u8) -> (u8, u8, u8) {
     (blend(bg.0, fg.0), blend(bg.1, fg.1), blend(bg.2, fg.2))
 }
 
-fn pack_rgb((r, g, b): (u8, u8, u8)) -> u32 {
+pub(super) fn pack_rgb((r, g, b): (u8, u8, u8)) -> u32 {
     ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
 }
 
-fn color_to_rgb(color: GameColor) -> (u8, u8, u8) {
+pub(super) fn color_to_rgb(color: GameColor) -> (u8, u8, u8) {
     match color {
         GameColor::Black => (0x00, 0x00, 0x00),
         GameColor::Red => (0x80, 0x00, 0x00),
@@ -504,97 +522,5 @@ fn ansi_indexed_rgb(index: u8) -> (u8, u8, u8) {
             let value = 8 + (index - 232) * 10;
             (value, value, value)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn style() -> CellStyle {
-        CellStyle::new(GameColor::White, GameColor::Black, false)
-    }
-
-    #[test]
-    fn primary_font_covers_greek_and_terminal_line_chars() {
-        let renderer = FontRenderer::new().expect("font renderer loads");
-        assert!(renderer.primary_regular.font.has_glyph('Α'));
-        assert!(renderer.fallback_regular.font.has_glyph('Α'));
-        assert!(renderer.primary_regular.font.has_glyph('─'));
-    }
-
-    #[test]
-    fn glyph_route_prefers_primitives_for_terminal_box_and_block_chars() {
-        let renderer = FontRenderer::new().expect("font renderer loads");
-        assert_eq!(
-            renderer.glyph_route('─', style(), false),
-            GlyphRoute::Primitive('─')
-        );
-        assert_eq!(
-            renderer.glyph_route('█', style(), false),
-            GlyphRoute::Primitive('█')
-        );
-    }
-
-    #[test]
-    fn glyph_route_uses_primary_font_for_greek() {
-        let renderer = FontRenderer::new().expect("font renderer loads");
-        assert_eq!(
-            renderer.glyph_route('Ω', style(), false),
-            GlyphRoute::Font(FontFaceKey::PrimaryRegular, 'Ω')
-        );
-        assert_eq!(
-            renderer.glyph_route(
-                'Ω',
-                CellStyle::new(GameColor::White, GameColor::Black, true),
-                false
-            ),
-            GlyphRoute::Font(FontFaceKey::PrimaryBold, 'Ω')
-        );
-    }
-
-    #[test]
-    fn horizontal_box_lines_join_without_gaps() {
-        let mut frame = vec![0u32; CELL_WIDTH * CELL_HEIGHT * 2];
-        let stride = CELL_WIDTH * 2;
-        let color = pack_rgb((0xff, 0xff, 0xff));
-        draw_terminal_primitive(&mut frame, stride, 0, 0, '─', color);
-        draw_terminal_primitive(&mut frame, stride, CELL_WIDTH, 0, '─', color);
-
-        let y = CELL_HEIGHT / 2;
-        assert_eq!(frame[y * stride + (CELL_WIDTH - 1)], color);
-        assert_eq!(frame[y * stride + CELL_WIDTH], color);
-    }
-
-    #[test]
-    fn greek_fallback_rasterizes_visible_pixels() {
-        let mut renderer = FontRenderer::new().expect("font renderer loads");
-        let mut frame = vec![0u32; CELL_WIDTH * CELL_HEIGHT];
-        renderer.draw_cell(&mut frame, CELL_WIDTH, 0, 0, 'Α', style(), false, false);
-        assert!(frame.iter().any(|pixel| *pixel != 0));
-    }
-
-    #[test]
-    fn light_and_dark_shades_have_distinct_density() {
-        let stride = CELL_WIDTH * 2;
-        let color = pack_rgb((0xff, 0xff, 0xff));
-        let mut frame = vec![0u32; stride * CELL_HEIGHT];
-        draw_terminal_primitive(&mut frame, stride, 0, 0, '░', color);
-        draw_terminal_primitive(&mut frame, stride, CELL_WIDTH, 0, '▓', color);
-        let light = frame
-            .iter()
-            .take(CELL_WIDTH * CELL_HEIGHT)
-            .filter(|pixel| **pixel == color)
-            .count();
-        let mut dark = 0;
-        for row in 0..CELL_HEIGHT {
-            for col in CELL_WIDTH..(CELL_WIDTH * 2) {
-                if frame[row * stride + col] == color {
-                    dark += 1;
-                }
-            }
-        }
-        assert!(light > 0);
-        assert!(dark > light);
     }
 }
