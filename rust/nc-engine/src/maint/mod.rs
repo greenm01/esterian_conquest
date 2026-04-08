@@ -167,6 +167,14 @@ pub fn run_maintenance_turn_with_context_and_seed(
     validate_maintenance_state(game_data)
         .map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
 
+    // Remove any fleet records that carry no ships at all.  These are stale
+    // shells left over from combat that zeroed a fleet's counts without
+    // removing the record (e.g. pursuit-fire eliminations, prior-turn
+    // attrition).  Culling here — before snapshots or event dispatch — means
+    // no later code ever sees a ghost fleet, and no event index remapping is
+    // required after the fact.
+    cull_empty_fleets(game_data);
+
     // CONQUEST.DAT 0x0c/0x3d accumulation trigger — snapshot BEFORE processing.
     // ECMAINT increments production total (0x0c += 100) and turn counter (0x3d += 1)
     // only when raw[0x0c] == 0x64 at the start of the turn.
@@ -797,6 +805,18 @@ fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {
 
 fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
     apply_fleet_removal_remap(game_data, to_remove);
+}
+
+fn cull_empty_fleets(game_data: &mut CoreGameData) {
+    let to_remove: Vec<bool> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|f| !f.has_any_force())
+        .collect();
+    if to_remove.iter().any(|&r| r) {
+        apply_fleet_removal_remap(game_data, &to_remove);
+    }
 }
 
 fn sanitize_invalid_player_inputs(game_data: &mut CoreGameData) -> Vec<InvalidPlayerStateEvent> {

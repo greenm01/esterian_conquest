@@ -14,12 +14,20 @@ pub(super) fn queue_salvage_resolution(
     planet_idx: Option<usize>,
     coords: [u8; 2],
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Empty fleets are culled at turn start; a salvage fleet reaching this
+    // point should always carry at least one unit.  The one exception is a
+    // fleet that loses all ships to ROE pursuit fire mid-transit on the same
+    // turn it arrives — the cull cannot catch that, so we fall through rather
+    // than panic.
+    debug_assert!(
+        game_data.fleets.records[fleet_idx].has_any_force(),
+        "salvage dispatched to empty fleet (fleet_idx={fleet_idx}) — should have been culled at turn start"
+    );
+
     let salvage_event =
         resolve_salvage_arrival(game_data, fleet_idx, owner_empire_raw, planet_idx)?;
     match salvage_event {
-        SalvageResolvedEvent::Succeeded {
-            recovered_points, ..
-        } => {
+        SalvageResolvedEvent::Succeeded { .. } => {
             movement_events.mission_events.push(MissionEvent {
                 fleet_idx,
                 owner_empire_raw,
@@ -31,15 +39,11 @@ pub(super) fn queue_salvage_resolution(
                 stardate_week: None,
             });
             movement_events.salvage_events.push(salvage_event);
-            if recovered_points > 0 {
-                to_remove[fleet_idx] = true;
-            } else {
-                // Fleet has zero salvage value — nothing to scrap but the
-                // mission is done.  Reset to HoldPosition so the fleet does
-                // not re-attempt the Salvage order on every subsequent turn.
-                let fleet = &mut game_data.fleets.records[fleet_idx];
-                set_fleet_to_local_hold(fleet);
-            }
+            // Always remove the fleet on a successful salvage arrival.
+            // Any fleet that reaches this point with zero ships was already
+            // empty before the turn (culled) or lost ships mid-transit; either
+            // way the mission is done and the record should be discarded.
+            to_remove[fleet_idx] = true;
         }
         SalvageResolvedEvent::Failed { .. } => {
             movement_events.mission_events.push(MissionEvent {

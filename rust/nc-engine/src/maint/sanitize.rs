@@ -38,16 +38,26 @@ pub(super) fn sanitize_invalid_player_inputs(
             ) {
                 match reason {
                     FleetPlayerInputValidationError::InvalidOrder(reason) => {
-                        let should_sanitize = matches!(
-                            reason,
-                            FleetOrderValidationError::UnknownOrderCode(_)
-                                | FleetOrderValidationError::MissingCombatShips
-                                | FleetOrderValidationError::MissingScoutShip
-                                | FleetOrderValidationError::MissingEtac
-                                | FleetOrderValidationError::MissingLoadedTroopTransports
-                                | FleetOrderValidationError::InvalidJoinHost
-                                | FleetOrderValidationError::TargetOwnedByFleetEmpire
-                        );
+                        // A JoinAnotherFleet fleet with join_host_fleet_id_raw == 0 was
+                        // remapped by cull_empty_fleets after its host was culled. That is
+                        // an engine-set sentinel, not an invalid player input.  Leave the
+                        // fleet alone here; process_join_host_updates will handle it via
+                        // the HostDestroyed path.
+                        let is_post_cull_join_sentinel =
+                            matches!(reason, FleetOrderValidationError::InvalidJoinHost)
+                                && game_data.fleets.records[fleet_idx].join_host_fleet_id_raw()
+                                    == 0;
+                        let should_sanitize = !is_post_cull_join_sentinel
+                            && matches!(
+                                reason,
+                                FleetOrderValidationError::UnknownOrderCode(_)
+                                    | FleetOrderValidationError::MissingCombatShips
+                                    | FleetOrderValidationError::MissingScoutShip
+                                    | FleetOrderValidationError::MissingEtac
+                                    | FleetOrderValidationError::MissingLoadedTroopTransports
+                                    | FleetOrderValidationError::InvalidJoinHost
+                                    | FleetOrderValidationError::TargetOwnedByFleetEmpire
+                            );
                         if !should_sanitize {
                             break;
                         }

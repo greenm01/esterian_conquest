@@ -178,7 +178,26 @@ pub(super) fn process_join_host_updates(
         }
 
         let host_id = fleet.join_host_fleet_id_raw();
-        if host_id == 0 || host_id == fleet.fleet_id() {
+        if host_id == fleet.fleet_id() {
+            continue;
+        }
+
+        // host_id == 0 means the host fleet was removed (culled at turn start
+        // or destroyed in a prior step) and the remap zeroed the reference.
+        // Treat it the same as a missing/non-viable host — abandon the mission.
+        if host_id == 0 {
+            let coords = fleet.current_location_coords_raw();
+            fleet.set_standing_order_kind(Order::HoldPosition);
+            fleet.set_current_speed(0);
+            fleet.set_standing_order_target_coords_raw(coords);
+            // join_host_fleet_id_raw is already 0 — no need to set it again.
+            events.push(JoinMissionHostEvent::HostDestroyed {
+                fleet_idx,
+                owner_empire_raw: fleet.owner_empire_raw(),
+                // Host record is gone; its fleet number is no longer available.
+                destroyed_host_fleet_number: 0,
+                coords,
+            });
             continue;
         }
 

@@ -724,31 +724,34 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
     joiner.set_standing_order_target_coords_raw([10, 10]);
     joiner.set_current_speed(3);
 
+    let fleet_count_before = game_data.fleets.records.len();
     let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
 
+    // The empty host is culled at turn start; the joiner shifts from index 1 → 0.
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
     assert_eq!(
-        game_data.fleets.records[1].standing_order_kind(),
+        game_data.fleets.records[0].standing_order_kind(),
         Order::HoldPosition
     );
-    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
-    let abandoned_coords = game_data.fleets.records[1].current_location_coords_raw();
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+    let abandoned_coords = game_data.fleets.records[0].current_location_coords_raw();
     assert_eq!(abandoned_coords, [9, 10]);
     assert_eq!(
-        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        game_data.fleets.records[0].standing_order_target_coords_raw(),
         abandoned_coords
     );
-    assert_eq!(game_data.fleets.records[1].join_host_fleet_id_raw(), 0);
+    assert_eq!(game_data.fleets.records[0].join_host_fleet_id_raw(), 0);
     assert!(events.join_host_events.iter().any(|event| {
         matches!(
             event,
             JoinMissionHostEvent::HostDestroyed {
                 fleet_idx,
-                destroyed_host_fleet_number,
+                // Host was culled before fleet_number_by_id was snapshotted,
+                // so destroyed_host_fleet_number is 0 (fleet record is gone).
+                destroyed_host_fleet_number: 0,
                 coords,
                 ..
-            } if *fleet_idx == 1
-                && *destroyed_host_fleet_number
-                    == game_data.fleets.records[0].local_slot_word_raw() as u8
+            } if *fleet_idx == 0
                 && *coords == abandoned_coords
         )
     }));
@@ -1513,10 +1516,11 @@ fn test_salvage_converts_fleet_value_into_owned_planet_production_and_removes_fl
 }
 
 #[test]
-fn test_salvage_zero_value_fleet_resets_to_hold_without_removing() {
-    // A fleet with no ships has zero salvage value.  It should not be removed
-    // (the fleet still exists), but the Salvage order must be reset to
-    // HoldPosition so the fleet does not re-attempt salvage every turn.
+fn test_empty_fleet_is_culled_at_turn_start() {
+    // A fleet with no ships is culled at the very start of the maintenance
+    // turn, before movement or salvage resolution runs.  The fleet must be
+    // removed, no SalvageResolvedEvent must fire, and the target planet's
+    // treasury must be untouched.
     let mut game_data = load_fixture("ecmaint-post");
     let (planet_idx, target_coords) = game_data
         .planets
@@ -1539,7 +1543,7 @@ fn test_salvage_zero_value_fleet_resets_to_hold_without_removing() {
     fleet.set_standing_order_kind(Order::Salvage);
     fleet.set_standing_order_target_coords_raw(target_coords);
     fleet.set_current_speed(3);
-    // Zero out all ship counts so fleet_salvage_value returns 0.
+    // Zero out all ship counts — this fleet is an empty shell.
     fleet.set_destroyer_count(0);
     fleet.set_cruiser_count(0);
     fleet.set_battleship_count(0);
@@ -1553,41 +1557,23 @@ fn test_salvage_zero_value_fleet_resets_to_hold_without_removing() {
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
 
-    // Fleet is not removed — nothing was scrapped.
-    assert_eq!(game_data.fleets.records.len(), fleet_count_before);
-    // Fleet order must be reset to HoldPosition (not left on Salvage).
+    // Fleet removed by the start-of-turn cull.
     assert_eq!(
-        game_data.fleets.records[0].standing_order_kind(),
-        Order::HoldPosition,
-        "zero-value salvage fleet must be reset to HoldPosition"
+        game_data.fleets.records.len(),
+        fleet_count_before - 1,
+        "empty fleet must be culled at turn start"
     );
-    assert_eq!(
-        game_data.fleets.records[0].current_speed(),
-        0,
-        "zero-value salvage fleet must have speed 0 after reset"
+    // Salvage never ran — no salvage event emitted.
+    assert!(
+        events.salvage_events.is_empty(),
+        "no SalvageResolvedEvent should fire when the fleet is culled before movement"
     );
-    // Planet treasury must be unchanged — no points were recovered.
+    // Planet treasury must be unchanged.
     assert_eq!(
         game_data.planets.records[planet_idx].stored_production_points(),
         stored_before,
-        "planet treasury must not change when recovered_points == 0"
+        "planet treasury must not change when the empty fleet is culled before salvage"
     );
-    // Succeeded event emitted with recovered_points == 0.
-    assert!(events.salvage_events.iter().any(|event| {
-        matches!(
-            event,
-            SalvageResolvedEvent::Succeeded {
-                owner_empire_raw,
-                planet_idx: event_planet_idx,
-                coords,
-                recovered_points,
-                ..
-            } if *owner_empire_raw == 1
-                && *event_planet_idx == planet_idx
-                && *coords == target_coords
-                && *recovered_points == 0
-        )
-    }));
 }
 
 #[test]
