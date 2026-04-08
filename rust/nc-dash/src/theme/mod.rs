@@ -76,6 +76,15 @@ pub fn map_center_style() -> CellStyle {
     classic::map_center_style()
 }
 
+pub fn map_fleet_marker_style() -> CellStyle {
+    on_body(classic::map_dot_style())
+}
+
+pub fn map_fleet_marker_style_on(bg: GameColor, bold: bool) -> CellStyle {
+    let style = classic::map_dot_style();
+    CellStyle::new(style.fg, bg, bold)
+}
+
 pub fn table_theme() -> TableRenderTheme {
     TableRenderTheme::classic()
 }
@@ -100,10 +109,20 @@ mod tests {
             enemy_style(),
             friendly_style(),
             icd_style(),
+            map_fleet_marker_style(),
         ];
 
         for style in styles {
             assert_eq!(style.bg, expected_bg);
         }
+    }
+
+    #[test]
+    fn fleet_marker_style_uses_map_dot_green_source() {
+        let map_dot = classic::map_dot_style();
+        let fleet_marker = map_fleet_marker_style();
+
+        assert_eq!(fleet_marker.fg, map_dot.fg);
+        assert_eq!(fleet_marker.bg, body_style().bg);
     }
 }

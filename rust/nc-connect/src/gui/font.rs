@@ -5,11 +5,9 @@ use nc_ui::buffer::{CellStyle, GameColor};
 
 use super::{CELL_HEIGHT, CELL_WIDTH};
 
-const PRIMARY_REGULAR_FONT: &[u8] =
-    include_bytes!("../../assets/fonts/0xProtoNerdFontMono-Regular.ttf");
-const PRIMARY_BOLD_FONT: &[u8] = include_bytes!("../../assets/fonts/0xProtoNerdFontMono-Bold.ttf");
-const PRIMARY_ITALIC_FONT: &[u8] =
-    include_bytes!("../../assets/fonts/0xProtoNerdFontMono-Italic.ttf");
+const PRIMARY_REGULAR_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Regular.ttf");
+const PRIMARY_BOLD_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Bold.ttf");
+const PRIMARY_ITALIC_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Italic.ttf");
 const FALLBACK_REGULAR_FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSansMono-Regular.ttf");
 const FALLBACK_BOLD_FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSansMono-Bold.ttf");
 const FONT_SIZE_PX: f32 = 15.5;
@@ -518,9 +516,9 @@ mod tests {
     }
 
     #[test]
-    fn primary_font_lacks_greek_but_fallback_covers_it() {
+    fn primary_font_covers_greek_and_terminal_line_chars() {
         let renderer = FontRenderer::new().expect("font renderer loads");
-        assert!(!renderer.primary_regular.font.has_glyph('Α'));
+        assert!(renderer.primary_regular.font.has_glyph('Α'));
         assert!(renderer.fallback_regular.font.has_glyph('Α'));
         assert!(renderer.primary_regular.font.has_glyph('─'));
     }
@@ -539,11 +537,11 @@ mod tests {
     }
 
     #[test]
-    fn glyph_route_falls_back_for_greek() {
+    fn glyph_route_uses_primary_font_for_greek() {
         let renderer = FontRenderer::new().expect("font renderer loads");
         assert_eq!(
             renderer.glyph_route('Ω', style(), false),
-            GlyphRoute::Font(FontFaceKey::FallbackRegular, 'Ω')
+            GlyphRoute::Font(FontFaceKey::PrimaryRegular, 'Ω')
         );
         assert_eq!(
             renderer.glyph_route(
@@ -551,7 +549,7 @@ mod tests {
                 CellStyle::new(GameColor::White, GameColor::Black, true),
                 false
             ),
-            GlyphRoute::Font(FontFaceKey::FallbackBold, 'Ω')
+            GlyphRoute::Font(FontFaceKey::PrimaryBold, 'Ω')
         );
     }
 

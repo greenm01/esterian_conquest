@@ -26,7 +26,7 @@ SYSOP_CONFIG_EXAMPLE = SYSOP_ASSET_ROOT / "examples" / "config.kdl"
 SYSOP_LINUX_README = SYSOP_ASSET_ROOT / "linux" / "README.md"
 SYSOP_WINDOWS_README = SYSOP_ASSET_ROOT / "windows" / "README.md"
 EC_CONNECT_LICENSES = (
-    REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "OFL-0xProto.txt",
+    REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "OFL-JetBrainsMono.txt",
     REPO_ROOT / "rust" / "nc-connect" / "assets" / "licenses" / "LICENSE-NotoSansMono.txt",
 )
 FORBIDDEN_CLASSIC_PACKAGE_NAMES = {
@@ -343,7 +343,7 @@ It contains:
 
 - `{connect_binary}`
 - `{player_manual_path}`
-- `licenses/OFL-0xProto.txt`
+- `licenses/OFL-JetBrainsMono.txt`
 - `licenses/LICENSE-NotoSansMono.txt`
 - `BUILD-INFO.txt` with version/build metadata
 
@@ -606,7 +606,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 f"{binary_prefix}nc-game{binary_ext}",
                 f"{binary_prefix}nc-connect{binary_ext}",
                 f"{binary_prefix}nc-connect-cli{binary_ext}",
-                "licenses/OFL-0xProto.txt",
+                "licenses/OFL-JetBrainsMono.txt",
                 "licenses/LICENSE-NotoSansMono.txt",
                 "tools/bbs/run_nc_rust.sh",
             ]
@@ -615,7 +615,7 @@ def verify_archive(spec: BundleSpec, archive_path: Path, *, run_smoke: bool) -> 
                 "README.md",
                 "BUILD-INFO.txt",
                 f"{docs_prefix}nc_player_manual.pdf",
-                "licenses/OFL-0xProto.txt",
+                "licenses/OFL-JetBrainsMono.txt",
                 "licenses/LICENSE-NotoSansMono.txt",
             ]
             forbidden_files = [

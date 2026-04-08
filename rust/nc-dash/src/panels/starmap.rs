@@ -1,12 +1,12 @@
 //! Center panel: sector grid, crosshair, and axis labels.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
 use nc_data::CoreGameData;
 use nc_data::{
     DiplomaticRelation, PlanetIntelSnapshot, PlayerStarmapProjection, PlayerStarmapWorld,
-    build_player_starmap_projection_from_snapshots,
+    build_player_starmap_projection_from_snapshots, owned_orbit_presence,
 };
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
@@ -17,6 +17,9 @@ use crate::theme;
 const CROSSHAIR_HORIZONTAL: char = '─';
 const CROSSHAIR_VERTICAL: char = '│';
 const CROSSHAIR_CENTER: char = '┼';
+const FLEET_MARKER_EMPTY: char = '△';
+const FLEET_MARKER_WORLD: char = '⨁';
+const FLEET_MARKER_OWNED_WORLD: char = '@';
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StarmapMarkerKind {
@@ -67,6 +70,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
     let snapshot_map = snapshot_map_for_app(app);
     let projection = projection_for_snapshot_map(app, &snapshot_map);
     let projected = projected_map_geometry(app, frame, map_size);
+    let viewer_fleet_sectors = viewer_fleet_sector_coords(app, player_empire, &projected);
 
     // Column axis numbers.
     for world_x in projected.x_min..=projected.x_max {
@@ -95,8 +99,9 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             };
             let is_h_crosshair = row_y == app.crosshair_y;
             let is_v_crosshair = col_x == app.crosshair_x;
+            let has_viewer_fleet = viewer_fleet_sectors.contains(&[col_x, row_y]);
             let planet = projection_world_at(&projection, [col_x, row_y]);
-            let (sym, base_style) = if let Some(snapshot) = planet {
+            let (mut sym, base_style) = if let Some(snapshot) = planet {
                 marker_for_world(app, player_empire, snapshot)
             } else if is_h_crosshair && is_v_crosshair {
                 (CROSSHAIR_CENTER, theme::map_center_style())
@@ -107,7 +112,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
             } else {
                 ('·', theme::dim_style())
             };
-            let fill_style = if is_h_crosshair && is_v_crosshair {
+            let base_fill_style = if is_h_crosshair && is_v_crosshair {
                 theme::map_center_style()
             } else if is_h_crosshair || is_v_crosshair {
                 theme::map_crosshair_style()
@@ -115,20 +120,21 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, frame: MapWidgetFrame) {
                 theme::body_style()
             };
 
-            fill_sector_rect(buf, rect, ' ', fill_style);
+            fill_sector_rect(buf, rect, ' ', base_fill_style);
             if is_h_crosshair || is_v_crosshair {
-                draw_crosshair_lines(buf, rect, is_h_crosshair, is_v_crosshair, fill_style);
+                draw_crosshair_lines(buf, rect, is_h_crosshair, is_v_crosshair, base_fill_style);
             }
-            draw_sector_marker(
-                buf,
-                rect,
-                sym,
-                if is_h_crosshair || is_v_crosshair {
-                    fill_style
-                } else {
-                    base_style
-                },
-            );
+            if has_viewer_fleet {
+                sym = fleet_marker_for_sector(app, player_empire, planet);
+            }
+            let marker_style = if has_viewer_fleet {
+                theme::map_fleet_marker_style_on(base_fill_style.bg, base_fill_style.bold)
+            } else if is_h_crosshair || is_v_crosshair {
+                base_fill_style
+            } else {
+                base_style
+            };
+            draw_sector_marker(buf, rect, sym, marker_style);
         }
     }
 }
@@ -255,6 +261,14 @@ impl ProjectedMapGeometry {
 }
 
 impl SectorRect {
+    fn center_row(self) -> usize {
+        self.row + self.height / 2
+    }
+
+    fn center_col(self) -> usize {
+        self.col + self.width / 2
+    }
+
     fn contains_point(&self, col: usize, row: usize) -> bool {
         col >= self.col
             && col < self.col + self.width
@@ -333,9 +347,7 @@ fn draw_sector_marker(buf: &mut PlayfieldBuffer, rect: SectorRect, marker: char,
     if rect.width == 0 || rect.height == 0 {
         return;
     }
-    let row = rect.row + rect.height / 2;
-    let col = rect.col + rect.width / 2;
-    buf.set_cell(row, col, marker, style);
+    buf.set_cell(rect.center_row(), rect.center_col(), marker, style);
 }
 
 fn draw_crosshair_lines(
@@ -348,8 +360,8 @@ fn draw_crosshair_lines(
     if rect.width == 0 || rect.height == 0 {
         return;
     }
-    let mid_row = rect.row + rect.height / 2;
-    let mid_col = rect.col + rect.width / 2;
+    let mid_row = rect.center_row();
+    let mid_col = rect.center_col();
 
     if horizontal {
         for col in rect.col..rect.col + rect.width {
@@ -402,6 +414,36 @@ fn projection_for_snapshot_map(
         snapshot_map,
         app.player_record_index_1_based as u8,
     )
+}
+
+fn viewer_fleet_sector_coords(
+    app: &DashApp,
+    viewer_empire_id: u8,
+    projected: &ProjectedMapGeometry,
+) -> BTreeSet<[u8; 2]> {
+    let mut coords = BTreeSet::new();
+    for row_y in projected.y_min..=projected.y_max {
+        for col_x in projected.x_min..=projected.x_max {
+            if owned_orbit_presence(&app.game_data, viewer_empire_id, [col_x, row_y]).fleets > 0 {
+                coords.insert([col_x, row_y]);
+            }
+        }
+    }
+    coords
+}
+
+fn fleet_marker_for_sector(
+    app: &DashApp,
+    viewer_empire_id: u8,
+    world: Option<&PlayerStarmapWorld>,
+) -> char {
+    match world {
+        None => FLEET_MARKER_EMPTY,
+        Some(world) => match marker_kind_for_world(app, viewer_empire_id, world) {
+            StarmapMarkerKind::Owned => FLEET_MARKER_OWNED_WORLD,
+            _ => FLEET_MARKER_WORLD,
+        },
+    }
 }
 
 fn jump_planet_target_coords(
@@ -853,6 +895,273 @@ mod tests {
     }
 
     #[test]
+    fn viewer_fleet_empty_sector_draws_triangle_at_sector_anchor_on_18_map() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.crosshair_x = 2;
+        app.crosshair_y = 2;
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let coords = visible_empty_sector_matching(&app, frame, |coords| {
+            coords[0] > 3 && coords[0] < 16 && coords[1] > 3 && coords[1] < 16 && coords != [2, 2]
+        });
+        place_viewer_fleet(&mut app, coords);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let fleet_rect = projected.sector_rect(coords).expect("fleet sector rect");
+        let crosshair_rect = projected
+            .sector_rect([app.crosshair_x, app.crosshair_y])
+            .expect("crosshair rect");
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, frame);
+
+        let cell = buffer.row(fleet_rect.center_row())[fleet_rect.center_col()];
+        assert_eq!(cell.ch, FLEET_MARKER_EMPTY);
+        assert_eq!(cell.style, theme::map_fleet_marker_style());
+        assert_eq!(
+            buffer.row(crosshair_rect.center_row())[crosshair_rect.center_col()].ch,
+            CROSSHAIR_CENTER
+        );
+    }
+
+    #[test]
+    fn viewer_fleet_on_owned_world_draws_owned_world_marker() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let coords =
+            visible_world_coords_matching_marker_kind(&app, frame, StarmapMarkerKind::Owned);
+        place_viewer_fleet(&mut app, coords);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let rect = projected.sector_rect(coords).expect("planet sector rect");
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, frame);
+
+        let marker = buffer.row(rect.center_row())[rect.center_col()];
+        assert_eq!(marker.ch, FLEET_MARKER_OWNED_WORLD);
+        assert_eq!(marker.style.fg, theme::map_fleet_marker_style().fg);
+        assert_eq!(marker.style.bg, theme::body_style().bg);
+    }
+
+    #[test]
+    fn fleet_marker_uses_world_variant_for_non_owned_markers() {
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let mut unowned = make_world([1, 1]);
+        unowned.known_owner_empire_id = Some(0);
+        let mut partial = make_world([1, 1]);
+        partial.known_name = Some(String::from("Partial"));
+        let unknown = make_world([1, 1]);
+
+        assert_eq!(
+            fleet_marker_for_sector(&app, 1, Some(&unowned)),
+            FLEET_MARKER_WORLD
+        );
+        assert_eq!(
+            fleet_marker_for_sector(&app, 1, Some(&partial)),
+            FLEET_MARKER_WORLD
+        );
+        assert_eq!(
+            fleet_marker_for_sector(&app, 1, Some(&unknown)),
+            FLEET_MARKER_WORLD
+        );
+    }
+
+    #[test]
+    fn highlighted_sector_marker_is_independent_of_live_crosshair_position() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let coords = visible_empty_sector_matching(&app, frame, |coords| coords != [2, 2]);
+        app.crosshair_x = 2;
+        app.crosshair_y = 2;
+        place_viewer_fleet(&mut app, coords);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let fleet_rect = projected.sector_rect(coords).expect("fleet sector rect");
+        let crosshair_rect = projected
+            .sector_rect([app.crosshair_x, app.crosshair_y])
+            .expect("crosshair rect");
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, frame);
+
+        assert_eq!(
+            buffer.row(fleet_rect.center_row())[fleet_rect.center_col()].ch,
+            FLEET_MARKER_EMPTY
+        );
+        assert_eq!(
+            buffer.row(crosshair_rect.center_row())[crosshair_rect.center_col()].ch,
+            CROSSHAIR_CENTER
+        );
+    }
+
+    #[test]
+    fn fleet_marker_replaces_crosshair_center_but_preserves_crosshair_lines() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let coords = visible_empty_sector(&app, frame);
+        app.crosshair_x = coords[0];
+        app.crosshair_y = coords[1];
+        place_viewer_fleet(&mut app, coords);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let rect = projected.sector_rect(coords).expect("fleet sector rect");
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, frame);
+
+        let marker = buffer.row(rect.center_row())[rect.center_col()];
+        assert_eq!(marker.ch, FLEET_MARKER_EMPTY);
+        assert_eq!(
+            marker.style,
+            theme::map_fleet_marker_style_on(
+                theme::map_center_style().bg,
+                theme::map_center_style().bold,
+            )
+        );
+        if rect.width > 1 {
+            assert_eq!(
+                buffer.row(rect.center_row())[rect.col].ch,
+                CROSSHAIR_HORIZONTAL
+            );
+        }
+        if rect.height > 1 {
+            assert_eq!(
+                buffer.row(rect.row)[rect.center_col()].ch,
+                CROSSHAIR_VERTICAL
+            );
+        }
+    }
+
+    #[test]
+    fn adjacent_fleet_markers_keep_both_sector_centers_visible() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let (left_coords, right_coords) = adjacent_empty_sector_pair(&app, frame);
+        place_viewer_fleet(&mut app, left_coords);
+        place_viewer_fleet_at_record(&mut app, 1, right_coords);
+        let frame = dashboard_layout(&app).widgets.center_map;
+        let projected = projected_map_geometry(&app, frame, 18);
+        let left_rect = projected.sector_rect(left_coords).expect("left rect");
+        let right_rect = projected.sector_rect(right_coords).expect("right rect");
+        let mut buffer = PlayfieldBuffer::new(
+            app.geometry.width(),
+            app.geometry.height(),
+            theme::body_style(),
+        );
+
+        draw(&mut buffer, &app, frame);
+
+        assert_eq!(
+            buffer.row(left_rect.center_row())[left_rect.center_col()].ch,
+            FLEET_MARKER_EMPTY
+        );
+        assert_eq!(
+            buffer.row(right_rect.center_row())[right_rect.center_col()].ch,
+            FLEET_MARKER_EMPTY
+        );
+    }
+
+    #[test]
     fn benchmark_laptop_height_uses_vertical_viewport_on_large_maps() {
         let app = DashApp::new_for_tests(
             PathBuf::from("."),
@@ -983,6 +1292,85 @@ mod tests {
             known_docked_summary: None,
             known_orbit_summary: None,
         }
+    }
+
+    fn place_viewer_fleet(app: &mut DashApp, coords: [u8; 2]) {
+        place_viewer_fleet_at_record(app, 0, coords);
+    }
+
+    fn place_viewer_fleet_at_record(app: &mut DashApp, fleet_idx: usize, coords: [u8; 2]) {
+        let fleet = &mut app.game_data.fleets.records[fleet_idx];
+        fleet.set_owner_empire_raw(app.player_record_index_1_based as u8);
+        fleet.set_current_location_coords_raw(coords);
+        fleet.set_destroyer_count(1);
+    }
+
+    fn visible_empty_sector(app: &DashApp, frame: MapWidgetFrame) -> [u8; 2] {
+        visible_empty_sector_matching(app, frame, |_| true)
+    }
+
+    fn visible_empty_sector_matching<F>(
+        app: &DashApp,
+        frame: MapWidgetFrame,
+        predicate: F,
+    ) -> [u8; 2]
+    where
+        F: Fn([u8; 2]) -> bool,
+    {
+        let snapshot_map = snapshot_map_for_app(app);
+        let projection = projection_for_snapshot_map(app, &snapshot_map);
+        let projected = projected_map_geometry(app, frame, 18);
+        for row_y in (projected.y_min..=projected.y_max).rev() {
+            for col_x in projected.x_min..=projected.x_max {
+                let coords = [col_x, row_y];
+                if predicate(coords) && projection_world_at(&projection, coords).is_none() {
+                    return coords;
+                }
+            }
+        }
+        panic!("expected an empty visible sector");
+    }
+
+    fn adjacent_empty_sector_pair(app: &DashApp, frame: MapWidgetFrame) -> ([u8; 2], [u8; 2]) {
+        let snapshot_map = snapshot_map_for_app(app);
+        let projection = projection_for_snapshot_map(app, &snapshot_map);
+        let projected = projected_map_geometry(app, frame, 18);
+        for row_y in (projected.y_min..=projected.y_max).rev() {
+            for col_x in projected.x_min..projected.x_max {
+                let left = [col_x, row_y];
+                let right = [col_x + 1, row_y];
+                if projection_world_at(&projection, left).is_none()
+                    && projection_world_at(&projection, right).is_none()
+                {
+                    return (left, right);
+                }
+            }
+        }
+        panic!("expected adjacent empty sectors");
+    }
+
+    fn visible_world_coords_matching_marker_kind(
+        app: &DashApp,
+        frame: MapWidgetFrame,
+        expected_kind: StarmapMarkerKind,
+    ) -> [u8; 2] {
+        let snapshot_map = snapshot_map_for_app(app);
+        let projection = projection_for_snapshot_map(app, &snapshot_map);
+        let projected = projected_map_geometry(app, frame, 18);
+        for row_y in (projected.y_min..=projected.y_max).rev() {
+            for col_x in projected.x_min..=projected.x_max {
+                let coords = [col_x, row_y];
+                let Some(world) = projection_world_at(&projection, coords) else {
+                    continue;
+                };
+                if marker_kind_for_world(app, app.player_record_index_1_based as u8, world)
+                    == expected_kind
+                {
+                    return coords;
+                }
+            }
+        }
+        panic!("expected a visible world with the requested marker kind");
     }
 }
 
