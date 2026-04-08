@@ -257,17 +257,9 @@ impl StartupScreen {
                 }
             }
             StartupReviewMode::ItemBody | StartupReviewMode::DeletePrompt => {
-                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
-                if !prior_transcript_rows.is_empty() {
-                    transcript_rows.push(String::new());
-                    transcript_rows.extend_from_slice(prior_transcript_rows);
-                }
-                transcript_rows.push(String::new());
-                transcript_rows.push(view_prompt.clone());
-                transcript_rows.push(String::new());
-                transcript_rows.push(format!(
+                let mut transcript_rows = vec![format!(
                     "{section_label}: Current game year is {game_year} A.D."
-                ));
+                )];
                 transcript_rows.push(String::new());
                 for previous_block in 0..block {
                     let previous_rows =
@@ -300,17 +292,9 @@ impl StartupScreen {
                 }
             }
             StartupReviewMode::ContinuePrompt => {
-                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
-                if !prior_transcript_rows.is_empty() {
-                    transcript_rows.push(String::new());
-                    transcript_rows.extend_from_slice(prior_transcript_rows);
-                }
-                transcript_rows.push(String::new());
-                transcript_rows.push(view_prompt.clone());
-                transcript_rows.push(String::new());
-                transcript_rows.push(format!(
+                let mut transcript_rows = vec![format!(
                     "{section_label}: Current game year is {game_year} A.D."
-                ));
+                )];
                 transcript_rows.push(String::new());
                 for previous_block in 0..block {
                     let previous_rows =
@@ -328,14 +312,7 @@ impl StartupScreen {
                 draw_plain_prompt_padded(&mut buffer, command_line_row, &continue_prompt);
             }
             StartupReviewMode::EndStatus => {
-                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
-                if !prior_transcript_rows.is_empty() {
-                    transcript_rows.push(String::new());
-                    transcript_rows.extend_from_slice(prior_transcript_rows);
-                }
-                transcript_rows.push(String::new());
-                transcript_rows.push(view_prompt);
-                transcript_rows.push(String::new());
+                let mut transcript_rows = Vec::new();
                 transcript_rows.extend(completed_review_history_rows(
                     blocks,
                     empty_notice,
