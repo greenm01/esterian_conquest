@@ -224,10 +224,9 @@ where
 pub fn left_column_label_width() -> usize {
     label_value_width([
         "Treasury",
-        "Avail PP",
+        "Emp Rev",
         "Prod",
         "Pot Prod",
-        "Revenue",
         "Tax Rate",
         "PP Gen",
         "% Growth",
@@ -385,11 +384,11 @@ mod tests {
 
     #[test]
     fn format_label_value_aligns_colons() {
-        let label_width = label_value_width(["Treasury", "Prod", "Revenue"]);
+        let label_width = label_value_width(["Treasury", "Prod", "Emp Rev"]);
         let rows = [
             format_label_value("Treasury", label_width, "820"),
             format_label_value("Prod", label_width, "980/1200"),
-            format_label_value("Revenue", label_width, "210"),
+            format_label_value("Emp Rev", label_width, "210"),
         ];
 
         let colon_col_1 = rows[0].find(" : ").expect("first colon");
@@ -420,7 +419,7 @@ mod tests {
             format_left_column_value("Treasury", "217"),
             format_left_column_value("Prod", "332"),
             format_left_column_value("Pot Prod", "775"),
-            format_left_column_value("Avail PP", "1032"),
+            format_left_column_value("Emp Rev", "1032"),
             format_left_column_value("Tax Rate", "50%"),
             format_left_column_value("PP Gen", "+56"),
             format_left_column_value("% Growth", "16.9%"),

@@ -93,7 +93,7 @@ pub struct PlanetBuildOrder {
 pub struct PlanetBuildMenuView {
     pub row: EmpirePlanetEconomyRow,
     pub committed_points: u32,
-    pub available_points: u32,
+    pub budget: u32,
     pub points_left: u32,
     pub building_count: u32,
     pub docked_count: u32,
@@ -113,7 +113,7 @@ pub struct PlanetBuildChangeRow {
     pub coords: [u8; 2],
     pub present_production: u16,
     pub potential_production: u16,
-    pub available_points: u32,
+    pub budget: u32,
     pub committed_points: u32,
 }
 
@@ -176,7 +176,7 @@ impl PlanetBuildScreen {
             ),
         );
 
-        let spent = view.committed_points.min(view.available_points);
+        let spent = view.committed_points.min(view.budget);
 
         draw_menu_row(&mut buffer, 2, &ROW_1);
         draw_menu_row(&mut buffer, 3, &ROW_2);
@@ -238,8 +238,8 @@ impl PlanetBuildScreen {
                 lower_block_row + 2,
                 LEFT_WINDOW_PAD_COL,
                 &format!(
-                    "You have spent {} out of {} points.  You have {} points left to spend.",
-                    spent, view.available_points, view.points_left
+                    "Spent: {} of {} PP.  Budget remaining: {}.",
+                    spent, view.budget, view.points_left
                 ),
                 classic::status_value_style(),
             );
@@ -525,7 +525,7 @@ impl PlanetBuildScreen {
                         "{:>3} of {:>3}",
                         row.present_production, row.potential_production
                     ),
-                    row.available_points.to_string(),
+                    row.budget.to_string(),
                     row.committed_points.to_string(),
                 ]
             })
@@ -870,7 +870,7 @@ fn draw_specify_table(
     let table_width = table_render_width(&table_columns);
     let table_col = centered_table_start_col(buffer.width(), &table_columns);
     draw_table_title(buffer, 1, table_col, title);
-    let points_left_label = format!("PP LEFT TO SPEND: {}", points_left);
+    let points_left_label = format!("BUDGET: {}", points_left);
     let points_left_col = table_col + table_width - TABLE_TEXT_INSET - points_left_label.len();
     debug_assert!(
         points_left_col >= table_col + TABLE_TEXT_INSET + title.len() + 1,

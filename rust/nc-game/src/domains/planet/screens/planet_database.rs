@@ -81,6 +81,10 @@ pub struct PlanetDatabaseRow {
 
 pub struct PlanetDatabaseScreen;
 
+struct RenderedPlanetDatabase {
+    buffer: PlayfieldBuffer,
+}
+
 const DATABASE_COLUMNS: [TableColumn<'static>; 11] = [
     TableColumn::left("(XX,YY)", 7),
     TableColumn::left("Planet Name", 11),
@@ -96,7 +100,7 @@ const DATABASE_COLUMNS: [TableColumn<'static>; 11] = [
 ];
 
 const DATABASE_TOP_HEADER_CELLS: [&str; 11] = [
-    "Coord", "", "", "Max", "Year", "", "", "", "Curr", "Stored", "Year",
+    "Coord", "", "", "Max", "Year", "", "", "", "Curr", "Trsry", "Year",
 ];
 
 fn database_title(
@@ -135,7 +139,7 @@ impl PlanetDatabaseScreen {
         Self
     }
 
-    pub fn render_list(
+    fn render_table(
         &mut self,
         geometry: ScreenGeometry,
         rows: &[PlanetDatabaseRow],
@@ -144,11 +148,8 @@ impl PlanetDatabaseScreen {
         filter: PlanetDatabaseFilter,
         scroll_offset: usize,
         cursor: usize,
-        _default_coords: [u8; 2],
-        input: &str,
-        _status: Option<&str>,
-        _menu: CommandMenu,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        footer: TableFooter<'_>,
+    ) -> Result<RenderedPlanetDatabase, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         let visible_rows = stacked_table_visible_rows_for(geometry, 1);
         let title = database_title(sort, direction, filter);
@@ -159,22 +160,6 @@ impl PlanetDatabaseScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
-        let default = rows
-            .get(cursor)
-            .map(|row| format_sector_coords_default(row.coords))
-            .unwrap_or_else(|| "00,00".to_string());
-        let footer = if rows.is_empty() {
-            TableFooter::CommandText {
-                label: COMMAND_LABEL,
-                text: "No planets are in your database. Q quits.",
-            }
-        } else {
-            TableFooter::CommandBar {
-                hotkeys_markup: "? F S <Q>",
-                default: Some(&default),
-                input,
-            }
-        };
         let columns = resolve_table_columns_for_widget(
             &DATABASE_COLUMNS,
             &table_rows,
@@ -224,7 +209,51 @@ impl PlanetDatabaseScreen {
             metrics.bottom_row,
             footer,
         );
-        Ok(buffer)
+        Ok(RenderedPlanetDatabase { buffer })
+    }
+
+    pub fn render_list(
+        &mut self,
+        geometry: ScreenGeometry,
+        rows: &[PlanetDatabaseRow],
+        sort: PlanetDatabaseSort,
+        direction: SortDirection,
+        filter: PlanetDatabaseFilter,
+        scroll_offset: usize,
+        cursor: usize,
+        _default_coords: [u8; 2],
+        input: &str,
+        _status: Option<&str>,
+        _menu: CommandMenu,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let default = rows
+            .get(cursor)
+            .map(|row| format_sector_coords_default(row.coords))
+            .unwrap_or_else(|| "00,00".to_string());
+        let footer = if rows.is_empty() {
+            TableFooter::CommandText {
+                label: COMMAND_LABEL,
+                text: "No planets are in your database. Q quits.",
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: "? F S <Q>",
+                default: Some(&default),
+                input,
+            }
+        };
+        Ok(self
+            .render_table(
+                geometry,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+            )?
+            .buffer)
     }
 
     pub fn render_filter_prompt(
@@ -242,27 +271,6 @@ impl PlanetDatabaseScreen {
         status: Option<&str>,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render_list(
-            geometry,
-            rows,
-            sort,
-            direction,
-            filter,
-            scroll_offset,
-            cursor,
-            [0, 0],
-            input,
-            status,
-            menu,
-        )?;
-        let table_rows = database_table_rows(rows);
-        let visible_rows = stacked_table_visible_rows_for(geometry, 1);
-        let displayed_rows = table_rows
-            .len()
-            .saturating_sub(scroll_offset)
-            .min(visible_rows);
-        let scrollable = table_rows.len() > visible_rows;
-        let title = database_title(sort, direction, filter);
         let footer_label = sort_footer_label(direction);
         let footer = match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => TableFooter::LabeledCommandBar {
@@ -308,34 +316,20 @@ impl PlanetDatabaseScreen {
                 input,
             },
         };
-        let columns = resolve_table_columns_for_widget(
-            &DATABASE_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-            Some(&title),
-            Some(footer),
-        );
-        let layout = layout_stacked_table_block(
-            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
-            &columns,
-            displayed_rows,
-            Some(&title),
-            Some(footer),
-            scrollable,
-            HorizontalAlign::Center,
-            VerticalAlign::Top,
-        );
-        let bottom_row = database_table_bottom_row(geometry, rows.len(), scroll_offset);
-        draw_table_footer(
-            &mut buffer,
-            geometry,
-            layout.command_col,
-            bottom_row,
-            footer,
-        );
-        Ok(buffer)
+        let _ = status;
+        let _ = menu;
+        Ok(self
+            .render_table(
+                geometry,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+            )?
+            .buffer)
     }
 
     pub fn handle_list_key(&self, key: KeyEvent) -> Action {
@@ -484,17 +478,6 @@ impl PlanetDatabaseScreen {
             },
         }
     }
-}
-
-fn database_table_bottom_row(
-    geometry: ScreenGeometry,
-    total_rows: usize,
-    scroll_offset: usize,
-) -> usize {
-    let displayed_rows = total_rows
-        .saturating_sub(scroll_offset)
-        .min(stacked_table_visible_rows_for(geometry, 1));
-    1 + 4 + displayed_rows
 }
 
 fn database_table_rows(rows: &[PlanetDatabaseRow]) -> Vec<Vec<String>> {

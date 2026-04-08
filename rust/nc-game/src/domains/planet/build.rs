@@ -1600,7 +1600,7 @@ impl App {
                     coords: row.coords,
                     present_production: row.present_production,
                     potential_production: row.potential_production,
-                    available_points,
+                    budget: available_points,
                     committed_points,
                 }
             })
@@ -1660,7 +1660,7 @@ impl App {
                         is_homeworld_seed: false,
                     },
                     committed_points: 0,
-                    available_points: 0,
+                    budget: 0,
                     points_left: 0,
                     building_count: 0,
                     docked_count: 0,
@@ -1671,7 +1671,7 @@ impl App {
         Ok(PlanetBuildMenuView {
             row,
             committed_points: view_stats.committed_points,
-            available_points: view_stats.available_points,
+            budget: view_stats.budget,
             points_left: view_stats.points_left,
             building_count: view_stats.building_count,
             docked_count: view_stats.docked_count,

@@ -157,7 +157,7 @@ pub(crate) fn set_planet_stored(
     })?;
 
     println!(
-        "Planet record {} stored production points set to {}",
+        "Planet record {} treasury set to {}",
         record_index_1_based, points
     );
     Ok(())

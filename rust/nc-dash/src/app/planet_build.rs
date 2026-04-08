@@ -105,8 +105,7 @@ impl DashApp {
         };
 
         let Ok(max_qty) = self.planet_build_max_quantity_for(unit.kind) else {
-            self.planet_overlay.build_unit_status =
-                Some("No points are available to spend.".to_string());
+            self.planet_overlay.build_unit_status = Some("No build budget available.".to_string());
             return;
         };
         if max_qty == 0 {
@@ -253,7 +252,7 @@ impl DashApp {
 
     fn planet_build_unavailable_message(&self, kind: ProductionItemKind) -> String {
         let Some(view) = self.planet_build_view() else {
-            return "No points are available to spend.".to_string();
+            return "No build budget available.".to_string();
         };
         planet_build_unavailable_message(view.points_left, kind).to_string()
     }

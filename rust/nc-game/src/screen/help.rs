@@ -115,7 +115,7 @@ const PLANET_LINES: [&str; 14] = [
 ];
 
 const BUILD_LINES: [&str; 13] = [
-    "<S> - specify build orders using this planet's current-turn PP budget",
+    "<S> - specify build orders using this planet's build budget",
     "<L> - list units currently queued for construction",
     "<R> - review the current build planet through planet information",
     "<C> - change to another owned planet for local build orders",

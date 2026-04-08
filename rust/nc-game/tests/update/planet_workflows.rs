@@ -12,6 +12,7 @@ fn confirm_auto_commission_opens_paged_report_when_entries_exist() {
         game_config: Default::default(),
     })
     .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
     advance_to_main_menu(&mut app);
 
     assert_eq!(
@@ -61,6 +62,7 @@ fn auto_commission_report_advances_by_page_then_returns_to_planet_menu() {
         game_config: Default::default(),
     })
     .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
     advance_to_main_menu(&mut app);
     app.open_planet_menu();
     app.current_screen = ScreenId::PlanetAutoCommissionReport;
@@ -104,8 +106,6 @@ fn planet_list_auto_commission_prompt_and_report_return_to_list() {
         game_config: Default::default(),
     })
     .expect("app should load");
-    let mut terminal = CaptureTerminal::new();
-
     advance_to_main_menu(&mut app);
     app.open_planet_menu();
     app.submit_planet_list_sort(PlanetListMode::Brief, PlanetListSort::Location);
@@ -1637,6 +1637,12 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
         apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
         AppOutcome::Continue
     );
+    app.render(&mut terminal).expect("render succeeds");
+    let browse_prompt_row = terminal
+        .lines
+        .iter()
+        .position(|line| line.contains("COMMAND <- "))
+        .expect("browse prompt row");
 
     assert_eq!(
         apply_action(
@@ -1649,6 +1655,14 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     assert_eq!(
         line_containing(&terminal, "FILTER <- ? A R E M <Q> ->").trim(),
         "FILTER <- ? A R E M <Q> ->"
+    );
+    assert_eq!(
+        terminal
+            .lines
+            .iter()
+            .position(|line| line.contains("FILTER <- ? A R E M <Q> ->"))
+            .expect("filter prompt row"),
+        browse_prompt_row
     );
 
     assert_eq!(
@@ -1665,6 +1679,14 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     let prompt = line_containing(&terminal, "COMMAND <- Range from").trim();
     assert!(prompt.starts_with("COMMAND <- Range from ["));
     assert!(prompt.ends_with("] <Q> ->"));
+    assert_eq!(
+        terminal
+            .lines
+            .iter()
+            .position(|line| line.contains("COMMAND <- Range from"))
+            .expect("range prompt row"),
+        browse_prompt_row
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
@@ -1682,6 +1704,14 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     assert_eq!(
         line_containing(&terminal, "SORT ASC <- ? L R E M <Q> ->").trim(),
         "SORT ASC <- ? L R E M <Q> ->"
+    );
+    assert_eq!(
+        terminal
+            .lines
+            .iter()
+            .position(|line| line.contains("SORT ASC <- ? L R E M <Q> ->"))
+            .expect("sort prompt row"),
+        browse_prompt_row
     );
 }
 
@@ -2462,7 +2492,7 @@ fn planet_menu_scorch_three_confirms_persist_order_and_update_planet_info_status
         "potential production line should show zero"
     );
     assert!(
-        line_containing(&terminal, "Stored Production Points").contains('0'),
+        line_containing(&terminal, "Treasury").contains('0'),
         "stored points line should show zero"
     );
     let build_queue_line = line_containing(&terminal, "Building");
@@ -2537,7 +2567,7 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
             is_homeworld_seed: false,
         },
         committed_points: 10,
-        available_points: 40,
+        budget: 40,
         points_left: 30,
         building_count: 1,
         docked_count: 0,
@@ -2584,7 +2614,7 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
             is_homeworld_seed: false,
         },
         committed_points: 10,
-        available_points: 40,
+        budget: 40,
         points_left: 30,
         building_count: 1,
         docked_count: 0,
@@ -2638,7 +2668,7 @@ fn planet_build_specify_renders_success_as_notice_not_error() {
             is_homeworld_seed: false,
         },
         committed_points: 10,
-        available_points: 40,
+        budget: 40,
         points_left: 30,
         building_count: 1,
         docked_count: 0,

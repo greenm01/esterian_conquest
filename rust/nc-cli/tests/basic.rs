@@ -201,7 +201,7 @@ fn planet_stored_sets_stored_production_points() {
     common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
 
     let stdout = run_nc_cli(&["planet-stored", target.to_str().unwrap(), "1", "50"]);
-    assert!(stdout.contains("stored production points set to 50"));
+    assert!(stdout.contains("treasury set to 50"));
 
     export_campaign_db(&target, &target);
     let game_data = CoreGameData::load(&target).unwrap();

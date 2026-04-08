@@ -70,8 +70,10 @@ Manual-facing requirements:
 Use these player-facing terms:
 - **Present Production**: Current productive capacity.
 - **Potential Production**: Maximum productive capacity.
-- **Total Available Points**: Spendable tax revenue budget for the current turn.
-- **Stored Production Points**: Accumulated points stored on a planet.
+- **Revenue**: Per-planet current-turn tax income (`floor(present_production * tax_rate / 100)`).
+- **Treasury**: Accumulated production points stored on a planet (per-planet).
+- **Budget**: `min(treasury, build_capacity)` — what a planet can spend this turn.
+- **Empire Revenue**: Sum of per-planet revenue across all owned planets.
 
 Avoid low-level storage nicknames like `factories` in player surfaces.
 
@@ -81,7 +83,7 @@ Rust starts encode the intended opening economy:
 - Homeworld Potential Production: **100**.
 - Homeworld Present Production: **100**.
 - Default Tax Rate: **50%**.
-- First-Turn Total Available Points: **50**.
+- First-Turn Empire Revenue: **50**.
 - Homeworld Defenses: **10** armies, **4** ground batteries.
 
 ## Empire-Wide Tax
@@ -92,7 +94,7 @@ planets.
 Yearly revenue per planet:
 `revenue = floor(present_production * tax_rate / 100)`
 
-Empire Total Available Points:
+Empire Revenue:
 `total = sum(revenue)` across all owned planets.
 
 ## Present Production Growth and Tax Pressure
@@ -139,17 +141,20 @@ A starbase lets a planet spend up to **5x** its current production on units
 in a single turn. Without a starbase, capacity is **1x**. This affects build
 completion, not tax revenue.
 
-## Stored Production Points
+## Treasury (Per-Planet Stored Production)
 
-Yearly tax revenue is added to each planet’s stored production pool. This is
-separate from the empire’s Total Available Points view.
+Yearly tax revenue is added to each planet's treasury. This is
+separate from the empire's Empire Revenue total.
 
-When maintenance processes a build queue, the planet spends from that stored
-pool by the number of build points actually applied that year. If a build cost
-is larger than the planet’s current per-turn build capacity, only that yearly
+When maintenance processes a build queue, the planet spends from its treasury
+by the number of build points actually applied that year. If a build cost
+is larger than the planet's current per-turn build capacity, only that yearly
 processed amount is deducted and the remaining cost stays queued for later
-turns. If a build is blocked and no work is applied, stored production is not
+turns. If a build is blocked and no work is applied, the treasury is not
 consumed.
+
+The planet's **budget** for a given turn is:
+`budget = min(treasury, build_capacity)`
 
 ## Special Cases
 
@@ -158,10 +163,10 @@ Homeworlds start at full production from turn one.
 
 ### Newly Colonized Planets
 Fresh colonies do not receive same-turn revenue or growth on the maintenance
-tick that establishes ownership. They begin with no stored production points,
+tick that establishes ownership. They begin with no treasury,
 then start growing on later maintenance turns according to the normal tax and
 growth formulas. Because yearly tax revenue is credited before yearly growth is
-applied, newly colonized planets can remain at zero spendable production for
+applied, newly colonized planets can remain at zero budget for
 multiple turns even at moderate tax rates.
 
 ### Civil Disorder and Autopilot
@@ -172,11 +177,11 @@ economically frozen. Normal-planet economy policy does not apply to them.
 
 When maintenance applies build spending, completed units are dispatched:
 
-- build spending is applied during maintenance from Stored Production Points
+- build spending is applied during maintenance from the planet's treasury
 - partial progress carries the remaining build cost into later turns
 - units appear as enough points are applied to complete them, even if other
   units from the same order remain queued
-- blocked builds remain queued and do not consume stored production that year
+- blocked builds remain queued and do not consume the treasury that year
 
 ### Ships and Starbases (Stardock)
 Destroyers, cruisers, battleships, scouts, transports, ETACs, and starbases

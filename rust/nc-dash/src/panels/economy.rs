@@ -1,6 +1,6 @@
 //! Left panel: Treasury, production, revenue, and generated PP growth.
 
-use nc_data::{yearly_growth_delta, yearly_tax_revenue};
+use nc_data::yearly_growth_delta;
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
 use crate::app::state::DashApp;
@@ -45,7 +45,6 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         .game_data
         .empire_economy_summary(app.player_record_index_1_based);
 
-    let revenue = yearly_tax_revenue(total_present as u16, tax);
     let growth: i32 = if total_present < total_potential {
         yearly_growth_delta(total_present as u16, total_potential as u16, tax, false) as i32
     } else {
@@ -74,7 +73,7 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         ),
         (
             layout::format_left_column_value(
-                "Avail PP",
+                "Emp Rev",
                 &economy.total_available_points.to_string(),
             ),
             theme::value_style(),
@@ -85,10 +84,6 @@ pub(crate) fn body_rows(app: &DashApp) -> Vec<(String, CellStyle)> {
         ),
         (
             layout::format_left_column_value("Pot Prod", &total_potential.to_string()),
-            theme::value_style(),
-        ),
-        (
-            layout::format_left_column_value("Revenue", &revenue.to_string()),
             theme::value_style(),
         ),
         (
@@ -169,10 +164,8 @@ mod tests {
             ScreenGeometry::new(0, 0),
             1,
         );
-        assert!(
-            body_rows(&app)
-                .iter()
-                .any(|(row, _)| row.contains("Cmd Limit") && row.contains('|'))
-        );
+        assert!(body_rows(&app)
+            .iter()
+            .any(|(row, _)| row.contains("Cmd Limit") && row.contains('|')));
     }
 }

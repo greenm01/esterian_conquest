@@ -34,7 +34,7 @@ impl EmpireProfileScreen {
             "Number of Planets",
             "Present Production",
             "Potential Production",
-            "Total Available Points",
+            "Empire Revenue",
             "Efficiency of Empire",
         ]);
         let right_stat_width = aligned_label_width([
@@ -100,7 +100,7 @@ impl EmpireProfileScreen {
             &mut buffer,
             5,
             left_stat_width,
-            "Total Available Points",
+            "Empire Revenue",
             &economy.total_available_points.to_string(),
             right_stat_width,
             "Maximum # of Fleets & Bases",

@@ -59,6 +59,10 @@ pub enum PlanetListFilterPromptMode {
 
 pub struct PlanetListScreen;
 
+struct RenderedPlanetList {
+    buffer: PlayfieldBuffer,
+}
+
 const BRIEF_COLUMNS: [TableColumn<'static>; 12] = [
     TableColumn::left("(XX,YY)", 7),
     TableColumn::left("Planet Name", 11),
@@ -75,7 +79,7 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 12] = [
 ];
 
 const BRIEF_TOP_HEADER_CELLS: [&str; 12] = [
-    "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
+    "Coord", "", "Max", "Curr", "Trsry", "", "", "Build", "Star", "", "", "",
 ];
 
 const BRIEF_BROWSE_HOTKEYS: &str = "? F S B A C L U X <Q>";
@@ -136,7 +140,7 @@ impl PlanetListScreen {
         Self
     }
 
-    pub fn render_sort_prompt(
+    fn render_table(
         &mut self,
         frame: &ScreenFrame<'_>,
         mode: PlanetListMode,
@@ -146,195 +150,8 @@ impl PlanetListScreen {
         filter: PlanetListFilter,
         scroll_offset: usize,
         cursor: usize,
-        input: &str,
-        status: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        if let PlanetListMode::Stub(message) = mode {
-            let mut buffer = new_playfield_for(frame.geometry);
-            draw_title_bar_padded(&mut buffer, 0, "PLANET COMMAND:");
-            draw_status_line(&mut buffer, 3, "Notice: ", message);
-            draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row_for(frame.geometry, 3));
-            return Ok(buffer);
-        }
-
-        let mut buffer = self.render_brief_list(
-            frame,
-            mode,
-            rows,
-            sort,
-            direction,
-            filter,
-            scroll_offset,
-            cursor,
-            input,
-            status,
-            false,
-            None,
-            "",
-            "",
-            None,
-            None,
-            None,
-        )?;
-        let table_rows = planet_table_rows(frame, rows);
-        let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
-        let displayed_rows = table_rows
-            .len()
-            .saturating_sub(scroll_offset)
-            .min(visible_rows);
-        let scrollable = table_rows.len() > visible_rows;
-        let title = planet_list_title(mode, sort, direction, filter);
-        let footer_label = sort_footer_label(direction);
-        let footer = TableFooter::LabeledCommandBar {
-            label: &footer_label,
-            hotkeys_markup: BRIEF_SORT_HOTKEYS,
-            default: None,
-            input: "",
-        };
-        let columns = resolve_table_columns_for_widget_with_footer_floor(
-            &BRIEF_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-            Some(&title),
-            Some(footer),
-            planet_list_footer_floor(frame, mode),
-        );
-        let layout = layout_stacked_table_block(
-            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
-            &columns,
-            displayed_rows,
-            Some(&title),
-            Some(footer),
-            scrollable,
-            HorizontalAlign::Center,
-            VerticalAlign::Top,
-        );
-        draw_table_footer(
-            &mut buffer,
-            frame.geometry,
-            layout.command_col,
-            brief_list_table_bottom_row(frame.geometry, rows.len(), scroll_offset),
-            footer,
-        );
-        Ok(buffer)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn render_filter_prompt(
-        &mut self,
-        frame: &ScreenFrame<'_>,
-        mode: PlanetListMode,
-        rows: &[EmpirePlanetEconomyRow],
-        sort: PlanetListSort,
-        direction: SortDirection,
-        filter: PlanetListFilter,
-        scroll_offset: usize,
-        cursor: usize,
-        prompt_mode: PlanetListFilterPromptMode,
-        prompt_default: &str,
-        input: &str,
-        status: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render_brief_list(
-            frame,
-            mode,
-            rows,
-            sort,
-            direction,
-            filter,
-            scroll_offset,
-            cursor,
-            "",
-            status,
-            false,
-            None,
-            "",
-            "",
-            None,
-            None,
-            None,
-        )?;
-        let table_rows = planet_table_rows(frame, rows);
-        let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
-        let displayed_rows = table_rows
-            .len()
-            .saturating_sub(scroll_offset)
-            .min(visible_rows);
-        let scrollable = table_rows.len() > visible_rows;
-        let title = planet_list_title(mode, sort, direction, filter);
-        let footer = match prompt_mode {
-            PlanetListFilterPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
-                label: "FILTER",
-                hotkeys_markup: BRIEF_FILTER_HOTKEYS,
-                default: None,
-                input: "",
-            },
-            PlanetListFilterPromptMode::RangeCoords => TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: "Range from ",
-                default: prompt_default,
-                input,
-            },
-            PlanetListFilterPromptMode::RangeDistance => TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt: "Range radius ",
-                default: prompt_default,
-                input,
-            },
-        };
-        let columns = resolve_table_columns_for_widget_with_footer_floor(
-            &BRIEF_COLUMNS,
-            &table_rows,
-            buffer.width(),
-            scrollable,
-            TableWidthMode::Compact,
-            Some(&title),
-            Some(footer),
-            planet_list_footer_floor(frame, mode),
-        );
-        let layout = layout_stacked_table_block(
-            LayoutRect::new(0, 0, buffer.width(), buffer.height()),
-            &columns,
-            displayed_rows,
-            Some(&title),
-            Some(footer),
-            scrollable,
-            HorizontalAlign::Center,
-            VerticalAlign::Top,
-        );
-        draw_table_footer(
-            &mut buffer,
-            frame.geometry,
-            layout.command_col,
-            brief_list_table_bottom_row(frame.geometry, rows.len(), scroll_offset),
-            footer,
-        );
-        Ok(buffer)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn render_brief_list(
-        &mut self,
-        frame: &ScreenFrame<'_>,
-        mode: PlanetListMode,
-        rows: &[EmpirePlanetEconomyRow],
-        sort: PlanetListSort,
-        direction: SortDirection,
-        filter: PlanetListFilter,
-        scroll_offset: usize,
-        cursor: usize,
-        input: &str,
-        status: Option<&str>,
-        auto_commission_prompt: bool,
-        transport_prompt_label: Option<&str>,
-        transport_prompt_default: &str,
-        transport_prompt_input: &str,
-        _transport_summary: Option<&str>,
-        scorch_prompt_label: Option<&str>,
-        _scorch_summary: Option<&str>,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        footer: TableFooter<'_>,
+    ) -> Result<RenderedPlanetList, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(frame.geometry);
         let visible_rows = stacked_table_visible_rows_for(frame.geometry, 1);
         let table_rows = planet_table_rows(frame, rows);
@@ -344,42 +161,6 @@ impl PlanetListScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let title = planet_list_title(mode, sort, direction, filter);
-        let default_coords = rows
-            .get(cursor)
-            .map(|row| format_sector_coords_default(row.coords))
-            .unwrap_or_else(|| "00,00".to_string());
-        let footer = if auto_commission_prompt {
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
-            }
-        } else if let Some(prompt) = transport_prompt_label {
-            TableFooter::CommandInput {
-                label: "COMMAND",
-                prompt,
-                default: transport_prompt_default,
-                input: transport_prompt_input,
-            }
-        } else if let Some(prompt) = scorch_prompt_label {
-            TableFooter::CommandPrompt {
-                label: "COMMAND",
-                prompt,
-            }
-        } else if let Some(status) = status {
-            TableFooter::CommandText {
-                label: "COMMAND",
-                text: status,
-            }
-        } else {
-            TableFooter::CommandBar {
-                hotkeys_markup: match mode {
-                    PlanetListMode::Brief => BRIEF_BROWSE_HOTKEYS,
-                    PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => "? S <Q>",
-                },
-                default: Some(&default_coords),
-                input,
-            }
-        };
         let columns = resolve_table_columns_for_widget_with_footer_floor(
             &BRIEF_COLUMNS,
             &table_rows,
@@ -430,7 +211,176 @@ impl PlanetListScreen {
             metrics.bottom_row,
             footer,
         );
-        Ok(buffer)
+        Ok(RenderedPlanetList { buffer })
+    }
+
+    pub fn render_sort_prompt(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
+        rows: &[EmpirePlanetEconomyRow],
+        sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
+        scroll_offset: usize,
+        cursor: usize,
+        input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        if let PlanetListMode::Stub(message) = mode {
+            let mut buffer = new_playfield_for(frame.geometry);
+            draw_title_bar_padded(&mut buffer, 0, "PLANET COMMAND:");
+            draw_status_line(&mut buffer, 3, "Notice: ", message);
+            draw_dismiss_prompt_padded(&mut buffer, dismiss_prompt_row_for(frame.geometry, 3));
+            return Ok(buffer);
+        }
+
+        let footer_label = sort_footer_label(direction);
+        let footer = TableFooter::LabeledCommandBar {
+            label: &footer_label,
+            hotkeys_markup: BRIEF_SORT_HOTKEYS,
+            default: None,
+            input: "",
+        };
+        let _ = input;
+        let _ = status;
+        Ok(self
+            .render_table(
+                frame,
+                mode,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+            )?
+            .buffer)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_filter_prompt(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
+        rows: &[EmpirePlanetEconomyRow],
+        sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
+        scroll_offset: usize,
+        cursor: usize,
+        prompt_mode: PlanetListFilterPromptMode,
+        prompt_default: &str,
+        input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let footer = match prompt_mode {
+            PlanetListFilterPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
+                label: "FILTER",
+                hotkeys_markup: BRIEF_FILTER_HOTKEYS,
+                default: None,
+                input: "",
+            },
+            PlanetListFilterPromptMode::RangeCoords => TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Range from ",
+                default: prompt_default,
+                input,
+            },
+            PlanetListFilterPromptMode::RangeDistance => TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt: "Range radius ",
+                default: prompt_default,
+                input,
+            },
+        };
+        let _ = status;
+        Ok(self
+            .render_table(
+                frame,
+                mode,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+            )?
+            .buffer)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_brief_list(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        mode: PlanetListMode,
+        rows: &[EmpirePlanetEconomyRow],
+        sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
+        scroll_offset: usize,
+        cursor: usize,
+        input: &str,
+        status: Option<&str>,
+        auto_commission_prompt: bool,
+        transport_prompt_label: Option<&str>,
+        transport_prompt_default: &str,
+        transport_prompt_input: &str,
+        _transport_summary: Option<&str>,
+        scorch_prompt_label: Option<&str>,
+        _scorch_summary: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let default_coords = rows
+            .get(cursor)
+            .map(|row| format_sector_coords_default(row.coords))
+            .unwrap_or_else(|| "00,00".to_string());
+        let footer = if auto_commission_prompt {
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt: PLANET_LIST_AUTO_COMMISSION_PROMPT,
+            }
+        } else if let Some(prompt) = transport_prompt_label {
+            TableFooter::CommandInput {
+                label: "COMMAND",
+                prompt,
+                default: transport_prompt_default,
+                input: transport_prompt_input,
+            }
+        } else if let Some(prompt) = scorch_prompt_label {
+            TableFooter::CommandPrompt {
+                label: "COMMAND",
+                prompt,
+            }
+        } else if let Some(status) = status {
+            TableFooter::CommandText {
+                label: "COMMAND",
+                text: status,
+            }
+        } else {
+            TableFooter::CommandBar {
+                hotkeys_markup: match mode {
+                    PlanetListMode::Brief => BRIEF_BROWSE_HOTKEYS,
+                    PlanetListMode::BuildSelect | PlanetListMode::Stub(_) => "? S <Q>",
+                },
+                default: Some(&default_coords),
+                input,
+            }
+        };
+        Ok(self
+            .render_table(
+                frame,
+                mode,
+                rows,
+                sort,
+                direction,
+                filter,
+                scroll_offset,
+                cursor,
+                footer,
+            )?
+            .buffer)
     }
 
     pub fn handle_sort_prompt_key(&self, key: KeyEvent, mode: PlanetListMode) -> Action {
@@ -561,17 +511,6 @@ impl PlanetListScreen {
             _ => Action::Noop,
         }
     }
-}
-
-fn brief_list_table_bottom_row(
-    geometry: crate::screen::ScreenGeometry,
-    total_rows: usize,
-    scroll_offset: usize,
-) -> usize {
-    let displayed_rows = total_rows
-        .saturating_sub(scroll_offset)
-        .min(stacked_table_visible_rows_for(geometry, 1));
-    1 + 4 + displayed_rows
 }
 
 fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> usize {

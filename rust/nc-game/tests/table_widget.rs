@@ -13,14 +13,42 @@ use nc_game::screen::table::{
     write_table_window_with_cursor_at, write_table_window_with_states,
 };
 use nc_game::screen::{
-    CommandMenu, EmpireProfileScreen, EnemiesScreen, MessageComposeScreen, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow, PlanetDatabaseScreen, PlanetListScreen,
-    PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
+    CommandMenu, EmpireProfileScreen, EnemiesScreen, FleetListFilter, FleetListScreen,
+    FleetListSort, FleetRow, MessageComposeScreen, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen, PlanetDatabasePromptMode, PlanetDatabaseRow, PlanetDatabaseScreen,
+    PlanetDatabaseSort, PlanetListFilter, PlanetListFilterPromptMode, PlanetListMode,
+    PlanetListScreen, PlanetListSort, PlayfieldBuffer, RankingsScreen, ScreenFrame, ScreenGeometry,
 };
 use nc_game::theme::classic;
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
     buffer.row(row).iter().map(|cell| cell.ch).collect()
+}
+
+fn line_index_containing(buffer: &PlayfieldBuffer, needle: &str) -> usize {
+    (0..buffer.height())
+        .find(|row| buffer.plain_line(*row).contains(needle))
+        .unwrap_or_else(|| panic!("missing line containing {needle:?}"))
+}
+
+fn sample_fleet_rows() -> Vec<FleetRow> {
+    vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 1,
+        coords: [12, 34],
+        target_coords: [12, 34],
+        order_code: 0,
+        current_speed: 7,
+        max_speed: 7,
+        eta_label: "0".to_string(),
+        list_eta_label: "0".to_string(),
+        rules_of_engagement: 2,
+        loaded_armies: 3,
+        order_label: "Holding".to_string(),
+        composition_label: "DD 05".to_string(),
+        table_ships_label: "DD 05".to_string(),
+        join_host_fleet_number: None,
+    }]
 }
 
 fn repo_root() -> PathBuf {
@@ -414,7 +442,7 @@ fn planet_database_screen_uses_stacked_header_table() {
     assert!(buffer.plain_line(2).contains("Max"));
     assert!(buffer.plain_line(2).contains("Year"));
     assert!(buffer.plain_line(2).contains("Curr"));
-    assert!(buffer.plain_line(2).contains("Stored"));
+    assert!(buffer.plain_line(2).contains("Trsry"));
     assert_eq!(buffer.plain_line(2).matches('│').count(), 12);
     assert!(buffer.plain_line(2).trim_end().ends_with('│'));
     assert!(buffer.plain_line(3).contains("(XX,YY)"));
@@ -452,37 +480,69 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
         year_scout_label: "3001".to_string(),
     }];
 
-    let buffer = screen
-        .render_filter_prompt(
+    let browse = screen
+        .render_list(
             ScreenGeometry::local_default(),
             &rows,
-            nc_game::screen::PlanetDatabaseSort::Location,
+            PlanetDatabaseSort::Location,
             nc_game::screen::SortDirection::Asc,
             nc_game::screen::PlanetDatabaseFilter::All,
             0,
             0,
-            nc_game::screen::PlanetDatabasePromptMode::FilterMenu,
+            [12, 34],
+            "",
+            None,
+            nc_game::screen::CommandMenu::Planet,
+        )
+        .expect("render database list");
+    let browse_row = line_index_containing(&browse, "COMMAND <- ");
+
+    let filter = screen
+        .render_filter_prompt(
+            ScreenGeometry::local_default(),
+            &rows,
+            PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
+            0,
+            0,
+            PlanetDatabasePromptMode::FilterMenu,
             "",
             "",
             None,
             nc_game::screen::CommandMenu::Planet,
         )
         .expect("render database filter prompt");
-
-    let border_col = buffer.plain_line(1).find('┌').expect("table col");
-    let prompt_row = (0..PLAYFIELD_HEIGHT)
-        .find(|row| {
-            buffer
-                .plain_line(*row)
-                .contains("FILTER <- ? A R E M <Q> ->")
-        })
-        .expect("filter prompt row");
+    let border_col = filter.plain_line(1).find('┌').expect("table col");
+    let prompt_row = line_index_containing(&filter, "FILTER <- ? A R E M <Q> ->");
     assert_eq!(
-        buffer
+        filter
             .plain_line(prompt_row)
             .find("FILTER")
             .expect("prompt col"),
         border_col + 1
+    );
+    assert_eq!(prompt_row, browse_row);
+
+    let sort = screen
+        .render_filter_prompt(
+            ScreenGeometry::local_default(),
+            &rows,
+            PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
+            0,
+            0,
+            PlanetDatabasePromptMode::SortMenu,
+            "",
+            "",
+            None,
+            nc_game::screen::CommandMenu::Planet,
+        )
+        .expect("render database sort prompt");
+    assert_eq!(
+        line_index_containing(&sort, "SORT ASC <- ? L R E M <Q> ->"),
+        browse_row
     );
 }
 
@@ -527,6 +587,64 @@ fn planet_database_24_row_door_keeps_bottom_border_above_command_line() {
     assert_eq!(buffer.height(), 24);
     assert!(buffer.plain_line(22).contains('└'));
     assert!(buffer.plain_line(23).contains("COMMAND"));
+}
+
+#[test]
+fn fleet_list_sort_and_filter_prompts_use_browse_footer_row() {
+    let mut screen = FleetListScreen::new();
+    let rows = sample_fleet_rows();
+
+    let browse = screen
+        .render(
+            ScreenGeometry::local_default(),
+            &rows,
+            FleetListSort::Id,
+            nc_game::screen::SortDirection::Asc,
+            FleetListFilter::All,
+            0,
+            0,
+            "",
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+        )
+        .expect("render fleet browse");
+    let browse_row = line_index_containing(&browse, "COMMAND <- ");
+
+    let sort = screen
+        .render_sort_prompt(
+            ScreenGeometry::local_default(),
+            &rows,
+            FleetListSort::Id,
+            nc_game::screen::SortDirection::Asc,
+            FleetListFilter::All,
+            0,
+            0,
+        )
+        .expect("render fleet sort prompt");
+    assert_eq!(
+        line_index_containing(&sort, "SORT ASC <- ? I L O E T <Q> ->"),
+        browse_row
+    );
+
+    let filter = screen
+        .render_filter_prompt(
+            ScreenGeometry::local_default(),
+            &rows,
+            FleetListSort::Id,
+            nc_game::screen::SortDirection::Asc,
+            FleetListFilter::All,
+            0,
+            0,
+        )
+        .expect("render fleet filter prompt");
+    assert_eq!(
+        line_index_containing(&filter, "FILTER <- ? A H M C <Q> ->"),
+        browse_row
+    );
 }
 
 #[test]
@@ -599,7 +717,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(2).contains("│Coord"));
     assert!(buffer.plain_line(2).contains("Max"));
     assert!(buffer.plain_line(2).contains("Curr"));
-    assert!(buffer.plain_line(2).contains("Stored"));
+    assert!(buffer.plain_line(2).contains("Trsry"));
     assert!(buffer.plain_line(2).contains("Build"));
     assert!(buffer.plain_line(2).contains("Star"));
     assert_eq!(buffer.plain_line(2).matches('│').count(), 13);
@@ -804,6 +922,103 @@ fn planet_brief_list_keeps_table_width_stable_across_footer_modes() {
 
     assert_eq!(command_bar_right, auto_commission_right);
     assert_eq!(command_bar_right, load_quantity_right);
+}
+
+#[test]
+fn planet_brief_list_sort_and_filter_prompts_use_browse_footer_row() {
+    let mut screen = PlanetListScreen::new();
+    let game_data = CoreGameData::load(&repo_root().join("fixtures/ecutil-init/v1.5"))
+        .expect("load init fixture");
+    let player = joined_player_context();
+    let planet_intel_snapshots = BTreeMap::new();
+    let owned_planet_years = BTreeMap::new();
+    let frame = ScreenFrame {
+        game_dir: Path::new("."),
+        game_data: &game_data,
+        player: &player,
+        campaign_seed: 0,
+        planet_intel_snapshots: &planet_intel_snapshots,
+        owned_planet_years: &owned_planet_years,
+        geometry: ScreenGeometry::local_default(),
+    };
+    let rows = vec![EmpirePlanetEconomyRow {
+        planet_record_index_1_based: 1,
+        coords: [3, 3],
+        planet_name: "Player 1 HW".to_string(),
+        present_production: 100,
+        potential_production: 100,
+        stored_production_points: 165,
+        yearly_tax_revenue: 65,
+        yearly_growth_delta: 0,
+        build_capacity: 100,
+        has_friendly_starbase: false,
+        armies: 10,
+        ground_batteries: 4,
+        is_homeworld_seed: true,
+    }];
+
+    let browse = screen
+        .render_brief_list(
+            &frame,
+            PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            PlanetListFilter::All,
+            0,
+            0,
+            "",
+            None,
+            false,
+            None,
+            "",
+            "",
+            None,
+            None,
+            None,
+        )
+        .expect("render planet brief list");
+    let browse_row = line_index_containing(&browse, "COMMAND <- ");
+
+    let sort = screen
+        .render_sort_prompt(
+            &frame,
+            PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            PlanetListFilter::All,
+            0,
+            0,
+            "",
+            None,
+        )
+        .expect("render planet sort prompt");
+    assert_eq!(
+        line_index_containing(&sort, "SORT DESC <- ? C L M <Q> ->"),
+        browse_row
+    );
+
+    let filter = screen
+        .render_filter_prompt(
+            &frame,
+            PlanetListMode::Brief,
+            &rows,
+            PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            PlanetListFilter::All,
+            0,
+            0,
+            PlanetListFilterPromptMode::FilterMenu,
+            "",
+            "",
+            None,
+        )
+        .expect("render planet filter prompt");
+    assert_eq!(
+        line_index_containing(&filter, "FILTER <- ? A R S T <Q> ->"),
+        browse_row
+    );
 }
 
 #[test]
@@ -1056,7 +1271,7 @@ fn planet_build_specify_screen_uses_split_table() {
             is_homeworld_seed: true,
         },
         committed_points: 10,
-        available_points: 50,
+        budget: 50,
         points_left: 40,
         building_count: 2,
         docked_count: 3,

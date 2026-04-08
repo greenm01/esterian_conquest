@@ -5,8 +5,8 @@ use nc_ui::PlayfieldBuffer;
 use crate::app::state::DashApp;
 use crate::layout::{self, PanelWidgetFrame};
 use crate::planet_view::{
-    DetailLine, preferred_sector_detail_body_width, projected_sector_details,
-    selected_planet_detail, widget_label_for_width,
+    preferred_sector_detail_body_width, projected_sector_details, selected_planet_detail,
+    widget_label_for_width, DetailLine,
 };
 use crate::theme;
 
@@ -163,7 +163,7 @@ fn row_priority(label: &str) -> usize {
         "Intel" => 3,
         "Current Production" => 4,
         "Potential Production" => 5,
-        "Stored Production Points" => 6,
+        "Treasury" => 6,
         "Armies" => 7,
         "Ground Batteries" => 8,
         "Starbases" => 9,
@@ -177,8 +177,8 @@ fn row_priority(label: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_BODY_ROWS, preferred_body_rows, preferred_body_width, rendered_widget_lines,
-        wrap_field_value_lines,
+        preferred_body_rows, preferred_body_width, rendered_widget_lines, wrap_field_value_lines,
+        MAX_BODY_ROWS,
     };
     use crate::app::state::DashApp;
     use crate::layout::dashboard_layout;
@@ -213,7 +213,7 @@ mod tests {
                 value: String::from("10"),
             },
             DetailLine {
-                label: "Stored Production Points",
+                label: "Treasury",
                 value: String::from("8"),
             },
             DetailLine {
@@ -293,11 +293,9 @@ mod tests {
 
         super::draw(&mut buffer, &app, widgets.right_sector_detail);
 
-        assert!(
-            buffer
-                .plain_line(widgets.right_sector_detail.body.row)
-                .contains("empty sector")
-        );
+        assert!(buffer
+            .plain_line(widgets.right_sector_detail.body.row)
+            .contains("empty sector"));
     }
 
     #[test]

@@ -1,8 +1,8 @@
 use nc_data::{GameStateBuilder, ProductionItemKind};
 use nc_engine::{
-    ArmyTransportMode, default_fleet_transport_fleet_number,
-    planet_build_max_selectable_unit_number, planet_build_specify_entries, planet_build_view,
-    planet_commission_draft_state, production_item_kind_raw,
+    default_fleet_transport_fleet_number, planet_build_max_selectable_unit_number,
+    planet_build_specify_entries, planet_build_view, planet_commission_draft_state,
+    production_item_kind_raw, ArmyTransportMode,
 };
 
 #[test]
@@ -42,14 +42,15 @@ fn planet_build_view_counts_queue_and_stardock_units() {
 }
 
 #[test]
-fn planet_build_view_uses_selected_planet_available_pp_not_stored_points() {
+fn planet_build_view_budget_capped_by_treasury_not_revenue() {
     let game_data = GameStateBuilder::new()
         .with_player_count(4)
         .build_initialized_baseline()
         .expect("baseline");
+    // treasury=65 < build_capacity=100, so budget = 65 regardless of revenue
     let row = {
         let mut row = game_data.empire_planet_economy_rows(1).remove(0);
-        row.stored_production_points = 0;
+        row.stored_production_points = 65;
         row.yearly_tax_revenue = 50;
         row.build_capacity = 100;
         row
@@ -57,8 +58,8 @@ fn planet_build_view_uses_selected_planet_available_pp_not_stored_points() {
 
     let view = planet_build_view(&game_data, &row).expect("view");
 
-    assert_eq!(view.available_points, 50);
-    assert_eq!(view.points_left, 50);
+    assert_eq!(view.budget, 65);
+    assert_eq!(view.points_left, 65);
 }
 
 #[test]

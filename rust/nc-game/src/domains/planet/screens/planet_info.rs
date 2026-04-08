@@ -68,7 +68,7 @@ impl PlanetInfoScreen {
             "Owned Since",
             "Present Production",
             "Potential Production",
-            "Stored Production Points",
+            "Treasury",
             "Efficiency",
             "Expected Revenue",
             "Armies",
@@ -121,7 +121,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             9,
             info_label_width,
-            "Stored Production Points",
+            "Treasury",
             &planet.stored_production_points().to_string(),
         );
         draw_aligned_status_line(
@@ -218,7 +218,7 @@ impl PlanetInfoScreen {
             "Present Production",
             "Potential Production",
             "Efficiency",
-            "Stored Production Points",
+            "Treasury",
             "Armies",
             "Ground Batteries",
             "Space Forces",
@@ -289,7 +289,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             10,
             info_label_width,
-            "Stored Production Points",
+            "Treasury",
             &world
                 .known_stored_points
                 .map(|value| value.to_string())

@@ -395,13 +395,13 @@ Your empire runs on production. Every owned planet generates tax revenue each ma
 
 === Key Terms
 
-Every planet has a *Potential Production* --- the maximum productive capacity it can ever reach --- and a *Present Production*, which is what it can deliver right now. Present Production grows toward Potential over time. Your empire's *Total Available Points* is the sum of tax revenue across all your planets, and any revenue you do not spend accumulates on each planet as *Stored Production Points*, available for future builds.
+Every planet has a *Potential Production* --- the maximum productive capacity it can ever reach --- and a *Present Production*, which is what it can deliver right now. Present Production grows toward Potential over time. Your empire's *Empire Revenue* is the sum of tax revenue across all your planets. Any revenue a planet does not spend accumulates on it as its *Treasury* --- the reserve of saved production points available to fund future builds. Each turn, how much of that treasury a planet can actually spend is limited by its *build capacity*; that per-turn spending limit is the planet's *Budget*.
 
 === Tax Revenue
 
 The tax rate is empire-wide: you set one rate for all your planets. Revenue per
 planet per year is a fixed percentage of Present Production, and your empire's
-Total Available Points is the sum of that revenue across all owned planets. See
+Empire Revenue is the sum of that revenue across all owned planets. See
 @appendix-economy for the exact formula.
 
 === Growth Toward Potential
@@ -431,19 +431,19 @@ toward *65%*. This means underdeveloped planets with starbases catch up
 significantly faster when you are managing them sensibly, but the bonus is not
 meant to offset punitive taxes. Second, the planet gains a *build capacity
 multiplier* --- it can spend up to *5x* its Present Production on builds in a
-single turn, drawing from Stored Production Points. Without a starbase, a
+single turn, drawing from its treasury. Without a starbase, a
 planet can only spend up to 1x its Present Production per turn. See
 @appendix-economy for the exact bonus taper and build-capacity formulas.
 
 #admonition("NOTE")[These bonuses require an active, commissioned starbase in orbit --- not an uncommissioned starbase sitting in stardock.]
 
-=== Stored Production Points
+=== Treasury <treasury>
 
-Tax revenue that you do not spend accumulates as Stored Production Points on each planet. This reserve is what allows starbase worlds to execute large builds --- up to 5x Present Production --- in a single turn. When maintenance processes a build queue, the points actually spent that year are deducted from the planet's reserve; unfinished builds keep their remaining cost for later turns.
+Tax revenue that a planet does not spend accumulates in its *Treasury* --- the planet's savings reserve. The treasury is what allows starbase worlds to execute large builds: up to 5x Present Production in a single turn. Each turn, a planet's *Budget* is the lesser of its treasury and its build capacity. That is what the build screen shows as *BUDGET* --- how many production points remain uncommitted this turn. When maintenance processes a build queue, only the points actually spent that year are deducted from the treasury; unfinished builds keep their remaining cost for later turns.
 
 === Newly Colonized Planets
 
-A freshly colonized planet starts with Present Production far below its Potential and with no Stored Production Points. It does not collect revenue or growth on the same maintenance turn that establishes the colony. Growth begins on later turns, and because tax revenue is credited before growth is applied, a new colony can remain at zero spendable points for multiple turns even at reasonable tax rates. Keep taxes low on new colonies so they develop quickly.
+A freshly colonized planet starts with Present Production far below its Potential and with no treasury. It does not collect revenue or growth on the same maintenance turn that establishes the colony. Growth begins on later turns, and because tax revenue is credited before growth is applied, a new colony can remain at zero budget for multiple turns even at reasonable tax rates. Keep taxes low on new colonies so they develop quickly.
 
 === Conquered Planets
 
@@ -538,9 +538,9 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Mission 9: View a World.* A safe, long-range scan. The fleet approaches the edge of the target system, scans for owner and production data, and immediately backs off into deep space. It reverts to Hold Position after reporting.
 
-*Mission 12: Colonize a World.* Requires at least one ETAC (Environmental Transformation And Colonization ship). If the planet is unowned, it is terraformed and claimed. The new colony starts with one garrison army, no stored production, and very low current production. It does not receive revenue or growth until later maintenance turns, and then develops faster under low taxes. The ETAC is not consumed --- it survives and can colonize additional planets. If the planet is already owned, the ETAC aborts, reports the owner's identity and production potential, writes that partial result into your Total Planet Database, and waits for new orders.
+*Mission 12: Colonize a World.* Requires at least one ETAC (Environmental Transformation And Colonization ship). If the planet is unowned, it is terraformed and claimed. The new colony starts with one garrison army, no treasury, and very low current production. It does not receive revenue or growth until later maintenance turns, and then develops faster under low taxes. The ETAC is not consumed --- it survives and can colonize additional planets. If the planet is already owned, the ETAC aborts, reports the owner's identity and production potential, writes that partial result into your Total Planet Database, and waits for new orders.
 
-*Mission 15: Salvage.* The fleet travels to the specified planet and scraps its ships for approximately *50%* of the original build cost, returned as stored production points on that planet. It reverts to Hold Position after scrapping.
+*Mission 15: Salvage.* The fleet travels to the specified planet and scraps its ships for approximately *50%* of the original build cost, returned to that planet's treasury. It reverts to Hold Position after scrapping.
 
 ==== Persistent Standing Missions
 
@@ -606,7 +606,9 @@ Fleet Command controls your ships in space. Mission (*O*) assigns missions 0--15
 
 Each planet has a *10-slot build queue*. During maintenance, a planet processes as many queued build points as its current per-turn build capacity allows. Small orders may finish in one maintenance turn, while larger ones can stay queued across multiple years until the remaining cost reaches zero. As enough points are applied to complete individual units, ships and starbases move to *Stardock* --- a holding area on the planet where they sit idle and vulnerable until commissioned --- even if other units from the same order remain queued. Ships are commissioned into numbered fleets, while starbases are commissioned individually and managed through their own Starbase Command submenu. Armies and ground batteries, by contrast, deploy directly to the planet surface and do not pass through stardock.
 
-A planet without a starbase can spend up to its Present Production in a single turn. A planet with an orbiting starbase can spend up to *5x* its Present Production, drawing from Stored Production Points (see @economy).
+A planet without a starbase can spend up to its Present Production in a single turn. A planet with an orbiting starbase can spend up to *5x* its Present Production, drawing from its treasury (see @treasury). The build screen shows *BUDGET* --- your treasury capped by build capacity, minus what you have already committed this turn.
+
+#admonition("NOTE")[The build queue, stardock, and treasury are all linked. If stardock is full for a given unit type, that slot stops drawing points. Blocked slots do not drain your treasury --- but they also do not free capacity for other work. Commission your ships promptly to keep the pipeline moving.]
 
 #admonition("WARNING")[Troop transports are built empty. You must manually load armies onto them before sending them into battle.]
 
@@ -674,7 +676,7 @@ place.
   )
 ]
 
-Your empire's Total Available Points is the sum of this value across all owned
+Your empire's Empire Revenue is the sum of this value across all owned
 planets.
 
 === Base Growth Toward Potential
@@ -729,7 +731,7 @@ bonus tapers away completely by `65%`.
   )
 ]
 
-=== Build Capacity and Stored Production
+=== Build Capacity, Treasury, and Budget
 
 Per-turn build capacity is:
 
@@ -742,10 +744,21 @@ Per-turn build capacity is:
   )
 ]
 
-Stored Production Points let a planet spend up to that per-turn cap while
-drawing on previously saved production. Maintenance deducts only the build
+A planet's *treasury* accumulates unspent production points across turns.
+Each turn, the *budget* is capped by build capacity:
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "IBM Plex Mono")[budget = min(treasury, build_capacity)]],
+  )
+]
+
+The BUDGET field on the build screen shows how many points remain after
+committed queue entries are subtracted. Maintenance deducts only the build
 points actually processed that year; any remaining build cost stays queued for
-later turns, and blocked builds do not consume stored production.
+later turns, and blocked builds do not consume the treasury.
 
 #pagebreak()
 

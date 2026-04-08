@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    CampaignState, CompactUnitSummaryStyle, IntelTier, OwnedPlanetStatus, PlanetIntelSnapshot,
-    PlanetRecord, PlayerStarmapWorld, active_starbase_count_at,
-    build_player_starmap_projection_from_snapshots,
+    active_starbase_count_at, build_player_starmap_projection_from_snapshots,
     format_build_queue_summary as shared_build_queue_summary,
     format_owned_orbit_summary as shared_owned_orbit_summary,
     format_stardock_summary as shared_stardock_summary, owned_orbit_presence, owned_planet_status,
-    yearly_tax_revenue,
+    yearly_tax_revenue, CampaignState, CompactUnitSummaryStyle, IntelTier, OwnedPlanetStatus,
+    PlanetIntelSnapshot, PlanetRecord, PlayerStarmapWorld,
 };
 
 use crate::app::state::DashApp;
@@ -107,10 +106,7 @@ fn owned_planet_detail(
         detail_line("Owned Since", owned_since),
         detail_line("Present Production", present.to_string()),
         detail_line("Potential Production", potential.to_string()),
-        detail_line(
-            "Stored Production Points",
-            planet.stored_production_points().to_string(),
-        ),
+        detail_line("Treasury", planet.stored_production_points().to_string()),
         detail_line("Efficiency", owned_efficiency_label(present, potential)),
         detail_line(
             "Expected Revenue",
@@ -141,10 +137,7 @@ fn owned_planet_detail(
         ),
         widget_field("Current Production", present.to_string()),
         widget_field("Potential Production", potential.to_string()),
-        widget_field(
-            "Stored Production Points",
-            planet.stored_production_points().to_string(),
-        ),
+        widget_field("Treasury", planet.stored_production_points().to_string()),
         widget_field("Armies", planet.army_count_raw().to_string()),
         widget_field(
             "Ground Batteries",
@@ -207,10 +200,7 @@ fn intel_planet_detail(
                 world.known_potential_production,
             ),
         ),
-        detail_line(
-            "Stored Production Points",
-            known_u16(world.known_stored_points),
-        ),
+        detail_line("Treasury", known_u16(world.known_stored_points)),
         detail_line("Armies", known_u8(world.known_armies)),
         detail_line("Ground Batteries", known_u8(world.known_ground_batteries)),
         detail_line(
@@ -255,10 +245,7 @@ fn intel_planet_detail(
             "Potential Production",
             known_u16(world.known_potential_production),
         ),
-        widget_field(
-            "Stored Production Points",
-            known_u16(world.known_stored_points),
-        ),
+        widget_field("Treasury", known_u16(world.known_stored_points)),
         widget_field("Armies", known_u8(world.known_armies)),
         widget_field("Ground Batteries", known_u8(world.known_ground_batteries)),
         widget_field("Starbases", known_u8(world.known_starbase_count)),
@@ -319,7 +306,7 @@ fn widget_label_variants(label: &'static str) -> Option<&'static [&'static str]>
     Some(match label {
         "Potential Production" => &["Pot Prod"],
         "Current Production" => &["Curr Prod"],
-        "Stored Production Points" => &["Stored Pts", "Stored"],
+        "Treasury" => &["Treasury", "Trsry"],
         "Ground Batteries" => &["Grnd Batt", "GBs"],
         "Armies" => &["Armies", "ARs"],
         "Starbases" => &["Starbases", "SBs"],
@@ -594,7 +581,7 @@ mod tests {
                 "State",
                 "Current Production",
                 "Potential Production",
-                "Stored Production Points",
+                "Treasury",
                 "Armies",
                 "Ground Batteries",
                 "Starbases",
@@ -616,7 +603,7 @@ mod tests {
             value: String::from("10"),
         };
         let stored = DetailLine {
-            label: "Stored Production Points",
+            label: "Treasury",
             value: String::from("125"),
         };
         let batteries = DetailLine {
@@ -626,10 +613,10 @@ mod tests {
 
         assert_eq!(widget_label_for_width(&current, 19), "Curr Prod");
         assert_eq!(widget_label_for_width(&potential, 19), "Pot Prod");
-        assert_eq!(widget_label_for_width(&stored, 19), "Stored Pts");
+        assert_eq!(widget_label_for_width(&stored, 19), "Treasury");
         assert_eq!(widget_label_for_width(&batteries, 19), "Grnd Batt");
         assert_eq!(widget_label_for_width(&current, 14), "Curr Prod");
-        assert_eq!(widget_label_for_width(&stored, 14), "Stored");
+        assert_eq!(widget_label_for_width(&stored, 14), "Treasury");
         assert_eq!(widget_label_for_width(&batteries, 14), "Grnd Batt");
         assert_eq!(widget_label_for_width(&batteries, 6), "GBs");
     }

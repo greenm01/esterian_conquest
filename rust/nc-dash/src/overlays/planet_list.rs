@@ -3,18 +3,18 @@
 use std::cmp::Ordering;
 
 use nc_data::{
-    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
+    yearly_growth_delta, yearly_tax_revenue, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT,
 };
 use nc_engine::BUILD_UNITS;
-use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
 use nc_ui::table::{
-    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
-    write_stacked_table_window_with_theme_at,
+    write_stacked_table_window_with_theme_at, SplitTableRow, TableColumn, TableFooter,
+    TableWidthMode, TABLE_TEXT_INSET,
 };
 use nc_ui::table_selection;
+use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
@@ -22,10 +22,10 @@ use crate::app::state::{
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map,
+    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map,
     draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
     overlay_popup_rect_for_body_in_map, stacked_table_body_height, standard_table_body_height,
-    write_clipped,
+    write_clipped, OverlaySizePolicy,
 };
 use crate::theme;
 
@@ -33,7 +33,7 @@ pub(crate) const HOTKEYS: &str = "? F S B <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? C L M <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A R S T <Q>";
 const TOP_HEADERS: [&str; 12] = [
-    "Coord", "", "Max", "Curr", "Stored", "", "", "Build", "Star", "", "", "",
+    "Coord", "", "Max", "Curr", "Trsry", "", "", "Build", "Star", "", "", "",
 ];
 const COLUMNS: [TableColumn<'static>; 12] = [
     TableColumn::left("(XX,YY)", 7),
@@ -422,7 +422,7 @@ fn write_build_points_line(
 ) {
     let table_col =
         frame.body_col + centered_table_start_col(frame.body_width, &build_specify_all_columns());
-    let points_left_label = format!("PP LEFT TO SPEND: {}", points_left);
+    let points_left_label = format!("BUDGET: {}", points_left);
     let points_left_col = table_col + table_width - TABLE_TEXT_INSET - points_left_label.len();
     write_clipped(
         buf,

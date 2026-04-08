@@ -28,7 +28,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
             is_homeworld_seed: true,
         },
         committed_points: 10,
-        available_points: 50,
+        budget: 50,
         points_left: 40,
         building_count: 5,
         docked_count: 3,
@@ -52,7 +52,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
     );
     assert_eq!(
         buffer.plain_line(15),
-        " You have spent 10 out of 50 points.  You have 40 points left to spend."
+        " Spent: 10 of 50 PP.  Budget remaining: 40."
     );
     assert_eq!(buffer.plain_line(16), "");
     assert_eq!(buffer.plain_line(17), " Building: 5   Docked: 3");
@@ -78,7 +78,7 @@ fn build_list_renders_queue_columns_without_dock() {
             is_homeworld_seed: true,
         },
         committed_points: 10,
-        available_points: 50,
+        budget: 50,
         points_left: 40,
         building_count: 2,
         docked_count: 0,
@@ -154,7 +154,7 @@ fn build_list_confirmation_renders_delete_question_below_command_row() {
             is_homeworld_seed: true,
         },
         committed_points: 10,
-        available_points: 50,
+        budget: 50,
         points_left: 40,
         building_count: 2,
         docked_count: 0,
@@ -222,7 +222,7 @@ fn empty_build_list_keeps_table_frame_and_shows_notice_below_command_row() {
             is_homeworld_seed: true,
         },
         committed_points: 0,
-        available_points: 50,
+        budget: 50,
         points_left: 50,
         building_count: 0,
         docked_count: 0,
@@ -291,7 +291,7 @@ fn build_list_delete_qty_prompt_renders_all_as_default() {
             is_homeworld_seed: true,
         },
         committed_points: 10,
-        available_points: 50,
+        budget: 50,
         points_left: 40,
         building_count: 2,
         docked_count: 0,
@@ -333,7 +333,7 @@ fn build_change_renders_pp_and_spent_columns() {
         coords: [6, 5],
         present_production: 100,
         potential_production: 100,
-        available_points: 50,
+        budget: 50,
         committed_points: 20,
     }];
 
@@ -361,7 +361,7 @@ fn build_change_24_row_door_keeps_command_row_off_table_bottom() {
             coords: [idx as u8, idx as u8],
             present_production: 100,
             potential_production: 100,
-            available_points: 50,
+            budget: 50,
             committed_points: 20,
         })
         .collect::<Vec<_>>();
@@ -395,7 +395,7 @@ fn build_specify_table_is_centered_and_footer_tracks_table_inset() {
             is_homeworld_seed: true,
         },
         committed_points: 0,
-        available_points: 50,
+        budget: 50,
         points_left: 50,
         building_count: 0,
         docked_count: 0,
@@ -423,7 +423,7 @@ fn build_specify_table_is_centered_and_footer_tracks_table_inset() {
         .find("SPECIFY BUILD ORDERS:")
         .expect("title col");
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
-    let points_left = "PP LEFT TO SPEND: 50";
+    let points_left = "BUDGET: 50";
     let points_left_col = buffer
         .plain_line(0)
         .find(points_left)
@@ -471,7 +471,7 @@ fn build_specify_title_shows_current_points_left_after_partial_commit() {
             is_homeworld_seed: true,
         },
         committed_points: 20,
-        available_points: 50,
+        budget: 50,
         points_left: 30,
         building_count: 0,
         docked_count: 0,
@@ -481,7 +481,7 @@ fn build_specify_title_shows_current_points_left_after_partial_commit() {
         .render_specify(&view, &[], "", None, None)
         .expect("render specify build orders");
 
-    assert!(buffer.plain_line(0).contains("PP LEFT TO SPEND: 30"));
+    assert!(buffer.plain_line(0).contains("BUDGET: 30"));
 }
 
 #[test]
@@ -504,7 +504,7 @@ fn build_quantity_prompt_keeps_points_left_visible_in_title_row() {
             is_homeworld_seed: true,
         },
         committed_points: 20,
-        available_points: 50,
+        budget: 50,
         points_left: 30,
         building_count: 0,
         docked_count: 0,
@@ -521,5 +521,5 @@ fn build_quantity_prompt_keeps_points_left_visible_in_title_row() {
         .render_quantity_prompt(&view, &[], unit, 6, "", None)
         .expect("render quantity prompt");
 
-    assert!(buffer.plain_line(0).contains("PP LEFT TO SPEND: 30"));
+    assert!(buffer.plain_line(0).contains("BUDGET: 30"));
 }
