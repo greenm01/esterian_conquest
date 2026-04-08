@@ -3,14 +3,17 @@
 This document records the current best recovery of the original
 `ECMAINT.EXE` turn cycle.
 
-The goal is to specify the oracle's phase order, not Rust policy. The
-reverse-engineering effort is complete for implementation purposes; where
-minor gaps remain, this document notes them explicitly instead of filling
-with guessed semantics.
+The goal is to specify the recovered `ECMAINT.EXE` / oracle phase order, not
+Rust policy. The reverse-engineering effort is complete for implementation
+purposes; where minor gaps remain, this document notes them explicitly instead
+of filling with guessed semantics.
 
-For the implementation-facing companion that describes the same process as a
-Rust engine/state-machine problem, use
+For the Rust-native companion that describes the same process as a
+runtime-state, simulation, and event-pipeline problem, use
 [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md).
+
+For the current claim-by-claim Rust conformance snapshot against this spec,
+use [ec-turn-cycle-compliance-audit.md](ec-turn-cycle-compliance-audit.md).
 
 ## Confidence Levels
 
