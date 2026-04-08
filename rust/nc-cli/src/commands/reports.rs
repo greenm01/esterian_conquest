@@ -1290,8 +1290,39 @@ fn generate_report_entries(
     }
 
     // ----- Scout contact events -----
-    let mut seen_contacts: std::collections::HashSet<(u8, u8, [u8; 2])> =
-        std::collections::HashSet::new();
+    // Deduplicate: one report per enemy per location per viewer per turn.
+    // Pre-populate from EncounterDispositionEvent (ROE Retreated / PursuitFire / NoEngagement)
+    // so that sensor contact reports are suppressed when a disposition report already covers the
+    // same encounter — those reports already name the enemy and describe the outcome, making the
+    // contact report purely redundant. Full FleetBattleEvent contacts are NOT suppressed here
+    // because the battle report uses different phrasing and the contact remains useful context.
+    let mut seen_contacts: std::collections::HashSet<(u8, u8, [u8; 2])> = {
+        let mut set = std::collections::HashSet::new();
+        for event in &events.encounter_disposition_events {
+            let (owner, target, coords) = match *event {
+                nc_data::EncounterDispositionEvent::NoEngagement {
+                    owner_empire_raw,
+                    target_empire_raw,
+                    coords,
+                    ..
+                }
+                | nc_data::EncounterDispositionEvent::Retreated {
+                    owner_empire_raw,
+                    target_empire_raw,
+                    coords,
+                    ..
+                }
+                | nc_data::EncounterDispositionEvent::PursuitFire {
+                    owner_empire_raw,
+                    target_empire_raw,
+                    coords,
+                    ..
+                } => (owner_empire_raw, target_empire_raw, coords),
+            };
+            set.insert((owner, target, coords));
+        }
+        set
+    };
     for event in &events.scout_contact_events {
         if event.small_vessels == 0 && event.medium_vessels == 0 && event.large_vessels == 0 {
             continue;

@@ -1474,8 +1474,39 @@ fn generate_report_entries(
 
     // ----- Scout contact events -----
     // Deduplicate: one report per enemy per location per viewer per turn.
-    let mut seen_contacts: std::collections::HashSet<(u8, u8, [u8; 2])> =
-        std::collections::HashSet::new();
+    // Pre-populate with (viewer, enemy, coords) triples from EncounterDispositionEvents so
+    // sensor contact reports are suppressed when a ROE disposition report already covers the
+    // encounter. Disposition reports (Retreated / PursuitFire / NoEngagement) already name
+    // the enemy, describe their composition, and state what happened — the contact report is
+    // purely redundant. Full FleetBattleEvent contacts are NOT suppressed here because the
+    // battle report uses different phrasing and the contact is still useful context.
+    let mut seen_contacts: std::collections::HashSet<(u8, u8, [u8; 2])> = {
+        let mut set = std::collections::HashSet::new();
+        for event in &events.encounter_disposition_events {
+            let (owner, target, coords) = match *event {
+                nc_data::EncounterDispositionEvent::NoEngagement {
+                    owner_empire_raw,
+                    target_empire_raw,
+                    coords,
+                    ..
+                }
+                | nc_data::EncounterDispositionEvent::Retreated {
+                    owner_empire_raw,
+                    target_empire_raw,
+                    coords,
+                    ..
+                }
+                | nc_data::EncounterDispositionEvent::PursuitFire {
+                    owner_empire_raw,
+                    target_empire_raw,
+                    coords,
+                    ..
+                } => (owner_empire_raw, target_empire_raw, coords),
+            };
+            set.insert((owner, target, coords));
+        }
+        set
+    };
     for event in &events.scout_contact_events {
         // Suppress empty fleet contacts — no intelligence value.
         if event.small_vessels == 0 && event.medium_vessels == 0 && event.large_vessels == 0 {
