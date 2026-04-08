@@ -319,6 +319,7 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
             cruisers: 1,
             ..ShipLosses::default()
         },
+        attacker_loaded_armies_initial: 3,
         defender_batteries_initial: 2,
         defender_armies_initial: 5,
         attacker_ship_losses: ShipLosses::default(),
@@ -331,12 +332,100 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
     });
 
     let rows = build_results_report_blocks(&game_data, &events);
-    let blitz = viewer_report_texts(1, &rows).join(" ");
+    let blitz = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
+    assert!(
+        blitz.contains("Our assault force initially contained 1 cruiser carrying 3 armies.")
+            || blitz.contains("Our assault force initially contained 1 cruiser.")
+    );
     assert!(blitz.contains("Friendly losses: no ship losses and 3 armies."));
     assert!(blitz.contains("No troops were lost in"));
     assert!(blitz.contains("destroyed troop transports during the landing."));
     assert!(!blitz.contains("No troops were lost during the landing."));
+}
+
+#[test]
+fn blitz_report_for_undefended_world_includes_attacker_force_and_no_battery_text() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3017)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [6, 7];
+    seed_target_world(&mut game_data, coords, "dog");
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::BlitzWorld,
+        attacker_fleet_number: Some(10),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 0,
+        attacker_initial: ShipLosses {
+            cruisers: 2,
+            transports: 2,
+            ..ShipLosses::default()
+        },
+        attacker_loaded_armies_initial: 2,
+        defender_batteries_initial: 0,
+        defender_armies_initial: 0,
+        attacker_ship_losses: ShipLosses::default(),
+        attacker_army_losses: 0,
+        transport_army_losses: 0,
+        defender_battery_losses: 0,
+        defender_army_losses: 0,
+        outcome: MissionOutcome::Succeeded,
+        stardate_week: Some(3),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let blitz = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
+
+    assert!(blitz.contains("Our assault force initially contained 2 cruisers and 2 troop transport ships carrying 2 armies."));
+    assert!(blitz.contains("The world was undefended at the start of the assault."));
+    assert!(!blitz.contains("failed to suppress the defending batteries"));
+    assert!(!blitz.contains("suppressed 0 ground batteries"));
+}
+
+#[test]
+fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3017)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [6, 7];
+    seed_target_world(&mut game_data, coords, "dog");
+
+    let mut events = MaintenanceEvents::default();
+    events.assault_report_events.push(AssaultReportEvent {
+        kind: Mission::InvadeWorld,
+        attacker_fleet_number: Some(10),
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        defender_empire_raw: 0,
+        attacker_initial: ShipLosses {
+            battleships: 1,
+            transports: 2,
+            ..ShipLosses::default()
+        },
+        attacker_loaded_armies_initial: 2,
+        defender_batteries_initial: 0,
+        defender_armies_initial: 0,
+        attacker_ship_losses: ShipLosses::default(),
+        attacker_army_losses: 0,
+        transport_army_losses: 0,
+        defender_battery_losses: 0,
+        defender_army_losses: 0,
+        outcome: MissionOutcome::Succeeded,
+        stardate_week: Some(3),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
+
+    assert!(invasion.contains("Our assault force initially contained 1 battleship and 2 troop transport ships carrying 2 armies."));
+    assert!(invasion.contains("The world was undefended at the start of the assault."));
 }
 
 #[test]
@@ -363,6 +452,7 @@ fn ownership_change_report_uses_assault_context_for_defender() {
             cruisers: 1,
             ..ShipLosses::default()
         },
+        attacker_loaded_armies_initial: 3,
         defender_batteries_initial: 2,
         defender_armies_initial: 5,
         attacker_ship_losses: ShipLosses::default(),

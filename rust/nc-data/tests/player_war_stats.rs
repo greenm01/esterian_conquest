@@ -81,6 +81,7 @@ fn maintenance_events_accumulate_lifetime_war_stats() {
         attacker_empire_raw: 1,
         defender_empire_raw: 2,
         attacker_initial: ShipLosses::default(),
+        attacker_loaded_armies_initial: 3,
         defender_batteries_initial: 1,
         defender_armies_initial: 2,
         attacker_ship_losses: ShipLosses {

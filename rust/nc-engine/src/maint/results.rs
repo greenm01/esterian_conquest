@@ -753,6 +753,37 @@ fn join_report_parts(parts: &[String]) -> String {
     }
 }
 
+fn assault_attacker_force_summary(event: &nc_data::AssaultReportEvent) -> String {
+    fleet_force_summary(event.attacker_initial, event.attacker_loaded_armies_initial)
+}
+
+fn assault_defense_opening(event: &nc_data::AssaultReportEvent) -> String {
+    if event.defender_batteries_initial == 0 && event.defender_armies_initial == 0 {
+        " The world was undefended at the start of the assault.".to_string()
+    } else {
+        format!(
+            " The defending world initially contained {}.",
+            planet_defense_summary(
+                event.defender_batteries_initial,
+                event.defender_armies_initial
+            )
+        )
+    }
+}
+
+fn blitz_cover_note(event: &nc_data::AssaultReportEvent) -> String {
+    if event.defender_batteries_initial == 0 {
+        String::new()
+    } else if event.defender_battery_losses > 0 {
+        format!(
+            " Our escorting ships briefly suppressed {} ground batteries before the descent.",
+            event.defender_battery_losses
+        )
+    } else {
+        " Our cover fire failed to suppress the defending batteries before the descent.".to_string()
+    }
+}
+
 fn planet_defense_summary(batteries: u8, armies: u8) -> String {
     format!("{batteries} ground battery(ies) and {armies} army(ies)")
 }
@@ -1522,6 +1553,8 @@ fn generate_report_entries(
             continue;
         };
         let [x, y] = planet.coords_raw();
+        let attacker_force = assault_attacker_force_summary(event);
+        let defense_opening = assault_defense_opening(event);
         let ship_losses = ship_loss_summary(event.attacker_ship_losses);
         let transport_note = if event.transport_army_losses > 0 {
             format!(
@@ -1533,60 +1566,44 @@ fn generate_report_entries(
         } else {
             " No troops were lost during the landing.".to_string()
         };
-        let blitz_cover_note = if event.defender_battery_losses > 0 {
-            format!(
-                " Our escorting ships briefly suppressed {} ground batteries before the descent.",
-                event.defender_battery_losses
-            )
-        } else {
-            " Our cover fire failed to suppress the defending batteries before the descent."
-                .to_string()
-        };
+        let blitz_cover_note = blitz_cover_note(event);
         let source =
             owned_fleet_source_clause(event.attacker_fleet_number, &format!("System({x},{y})"));
         let header = report_header(&source, event.stardate_week, year);
         let body = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
-                " Invasion mission report: Our armies have captured planet \"{}\". The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: Our assault force initially contained {}. Our armies have captured planet \"{}\".{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                attacker_force,
                 planet.planet_name(),
-                planet_defense_summary(
-                    event.defender_batteries_initial,
-                    event.defender_armies_initial
-                ),
+                defense_opening,
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
-                " Invasion mission report: The landing was repulsed. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                planet_defense_summary(
-                    event.defender_batteries_initial,
-                    event.defender_armies_initial
-                ),
+                " Invasion mission report: Our assault force initially contained {}. The landing was repulsed.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                attacker_force,
+                defense_opening,
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
-                " Invasion mission report: Enemy ground batteries prevented a landing. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                planet_defense_summary(
-                    event.defender_batteries_initial,
-                    event.defender_armies_initial
-                ),
+                " Invasion mission report: Our assault force initially contained {}. Enemy ground batteries prevented a landing.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                attacker_force,
+                defense_opening,
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
-                " Blitz mission report: We have seized planet \"{}\" in a fast assault. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                " Blitz mission report: Our assault force initially contained {}. We have seized planet \"{}\" in a fast assault.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                attacker_force,
                 planet.planet_name(),
-                planet_defense_summary(
-                    event.defender_batteries_initial,
-                    event.defender_armies_initial
-                ),
+                defense_opening,
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -1595,11 +1612,9 @@ fn generate_report_entries(
                 transport_note,
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
-                " Blitz mission report: The blitz attack failed. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
-                planet_defense_summary(
-                    event.defender_batteries_initial,
-                    event.defender_armies_initial
-                ),
+                " Blitz mission report: Our assault force initially contained {}. The blitz attack failed.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                attacker_force,
+                defense_opening,
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,

@@ -1816,9 +1816,14 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("Invasion mission report"));
+    assert!(text.contains("Our assault force initially contained"));
     assert!(text.contains("repulsed") || text.contains("landing was"));
     // "defending world initially contained" may span a record boundary with the Stardate header.
-    assert!(text.contains("defending world") || text.contains("initially contained"));
+    assert!(
+        text.contains("defending world")
+            || text.contains("initially contained")
+            || text.contains("world was undefended")
+    );
     assert!(text.contains("ground batteries") || text.contains("armies"));
 
     cleanup_dir(&target);
@@ -2015,7 +2020,11 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("Blitz mission report"));
-    assert!(text.contains("defending world initially contained"));
+    assert!(text.contains("Our assault force initially contained"));
+    assert!(
+        text.contains("defending world initially contained")
+            || text.contains("world was undefended")
+    );
     assert!(text.contains("Friendly losses:"));
     assert!(text.contains("Enemy losses:"));
     assert!(text.contains("during the landing"));
