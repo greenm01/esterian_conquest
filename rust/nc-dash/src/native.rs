@@ -105,6 +105,11 @@ impl NativeDashShell {
             }
             DashMsg::QueuePointer(pointer) => {
                 coalesce_pointer_move(&mut self.pending_pointer, pointer);
+                if self.left_mouse_down {
+                    if let Some(pointer_effects) = self.flush_pointer() {
+                        effects.extend(pointer_effects);
+                    }
+                }
             }
             DashMsg::FlushPointer => {
                 if let Some(pointer_effects) = self.flush_pointer() {

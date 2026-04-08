@@ -18,10 +18,11 @@ use crate::app::state::{
     SortDirection,
 };
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits,
-    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_map, stacked_table_body_height, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_parent, stacked_table_body_height, write_clipped,
 };
 use crate::theme;
 
@@ -120,12 +121,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
     let body_width =
         table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body_in_map_with_origin(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
+        OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::IntelDatabase),
     );
@@ -233,8 +235,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     );
     let body_width =
         table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
-    overlay_popup_rect_for_body_in_map(
-        map_frame,
+    overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),

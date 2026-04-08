@@ -17,10 +17,11 @@ use crate::app::state::{
     FleetOverlaySort, SortDirection,
 };
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map,
-    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_map, standard_table_body_height, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_parent, standard_table_body_height, write_clipped,
 };
 use nc_data::Order;
 
@@ -51,6 +52,10 @@ pub(crate) const HOTKEYS: &str = "? F S O SPACE <Q>";
 pub(crate) const FILTER_HOTKEYS: &str = "? A H M C <Q>";
 pub(crate) const SORT_HOTKEYS: &str = "? I L O E T <Q>";
 const GROUP_ORDER_BODY_WIDTH: usize = 54;
+
+fn overlay_parent_rect(app: &DashApp) -> Rect {
+    dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets)
+}
 
 const COLUMNS: [TableColumn<'static>; 10] = [
     TableColumn::right("ID", 4),
@@ -147,12 +152,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
     let body_width = table_render_width(&columns)
         .max("You have no active fleets or starbases.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body_in_map_with_origin(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         &title,
         body_width,
         standard_table_body_height(natural_visible_rows),
+        OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::FleetList),
     );
@@ -193,15 +199,19 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rect> {
     match app.fleet_overlay.prompt_mode {
-        FleetOverlayPromptMode::MissionPicker
-        | FleetOverlayPromptMode::OrderTarget
+        FleetOverlayPromptMode::MissionPicker => {
+            return Some(mission_picker_popup_rect(app, map_frame));
+        }
+        FleetOverlayPromptMode::OrderTarget
         | FleetOverlayPromptMode::OrderTargetX
         | FleetOverlayPromptMode::OrderTargetY
-        | FleetOverlayPromptMode::OrderConfirm
-        | FleetOverlayPromptMode::StarbaseMoveDecision
+        | FleetOverlayPromptMode::OrderConfirm => {
+            return Some(order_prompt_popup_rect(app, map_frame));
+        }
+        FleetOverlayPromptMode::StarbaseMoveDecision
         | FleetOverlayPromptMode::StarbaseMoveDestination
         | FleetOverlayPromptMode::StarbaseHaltConfirm => {
-            return None;
+            return Some(starbase_move_popup_rect(app));
         }
         _ => {}
     }
@@ -250,8 +260,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     );
     let body_width = table_render_width(&columns)
         .max("You have no active fleets or starbases.".chars().count() + 4);
-    Some(overlay_popup_rect_for_body_in_map(
-        map_frame,
+    Some(overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
         &title,
         body_width,
         standard_table_body_height(natural_visible_rows),
@@ -290,17 +300,19 @@ fn draw_mission_picker(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         .unwrap_or_else(|| "1".to_string());
     let natural_visible_rows = rows.len().max(1);
     let status_rows = usize::from(app.fleet_overlay.mission_picker_status.is_some());
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         "FLEET MISSION ORDERS",
         body_width,
         standard_table_body_height(natural_visible_rows) + status_rows,
+        OverlaySizePolicy::default(),
         TableFooter::CommandBar {
             hotkeys_markup: "? <Q>",
             default: Some(&default),
             input: &app.fleet_overlay.mission_picker_input,
         },
+        app.overlay_position_for(ActiveOverlay::FleetList),
     );
     let visible_rows = frame
         .body_height
@@ -344,7 +356,7 @@ fn draw_mission_picker(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
     }
 }
 
-fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
     let target_prompt = app.fleet_order_target_prompt();
     let target_default = app.fleet_order_target_default_value();
     let target_x_default = app.fleet_order_target_x_default_value();
@@ -408,13 +420,15 @@ fn draw_fleet_order_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: 
         .max()
         .unwrap_or(1);
     let body_height = lines.len() + usize::from(status.is_some());
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         "ORDER FLEET",
         body_width,
         body_height,
+        OverlaySizePolicy::default(),
         footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
     );
     assert_overlay_body_write_fits(frame, "ORDER FLEET", body_width, body_height);
     if app.selected_fleet_order_row().is_none() {
@@ -525,13 +539,15 @@ fn draw_group_fleet_order_prompt(
         .collect::<Vec<_>>();
     let status_rows = usize::from(status.is_some());
     let body_height = wrapped_lines.len() + status_rows;
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         "GROUP FLEET ORDER",
         body_width,
         body_height,
+        OverlaySizePolicy::default(),
         footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
     );
     assert_overlay_body_write_fits(
         frame,
@@ -569,7 +585,7 @@ fn draw_group_fleet_order_prompt(
     }
 }
 
-fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::StarbaseMoveDecision => TableFooter::CommandInput {
             label: "COMMAND",
@@ -617,13 +633,15 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
         .map(|line| line.chars().count())
         .max()
         .unwrap_or(1);
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         "STARBASE MOVE/HALT",
         body_width,
         lines.len(),
+        OverlaySizePolicy::default(),
         footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
     );
     assert_overlay_body_write_fits(frame, "STARBASE MOVE/HALT", body_width, lines.len());
     if app.selected_starbase_move_row().is_none() {
@@ -661,6 +679,219 @@ fn draw_starbase_move_prompt(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame
             theme::error_style(),
         );
     }
+}
+
+fn mission_picker_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let rows = FLEET_MISSION_OPTIONS
+        .iter()
+        .map(|option| {
+            vec![
+                format!("{:02}", option.code),
+                option.mission.to_string(),
+                option.requirements.to_string(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    let columns = resolve_table_columns(
+        &[
+            TableColumn::right("No", 2),
+            TableColumn::left("Mission", 24),
+            TableColumn::left("Need", 18),
+        ],
+        &rows,
+        max_overlay_body_width(map_frame),
+        false,
+        TableWidthMode::Compact,
+    );
+    let body_width = table_render_width(&columns);
+    let default = FLEET_MISSION_OPTIONS
+        .get(app.fleet_overlay.mission_picker_cursor)
+        .map(|option| option.code.to_string())
+        .unwrap_or_else(|| "1".to_string());
+    let natural_visible_rows = rows.len().max(1);
+    let status_rows = usize::from(app.fleet_overlay.mission_picker_status.is_some());
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
+        "FLEET MISSION ORDERS",
+        body_width,
+        standard_table_body_height(natural_visible_rows) + status_rows,
+        OverlaySizePolicy::default(),
+        TableFooter::CommandBar {
+            hotkeys_markup: "? <Q>",
+            default: Some(&default),
+            input: &app.fleet_overlay.mission_picker_input,
+        },
+        app.overlay_position_for(ActiveOverlay::FleetList),
+    )
+}
+
+fn order_prompt_popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let target_prompt = app.fleet_order_target_prompt();
+    let target_default = app.fleet_order_target_default_value();
+    let target_x_default = app.fleet_order_target_x_default_value();
+    let target_x_input = app.fleet_order_target_x_display_input();
+    let target_y_default = app.fleet_order_target_y_default_value();
+    let target_y_input = app.fleet_order_target_y_display_input();
+    let coordinate_rows = [
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target XX ",
+            default: &target_x_default,
+            input: &target_x_input,
+        },
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target YY ",
+            default: &target_y_default,
+            input: &target_y_input,
+        },
+    ];
+    let footer = match app.fleet_overlay.prompt_mode {
+        FleetOverlayPromptMode::OrderTarget => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: &target_prompt,
+            default: &target_default,
+            input: &app.fleet_overlay.order_input,
+        },
+        FleetOverlayPromptMode::OrderTargetX => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Target XX ",
+            default: &target_x_default,
+            input: &target_x_input,
+        },
+        FleetOverlayPromptMode::OrderTargetY => TableFooter::Stacked {
+            rows: &coordinate_rows,
+            active_row: 1,
+        },
+        FleetOverlayPromptMode::OrderConfirm => TableFooter::CommandPromptInput {
+            label: "COMMAND",
+            prompt: "Confirm [Y]/N <Q> -> ",
+            input: &app.fleet_overlay.order_confirm_input,
+        },
+        _ => unreachable!("fleet order prompt expected"),
+    };
+
+    if app.fleet_order_is_group_scope() {
+        let selected_summary = app.selected_group_order_fleet_summary();
+        let status = app.fleet_overlay.order_status.as_deref();
+        let mut lines = match app.fleet_overlay.prompt_mode {
+            FleetOverlayPromptMode::OrderConfirm => vec![
+                format!("Stardate: {}", app.game_data.conquest.game_year()),
+                format!("Selected fleets: {selected_summary}"),
+                app.fleet_order_target_status_line(),
+                format!("New Order: {}", app.fleet_order_new_order_label()),
+            ],
+            _ => vec![
+                format!("Selected fleets: {selected_summary}"),
+                app.fleet_order_target_status_line(),
+                format!("New Order: {}", app.fleet_order_new_order_label()),
+            ],
+        };
+        let body_width = GROUP_ORDER_BODY_WIDTH.min(max_overlay_body_width(map_frame).max(1));
+        let wrapped_lines = lines
+            .drain(..)
+            .flat_map(|line| wrap_group_prompt_line(&line, body_width))
+            .collect::<Vec<_>>();
+        let body_height = wrapped_lines.len() + usize::from(status.is_some());
+        return overlay_popup_rect_for_body_in_parent(
+            overlay_parent_rect(app),
+            "GROUP FLEET ORDER",
+            body_width,
+            body_height,
+            OverlaySizePolicy::default(),
+            footer,
+            app.overlay_position_for(ActiveOverlay::FleetList),
+        );
+    }
+
+    let status = app.fleet_overlay.order_status.as_deref();
+    let lines = if let Some(row) = app.selected_fleet_order_row() {
+        vec![
+            format!("Fleet #{}", row.fleet_number),
+            format!("Location: {}", format_coords(row.coords)),
+            format!("Current Order: {}", app.fleet_order_current_order_label()),
+            format!("New Order: {}", app.fleet_order_new_order_label()),
+            app.fleet_order_target_status_line(),
+        ]
+    } else {
+        vec!["Selected fleet is no longer available.".to_string()]
+    };
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .chain(status.iter().map(|line| line.chars().count()))
+        .max()
+        .unwrap_or(1);
+    let body_height = lines.len() + usize::from(status.is_some());
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
+        "ORDER FLEET",
+        body_width,
+        body_height,
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
+    )
+}
+
+fn starbase_move_popup_rect(app: &DashApp) -> Rect {
+    let destination_default = app
+        .selected_starbase_move_row()
+        .map(|row| {
+            format!(
+                "{},{}",
+                row.destination_coords[0], row.destination_coords[1]
+            )
+        })
+        .unwrap_or_default();
+    let footer = match app.fleet_overlay.prompt_mode {
+        FleetOverlayPromptMode::StarbaseMoveDecision => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Halt or move <H>, <M> ",
+            default: "M",
+            input: &app.fleet_overlay.starbase_move_input,
+        },
+        FleetOverlayPromptMode::StarbaseMoveDestination => TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: "Destination ",
+            default: &destination_default,
+            input: &app.fleet_overlay.starbase_move_input,
+        },
+        FleetOverlayPromptMode::StarbaseHaltConfirm => TableFooter::CommandPromptInput {
+            label: "COMMAND",
+            prompt: "Halt this starbase? [Y]/N <Q> -> ",
+            input: &app.fleet_overlay.starbase_move_input,
+        },
+        _ => unreachable!("starbase move prompt expected"),
+    };
+    let lines = if let Some(row) = app.selected_starbase_move_row() {
+        let mut lines = vec![
+            format!("Starbase #{}", row.base_id),
+            format!("Location: {}", format_coords(row.coords)),
+            format!("Destination: {}", format_coords(row.destination_coords)),
+            "Choose move/halt for the selected starbase.".to_string(),
+        ];
+        if let Some(status) = app.fleet_overlay.starbase_move_status.as_deref() {
+            lines.push(status.to_string());
+        }
+        lines
+    } else {
+        vec!["Selected starbase is no longer available.".to_string()]
+    };
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
+        "STARBASE MOVE/HALT",
+        body_width,
+        lines.len(),
+        OverlaySizePolicy::default(),
+        footer,
+        app.overlay_position_for(ActiveOverlay::FleetList),
+    )
 }
 
 fn wrap_group_prompt_line(line: &str, width: usize) -> Vec<String> {

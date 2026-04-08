@@ -9,17 +9,18 @@ use crate::diplomacy_view::{
     display_name, empire_name_style, relation_label_and_style, state_label_and_style,
 };
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, draw_hline,
-    draw_overlay_frame_for_body_in_map_with_origin, overlay_popup_rect_for_body_in_map,
-    write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect, draw_hline,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
+    overlay_popup_rect_for_body_in_parent, write_clipped,
 };
 use crate::theme;
 
 const HOTKEYS: &str = "? <Q>";
 const HEADER: &str = "Rnk Empire             Planets Prod State      Relations";
 
-pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
     let player_idx = app.player_record_index_1_based.saturating_sub(1);
     let viewer_slot = app.player_record_index_1_based as u8;
     let viewer = app.game_data.player.records.get(player_idx);
@@ -57,12 +58,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
         default: None,
         input: "",
     };
-    let frame = draw_overlay_frame_for_body_in_map_with_origin(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "DIPLOMACY",
         body_width,
         natural_visible_rows + 2,
+        OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::Diplomacy),
     );
@@ -128,9 +130,10 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 }
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
+    let _ = map_frame;
     let natural_visible_rows = app.game_data.player.records.len().max(1);
-    overlay_popup_rect_for_body_in_map(
-        map_frame,
+    overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "DIPLOMACY",
         HEADER.chars().count() + 1,
         natural_visible_rows + 2,

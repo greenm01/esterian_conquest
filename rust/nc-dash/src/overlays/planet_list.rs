@@ -3,29 +3,30 @@
 use std::cmp::Ordering;
 
 use nc_data::{
-    yearly_growth_delta, yearly_tax_revenue, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT,
+    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
 };
 use nc_engine::BUILD_UNITS;
+use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
 use nc_ui::table::{
+    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
-    write_stacked_table_window_with_theme_at, SplitTableRow, TableColumn, TableFooter,
-    TableWidthMode, TABLE_TEXT_INSET,
+    write_stacked_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
-use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     SortDirection,
 };
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, draw_overlay_frame_for_body_in_map,
-    draw_overlay_frame_for_body_in_map_with_origin, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_map, stacked_table_body_height, standard_table_body_height,
-    write_clipped, OverlaySizePolicy,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
+    overlay_popup_rect_for_body_in_parent, stacked_table_body_height, standard_table_body_height,
+    write_clipped,
 };
 use crate::theme;
 
@@ -49,6 +50,10 @@ const COLUMNS: [TableColumn<'static>; 12] = [
     TableColumn::right("ARs", 3),
     TableColumn::right("GBs", 3),
 ];
+
+fn overlay_parent_rect(app: &DashApp) -> Rect {
+    dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PlanetOverlayRow {
@@ -128,12 +133,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     );
     let body_width = table_render_width(&columns)
         .max("You do not currently control any planets.".chars().count() + 4);
-    let frame = draw_overlay_frame_for_body_in_map_with_origin(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
+        OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::PlanetList),
     );
@@ -180,8 +186,11 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
 
 pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rect> {
     match app.planet_overlay.prompt_mode {
-        PlanetOverlayPromptMode::BuildSpecify | PlanetOverlayPromptMode::BuildQuantity => {
-            return None;
+        PlanetOverlayPromptMode::BuildSpecify => {
+            return Some(build_specify_popup_rect(app));
+        }
+        PlanetOverlayPromptMode::BuildQuantity => {
+            return Some(build_quantity_popup_rect(app));
         }
         _ => {}
     }
@@ -240,8 +249,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     );
     let body_width = table_render_width(&columns)
         .max("You do not currently control any planets.".chars().count() + 4);
-    Some(overlay_popup_rect_for_body_in_map(
-        map_frame,
+    Some(overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
         &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
@@ -251,25 +260,27 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     ))
 }
 
-fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+fn draw_build_specify(buf: &mut PlayfieldBuffer, app: &DashApp, _map_frame: MapWidgetFrame) {
     let view = app.planet_build_view();
     let entries = app.planet_build_specify_entries();
     let split_rows = build_specify_split_rows(&entries);
     let table_width = build_specify_table_width();
     let status_rows = usize::from(app.planet_overlay.build_unit_status.is_some());
     let max_unit_num = app.planet_build_max_selectable_unit_number();
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         "SPECIFY BUILD ORDERS",
         table_width,
         1 + standard_table_body_height(split_rows.len()) + status_rows,
+        OverlaySizePolicy::default(),
         TableFooter::CommandInput {
             label: "COMMAND",
             prompt: &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
             default: "0",
             input: &app.planet_overlay.build_unit_input,
         },
+        app.overlay_position_for(ActiveOverlay::PlanetList),
     );
     assert_overlay_body_write_fits(
         frame,
@@ -334,18 +345,20 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
         "How many new {} to build (0 - {}) ",
         unit.singular_label, max_qty
     );
-    let frame = draw_overlay_frame_for_body_in_map(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        overlay_parent_rect(app),
         "BUILD QUANTITY",
         table_width,
         1 + standard_table_body_height(split_rows.len()) + status_rows,
+        OverlaySizePolicy::default(),
         TableFooter::CommandInput {
             label: "COMMAND",
             prompt: &prompt,
             default: &default_qty,
             input: &app.planet_overlay.build_quantity_input,
         },
+        app.overlay_position_for(ActiveOverlay::PlanetList),
     );
     assert_overlay_body_write_fits(
         frame,
@@ -388,6 +401,62 @@ fn draw_build_quantity(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapW
             theme::error_style(),
         );
     }
+}
+
+fn build_specify_popup_rect(app: &DashApp) -> Rect {
+    let entries = app.planet_build_specify_entries();
+    let split_rows = build_specify_split_rows(&entries);
+    let table_width = build_specify_table_width();
+    let status_rows = usize::from(app.planet_overlay.build_unit_status.is_some());
+    let max_unit_num = app.planet_build_max_selectable_unit_number();
+    let prompt = format!("Unit number or 0 if done (0 - {}) ", max_unit_num);
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
+        "SPECIFY BUILD ORDERS",
+        table_width,
+        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        OverlaySizePolicy::default(),
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: &prompt,
+            default: "0",
+            input: &app.planet_overlay.build_unit_input,
+        },
+        app.overlay_position_for(ActiveOverlay::PlanetList),
+    )
+}
+
+fn build_quantity_popup_rect(app: &DashApp) -> Rect {
+    let Some(kind) = app.planet_overlay.build_selected_kind else {
+        return build_specify_popup_rect(app);
+    };
+    let Some(unit) = BUILD_UNITS.iter().copied().find(|unit| unit.kind == kind) else {
+        return build_specify_popup_rect(app);
+    };
+    let max_qty = app.planet_build_max_quantity_for(kind).unwrap_or(0);
+    let entries = app.planet_build_specify_entries();
+    let split_rows = build_specify_split_rows(&entries);
+    let table_width = build_specify_table_width();
+    let status_rows = usize::from(app.planet_overlay.build_quantity_status.is_some());
+    let default_qty = max_qty.to_string();
+    let prompt = format!(
+        "How many new {} to build (0 - {}) ",
+        unit.singular_label, max_qty
+    );
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(app),
+        "BUILD QUANTITY",
+        table_width,
+        1 + standard_table_body_height(split_rows.len()) + status_rows,
+        OverlaySizePolicy::default(),
+        TableFooter::CommandInput {
+            label: "COMMAND",
+            prompt: &prompt,
+            default: &default_qty,
+            input: &app.planet_overlay.build_quantity_input,
+        },
+        app.overlay_position_for(ActiveOverlay::PlanetList),
+    )
 }
 
 const BUILD_HALF_COLUMNS: [TableColumn<'static>; 4] = [

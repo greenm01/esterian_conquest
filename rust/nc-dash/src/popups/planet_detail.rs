@@ -1,11 +1,16 @@
 //! Planet info popup rendered over the center map pane.
 
 use nc_ui::PlayfieldBuffer;
+use nc_ui::modal::Rect;
 use nc_ui::table::TableFooter;
 
 use crate::app::state::DashApp;
-use crate::layout::{self, MapWidgetFrame};
-use crate::overlays::frame::draw_overlay_frame_for_body_in_map;
+use crate::layout::{self, MapWidgetFrame, dashboard};
+use crate::overlays::frame::{
+    OverlaySizePolicy, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
+    overlay_popup_rect_for_body_in_parent,
+};
 use crate::planet_view::selected_planet_detail;
 use crate::theme;
 
@@ -26,13 +31,17 @@ pub fn draw(
         .map(|line| line.chars().count())
         .max()
         .unwrap_or(0);
-    let popup = draw_overlay_frame_for_body_in_map(
+    let popup = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INFO ABOUT A PLANET:",
         body_width,
         lines.len(),
+        OverlaySizePolicy::default(),
         TableFooter::Dismiss,
+        app.popup_position_for(crate::app::state::ActivePopup::PlanetDetail {
+            planet_record_index_1_based: _planet_record_index_1_based,
+        }),
     );
     for (idx, line) in lines.into_iter().enumerate().take(popup.body_height) {
         layout::write_clipped(
@@ -44,6 +53,44 @@ pub fn draw(
             theme::value_style(),
         );
     }
+}
+
+pub fn popup_rect(
+    app: &DashApp,
+    map_frame: MapWidgetFrame,
+    planet_record_index_1_based: usize,
+) -> Rect {
+    let Some(detail) = selected_planet_detail(app) else {
+        return overlay_popup_rect_for_body_in_parent(
+            dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+            "INFO ABOUT A PLANET:",
+            1,
+            1,
+            OverlaySizePolicy::default(),
+            TableFooter::Dismiss,
+            app.popup_position_for(crate::app::state::ActivePopup::PlanetDetail {
+                planet_record_index_1_based,
+            }),
+        );
+    };
+    let max_body_width = map_frame.outer.width.saturating_sub(6);
+    let lines = popup_lines(&detail.popup_lines, max_body_width);
+    let body_width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
+        "INFO ABOUT A PLANET:",
+        body_width,
+        lines.len(),
+        OverlaySizePolicy::default(),
+        TableFooter::Dismiss,
+        app.popup_position_for(crate::app::state::ActivePopup::PlanetDetail {
+            planet_record_index_1_based,
+        }),
+    )
 }
 
 fn popup_lines(lines: &[crate::planet_view::DetailLine], max_body_width: usize) -> Vec<String> {

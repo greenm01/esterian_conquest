@@ -11,7 +11,7 @@ use nc_ui::table::{
 };
 use nc_ui::{CellStyle, PlayfieldBuffer};
 
-use crate::layout::MapWidgetFrame;
+use crate::layout::{MapWidgetFrame, widgets::DashboardWidgetFrames};
 use crate::theme;
 
 #[derive(Debug, Clone, Copy)]
@@ -59,6 +59,23 @@ pub fn overlay_parent_rect(map_frame: MapWidgetFrame) -> Rect {
         (map_frame.outer.row + 1) as u16,
         map_frame.outer.width.saturating_sub(2) as u16,
         map_frame.outer.height.saturating_sub(2) as u16,
+    )
+}
+
+pub fn dashboard_overlay_parent_rect(widgets: DashboardWidgetFrames) -> Rect {
+    let left = widgets.left_economy.outer.col + 1;
+    let top = widgets.header_divider_row + 1;
+    let right = widgets
+        .right_sector_detail
+        .outer
+        .last_col()
+        .saturating_sub(1);
+    let bottom = widgets.footer_divider_row.saturating_sub(1);
+    Rect::new(
+        left as u16,
+        top as u16,
+        right.saturating_sub(left).saturating_add(1) as u16,
+        bottom.saturating_sub(top).saturating_add(1) as u16,
     )
 }
 
@@ -128,6 +145,7 @@ pub fn draw_overlay_frame_in_map(
     overlay_frame_from_popup(buf, popup, footer)
 }
 
+#[allow(dead_code)]
 pub fn overlay_popup_rect_in_map(
     map_frame: MapWidgetFrame,
     _title: &str,
@@ -136,6 +154,28 @@ pub fn overlay_popup_rect_in_map(
     origin: Option<RelativePopupOrigin>,
 ) -> Rect {
     let parent = overlay_parent_rect(map_frame);
+    let max_width = parent.width.saturating_sub(2).max(1);
+    let max_height = parent.height.saturating_sub(2).max(1);
+    let placement = origin
+        .map(|origin| ModalPlacement::Origin {
+            x: parent.x.saturating_add(origin.col_offset as u16),
+            y: parent.y.saturating_add(origin.row_offset as u16),
+        })
+        .unwrap_or(ModalPlacement::Centered);
+    placed_rect(
+        preferred_width.min(max_width as usize) as u16,
+        preferred_height.min(max_height as usize) as u16,
+        parent,
+        placement,
+    )
+}
+
+pub fn overlay_popup_rect_in_parent(
+    parent: Rect,
+    preferred_width: usize,
+    preferred_height: usize,
+    origin: Option<RelativePopupOrigin>,
+) -> Rect {
     let max_width = parent.width.saturating_sub(2).max(1);
     let max_height = parent.height.saturating_sub(2).max(1);
     let placement = origin
@@ -240,6 +280,7 @@ pub fn draw_overlay_frame_for_body_in_map(
     )
 }
 
+#[allow(dead_code)]
 pub fn draw_overlay_frame_for_body_in_map_with_origin(
     buf: &mut PlayfieldBuffer,
     map_frame: MapWidgetFrame,
@@ -292,13 +333,54 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy_and_origin(
     footer: TableFooter<'_>,
     origin: Option<RelativePopupOrigin>,
 ) -> OverlayFrame {
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
+        buf,
+        overlay_parent_rect(map_frame),
+        title,
+        natural_body_width,
+        natural_body_height,
+        size_policy,
+        footer,
+        origin,
+    )
+}
+
+pub fn overlay_popup_rect_for_body_in_map(
+    map_frame: MapWidgetFrame,
+    title: &str,
+    natural_body_width: usize,
+    natural_body_height: usize,
+    size_policy: OverlaySizePolicy,
+    footer: TableFooter<'_>,
+    origin: Option<RelativePopupOrigin>,
+) -> Rect {
+    overlay_popup_rect_for_body_in_parent(
+        overlay_parent_rect(map_frame),
+        title,
+        natural_body_width,
+        natural_body_height,
+        size_policy,
+        footer,
+        origin,
+    )
+}
+
+pub fn draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
+    buf: &mut PlayfieldBuffer,
+    parent: Rect,
+    title: &str,
+    natural_body_width: usize,
+    natural_body_height: usize,
+    size_policy: OverlaySizePolicy,
+    footer: TableFooter<'_>,
+    origin: Option<RelativePopupOrigin>,
+) -> OverlayFrame {
     let requested_body_width = resolve_requested_axis(natural_body_width, size_policy.width);
     let requested_body_height = resolve_requested_axis(natural_body_height, size_policy.height);
     let footer_width = table_footer_scaffold_width(footer);
     let preferred_width =
         (requested_body_width.max(footer_width) + 4).max(title.chars().count() + 6);
     let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
-    let parent = overlay_parent_rect(map_frame);
     let placement = origin
         .map(|origin| ModalPlacement::Origin {
             x: parent.x.saturating_add(origin.col_offset as u16),
@@ -322,8 +404,8 @@ pub fn draw_overlay_frame_for_body_in_map_with_policy_and_origin(
     overlay_frame_from_popup(buf, popup, footer)
 }
 
-pub fn overlay_popup_rect_for_body_in_map(
-    map_frame: MapWidgetFrame,
+pub fn overlay_popup_rect_for_body_in_parent(
+    parent: Rect,
     title: &str,
     natural_body_width: usize,
     natural_body_height: usize,
@@ -336,7 +418,7 @@ pub fn overlay_popup_rect_for_body_in_map(
     let preferred_width = (requested_body_width.max(table_footer_scaffold_width(footer)) + 4)
         .max(title.chars().count() + 6);
     let preferred_height = requested_body_height + 3 + table_footer_row_count(footer);
-    overlay_popup_rect_in_map(map_frame, title, preferred_width, preferred_height, origin)
+    overlay_popup_rect_in_parent(parent, preferred_width, preferred_height, origin)
 }
 
 #[cfg(test)]

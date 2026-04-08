@@ -7,10 +7,11 @@ use nc_ui::table::TableFooter;
 use crate::app::state::{ActiveOverlay, DashApp};
 use crate::layout;
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits,
-    draw_overlay_frame_for_body_in_map_with_origin, overlay_popup_rect_for_body_in_map,
-    write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin,
+    overlay_popup_rect_for_body_in_parent, write_clipped,
 };
 use crate::theme;
 
@@ -19,6 +20,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, _app: &DashApp, map_frame: MapWidgetFrame
 }
 
 fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame) {
+    let _ = map_frame;
     let lines = settings_lines(app);
     let label_width = layout::label_value_width(lines.iter().map(|(key, _)| key.as_str()));
     let body_width = lines
@@ -30,12 +32,13 @@ fn draw_with_origin(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidg
         })
         .max()
         .unwrap_or(0);
-    let frame = draw_overlay_frame_for_body_in_map_with_origin(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "SETTINGS",
         body_width,
         lines.len(),
+        OverlaySizePolicy::default(),
         TableFooter::Dismiss,
         app.overlay_position_for(ActiveOverlay::Settings),
     );
@@ -64,8 +67,9 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         })
         .max()
         .unwrap_or(0);
-    overlay_popup_rect_for_body_in_map(
-        map_frame,
+    let _ = map_frame;
+    overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "SETTINGS",
         body_width,
         lines.len(),

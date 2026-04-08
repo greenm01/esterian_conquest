@@ -96,6 +96,10 @@ pub enum ActiveMouseGesture {
         grab_col_offset: usize,
         grab_row_offset: usize,
     },
+    DraggingPopup {
+        grab_col_offset: usize,
+        grab_row_offset: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -607,6 +611,7 @@ pub struct DashApp {
     pub popup: ActivePopup,
     pub help_return_overlay: ActiveOverlay,
     pub overlay_position: Option<RelativePopupOrigin>,
+    pub popup_position: Option<RelativePopupOrigin>,
     pub help_return_overlay_position: Option<RelativePopupOrigin>,
     pub mouse_gesture: ActiveMouseGesture,
     pub help_context: HelpContext,
@@ -683,6 +688,7 @@ impl DashApp {
             popup: ActivePopup::None,
             help_return_overlay: ActiveOverlay::None,
             overlay_position: None,
+            popup_position: None,
             help_return_overlay_position: None,
             mouse_gesture: ActiveMouseGesture::None,
             help_context: HelpContext::Global,
@@ -743,6 +749,12 @@ impl DashApp {
         } else {
             None
         }
+    }
+
+    pub fn popup_position_for(&self, popup: ActivePopup) -> Option<RelativePopupOrigin> {
+        (self.popup == popup)
+            .then_some(self.popup_position)
+            .flatten()
     }
 }
 

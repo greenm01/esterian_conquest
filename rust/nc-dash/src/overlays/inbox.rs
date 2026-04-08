@@ -8,10 +8,11 @@ use nc_ui::theme::classic;
 use crate::app::state::{ActiveOverlay, DashApp, InboxFocus};
 use crate::inbox::{DashInboxItem, matches_filter, project_inbox_items};
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    OverlaySizePolicy, assert_overlay_body_write_fits, draw_hline,
-    draw_overlay_frame_for_body_in_map_with_origin, draw_vline, max_overlay_body_width,
-    overlay_popup_rect_for_body_in_map, write_clipped,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect, draw_hline,
+    draw_overlay_frame_for_body_in_parent_with_policy_and_origin, draw_vline,
+    max_overlay_body_width, overlay_popup_rect_for_body_in_parent, write_clipped,
 };
 use crate::theme;
 
@@ -69,12 +70,13 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             .map(|item| item.body_lines.len().max(1))
             .unwrap_or(1),
     );
-    let frame = draw_overlay_frame_for_body_in_map_with_origin(
+    let frame = draw_overlay_frame_for_body_in_parent_with_policy_and_origin(
         buf,
-        map_frame,
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INBOX",
         body_width,
         4 + natural_content_rows,
+        OverlaySizePolicy::default(),
         footer,
         app.overlay_position_for(ActiveOverlay::Inbox),
     );
@@ -272,8 +274,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             .map(|item| item.body_lines.len().max(1))
             .unwrap_or(1),
     );
-    overlay_popup_rect_for_body_in_map(
-        map_frame,
+    overlay_popup_rect_for_body_in_parent(
+        dashboard_overlay_parent_rect(dashboard::dashboard_layout(app).widgets),
         "INBOX",
         body_width,
         4 + natural_content_rows,
