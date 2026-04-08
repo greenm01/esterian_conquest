@@ -183,7 +183,7 @@ fn results_reports_battle_before_bombard_aftermath() {
         .expect("battle report should exist");
     let bombard_idx = texts
         .iter()
-        .position(|text| text.contains("We have been bombarded"))
+        .position(|text| text.contains("Our world has been bombarded"))
         .expect("bombard report should exist");
     assert!(
         contact_idx < battle_idx,
@@ -193,6 +193,54 @@ fn results_reports_battle_before_bombard_aftermath() {
         battle_idx < bombard_idx,
         "battle should precede bombard: {texts:?}"
     );
+}
+
+#[test]
+fn bombardment_defender_report_uses_first_person_loss_wording() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3001)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [5, 13];
+    seed_target_world(&mut game_data, coords, "Target");
+
+    let mut events = MaintenanceEvents::default();
+    events.bombard_events.push(BombardEvent {
+        planet_idx: 0,
+        attacker_empire_raw: 2,
+        attacker_fleet_number: Some(9),
+        defender_empire_raw: 1,
+        attacker_initial: ShipLosses {
+            destroyers: 1,
+            ..ShipLosses::default()
+        },
+        defender_batteries_initial: 0,
+        defender_armies_initial: 9,
+        attacker_losses: ShipLosses::default(),
+        defender_battery_losses: 0,
+        defender_army_losses: 3,
+        breakthrough: true,
+        docked_losses: nc_data::EmpireUnitSummary::default(),
+        stardock_items_destroyed: 2,
+        stored_goods_destroyed: 0,
+        factories_destroyed: 0,
+        stardate_week: Some(3),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let texts = viewer_report_texts(1, &rows);
+    let bombard = texts
+        .iter()
+        .find(|text| text.contains("bombarded"))
+        .expect("bombard report should exist");
+
+    assert!(bombard.contains("Our world has been bombarded by"));
+    assert!(bombard.contains("We lost"));
+    assert!(bombard.contains("3 armies"));
+    assert!(bombard.contains("We also lost"));
+    assert!(bombard.contains("2 stardock items"));
+    assert!(!bombard.contains("Bombardment also destroyed"));
 }
 
 #[test]

@@ -921,7 +921,7 @@ fn generate_report_entries(
         )
         .unwrap_or_else(|| empire_label(game_data, event.attacker_empire_raw));
         let body = format!(
-            " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.",
+            " Our world has been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies.",
             attacker,
             fleet_force_summary(event.attacker_initial, 0),
             planet_defense_summary(
@@ -1373,7 +1373,7 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
-            stardate_week: event.stardate_week,
+                    stardate_week: event.stardate_week,
                 });
             }
             ContactReportSource::Fleet(fleet_id) => {
@@ -1401,7 +1401,7 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
-            stardate_week: event.stardate_week,
+                    stardate_week: event.stardate_week,
                 });
             }
             ContactReportSource::Starbase(starbase_id) => {
@@ -1429,7 +1429,7 @@ fn generate_report_entries(
                         recipient: event.viewer_empire_raw,
                     },
                     repeat_next_pointer: false,
-            stardate_week: event.stardate_week,
+                    stardate_week: event.stardate_week,
                 });
             }
         }
@@ -1607,7 +1607,7 @@ fn generate_report_entries(
                     recipient: empire_raw,
                 },
                 repeat_next_pointer: false,
-            stardate_week: week,
+                stardate_week: week,
             });
             for (ev_idx, _, _, _) in &fleet_entries {
                 batched_abort_indices.insert(*ev_idx);
@@ -2308,7 +2308,7 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
-            stardate_week: stardate_week,
+                stardate_week: stardate_week,
             });
         }
     }
@@ -2375,7 +2375,7 @@ fn generate_report_entries(
                     recipient: owner_empire_raw,
                 },
                 repeat_next_pointer: false,
-            stardate_week: stardate_week,
+                stardate_week: stardate_week,
             });
         }
     }

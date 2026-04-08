@@ -738,7 +738,7 @@ fn bombardment_collateral_damage_sentence(
     if parts.is_empty() {
         String::new()
     } else {
-        format!(" Bombardment also destroyed {}.", join_report_parts(&parts))
+        format!(" We also lost {}.", join_report_parts(&parts))
     }
 }
 
@@ -1109,7 +1109,7 @@ fn generate_report_entries(
             event.factories_destroyed,
         );
         let body = format!(
-            " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.{}",
+            " Our world has been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies.{}",
             attacker,
             fleet_force_summary(event.attacker_initial, 0),
             planet_defense_summary(
