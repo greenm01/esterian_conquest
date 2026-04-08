@@ -209,6 +209,11 @@ pub(super) fn process_single_fleet_movement(
         } else if order_stops_on_arrival(arrival_order) {
             apply_standing_arrival_state(&mut game_data.fleets.records[fleet_idx], arrival_order);
         } else {
+            // Fleet has arrived at its target and is persisting its order (BombardWorld,
+            // InvadeWorld, BlitzWorld, JoinAnotherFleet, RendezvousSector). It is stationary —
+            // not moving out of this sector — so zero speed now. The order stays intact for
+            // the combat / join resolution phase that follows movement.
+            game_data.fleets.records[fleet_idx].set_current_speed(0);
             game_data.fleets.records[fleet_idx]
                 .set_extended_tuple_c_payload_raw([0x80, 0xb9, 0xff, 0xff, 0xff, 0x7f]);
         }

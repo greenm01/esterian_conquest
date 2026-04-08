@@ -1174,7 +1174,7 @@ fn test_move_only_horizontal_clears_to_hold_on_exact_arrival() {
 }
 
 #[test]
-fn test_delayed_hostile_orders_preserve_order_speed_and_ready_bytes_on_arrival() {
+fn test_delayed_hostile_orders_zero_speed_and_preserve_order_on_arrival() {
     let cases = [
         (
             "bombard",
@@ -1209,7 +1209,7 @@ fn test_delayed_hostile_orders_preserve_order_speed_and_ready_bytes_on_arrival()
             "{name} coords"
         );
         assert_eq!(fleet.standing_order_kind(), order, "{name} order");
-        assert_eq!(fleet.current_speed(), 3, "{name} arrival speed");
+        assert_eq!(fleet.current_speed(), 0, "{name} arrival speed");
         assert_eq!(
             fleet.standing_order_target_coords_raw(),
             target_coords,
