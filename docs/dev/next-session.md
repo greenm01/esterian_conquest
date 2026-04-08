@@ -79,6 +79,17 @@ Keep this file short. Historical detail belongs in
   It is {enemy}. Their fleet contains {size_summary} of unknown type."`
   This applies to `FleetMission` and `Fleet` contact sources; Starbase and
   `EncounterDispositionEvent` reports are unchanged.
+- **ColonizeWorld on-station order reset and duplicate ROE battle reports**
+  (fixed, `5599d2d9`): a fleet with `ColonizeWorld` already at its target
+  no longer gets stuck; the order now resolves and resets. `FleetBattleEvent`
+  reports are also suppressed when a matching `EncounterDispositionEvent`
+  already covers the same fleet in the same turn.
+- **Redundant sensor contact reports on ROE encounters** (fixed, `5fa0fc51`):
+  `ScoutContactEvent` reports are now suppressed when an
+  `EncounterDispositionEvent` (Retreated / PursuitFire / NoEngagement) already
+  covers the same encounter — those disposition reports already name the enemy
+  and describe the outcome. Full `FleetBattleEvent` encounters are not
+  suppressed; the contact remains useful context there.
 
 ## Biggest Blockers
 
