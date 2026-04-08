@@ -5,12 +5,12 @@ use nc_data::{CoreGameData, EmpirePlanetEconomyRow, ProductionItemKind};
 use nc_game::model::{ClassicLoginState, PlayerContext};
 use nc_game::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use nc_game::screen::table::{
-    layout_standard_table_block, resolve_table_columns_for_widget,
+    HorizontalAlign, LayoutRect, SplitTableRow, TableColumn, TableFooter, TableRowState,
+    TableWidthMode, VerticalAlign, layout_standard_table_block, resolve_table_columns_for_widget,
     resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
     table_footer_width, table_render_width, write_split_table,
     write_stacked_table_window_with_states, write_table_row, write_table_window_with_cursor,
-    write_table_window_with_cursor_at, write_table_window_with_states, HorizontalAlign, LayoutRect,
-    SplitTableRow, TableColumn, TableFooter, TableRowState, TableWidthMode, VerticalAlign,
+    write_table_window_with_cursor_at, write_table_window_with_states,
 };
 use nc_game::screen::{
     CommandMenu, EmpireProfileScreen, EnemiesScreen, FleetListFilter, FleetListScreen,
@@ -731,7 +731,8 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
     assert!(buffer.plain_line(3).contains("ARs"));
     assert!(buffer.plain_line(3).contains("GBs"));
     assert!(buffer.plain_line(5).contains("Player 1 HW"));
-    assert!(buffer.plain_line(5).contains("165"));
+    assert!(buffer.plain_line(5).contains("120"));
+    assert!(buffer.plain_line(5).contains("55"));
     assert!(buffer.plain_line(5).contains("3"));
     assert!(buffer.plain_line(5).contains("0"));
     assert_eq!(
@@ -1142,8 +1143,10 @@ fn compose_recipient_picker_centers_block_and_pins_prompt_to_table() {
     assert_eq!(title_col, table_col + 1);
     assert_eq!(command_col, table_col + 1);
     assert!((0..buffer.height()).all(|row| !buffer.plain_line(row).contains("Available empires:")));
-    assert!((0..buffer.height())
-        .all(|row| !buffer.plain_line(row).contains("queued outgoing messages")));
+    assert!(
+        (0..buffer.height())
+            .all(|row| !buffer.plain_line(row).contains("queued outgoing messages"))
+    );
 }
 
 #[test]

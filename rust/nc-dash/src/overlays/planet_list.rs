@@ -2,32 +2,29 @@
 
 use std::cmp::Ordering;
 
-use nc_data::{
-    build_capacity, yearly_growth_delta, yearly_tax_revenue, PlanetRecord, ProductionItemKind,
-    STARDOCK_SLOT_COUNT,
-};
-use nc_engine::BUILD_UNITS;
+use nc_data::{EmpirePlanetEconomyRow, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
+use nc_engine::{BUILD_UNITS, planet_build_view};
+use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::{format_sector_coords_default, format_sector_coords_table};
 use nc_ui::modal::Rect;
 use nc_ui::table::{
+    SplitTableRow, TABLE_TEXT_INSET, TableColumn, TableFooter, TableWidthMode,
     centered_table_start_col, resolve_table_columns, table_render_width, write_split_table_at,
-    write_stacked_table_window_with_theme_at, SplitTableRow, TableColumn, TableFooter,
-    TableWidthMode, TABLE_TEXT_INSET,
+    write_stacked_table_window_with_theme_at,
 };
 use nc_ui::table_selection;
-use nc_ui::PlayfieldBuffer;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
     SortDirection,
 };
-use crate::layout::dashboard;
 use crate::layout::MapWidgetFrame;
+use crate::layout::dashboard;
 use crate::overlays::frame::{
-    assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
+    OverlaySizePolicy, assert_overlay_body_write_fits, dashboard_overlay_parent_rect,
     draw_overlay_frame_for_body_in_parent_with_policy_and_origin, max_overlay_body_width,
     overlay_popup_rect_for_body_in_parent, stacked_table_body_height, standard_table_body_height,
-    write_clipped, OverlaySizePolicy,
+    write_clipped,
 };
 use crate::theme;
 
@@ -548,37 +545,35 @@ pub(crate) fn selection_rows(app: &DashApp) -> Vec<Vec<String>> {
 }
 
 pub(crate) fn table_rows(app: &DashApp) -> Vec<PlanetOverlayRow> {
-    let owner_slot = app.player_record_index_1_based as u8;
-    let player_tax_rate = app
-        .game_data
-        .player
-        .records
-        .get(app.player_record_index_1_based.saturating_sub(1))
-        .map(|player| player.tax_rate())
-        .unwrap_or(0);
     let starbase_coords = app
         .game_data
         .bases
         .records
         .iter()
-        .filter(|base| base.owner_empire_raw() == owner_slot && base.active_flag_raw() != 0)
+        .filter(|base| {
+            base.owner_empire_raw() == app.player_record_index_1_based as u8
+                && base.active_flag_raw() != 0
+        })
         .map(|base| base.coords_raw())
         .collect::<std::collections::BTreeSet<_>>();
 
     let mut rows = app
         .game_data
-        .planets
-        .records
+        .empire_planet_economy_rows(app.player_record_index_1_based)
         .iter()
-        .enumerate()
-        .filter(|(_, planet)| planet.owner_empire_slot_raw() == owner_slot)
-        .map(|(idx, planet)| {
-            format_planet_row_cells(
-                idx + 1,
-                planet,
-                starbase_coords.contains(&planet.coords_raw()),
-                player_tax_rate,
-            )
+        .filter_map(|row| {
+            app.game_data
+                .planets
+                .records
+                .get(row.planet_record_index_1_based.saturating_sub(1))
+                .map(|planet| {
+                    format_planet_row_cells(
+                        &app.game_data,
+                        row,
+                        planet,
+                        starbase_coords.contains(&row.coords),
+                    )
+                })
         })
         .collect::<Vec<_>>();
 
@@ -625,37 +620,32 @@ fn clamp_scroll(scroll: usize, selected: usize, max_rows: usize, total_rows: usi
 }
 
 fn format_planet_row_cells(
-    planet_record_index_1_based: usize,
+    game_data: &nc_data::CoreGameData,
+    row: &EmpirePlanetEconomyRow,
     planet: &PlanetRecord,
     has_starbase: bool,
-    tax_rate: u8,
 ) -> PlanetOverlayRow {
     let coords = planet.coords_raw();
-    let present = planet.present_production_points().unwrap_or(0);
-    let potential = planet.potential_production_points();
-    let stored = planet.stored_production_points();
-    let revenue = yearly_tax_revenue(present, tax_rate);
-    let budget = u32::from(build_capacity(present, has_starbase)).min(stored);
-    let growth = yearly_growth_delta(present, potential, tax_rate, has_starbase) as i16;
+    let (stored, budget) = effective_points_left(game_data, row);
     let queue = build_queue_total(planet);
     let docked = docked_total(planet);
-    let name = planet.planet_name();
+    let growth = row.yearly_growth_delta as i16;
 
     PlanetOverlayRow {
-        planet_record_index_1_based,
+        planet_record_index_1_based: row.planet_record_index_1_based,
         coords,
-        current_prod: present,
-        max_prod: potential,
+        current_prod: row.present_production,
+        max_prod: row.potential_production,
         has_starbase,
         docked,
         cells: vec![
             format_sector_coords_table(coords),
-            truncate(&name, 13),
-            potential.to_string(),
-            present.to_string(),
+            truncate(&row.planet_name, 13),
+            row.potential_production.to_string(),
+            row.present_production.to_string(),
             stored.to_string(),
             budget.to_string(),
-            revenue.to_string(),
+            row.yearly_tax_revenue.to_string(),
             format!("{growth:+}"),
             queue.to_string(),
             docked.to_string(),
@@ -664,6 +654,20 @@ fn format_planet_row_cells(
             planet.ground_batteries_raw().to_string(),
         ],
     }
+}
+
+fn effective_points_left(
+    game_data: &nc_data::CoreGameData,
+    row: &EmpirePlanetEconomyRow,
+) -> (u32, u32) {
+    planet_build_view(game_data, row)
+        .map(|view| (view.treasury_left, view.points_left))
+        .unwrap_or_else(|_| {
+            (
+                row.stored_production_points,
+                u32::from(row.build_capacity).min(row.stored_production_points),
+            )
+        })
 }
 
 fn build_queue_total(planet: &PlanetRecord) -> u32 {
@@ -877,5 +881,40 @@ mod tests {
         assert_eq!(rows[3].right_cells[0], "");
         assert_eq!(rows[4].left_cells[0], "<05>");
         assert!(rows[4].right_cells.iter().all(|cell| cell.is_empty()));
+    }
+
+    #[test]
+    fn planet_table_rows_show_treasury_and_budget_after_pending_build_spend() {
+        let mut game_data = GameStateBuilder::new()
+            .with_player_count(4)
+            .build_initialized_baseline()
+            .expect("baseline");
+        let planet = &mut game_data.planets.records[0];
+        planet.set_stored_production_points(165);
+        planet.set_build_kind_raw(0, 1);
+        planet.set_build_count_raw(0, 5);
+        planet.set_build_kind_raw(1, 6);
+        planet.set_build_count_raw(1, 40);
+
+        let app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            game_data,
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+
+        let row = table_rows(&app)
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == 1)
+            .expect("homeworld row");
+
+        assert_eq!(row.cells[4], "120");
+        assert_eq!(row.cells[5], "55");
     }
 }

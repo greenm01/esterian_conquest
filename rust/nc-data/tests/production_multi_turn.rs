@@ -5,8 +5,8 @@ use common::production::{
     owned_planet_with_present_production, player_with_empire_name, zeroed_setup,
 };
 use nc_data::{
-    yearly_tax_revenue, BaseDat, CoreGameData, FleetDat, IpbmDat, PlanetDat, PlayerDat,
-    ProductionItemKind,
+    BaseDat, CoreGameData, FleetDat, IpbmDat, PlanetDat, PlayerDat, ProductionItemKind,
+    yearly_tax_revenue,
 };
 use nc_engine::run_maintenance_turn;
 

@@ -1,22 +1,23 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use nc_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
+use nc_engine::planet_build_view;
 
-use crate::app::helpers::is_coordinate_input_char;
 use crate::app::Action;
+use crate::app::helpers::is_coordinate_input_char;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     dismiss_prompt_row_for, draw_dismiss_prompt_padded, draw_status_line, draw_title_bar_padded,
     new_playfield_for, stacked_table_visible_rows_for,
 };
 use crate::screen::table::{
+    HorizontalAlign, LayoutRect, TableColumn, TableFooter, TableWidthMode, VerticalAlign,
     draw_table_footer, draw_table_title, layout_stacked_table_block,
     resolve_table_columns_for_widget_with_footer_floor, table_footer_scaffold_width,
-    write_stacked_table_window_with_states_at, HorizontalAlign, LayoutRect, TableColumn,
-    TableFooter, TableWidthMode, VerticalAlign,
+    write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
-    build_quantity_from_points, format_sector_coords_default, format_sector_coords_table,
-    PlayfieldBuffer, ScreenFrame, SortDirection,
+    PlayfieldBuffer, ScreenFrame, SortDirection, build_quantity_from_points,
+    format_sector_coords_default, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -614,13 +615,13 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
 fn planet_table_rows(frame: &ScreenFrame<'_>, rows: &[EmpirePlanetEconomyRow]) -> Vec<Vec<String>> {
     rows.iter()
         .map(|row| {
-            let budget = u32::from(row.build_capacity).min(row.stored_production_points);
+            let (treasury, budget) = effective_points_left(frame, row);
             vec![
                 format_sector_coords_table(row.coords),
                 row.planet_name.clone(),
                 row.potential_production.to_string(),
                 row.present_production.to_string(),
-                row.stored_production_points.to_string(),
+                treasury.to_string(),
                 budget.to_string(),
                 row.yearly_tax_revenue.to_string(),
                 format_signed_growth(row.yearly_growth_delta),
@@ -636,6 +637,17 @@ fn planet_table_rows(frame: &ScreenFrame<'_>, rows: &[EmpirePlanetEconomyRow]) -
             ]
         })
         .collect()
+}
+
+fn effective_points_left(frame: &ScreenFrame<'_>, row: &EmpirePlanetEconomyRow) -> (u32, u32) {
+    planet_build_view(frame.game_data, row)
+        .map(|view| (view.treasury_left, view.points_left))
+        .unwrap_or_else(|_| {
+            (
+                row.stored_production_points,
+                u32::from(row.build_capacity).min(row.stored_production_points),
+            )
+        })
 }
 
 fn format_signed_growth(growth: u16) -> String {

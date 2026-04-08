@@ -5,8 +5,8 @@ use common::production::{
     single_planet_game, zeroed_conquest, zeroed_setup,
 };
 use nc_data::{
-    decode_real48, encode_real48, starbase_growth_bonus_percent, BaseDat, BaseRecord, CoreGameData,
-    EmpireProductionRankingSort, FleetDat, IpbmDat, PlanetDat, PlayerDat,
+    BaseDat, BaseRecord, CoreGameData, EmpireProductionRankingSort, FleetDat, IpbmDat, PlanetDat,
+    PlayerDat, decode_real48, encode_real48, starbase_growth_bonus_percent,
 };
 use nc_engine::{build_seeded_new_game, run_maintenance_turn};
 

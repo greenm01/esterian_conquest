@@ -1,16 +1,17 @@
 use std::collections::BTreeMap;
 
 use nc_data::{
-    build_queue_unit_counts, CommissionFleetDraft, CoreGameData, EmpirePlanetEconomyRow,
-    GameStateMutationError, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT,
+    CommissionFleetDraft, CoreGameData, EmpirePlanetEconomyRow, GameStateMutationError,
+    PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, build_queue_unit_counts,
 };
 
-use crate::{build_quantity_from_points, build_unit_spec_by_kind, max_quantity, BUILD_UNITS};
+use crate::{BUILD_UNITS, build_quantity_from_points, build_unit_spec_by_kind, max_quantity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanetBuildViewStats {
     pub committed_points: u32,
     pub budget: u32,
+    pub treasury_left: u32,
     pub points_left: u32,
     pub building_count: u32,
     pub docked_count: u32,
@@ -130,6 +131,9 @@ pub fn planet_build_view(
     Ok(PlanetBuildViewStats {
         committed_points,
         budget: available_points,
+        treasury_left: row
+            .stored_production_points
+            .saturating_sub(committed_points),
         points_left: available_points.saturating_sub(committed_points),
         building_count: planet_building_unit_count(planet),
         docked_count: planet_docked_unit_count(planet),
