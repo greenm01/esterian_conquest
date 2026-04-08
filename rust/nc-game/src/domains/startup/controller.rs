@@ -1131,13 +1131,13 @@ impl App {
                     }
                     StartupReviewMode::ItemBody => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
-                        KeyCode::Char('y') | KeyCode::Char('Y')
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y')
                             if self.startup_review_is_at_end(true)
                                 && !self.startup_review_nonstop(true) =>
                         {
                             Action::Startup(StartupAction::AcceptDefault)
                         }
-                        KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N')
+                        KeyCode::Char('n') | KeyCode::Char('N')
                             if self.startup_review_is_at_end(true)
                                 && !self.startup_review_nonstop(true) =>
                         {
@@ -1207,13 +1207,13 @@ impl App {
                     }
                     StartupReviewMode::ItemBody => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::RequestQuit,
-                        KeyCode::Char('y') | KeyCode::Char('Y')
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y')
                             if self.startup_review_is_at_end(false)
                                 && !self.startup_review_nonstop(false) =>
                         {
                             Action::Startup(StartupAction::AcceptDefault)
                         }
-                        KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N')
+                        KeyCode::Char('n') | KeyCode::Char('N')
                             if self.startup_review_is_at_end(false)
                                 && !self.startup_review_nonstop(false) =>
                         {
