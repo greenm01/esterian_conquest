@@ -720,6 +720,7 @@ fn bombardment_collateral_damage_sentence(
     stardock_items_destroyed: u32,
     stored_goods_destroyed: u32,
     factories_destroyed: u16,
+    is_attacker: bool,
 ) -> String {
     let mut parts = Vec::new();
     if stardock_items_destroyed > 0 {
@@ -742,7 +743,12 @@ fn bombardment_collateral_damage_sentence(
     if parts.is_empty() {
         String::new()
     } else {
-        format!(" We also lost {}.", join_report_parts(&parts))
+        let verb_phrase = if is_attacker {
+            "Our bombing run destroyed"
+        } else {
+            "We also lost"
+        };
+        format!(" {verb_phrase} {}.", join_report_parts(&parts))
     }
 }
 
@@ -1106,6 +1112,7 @@ fn generate_report_entries(
             event.stardock_items_destroyed,
             event.stored_goods_destroyed,
             event.factories_destroyed,
+            false,
         );
         let body = format!(
             " Our world has been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies.{}",
@@ -2022,7 +2029,7 @@ fn generate_report_entries(
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         {
                             let collateral = bombard_event
-                                .map(|e| bombardment_collateral_damage_sentence(e.stardock_items_destroyed, e.stored_goods_destroyed, e.factories_destroyed))
+                                .map(|e| bombardment_collateral_damage_sentence(e.stardock_items_destroyed, e.stored_goods_destroyed, e.factories_destroyed, true))
                                 .unwrap_or_default();
                             let breakthrough = bombard_event.is_some_and(|e| e.breakthrough);
                             let status = if breakthrough {
