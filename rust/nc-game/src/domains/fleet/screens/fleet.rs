@@ -28,7 +28,7 @@ use crate::screen::table::{
 };
 use crate::screen::{
     COMMAND_LABEL, PlanetTransportMode, PlayfieldBuffer, Screen, ScreenFrame, ScreenGeometry,
-    StyledSpan, format_sector_coords, format_sector_coords_table,
+    SortDirection, StyledSpan, format_sector_coords, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -239,6 +239,38 @@ const ROW_4: [MenuEntry<'static>; 4] = [
 const FLEET_LIST_BROWSE_HOTKEYS: &str = "? F S O C E D M T L U <Q>";
 const FLEET_LIST_FILTER_HOTKEYS: &str = "? A H M C <Q>";
 const FLEET_LIST_SORT_HOTKEYS: &str = "? I L O E T <Q>";
+
+fn fleet_list_title(
+    sort: FleetListSort,
+    direction: SortDirection,
+    filter: FleetListFilter,
+) -> String {
+    let key = match sort {
+        FleetListSort::Id => "ID",
+        FleetListSort::Location => "LOC",
+        FleetListSort::Order => "ORD",
+        FleetListSort::Eta => "ETA",
+        FleetListSort::Strength => "STR",
+    };
+    format!(
+        "FLEET LIST: {key} {} {}",
+        direction.label(),
+        filter_label(filter)
+    )
+}
+
+fn sort_footer_label(direction: SortDirection) -> String {
+    format!("SORT {}", direction.label())
+}
+
+fn filter_label(filter: FleetListFilter) -> &'static str {
+    match filter {
+        FleetListFilter::All => "ALL",
+        FleetListFilter::Holding => "HOLD",
+        FleetListFilter::Moving => "MOVE",
+        FleetListFilter::Combat => "COMBAT",
+    }
+}
 
 fn mission_picker_columns() -> Vec<TableColumn<'static>> {
     let columns = [
@@ -459,6 +491,9 @@ impl FleetListScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
         scroll_offset: usize,
         cursor: usize,
         input: &str,
@@ -470,6 +505,7 @@ impl FleetListScreen {
         prompt_status: Option<&PromptFeedback>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = crate::screen::layout::new_playfield_for(geometry);
+        let title = fleet_list_title(sort, direction, filter);
         let max_fleet_number = max_fleet_number(rows);
         let columns = full_columns(max_fleet_number);
         let ships_width = columns
@@ -539,18 +575,13 @@ impl FleetListScreen {
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             visible_rows,
-            Some("FLEET LIST:"),
+            Some(&title),
             Some(footer),
             table_rows.len() > visible_rows,
             HorizontalAlign::Left,
             VerticalAlign::Top,
         );
-        draw_table_title(
-            &mut buffer,
-            layout.table_row,
-            layout.table_col,
-            "FLEET LIST:",
-        );
+        draw_table_title(&mut buffer, layout.table_row, layout.table_col, &title);
         let metrics = write_table_window_with_cursor_at(
             &mut buffer,
             layout.table_row,
@@ -609,12 +640,18 @@ impl FleetListScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = self.render(
             geometry,
             rows,
+            sort,
+            direction,
+            filter,
             scroll_offset,
             cursor,
             "",
@@ -627,6 +664,8 @@ impl FleetListScreen {
         )?;
         let max_fleet_number = max_fleet_number(rows);
         let columns = full_columns(max_fleet_number);
+        let title = fleet_list_title(sort, direction, filter);
+        let footer_label = sort_footer_label(direction);
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -645,7 +684,7 @@ impl FleetListScreen {
             .collect::<Vec<_>>();
         let visible_rows = fleet_list_visible_rows(geometry);
         let footer = TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &footer_label,
             hotkeys_markup: FLEET_LIST_SORT_HOTKEYS,
             default: None,
             input: "",
@@ -654,7 +693,7 @@ impl FleetListScreen {
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             visible_rows,
-            Some("FLEET LIST:"),
+            Some(&title),
             Some(footer),
             table_rows.len() > visible_rows,
             HorizontalAlign::Left,
@@ -677,12 +716,18 @@ impl FleetListScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[FleetRow],
+        sort: FleetListSort,
+        direction: SortDirection,
+        filter: FleetListFilter,
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = self.render(
             geometry,
             rows,
+            sort,
+            direction,
+            filter,
             scroll_offset,
             cursor,
             "",
@@ -695,6 +740,7 @@ impl FleetListScreen {
         )?;
         let max_fleet_number = max_fleet_number(rows);
         let columns = full_columns(max_fleet_number);
+        let title = fleet_list_title(sort, direction, filter);
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -722,7 +768,7 @@ impl FleetListScreen {
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             visible_rows,
-            Some("FLEET LIST:"),
+            Some(&title),
             Some(footer),
             table_rows.len() > visible_rows,
             HorizontalAlign::Left,

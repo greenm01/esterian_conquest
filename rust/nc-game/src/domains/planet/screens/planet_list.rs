@@ -15,8 +15,8 @@ use crate::screen::table::{
     write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
-    PlayfieldBuffer, ScreenFrame, build_quantity_from_points, format_sector_coords_default,
-    format_sector_coords_table,
+    PlayfieldBuffer, ScreenFrame, SortDirection, build_quantity_from_points,
+    format_sector_coords_default, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -94,6 +94,43 @@ pub(crate) const PLANET_LIST_SCORCH_LAST_CONFIRM_PROMPT: &str =
     "Scorch Planet: Are you sure-sure? Y/[N] -> ";
 const PLANET_LIST_MAX_QTY_DEFAULT: &str = "255";
 
+fn planet_list_title(
+    mode: PlanetListMode,
+    sort: PlanetListSort,
+    direction: SortDirection,
+    filter: PlanetListFilter,
+) -> String {
+    match mode {
+        PlanetListMode::Brief => {
+            let key = match sort {
+                PlanetListSort::CurrentProduction => "CURR",
+                PlanetListSort::Location => "LOC",
+                PlanetListSort::PotentialProduction => "MAX",
+            };
+            format!(
+                "PLANET LIST: {key} {} {}",
+                direction.label(),
+                filter_label(filter)
+            )
+        }
+        PlanetListMode::BuildSelect => "CHANGE CURRENT PLANET:".to_string(),
+        PlanetListMode::Stub(_) => "PLANET COMMAND:".to_string(),
+    }
+}
+
+fn sort_footer_label(direction: SortDirection) -> String {
+    format!("SORT {}", direction.label())
+}
+
+fn filter_label(filter: PlanetListFilter) -> &'static str {
+    match filter {
+        PlanetListFilter::All => "ALL",
+        PlanetListFilter::Range { .. } => "RNG",
+        PlanetListFilter::Starbase => "SB",
+        PlanetListFilter::Stardock => "DOCK",
+    }
+}
+
 impl PlanetListScreen {
     pub fn new() -> Self {
         Self
@@ -105,6 +142,8 @@ impl PlanetListScreen {
         mode: PlanetListMode,
         rows: &[EmpirePlanetEconomyRow],
         sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
         scroll_offset: usize,
         cursor: usize,
         input: &str,
@@ -123,6 +162,8 @@ impl PlanetListScreen {
             mode,
             rows,
             sort,
+            direction,
+            filter,
             scroll_offset,
             cursor,
             input,
@@ -142,8 +183,10 @@ impl PlanetListScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
+        let title = planet_list_title(mode, sort, direction, filter);
+        let footer_label = sort_footer_label(direction);
         let footer = TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &footer_label,
             hotkeys_markup: BRIEF_SORT_HOTKEYS,
             default: None,
             input: "",
@@ -154,7 +197,7 @@ impl PlanetListScreen {
             buffer.width(),
             scrollable,
             TableWidthMode::Compact,
-            Some(brief_list_title(mode)),
+            Some(&title),
             Some(footer),
             planet_list_footer_floor(frame, mode),
         );
@@ -162,7 +205,7 @@ impl PlanetListScreen {
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            Some(brief_list_title(mode)),
+            Some(&title),
             Some(footer),
             scrollable,
             HorizontalAlign::Center,
@@ -185,6 +228,8 @@ impl PlanetListScreen {
         mode: PlanetListMode,
         rows: &[EmpirePlanetEconomyRow],
         sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
         scroll_offset: usize,
         cursor: usize,
         prompt_mode: PlanetListFilterPromptMode,
@@ -197,6 +242,8 @@ impl PlanetListScreen {
             mode,
             rows,
             sort,
+            direction,
+            filter,
             scroll_offset,
             cursor,
             "",
@@ -216,6 +263,7 @@ impl PlanetListScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
+        let title = planet_list_title(mode, sort, direction, filter);
         let footer = match prompt_mode {
             PlanetListFilterPromptMode::FilterMenu => TableFooter::LabeledCommandBar {
                 label: "FILTER",
@@ -242,7 +290,7 @@ impl PlanetListScreen {
             buffer.width(),
             scrollable,
             TableWidthMode::Compact,
-            Some(brief_list_title(mode)),
+            Some(&title),
             Some(footer),
             planet_list_footer_floor(frame, mode),
         );
@@ -250,7 +298,7 @@ impl PlanetListScreen {
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            Some(brief_list_title(mode)),
+            Some(&title),
             Some(footer),
             scrollable,
             HorizontalAlign::Center,
@@ -272,7 +320,9 @@ impl PlanetListScreen {
         frame: &ScreenFrame<'_>,
         mode: PlanetListMode,
         rows: &[EmpirePlanetEconomyRow],
-        _sort: PlanetListSort,
+        sort: PlanetListSort,
+        direction: SortDirection,
+        filter: PlanetListFilter,
         scroll_offset: usize,
         cursor: usize,
         input: &str,
@@ -293,6 +343,7 @@ impl PlanetListScreen {
             .len()
             .saturating_sub(scroll_offset)
             .min(visible_rows);
+        let title = planet_list_title(mode, sort, direction, filter);
         let default_coords = rows
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
@@ -335,7 +386,7 @@ impl PlanetListScreen {
             buffer.width(),
             scrollable,
             TableWidthMode::Compact,
-            Some(brief_list_title(mode)),
+            Some(&title),
             Some(footer),
             planet_list_footer_floor(frame, mode),
         );
@@ -343,19 +394,14 @@ impl PlanetListScreen {
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            Some(brief_list_title(mode)),
+            Some(&title),
             Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
         );
         let _ = layout.title_row;
-        draw_table_title(
-            &mut buffer,
-            layout.table_row,
-            layout.table_col,
-            brief_list_title(mode),
-        );
+        draw_table_title(&mut buffer, layout.table_row, layout.table_col, &title);
 
         let metrics = write_stacked_table_window_with_states_at(
             &mut buffer,
@@ -622,13 +668,6 @@ fn planet_list_footer_floor(frame: &ScreenFrame<'_>, mode: PlanetListMode) -> us
         .into_iter()
         .max()
         .unwrap_or(0),
-    }
-}
-
-fn brief_list_title(mode: PlanetListMode) -> &'static str {
-    match mode {
-        PlanetListMode::Brief | PlanetListMode::Stub(_) => "PLANET COMMAND:",
-        PlanetListMode::BuildSelect => "CHANGE CURRENT PLANET:",
     }
 }
 

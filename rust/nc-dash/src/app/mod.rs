@@ -17,7 +17,8 @@ use state::{
     ActiveMouseGesture, ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
     FleetOverlayPromptMode, FleetOverlaySort, HelpContext, IntelOverlayFilter,
     IntelOverlayPromptMode, IntelOverlaySort, MapViewMode, PlanetOverlayFilter,
-    PlanetOverlayPromptMode, PlanetOverlaySort,
+    PlanetOverlayPromptMode, PlanetOverlaySort, default_fleet_overlay_sort_direction,
+    default_intel_overlay_sort_direction, default_planet_overlay_sort_direction,
 };
 
 use crate::inbox::{DashInboxItemSource, matches_filter, project_inbox_items};
@@ -1004,10 +1005,15 @@ impl DashApp {
                     self.intel_overlay
                         .open_prompt(IntelOverlayPromptMode::SortRangeInput);
                     self.intel_overlay.prompt_input.clear();
-                    self.intel_overlay.prompt_default = intel_database::table_rows(self)
-                        .get(self.intel_overlay.selected)
-                        .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
-                        .unwrap_or_else(|| "00,00".to_string());
+                    self.intel_overlay.prompt_default = match self.intel_overlay.sort {
+                        IntelOverlaySort::Range(anchor) => {
+                            nc_ui::coords::format_sector_coords_default(anchor)
+                        }
+                        _ => intel_database::table_rows(self)
+                            .get(self.intel_overlay.selected)
+                            .map(|row| nc_ui::coords::format_sector_coords_default(row.coords))
+                            .unwrap_or_else(|| "00,00".to_string()),
+                    };
                 }
                 KeyCode::Char('e') | KeyCode::Char('E') => {
                     self.apply_intel_overlay_sort(IntelOverlaySort::Empire);
@@ -1394,7 +1400,12 @@ impl DashApp {
         let selected_record = planet_list::table_rows(self)
             .get(self.planet_overlay.selected)
             .map(|row| row.planet_record_index_1_based);
-        self.planet_overlay.sort = sort;
+        if self.planet_overlay.sort == sort {
+            self.planet_overlay.sort_direction = self.planet_overlay.sort_direction.toggle();
+        } else {
+            self.planet_overlay.sort = sort;
+            self.planet_overlay.sort_direction = default_planet_overlay_sort_direction(sort);
+        }
         self.reset_planet_overlay_prompt();
         let rows = planet_list::table_rows(self);
         self.planet_overlay.selected = selected_record
@@ -1438,7 +1449,12 @@ impl DashApp {
         let selected_key = fleet_list::table_rows(self)
             .get(self.fleet_overlay.selected)
             .map(|row| row.key);
-        self.fleet_overlay.sort = sort;
+        if self.fleet_overlay.sort == sort {
+            self.fleet_overlay.sort_direction = self.fleet_overlay.sort_direction.toggle();
+        } else {
+            self.fleet_overlay.sort = sort;
+            self.fleet_overlay.sort_direction = default_fleet_overlay_sort_direction(sort);
+        }
         self.fleet_overlay.clear_prompt();
         let rows = fleet_list::table_rows(self);
         self.fleet_overlay.selected = selected_key
@@ -1481,7 +1497,12 @@ impl DashApp {
         let selected_record = intel_database::table_rows(self)
             .get(self.intel_overlay.selected)
             .map(|row| row.planet_record_index_1_based);
-        self.intel_overlay.sort = sort;
+        if self.intel_overlay.sort == sort {
+            self.intel_overlay.sort_direction = self.intel_overlay.sort_direction.toggle();
+        } else {
+            self.intel_overlay.sort = sort;
+            self.intel_overlay.sort_direction = default_intel_overlay_sort_direction(sort);
+        }
         self.reset_intel_overlay_prompt();
         let rows = intel_database::table_rows(self);
         self.intel_overlay.selected = selected_record
@@ -1654,7 +1675,7 @@ mod tests {
     use crate::app::state::{
         ActiveOverlay, ActivePopup, DashApp, FleetOrderScope, FleetOverlayFilter,
         FleetOverlayPromptMode, FleetOverlayRowKey, IntelOverlayFilter, IntelOverlayPromptMode,
-        MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode,
+        MapViewMode, PlanetOverlayFilter, PlanetOverlayPromptMode, SortDirection,
     };
     use crate::layout::dashboard::dashboard_layout;
     use crate::overlays::{fleet_list, intel_database, planet_list};
@@ -2306,6 +2327,48 @@ mod tests {
                 .selected_fleet_record_indexes
                 .contains(&record_index)
         );
+    }
+
+    #[test]
+    fn fleet_sort_repeated_selection_toggles_direction() {
+        let mut app = dash_app();
+
+        assert_eq!(app.fleet_overlay.sort_direction, SortDirection::Desc);
+
+        app.apply_fleet_overlay_sort(crate::app::state::FleetOverlaySort::Id);
+        assert_eq!(app.fleet_overlay.sort_direction, SortDirection::Asc);
+
+        app.apply_fleet_overlay_sort(crate::app::state::FleetOverlaySort::Id);
+        assert_eq!(app.fleet_overlay.sort_direction, SortDirection::Desc);
+    }
+
+    #[test]
+    fn fleet_sort_new_key_resets_default_direction() {
+        let mut app = dash_app();
+        app.fleet_overlay.sort_direction = SortDirection::Asc;
+
+        app.apply_fleet_overlay_sort(crate::app::state::FleetOverlaySort::Strength);
+
+        assert_eq!(
+            app.fleet_overlay.sort,
+            crate::app::state::FleetOverlaySort::Strength
+        );
+        assert_eq!(app.fleet_overlay.sort_direction, SortDirection::Desc);
+    }
+
+    #[test]
+    fn intel_range_sort_same_anchor_toggles_direction() {
+        let mut app = dash_app();
+        let anchor = [8, 8];
+
+        app.apply_intel_overlay_sort(crate::app::state::IntelOverlaySort::Range(anchor));
+        assert_eq!(app.intel_overlay.sort_direction, SortDirection::Asc);
+
+        app.apply_intel_overlay_sort(crate::app::state::IntelOverlaySort::Range(anchor));
+        assert_eq!(app.intel_overlay.sort_direction, SortDirection::Desc);
+
+        app.apply_intel_overlay_sort(crate::app::state::IntelOverlaySort::Range([9, 9]));
+        assert_eq!(app.intel_overlay.sort_direction, SortDirection::Asc);
     }
 
     #[test]

@@ -2,7 +2,7 @@ use crate::domains::planet::screens::planet_commission::PlanetCommissionDraftRow
 use crate::domains::planet::screens::planet_transport::PlanetTransportMode;
 use crate::screen::{
     PlanetDatabaseFilter, PlanetDatabasePromptMode, PlanetDatabaseSort, PlanetListFilter,
-    PlanetListFilterPromptMode, PlanetListSort,
+    PlanetListFilterPromptMode, PlanetListSort, SortDirection,
 };
 use crossterm::event::KeyCode;
 use nc_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
@@ -36,6 +36,7 @@ pub struct PlanetState {
     pub brief_cursor: usize,
     pub brief_input: String,
     pub list_sort: PlanetListSort,
+    pub list_sort_direction: SortDirection,
     pub list_filter: PlanetListFilter,
     pub list_filter_prompt_mode: PlanetListFilterPromptMode,
     pub list_prompt_input: String,
@@ -50,6 +51,7 @@ pub struct PlanetState {
     pub database_prompt_mode: PlanetDatabasePromptMode,
     pub database_filter: PlanetDatabaseFilter,
     pub database_sort: PlanetDatabaseSort,
+    pub database_sort_direction: SortDirection,
     pub commission_index: usize,
     pub commission_picker_scroll_offset: usize,
     pub commission_cursor: usize,
@@ -132,6 +134,7 @@ impl PlanetState {
             brief_cursor: 0,
             brief_input: String::new(),
             list_sort: PlanetListSort::CurrentProduction,
+            list_sort_direction: SortDirection::Desc,
             list_filter: PlanetListFilter::All,
             list_filter_prompt_mode: PlanetListFilterPromptMode::FilterMenu,
             list_prompt_input: String::new(),
@@ -146,6 +149,7 @@ impl PlanetState {
             database_prompt_mode: PlanetDatabasePromptMode::FilterMenu,
             database_filter: PlanetDatabaseFilter::All,
             database_sort: PlanetDatabaseSort::Location,
+            database_sort_direction: SortDirection::Asc,
             commission_index: 0,
             commission_picker_scroll_offset: 0,
             commission_cursor: 0,

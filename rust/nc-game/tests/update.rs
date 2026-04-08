@@ -19,6 +19,8 @@ mod navigation;
 mod planet_workflows;
 #[path = "update/reports_startup.rs"]
 mod reports_startup;
+#[path = "update/sort_toggle.rs"]
+mod sort_toggle;
 #[path = "update/starmap_planet_info.rs"]
 mod starmap_planet_info;
 #[path = "update/startup_join.rs"]

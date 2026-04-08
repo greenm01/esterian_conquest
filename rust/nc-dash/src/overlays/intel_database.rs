@@ -1,5 +1,6 @@
 //! I overlay: dashboard-sized total planet database.
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use nc_data::{PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
@@ -14,6 +15,7 @@ use nc_ui::table_selection;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, IntelOverlayFilter, IntelOverlayPromptMode, IntelOverlaySort,
+    SortDirection,
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
@@ -56,6 +58,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let selected_default = rows
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
+    let title = overlay_title(app);
+    let sort_footer_label = sort_footer_label(app);
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -63,7 +67,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             input: &app.intel_overlay.jump_input,
         },
         IntelOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
             default: None,
             input: "",
@@ -119,7 +123,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
-        "TOTAL PLANET DATABASE",
+        &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
         footer,
@@ -128,7 +132,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let visible_rows = frame.body_height.saturating_sub(5);
     assert_overlay_body_write_fits(
         frame,
-        "TOTAL PLANET DATABASE",
+        &title,
         table_render_width(&columns),
         stacked_table_body_height(visible_rows),
     );
@@ -167,6 +171,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
     let selected_default = rows
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
+    let title = overlay_title(app);
+    let sort_footer_label = sort_footer_label(app);
     let footer = match app.intel_overlay.prompt_mode {
         IntelOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -174,7 +180,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
             input: &app.intel_overlay.jump_input,
         },
         IntelOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
             default: None,
             input: "",
@@ -229,7 +235,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Rect {
         table_render_width(&columns).max("No planet intel is available yet.".chars().count() + 4);
     overlay_popup_rect_for_body_in_map(
         map_frame,
-        "TOTAL PLANET DATABASE",
+        &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
         OverlaySizePolicy::default(),
@@ -278,18 +284,25 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<IntelOverlayRow> {
     });
 
     rows.sort_by(|left, right| match app.intel_overlay.sort {
-        IntelOverlaySort::Location => left.coords.cmp(&right.coords),
-        IntelOverlaySort::Range(anchor) => distance_sq(anchor, left.coords)
-            .cmp(&distance_sq(anchor, right.coords))
-            .then_with(|| left.coords.cmp(&right.coords)),
-        IntelOverlaySort::Empire => left
-            .known_owner_empire_id
-            .cmp(&right.known_owner_empire_id)
-            .then_with(|| left.coords.cmp(&right.coords)),
-        IntelOverlaySort::MaxProduction => right
-            .known_max_production
-            .cmp(&left.known_max_production)
-            .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Location => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.coords.cmp(&right.coords),
+        ),
+        IntelOverlaySort::Range(anchor) => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            distance_sq(anchor, left.coords).cmp(&distance_sq(anchor, right.coords)),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::Empire => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_owner_empire_id.cmp(&right.known_owner_empire_id),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        IntelOverlaySort::MaxProduction => apply_sort_direction(
+            app.intel_overlay.sort_direction,
+            left.known_max_production.cmp(&right.known_max_production),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
     });
 
     rows
@@ -410,9 +423,52 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
     (dx * dx + dy * dy) as u32
 }
 
+fn overlay_title(app: &DashApp) -> String {
+    format!(
+        "TOTAL PLANET DATABASE: {} {} {}",
+        sort_key_label(app.intel_overlay.sort),
+        app.intel_overlay.sort_direction.label(),
+        filter_label(app.intel_overlay.filter)
+    )
+}
+
+fn sort_footer_label(app: &DashApp) -> String {
+    format!("SORT {}", app.intel_overlay.sort_direction.label())
+}
+
+fn sort_key_label(sort: IntelOverlaySort) -> &'static str {
+    match sort {
+        IntelOverlaySort::Location => "LOC",
+        IntelOverlaySort::Range(_) => "RNG",
+        IntelOverlaySort::Empire => "EMP",
+        IntelOverlaySort::MaxProduction => "MAX",
+    }
+}
+
+fn filter_label(filter: crate::app::state::IntelOverlayFilter) -> &'static str {
+    match filter {
+        crate::app::state::IntelOverlayFilter::All => "ALL",
+        crate::app::state::IntelOverlayFilter::Range { .. } => "RNG",
+        crate::app::state::IntelOverlayFilter::Empire(_) => "EMP",
+        crate::app::state::IntelOverlayFilter::MaxProduction(_) => "MAX",
+    }
+}
+
+fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Ordering {
+    match direction {
+        SortDirection::Asc => ordering,
+        SortDirection::Desc => ordering.reverse(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{HOTKEYS, parse_coords_input};
+    use super::{HOTKEYS, overlay_title, parse_coords_input, sort_footer_label};
+    use crate::app::state::{DashApp, SortDirection};
+    use nc_data::GameStateBuilder;
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn browse_hotkeys_match_supported_intel_commands() {
@@ -422,5 +478,28 @@ mod tests {
     #[test]
     fn parse_coords_input_accepts_rendered_coord_cell() {
         assert_eq!(parse_coords_input("(02,03)", [1, 1]), Some([2, 3]));
+    }
+
+    #[test]
+    fn titles_and_sort_footer_show_direction() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.intel_overlay.sort_direction = SortDirection::Desc;
+
+        assert_eq!(overlay_title(&app), "TOTAL PLANET DATABASE: LOC DESC ALL");
+        assert_eq!(sort_footer_label(&app), "SORT DESC");
     }
 }

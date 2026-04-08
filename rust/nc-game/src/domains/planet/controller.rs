@@ -8,8 +8,36 @@ use crate::screen::{
     CommandMenu, PlanetDatabaseFilter, PlanetDatabaseFilterMode, PlanetDatabasePromptMode,
     PlanetDatabaseRow, PlanetDatabaseSort, PlanetDatabaseSortMode, PlanetListFilter,
     PlanetListFilterMode, PlanetListFilterPromptMode, PlanetListMode, PlanetListSort, ScreenId,
+    SortDirection,
 };
 use nc_data::build_player_starmap_projection_from_snapshots;
+
+const fn default_planet_list_sort_direction(sort: PlanetListSort) -> SortDirection {
+    match sort {
+        PlanetListSort::CurrentProduction => SortDirection::Desc,
+        PlanetListSort::Location => SortDirection::Asc,
+        PlanetListSort::PotentialProduction => SortDirection::Desc,
+    }
+}
+
+const fn default_planet_database_sort_direction(sort: PlanetDatabaseSort) -> SortDirection {
+    match sort {
+        PlanetDatabaseSort::Location => SortDirection::Asc,
+        PlanetDatabaseSort::Range(_) => SortDirection::Asc,
+        PlanetDatabaseSort::Empire => SortDirection::Asc,
+        PlanetDatabaseSort::MaxProduction => SortDirection::Desc,
+    }
+}
+
+fn apply_sort_direction(
+    direction: SortDirection,
+    ordering: std::cmp::Ordering,
+) -> std::cmp::Ordering {
+    match direction {
+        SortDirection::Asc => ordering,
+        SortDirection::Desc => ordering.reverse(),
+    }
+}
 
 impl App {
     pub(crate) fn planet_database_visible_rows(&self) -> usize {
@@ -222,7 +250,14 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.planet.list_sort = sort;
+        if self.current_screen == ScreenId::PlanetListSortPrompt(mode)
+            && self.planet.list_sort == sort
+        {
+            self.planet.list_sort_direction = self.planet.list_sort_direction.toggle();
+        } else {
+            self.planet.list_sort = sort;
+            self.planet.list_sort_direction = default_planet_list_sort_direction(sort);
+        }
         self.clear_planet_list_status();
         self.planet.brief_scroll_offset = 0;
         self.planet.brief_cursor = 0;
@@ -314,6 +349,9 @@ impl App {
 
     pub fn close_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         self.clear_planet_list_status();
+        if mode == PlanetListMode::BuildSelect {
+            self.select_planet_brief_origin_row(mode, self.planet.list_sort);
+        }
         self.current_screen = match mode {
             PlanetListMode::Brief | PlanetListMode::BuildSelect => {
                 ScreenId::PlanetList(mode, self.planet.list_sort)
@@ -707,7 +745,10 @@ impl App {
                 PlanetDatabaseSortMode::Range => {
                     self.planet.database_prompt_mode = PlanetDatabasePromptMode::SortRangeInput;
                     self.planet.database_input.clear();
-                    let default = self.default_planet_database_coords();
+                    let default = match self.planet.database_sort {
+                        PlanetDatabaseSort::Range(anchor) => anchor,
+                        _ => self.default_planet_database_coords(),
+                    };
                     self.planet.database_prompt_default_value =
                         format!("{:02},{:02}", default[0], default[1]);
                     self.planet.database_status = None;
@@ -720,7 +761,11 @@ impl App {
                 }
             },
             PlanetDatabasePromptMode::SortRangeInput => {
-                let default_coords = self.default_planet_database_coords();
+                let default_coords = resolve_default_coords_input(
+                    &self.planet.database_prompt_default_value,
+                    self.default_planet_database_coords(),
+                )
+                .unwrap_or_else(|| self.default_planet_database_coords());
                 let Some(coords) =
                     resolve_default_coords_input(self.planet.database_input.trim(), default_coords)
                 else {
@@ -972,15 +1017,20 @@ impl App {
             .game_data
             .empire_planet_economy_rows(self.player.record_index_1_based);
         rows.sort_by(|left, right| match sort {
-            PlanetListSort::CurrentProduction => right
-                .present_production
-                .cmp(&left.present_production)
-                .then_with(|| left.coords.cmp(&right.coords)),
-            PlanetListSort::Location => left.coords.cmp(&right.coords),
-            PlanetListSort::PotentialProduction => right
-                .potential_production
-                .cmp(&left.potential_production)
-                .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::CurrentProduction => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.present_production.cmp(&right.present_production),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Location => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.coords.cmp(&right.coords),
+            ),
+            PlanetListSort::PotentialProduction => apply_sort_direction(
+                self.planet.list_sort_direction,
+                left.potential_production.cmp(&right.potential_production),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
         });
         rows
     }
@@ -1096,24 +1146,35 @@ impl App {
                 .is_some_and(|value| value >= min_prod),
         });
 
-        match self.planet.database_sort {
-            PlanetDatabaseSort::Location => rows.sort_by_key(|row| row.coords),
-            PlanetDatabaseSort::Range(anchor) => rows
-                .sort_by_key(|row| (planet_database_distance_sq(anchor, row.coords), row.coords)),
-            PlanetDatabaseSort::Empire => rows.sort_by_key(|row| {
+        rows.sort_by(|left, right| match self.planet.database_sort {
+            PlanetDatabaseSort::Location => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.coords.cmp(&right.coords),
+            ),
+            PlanetDatabaseSort::Range(anchor) => apply_sort_direction(
+                self.planet.database_sort_direction,
+                planet_database_distance_sq(anchor, left.coords)
+                    .cmp(&planet_database_distance_sq(anchor, right.coords)),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::Empire => apply_sort_direction(
+                self.planet.database_sort_direction,
                 (
-                    row.known_owner_empire_id.is_none(),
-                    row.known_owner_empire_id.unwrap_or(0),
-                    row.coords,
+                    left.known_owner_empire_id.is_none(),
+                    left.known_owner_empire_id.unwrap_or(0),
                 )
-            }),
-            PlanetDatabaseSort::MaxProduction => rows.sort_by(|left, right| {
-                right
-                    .known_max_production
-                    .cmp(&left.known_max_production)
-                    .then_with(|| left.coords.cmp(&right.coords))
-            }),
-        }
+                    .cmp(&(
+                        right.known_owner_empire_id.is_none(),
+                        right.known_owner_empire_id.unwrap_or(0),
+                    )),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetDatabaseSort::MaxProduction => apply_sort_direction(
+                self.planet.database_sort_direction,
+                left.known_max_production.cmp(&right.known_max_production),
+            )
+            .then_with(|| left.coords.cmp(&right.coords)),
+        });
         rows
     }
 
@@ -1182,7 +1243,12 @@ impl App {
             .planet_database_rows()
             .get(self.planet.database_cursor)
             .map(|row| row.planet_record_index_1_based);
-        self.planet.database_sort = sort;
+        if self.planet.database_sort == sort {
+            self.planet.database_sort_direction = self.planet.database_sort_direction.toggle();
+        } else {
+            self.planet.database_sort = sort;
+            self.planet.database_sort_direction = default_planet_database_sort_direction(sort);
+        }
         self.planet.database_prompt_mode = PlanetDatabasePromptMode::FilterMenu;
         self.planet.database_status = None;
         self.planet.database_input.clear();

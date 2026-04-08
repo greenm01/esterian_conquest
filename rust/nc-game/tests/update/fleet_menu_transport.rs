@@ -2331,6 +2331,9 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
         .render(
             nc_game::screen::ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::FleetListSort::Id,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::FleetListFilter::All,
             0,
             0,
             "",
@@ -2373,6 +2376,9 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         .render(
             nc_game::screen::ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::FleetListSort::Id,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::FleetListFilter::All,
             0,
             0,
             "",
@@ -2385,7 +2391,7 @@ fn fleet_list_table_uses_order_target_eta_columns_and_current_speed() {
         )
         .expect("fleet list renders");
 
-    assert_eq!(buffer.plain_line(0), " FLEET LIST:");
+    assert_eq!(buffer.plain_line(0), " FLEET LIST: ID DESC ALL");
     assert!(!buffer.plain_line(1).contains("ENTER reviews a fleet."));
     assert!(buffer.plain_line(1).starts_with("┌"));
     assert!(buffer.plain_line(1).ends_with("┐"));
@@ -2436,6 +2442,9 @@ fn fleet_list_ships_column_shows_sparse_counted_tokens() {
         .render(
             nc_game::screen::ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::FleetListSort::Id,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::FleetListFilter::All,
             0,
             0,
             "",
@@ -2476,6 +2485,9 @@ fn fleet_list_ships_column_truncates_by_whole_token_with_plus_marker() {
         .render(
             nc_game::screen::ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::FleetListSort::Id,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::FleetListFilter::All,
             0,
             0,
             "",
@@ -2585,6 +2597,9 @@ fn fleet_list_table_renders_x_for_unreachable_eta_label() {
         .render(
             nc_game::screen::ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::FleetListSort::Id,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::FleetListFilter::All,
             0,
             0,
             "",
@@ -2767,6 +2782,9 @@ fn fleet_list_load_quantity_prompt_keeps_scrollbar_gutter() {
         .render(
             ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::FleetListSort::Id,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::FleetListFilter::All,
             0,
             0,
             "",

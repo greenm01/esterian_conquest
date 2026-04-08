@@ -49,6 +49,9 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FleetList => app.fleet_list.render(
             frame.geometry,
             &app.fleet_list_rows(),
+            app.fleet.list_sort,
+            app.fleet.list_sort_direction,
+            app.fleet.list_filter,
             app.fleet.scroll_offset,
             app.fleet.cursor,
             &app.fleet.list_input,
@@ -62,12 +65,18 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FleetListFilterPrompt => app.fleet_list.render_filter_prompt(
             frame.geometry,
             &app.fleet_list_rows(),
+            app.fleet.list_sort,
+            app.fleet.list_sort_direction,
+            app.fleet.list_filter,
             app.fleet.scroll_offset,
             app.fleet.cursor,
         ),
         ScreenId::FleetListSortPrompt => app.fleet_list.render_sort_prompt(
             frame.geometry,
             &app.fleet_list_rows(),
+            app.fleet.list_sort,
+            app.fleet.list_sort_direction,
+            app.fleet.list_filter,
             app.fleet.scroll_offset,
             app.fleet.cursor,
         ),

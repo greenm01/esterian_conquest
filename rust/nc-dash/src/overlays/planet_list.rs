@@ -1,5 +1,7 @@
 //! P overlay: dashboard-sized planet management table.
 
+use std::cmp::Ordering;
+
 use nc_data::{
     PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT, yearly_growth_delta, yearly_tax_revenue,
 };
@@ -16,6 +18,7 @@ use nc_ui::table_selection;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, PlanetOverlayFilter, PlanetOverlayPromptMode, PlanetOverlaySort,
+    SortDirection,
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
@@ -78,6 +81,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let selected_default = rows
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
+    let title = overlay_title(app);
+    let sort_footer_label = sort_footer_label(app);
     let footer = match app.planet_overlay.prompt_mode {
         PlanetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -85,7 +90,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             input: &app.planet_overlay.jump_input,
         },
         PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
             default: None,
             input: "",
@@ -126,7 +131,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
-        "PLANET LIST",
+        &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
         footer,
@@ -135,7 +140,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let visible_rows = frame.body_height.saturating_sub(5);
     assert_overlay_body_write_fits(
         frame,
-        "PLANET LIST",
+        &title,
         table_render_width(&columns),
         stacked_table_body_height(visible_rows),
     );
@@ -188,6 +193,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     let selected_default = rows
         .get(selected)
         .map(|row| format_sector_coords_default(row.coords));
+    let title = overlay_title(app);
+    let sort_footer_label = sort_footer_label(app);
     let footer = match app.planet_overlay.prompt_mode {
         PlanetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -195,7 +202,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             input: &app.planet_overlay.jump_input,
         },
         PlanetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
             default: None,
             input: "",
@@ -235,7 +242,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         .max("You do not currently control any planets.".chars().count() + 4);
     Some(overlay_popup_rect_for_body_in_map(
         map_frame,
-        "PLANET LIST",
+        &title,
         body_width,
         stacked_table_body_height(natural_visible_rows),
         OverlaySizePolicy::default(),
@@ -514,15 +521,20 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<PlanetOverlayRow> {
     });
 
     rows.sort_by(|left, right| match app.planet_overlay.sort {
-        PlanetOverlaySort::CurrentProduction => right
-            .current_prod
-            .cmp(&left.current_prod)
-            .then_with(|| left.coords.cmp(&right.coords)),
-        PlanetOverlaySort::Location => left.coords.cmp(&right.coords),
-        PlanetOverlaySort::MaxProduction => right
-            .max_prod
-            .cmp(&left.max_prod)
-            .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::CurrentProduction => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.current_prod.cmp(&right.current_prod),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
+        PlanetOverlaySort::Location => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.coords.cmp(&right.coords),
+        ),
+        PlanetOverlaySort::MaxProduction => apply_sort_direction(
+            app.planet_overlay.sort_direction,
+            left.max_prod.cmp(&right.max_prod),
+        )
+        .then_with(|| left.coords.cmp(&right.coords)),
     });
 
     rows
@@ -634,14 +646,77 @@ fn distance_sq(a: [u8; 2], b: [u8; 2]) -> u32 {
     (dx * dx + dy * dy) as u32
 }
 
+fn overlay_title(app: &DashApp) -> String {
+    format!(
+        "PLANET LIST: {} {} {}",
+        sort_key_label(app.planet_overlay.sort),
+        app.planet_overlay.sort_direction.label(),
+        filter_label(app.planet_overlay.filter)
+    )
+}
+
+fn sort_footer_label(app: &DashApp) -> String {
+    format!("SORT {}", app.planet_overlay.sort_direction.label())
+}
+
+fn sort_key_label(sort: PlanetOverlaySort) -> &'static str {
+    match sort {
+        PlanetOverlaySort::CurrentProduction => "CURR",
+        PlanetOverlaySort::Location => "LOC",
+        PlanetOverlaySort::MaxProduction => "MAX",
+    }
+}
+
+fn filter_label(filter: crate::app::state::PlanetOverlayFilter) -> &'static str {
+    match filter {
+        crate::app::state::PlanetOverlayFilter::All => "ALL",
+        crate::app::state::PlanetOverlayFilter::Range { .. } => "RNG",
+        crate::app::state::PlanetOverlayFilter::Starbase => "SB",
+        crate::app::state::PlanetOverlayFilter::Stardock => "DOCK",
+    }
+}
+
+fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Ordering {
+    match direction {
+        SortDirection::Asc => ordering,
+        SortDirection::Desc => ordering.reverse(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nc_data::ProductionItemKind;
+    use nc_data::{GameStateBuilder, ProductionItemKind};
+    use nc_ui::ScreenGeometry;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::PathBuf;
 
     #[test]
     fn browse_hotkeys_match_supported_planet_list_commands() {
         assert_eq!(HOTKEYS, "? F S B <Q>");
+    }
+
+    #[test]
+    fn titles_and_sort_footer_show_direction() {
+        let mut app = DashApp::new_for_tests(
+            PathBuf::from("."),
+            GameStateBuilder::new()
+                .with_player_count(4)
+                .build_initialized_baseline()
+                .expect("baseline"),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            ScreenGeometry::new(160, 45),
+            ScreenGeometry::new(0, 0),
+            1,
+        );
+        app.planet_overlay.sort_direction = SortDirection::Asc;
+
+        assert_eq!(overlay_title(&app), "PLANET LIST: CURR ASC ALL");
+        assert_eq!(sort_footer_label(&app), "SORT ASC");
     }
 
     #[test]

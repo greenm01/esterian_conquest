@@ -156,10 +156,41 @@ pub struct SettingsOverlayState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortDirection {
+    Asc,
+    Desc,
+}
+
+impl SortDirection {
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Asc => Self::Desc,
+            Self::Desc => Self::Asc,
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Asc => "ASC",
+            Self::Desc => "DESC",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetOverlaySort {
     CurrentProduction,
     Location,
     MaxProduction,
+}
+
+pub const fn default_planet_overlay_sort_direction(sort: PlanetOverlaySort) -> SortDirection {
+    match sort {
+        PlanetOverlaySort::CurrentProduction | PlanetOverlaySort::MaxProduction => {
+            SortDirection::Desc
+        }
+        PlanetOverlaySort::Location => SortDirection::Asc,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,6 +226,7 @@ pub struct PlanetOverlayState {
     pub scroll: usize,
     pub jump_input: String,
     pub sort: PlanetOverlaySort,
+    pub sort_direction: SortDirection,
     pub filter: PlanetOverlayFilter,
     pub prompt_mode: PlanetOverlayPromptMode,
     pub prompt_input: String,
@@ -216,6 +248,9 @@ impl Default for PlanetOverlayState {
             scroll: 0,
             jump_input: String::new(),
             sort: PlanetOverlaySort::CurrentProduction,
+            sort_direction: default_planet_overlay_sort_direction(
+                PlanetOverlaySort::CurrentProduction,
+            ),
             filter: PlanetOverlayFilter::All,
             prompt_mode: PlanetOverlayPromptMode::None,
             prompt_input: String::new(),
@@ -280,6 +315,15 @@ pub enum FleetOverlaySort {
     Strength,
 }
 
+pub const fn default_fleet_overlay_sort_direction(sort: FleetOverlaySort) -> SortDirection {
+    match sort {
+        FleetOverlaySort::Id | FleetOverlaySort::Strength => SortDirection::Desc,
+        FleetOverlaySort::Location | FleetOverlaySort::Order | FleetOverlaySort::Eta => {
+            SortDirection::Asc
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetOverlayFilter {
     All,
@@ -317,6 +361,7 @@ pub struct FleetOverlayState {
     pub scroll: usize,
     pub jump_input: String,
     pub sort: FleetOverlaySort,
+    pub sort_direction: SortDirection,
     pub filter: FleetOverlayFilter,
     pub location_filter: Option<[u8; 2]>,
     pub selected_fleet_record_indexes: BTreeSet<usize>,
@@ -344,6 +389,7 @@ impl Default for FleetOverlayState {
             scroll: 0,
             jump_input: String::new(),
             sort: FleetOverlaySort::Id,
+            sort_direction: default_fleet_overlay_sort_direction(FleetOverlaySort::Id),
             filter: FleetOverlayFilter::All,
             location_filter: None,
             selected_fleet_record_indexes: BTreeSet::new(),
@@ -403,6 +449,15 @@ pub enum IntelOverlaySort {
     MaxProduction,
 }
 
+pub const fn default_intel_overlay_sort_direction(sort: IntelOverlaySort) -> SortDirection {
+    match sort {
+        IntelOverlaySort::MaxProduction => SortDirection::Desc,
+        IntelOverlaySort::Location | IntelOverlaySort::Range(_) | IntelOverlaySort::Empire => {
+            SortDirection::Asc
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntelOverlayFilter {
     All,
@@ -437,6 +492,7 @@ pub struct IntelOverlayState {
     pub scroll: usize,
     pub jump_input: String,
     pub sort: IntelOverlaySort,
+    pub sort_direction: SortDirection,
     pub filter: IntelOverlayFilter,
     pub prompt_mode: IntelOverlayPromptMode,
     pub prompt_input: String,
@@ -452,6 +508,7 @@ impl Default for IntelOverlayState {
             scroll: 0,
             jump_input: String::new(),
             sort: IntelOverlaySort::Location,
+            sort_direction: default_intel_overlay_sort_direction(IntelOverlaySort::Location),
             filter: IntelOverlayFilter::All,
             prompt_mode: IntelOverlayPromptMode::None,
             prompt_input: String::new(),

@@ -10,8 +10,8 @@ use crate::screen::table::{
     resolve_table_columns_for_widget, write_stacked_table_window_with_states_at,
 };
 use crate::screen::{
-    COMMAND_LABEL, CommandMenu, PlayfieldBuffer, ScreenGeometry, format_sector_coords_default,
-    format_sector_coords_table,
+    COMMAND_LABEL, CommandMenu, PlayfieldBuffer, ScreenGeometry, SortDirection,
+    format_sector_coords_default, format_sector_coords_table,
 };
 use crate::theme::classic;
 
@@ -99,6 +99,37 @@ const DATABASE_TOP_HEADER_CELLS: [&str; 11] = [
     "Coord", "", "", "Max", "Year", "", "", "", "Curr", "Stored", "Year",
 ];
 
+fn database_title(
+    sort: PlanetDatabaseSort,
+    direction: SortDirection,
+    filter: PlanetDatabaseFilter,
+) -> String {
+    let key = match sort {
+        PlanetDatabaseSort::Location => "LOC",
+        PlanetDatabaseSort::Range(_) => "RNG",
+        PlanetDatabaseSort::Empire => "EMP",
+        PlanetDatabaseSort::MaxProduction => "MAX",
+    };
+    format!(
+        "TOTAL PLANET DATABASE: {key} {} {}",
+        direction.label(),
+        filter_label(filter)
+    )
+}
+
+fn sort_footer_label(direction: SortDirection) -> String {
+    format!("SORT {}", direction.label())
+}
+
+fn filter_label(filter: PlanetDatabaseFilter) -> &'static str {
+    match filter {
+        PlanetDatabaseFilter::All => "ALL",
+        PlanetDatabaseFilter::Range { .. } => "RNG",
+        PlanetDatabaseFilter::Empire(_) => "EMP",
+        PlanetDatabaseFilter::MaxProduction(_) => "MAX",
+    }
+}
+
 impl PlanetDatabaseScreen {
     pub fn new() -> Self {
         Self
@@ -108,6 +139,9 @@ impl PlanetDatabaseScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[PlanetDatabaseRow],
+        sort: PlanetDatabaseSort,
+        direction: SortDirection,
+        filter: PlanetDatabaseFilter,
         scroll_offset: usize,
         cursor: usize,
         _default_coords: [u8; 2],
@@ -117,6 +151,7 @@ impl PlanetDatabaseScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield_for(geometry);
         let visible_rows = stacked_table_visible_rows_for(geometry, 1);
+        let title = database_title(sort, direction, filter);
 
         let table_rows = database_table_rows(rows);
         let displayed_rows = table_rows
@@ -146,26 +181,21 @@ impl PlanetDatabaseScreen {
             buffer.width(),
             scrollable,
             TableWidthMode::Compact,
-            Some("TOTAL PLANET DATABASE:"),
+            Some(&title),
             Some(footer),
         );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            Some("TOTAL PLANET DATABASE:"),
+            Some(&title),
             Some(footer),
             scrollable,
             HorizontalAlign::Center,
             VerticalAlign::Top,
         );
         let _ = layout.title_row;
-        draw_table_title(
-            &mut buffer,
-            layout.table_row,
-            layout.table_col,
-            "TOTAL PLANET DATABASE:",
-        );
+        draw_table_title(&mut buffer, layout.table_row, layout.table_col, &title);
         let selected = if table_rows.is_empty() {
             None
         } else {
@@ -201,6 +231,9 @@ impl PlanetDatabaseScreen {
         &mut self,
         geometry: ScreenGeometry,
         rows: &[PlanetDatabaseRow],
+        sort: PlanetDatabaseSort,
+        direction: SortDirection,
+        filter: PlanetDatabaseFilter,
         scroll_offset: usize,
         cursor: usize,
         prompt_mode: PlanetDatabasePromptMode,
@@ -212,6 +245,9 @@ impl PlanetDatabaseScreen {
         let mut buffer = self.render_list(
             geometry,
             rows,
+            sort,
+            direction,
+            filter,
             scroll_offset,
             cursor,
             [0, 0],
@@ -226,6 +262,8 @@ impl PlanetDatabaseScreen {
             .saturating_sub(scroll_offset)
             .min(visible_rows);
         let scrollable = table_rows.len() > visible_rows;
+        let title = database_title(sort, direction, filter);
+        let footer_label = sort_footer_label(direction);
         let footer = match prompt_mode {
             PlanetDatabasePromptMode::FilterMenu => TableFooter::LabeledCommandBar {
                 label: "FILTER",
@@ -258,7 +296,7 @@ impl PlanetDatabaseScreen {
                 input,
             },
             PlanetDatabasePromptMode::SortMenu => TableFooter::LabeledCommandBar {
-                label: "SORT",
+                label: &footer_label,
                 hotkeys_markup: DATABASE_SORT_HOTKEYS,
                 default: None,
                 input: "",
@@ -276,14 +314,14 @@ impl PlanetDatabaseScreen {
             buffer.width(),
             scrollable,
             TableWidthMode::Compact,
-            Some("TOTAL PLANET DATABASE:"),
+            Some(&title),
             Some(footer),
         );
         let layout = layout_stacked_table_block(
             LayoutRect::new(0, 0, buffer.width(), buffer.height()),
             &columns,
             displayed_rows,
-            Some("TOTAL PLANET DATABASE:"),
+            Some(&title),
             Some(footer),
             scrollable,
             HorizontalAlign::Center,

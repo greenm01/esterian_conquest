@@ -1,5 +1,7 @@
 //! F overlay: dashboard-sized fleet and starbase command table.
 
+use std::cmp::Ordering;
+
 use nc_engine::{FLEET_MISSION_OPTIONS, fleet_list_eta_label, starbase_eta_label};
 use nc_ui::PlayfieldBuffer;
 use nc_ui::coords::format_sector_coords_table;
@@ -12,7 +14,7 @@ use nc_ui::table_selection;
 
 use crate::app::state::{
     ActiveOverlay, DashApp, FleetOverlayFilter, FleetOverlayPromptMode, FleetOverlayRowKey,
-    FleetOverlaySort,
+    FleetOverlaySort, SortDirection,
 };
 use crate::layout::MapWidgetFrame;
 use crate::overlays::frame::{
@@ -102,6 +104,8 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let rows = table_rows(app);
     let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
+    let title = overlay_title(app);
+    let sort_footer_label = sort_footer_label(app);
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -115,7 +119,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
             input: "",
         },
         FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
             default: None,
             input: "",
@@ -146,7 +150,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let frame = draw_overlay_frame_for_body_in_map_with_origin(
         buf,
         map_frame,
-        "FLEET LIST",
+        &title,
         body_width,
         standard_table_body_height(natural_visible_rows),
         footer,
@@ -155,7 +159,7 @@ pub fn draw(buf: &mut PlayfieldBuffer, app: &DashApp, map_frame: MapWidgetFrame)
     let visible_rows = frame.body_height.saturating_sub(4);
     assert_overlay_body_write_fits(
         frame,
-        "FLEET LIST",
+        &title,
         table_render_width(&columns),
         standard_table_body_height(visible_rows),
     );
@@ -204,6 +208,8 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
     let rows = table_rows(app);
     let selected = app.fleet_overlay.selected.min(rows.len().saturating_sub(1));
     let selected_default = rows.get(selected).map(|row| row.id_label.as_str());
+    let title = overlay_title(app);
+    let sort_footer_label = sort_footer_label(app);
     let footer = match app.fleet_overlay.prompt_mode {
         FleetOverlayPromptMode::None => TableFooter::CommandBar {
             hotkeys_markup: HOTKEYS,
@@ -217,7 +223,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
             input: "",
         },
         FleetOverlayPromptMode::SortMenu => TableFooter::LabeledCommandBar {
-            label: "SORT",
+            label: &sort_footer_label,
             hotkeys_markup: SORT_HOTKEYS,
             default: None,
             input: "",
@@ -246,7 +252,7 @@ pub(crate) fn popup_rect(app: &DashApp, map_frame: MapWidgetFrame) -> Option<Rec
         .max("You have no active fleets or starbases.".chars().count() + 4);
     Some(overlay_popup_rect_for_body_in_map(
         map_frame,
-        "FLEET LIST",
+        &title,
         body_width,
         standard_table_body_height(natural_visible_rows),
         OverlaySizePolicy::default(),
@@ -807,21 +813,30 @@ pub(crate) fn table_rows(app: &DashApp) -> Vec<FleetOverlayRow> {
     });
 
     rows.sort_by(|left, right| match app.fleet_overlay.sort {
-        FleetOverlaySort::Id => right.id_label.cmp(&left.id_label),
-        FleetOverlaySort::Location => left
-            .coords
-            .cmp(&right.coords)
-            .then_with(|| right.id_label.cmp(&left.id_label)),
-        FleetOverlaySort::Order => left.cells[3]
-            .cmp(&right.cells[3])
-            .then_with(|| right.id_label.cmp(&left.id_label)),
-        FleetOverlaySort::Eta => eta_sort_key(&left.eta_label)
-            .cmp(&eta_sort_key(&right.eta_label))
-            .then_with(|| right.id_label.cmp(&left.id_label)),
-        FleetOverlaySort::Strength => right
-            .strength_key
-            .cmp(&left.strength_key)
-            .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Id => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.id_label.cmp(&right.id_label),
+        ),
+        FleetOverlaySort::Location => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.coords.cmp(&right.coords),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Order => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.cells[3].cmp(&right.cells[3]),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Eta => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            eta_sort_key(&left.eta_label).cmp(&eta_sort_key(&right.eta_label)),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
+        FleetOverlaySort::Strength => apply_sort_direction(
+            app.fleet_overlay.sort_direction,
+            left.strength_key.cmp(&right.strength_key),
+        )
+        .then_with(|| right.id_label.cmp(&left.id_label)),
     });
 
     rows
@@ -890,10 +905,51 @@ fn fleet_strength_key(fleet: &nc_data::FleetRecord) -> (u16, u16, u16, u16, u8, 
     )
 }
 
+fn overlay_title(app: &DashApp) -> String {
+    format!(
+        "FLEET LIST: {} {} {}",
+        sort_key_label(app.fleet_overlay.sort),
+        app.fleet_overlay.sort_direction.label(),
+        filter_label(app.fleet_overlay.filter)
+    )
+}
+
+fn sort_footer_label(app: &DashApp) -> String {
+    format!("SORT {}", app.fleet_overlay.sort_direction.label())
+}
+
+fn sort_key_label(sort: FleetOverlaySort) -> &'static str {
+    match sort {
+        FleetOverlaySort::Id => "ID",
+        FleetOverlaySort::Location => "LOC",
+        FleetOverlaySort::Order => "ORD",
+        FleetOverlaySort::Eta => "ETA",
+        FleetOverlaySort::Strength => "STR",
+    }
+}
+
+fn filter_label(filter: crate::app::state::FleetOverlayFilter) -> &'static str {
+    match filter {
+        crate::app::state::FleetOverlayFilter::All => "ALL",
+        crate::app::state::FleetOverlayFilter::Holding => "HOLD",
+        crate::app::state::FleetOverlayFilter::Moving => "MOVE",
+        crate::app::state::FleetOverlayFilter::Combat => "COMBAT",
+    }
+}
+
+fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Ordering {
+    match direction {
+        SortDirection::Asc => ordering,
+        SortDirection::Desc => ordering.reverse(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{HOTKEYS, draw, table_rows};
-    use crate::app::state::{ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode};
+    use super::{HOTKEYS, draw, overlay_title, sort_footer_label, table_rows};
+    use crate::app::state::{
+        ActiveOverlay, DashApp, FleetOrderScope, FleetOverlayPromptMode, SortDirection,
+    };
     use crate::layout::dashboard_layout;
     use nc_data::{GameStateBuilder, Order};
     use nc_ui::{PlayfieldBuffer, ScreenGeometry};
@@ -1041,6 +1097,15 @@ mod tests {
     #[test]
     fn fleet_browse_hotkeys_match_supported_commands() {
         assert_eq!(HOTKEYS, "? F S O SPACE <Q>");
+    }
+
+    #[test]
+    fn fleet_titles_and_sort_footer_show_direction() {
+        let mut app = dash_app();
+        app.fleet_overlay.sort_direction = SortDirection::Asc;
+
+        assert_eq!(overlay_title(&app), "FLEET LIST: ID ASC ALL");
+        assert_eq!(sort_footer_label(&app), "SORT ASC");
     }
 
     #[test]

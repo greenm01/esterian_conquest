@@ -1680,8 +1680,8 @@ fn planet_database_filter_and_sort_prompts_render_distinct_command_lines() {
     terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(
-        line_containing(&terminal, "SORT <- ? L R E M <Q> ->").trim(),
-        "SORT <- ? L R E M <Q> ->"
+        line_containing(&terminal, "SORT ASC <- ? L R E M <Q> ->").trim(),
+        "SORT ASC <- ? L R E M <Q> ->"
     );
 }
 

@@ -9,11 +9,11 @@ use crate::domains::fleet::state::{FleetChangeField, FleetCommandContext, FleetM
 use crate::screen::layout::PromptFeedback;
 use crate::screen::{
     CommandMenu, FleetEtaMode, FleetListFilter, FleetListSort, FleetRow, PlanetTransportMode,
-    ScreenId,
+    ScreenId, SortDirection,
 };
 use nc_data::{FleetRecord, Order};
 use nc_engine::{FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line};
-use std::cmp::Reverse;
+use std::cmp::{Ordering, Reverse};
 
 fn fleet_strength_key(fleet: &FleetRecord) -> (u16, u16, u16, u16, u8, u16, Reverse<u16>) {
     (
@@ -84,6 +84,23 @@ fn fleet_eta_sort_key(label: &str) -> (u8, u16) {
             .parse::<u16>()
             .map(|value| (0, value))
             .unwrap_or((2, 0)),
+    }
+}
+
+const fn default_fleet_list_sort_direction(sort: FleetListSort) -> SortDirection {
+    match sort {
+        FleetListSort::Id => SortDirection::Desc,
+        FleetListSort::Location => SortDirection::Asc,
+        FleetListSort::Order => SortDirection::Asc,
+        FleetListSort::Eta => SortDirection::Asc,
+        FleetListSort::Strength => SortDirection::Desc,
+    }
+}
+
+fn apply_sort_direction(direction: SortDirection, ordering: Ordering) -> Ordering {
+    match direction {
+        SortDirection::Asc => ordering,
+        SortDirection::Desc => ordering.reverse(),
     }
 }
 
@@ -554,7 +571,12 @@ impl App {
             .fleet_list_rows()
             .get(self.fleet.cursor)
             .map(|row| row.fleet_record_index_1_based);
-        self.fleet.list_sort = sort;
+        if self.fleet.list_sort == sort {
+            self.fleet.list_sort_direction = self.fleet.list_sort_direction.toggle();
+        } else {
+            self.fleet.list_sort = sort;
+            self.fleet.list_sort_direction = default_fleet_list_sort_direction(sort);
+        }
         self.current_screen = ScreenId::FleetList;
         let rows = self.fleet_list_rows();
         if rows.is_empty() {
@@ -1042,33 +1064,43 @@ impl App {
         let mut rows = self.fleet_rows();
         rows.retain(|row| fleet_matches_filter(row, self.fleet.list_filter));
         rows.sort_by(|left, right| match self.fleet.list_sort {
-            FleetListSort::Id => right.fleet_number.cmp(&left.fleet_number),
-            FleetListSort::Location => left
-                .coords
-                .cmp(&right.coords)
-                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
-            FleetListSort::Order => left
-                .order_code
-                .cmp(&right.order_code)
-                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
-            FleetListSort::Eta => fleet_eta_sort_key(&left.list_eta_label)
-                .cmp(&fleet_eta_sort_key(&right.list_eta_label))
-                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
-            FleetListSort::Strength => self
-                .game_data
-                .fleets
-                .records
-                .get(right.fleet_record_index_1_based.saturating_sub(1))
-                .map(fleet_strength_key)
-                .cmp(
-                    &self
-                        .game_data
-                        .fleets
-                        .records
-                        .get(left.fleet_record_index_1_based.saturating_sub(1))
-                        .map(fleet_strength_key),
-                )
-                .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Id => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.fleet_number.cmp(&right.fleet_number),
+            ),
+            FleetListSort::Location => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.coords.cmp(&right.coords),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Order => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                left.order_code.cmp(&right.order_code),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Eta => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                fleet_eta_sort_key(&left.list_eta_label)
+                    .cmp(&fleet_eta_sort_key(&right.list_eta_label)),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
+            FleetListSort::Strength => apply_sort_direction(
+                self.fleet.list_sort_direction,
+                self.game_data
+                    .fleets
+                    .records
+                    .get(left.fleet_record_index_1_based.saturating_sub(1))
+                    .map(fleet_strength_key)
+                    .cmp(
+                        &self
+                            .game_data
+                            .fleets
+                            .records
+                            .get(right.fleet_record_index_1_based.saturating_sub(1))
+                            .map(fleet_strength_key),
+                    ),
+            )
+            .then_with(|| right.fleet_number.cmp(&left.fleet_number)),
         });
         rows
     }

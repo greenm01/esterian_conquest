@@ -392,6 +392,9 @@ fn planet_database_screen_uses_stacked_header_table() {
         .render_list(
             ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
             0,
             0,
             [12, 34],
@@ -453,6 +456,9 @@ fn planet_database_filter_prompt_aligns_with_centered_table() {
         .render_filter_prompt(
             ScreenGeometry::local_default(),
             &rows,
+            nc_game::screen::PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
             0,
             0,
             nc_game::screen::PlanetDatabasePromptMode::FilterMenu,
@@ -506,6 +512,9 @@ fn planet_database_24_row_door_keeps_bottom_border_above_command_line() {
         .render_list(
             ScreenGeometry::for_door(Some(24)),
             &rows,
+            nc_game::screen::PlanetDatabaseSort::Location,
+            nc_game::screen::SortDirection::Asc,
+            nc_game::screen::PlanetDatabaseFilter::All,
             0,
             0,
             [0, 0],
@@ -564,6 +573,8 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
             nc_game::screen::PlanetListMode::Brief,
             &rows,
             PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::PlanetListFilter::All,
             0,
             0,
             "",
@@ -580,7 +591,7 @@ fn planet_brief_list_uses_database_style_stacked_header_and_owned_planet_columns
 
     let title_col = buffer
         .plain_line(0)
-        .find("PLANET COMMAND:")
+        .find("PLANET LIST: CURR DESC ALL")
         .expect("title col");
     let border_col = buffer.plain_line(1).find('┌').expect("table col");
     assert_eq!(title_col, border_col + 1);
@@ -660,6 +671,8 @@ fn planet_brief_list_shows_zero_build_queue_when_no_orders_are_queued() {
             nc_game::screen::PlanetListMode::Brief,
             &rows,
             PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::PlanetListFilter::All,
             0,
             0,
             "",
@@ -718,6 +731,8 @@ fn planet_brief_list_keeps_table_width_stable_across_footer_modes() {
             nc_game::screen::PlanetListMode::Brief,
             &rows,
             PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::PlanetListFilter::All,
             0,
             0,
             "",
@@ -737,6 +752,8 @@ fn planet_brief_list_keeps_table_width_stable_across_footer_modes() {
             nc_game::screen::PlanetListMode::Brief,
             &rows,
             PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::PlanetListFilter::All,
             0,
             0,
             "",
@@ -756,6 +773,8 @@ fn planet_brief_list_keeps_table_width_stable_across_footer_modes() {
             nc_game::screen::PlanetListMode::Brief,
             &rows,
             PlanetListSort::CurrentProduction,
+            nc_game::screen::SortDirection::Desc,
+            nc_game::screen::PlanetListFilter::All,
             0,
             0,
             "",

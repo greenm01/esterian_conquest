@@ -2,8 +2,8 @@ use crate::domains::fleet::screens::fleet::{
     FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetListFilter, FleetListSort,
     FleetSingleOrderMode, FleetTransferMode,
 };
-use crate::screen::PlanetTransportMode;
 use crate::screen::layout::PromptFeedback;
+use crate::screen::{PlanetTransportMode, SortDirection};
 use nc_data::FleetDetachSelection;
 use std::collections::BTreeSet;
 
@@ -52,6 +52,7 @@ pub struct FleetState {
     pub list_status: Option<String>,
     pub list_dismiss_message: Option<String>,
     pub list_sort: FleetListSort,
+    pub list_sort_direction: SortDirection,
     pub list_filter: FleetListFilter,
     pub menu_prompt_mode: Option<FleetMenuPromptMode>,
     pub menu_prompt_input: String,
@@ -117,6 +118,7 @@ impl Default for FleetState {
             list_status: None,
             list_dismiss_message: None,
             list_sort: FleetListSort::Id,
+            list_sort_direction: SortDirection::Desc,
             list_filter: FleetListFilter::All,
             menu_prompt_mode: None,
             menu_prompt_input: String::new(),
