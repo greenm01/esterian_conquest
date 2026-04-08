@@ -2621,6 +2621,59 @@ fn detach_ships_requires_valid_post_split_donor_speed() {
 }
 
 #[test]
+fn detach_ships_invalidated_donor_colonize_order_falls_back_to_local_hold() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_current_location_coords_raw([24, 14]);
+    donor.set_standing_order_kind(Order::ColonizeWorld);
+    donor.set_standing_order_target_coords_raw([25, 12]);
+    donor.set_mission_aux_bytes([7, 9]);
+    donor.set_cruiser_count(1);
+    donor.set_etac_count(1);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(3);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat {
+            records: vec![donor],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.detach_ships_to_new_fleet(
+        1,
+        1,
+        FleetDetachSelection {
+            etacs: 1,
+            ..FleetDetachSelection::default()
+        },
+        None,
+        6,
+    )
+    .unwrap();
+
+    let donor = &data.fleets.records[0];
+    assert_eq!(donor.etac_count(), 0);
+    assert_eq!(donor.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(donor.current_speed(), 0);
+    assert_eq!(donor.standing_order_target_coords_raw(), [24, 14]);
+    assert_eq!(donor.mission_aux_bytes(), [0, 0]);
+}
+
+#[test]
 fn transfer_ships_between_fleets_moves_counts_and_preserves_both_fleets() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);
@@ -2690,6 +2743,65 @@ fn transfer_ships_between_fleets_moves_counts_and_preserves_both_fleets() {
 }
 
 #[test]
+fn transfer_ships_invalidated_donor_scout_order_falls_back_to_local_hold() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_current_location_coords_raw([24, 14]);
+    donor.set_standing_order_kind(Order::ScoutSector);
+    donor.set_standing_order_target_coords_raw([25, 12]);
+    donor.set_scout_count(1);
+    donor.set_destroyer_count(1);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(6);
+
+    let mut host = FleetRecord::new_zeroed();
+    host.set_owner_empire_raw(1);
+    host.set_local_slot_word_raw(2);
+    host.set_fleet_id_word_raw(2);
+    host.set_current_location_coords_raw([24, 14]);
+    host.set_cruiser_count(1);
+    host.recompute_max_speed_from_composition();
+    host.set_current_speed(5);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat {
+            records: vec![donor, host],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.transfer_ships_between_fleets(
+        1,
+        1,
+        2,
+        FleetDetachSelection {
+            scouts: 1,
+            ..FleetDetachSelection::default()
+        },
+    )
+    .unwrap();
+
+    let donor = &data.fleets.records[0];
+    assert_eq!(donor.scout_count(), 0);
+    assert_eq!(donor.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(donor.current_speed(), 0);
+    assert_eq!(donor.standing_order_target_coords_raw(), [24, 14]);
+}
+
+#[test]
 fn transfer_ships_clamps_support_only_resulting_fleet_to_roe_zero() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);
@@ -2745,4 +2857,52 @@ fn transfer_ships_clamps_support_only_resulting_fleet_to_roe_zero() {
     assert_eq!(data.fleets.records[0].rules_of_engagement(), 0);
     assert_eq!(data.fleets.records[1].destroyer_count(), 2);
     assert_eq!(data.fleets.records[1].rules_of_engagement(), 6);
+}
+
+#[test]
+fn unload_armies_invalidated_invade_order_falls_back_to_local_hold() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([24, 14]);
+    planet.set_army_count_raw(0);
+
+    let mut fleet = FleetRecord::new_zeroed();
+    fleet.set_owner_empire_raw(1);
+    fleet.set_local_slot_word_raw(1);
+    fleet.set_fleet_id_word_raw(1);
+    fleet.set_current_location_coords_raw([24, 14]);
+    fleet.set_standing_order_kind(Order::InvadeWorld);
+    fleet.set_standing_order_target_coords_raw([25, 12]);
+    fleet.set_destroyer_count(1);
+    fleet.set_troop_transport_count(1);
+    fleet.set_army_count(1);
+    fleet.recompute_max_speed_from_composition();
+    fleet.set_current_speed(5);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat {
+            records: vec![fleet],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.unload_fleet_armies_to_planet(1, 1, 1, 1).unwrap();
+
+    let fleet = &data.fleets.records[0];
+    assert_eq!(fleet.army_count(), 0);
+    assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(fleet.current_speed(), 0);
+    assert_eq!(fleet.standing_order_target_coords_raw(), [24, 14]);
 }

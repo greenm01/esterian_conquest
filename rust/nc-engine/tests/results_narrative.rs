@@ -2,7 +2,8 @@ use nc_data::{
     BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent, GameStateBuilder,
     MaintenanceEvents, Mission, PlanetRecord, ScoutContactEvent, ShipLosses,
 };
-use nc_engine::{build_results_report_blocks, maint::FleetBattlePerspective};
+use nc_engine::{build_results_report_blocks, maint::FleetBattlePerspective, run_maintenance_turn};
+use std::path::Path;
 
 fn viewer_report_texts(viewer_empire_id: u8, rows: &[nc_data::ReportBlockRow]) -> Vec<String> {
     rows.iter()
@@ -19,6 +20,15 @@ fn seed_target_world(game_data: &mut nc_data::CoreGameData, coords: [u8; 2], nam
     planet.set_ownership_status_raw(2);
     planet.set_potential_production_raw(100u16.to_le_bytes());
     game_data.planets.records[0] = planet;
+}
+
+fn load_fixture(name: &str) -> nc_data::CoreGameData {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures")
+        .join(name)
+        .join("v1.5");
+    nc_data::CoreGameData::load(&dir)
+        .unwrap_or_else(|e| panic!("Failed to load fixture {name}: {e}"))
 }
 
 #[test]
@@ -233,4 +243,20 @@ fn results_reports_named_hostile_fleet_with_empire_local_slot() {
             .any(|text| text.contains("2nd Fleet") && !text.contains("5th Fleet")),
         "hostile fleet references should use empire-local fleet numbers: {texts:?}"
     );
+}
+
+#[test]
+fn results_report_invalid_capability_loss_as_aborted_seek_home_mission() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    game_data.fleets.records[0].set_etac_count(0);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+    let rows = build_results_report_blocks(&mut game_data, &events);
+    let texts = viewer_report_texts(1, &rows);
+
+    assert!(texts.iter().any(|text| {
+        text.contains("Maintenance aborted this fleet's colonize world mission because")
+            && text.contains("lacks the required ETAC")
+            && text.contains("seeking safety")
+    }));
 }

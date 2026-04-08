@@ -61,10 +61,61 @@ pub(super) fn fleet_is_support_only(record: &FleetRecord) -> bool {
     !fleet_has_combat_ships(record) && total_starships(record) > 0
 }
 
+pub(super) fn composition_invalidates_current_mission(
+    record: &FleetRecord,
+) -> Option<FleetOrderValidationError> {
+    match record.standing_order_kind() {
+        Order::GuardStarbase | Order::GuardBlockadeWorld | Order::BombardWorld
+            if !fleet_has_combat_ships(record) =>
+        {
+            Some(FleetOrderValidationError::MissingCombatShips)
+        }
+        Order::InvadeWorld if !fleet_has_combat_ships(record) => {
+            Some(FleetOrderValidationError::MissingCombatShips)
+        }
+        Order::InvadeWorld if record.troop_transport_count() == 0 || record.army_count() == 0 => {
+            Some(FleetOrderValidationError::MissingLoadedTroopTransports)
+        }
+        Order::BlitzWorld if record.troop_transport_count() == 0 || record.army_count() == 0 => {
+            Some(FleetOrderValidationError::MissingLoadedTroopTransports)
+        }
+        Order::ScoutSector | Order::ScoutSolarSystem if record.scout_count() == 0 => {
+            Some(FleetOrderValidationError::MissingScoutShip)
+        }
+        Order::ColonizeWorld if record.etac_count() == 0 => {
+            Some(FleetOrderValidationError::MissingEtac)
+        }
+        _ => None,
+    }
+}
+
+pub(super) fn set_fleet_to_local_hold(record: &mut FleetRecord) {
+    let coords = record.current_location_coords_raw();
+    record.set_current_speed(0);
+    record.set_standing_order_kind(Order::HoldPosition);
+    record.set_standing_order_target_coords_raw(coords);
+    record.set_join_host_fleet_id_raw(0);
+    record.set_mission_aux_bytes([0, 0]);
+    reset_motion_state_for_new_orders(record);
+    normalize_fleet_roe_for_composition(record);
+}
+
 pub(super) fn normalize_fleet_roe_for_composition(record: &mut FleetRecord) {
     if fleet_is_support_only(record) {
         record.set_rules_of_engagement(0);
     }
+}
+
+pub(super) fn normalize_post_composition_fleet_state(
+    record: &mut FleetRecord,
+) -> Option<FleetOrderValidationError> {
+    let invalidated = composition_invalidates_current_mission(record);
+    if invalidated.is_some() {
+        set_fleet_to_local_hold(record);
+    } else {
+        normalize_fleet_roe_for_composition(record);
+    }
+    invalidated
 }
 
 pub(super) fn rebuild_owner_fleet_chain(

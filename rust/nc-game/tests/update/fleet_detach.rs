@@ -395,6 +395,58 @@ fn fleet_detach_final_commission_returns_to_menu_with_new_fleet_number_notice() 
 }
 
 #[test]
+fn fleet_detach_invalidated_colonize_donor_resets_to_hold() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let donor = &mut game_data.fleets.records[0];
+    donor.set_battleship_count(0);
+    donor.set_cruiser_count(1);
+    donor.set_destroyer_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.set_etac_count(1);
+    donor.set_current_location_coords_raw([8, 9]);
+    donor.set_standing_order_kind(nc_data::Order::ColonizeWorld);
+    donor.set_standing_order_target_coords_raw([15, 13]);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(3);
+    game_data.save(&fixture_dir).expect("save fixture");
+    let store = CampaignStore::open_default_in_dir(&fixture_dir).expect("open campaign store");
+    import_directory_snapshot(&store, &fixture_dir).expect("refresh sqlite snapshot");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        session_timeout_secs: None,
+        game_config: Default::default(),
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    open_detach_from_fleet_menu(&mut app, Some(1));
+
+    enter_detach_input(&mut app, "et");
+    submit_detach(&mut app);
+    submit_detach(&mut app);
+    enter_detach_input(&mut app, "c");
+    submit_detach(&mut app);
+
+    let updated = latest_runtime_state(&fixture_dir).game_data;
+    let donor = &updated.fleets.records[0];
+    assert_eq!(donor.etac_count(), 0);
+    assert_eq!(donor.cruiser_count(), 1);
+    assert_eq!(donor.standing_order_kind(), nc_data::Order::HoldPosition);
+    assert_eq!(donor.current_speed(), 0);
+    assert_eq!(donor.standing_order_target_coords_raw(), [8, 9]);
+}
+
+#[test]
 fn fleet_detach_prompt_reports_missing_fleet_number() {
     let fixture_dir = temp_game_copy();
     let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");

@@ -8,7 +8,7 @@ use crate::screen::{
 use nc_data::{CoreGameData, FleetDetachSelection, FleetRecord};
 use nc_engine::{
     fleet_eta_label as engine_fleet_eta_label, fleet_list_eta_label as engine_fleet_list_eta_label,
-    fleet_target_eta_message,
+    fleet_record_supports_mission_code, fleet_target_eta_message,
 };
 
 impl App {
@@ -938,6 +938,10 @@ impl App {
             return false;
         };
         donor_after.recompute_max_speed_from_composition();
+        if !fleet_record_supports_mission_code(&donor_after, donor_after.standing_order_code_raw())
+        {
+            return false;
+        }
         donor_after.max_speed() > 0 && fleet.current_speed() > donor_after.max_speed()
     }
 

@@ -13,6 +13,15 @@ fn load_fixture(name: &str) -> CoreGameData {
 #[test]
 fn invalid_bombard_order_is_canceled_before_execution() {
     let mut game_data = load_fixture("ecmaint-post");
+    let owner_empire_raw = game_data.fleets.records[0].owner_empire_raw();
+    for planet in &mut game_data.planets.records {
+        planet.set_owner_empire_slot_raw(0);
+        planet.set_ownership_status_raw(0);
+    }
+    let homeworld = &mut game_data.planets.records[0];
+    homeworld.set_owner_empire_slot_raw(owner_empire_raw);
+    homeworld.set_ownership_status_raw(2);
+    homeworld.set_coords_raw([10, 10]);
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw([15, 13]);
     fleet.set_standing_order_kind(Order::BombardWorld);
@@ -41,8 +50,9 @@ fn invalid_bombard_order_is_canceled_before_execution() {
         )
     }));
     let fleet = &game_data.fleets.records[0];
-    assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
-    assert_eq!(fleet.current_speed(), 0);
+    assert_eq!(fleet.standing_order_kind(), Order::SeekHome);
+    assert!(fleet.current_speed() > 0);
+    assert_eq!(fleet.standing_order_target_coords_raw(), [10, 10]);
 }
 
 #[test]
@@ -66,8 +76,9 @@ fn invalid_colonize_order_without_etac_is_canceled() {
     }));
     assert_eq!(
         game_data.fleets.records[0].standing_order_kind(),
-        Order::HoldPosition
+        Order::SeekHome
     );
+    assert!(game_data.fleets.records[0].current_speed() > 0);
 }
 
 #[test]

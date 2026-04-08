@@ -3,7 +3,7 @@ use nc_data::fleet_motion_state::clear_exact_position;
 
 use super::state::TaskForce;
 
-pub(super) fn nearest_owned_planet(
+pub(crate) fn nearest_owned_planet(
     game_data: &CoreGameData,
     empire: u8,
     from: [u8; 2],
@@ -37,7 +37,22 @@ fn apply_retreat_order(fleet: &mut nc_data::FleetRecord, retreat_target: [u8; 2]
     fleet.set_current_speed(fleet.max_speed().clamp(1, 3));
     fleet.set_extended_tuple_a_payload_raw([0x7f, 0xc0, 0x00, 0xff, 0xff, 0x7f]);
     fleet.set_extended_tuple_c_payload_raw([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    fleet.set_join_host_fleet_id_raw(0);
+    fleet.set_mission_aux_bytes([0, 0]);
     fleet.set_rules_of_engagement(0);
+}
+
+pub(crate) fn abort_mission_to_seek_home_or_hold(
+    fleet: &mut nc_data::FleetRecord,
+    retreat_target: Option<[u8; 2]>,
+) {
+    if let Some(retreat_target) = retreat_target {
+        apply_retreat_order(fleet, retreat_target);
+    } else {
+        set_fleet_to_hold_current_position(fleet);
+        fleet.set_join_host_fleet_id_raw(0);
+        fleet.set_mission_aux_bytes([0, 0]);
+    }
 }
 
 pub(super) fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {

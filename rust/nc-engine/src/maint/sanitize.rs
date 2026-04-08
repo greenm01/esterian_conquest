@@ -4,6 +4,16 @@ use crate::{
     PlayerDiplomacyValidationError, ProductionItemKind,
 };
 
+fn capability_loss_requires_abort_and_seek_home(reason: FleetOrderValidationError) -> bool {
+    matches!(
+        reason,
+        FleetOrderValidationError::MissingCombatShips
+            | FleetOrderValidationError::MissingScoutShip
+            | FleetOrderValidationError::MissingEtac
+            | FleetOrderValidationError::MissingLoadedTroopTransports
+    )
+}
+
 pub(super) fn sanitize_invalid_player_inputs(
     game_data: &mut CoreGameData,
 ) -> Vec<InvalidPlayerStateEvent> {
@@ -41,12 +51,28 @@ pub(super) fn sanitize_invalid_player_inputs(
                         if !should_sanitize {
                             break;
                         }
+                        let retreat_target = capability_loss_requires_abort_and_seek_home(reason)
+                            .then(|| {
+                                super::combat::nearest_owned_planet(
+                                    game_data,
+                                    owner_empire_raw,
+                                    coords,
+                                )
+                            })
+                            .flatten();
                         let fleet = &mut game_data.fleets.records[fleet_idx];
-                        fleet.set_standing_order_kind(Order::HoldPosition);
-                        fleet.set_current_speed(0);
-                        fleet.set_standing_order_target_coords_raw(coords);
-                        fleet.set_join_host_fleet_id_raw(0);
-                        fleet.set_mission_aux_bytes([0, 0]);
+                        if capability_loss_requires_abort_and_seek_home(reason) {
+                            super::combat::abort_mission_to_seek_home_or_hold(
+                                fleet,
+                                retreat_target,
+                            );
+                        } else {
+                            fleet.set_standing_order_kind(Order::HoldPosition);
+                            fleet.set_current_speed(0);
+                            fleet.set_standing_order_target_coords_raw(coords);
+                            fleet.set_join_host_fleet_id_raw(0);
+                            fleet.set_mission_aux_bytes([0, 0]);
+                        }
                         events.push(InvalidPlayerStateEvent::FleetMission {
                             fleet_idx,
                             owner_empire_raw,

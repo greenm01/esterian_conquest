@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::maint::{timing::format_report_first_line, FleetBattlePerspective};
+use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
@@ -296,11 +296,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -829,6 +825,16 @@ fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> Stri
             "the selected starbase linkage is invalid".to_string()
         }
     }
+}
+
+fn capability_loss_invalid_order_reason(reason: FleetOrderValidationError) -> bool {
+    matches!(
+        reason,
+        FleetOrderValidationError::MissingCombatShips
+            | FleetOrderValidationError::MissingScoutShip
+            | FleetOrderValidationError::MissingEtac
+            | FleetOrderValidationError::MissingLoadedTroopTransports
+    )
 }
 
 fn fleet_player_input_validation_reason_text(reason: FleetPlayerInputValidationError) -> String {
@@ -2427,6 +2433,19 @@ fn generate_report_entries(
                 let order_name = nc_data::Order::from_raw(order_code_raw)
                     .display_label()
                     .to_lowercase();
+                let fleet = &game_data.fleets.records[fleet_idx];
+                let body = if capability_loss_invalid_order_reason(reason) {
+                    format!(
+                        " Maintenance aborted this fleet's {order_name} mission because {}. The fleet is {}.",
+                        fleet_order_validation_reason_text(reason),
+                        aborted_mission_follow_on_text(game_data, fleet, owner_empire_raw)
+                    )
+                } else {
+                    format!(
+                        " Maintenance canceled this fleet's {order_name} order because {}. The fleet is holding position and awaiting new orders.",
+                        fleet_order_validation_reason_text(reason)
+                    )
+                };
                 (
                     owner_empire_raw,
                     owned_fleet_source_clause_from_idx(
@@ -2434,10 +2453,7 @@ fn generate_report_entries(
                         fleet_idx,
                         &format!("Sector({},{})", coords[0], coords[1]),
                     ),
-                    format!(
-                        " Maintenance canceled this fleet's {order_name} order because {}. The fleet is holding position and awaiting new orders.",
-                        fleet_order_validation_reason_text(reason)
-                    ),
+                    body,
                 )
             }
             nc_data::InvalidPlayerStateEvent::FleetInput {

@@ -107,7 +107,11 @@ impl CoreGameData {
         donor_after.set_scout_count(donor_after.scout_count().saturating_sub(selection.scouts));
         donor_after.set_etac_count(donor_after.etac_count().saturating_sub(selection.etacs));
         donor_after.recompute_max_speed_from_composition();
-        if donor_after.max_speed() > 0 && donor.current_speed() > donor_after.max_speed() {
+        let donor_mission_invalidated = composition_invalidates_current_mission(&donor_after);
+        if donor_mission_invalidated.is_none()
+            && donor_after.max_speed() > 0
+            && donor.current_speed() > donor_after.max_speed()
+        {
             let requested = donor_speed.unwrap_or(donor_after.max_speed());
             if requested == 0 || requested > donor_after.max_speed() {
                 return Err(GameStateMutationError::InvalidFleetSpeed {
@@ -118,7 +122,11 @@ impl CoreGameData {
             }
             donor_after.set_current_speed(requested);
         }
-        normalize_fleet_roe_for_composition(&mut donor_after);
+        if donor_mission_invalidated.is_some() {
+            set_fleet_to_local_hold(&mut donor_after);
+        } else {
+            normalize_fleet_roe_for_composition(&mut donor_after);
+        }
 
         let mut new_fleet = FleetRecord::new_zeroed();
         new_fleet.set_owner_empire_raw(owner_empire);
@@ -334,7 +342,7 @@ impl CoreGameData {
         if host_after.current_speed() > host_after.max_speed() {
             host_after.set_current_speed(host_after.max_speed());
         }
-        normalize_fleet_roe_for_composition(&mut donor_after);
+        normalize_post_composition_fleet_state(&mut donor_after);
         normalize_fleet_roe_for_composition(&mut host_after);
 
         self.fleets.records[donor_fleet_record_index_1_based - 1] = donor_after;
@@ -492,6 +500,7 @@ impl CoreGameData {
 
         planet.set_army_count_raw(planet.army_count_raw().saturating_add(qty as u8));
         fleet.set_army_count(fleet.army_count().saturating_sub(qty));
+        normalize_post_composition_fleet_state(fleet);
         Ok(())
     }
 }

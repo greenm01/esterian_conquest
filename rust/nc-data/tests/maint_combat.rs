@@ -354,10 +354,8 @@ fn dominant_fleet_with_invalidated_invade_order_holds_and_skips_stale_assault() 
 
     let attacker = &game_data.fleets.records[0];
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
-    assert!(matches!(
-        attacker.standing_order_kind(),
-        Order::HoldPosition | Order::SeekHome
-    ));
+    assert_eq!(attacker.standing_order_kind(), Order::SeekHome);
+    assert!(attacker.current_speed() > 0);
 
     assert_eq!(game_data.planets.records[13].owner_empire_slot_raw(), 2);
     assert!(

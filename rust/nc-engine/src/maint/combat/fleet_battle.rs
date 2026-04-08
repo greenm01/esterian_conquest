@@ -8,22 +8,23 @@ use crate::{
 };
 
 use super::exchange::{
+    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_FLEET, RoundAction, RoundActionKind,
     apply_hits_to_fleet, fleet_state_changed, has_starbase_column_bonus, resolve_space_exchange,
-    resolve_withdrawal_exchange, rule_threshold_satisfied, RoundAction, RoundActionKind,
-    COMBAT_GUARDRAIL_MAX_ROUNDS, COMBAT_KIND_FLEET,
+    resolve_withdrawal_exchange, rule_threshold_satisfied,
 };
 use super::reporting::{
     loaded_armies_for_fleet_indices, mission_kind_for_order, preferred_reporting_fleet_index,
     push_contact_event_for_task_force, report_perspective_for_mission, single_named_fleet_number,
 };
 use super::retreat::{
-    apply_roe_retreat_to_task_force, clear_empty_withdrawn_fleets, dominant_empire_after_battle,
-    nearest_owned_planet, retreat_task_force, set_fleet_to_hold_current_position,
+    abort_mission_to_seek_home_or_hold, apply_roe_retreat_to_task_force,
+    clear_empty_withdrawn_fleets, dominant_empire_after_battle, nearest_owned_planet,
+    retreat_task_force,
 };
 use super::state::{
+    BattleRole, EncounterContext, FleetCombatState, IDX_SB, TaskForce,
     build_task_forces_at_location, has_anchored_guard_order, planet_idx_at_coords,
-    ship_counts_from_state, ship_losses_from_states, tf_has_any_units, BattleRole,
-    EncounterContext, FleetCombatState, TaskForce, IDX_SB,
+    ship_counts_from_state, ship_losses_from_states, tf_has_any_units,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -310,9 +311,10 @@ fn abort_invalid_dominant_missions_after_battle(
             }
 
             let owner_empire_raw = game_data.fleets.records[fleet_idx].owner_empire_raw();
+            let retreat_target = nearest_owned_planet(game_data, owner_empire_raw, coords);
             {
                 let fleet = &mut game_data.fleets.records[fleet_idx];
-                set_fleet_to_hold_current_position(fleet);
+                abort_mission_to_seek_home_or_hold(fleet, retreat_target);
             }
             events.mission_events.push(MissionEvent {
                 fleet_idx,

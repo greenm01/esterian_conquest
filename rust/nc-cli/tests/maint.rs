@@ -1150,7 +1150,7 @@ fn maint_rust_persists_sidecar_diplomacy_into_player_dat_for_large_games() {
 }
 
 #[test]
-fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
+fn maint_rust_invalidated_scout_mission_reports_abort_before_contact_loss() {
     let target = unique_temp_dir("nc-cli-maint-rust-lost-contact");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
@@ -1190,11 +1190,11 @@ fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("We lost all contact with the 1st Fleet"));
-    assert!(text.contains("Fleet Command Center"));
-    assert!(text.contains("flight recorder"));
-    assert!(text.contains("1 destroyer and 2 troop transport ships."));
-    assert!(!text.contains("carrying 0 armies"));
+    assert!(text.contains("Maintenance aborted this fleet's scout sector mission because"));
+    assert!(text.contains("lacks the required scout ship"));
+    assert!(text.contains("seeking safety"));
+    assert!(!text.contains("flight recorder"));
+    assert!(!text.contains("We lost all contact"));
     assert!(!text.contains("Scout mission report: We were attacked by"));
     assert!(!text.contains("Scout mission report: We successfully intercepted"));
 
@@ -2494,7 +2494,7 @@ fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Maintenance canceled this fleet's"));
+    assert!(text.contains("Maintenance aborted this fleet's"));
     assert!(text.contains("required combat ships"));
 
     cleanup_dir(&target);
@@ -2572,7 +2572,7 @@ fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state()
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let result_text = decode_chunked_report(&results);
-    assert!(result_text.contains("Maintenance canceled this fleet's"));
+    assert!(result_text.contains("Maintenance aborted this fleet's"));
     assert!(result_text.contains("Maintenance corrected invalid fleet input because"));
     assert!(result_text.contains("Maintenance cleared invalid player input because"));
     assert!(result_text.contains("Tax rate input 255%"));
@@ -2630,6 +2630,7 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
         let result_text = decode_chunked_report(&results);
         assert!(
             result_text.contains("Maintenance canceled this fleet's")
+                || result_text.contains("Maintenance aborted this fleet's")
                 || result_text.contains("Maintenance corrected invalid fleet input because"),
             "RESULTS.DAT decoded text was: {:?}",
             result_text
@@ -2690,6 +2691,7 @@ fn maint_rust_survives_multi_fixture_invalid_input_sweep() {
         let text = decode_chunked_report(&results);
         assert!(
             text.contains("Maintenance canceled this fleet's")
+                || text.contains("Maintenance aborted this fleet's")
                 || text.contains("Maintenance corrected invalid fleet input because")
                 || text.contains("foreign ministry"),
             "fixture {fixture} produced unexpected RESULTS.DAT text: {:?}",
