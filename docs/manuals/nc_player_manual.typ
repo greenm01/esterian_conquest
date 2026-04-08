@@ -327,8 +327,8 @@ Fleet missions fall into three categories. _One-shot_ missions cause the fleet t
     [07], [Invade world],          [Hostile],    [Combat + loaded transports],  [Invades when in orbit at tick start],
     [08], [Blitz world],           [Hostile],    [Loaded transports (combat recommended)], [Blitzes when in orbit at tick start],
     [09], [View],                  [One-shot],   [Any],                         [Scans from system edge, reverts to Hold],
-    [10], [Scout sector],          [One-shot],   [At least one scout],          [Reports and reverts to Hold],
-    [11], [Scout system],          [One-shot],   [At least one scout],          [Reports and reverts to Hold],
+    [10], [Scout sector],          [Persistent], [At least one scout],          [Reports each turn while on station],
+    [11], [Scout system],          [Persistent], [At least one scout],          [Reports each turn while on station],
     [12], [Colonize world],        [One-shot],   [At least one ETAC],           [Colonizes if unowned; ETAC survives for reuse],
     [13], [Join Fleet],            [Persistent], [Any],                         [Chases host until merge; abandons if host lost],
     [14], [Rendezvous],            [Persistent], [Any],                         [Waits at sector; lowest fleet ID becomes host],
@@ -519,8 +519,8 @@ A fleet always has exactly one standing order. If you issue a new order before m
     [07], [Invade],          [Hostile],    [Suppress batteries, bombard, then land armies. Requires loaded transports.],
     [08], [Blitz],           [Hostile],    [Drop armies immediately, dodging batteries. High army risk.],
     [09], [View],            [One-shot],   [Long-range scan of owner and production from system edge.],
-    [10], [Scout Sector],    [One-shot],   [Passive stealth surveillance of sector deep space (requires Scout).],
-    [11], [Scout System],    [One-shot],   [Active spy mission into a solar system (requires Scout).],
+    [10], [Scout Sector],    [Persistent], [Passive stealth surveillance of sector deep space (requires Scout).],
+    [11], [Scout System],    [Persistent], [Active spy mission into a solar system (requires Scout).],
     [12], [Colonize],        [One-shot],   [Terraform and claim unowned planet (requires ETAC). ETAC survives for reuse.],
     [13], [Join Fleet],      [Persistent], [Chase and merge with target fleet. Abandons if host is destroyed.],
     [14], [Rendezvous],      [Persistent], [Meet other fleets at sector. Lowest fleet ID becomes host.],
@@ -538,8 +538,6 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 *Mission 9: View a World.* A safe, long-range scan. The fleet approaches the edge of the target system, scans for owner and production data, and immediately backs off into deep space. It reverts to Hold Position after reporting.
 
-*Missions 10 and 11: Scout Sector / Scout System.* Both require at least one Scout ship, and a fleet consisting of a single Scout is the least likely to be detected. Scout Sector is a passive, stealthy patrol --- unlike Mission 3, the fleet will not engage enemies but instead relies on stealth to observe traffic without being seen. Scout System is an active spy run where the Scout penetrates the system to report on ground batteries, armies, current production, stardock contents, and orbiting fleets. Both revert to Hold Position after reporting. If you identify an *In Civil Disorder* fleet in a system that still belongs to that disorder state, the Total Planet Database marks that world's owner as `ICD` even before a full scout/view report is earned.
-
 *Mission 12: Colonize a World.* Requires at least one ETAC (Environmental Transformation And Colonization ship). If the planet is unowned, it is terraformed and claimed. The new colony starts with one garrison army, no stored production, and very low current production. It does not receive revenue or growth until later maintenance turns, and then develops faster under low taxes. The ETAC is not consumed --- it survives and can colonize additional planets. If the planet is already owned, the ETAC aborts, reports the owner's identity and production potential, writes that partial result into your Total Planet Database, and waits for new orders.
 
 *Mission 15: Salvage.* The fleet travels to the specified planet and scraps its ships for approximately *50%* of the original build cost, returned as stored production points on that planet. It reverts to Hold Position after scrapping.
@@ -553,6 +551,8 @@ A fleet always has exactly one standing order. If you issue a new order before m
 *Mission 4: Guard Starbase.* The fleet escorts a starbase and fights alongside it. Be aware that if your fleet has a high ROE, it may break formation to chase enemy fleets entering the system, leaving the starbase temporarily vulnerable.
 
 *Mission 5: Guard/Blockade a World.* A strategy of denial. The blockade stops enemy fleets from using the planet, intercepts ships launching from stardock, and paralyzes the enemy's ability to deploy forces from that world. It remains active until you assign a new mission.
+
+*Missions 10 and 11: Scout Sector / Scout System.* Both require at least one Scout ship, and a fleet consisting of a single Scout is the least likely to be detected. Scout Sector is a passive, stealthy patrol --- unlike Mission 3, the fleet will not engage enemies but instead relies on stealth to observe traffic without being seen. Scout System is an active spy run where the Scout penetrates the system to report on ground batteries, armies, current production, stardock contents, and orbiting fleets. Both are persistent missions: the fleet remains on station and generates a new report each maintenance turn for as long as it stays at its assigned sector. If you identify an *In Civil Disorder* fleet in a system that still belongs to that disorder state, the Total Planet Database marks that world's owner as `ICD` even before a full scout/view report is earned.
 
 *Missions 13 and 14: Fleet Coordination.* Mission 13 (Join Fleet) causes the fleet to chase a specific host fleet and merge with it when they meet. If the host is destroyed before they rendezvous, the joining fleet abandons the mission. Mission 14 (Rendezvous) sends multiple fleets to a sector where the fleet with the lowest Fleet ID becomes the host of the combined force. The rendezvous point remains active so additional fleets can keep merging there.
 

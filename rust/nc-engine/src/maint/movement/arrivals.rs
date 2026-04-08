@@ -3,7 +3,6 @@ use super::super::{
     MovementEvents, PendingObservationEvent, PlanetIntelEvent, PlanetIntelSource,
 };
 use super::salvage::queue_salvage_resolution;
-use super::stepper::set_fleet_to_deep_space_hold;
 use crate::{CoreGameData, Order};
 use nc_data::build_runtime_planet_intel_snapshot;
 
@@ -294,5 +293,10 @@ pub(super) fn handle_fleet_arrival(
 }
 
 pub(super) fn set_view_world_completion_hold(fleet: &mut nc_data::FleetRecord) {
-    set_fleet_to_deep_space_hold(fleet);
+    // ViewWorld is a one-shot mission: after the observation fires, revert the
+    // fleet to HoldPosition so the player must issue new orders. Match the
+    // payload the stepper writes for any other non-persisting order arrival.
+    fleet.set_current_speed(0);
+    fleet.set_standing_order_kind(Order::HoldPosition);
+    fleet.set_extended_tuple_c_payload_raw([0x80, 0xb9, 0xff, 0xff, 0xff, 0x7f]);
 }

@@ -179,6 +179,37 @@ That mode:
 - creates an isolated `nc-connect` wallet/cache/config tree under `/tmp`
 - prints exact launch commands for the localhost host helper and GUI reconnect
 
+### `setup_nc_dash_lab.py`
+
+Seeds a dedicated `nc-dash` stress lab with one campaign for each supported map
+size tier:
+
+- `18x18` (`4` players)
+- `27x27` (`9` players)
+- `36x36` (`16` players)
+- `45x45` (`25` players)
+
+It is a thin wrapper over `nc-cli harness seed-nc-dash-lab`, but it is shaped
+for repo-root use and prints the exact `nc-dash` launch command for each map.
+
+Example:
+
+```bash
+python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force
+```
+
+Launch one map immediately after seeding:
+
+```bash
+python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force --launch map45-p25
+```
+
+Use this when you want:
+
+- quick visual passes across all `nc-dash` map tiers
+- reproducible dashboard testing at small, medium, and large galaxy scales
+- a single manifest under `/tmp` with launch commands for each seeded map
+
 ### `start_local_gui_hosted_test.sh`
 
 Starts a local `nc-sysop nostr serve` instance for a stress-test game so the

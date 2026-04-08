@@ -127,7 +127,11 @@ pub fn event_base_week(mission: Mission, travel_time_years: u8, fleet_speed: u8)
         // Multi-year travel: fleet arrives near the beginning of its arrival year.
         // Use a small week to reflect early-year arrival.
         // 2-year: base ≈ 4; 3-year+: base = 1.
-        if travel_time_years == 2 { 4 } else { 1 }
+        if travel_time_years == 2 {
+            4
+        } else {
+            1
+        }
     }
 }
 

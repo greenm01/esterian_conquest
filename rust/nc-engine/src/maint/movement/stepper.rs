@@ -8,15 +8,6 @@ use nc_data::fleet_motion_state::{
     reset_motion_state_for_stationary_arrival, store_exact_position,
 };
 
-pub(super) fn set_fleet_to_deep_space_hold(fleet: &mut nc_data::FleetRecord) {
-    let coords = fleet.current_location_coords_raw();
-    fleet.set_current_speed(0);
-    fleet.set_standing_order_kind(Order::HoldPosition);
-    fleet.set_standing_order_target_coords_raw(coords);
-    fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
-    reset_motion_state_for_new_orders(fleet);
-}
-
 pub(super) fn set_fleet_to_local_hold(fleet: &mut nc_data::FleetRecord) {
     let coords = fleet.current_location_coords_raw();
     fleet.set_current_speed(0);
@@ -36,13 +27,14 @@ fn order_persists_on_arrival(order: Order) -> bool {
             | Order::BombardWorld
             | Order::InvadeWorld
             | Order::BlitzWorld
+            | Order::ViewWorld
     )
 }
 
 fn order_stops_on_arrival(order: Order) -> bool {
     matches!(
         order,
-        Order::PatrolSector | Order::GuardStarbase | Order::GuardBlockadeWorld
+        Order::PatrolSector | Order::GuardStarbase | Order::GuardBlockadeWorld | Order::ViewWorld
     )
 }
 
@@ -50,7 +42,7 @@ fn apply_standing_arrival_state(fleet: &mut nc_data::FleetRecord, order: Order) 
     fleet.set_current_speed(0);
 
     match order {
-        Order::PatrolSector | Order::GuardBlockadeWorld => {
+        Order::PatrolSector | Order::GuardBlockadeWorld | Order::ViewWorld => {
             reset_motion_state_for_stationary_arrival(fleet);
             fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
         }

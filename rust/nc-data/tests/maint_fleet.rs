@@ -4,10 +4,10 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use nc_data::{
+    fleet_motion_state::{reset_motion_state_for_new_orders, store_exact_position},
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomacyOverride,
     DiplomaticRelation, GameStateBuilder, JoinMissionHostEvent, Mission, MissionOutcome,
     MissionRetargetEvent, Order, PlanetIntelSource, SalvageFailureReason, SalvageResolvedEvent,
-    fleet_motion_state::store_exact_position,
 };
 use nc_engine::{run_maintenance_turn, run_maintenance_turn_with_context};
 use std::path::Path;
@@ -316,12 +316,10 @@ fn test_blockading_foreign_world_escalates_to_enemy() {
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
-    assert!(
-        events
-            .diplomatic_escalation_events
-            .iter()
-            .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2)
-    );
+    assert!(events
+        .diplomatic_escalation_events
+        .iter()
+        .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2));
     assert_eq!(
         game_data.player.records[0].diplomatic_relation_toward(2),
         Some(DiplomaticRelation::Enemy)
@@ -410,7 +408,7 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
     assert_eq!(game_data.fleets.records[0].current_speed(), 0);
     assert_eq!(
         game_data.fleets.records[0].tuple_c_payload_raw(),
-        [0x81, 0x00, 0x00, 0x00, 0x00]
+        [0x80, 0xb9, 0xff, 0xff, 0xff]
     );
 }
 
@@ -1234,12 +1232,10 @@ fn test_join_merge_occurs_without_combat_merge_flag() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
-    assert!(
-        events
-            .fleet_merge_events
-            .iter()
-            .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side })
-    );
+    assert!(events
+        .fleet_merge_events
+        .iter()
+        .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side }));
 }
 
 #[test]
@@ -1323,12 +1319,10 @@ fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
-    assert!(
-        events
-            .fleet_merge_events
-            .iter()
-            .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side })
-    );
+    assert!(events
+        .fleet_merge_events
+        .iter()
+        .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side }));
 }
 
 #[test]
@@ -1437,12 +1431,10 @@ fn test_rendezvous_does_not_merge_before_reaching_its_assigned_sector() {
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     assert_eq!(game_data.fleets.records.len(), fleet_count_before);
-    assert!(
-        events
-            .fleet_merge_events
-            .iter()
-            .all(|event| { event.kind != Mission::RendezvousSector })
-    );
+    assert!(events
+        .fleet_merge_events
+        .iter()
+        .all(|event| { event.kind != Mission::RendezvousSector }));
 }
 
 #[test]
@@ -1661,4 +1653,308 @@ fn test_merge_preserves_surviving_local_fleet_numbers() {
         .map(|fleet| fleet.local_slot_word_raw())
         .collect::<Vec<_>>();
     assert_eq!(player2_local_slots, vec![1, 2, 3, 4]);
+}
+
+// ---------------------------------------------------------------------------
+// Group A — One-shot on-station
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_view_world_on_station_reverts_to_hold_position() {
+    // Fleet already at target coords from a prior turn (on-station path).
+    // ViewWorld is one-shot: the observation fires AND the order resets to HoldPosition.
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let planet_coords = game_data.planets.records[13].coords_raw();
+    let viewer = &mut game_data.fleets.records[0];
+    viewer.set_current_location_coords_raw(planet_coords);
+    viewer.set_standing_order_kind(Order::ViewWorld);
+    viewer.set_standing_order_target_coords_raw(planet_coords);
+    viewer.set_current_speed(0);
+    viewer.set_scout_count(0);
+    viewer.set_etac_count(0);
+    reset_motion_state_for_new_orders(viewer);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    // Observation must fire.
+    assert!(
+        events.planet_intel_events.iter().any(|e| {
+            e.planet_idx == 13
+                && e.viewer_empire_raw == 1
+                && e.source == PlanetIntelSource::ViewWorld
+        }),
+        "on-station ViewWorld must emit a planet intel event"
+    );
+    assert!(
+        events.mission_events.iter().any(|e| {
+            e.fleet_idx == 0
+                && e.kind == Mission::ViewWorld
+                && e.outcome == MissionOutcome::Succeeded
+        }),
+        "on-station ViewWorld must emit a Succeeded mission event"
+    );
+
+    // ViewWorld is one-shot: order must revert to HoldPosition.
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition,
+        "on-station ViewWorld must reset to HoldPosition after firing"
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+    assert_eq!(
+        game_data.fleets.records[0].tuple_c_payload_raw(),
+        [0x80, 0xb9, 0xff, 0xff, 0xff]
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Group B — Persistent observation on-station
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_scout_sector_on_station_fires_report_and_persists() {
+    // ScoutSector fleet already at target from a prior turn.
+    // Must emit a mission event and keep Order::ScoutSector.
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let planet_coords = game_data.planets.records[13].coords_raw();
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_current_location_coords_raw(planet_coords);
+    scout.set_standing_order_kind(Order::ScoutSector);
+    scout.set_standing_order_target_coords_raw(planet_coords);
+    scout.set_current_speed(0);
+    scout.set_scout_count(1);
+    reset_motion_state_for_new_orders(scout);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        events.mission_events.iter().any(|e| {
+            e.fleet_idx == 0
+                && e.kind == Mission::ScoutSector
+                && e.outcome == MissionOutcome::Succeeded
+        }),
+        "on-station ScoutSector must emit a Succeeded mission event"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::ScoutSector,
+        "ScoutSector must persist on station after firing"
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+}
+
+#[test]
+fn test_scout_system_on_station_fires_intel_and_persists() {
+    // ScoutSolarSystem fleet already at target from a prior turn.
+    // Must emit a planet intel event and a mission event, and keep Order::ScoutSolarSystem.
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let planet_coords = game_data.planets.records[13].coords_raw();
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_current_location_coords_raw(planet_coords);
+    scout.set_standing_order_kind(Order::ScoutSolarSystem);
+    scout.set_standing_order_target_coords_raw(planet_coords);
+    scout.set_current_speed(0);
+    scout.set_scout_count(1);
+    reset_motion_state_for_new_orders(scout);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        events.planet_intel_events.iter().any(|e| {
+            e.planet_idx == 13
+                && e.viewer_empire_raw == 1
+                && e.source == PlanetIntelSource::ScoutSolarSystem
+        }),
+        "on-station ScoutSolarSystem must emit a planet intel event"
+    );
+    assert!(
+        events.mission_events.iter().any(|e| {
+            e.fleet_idx == 0
+                && e.kind == Mission::ScoutSolarSystem
+                && e.outcome == MissionOutcome::Succeeded
+        }),
+        "on-station ScoutSolarSystem must emit a Succeeded mission event"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::ScoutSolarSystem,
+        "ScoutSolarSystem must persist on station after firing"
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Group C — Persistent guard/patrol on-station (no observation loop arm)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_patrol_sector_on_station_persists() {
+    // PatrolSector fleet already at target from a prior turn.
+    // No on-station observation fires; order must simply persist.
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let target_coords = [15, 10];
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(target_coords);
+    fleet.set_standing_order_kind(Order::PatrolSector);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(0);
+    reset_motion_state_for_new_orders(fleet);
+
+    run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::PatrolSector,
+        "PatrolSector must persist on station"
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+}
+
+#[test]
+fn test_guard_blockade_world_on_station_persists() {
+    // GuardBlockadeWorld fleet already at target from a prior turn.
+    // No on-station observation fires; order must simply persist.
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let target_coords = game_data.planets.records[13].coords_raw();
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(target_coords);
+    fleet.set_standing_order_kind(Order::GuardBlockadeWorld);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(0);
+    reset_motion_state_for_new_orders(fleet);
+
+    run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::GuardBlockadeWorld,
+        "GuardBlockadeWorld must persist on station"
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Group D — Hostile order turn-2 execution (shape only)
+// ---------------------------------------------------------------------------
+
+/// Build a game state where a hostile fleet is already on-station and ready to
+/// execute (transit_ready_flag_raw == 0x80).  The target planet at [25,25] is
+/// owned by empire 2 with 10 armies and 4 ground batteries.
+fn hostile_on_station_ready(
+    order: Order,
+    ships: (u16, u16, u16, u16, u16, u8),
+) -> (CoreGameData, usize, [u8; 2]) {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let target_coords = [25, 25];
+    let target_idx = 4;
+
+    let target_world = &mut game_data.planets.records[target_idx];
+    target_world.set_coords_raw(target_coords);
+    target_world.set_owner_empire_slot_raw(2);
+    target_world.set_ownership_status_raw(2);
+    target_world.set_planet_name("Target");
+    target_world.set_army_count_raw(10);
+    target_world.set_ground_batteries_raw(4);
+
+    // (battleships, cruisers, destroyers, transports, armies, scouts)
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_battleship_count(ships.0);
+    fleet.set_cruiser_count(ships.1);
+    fleet.set_destroyer_count(ships.2);
+    fleet.set_troop_transport_count(ships.3);
+    fleet.set_army_count(ships.4);
+    fleet.set_scout_count(ships.5);
+    fleet.set_etac_count(0);
+    fleet.recompute_max_speed_from_composition();
+    fleet.set_current_location_coords_raw(target_coords);
+    fleet.set_standing_order_kind(order);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    // Speed matches what the stepper preserves on hostile arrival.
+    fleet.set_current_speed(fleet.max_speed());
+    // transit_ready_flag_raw == 0x80 means the fleet arrived last turn and is
+    // ready to execute this turn.
+    fleet.set_transit_ready_flag_raw(0x80);
+
+    (game_data, target_idx, target_coords)
+}
+
+#[test]
+fn test_bombard_world_executes_on_second_turn() {
+    // A BombardWorld fleet that arrived last turn (transit_ready_flag == 0x80)
+    // must fire a BombardEvent this turn and keep Order::BombardWorld.
+    let (mut game_data, target_idx, _) =
+        hostile_on_station_ready(Order::BombardWorld, (0, 0, 1, 0, 0, 0));
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        !events.bombard_events.is_empty(),
+        "BombardWorld should fire a bombardment event on the second turn"
+    );
+    assert!(
+        events
+            .bombard_events
+            .iter()
+            .any(|e| e.planet_idx == target_idx && e.attacker_empire_raw == 1),
+        "BombardEvent must reference the target planet and attacker empire"
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::BombardWorld,
+        "BombardWorld fleet must keep its order after executing"
+    );
+}
+
+#[test]
+fn test_invade_world_executes_on_second_turn() {
+    // An InvadeWorld fleet that arrived last turn must fire an AssaultReportEvent.
+    // InvadeWorld requires combat ships + loaded transports; use 1 destroyer + 1 transport + 1 army.
+    let (mut game_data, target_idx, _) =
+        hostile_on_station_ready(Order::InvadeWorld, (0, 0, 1, 1, 1, 0));
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        !events.assault_report_events.is_empty(),
+        "InvadeWorld should fire an assault report event on the second turn"
+    );
+    assert!(
+        events
+            .assault_report_events
+            .iter()
+            .any(|e| e.kind == Mission::InvadeWorld
+                && e.planet_idx == target_idx
+                && e.attacker_empire_raw == 1),
+        "AssaultReportEvent must reference InvadeWorld, the target planet, and attacker empire"
+    );
+}
+
+#[test]
+fn test_blitz_world_executes_on_second_turn() {
+    // A BlitzWorld fleet that arrived last turn must fire an AssaultReportEvent.
+    // BlitzWorld needs loaded transports + orbital presence to achieve supremacy;
+    // use 1 destroyer + 1 transport + 1 army.
+    let (mut game_data, target_idx, _) =
+        hostile_on_station_ready(Order::BlitzWorld, (0, 0, 1, 1, 1, 0));
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert!(
+        !events.assault_report_events.is_empty(),
+        "BlitzWorld should fire an assault report event on the second turn"
+    );
+    assert!(
+        events
+            .assault_report_events
+            .iter()
+            .any(|e| e.kind == Mission::BlitzWorld
+                && e.planet_idx == target_idx
+                && e.attacker_empire_raw == 1),
+        "AssaultReportEvent must reference BlitzWorld, the target planet, and attacker empire"
+    );
 }

@@ -242,6 +242,12 @@ cd rust
 cargo run -q -p nc-cli -- harness seed-nc-dash-lab --root /tmp/nc-dash-lab
 ```
 
+Or use the repo wrapper from the root:
+
+```bash
+python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force
+```
+
 Submit a turn file without opening the TUI:
 
 ```bash

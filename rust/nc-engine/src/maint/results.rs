@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::maint::{FleetBattlePerspective, timing::format_report_first_line};
+use crate::maint::{timing::format_report_first_line, FleetBattlePerspective};
 use nc_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
@@ -296,7 +296,11 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 { 0 } else { line_count + 1 }
+    if line_count == 0 {
+        0
+    } else {
+        line_count + 1
+    }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {

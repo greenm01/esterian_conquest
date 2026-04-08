@@ -189,3 +189,40 @@ That flow:
 - It does not depend on `harness play-until` or a bot-conductor flow.
 - It uses Rust runtime state as the source of truth.
 - Player 1 gets the rich seeded backlog and foreign intel; the other empires mainly exist to make tables, rankings, diplomacy, and database screens busy.
+
+## nc-dash Map Lab
+
+Use [scripts/setup_nc_dash_lab.py](../../scripts/setup_nc_dash_lab.py) when you
+want a quick `nc-dash` pass across all four map-size tiers instead of a
+single-player stress fixture.
+
+It wraps `nc-cli harness seed-nc-dash-lab` and creates:
+
+- `map18-p4`
+- `map27-p9`
+- `map36-p16`
+- `map45-p25`
+
+Each seeded campaign is ready to open directly in `nc-dash`, and the script
+writes a `README.txt` manifest under the chosen lab root.
+
+## Usage
+
+Run from the repo root:
+
+```bash
+python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force
+```
+
+Then launch whichever map tier you want to inspect:
+
+```bash
+cd rust
+cargo run -q -p nc-dash -- /tmp/nc-dash-lab/map45-p25
+```
+
+To seed and jump directly into one tier in one step:
+
+```bash
+python3 scripts/setup_nc_dash_lab.py --root /tmp/nc-dash-lab --force --launch map36-p16
+```
