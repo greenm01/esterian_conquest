@@ -15,9 +15,9 @@ use nc_data::{
     latest_planet_intel_grants_for_viewer, merge_player_intel_from_runtime,
 };
 use nc_engine::{
-    VisibleHazardIntel, build_results_report_blocks, build_seeded_new_game,
-    run_maintenance_turn_with_seed, run_maintenance_turn_with_visible_hazards_and_seed,
-    visible_hazard_intel_from_snapshots,
+    VisibleHazardIntel, apply_results_reviewable_flags, build_results_report_blocks,
+    build_seeded_new_game, run_maintenance_turn_with_seed,
+    run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
 };
 
 #[derive(Clone)]
@@ -707,7 +707,8 @@ fn run_maintenance_for_dir(
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
 
-    let report_block_rows = build_results_report_blocks(&mut game_data, &all_events);
+    let report_block_rows = build_results_report_blocks(&game_data, &all_events);
+    apply_results_reviewable_flags(&mut game_data, &report_block_rows);
     apply_maintenance_events_to_player_war_stats(&mut player_war_stats, &all_events);
     store.save_runtime_state_structured_with_intel_activity_and_war_stats(
         &game_data,

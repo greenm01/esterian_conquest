@@ -19,10 +19,12 @@ pub use fleet::{
     starbase_eta_label, starbase_operation_label, target_available_for_mission,
 };
 pub use maint::{
-    build_results_dat, build_results_report_blocks, process_autopilot_ai, run_maintenance_turn,
+    MaintenancePreflightError, apply_results_reviewable_flags, build_results_dat,
+    build_results_report_blocks, process_autopilot_ai, run_maintenance_turn,
     run_maintenance_turn_with_context, run_maintenance_turn_with_context_and_seed,
     run_maintenance_turn_with_seed, run_maintenance_turn_with_visible_hazards,
     run_maintenance_turn_with_visible_hazards_and_seed, run_maintenance_turns,
+    validate_maintenance_state,
 };
 pub use navigation::{
     FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_direct_eta,

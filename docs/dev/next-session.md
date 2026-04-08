@@ -53,6 +53,9 @@ Keep this file short. Historical detail belongs in
   workflow confusion quickly.
 - Keep classic import/export and oracle tooling as compatibility backstops, not
   the primary day-to-day development model.
+- The EC turn-cycle audit now lives in
+  [ec-turn-cycle-compliance-audit.md](ec-turn-cycle-compliance-audit.md);
+  treat it as the current maintenance-conformance snapshot.
 
 ## Recent Fixes
 
@@ -143,3 +146,6 @@ Keep this file short. Historical detail belongs in
    reliability remains a recurring playtest problem.
 9. Only do deeper semantic cleanup when it materially helps a real gameplay,
    playtest, or compatibility issue.
+10. If maintenance-spec conformance work resumes, do it in this order:
+    phase 6 weekly report emission, then broader phase 3 validation coverage,
+    then 4n fleet-reassignment implementation or explicit long-term deferral.

@@ -2,7 +2,10 @@ use nc_data::{
     BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent, GameStateBuilder,
     MaintenanceEvents, Mission, PlanetRecord, ScoutContactEvent, ShipLosses,
 };
-use nc_engine::{build_results_report_blocks, maint::FleetBattlePerspective, run_maintenance_turn};
+use nc_engine::{
+    apply_results_reviewable_flags, build_results_report_blocks, maint::FleetBattlePerspective,
+    run_maintenance_turn,
+};
 use std::path::Path;
 
 fn viewer_report_texts(viewer_empire_id: u8, rows: &[nc_data::ReportBlockRow]) -> Vec<String> {
@@ -259,4 +262,50 @@ fn results_report_invalid_capability_loss_as_aborted_seek_home_mission() {
             && text.contains("lacks the required ETAC")
             && text.contains("seeking safety")
     }));
+}
+
+#[test]
+fn results_projection_is_pure_until_reviewable_flags_are_applied() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3001)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [5, 13];
+    seed_target_world(&mut game_data, coords, "Target");
+
+    let mut events = MaintenanceEvents::default();
+    events.scout_contact_events.push(ScoutContactEvent {
+        viewer_empire_raw: 1,
+        source: ContactReportSource::FleetMission(Mission::ScoutSector),
+        reporting_fleet_number: Some(15),
+        coords,
+        target_empire_raw: 3,
+        target_fleet_number: Some(4),
+        small_vessels: 2,
+        medium_vessels: 0,
+        large_vessels: 0,
+        stardate_week: Some(2),
+    });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    assert!(
+        game_data
+            .player
+            .records
+            .iter()
+            .all(|player| !player.has_classic_results_review_state()),
+        "report projection should not mutate reviewable flags"
+    );
+
+    apply_results_reviewable_flags(&mut game_data, &rows);
+    assert!(game_data.player.records[0].has_classic_results_review_state());
+    assert!(
+        game_data
+            .player
+            .records
+            .iter()
+            .skip(1)
+            .all(|player| !player.has_classic_results_review_state())
+    );
 }

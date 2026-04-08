@@ -1,23 +1,34 @@
 use super::*;
 
 impl CoreGameData {
-    pub fn ecmaint_preflight_errors(&self) -> Vec<String> {
+    pub fn ecmaint_structural_preflight_errors(&self) -> Vec<String> {
         let mut errors = Vec::new();
 
         // CONQUEST header: year in valid range, player_count consistent
         errors.extend(self.conquest_header_errors());
 
+        // Planet/base owner bounds and fatal base-link words.
+        errors.extend(self.current_known_planet_owner_slot_errors());
+        errors.extend(self.current_known_base_owner_empire_errors());
+        errors.extend(self.base_link_word_errors());
+
+        errors
+    }
+
+    pub fn ecmaint_preflight_errors(&self) -> Vec<String> {
+        let mut errors = self.ecmaint_structural_preflight_errors();
+
         // SETUP header: version tag check
         errors.extend(self.setup_header_errors());
+
+        // Player/planet table lengths
+        errors.extend(self.record_count_errors());
 
         // PLAYER starbase_count ↔ BASES.DAT linkage
         errors.extend(self.player_starbase_bases_linkage_errors());
 
         // PLAYER ipbm_count ↔ IPBM.DAT length
         errors.extend(self.ipbm_count_length_errors_current_known());
-
-        // Player/planet table lengths
-        errors.extend(self.record_count_errors());
 
         // Fleet owner validation
         errors.extend(self.fleet_owner_errors());

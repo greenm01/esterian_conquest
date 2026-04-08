@@ -3,6 +3,10 @@
 This document is the implementation-facing companion to
 [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md).
 
+For the current claim-by-claim Rust conformance snapshot against the canonical
+spec, use
+[ec-turn-cycle-compliance-audit.md](ec-turn-cycle-compliance-audit.md).
+
 Read it together with:
 
 - [ec-combat-spec.md](ec-combat-spec.md)
@@ -28,6 +32,21 @@ Ownership boundary:
 
 Use it when designing or refactoring the Rust maintenance engine.
 
+This companion is Rust-native first. It describes the maintenance cycle as a
+runtime-state, simulation, and event-pipeline problem. The recovered
+`ECMAINT`/classic behavior remains the historical reference, but classic
+directories and `.DAT` outputs are compatibility projections at the edge, not
+the main mental model for the engine itself.
+
+Current conformance notes:
+
+- phase `3` is now enforced at the engine entrypoint through
+  `validate_maintenance_state()`, but the current structural rule set remains
+  narrower than the full recovered classic validation surface
+- phase `6` weekly report-emission parity remains the clearest explicit gap
+- deterministic visit order and the simplified weekly loop shape remain
+  intentional, documented Rust design choices rather than open regressions
+
 This is not the raw RE notebook and not a byte-offset map. Its job is to
 describe the turn-cycle as a practical engine/state-machine problem:
 
@@ -44,8 +63,7 @@ companion specs above.
 
 ## Scope
 
-This document is for the Rust yearly maintenance engine, currently
-`rust-maint`.
+This document is for the Rust yearly maintenance engine.
 
 It deliberately focuses on:
 
@@ -64,18 +82,18 @@ It deliberately avoids:
 
 The current best implementation model is:
 
-1. wait until maintenance is allowed to run
+1. decide whether maintenance may run now
 2. recover from interrupted movement if needed
-3. load and validate the campaign directory as a coherent whole
+3. validate coherent runtime state and initialize transient workspaces
 4. run the yearly simulation core
-5. canonicalize the generated summary/event pool
-6. emit weekly reports and derived outputs
+5. canonicalize the generated event pool
+6. emit weekly reports and rebuild output projections
 7. flush outputs, clean up, and end the tick
 
 ## Block Diagram
 
 ```text
-Classic Directory / Rust Directory
+Runtime State + Maintenance Context
     |
     v
 +------------------------------+
@@ -91,32 +109,28 @@ Classic Directory / Rust Directory
     |
     v
 +------------------------------+
-| 3. Load + Cross-File         |
-|    Validation                |
+| 3. Validate Runtime State    |
+|    + Init Workspaces         |
 +------------------------------+
     |
     v
 +------------------------------+
 | 4. Yearly Simulation Core    |
 |                              |
-| 4a. prepare workspaces       |
-| 4b. annual movement update   |
-| 4c. pre-loop fleet setup     |
-| 4d. determine fleet visit    |
-|     order (sort-by-random-   |
-|      priority)               |
-| 4e. 52-week fleet loop:      |
-|     event scheduling,        |
-|     combat, inline reports   |
-| 4f. post-loop fleet scan     |
-| 4g. post-loop world/player   |
-|     update region:           |
+| 4a. snapshots + year advance |
+| 4b. pre-move prep            |
+| 4c. annual movement update   |
+| 4d. fleet battles +          |
+|     colonization             |
+| 4e. world/player update      |
+|     region:                  |
 |     build completion,        |
 |     economy/autopilot,       |
 |     player recompute         |
-| 4h. producer/mutator +       |
+| 4f. producer/mutator +       |
 |     assault/campaign passes  |
-| 4i. database/header updates  |
+| 4g. conquest/header          |
+|     normalization            |
 +------------------------------+
     |
     v
@@ -128,7 +142,7 @@ Classic Directory / Rust Directory
     v
 +------------------------------+
 | 6. Weekly Report Emission    |
-|    + Derived Output Build    |
+|    + Output Projections      |
 +------------------------------+
     |
     v
@@ -150,10 +164,10 @@ Check schedule and token files
   v
 Check crash marker for interrupted movement
   |
-  +--> recovery needed -> restore .SAV over .DAT
+  +--> recovery needed -> restore movement-safe state
   |
   v
-Load files into a coherent game-state model
+Validate coherent runtime state
   |
   +--> validation failure -> abort with error outputs
   |
@@ -174,7 +188,7 @@ Determine fleet visit order (sort-by-random-priority; Rust may use slot order)
   |
   +--> per week: process each fleet in visit order
   |    +--> read fleet, timing-window check
-  |    +--> resolve fleet-vs-fleet combat + emit RESULTS.DAT inline
+  |    +--> resolve fleet-vs-fleet combat and record timed outcomes
   |    +--> update weekly fleet event state
   |    +--> write fleet, remove destroyed/captured
   |
@@ -201,16 +215,16 @@ Producer/mutator + assault/campaign passes
   |    (bombard / invade / blitz / aftermath)
   |
   v
-DATABASE.DAT / header updates
+Derived-state / header updates
   |
   v
 Canonicalize and sort summary/events
   |
   v
-Walk internal weekly timeline and emit player-visible outputs
+Walk internal weekly timeline and build player-visible outputs
   |
   v
-Rebuild derived files and final outputs
+Rebuild output projections
   |
   v
 Cleanup tokens / work files and finish
@@ -219,44 +233,39 @@ Cleanup tokens / work files and finish
 END
 ```
 
-## Target Rust Turn Order
+## Rust Maintenance Turn Order
 
-This is the turn ordering Rust should implement to stay aligned with the
-canonical `ECMAINT` recovery. This section is the spec target. It is more
-authoritative than any temporary ordering visible in the current Rust code.
+This is the current Rust-facing turn order. Use
+[ec-turn-cycle-spec.md](ec-turn-cycle-spec.md) for the recovered
+`ECMAINT`/oracle phase order; use this section when reasoning about the code
+that exists today.
 
 1. schedule/token gate
 2. interrupted-run restore if needed
-3. load and cross-file validate the campaign state
-4. prepare transient workspaces
-5. annual fleet movement update
-6. pre-loop fleet setup / capture-reassignment work
-7. determine fleet visit order
-8. run the 52-week fleet-processing loop
-   - timing-window checks
-   - co-located fleet-vs-fleet combat
-   - inline `RESULTS.DAT` emission
-   - weekly fleet-state updates
-9. post-loop fleet scan
-10. post-loop world/player update region
-    - build completion
-    - ship/starbase builds stage into stardock
-    - army/ground-battery builds apply directly to the planet
-    - economy/autopilot updates
-    - player production/count recomputation
-11. late middle producer/mutator and hostile world-resolution region
-    - bombard / invade / blitz / target-world aftermath family
-12. database/header updates
-13. canonicalize the event pool
-14. emit weekly reports and derived outputs
-15. final flush / cleanup
+3. validate the runtime campaign state
+4. run the yearly simulation core
+   - snapshot start-of-turn state needed by delayed missions/campaign logic
+   - advance year
+   - merge co-located friendly fleets before movement
+   - sanitize invalid player inputs
+   - refresh retarget / seek-home / join-host / guard-starbase targets
+   - apply autopilot fleet recalls
+   - run annual fleet movement
+   - merge mission fleets and resolve fleet battles
+   - apply colonization
+   - run build completion, planet economy, autopilot economy, and player recompute
+   - apply campaign transitions, starbase flags, ready assaults, join-host updates,
+     and conquest-header normalization
+5. assemble and canonicalize the event pool
+6. build report/output projections and apply delivery-side flags
+7. flush outputs, clean up, and end the tick
 
 Combat location summary:
 
-- fleet-vs-fleet combat is step `8`, inside the 52-week fleet loop
-- build completion and economy are step `10`, after that fleet loop
-- hostile world resolution is step `11`, later than both the fleet loop and the
-  post-loop build/economy region
+- fleet-vs-fleet combat happens after annual movement and before colonization
+- build completion and economy happen after fleet battles
+- ready hostile world resolution happens later than both fleet battles and
+  build/economy work
 
 Recovered hostile-world rule:
 
@@ -273,10 +282,10 @@ The Rust engine should model four distinct state layers.
 
 | Layer | Meaning | Examples | Lifetime |
 | --- | --- | --- | --- |
-| Durable game state | The real campaign state that survives the turn | players, planets, fleets, bases, IPBMs, conquest/setup state | persisted |
+| Durable runtime state | The real campaign state that survives the turn | players, planets, fleets, bases, IPBMs, conquest/setup state | persisted |
 | Transient staging/workspaces | Scratch collections used while validating or simulating | staged tables, temporary counters, intermediate working sets | one maintenance run |
 | Durable summary/event pool | Intermediate event records that survive long enough to be canonicalized and turned into reports | summary/event entries later matched, sorted, and emitted | one maintenance run |
-| Derived output projections | Files rebuilt or preserved at the compatibility boundary | rankings, database, preserved classic mail bytes, results | regenerated each run |
+| Output projections | Rendered/report-facing artifacts rebuilt from runtime state and events | results rows, preserved mail payloads, rankings, database projections | regenerated each run |
 
 Practical rule:
 
@@ -291,11 +300,11 @@ Practical rule:
 | Phase | Responsibility | Reads | Writes | Confidence |
 | --- | --- | --- | --- | --- |
 | 1. Gate | Decide whether maintenance may run now | schedule config, token files | token/work status only | High |
-| 2. Recovery | Recover from interrupted movement | crash marker, `.SAV` backups | restored durable files | High |
-| 3. Load/validate | Build coherent in-memory state and reject impossible directories | all core `.DAT` files | validated in-memory model, error outputs on failure | High |
-| 4. Simulation core | Apply the yearly game rules | validated state, staged work data, existing orders | durable game state, durable summary/event pool | Medium |
+| 2. Recovery | Recover from interrupted movement | crash marker, recovery markers/backups | restored durable state | High |
+| 3. Validate/init | Build coherent runtime state and reject impossible campaigns | runtime state, structural links, existing orders | validated state, transient workspaces, error outputs on failure | High |
+| 4. Simulation core | Apply the yearly game rules | validated state, staged work data, existing orders | durable runtime state, durable summary/event pool | Medium |
 | 5. Canonicalize events | Match, coalesce, sort, and normalize event records | durable summary/event pool | canonicalized event pool | High |
-| 6. Emit outputs | Convert canonical events into classic results and rebuild/preserve derived files | canonical event pool, durable state | `RESULTS.DAT`, preserved `MESSAGES.DAT`, rankings, database | High |
+| 6. Emit outputs | Convert canonical events into report rows and rebuilt projections | canonical event pool, durable runtime state | player-visible reports, rankings, database/mail projections | High |
 | 7. Flush/cleanup | Finish the tick cleanly | work markers, generated outputs | final files, token cleanup | High |
 
 ## Recommended Rust Subsystems
@@ -306,14 +315,14 @@ The Rust engine should stay split by responsibility, not by one giant
 | Subsystem | Responsibility |
 | --- | --- |
 | Gate/recovery | schedule check, token coordination, interrupted-run recovery |
-| Loader/validator | file loading, cross-file linkage checks, structural normalization |
+| Loader/validator | runtime-state loading, structural linkage checks, structural normalization |
 | Simulation driver | orchestration of yearly simulation subphases |
 | Movement/contact/combat | fleet motion, encounters, combat outcomes, retreat-vs-hold routing for invalidated missions, retargets |
 | Producer passes | state-mutator/event-producer families inside step `4` |
 | Event pool | typed durable summary/event records |
 | Canonicalizer | matching/coalescing/sorting of event records |
-| Report emitter | weekly timeline walk and player-visible message generation |
-| Derived output builder | rankings, database, other rebuilt non-message artifacts |
+| Report emitter | weekly timeline walk and player-visible report/message generation |
+| Projection builder | rankings, database, compat-edge output artifacts |
 
 ## Step 4: What Rust Should Assume Today
 
@@ -321,7 +330,8 @@ Step `4` is now substantially recovered. The right Rust posture is:
 
 - implement it as a structured sequence of subphases
 - movement is annual, the 52-week loop is event scheduling
-- fleet-vs-fleet combat happens inline during the weekly loop
+- fleet-vs-fleet combat happens during the simulation core, with player-visible
+  reports built later from canonicalized events
 - hostile world resolution happens later, after the post-loop build/economy region
 - economy/producer passes run after the fleet loop
 
@@ -344,51 +354,24 @@ Validated Durable State
     |
     v
 +------------------------------+
-| 4c. Pre-loop fleet setup     |
-|     (captures/reassignments; |
-|      skipped if none needed) |
+| 4c. Pre-move fleet prep      |
+|     (friendly merges, input  |
+|      sanitization, retarget) |
 +------------------------------+
     |
     v
 +------------------------------+
-| 4d. 52-week event scheduling |
-|     loop (NOT physics sim)   |
+| 4d. Annual movement          |
 +------------------------------+
     |
-    +--[for week 1..52]------+
-    |                         |
-    |  for each fleet in      |
-    |  visit order:           |
-    |                         |
-    |  +--> read fleet record |
-    |  |                      |
-    |  +--> timing-window     |
-    |  |    check: events to  |
-    |  |    emit this week?   |
-    |  |                      |
-    |  +--> if co-located     |
-    |  |    hostile: resolve  |
-    |  |    fleet-vs-fleet    |
-    |  |    combat + emit     |
-    |  |    RESULTS.DAT       |
-    |  |    inline            |
-    |  |                      |
-    |  +--> update weekly     |
-    |  |    event state       |
-    |  |                      |
-    |  +--> write fleet       |
-    |       record            |
-    |                         |
-    +-------------------------+
-    |
-    v
 +------------------------------+
-| 4e. Post-loop fleet scan     |
+| 4e. Fleet merge + battle +   |
+|     colonization             |
 +------------------------------+
     |
     v
 +------------------------------+
-| 4f. Post-loop world/player   |
+| 4f. World/player update      |
 |     update region:           |
 |     build completion         |
 |     ships/starbases ->       |
@@ -401,16 +384,8 @@ Validated Durable State
     |
     v
 +------------------------------+
-| 4g. Producer/mutator +       |
-|     assault/campaign passes  |
-|     (planet state, durable   |
-|      events, campaign state) |
-+------------------------------+
-    |
-    v
-+------------------------------+
-| 4h. DATABASE.DAT / header    |
-|     updates                  |
+| 4g. Campaign / assault /     |
+|     conquest normalization   |
 +------------------------------+
     |
     v
@@ -426,14 +401,14 @@ Updated Durable State + Durable Event Pool
 | **The 52-week loop is event scheduling, not physics** | the loop schedules encounter detection, combat resolution, and report emission from post-movement positions. Stardates come from timing codes, not physical arrival time |
 | **Timing-window constants are recovered** | the scheduler constants are recovered; kind-1 producer assignment is recovered for codes `3..6`; code `7` is the decoder-local `IPBM` timing class; code `8` is an unfed consumer-side case in the preserved image. Only starbase fleets get a delayed producer-side timing offset |
 | **Fleet visit order is sort-by-random-priority** | Classic assigns `Random(N)+1` to each fleet as a sort key (extraction: `(seed>>16) % N`), then processes in ascending key order. The Range `N` is dynamic per player. Exact replication requires the full PRNG call chain from validation, which is infeasible. **Rust uses deterministic slot order**, which produces byte-identical results against the oracle for all tested scenarios |
-| **The weekly fleet loop is a real 52-pass processing loop** | treat the yearly core as 52 stable weekly passes over the active fleet set, with the set shrinking only when fleets are destroyed or captured |
-| **Combat reports emitted inline during weekly loop** | RESULTS.DAT writes happen inside the fleet pass. Do not defer all report generation to a post-simulation phase |
-| **Fleet-vs-fleet combat triggered by first co-located hostile fleet** | the engine reads the opposing fleet, resolves fleet combat, emits reports inline, then writes back. Opposing fleet's writeback happens later in the same pass |
+| **Recovered weekly scheduling evidence remains important** | timing codes and weekly report ordering still matter, but current Rust models them through typed events plus canonicalization rather than a literal 52-pass fleet-processing driver |
+| **Rust report generation is late projection work** | the current engine records combat/mission outcomes during simulation, canonicalizes them, and builds reports later; weekly ordering is preserved at the event/projection boundary rather than by inline file writes |
+| **Fleet-vs-fleet combat triggered by first co-located hostile fleet** | current Rust still resolves local hostile contact after annual movement and before colonization/economy |
 | **Some hostile world-resolution paths can destroy stardock contents** | preserved evidence shows at least bombardment-side hostile resolution can remove planet-owned stardock contents on the target world. Rust must model those losses as real planet-state mutation and mirror the matching player-facing turn reports, but should not overclaim the exact stardock-damage mechanics yet |
 | **Ready hostile world-resolution family is mission-specific** | replayable oracle probes from the same target world show delayed bombard/invade fleets leave the world unchanged on tick `1`, while ready `BombardWorld` and ready `InvadeWorld` produce different target-world mutation families. Model this as a ready mission-family dispatch in the late hostile world-resolution region |
 | **Ready bombard/invade hostile resolution already sees completed builds** | paired oracle probes show a target-world build queue that becomes stardock inventory in delayed control is already consumed before ready `BombardWorld` or ready `InvadeWorld` world resolution. Rust may therefore treat ready hostile world-resolution as reading post-build world state |
-| **Fleet destruction/capture dynamic** | destroyed fleets dropped from subsequent passes; captured fleets change ownership mid-simulation |
-| **Pre-loop fleet setup phase** | fleet-battle has 5 pre-loop passes for captures/reassignments; non-combat scenarios skip this entirely |
+| **Fleet destruction is modeled; fleet reassignment is not yet** | destroyed fleets are removed/neutralized by the current engine, but the preserved fleet-battle owner-reassignment behavior is not currently modeled in Rust |
+| **Current Rust pre-move setup is narrower than the recovered classic phase** | Rust performs friendly merges and retarget/input normalization before movement; the recovered capture/reassignment setup from the oracle is still unresolved |
 | **Colonization is atomic on arrival** | ownership, armies (=1), name, status, production all set in one pass; economy starts the following tick |
 | **Economy/autopilot is explicitly after the weekly fleet-combat loop** | this phase runs after the 52-week fleet loop and reads post-fleet-combat state before the later hostile world-resolution region |
 | **Recovered classic economy/autopilot gate is `player[0] == 0xFF`** | the currently recovered classic pass applies to rogue-mode empires; civil-disorder `0x00` empires are frozen |
@@ -456,23 +431,15 @@ This document is only the turn-order/phase-boundary companion.
 The current best implementation shape for step `4` is:
 
 ```text
-4a. Prepare transient simulation workspaces
-4b. Annual movement update (one-time position advance for all fleets;
+4a. Prepare transient simulation workspaces / start-of-turn snapshots
+4b. Advance year
+4c. Merge co-located friendly fleets before movement
+4d. Sanitize invalid player inputs and refresh retarget/autopilot fleet orders
+4e. Annual movement update (one-time position advance for all fleets;
     store fractional travel state in tuple_c for multi-year journeys)
-4c. Pre-loop fleet setup (captures/reassignments; skipped if none needed)
-4d. Determine fleet visit order (sort-by-random-priority; Rust may use
-    deterministic slot order)
-4e. For each week 1..52 (EVENT SCHEDULING, not physics):
-      For each fleet in visit order:
-        - read fleet record
-        - timing-window check: does this fleet have events to emit this week?
-        - if co-located hostile: resolve fleet-vs-fleet combat + emit
-          RESULTS.DAT inline
-        - update weekly event state in fleet record
-        - write fleet record
-      Remove destroyed/captured fleets from active set
-4f. Post-loop fleet scan (2 sequential reads of all fleet records)
-4g. Post-loop world/player update region:
+4f. Mission-fleet merging and local fleet battles
+4g. Colonization
+4h. World/player update region:
     - build completion
       - ships/starbases stage into stardock awaiting commission
       - armies/ground batteries apply directly to the planet and do not
@@ -480,9 +447,9 @@ The current best implementation shape for step `4` is:
     - normal planet economy updates
     - autopilot / rogue economy updates
     - per-player planet-count / production recomputation
-4h. Producer/mutator + hostile world-resolution + assault/campaign region
+4i. Producer/mutator + hostile world-resolution + assault/campaign region
     - bombard / invade / blitz / target-world aftermath family
-4i. DATABASE.DAT / header updates
+4j. Join-host updates and conquest-header normalization
 ```
 
 Key structural evidence:
@@ -497,13 +464,6 @@ Key structural evidence:
   codes (+2/+7/+21/+30 week offsets), not from physical arrival time.
   A speed-3 fleet traveling 1 sector shows contact at week 50 (timing-code
   scheduled), not week 19 (physical arrival)
-- the yearly core is a **real 52-pass fleet-processing loop** over the
-  active set; non-combat scenarios show stable per-pass visit order, while
-  combat/capture scenarios shrink the active set dynamically
-- non-combat fleet processing is exactly 4 I/O events per fleet per pass:
-  seek, read, seek, write
-- fleet-vs-fleet combat processing adds extra reads of opposing fleet(s) and inline
-  RESULTS.DAT writes
 - at least some hostile world-resolution paths can mutate the target world's
   stardock contents, and the corresponding stardock-loss reports belong in the
   same player-visible turn-report stream
@@ -513,16 +473,11 @@ Key structural evidence:
   - ships and starbases stage into stardock awaiting later commission
   - armies and ground batteries apply directly to the planet and never enter
     stardock
-- PLANETS.DAT is **never accessed** during the 52-pass fleet loop; planet
-  economy/production changes happen after the fleet loop
-- in both the recovered spec and current Rust structure, economy-facing world
-  updates are therefore **after the weekly fleet-combat loop**, not interleaved
-  inside that loop
-- the remaining hostile world-resolution family is later than the weekly
-  fleet-combat loop and should not be collapsed into the same “combat” box in
+- in current Rust, economy-facing world updates are therefore **after fleet
+  battles**, not interleaved inside movement/combat resolution
+- the remaining hostile world-resolution family is later than the fleet-battle
+  step and should not be collapsed into the same “combat” box in
   diagrams
-- after the fleet loop, 2 sequential reads of all fleet records occur
-  (post-loop summary scan)
 - the flush order: PLAYER → PLANETS → CONQUEST → RANKINGS
 
 ## The `024d` Implication For Rust
@@ -672,9 +627,7 @@ Implementation consequence:
 
 ## Recommended Driver Skeleton
 
-This is the current recommended engine shape for `rust-maint`, updated to
-reflect the weekly fleet-processing loop structure recovered from file-I/O
-trace analysis.
+This is the current recommended engine shape for the Rust maintenance engine.
 
 ```text
 run_turn(directory):
@@ -683,59 +636,38 @@ run_turn(directory):
       return
 
   state = load_and_validate(directory)
-
-  work = create_turn_workspaces(state)
   events = create_event_pool()
+  snapshots = capture_start_of_turn_state(state)
 
-  // Phase 4b: annual movement (one-time position update)
-  move_all_fleets(state)  // updates positions, stores tuple_c travel state
+  advance_year(state)
+  merge_co_located_friendly_fleets(state)
+  sanitize_invalid_player_inputs(state, events)
+  refresh_retargets_and_autopilot_recalls(state, events)
+  move_all_fleets(state)
+  merge_mission_fleets(state, events)
+  resolve_fleet_battles(state, events)
+  apply_colonization(state, events)
 
-  // Phase 4c: pre-loop fleet setup (captures/reassignments)
-  run_fleet_setup(state)  // skipped if no fleets need reassignment
-
-  // Phase 4d: determine visit order
-  fleet_order = compute_fleet_visit_order(state)  // sort-by-random-priority;
-                                                  // Rust may use slot order
-
-  // Phase 4e: 52-week event scheduling loop (NOT physics sim)
-  for week in 1..=52:
-      for fleet in fleet_order.active_fleets():
-          process_fleet_week(state, fleet, week, events)
-          // inner body: read fleet, timing-window check,
-          // fleet-vs-fleet combat if hostile, update weekly state,
-          // emit fleet-loop reports inline, then write fleet
-      fleet_order.remove_destroyed_and_captured(state)
-
-  // Phase 4f: post-loop fleet summary scan
-  scan_all_fleets_for_summary(state, events)
-
-  // Phase 4g: post-loop world/player update region
   run_build_completion(state)
-  // ships/starbases -> stardock awaiting commission
-  // armies/ground batteries -> planet counts directly
   run_planet_economy(state)
   run_economy_autopilot(state)
   recompute_player_planet_stats(state)
 
-  // Phase 4h: producer/mutator + hostile world-resolution + assault/campaign region
-  run_planet_producer_passes(state, work, events)
-  run_planetary_assaults_and_campaign_updates(state, events)
-  // ready hostile world resolution mutates target planets and emits any
-  // matching planet-side loss reports, including stardock-content losses
+  run_campaign_state_updates(state, snapshots, events)
+  update_player_starbase_flags(state)
+  resolve_ready_planetary_assaults(state, snapshots, events)
+  apply_join_host_updates(state, events)
+  normalize_conquest_headers(state)
 
-  // Phase 4i: database / header updates
-  update_database_and_headers(state)
-
-  // Phases 5-7
+  assemble_events(events)
   canonicalize_events(events)
-  emit_reports(state, events)
-  rebuild_derived_outputs(state, events)
+  report_rows = build_report_rows(state, events)
+  apply_reviewable_flags(state, report_rows)
+  rebuild_output_projections(state, events, report_rows)
   flush_and_cleanup(directory, state, events)
 ```
 
-Use that as the current implementation skeleton for the recovered turn order.
-Keep caution around current-code drift, not around the recovered phase
-placement itself. For combat mechanics, defer to
+Use that as the current implementation skeleton. For combat mechanics, defer to
 [ec-combat-spec.md](ec-combat-spec.md).
 
 ## Current Rust Driver Snapshot
@@ -745,34 +677,35 @@ driver. Keep it separate from the target turn order above. If the code and the
 spec disagree, the spec wins and the code should move. The same is true if this
 snapshot drifts from the companion combat, timing, or economics specs.
 
-1. advance the game year
-2. merge co-located friendly fleets before movement
-3. sanitize invalid player inputs
-4. refresh retarget / seek-home / join-host / guard-starbase targets
-5. process fleet movement
-6. process mission-fleet merging
-7. resolve fleet battles
+1. validate structural maintenance state
+2. advance the game year
+3. merge co-located friendly fleets before movement
+4. sanitize invalid player inputs
+5. refresh retarget / seek-home / join-host / guard-starbase targets
+6. process fleet movement
+7. process mission-fleet merging
+8. resolve fleet battles
    - if hostile action strips the ship class that makes the mission possible,
      abort the mission immediately
-   - fleets that still hold the local field after that combat abort hold in
-     place; fleets that do not hold the field retreat / seek home
-8. apply colonization
+   - invalidated mission fleets seek home when possible, otherwise hold in
+     place
+9. apply colonization
    - only from current post-combat fleet state; do not execute stale
      pre-combat colonization arrivals after ETAC loss or forced retreat
-9. process build completion
+10. process build completion
    - ship/starbase builds stage into stardock
    - army/ground-battery builds apply directly to the planet
-10. run normal planet economy
-11. run autopilot / rogue planet updates
-12. recompute per-player planet count / production totals
-13. apply campaign-state transitions and related player/fleet consequences
-14. update player starbase flags
-15. resolve ready planetary assaults
+11. run normal planet economy
+12. run autopilot / rogue planet updates
+13. recompute per-player planet count / production totals
+14. apply campaign-state transitions and related player/fleet consequences
+15. update player starbase flags
+16. resolve ready planetary assaults
    - revalidate assault fleets against current post-combat state before
      bombard / invade / blitz execution; do not execute stale ready snapshots
-16. apply join-host updates
-17. normalize conquest header fields
-18. assemble maintenance events and apply stored diplomatic escalations
+17. apply join-host updates
+18. normalize conquest header fields
+19. assemble maintenance events, apply stored diplomatic escalations, and canonicalize
 
 That is the ordering the Rust diagrams should describe when they are trying to
 show the current driver, not just the recovered classic outer boundaries.
@@ -810,9 +743,9 @@ Canonicalize / match / sort
     v
 Weekly timeline walk (1..52)
     |
-    +--> RESULTS.DAT
-    +--> MESSAGES.DAT
-    +--> rankings / database / other derived outputs
+    +--> report blocks / report rows
+    +--> message projections
+    +--> rankings / database / compat-edge projections
 ```
 
 Practical rule:
@@ -877,7 +810,8 @@ It does claim:
 - the major outer turn-cycle boundaries are strong enough to guide Rust
 - **movement is annual** (one-time position update), not per-week
 - **the 52-week fleet loop is event scheduling**, not physics simulation
-- the yearly simulation core is a real 52-pass fleet-processing loop
+- current Rust models that weekly timing through typed events and
+  canonicalization rather than a literal 52-pass fleet-processing driver
 - stardates come from timing codes (+2/+7/+21/+30), not physical arrival
 - kind-1 timing-code production for codes 3-6 is recovered; code 7 is
   decoder-local `IPBM`, and code 8 is an unfed consumer-side case
@@ -888,7 +822,8 @@ It does claim:
   and before the later hostile world-resolution region
 - the currently recovered classic gate for that pass is `player[0] == 0xFF`
 - colonization is atomic on arrival
-- combat reports are emitted inline during the weekly loop
+- current Rust builds combat reports from the canonicalized event pool after
+  simulation rather than as inline file writes
 - at least some hostile world-resolution paths can destroy stardock
   contents and must produce matching player-facing turn reports
 - ready hostile world-resolution is selected by mission family in the later

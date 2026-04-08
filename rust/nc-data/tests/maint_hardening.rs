@@ -1,5 +1,5 @@
 use nc_data::{CoreGameData, InvalidPlayerStateEvent, Order};
-use nc_engine::run_maintenance_turn;
+use nc_engine::{run_maintenance_turn, validate_maintenance_state};
 use std::path::Path;
 
 fn load_fixture(name: &str) -> CoreGameData {
@@ -256,4 +256,28 @@ fn maintenance_survives_deterministic_invalid_input_matrix() {
             "order code {order_code:#04x} should not panic"
         );
     }
+}
+
+#[test]
+fn maintenance_rejects_structurally_invalid_state_before_simulation() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let start_year = game_data.conquest.game_year();
+    game_data.planets.records[0].set_owner_empire_slot_raw(99);
+
+    let preflight = validate_maintenance_state(&game_data)
+        .expect_err("structural validation should reject an out-of-range owner");
+    assert!(
+        preflight
+            .issues()
+            .iter()
+            .any(|issue| issue.contains("owner"))
+    );
+
+    let err = run_maintenance_turn(&mut game_data)
+        .expect_err("maintenance should fail before mutating invalid state");
+    assert!(
+        err.to_string().contains("maintenance preflight failed"),
+        "unexpected error: {err}"
+    );
+    assert_eq!(game_data.conquest.game_year(), start_year);
 }

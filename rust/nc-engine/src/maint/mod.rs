@@ -14,10 +14,11 @@ mod sanitize;
 pub mod timing;
 
 pub use nc_data::maintenance_types::*;
-pub use results::{build_results_dat, build_results_report_blocks};
+pub use results::{apply_results_reviewable_flags, build_results_dat, build_results_report_blocks};
 
 use crate::VisibleHazardIntel;
 use nc_data::{CoreGameData, FleetRecord, Order};
+use std::fmt;
 
 /// Event produced when a fleet completes a ColonizeWorld order.
 #[derive(Debug)]
@@ -52,23 +53,65 @@ struct PendingObservationEvent {
     intel_event: Option<PlanetIntelEvent>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MaintenancePreflightError {
+    issues: Vec<String>,
+}
+
+impl MaintenancePreflightError {
+    pub fn new(issues: Vec<String>) -> Self {
+        Self { issues }
+    }
+
+    pub fn issues(&self) -> &[String] {
+        &self.issues
+    }
+}
+
+impl fmt::Display for MaintenancePreflightError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.issues.is_empty() {
+            write!(f, "maintenance preflight failed")
+        } else {
+            write!(
+                f,
+                "maintenance preflight failed ({} issue(s)): {}",
+                self.issues.len(),
+                self.issues.join("; ")
+            )
+        }
+    }
+}
+
+impl std::error::Error for MaintenancePreflightError {}
+
+pub fn validate_maintenance_state(
+    game_data: &CoreGameData,
+) -> Result<(), MaintenancePreflightError> {
+    let issues = game_data.ecmaint_structural_preflight_errors();
+    if issues.is_empty() {
+        Ok(())
+    } else {
+        Err(MaintenancePreflightError::new(issues))
+    }
+}
+
 /// Run a single turn of maintenance processing.
 ///
-/// This is the Rust implementation of ECMAINT.EXE behavior.
-/// Currently implements:
-/// - Year advancement (+1 per turn)
-/// - Fleet movement (basic move orders)
-/// - Planet colonization (ColonizeWorld fleet arrivals)
-/// - Fleet co-location merging (friendly fleets at same coords merge into one)
+/// This is the Rust yearly maintenance simulation. It validates structural
+/// campaign state, advances the yearly simulation core, and returns a
+/// canonicalized `MaintenanceEvents` pool for later report/projection
+/// builders.
 ///
-/// Note: DATABASE.DAT regeneration is handled separately in the CLI layer
-/// since it's not part of CoreGameData.
+/// Compatibility-edge projections such as `DATABASE.DAT` regeneration remain
+/// outside the core engine because they are not part of `CoreGameData`.
 ///
 /// # Arguments
 /// * `game_data` - Mutable reference to the game state to modify
 ///
 /// # Returns
-/// Ok(()) on success, or an error if maintenance fails
+/// Canonicalized maintenance events on success, or an error if structural
+/// validation or yearly maintenance fails.
 pub fn run_maintenance_turn(
     game_data: &mut CoreGameData,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
@@ -121,6 +164,9 @@ pub fn run_maintenance_turn_with_context_and_seed(
     visible_hazards_by_empire: &[VisibleHazardIntel],
     diplomacy_overrides: &[DiplomacyOverride],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    validate_maintenance_state(game_data)
+        .map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
+
     // CONQUEST.DAT 0x0c/0x3d accumulation trigger — snapshot BEFORE processing.
     // ECMAINT increments production total (0x0c += 100) and turn counter (0x3d += 1)
     // only when raw[0x0c] == 0x64 at the start of the turn.

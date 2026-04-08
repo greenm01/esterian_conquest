@@ -13,9 +13,10 @@ use nc_data::{
     merge_player_intel_from_runtime,
 };
 use nc_engine::{
-    DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel, build_results_report_blocks,
-    run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
-    run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
+    DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel, apply_results_reviewable_flags,
+    build_results_report_blocks, run_maintenance_turn_with_context_and_seed,
+    run_maintenance_turn_with_seed, run_maintenance_turn_with_visible_hazards_and_seed,
+    validate_maintenance_state, visible_hazard_intel_from_snapshots,
 };
 
 use crate::commands::reports::build_rankings_text;
@@ -122,16 +123,15 @@ pub fn run_rust_maintenance_with_options(
     let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&campaign_store, &game_data)?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
 
-    // Cross-file validation: warn on structural inconsistencies.
-    let preflight_errors = game_data.ecmaint_preflight_errors();
-    if !preflight_errors.is_empty() {
+    if let Err(err) = validate_maintenance_state(&game_data) {
         eprintln!(
-            "Warning: {} cross-file validation issue(s) detected:",
-            preflight_errors.len()
+            "Cross-file validation failed with {} issue(s):",
+            err.issues().len()
         );
-        for error in &preflight_errors {
-            eprintln!("  - {error}");
+        for issue in err.issues() {
+            eprintln!("  - {issue}");
         }
+        return Err(Box::new(err));
     }
 
     // Create .SAV backups before movement phase.
@@ -252,7 +252,8 @@ pub fn run_rust_maintenance_with_options(
         game_data.conquest.game_year()
     );
 
-    let report_block_rows = build_results_report_blocks(&mut game_data, &all_events);
+    let report_block_rows = build_results_report_blocks(&game_data, &all_events);
+    apply_results_reviewable_flags(&mut game_data, &report_block_rows);
     apply_maintenance_events_to_player_war_stats(&mut player_war_stats, &all_events);
     campaign_store.save_runtime_state_structured_with_intel_activity_and_war_stats(
         &game_data,

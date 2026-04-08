@@ -2828,7 +2828,7 @@ fn generate_report_entries(
 
 /// Build the RESULTS.DAT binary from current game data and maintenance events.
 #[allow(dead_code)]
-pub fn build_results_dat(game_data: &mut CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
+pub fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
     build_results_rows_with_review(game_data, events)
         .into_iter()
         .flat_map(|row| row.raw_bytes.unwrap_or_default())
@@ -2836,10 +2836,45 @@ pub fn build_results_dat(game_data: &mut CoreGameData, events: &MaintenanceEvent
 }
 
 pub fn build_results_report_blocks(
-    game_data: &mut CoreGameData,
+    game_data: &CoreGameData,
     events: &MaintenanceEvents,
 ) -> Vec<ReportBlockRow> {
     build_results_rows_with_review(game_data, events)
+}
+
+pub fn apply_results_reviewable_flags(game_data: &mut CoreGameData, rows: &[ReportBlockRow]) {
+    let occupied_viewers = occupied_result_viewers(game_data);
+    let mut visible_record_counts = BTreeMap::<u8, u16>::new();
+    for row in rows {
+        if row.recipient_deleted {
+            continue;
+        }
+        let record_count = row
+            .raw_bytes
+            .as_ref()
+            .map(|bytes| (bytes.len() / RESULTS_RECORD_SIZE) as u16)
+            .unwrap_or(0);
+        if row.viewer_empire_id == 0 {
+            for &viewer_empire_raw in &occupied_viewers {
+                *visible_record_counts.entry(viewer_empire_raw).or_default() += record_count;
+            }
+        } else {
+            *visible_record_counts
+                .entry(row.viewer_empire_id)
+                .or_default() += record_count;
+        }
+    }
+
+    for (idx, player) in game_data.player.records.iter_mut().enumerate() {
+        let viewer_empire_raw = (idx + 1) as u8;
+        let visible_record_count = *visible_record_counts.get(&viewer_empire_raw).unwrap_or(&0);
+        let has_results = visible_record_count > 0;
+        player.set_classic_results_review_state_present(has_results);
+        player.set_classic_results_chain_state(
+            has_results,
+            if has_results { visible_record_count } else { 0 },
+        );
+    }
 }
 
 struct ResultsReviewPlan {
@@ -2849,7 +2884,7 @@ struct ResultsReviewPlan {
 }
 
 fn build_results_rows_with_review(
-    game_data: &mut CoreGameData,
+    game_data: &CoreGameData,
     events: &MaintenanceEvents,
 ) -> Vec<ReportBlockRow> {
     let result_entries = generate_report_entries(game_data, events);
@@ -2870,7 +2905,7 @@ fn build_results_rows_with_review(
 }
 
 fn results_review_plan(
-    game_data: &mut CoreGameData,
+    game_data: &CoreGameData,
     result_entries: &[ReportEntry],
 ) -> ResultsReviewPlan {
     let occupied_viewers = occupied_result_viewers(game_data);
@@ -2895,23 +2930,6 @@ fn results_review_plan(
             }
             _ => {}
         }
-    }
-
-    for (idx, player) in game_data.player.records.iter_mut().enumerate() {
-        let viewer_empire_id = (idx + 1) as u8;
-        let visible_record_count =
-            visible_report_record_count(&broadcast_entries, viewer_entries.get(&viewer_empire_id));
-        let has_results =
-            viewers_with_results.contains(&viewer_empire_id) && visible_record_count > 0;
-        player.set_classic_results_review_state_present(has_results);
-        player.set_classic_results_chain_state(
-            has_results,
-            if has_results {
-                visible_record_count as u16
-            } else {
-                0
-            },
-        );
     }
 
     ResultsReviewPlan {
@@ -2994,21 +3012,6 @@ fn occupied_result_viewers(game_data: &CoreGameData) -> Vec<u8> {
             (player.owner_mode_raw() == (idx + 1) as u8).then_some((idx + 1) as u8)
         })
         .collect()
-}
-
-fn visible_report_record_count(
-    broadcast_entries: &[ReportEntry],
-    viewer_entries: Option<&Vec<ReportEntry>>,
-) -> usize {
-    broadcast_entries
-        .iter()
-        .chain(
-            viewer_entries
-                .into_iter()
-                .flat_map(|entries| entries.iter()),
-        )
-        .map(|entry| classic_results_record_count(&entry.text, entry.kind))
-        .sum()
 }
 
 fn clone_report_entry(entry: &ReportEntry) -> ReportEntry {
