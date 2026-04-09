@@ -581,6 +581,19 @@ fn aborted_mission_follow_on_text(
     }
 }
 
+fn aborted_mission_follow_on_text_from_idx(
+    game_data: &CoreGameData,
+    fleet_idx: usize,
+    empire_raw: u8,
+) -> String {
+    game_data
+        .fleets
+        .records
+        .get(fleet_idx)
+        .map(|fleet| aborted_mission_follow_on_text(game_data, fleet, empire_raw))
+        .unwrap_or_else(|| "holding position and awaiting orders".to_string())
+}
+
 fn roe_abort_outcome_text(kind: Mission) -> &'static str {
     match kind {
         Mission::BombardWorld => {
@@ -2736,12 +2749,15 @@ fn generate_report_entries(
                 let order_name = nc_data::Order::from_raw(order_code_raw)
                     .display_label()
                     .to_lowercase();
-                let fleet = &game_data.fleets.records[fleet_idx];
                 let body = if capability_loss_invalid_order_reason(reason) {
                     format!(
                         " Hostile action forced us to abort the {order_name} mission because {}. The fleet is {}.",
                         fleet_order_validation_reason_text(reason),
-                        aborted_mission_follow_on_text(game_data, fleet, owner_empire_raw)
+                        aborted_mission_follow_on_text_from_idx(
+                            game_data,
+                            fleet_idx,
+                            owner_empire_raw
+                        )
                     )
                 } else {
                     format!(

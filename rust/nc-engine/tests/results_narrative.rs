@@ -1,8 +1,8 @@
 use nc_data::{
     AssaultReportEvent, BombardEvent, ContactReportSource, EncounterDispositionEvent,
-    EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, GameStateBuilder,
-    MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetOwnershipChangeEvent,
-    PlanetRecord, ScoutContactEvent, ShipLosses,
+    EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, FleetOrderValidationError,
+    GameStateBuilder, InvalidPlayerStateEvent, MaintenanceEvents, Mission, MissionEvent,
+    MissionOutcome, PlanetOwnershipChangeEvent, PlanetRecord, ScoutContactEvent, ShipLosses,
 };
 use nc_engine::{
     apply_results_reviewable_flags, build_results_report_blocks, maint::FleetBattlePerspective,
@@ -1088,4 +1088,30 @@ fn results_projection_is_pure_until_reviewable_flags_are_applied() {
             .skip(1)
             .all(|player| !player.has_classic_results_review_state())
     );
+}
+
+#[test]
+fn invalid_fleet_mission_report_tolerates_removed_fleet_index() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3025)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events
+        .invalid_player_state_events
+        .push(InvalidPlayerStateEvent::FleetMission {
+            fleet_idx: 99,
+            owner_empire_raw: 1,
+            order_code_raw: nc_data::Order::InvadeWorld.to_raw(),
+            coords: [9, 9],
+            reason: FleetOrderValidationError::MissingLoadedTroopTransports,
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Hostile action forced us to abort the invade world mission"));
+    assert!(text.contains("holding position and awaiting orders"));
 }
