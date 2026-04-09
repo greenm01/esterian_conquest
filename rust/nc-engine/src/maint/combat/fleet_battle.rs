@@ -169,6 +169,75 @@ fn defending_starbase_holds_planet(task_force: &TaskForce) -> bool {
     matches!(task_force.role, BattleRole::IncumbentDefender) && task_force.state.counts[IDX_SB] > 0
 }
 
+fn apply_withdrawal_exchanges(
+    task_forces: &[TaskForce],
+    exchange_pairs: &[(u8, u8)],
+    campaign_seed: u64,
+    battle_year: u16,
+    coords: [u8; 2],
+    round: u32,
+    pending_hits: &mut HashMap<u8, u32>,
+    pending_criticals: &mut HashMap<u8, u32>,
+) {
+    if exchange_pairs.is_empty() {
+        return;
+    }
+
+    let round_start_states: HashMap<u8, FleetCombatState> = task_forces
+        .iter()
+        .map(|tf| (tf.empire, tf.state.clone()))
+        .collect();
+    let mut reciprocal_withdrawal_replies = HashSet::new();
+
+    let mut ordered_pairs = exchange_pairs.to_vec();
+    ordered_pairs.sort_unstable();
+    for (empire, target_empire) in ordered_pairs {
+        if reciprocal_withdrawal_replies.remove(&(empire, target_empire)) {
+            continue;
+        }
+
+        let Some(actor_state) = round_start_states.get(&empire) else {
+            continue;
+        };
+        let Some(target_state) = round_start_states.get(&target_empire) else {
+            continue;
+        };
+
+        let our_as = actor_state.total_combat_as();
+        if our_as == 0 {
+            continue;
+        }
+
+        let outbound = resolve_withdrawal_exchange(
+            campaign_seed,
+            battle_year,
+            coords,
+            round,
+            empire,
+            target_empire,
+            our_as,
+        );
+        *pending_hits.entry(target_empire).or_default() += outbound.hits;
+        *pending_criticals.entry(target_empire).or_default() += u32::from(outbound.critical);
+
+        let target_as = target_state.total_combat_as();
+        if target_as > 0 {
+            let reply = resolve_withdrawal_exchange(
+                campaign_seed,
+                battle_year,
+                coords,
+                round,
+                target_empire,
+                empire,
+                target_as,
+            );
+            *pending_hits.entry(empire).or_default() += reply.hits;
+            *pending_criticals.entry(empire).or_default() += u32::from(reply.critical);
+            reciprocal_withdrawal_replies.insert((target_empire, empire));
+        }
+    }
+}
+
 pub(super) fn distribute_fleet_losses(
     game_data: &mut CoreGameData,
     fleet_indices: &[usize],
@@ -544,19 +613,19 @@ pub(crate) fn process_fleet_battles(
                 .iter()
                 .map(|tf| (tf.empire, tf.state.clone()))
                 .collect();
-            let mut pending_hits: HashMap<u8, u32> = HashMap::new();
-            let mut pending_criticals: HashMap<u8, u32> = HashMap::new();
             let mut engaged_empires = HashSet::new();
             let mut pre_round_withdrawals = HashSet::new();
-            let mut reciprocal_withdrawal_replies = HashSet::new();
+            let mut pending_hits: HashMap<u8, u32> = HashMap::new();
+            let mut pending_criticals: HashMap<u8, u32> = HashMap::new();
+            let mut pre_round_withdrawal_pairs = Vec::new();
+            let mut suppressed_reciprocal_actions = HashSet::new();
 
             let mut ordered_actions = actions;
             ordered_actions.sort_by_key(|action| action.empire);
             for action in ordered_actions {
-                if reciprocal_withdrawal_replies.remove(&(action.empire, action.target_empire)) {
+                if suppressed_reciprocal_actions.remove(&(action.empire, action.target_empire)) {
                     continue;
                 }
-
                 let Some(actor_tf) = task_forces.iter().find(|tf| tf.empire == action.empire)
                 else {
                     continue;
@@ -596,39 +665,22 @@ pub(crate) fn process_fleet_battles(
                     }
                     RoundActionKind::Withdraw => {
                         pre_round_withdrawals.insert(action.empire);
-                        let outbound = resolve_withdrawal_exchange(
-                            campaign_seed,
-                            battle_year,
-                            coords,
-                            round,
-                            action.empire,
-                            action.target_empire,
-                            our_as,
-                        );
-                        *pending_hits.entry(action.target_empire).or_default() += outbound.hits;
-                        *pending_criticals.entry(action.target_empire).or_default() +=
-                            u32::from(outbound.critical);
-
-                        let target_as = target_tf.state.total_combat_as();
-                        if target_as > 0 {
-                            let reply = resolve_withdrawal_exchange(
-                                campaign_seed,
-                                battle_year,
-                                coords,
-                                round,
-                                action.target_empire,
-                                action.empire,
-                                target_as,
-                            );
-                            *pending_hits.entry(action.empire).or_default() += reply.hits;
-                            *pending_criticals.entry(action.empire).or_default() +=
-                                u32::from(reply.critical);
-                            reciprocal_withdrawal_replies
-                                .insert((action.target_empire, action.empire));
-                        }
+                        pre_round_withdrawal_pairs.push((action.empire, action.target_empire));
+                        suppressed_reciprocal_actions.insert((action.target_empire, action.empire));
                     }
                 }
             }
+
+            apply_withdrawal_exchanges(
+                &task_forces,
+                &pre_round_withdrawal_pairs,
+                campaign_seed,
+                battle_year,
+                coords,
+                round,
+                &mut pending_hits,
+                &mut pending_criticals,
+            );
 
             for empire in engaged_empires {
                 if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
@@ -696,12 +748,12 @@ pub(crate) fn process_fleet_battles(
                     .filter(|other| !other.withdrew_under_roe && other.empire != tf.empire)
                     .filter_map(|other| {
                         hostility_reason_between(game_data, diplomacy_overrides, coords, tf, other)
-                            .map(|_| other)
+                            .map(|reason| (other, reason))
                     })
                     .collect::<Vec<_>>();
                 let enemy_as = hostile_opponents
                     .iter()
-                    .map(|other| other.state.total_combat_as())
+                    .map(|(other, _)| other.state.total_combat_as())
                     .max()
                     .unwrap_or(0);
                 if enemy_as == 0 {
@@ -731,9 +783,17 @@ pub(crate) fn process_fleet_battles(
                         free_holds_to_consume.push(tf.empire);
                         continue;
                     }
+                    let Some((target_empire, _)) = hostile_target_priority(
+                        tf.empire,
+                        tf.role,
+                        &hostile_opponents,
+                        planet_owner,
+                    ) else {
+                        continue;
+                    };
                     let retreat_target =
                         nearest_owned_planet(game_data, tf.empire, coords).unwrap_or(coords);
-                    post_round_retreats.push((tf.empire, retreat_target));
+                    post_round_retreats.push((tf.empire, target_empire, retreat_target));
                 }
             }
 
@@ -743,8 +803,31 @@ pub(crate) fn process_fleet_battles(
                 }
             }
 
+            let post_round_withdrawal_pairs = post_round_retreats
+                .iter()
+                .map(|(empire, target_empire, _)| (*empire, *target_empire))
+                .collect::<Vec<_>>();
+            apply_withdrawal_exchanges(
+                &task_forces,
+                &post_round_withdrawal_pairs,
+                campaign_seed,
+                battle_year,
+                coords,
+                round,
+                &mut pending_hits,
+                &mut pending_criticals,
+            );
+
+            for tf in &mut task_forces {
+                let hits = pending_hits.get(&tf.empire).copied().unwrap_or(0);
+                let critical_hits = pending_criticals.get(&tf.empire).copied().unwrap_or(0);
+                if hits > 0 || critical_hits > 0 {
+                    apply_hits_to_fleet(&mut tf.state, hits, critical_hits);
+                }
+            }
+
             let mut any_post_round_withdrawal = false;
-            for (empire, retreat_target) in post_round_retreats {
+            for (empire, _, retreat_target) in post_round_retreats {
                 if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
                     task_force.withdrew_under_roe = true;
                     apply_roe_retreat_to_task_force(

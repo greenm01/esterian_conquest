@@ -591,68 +591,55 @@ fn anchored_guard_does_not_sortie_against_deep_space_transit_contact() {
 }
 
 #[test]
-fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
+fn post_round_roe_withdrawal_exchange_can_destroy_retreating_fleet() {
     let mut game_data = load_fixture("ecmaint-post");
     let coords = [15, 13];
-    let retreat_target = game_data
-        .planets
-        .records
-        .iter()
-        .find(|planet| planet.owner_empire_slot_raw() == 1)
-        .map(|planet| planet.coords_raw())
-        .expect("fixture should contain owned world");
 
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw(coords);
     fleet.set_standing_order_kind(Order::PatrolSector);
     fleet.set_destroyer_count(0);
-    fleet.set_cruiser_count(0);
-    fleet.set_battleship_count(3);
+    fleet.set_cruiser_count(8);
+    fleet.set_battleship_count(0);
     fleet.set_scout_count(0);
     fleet.set_troop_transport_count(0);
     fleet.set_etac_count(0);
-    fleet.set_rules_of_engagement(7);
+    fleet.set_rules_of_engagement(6);
 
     let hostile = &mut game_data.fleets.records[4];
     hostile.set_current_location_coords_raw(coords);
     hostile.set_standing_order_kind(Order::MoveOnly);
     hostile.set_destroyer_count(0);
-    hostile.set_cruiser_count(0);
-    hostile.set_battleship_count(4);
+    hostile.set_cruiser_count(8);
+    hostile.set_battleship_count(0);
     hostile.set_scout_count(0);
     hostile.set_troop_transport_count(0);
     hostile.set_etac_count(0);
     hostile.set_rules_of_engagement(10);
-    let hostile_fleet_number = hostile.local_slot_word_raw() as u8;
 
     let diplomacy = mutual_enemy_overrides(1, 2);
-    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+    let events = run_maintenance_turn_with_context_and_seed(&mut game_data, 5, &[], &diplomacy)
         .expect("maintenance should succeed");
 
+    assert_eq!(game_data.fleets.records[0].cruiser_count(), 0);
     assert_eq!(
         game_data.fleets.records[0].standing_order_kind(),
-        Order::SeekHome
+        Order::HoldPosition
     );
-    assert_eq!(
-        game_data.fleets.records[0].standing_order_target_coords_raw(),
-        retreat_target
+    assert!(
+        !events.encounter_disposition_events.iter().any(|event| {
+            matches!(
+                event,
+                EncounterDispositionEvent::Retreated {
+                    owner_empire_raw,
+                    mission: Some(Mission::PatrolSector),
+                    coords: event_coords,
+                    ..
+                } if *owner_empire_raw == 1 && *event_coords == coords
+            )
+        }),
+        "a fleet destroyed during the withdrawal exchange should not also emit a retreat report"
     );
-    assert!(events.encounter_disposition_events.iter().any(|event| {
-        matches!(
-            event,
-            EncounterDispositionEvent::Retreated {
-                owner_empire_raw,
-                mission: Some(Mission::PatrolSector),
-                coords: event_coords,
-                target_fleet_number,
-                retreat_target_coords,
-                ..
-            } if *owner_empire_raw == 1
-                && *event_coords == coords
-                && *target_fleet_number == Some(hostile_fleet_number)
-                && *retreat_target_coords == retreat_target
-        )
-    }));
 }
 
 #[test]

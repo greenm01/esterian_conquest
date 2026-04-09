@@ -218,9 +218,37 @@ fn enemy_losses_sentence(losses: ShipLosses) -> String {
     }
 }
 
-fn battle_outcome_sentence(held_field: bool) -> &'static str {
-    if held_field {
-        "We held the field."
+fn enemy_retreat_reported_for_battle(
+    events: &MaintenanceEvents,
+    battle_event: &nc_data::FleetBattleEvent,
+) -> bool {
+    if !battle_event.held_field {
+        return false;
+    }
+
+    events.encounter_disposition_events.iter().any(|event| {
+        matches!(
+            event,
+            nc_data::EncounterDispositionEvent::Retreated {
+                owner_empire_raw,
+                coords,
+                ..
+            } if *coords == battle_event.coords
+                && battle_event.enemy_empires_raw.contains(owner_empire_raw)
+        )
+    })
+}
+
+fn battle_outcome_sentence(
+    events: &MaintenanceEvents,
+    battle_event: &nc_data::FleetBattleEvent,
+) -> &'static str {
+    if battle_event.held_field {
+        if enemy_retreat_reported_for_battle(events, battle_event) {
+            "The enemy fled the field."
+        } else {
+            "We held the field."
+        }
     } else {
         "We were forced to disengage."
     }
@@ -1370,7 +1398,7 @@ fn generate_report_entries(
         let body = if matches!(event.perspective, FleetBattlePerspective::Intercepted) {
             format!(
                 "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {} {} {}",
-                battle_outcome_sentence(event.held_field),
+                battle_outcome_sentence(events, event),
                 combined_friendly_losses_sentence(
                     event.friendly_losses,
                     event.friendly_starbases_lost,
@@ -1380,7 +1408,7 @@ fn generate_report_entries(
         } else {
             format!(
                 "{prefix} We were attacked by {enemy} in System({x},{y}). {defended_force_text} Alien force contained {enemy_initial}. {} {} {}",
-                battle_outcome_sentence(event.held_field),
+                battle_outcome_sentence(events, event),
                 combined_friendly_losses_sentence(
                     event.friendly_losses,
                     event.friendly_starbases_lost,

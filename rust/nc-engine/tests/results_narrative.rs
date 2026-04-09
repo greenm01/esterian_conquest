@@ -730,6 +730,138 @@ fn attacker_report_mentions_destroyed_lone_starbase() {
 }
 
 #[test]
+fn victorious_fleet_report_says_enemy_fled_without_roe_leak() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 1,
+        reporting_fleet_number: Some(8),
+        reporting_mission: Some(Mission::PatrolSector),
+        perspective: FleetBattlePerspective::Intercepted,
+        coords: [9, 6],
+        enemy_empires_raw: vec![2],
+        primary_enemy_fleet_number: Some(12),
+        held_field: true,
+        friendly_initial: ShipLosses {
+            cruisers: 2,
+            ..ShipLosses::default()
+        },
+        friendly_initial_starbases: 0,
+        friendly_loaded_armies_initial: 0,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses {
+            cruisers: 2,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 0,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(2),
+    });
+    events
+        .encounter_disposition_events
+        .push(EncounterDispositionEvent::Retreated {
+            fleet_idx: 4,
+            owner_empire_raw: 2,
+            mission: Some(Mission::MoveOnly),
+            coords: [9, 6],
+            friendly_initial: ShipLosses {
+                cruisers: 2,
+                ..ShipLosses::default()
+            },
+            friendly_loaded_armies_initial: 0,
+            target_empire_raw: 1,
+            target_fleet_number: Some(8),
+            enemy_initial: ShipLosses {
+                cruisers: 2,
+                ..ShipLosses::default()
+            },
+            retreat_target_coords: [10, 6],
+            losses_sustained: ShipLosses::default(),
+            enemy_losses_inflicted: ShipLosses::default(),
+            reason: EncounterDispositionReason::RoeWithdrawal,
+            stardate_week: Some(2),
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("The enemy fled the field."));
+    assert!(!text.contains("We held the field."));
+    assert!(!text.contains("In accordance with our ROE"));
+}
+
+#[test]
+fn victorious_starbase_report_says_enemy_fled_without_roe_leak() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 2,
+        reporting_fleet_number: None,
+        reporting_mission: None,
+        perspective: FleetBattlePerspective::Attacked,
+        coords: [9, 6],
+        enemy_empires_raw: vec![1],
+        primary_enemy_fleet_number: Some(12),
+        held_field: true,
+        friendly_initial: ShipLosses::default(),
+        friendly_initial_starbases: 1,
+        friendly_loaded_armies_initial: 0,
+        friendly_losses: ShipLosses::default(),
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses {
+            battleships: 1,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 0,
+        enemy_losses: ShipLosses::default(),
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(2),
+    });
+    events
+        .encounter_disposition_events
+        .push(EncounterDispositionEvent::Retreated {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            mission: Some(Mission::BombardWorld),
+            coords: [9, 6],
+            friendly_initial: ShipLosses {
+                battleships: 1,
+                ..ShipLosses::default()
+            },
+            friendly_loaded_armies_initial: 0,
+            target_empire_raw: 2,
+            target_fleet_number: None,
+            enemy_initial: ShipLosses::default(),
+            retreat_target_coords: [8, 6],
+            losses_sustained: ShipLosses::default(),
+            enemy_losses_inflicted: ShipLosses::default(),
+            reason: EncounterDispositionReason::RoeWithdrawal,
+            stardate_week: Some(2),
+        });
+
+    let text = viewer_report_texts(2, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("The enemy fled the field."));
+    assert!(!text.contains("We held the field."));
+    assert!(!text.contains("In accordance with our ROE"));
+}
+
+#[test]
 fn destroyed_starbase_only_defender_emits_only_telemetry_report() {
     let game_data = GameStateBuilder::new()
         .with_player_count(4)
