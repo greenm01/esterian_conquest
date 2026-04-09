@@ -480,6 +480,99 @@ pub(crate) fn process_fleet_battles(
             .map(|idx| (idx, u32::from(game_data.fleets.records[idx].army_count())))
             .collect();
 
+        let battle_year = game_data.conquest.game_year();
+        let planet_owner = game_data
+            .planets
+            .records
+            .iter()
+            .find(|p| p.coords_raw() == coords)
+            .map(|p| p.owner_empire_slot_raw());
+
+        // --- PRE-COMBAT SENSOR CHECK ---
+        // Fleets detect overwhelming force before combat begins and seek home without taking damage.
+        {
+            let combat_as_map: HashMap<u8, u32> = task_forces
+                .iter()
+                .map(|tf| (tf.empire, tf.state.total_combat_as()))
+                .collect();
+            let mut sensor_withdrawals = Vec::new();
+
+            for tf in &task_forces {
+                let our_as = *combat_as_map.get(&tf.empire).unwrap_or(&0);
+                if our_as == 0 || !tf.state.has_units() {
+                    continue;
+                }
+                let hostile_opponents = task_forces
+                    .iter()
+                    .filter_map(|other| {
+                        (other.empire != tf.empire)
+                            .then(|| {
+                                hostility_reason_between(
+                                    game_data,
+                                    diplomacy_overrides,
+                                    coords,
+                                    tf,
+                                    other,
+                                )
+                                .map(|reason| (other, reason))
+                            })
+                            .flatten()
+                    })
+                    .collect::<Vec<_>>();
+                let enemy_as = hostile_opponents
+                    .iter()
+                    .map(|(other, _)| other.state.total_combat_as())
+                    .max()
+                    .unwrap_or(0);
+
+                let Some((_, hostility_reason)) =
+                    hostile_target_priority(tf.empire, tf.role, &hostile_opponents, planet_owner)
+                else {
+                    continue;
+                };
+
+                let roe = tf
+                    .fleet_indices
+                    .iter()
+                    .filter_map(|idx| {
+                        let fleet = &game_data.fleets.records[*idx];
+                        (fleet.destroyer_count() > 0
+                            || fleet.cruiser_count() > 0
+                            || fleet.battleship_count() > 0)
+                            .then_some(fleet.rules_of_engagement())
+                    })
+                    .max()
+                    .unwrap_or(0);
+
+                let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
+                let is_guard = matches!(
+                    tf.role,
+                    BattleRole::GuardingDefender | BattleRole::IncumbentDefender
+                );
+
+                if !defending_starbase_holds_planet(tf)
+                    && !forced_engagement
+                    && !is_guard
+                    && !rule_threshold_satisfied(roe, our_as, enemy_as)
+                {
+                    sensor_withdrawals.push(tf.empire);
+                }
+            }
+
+            for empire in sensor_withdrawals {
+                if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
+                    task_force.withdrew_under_roe = true;
+                    let retreat_target =
+                        nearest_owned_planet(game_data, empire, coords).unwrap_or(coords);
+                    apply_roe_retreat_to_task_force(
+                        game_data,
+                        &task_force.fleet_indices,
+                        retreat_target,
+                    );
+                }
+            }
+        }
+
         for (i, left) in task_forces.iter().enumerate() {
             for right in task_forces.iter().skip(i + 1) {
                 if left.empire == right.empire
@@ -488,22 +581,26 @@ pub(crate) fn process_fleet_battles(
                 {
                     continue;
                 }
-                push_contact_event_for_task_force(
-                    &mut events.scout_contact_events,
-                    &mut events.planet_intel_events,
-                    game_data,
-                    coords,
-                    left,
-                    right,
-                );
-                push_contact_event_for_task_force(
-                    &mut events.scout_contact_events,
-                    &mut events.planet_intel_events,
-                    game_data,
-                    coords,
-                    right,
-                    left,
-                );
+                if !left.withdrew_under_roe {
+                    push_contact_event_for_task_force(
+                        &mut events.scout_contact_events,
+                        &mut events.planet_intel_events,
+                        game_data,
+                        coords,
+                        left,
+                        right,
+                    );
+                }
+                if !right.withdrew_under_roe {
+                    push_contact_event_for_task_force(
+                        &mut events.scout_contact_events,
+                        &mut events.planet_intel_events,
+                        game_data,
+                        coords,
+                        right,
+                        left,
+                    );
+                }
             }
         }
 
@@ -517,13 +614,6 @@ pub(crate) fn process_fleet_battles(
             continue;
         }
 
-        let battle_year = game_data.conquest.game_year();
-        let planet_owner = game_data
-            .planets
-            .records
-            .iter()
-            .find(|p| p.coords_raw() == coords)
-            .map(|p| p.owner_empire_slot_raw());
         let mut combat_occurred = false;
         let mut resolved_within_guardrail = false;
 
@@ -592,7 +682,7 @@ pub(crate) fn process_fleet_battles(
                 let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
                 let kind = if defending_starbase_holds_planet(tf) {
                     RoundActionKind::Fight
-                } else if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
+                } else if round > 3 && !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     RoundActionKind::Withdraw
                 } else {
                     RoundActionKind::Fight
@@ -774,7 +864,7 @@ pub(crate) fn process_fleet_battles(
                 if defending_starbase_holds_planet(tf) {
                     continue;
                 }
-                if !rule_threshold_satisfied(roe, our_as, enemy_as) {
+                if round > 3 && !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     let is_guard = matches!(
                         tf.role,
                         BattleRole::GuardingDefender | BattleRole::IncumbentDefender

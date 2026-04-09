@@ -4,7 +4,7 @@
 #set document(
   title: "Nostrian Conquest — Player Manual",
   author: "Mason A. Green",
-  date: datetime(year: 2026, month: 4, day: 5),
+  date: datetime(year: 2026, month: 4, day: 9),
 )
 
 #set page(
@@ -73,7 +73,7 @@
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Not affiliated with any original release. Created for fun and retro preservation.]
   #v(0.5em)
-  #text(size: 10pt, fill: luma(120))[Revision date: April 5, 2026]
+  #text(size: 10pt, fill: luma(120))[Revision date: April 9, 2026]
   #v(0.5em)
   #text(size: 10pt, fill: luma(120))[Version 1.0.0-beta.2 — Beta]
 ]
@@ -473,15 +473,21 @@ A fleet can contain as few as one ship and as many as *3,000 ships* of mixed typ
 
 You assign an ROE level (0--10) to control when your fleet voluntarily engages hostile forces. ROE is a deterministic commitment rule based on force ratios, not random chance.
 
+Before any fire is exchanged, your fleet performs a *pre-combat sensor check*. If the enemy force is overwhelming and violates his ROE, the commander will abort the engagement and "seek home" immediately. This clean retreat happens before the battle begins, allowing him to scout safely without being forced into a suicidal withdrawal exchange.
+
+*Note: Sensor checks do not trigger if you are forced into engagement (such as entering a defended system) or if your fleet is in a Guard or Incumbent role.*
+
 The full ROE threshold table is collected in @appendix-combat.
 
 Non-combat fleets (scouts, transports, ETACs only) are treated as ROE 0 automatically.
 
 === Withdrawal and Retreat
 
-#admonition("IMPORTANT")[Low ROE does not guarantee safety.]
+#admonition("IMPORTANT")[Low ROE does not guarantee safety once combat begins.]
 
-A fleet that refuses engagement or breaks off mid-battle does not escape cleanly. It suffers a *withdrawal exchange* --- the enemy fires on your retreating fleet, and your fleet fires back at reduced effectiveness. Only after absorbing that exchange does the fleet actually retreat and abort its current mission. After each round of combat, surviving fleets re-check their ROE. If the post-loss ratio no longer meets their threshold, they attempt to disengage and suffer the withdrawal exchange.
+If you choose to engage (or are forced to), your fleet is committed to the battle for a minimum of *three rounds*. ROE-based bailing is disabled until Round 4. This ensures that fleets trade meaningful blows before one side loses his nerve.
+
+A fleet that breaks off after Round 3 does not escape cleanly. It suffers a *withdrawal exchange* --- the enemy fires on your retreating fleet, and your fleet fires back at reduced effectiveness. Only after absorbing that exchange does the fleet actually retreat and abort its current mission. After each round of combat from Round 4 onward, surviving fleets re-check their ROE. If the post-loss ratio no longer meets his threshold, the commander attempts to disengage and suffers the withdrawal exchange.
 
 === Planetary Combat
 

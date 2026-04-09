@@ -60,6 +60,21 @@ Fleet combat, orbital fire, and ground battles resolve at the same instant.
 Rules of Engagement gate his willingness to engage, his decision to break off,
 and his guard posture. ROE does not inject randomness.
 
+#### Pre-Combat Sensor Check
+Before combat rounds begin, each task force performs a sensor sweep. If a fleet's
+ROE threshold is not met against the detected enemy force, it will abort the
+engagement and seek home immediately. This "clean retreat" happens before any
+fire is exchanged and avoids the damage of a withdrawal exchange.
+
+*Note: Sensor checks do not trigger for fleets forced into engagement (e.g.,
+defended system entry) or those in a Guard/Incumbent role.*
+
+#### 3-Round Commitment
+Once combat begins, all participating fleets are committed to the engagement
+for a minimum of **three rounds**. ROE-based withdrawals and retreats are
+disabled until **Round 4**. This ensures that fleets trade meaningful blows
+and prevents "bailing" before any attrition occurs.
+
 ### 3. Aggregate Combat
 EC uses ship counts, not per-hull damage state. The Rust engine uses a
 **Nominal -> Crippled -> Destroyed** step-loss model during a battle. Only
@@ -109,7 +124,8 @@ an attack escalates diplomacy to **Enemy** automatically.
 - **Deep Space**: Neutral fleets report contact but do not fight. Enemies are
   intercepted if ROE allows.
 - **Defended Systems**: Neutral assault fleets (**Bombard/Invade/Blitz**) are
-  treated as hostile intrusions. Orbit is contested immediately.
+  treated as hostile intrusions. Orbit is contested immediately. Forced
+  engagement rules apply (ROE sensor check skipped).
 - **Blockades**: Any fleet attempting to pass a blockade boundary triggers an
   orbital contest.
 
@@ -170,10 +186,11 @@ same turn.
 ## Fleet Combat Sequence
 
 1. **Identify Participants**: Combine all participating fleets into task forces.
-2. **Pre-Round ROE**: Fleets failing ROE attempt to withdraw.
-3. **Simultaneous Fire**: Both sides generate and apply hits.
-4. **Post-Round ROE**: Survivors check if they can still meet their thresholds.
+2. **Pre-Combat Sensor Check**: Fleets failing ROE attempt to seek home safely.
+3. **Simultaneous Fire**: Both sides generate and apply hits (Rounds 1-3 mandatory).
+4. **Post-Round ROE**: Survivors check if they can break off (Starting Round 4).
 5. **End State**: Combat ends when one side is destroyed or retreats.
+
 
 ## Simultaneous Arrival at a Planet
 
