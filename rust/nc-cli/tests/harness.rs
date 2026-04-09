@@ -106,6 +106,50 @@ fleet-ship fleet=1 kind="bb" 1 2
 }
 
 #[test]
+fn harness_list_report_families_prints_registry() {
+    let stdout = run_nc_cli(&["harness", "list-report-families"]);
+    assert!(stdout.contains("Available report preview families."));
+    assert!(stdout.contains("bombard [implemented]"));
+    assert!(stdout.contains("mission-retarget [stub]"));
+}
+
+#[test]
+fn harness_preview_reports_prints_attacker_and_defender_sections() {
+    let stdout = run_nc_cli(&[
+        "harness",
+        "preview-reports",
+        "--family",
+        "bombard",
+        "--seed",
+        "1515",
+        "--samples",
+        "1",
+    ]);
+    assert!(stdout.contains("Previewed report families."));
+    assert!(stdout.contains("family=bombard"));
+    assert!(stdout.contains("attacker (empire=1):"));
+    assert!(stdout.contains("defender (empire=2):"));
+    assert!(stdout.contains("Bombardment mission report"));
+}
+
+#[test]
+fn harness_preview_reports_all_lists_stubbed_skips() {
+    let stdout = run_nc_cli(&[
+        "harness",
+        "preview-reports",
+        "--family",
+        "all",
+        "--seed",
+        "1515",
+        "--samples",
+        "1",
+    ]);
+    assert!(stdout.contains("family=bombard"));
+    assert!(stdout.contains("family=fleet-battle"));
+    assert!(stdout.contains("stubbed families skipped="));
+}
+
+#[test]
 fn harness_seed_player1_tui_stress_populates_player1_runtime_backlog_and_intel() {
     let target = unique_temp_dir("nc-cli-harness-player1-tui-stress");
     let stdout = run_nc_cli(&[

@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nc_harness::{
-    CombatScenarioSpec, CombatSweepSpec, ScenarioSpec, build_scenario, run_combat_scenario,
-    run_combat_sweep,
+    CombatScenarioSpec, CombatSweepSpec, ReportPreviewQuery, ScenarioSpec, build_scenario,
+    list_report_preview_families, run_combat_scenario, run_combat_sweep, run_report_preview,
 };
 
 fn unique_temp_dir(prefix: &str) -> PathBuf {
@@ -167,4 +167,125 @@ fleet-roe fleet=5 6 10
     assert_eq!(report.total_possible_cases, 4);
     assert_eq!(report.executed_cases, 3);
     assert_eq!(report.cases.len(), 3);
+}
+
+#[test]
+fn report_preview_family_registry_exposes_implemented_and_stub_families() {
+    let families = list_report_preview_families();
+    assert!(families.iter().any(|family| family.key == "bombard"));
+    assert!(
+        families
+            .iter()
+            .any(|family| family.key == "mission-retarget")
+    );
+}
+
+#[test]
+fn report_preview_is_deterministic_for_same_query() {
+    let query = ReportPreviewQuery {
+        family: "bombard".to_string(),
+        seed: 1515,
+        samples: 2,
+    };
+    let left = run_report_preview(&query).unwrap();
+    let right = run_report_preview(&query).unwrap();
+    assert_eq!(left, right);
+}
+
+#[test]
+fn report_preview_changes_asset_mix_when_seed_changes() {
+    let left = run_report_preview(&ReportPreviewQuery {
+        family: "bombard".to_string(),
+        seed: 1515,
+        samples: 1,
+    })
+    .unwrap();
+    let right = run_report_preview(&ReportPreviewQuery {
+        family: "bombard".to_string(),
+        seed: 1516,
+        samples: 1,
+    })
+    .unwrap();
+    assert_ne!(
+        left.family_runs[0].cases[0].asset_summary,
+        right.family_runs[0].cases[0].asset_summary
+    );
+}
+
+#[test]
+fn assault_preview_families_surface_attacker_and_defender_sections() {
+    for family in ["bombard", "invade", "blitz"] {
+        let run = run_report_preview(&ReportPreviewQuery {
+            family: family.to_string(),
+            seed: 1515,
+            samples: 1,
+        })
+        .unwrap();
+        let roles = run.family_runs[0].cases[0]
+            .viewer_reports
+            .iter()
+            .map(|viewer| viewer.role)
+            .collect::<Vec<_>>();
+        assert!(
+            roles.contains(&"attacker"),
+            "{family} should expose attacker"
+        );
+        assert!(
+            roles.contains(&"defender"),
+            "{family} should expose defender"
+        );
+    }
+}
+
+#[test]
+fn fleet_destroyed_preview_surfaces_both_destroyed_and_survivor_wording() {
+    let run = run_report_preview(&ReportPreviewQuery {
+        family: "fleet-destroyed".to_string(),
+        seed: 1515,
+        samples: 1,
+    })
+    .unwrap();
+    let case = &run.family_runs[0].cases[0];
+    let attacker = case
+        .viewer_reports
+        .iter()
+        .find(|viewer| viewer.role == "attacker")
+        .unwrap();
+    let defender = case
+        .viewer_reports
+        .iter()
+        .find(|viewer| viewer.role == "defender")
+        .unwrap();
+    assert!(
+        attacker
+            .reports
+            .iter()
+            .any(|report| report.contains("We successfully intercepted")
+                || report.contains("We were attacked by"))
+    );
+    assert!(
+        defender
+            .reports
+            .iter()
+            .any(|report| report.contains("We lost all contact"))
+    );
+}
+
+#[test]
+fn encounter_preview_reports_retain_disposition_wording() {
+    let run = run_report_preview(&ReportPreviewQuery {
+        family: "encounter-retreated".to_string(),
+        seed: 1515,
+        samples: 1,
+    })
+    .unwrap();
+    let case = &run.family_runs[0].cases[0];
+    let reporting = case
+        .viewer_reports
+        .iter()
+        .find(|viewer| viewer.role == "reporting-fleet")
+        .unwrap();
+    assert!(reporting.reports.iter().any(
+        |report| report.contains("we withdrew toward") || report.contains("We withdrew toward")
+    ));
 }

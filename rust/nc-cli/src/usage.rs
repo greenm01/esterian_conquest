@@ -29,6 +29,8 @@ pub fn print_usage() {
         "  nc-cli harness run-combat --file <combat-scenario.kdl> [--dir <target_dir>] [--export-classic]"
     );
     println!("  nc-cli harness run-sweep --file <combat-sweep.kdl>");
+    println!("  nc-cli harness list-report-families");
+    println!("  nc-cli harness preview-reports --family <name|all> [--seed <u64>] [--samples <n>]");
     println!(
         "  nc-cli harness init-campaign --file <scenario.kdl> --dir <campaign_dir> --game-id <id> [--bundle-profile <human|llm>] [--export-classic]"
     );

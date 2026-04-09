@@ -48,7 +48,34 @@ cargo run -q -p nc-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /t
 cargo run -q -p nc-cli -- harness check-combat --file /tmp/combat-scenario.kdl
 cargo run -q -p nc-cli -- harness run-combat --file /tmp/combat-scenario.kdl
 cargo run -q -p nc-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
+cargo run -q -p nc-cli -- harness list-report-families
+cargo run -q -p nc-cli -- harness preview-reports --family bombard --seed 1515 --samples 3
 ```
+
+## Report Preview
+
+Use the report preview flow when you want quick narrative inspection instead of
+an end-to-end runtime scenario.
+
+- `list-report-families`
+  - prints every registered family plus whether it is implemented or still a stub
+- `preview-reports`
+  - generates seeded synthetic `MaintenanceEvents`
+  - runs the real Rust results composer
+  - prints stacked viewer sections such as attacker/defender so wording can be reviewed quickly
+
+Example:
+
+```bash
+cd rust
+cargo run -q -p nc-cli -- harness preview-reports --family bombard --seed 1515 --samples 3
+```
+
+Notes:
+
+- `--family all` runs every implemented family and prints a final `stubbed families skipped=...` line
+- families still marked `stub` are discoverable now, but the previewer will report `not implemented yet` for direct queries
+- the preview flow is deterministic for the same `--seed` and `--samples`
 
 ## Campaign Play
 
