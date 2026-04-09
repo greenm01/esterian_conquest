@@ -1727,7 +1727,16 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
     let text = decode_chunked_report(&results);
     assert!(text.contains("Bombardment mission report"));
     assert!(text.contains("bombing run"));
-    assert!(text.contains("The target world was defended by"));
+    assert!(
+        text.contains("Fleet contained") || text.contains("Fleetcontained"),
+        "{text}"
+    );
+    assert!(!text.contains("appeared to contain"));
+    assert!(
+        text.contains("The target world was defended by")
+            || text.contains("The target world was undefended.")
+    );
+    assert!(!text.contains("We were unable to inflict any ground losses."));
 
     cleanup_dir(&target);
 }
@@ -1815,10 +1824,16 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("Invasion mission report"));
-    assert!(text.contains("We attacked with"), "{text}");
+    assert!(text.contains("Our "), "{text}");
+    assert!(
+        text.contains("Fleet contained") || text.contains("Fleetcontained"),
+        "{text}"
+    );
     assert!(text.contains("The landing was repulsed."), "{text}");
     assert!(!text.contains("initially contained"), "{text}");
-    assert!(text.contains("ground batteries") || text.contains("armies"));
+    assert!(!text.contains("0 ground battery(ies)"), "{text}");
+    assert!(!text.contains("0 army(ies)"), "{text}");
+    assert!(text.contains("ground batteries") || text.contains("armies") || text.contains("none"));
 
     cleanup_dir(&target);
 }
@@ -2019,7 +2034,11 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
         text.contains("in a fast") && text.contains("assault."),
         "{text}"
     );
-    assert!(text.contains("We attacked with"), "{text}");
+    assert!(text.contains("Our "), "{text}");
+    assert!(
+        text.contains("Fleet contained") || text.contains("Fleetcontained"),
+        "{text}"
+    );
     assert!(
         (text.contains("defending world") && !text.contains("initially contained"))
             || text.contains("world was undefended")
@@ -2030,7 +2049,9 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     );
     assert!(text.contains("Enemy") && text.contains("losses:"), "{text}");
     assert!(
-        text.contains("during the landing") || text.contains("duringthe landing"),
+        text.contains("during the landing")
+            || text.contains("duringthe landing")
+            || text.contains("during thelanding"),
         "{text}"
     );
     assert_eq!(text.matches("Blitz mission report").count(), 1);
@@ -2085,7 +2106,10 @@ fn maint_rust_blitz_success_exports_ecgame_accepted_owned_row_shape() {
         text.contains("Blitz mission report: We have seized planet"),
         "{text}"
     );
-    assert!(text.contains("We attacked with"), "{text}");
+    assert!(
+        text.contains("Fleet contained") || text.contains("Fleetcontained"),
+        "{text}"
+    );
 
     let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
     let expected_year = reloaded.conquest.game_year() - 1;

@@ -147,6 +147,29 @@ These are part of the classic viewer contract, not optional style notes.
 - classic-facing reports use full ship names, never abbreviations such as `BB`,
   `CA`, or `DD`
 
+## Perspective Rule
+
+Player-facing reports should keep viewpoint consistent:
+
+- when the report is speaking about the viewer's own fleet, use first-person
+  phrasing
+- when the report can name the viewer's fleet number, prefer
+  `Our <fleet_ordinal> Fleet contained <ship_summary>.`
+- when the report is speaking about an enemy fleet, use third-person phrasing
+- the same rule applies symmetrically for the opponent's corresponding report
+
+Examples:
+
+- friendly side: `Our 10th Fleet contained 10 battleships and 11 cruisers.`
+- hostile side: `The attacking fleet contained 10 battleships and 11 cruisers.`
+- hostile side in fleet combat: `The alien force contained 10 battleships and 11 cruisers.`
+
+Zero-count rule:
+
+- do not emit `0 ground battery(ies)` or `0 army(ies)` in defense/loss clauses
+- use `We had no defenses.` / `The world was undefended...` where appropriate
+- omit zero-valued battery/army loss clauses instead of printing numeric zeroes
+
 ## Placeholders
 
 Use these placeholder names consistently:
@@ -470,7 +493,13 @@ Bombardment mission report: We were attacked by the <fleet_ordinal> Fleet of "<e
 Bombardment result:
 
 ```text
-Bombardment mission report: We have just concluded a bombing run against planet "<planet>", currently owned by "<empire>", (Empire #<empire_no>). The target world was defended by <army_count> armies. We managed to destroy <destroyed_armies> armies, <factory_damage>% of the factories, <goods_damage>% of the stored goods (production points), and all of the ship(s) in stardock including <stardock_losses>. We attacked with <ship_summary>. <friendly_losses>. We are holding our position and are awaiting new orders.
+Bombardment mission report: We have just concluded a bombing run against planet "<planet>", currently owned by "<empire>", (Empire #<empire_no>). Our <fleet_ordinal> Fleet contained <ship_summary>. The target world was defended by <defense_summary>. <friendly_losses>. We managed to destroy <ground_loss_summary>. <collateral_summary>. We are maintaining bombardment position and will continue next turn.
+```
+
+If the target world was undefended at the start of the bombing run, use:
+
+```text
+Bombardment mission report: We have just concluded a bombing run against planet "<planet>", currently owned by "<empire>", (Empire #<empire_no>). Our <fleet_ordinal> Fleet contained <ship_summary>. The target world was undefended. <friendly_losses>. <collateral_summary>. We are maintaining bombardment position and will continue next turn.
 ```
 
 Invasion arrival:
@@ -482,19 +511,19 @@ Invasion mission report: We have arrived at our target world and are preparing t
 Invasion success:
 
 ```text
-Invasion mission report: Our armies have captured planet "<planet>". We attacked with <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>.
+Invasion mission report: Our armies have captured planet "<planet>". Our <fleet_ordinal> Fleet contained <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>.
 ```
 
 Invasion defeated:
 
 ```text
-Invasion mission report: The landing was repulsed. We attacked with <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>.
+Invasion mission report: The landing was repulsed. Our <fleet_ordinal> Fleet contained <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>.
 ```
 
 Blitz success:
 
 ```text
-Blitz mission report: We have seized planet "<planet>" in a fast assault. We attacked with <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>. <landing_note>
+Blitz mission report: We have seized planet "<planet>" in a fast assault. Our <fleet_ordinal> Fleet contained <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>. <landing_note>
 ```
 
 Salvage start:

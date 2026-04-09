@@ -299,7 +299,9 @@ fn bombardment_defender_report_uses_first_person_loss_wording() {
     let bombard = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(bombard.contains("Our world has been bombarded by"));
-    assert!(bombard.contains("We lost"));
+    assert!(bombard.contains("The attacking fleet contained 1 destroyer."));
+    assert!(bombard.contains("Our defenses had 9 armies."));
+    assert!(!bombard.contains("0 ground battery(ies)"));
     assert!(bombard.contains("3 armies"));
     assert!(bombard.contains("We also lost"));
     assert!(bombard.contains("2 stardock items"));
@@ -345,10 +347,11 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
     let blitz = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(
-        blitz.contains("We attacked with 1 cruiser carrying 3 armies.")
-            || blitz.contains("We attacked with 1 cruiser.")
+        blitz.contains("Our 4th Fleet contained 1 cruiser carrying 3 armies.")
+            || blitz.contains("Our 4th Fleet contained 1 cruiser.")
     );
-    assert!(blitz.contains("Friendly losses: no ship losses and 3 armies."));
+    assert!(blitz.contains("Friendly losses: 3 armies."));
+    assert!(blitz.contains("Enemy losses: 2 ground batteries and 5 armies."));
     assert!(blitz.contains("No troops were lost in"));
     assert!(blitz.contains("destroyed troop transports during the landing."));
     assert!(!blitz.contains("No troops were lost during the landing."));
@@ -394,13 +397,13 @@ fn blitz_report_for_undefended_world_includes_attacker_force_and_no_battery_text
     assert!(
         blitz.contains("Blitz mission report: We have seized planet \"dog\" in a fast assault.")
     );
-    assert!(
-        blitz
-            .contains("We attacked with 2 cruisers and 2 troop transport ships carrying 2 armies.")
-    );
+    assert!(blitz.contains(
+        "Our 10th Fleet contained 2 cruisers and 2 troop transport ships carrying 2 armies."
+    ));
     assert!(blitz.contains("The world was undefended at the start of the assault."));
     assert!(!blitz.contains("failed to suppress the defending batteries"));
     assert!(!blitz.contains("suppressed 0 ground batteries"));
+    assert!(blitz.contains("Enemy losses: none."));
 }
 
 #[test]
@@ -441,12 +444,11 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(invasion.contains("Invasion mission report: Our armies have captured planet \"dog\"."));
-    assert!(
-        invasion.contains(
-            "We attacked with 1 battleship and 2 troop transport ships carrying 2 armies."
-        )
-    );
+    assert!(invasion.contains(
+        "Our 10th Fleet contained 1 battleship and 2 troop transport ships carrying 2 armies."
+    ));
     assert!(invasion.contains("The world was undefended at the start of the assault."));
+    assert!(invasion.contains("Enemy losses: none."));
 }
 
 #[test]
@@ -498,10 +500,116 @@ fn ownership_change_report_uses_assault_context_for_defender() {
     let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
     assert!(text.contains("We have been invaded and captured by"));
     assert!(!text.contains("captured by \"Player1\", (Empire #1) from"));
-    assert!(text.contains("The attacking force appeared to contain 1 cruiser."));
-    assert!(text.contains("Our defenses had 2 ground battery(ies) and 5 army(ies)."));
+    assert!(text.contains("The attacking force contained 1 cruiser."));
+    assert!(text.contains("Our defenses had 2 ground batteries and 5 armies."));
     assert!(text.contains("We lost 2 ground batteries and 5 armies."));
     assert!(text.contains("Enemy losses: no ship losses."));
+}
+
+#[test]
+fn bombardment_attacker_report_uses_first_person_fleet_and_undefended_wording() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3026)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [1, 9];
+    seed_target_world(&mut game_data, coords, "biggy");
+
+    let mut events = MaintenanceEvents::default();
+    events.bombard_events.push(BombardEvent {
+        planet_idx: 0,
+        attacker_empire_raw: 1,
+        attacker_fleet_number: Some(10),
+        defender_empire_raw: 2,
+        attacker_initial: ShipLosses {
+            battleships: 10,
+            cruisers: 11,
+            transports: 21,
+            ..ShipLosses::default()
+        },
+        defender_batteries_initial: 0,
+        defender_armies_initial: 0,
+        attacker_losses: ShipLosses::default(),
+        defender_battery_losses: 0,
+        defender_army_losses: 0,
+        breakthrough: true,
+        docked_losses: nc_data::EmpireUnitSummary::default(),
+        stardock_items_destroyed: 0,
+        stored_goods_destroyed: 25,
+        factories_destroyed: 336,
+        stardate_week: Some(3),
+    });
+    events.mission_events.push(MissionEvent {
+        fleet_idx: 0,
+        owner_empire_raw: 1,
+        kind: Mission::BombardWorld,
+        outcome: MissionOutcome::Succeeded,
+        planet_idx: Some(0),
+        location_coords: Some(coords),
+        target_coords: Some(coords),
+        stardate_week: Some(3),
+    });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains(
+        "Our 10th Fleet contained 10 battleships, 11 cruisers and 21 troop transport ships."
+    ));
+    assert!(text.contains("The target world was undefended."));
+    assert!(!text.contains("We were unable to inflict any ground losses."));
+    assert!(!text.contains("We broke through planetary defenses and struck the world's infrastructure."));
+    assert!(!text.contains("0 ground battery(ies)"));
+    assert!(!text.contains("0 armies"));
+}
+
+#[test]
+fn bombardment_defender_report_uses_no_defenses_for_zero_counts() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3026)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let coords = [1, 9];
+    seed_target_world(&mut game_data, coords, "biggy");
+
+    let mut events = MaintenanceEvents::default();
+    events.bombard_events.push(BombardEvent {
+        planet_idx: 0,
+        attacker_empire_raw: 2,
+        attacker_fleet_number: Some(10),
+        defender_empire_raw: 1,
+        attacker_initial: ShipLosses {
+            battleships: 10,
+            cruisers: 11,
+            transports: 21,
+            ..ShipLosses::default()
+        },
+        defender_batteries_initial: 0,
+        defender_armies_initial: 0,
+        attacker_losses: ShipLosses::default(),
+        defender_battery_losses: 0,
+        defender_army_losses: 0,
+        breakthrough: true,
+        docked_losses: nc_data::EmpireUnitSummary::default(),
+        stardock_items_destroyed: 0,
+        stored_goods_destroyed: 25,
+        factories_destroyed: 336,
+        stardate_week: Some(3),
+    });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains(
+        "The attacking fleet contained 10 battleships, 11 cruisers and 21 troop transport ships."
+    ));
+    assert!(text.contains("We had no defenses."));
+    assert!(!text.contains("appeared to contain"));
+    assert!(!text.contains("0 ground battery(ies)"));
+    assert!(!text.contains("0 army(ies)"));
+    assert!(!text.contains("We lost 0"));
 }
 
 #[test]

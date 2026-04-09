@@ -853,17 +853,42 @@ fn assault_attacker_force_summary(event: &nc_data::AssaultReportEvent) -> String
     fleet_force_summary(event.attacker_initial, event.attacker_loaded_armies_initial)
 }
 
-fn assault_defense_opening(event: &nc_data::AssaultReportEvent) -> String {
-    if event.defender_batteries_initial == 0 && event.defender_armies_initial == 0 {
-        " The world was undefended at the start of the assault.".to_string()
+fn own_fleet_contained_sentence(fleet_number: Option<u8>, force_summary: &str) -> String {
+    match fleet_number.filter(|fleet_number| *fleet_number != 0) {
+        Some(fleet_number) => format!(
+            " Our {} contained {force_summary}.",
+            fleet_label(fleet_number)
+        ),
+        None => format!(" Our fleet contained {force_summary}."),
+    }
+}
+
+fn ground_force_summary(batteries: u8, armies: u8) -> Option<String> {
+    let mut parts = Vec::new();
+    if batteries > 0 {
+        parts.push(unit_count_text(
+            batteries.into(),
+            "ground battery",
+            "ground batteries",
+        ));
+    }
+    if armies > 0 {
+        parts.push(unit_count_text(armies.into(), "army", "armies"));
+    }
+    if parts.is_empty() {
+        None
     } else {
-        format!(
-            " The defending world had {}.",
-            planet_defense_summary(
-                event.defender_batteries_initial,
-                event.defender_armies_initial
-            )
-        )
+        Some(join_report_parts(&parts))
+    }
+}
+
+fn assault_defense_opening(event: &nc_data::AssaultReportEvent) -> String {
+    match ground_force_summary(
+        event.defender_batteries_initial,
+        event.defender_armies_initial,
+    ) {
+        Some(summary) => format!(" The defending world had {summary}."),
+        None => " The world was undefended at the start of the assault.".to_string(),
     }
 }
 
@@ -880,8 +905,49 @@ fn blitz_cover_note(event: &nc_data::AssaultReportEvent) -> String {
     }
 }
 
-fn planet_defense_summary(batteries: u8, armies: u8) -> String {
-    format!("{batteries} ground battery(ies) and {armies} army(ies)")
+fn own_planet_defenses_sentence(batteries: u8, armies: u8) -> String {
+    match ground_force_summary(batteries, armies) {
+        Some(summary) => format!(" Our defenses had {summary}."),
+        None => " We had no defenses.".to_string(),
+    }
+}
+
+fn target_world_defense_sentence(batteries: u8, armies: u8) -> String {
+    match ground_force_summary(batteries, armies) {
+        Some(summary) => format!(" The target world was defended by {summary}."),
+        None => " The target world was undefended.".to_string(),
+    }
+}
+
+fn ground_losses_summary(batteries: u8, armies: u8) -> Option<String> {
+    ground_force_summary(batteries, armies)
+}
+
+fn own_ground_losses_sentence(batteries: u8, armies: u8) -> String {
+    match ground_losses_summary(batteries, armies) {
+        Some(summary) => format!(" We lost {summary}."),
+        None => String::new(),
+    }
+}
+
+fn assault_friendly_losses_summary(ship_losses: ShipLosses, army_losses: u32) -> String {
+    let ship_summary = ship_loss_summary(ship_losses);
+    let mut parts = Vec::new();
+    if ship_summary != "no ship losses" {
+        parts.push(ship_summary);
+    }
+    if army_losses > 0 {
+        parts.push(unit_count_text(army_losses, "army", "armies"));
+    }
+    if parts.is_empty() {
+        "none".to_string()
+    } else {
+        join_report_parts(&parts)
+    }
+}
+
+fn assault_enemy_losses_summary(batteries: u8, armies: u8) -> String {
+    ground_losses_summary(batteries, armies).unwrap_or_else(|| "none".to_string())
 }
 
 fn bombardment_collateral_damage_sentence(
@@ -1283,16 +1349,18 @@ fn generate_report_entries(
             event.factories_destroyed,
             false,
         );
+        let defense_sentence = own_planet_defenses_sentence(
+            event.defender_batteries_initial,
+            event.defender_armies_initial,
+        );
+        let losses_sentence =
+            own_ground_losses_sentence(event.defender_battery_losses, event.defender_army_losses);
         let body = format!(
-            " Our world has been bombarded by {}. The attacking fleet appeared to contain {}. Our defenses had {}. We lost {} ground batteries and {} armies.{}",
+            " Our world has been bombarded by {}. The attacking fleet contained {}.{}{}{}",
             attacker,
             fleet_force_summary(event.attacker_initial, 0),
-            planet_defense_summary(
-                event.defender_batteries_initial,
-                event.defender_armies_initial
-            ),
-            event.defender_battery_losses,
-            event.defender_army_losses,
+            defense_sentence,
+            losses_sentence,
             production_damage,
         );
         entries.push(ReportEntry {
@@ -1618,7 +1686,10 @@ fn generate_report_entries(
         let [x, y] = planet.coords_raw();
         let attacker_force = assault_attacker_force_summary(event);
         let defense_opening = assault_defense_opening(event);
-        let ship_losses = ship_loss_summary(event.attacker_ship_losses);
+        let friendly_losses =
+            assault_friendly_losses_summary(event.attacker_ship_losses, event.attacker_army_losses);
+        let enemy_losses =
+            assault_enemy_losses_summary(event.defender_battery_losses, event.defender_army_losses);
         let transport_note = if event.transport_army_losses > 0 {
             format!(
                 " {} troop(s) died in destroyed troop transports during the landing.",
@@ -1633,56 +1704,42 @@ fn generate_report_entries(
         let source =
             owned_fleet_source_clause(event.attacker_fleet_number, &format!("System({x},{y})"));
         let header = report_header(&source, event.stardate_week, year);
+        let force_sentence =
+            own_fleet_contained_sentence(event.attacker_fleet_number, &attacker_force);
         let body = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
-                " Invasion mission report: Our armies have captured planet \"{}\". We attacked with {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: Our armies have captured planet \"{}\".{}{} Friendly losses: {}. Enemy losses: {}.",
                 planet.planet_name(),
-                attacker_force,
+                force_sentence,
                 defense_opening,
-                ship_losses,
-                event.attacker_army_losses,
-                event.defender_battery_losses,
-                event.defender_army_losses,
+                friendly_losses,
+                enemy_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
-                " Invasion mission report: The landing was repulsed. We attacked with {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                attacker_force,
-                defense_opening,
-                ship_losses,
-                event.attacker_army_losses,
-                event.defender_battery_losses,
-                event.defender_army_losses,
+                " Invasion mission report: The landing was repulsed.{}{} Friendly losses: {}. Enemy losses: {}.",
+                force_sentence, defense_opening, friendly_losses, enemy_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
-                " Invasion mission report: Enemy ground batteries prevented a landing. We attacked with {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                attacker_force,
-                defense_opening,
-                ship_losses,
-                event.attacker_army_losses,
-                event.defender_battery_losses,
-                event.defender_army_losses,
+                " Invasion mission report: Enemy ground batteries prevented a landing.{}{} Friendly losses: {}. Enemy losses: {}.",
+                force_sentence, defense_opening, friendly_losses, enemy_losses,
             ),
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
-                " Blitz mission report: We have seized planet \"{}\" in a fast assault. We attacked with {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                " Blitz mission report: We have seized planet \"{}\" in a fast assault.{}{}{} Friendly losses: {}. Enemy losses: {}.{}",
                 planet.planet_name(),
-                attacker_force,
+                force_sentence,
                 defense_opening,
                 blitz_cover_note,
-                ship_losses,
-                event.attacker_army_losses,
-                event.defender_battery_losses,
-                event.defender_army_losses,
+                friendly_losses,
+                enemy_losses,
                 transport_note,
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
-                " Blitz mission report: The blitz attack failed. We attacked with {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
-                attacker_force,
+                " Blitz mission report: The blitz attack failed.{}{}{} Friendly losses: {}. Enemy losses: {}.{}",
+                force_sentence,
                 defense_opening,
                 blitz_cover_note,
-                ship_losses,
-                event.attacker_army_losses,
-                event.defender_battery_losses,
-                event.defender_army_losses,
+                friendly_losses,
+                enemy_losses,
                 transport_note,
             ),
             _ => continue,
@@ -1875,16 +1932,20 @@ fn generate_report_entries(
                 && assault.defender_empire_raw == event.reporting_empire_raw
                 && assault.outcome == MissionOutcome::Succeeded
         }) {
-            format!(
-                " We have been invaded and captured by {}. The attacking force appeared to contain {}. Our defenses had {}. We lost {} ground batteries and {} armies. Enemy losses: {}.",
-                classic_empire_clause(game_data, event.new_owner_empire_raw),
-                fleet_force_summary(assault.attacker_initial, 0),
-                planet_defense_summary(
-                    assault.defender_batteries_initial,
-                    assault.defender_armies_initial
-                ),
+            let defense_sentence = own_planet_defenses_sentence(
+                assault.defender_batteries_initial,
+                assault.defender_armies_initial,
+            );
+            let losses_sentence = own_ground_losses_sentence(
                 assault.defender_battery_losses,
                 assault.defender_army_losses,
+            );
+            format!(
+                " We have been invaded and captured by {}. The attacking force contained {}.{}{} Enemy losses: {}.",
+                classic_empire_clause(game_data, event.new_owner_empire_raw),
+                fleet_force_summary(assault.attacker_initial, 0),
+                defense_sentence,
+                losses_sentence,
                 ship_loss_summary(assault.attacker_ship_losses),
             )
         } else {
@@ -2291,24 +2352,45 @@ fn generate_report_entries(
                                 .map(|e| bombardment_collateral_damage_sentence(e.stardock_items_destroyed, e.stored_goods_destroyed, e.factories_destroyed, true))
                                 .unwrap_or_default();
                             let breakthrough = bombard_event.is_some_and(|e| e.breakthrough);
-                            let status = if breakthrough {
-                                " We broke through planetary defenses and struck the world's infrastructure."
-                            } else {
-                                " Planetary batteries absorbed our bombardment. The world's infrastructure remains shielded."
-                            };
+                            let attacker_force = bombard_event.map(|e| {
+                                own_fleet_contained_sentence(
+                                    e.attacker_fleet_number,
+                                    &fleet_force_summary(e.attacker_initial, 0),
+                                )
+                            }).unwrap_or_else(|| " Our fleet contained unknown force levels.".to_string());
+                            let defense_sentence = bombard_event
+                                .map(|e| target_world_defense_sentence(
+                                    e.defender_batteries_initial,
+                                    e.defender_armies_initial,
+                                ))
+                                .unwrap_or_else(|| " The target world's defenses are unknown.".to_string());
+                            let ground_damage = bombard_event
+                                .map(|e| {
+                                    if e.defender_batteries_initial == 0 && e.defender_armies_initial == 0 {
+                                        String::new()
+                                    } else {
+                                        ground_losses_summary(
+                                            e.defender_battery_losses,
+                                            e.defender_army_losses,
+                                        )
+                                        .map(|summary| format!(" We managed to destroy {summary}."))
+                                        .unwrap_or_else(|| {
+                                            " We were unable to inflict any ground losses."
+                                                .to_string()
+                                        })
+                                    }
+                                })
+                                .unwrap_or_else(|| " We were unable to inflict any ground losses.".to_string());
                             format!(
-                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\". The target world was defended by {}. {} We managed to destroy {} ground batteries and {} armies.{}{} We are maintaining bombardment position and will continue next turn.",
+                                " Bombardment mission report: We have just concluded a bombing run against planet \"{}\".{}{} {}{}{} We are maintaining bombardment position and will continue next turn.",
                                 planet.planet_name(),
-                                bombard_event
-                                    .map(|e| planet_defense_summary(e.defender_batteries_initial, e.defender_armies_initial))
-                                    .unwrap_or_else(|| "unknown defenses".to_string()),
+                                attacker_force,
+                                defense_sentence,
                                 bombard_event
                                     .map(|e| friendly_losses_sentence(e.attacker_losses))
                                     .unwrap_or_else(|| "We suffered no ship losses.".to_string()),
-                                bombard_event.map(|e| e.defender_battery_losses).unwrap_or(0),
-                                bombard_event.map(|e| e.defender_army_losses).unwrap_or(0),
+                                ground_damage,
                                 if breakthrough { &collateral } else { "" },
-                                status,
                             )
                         }
                     } else {
