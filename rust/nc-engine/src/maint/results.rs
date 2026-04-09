@@ -242,15 +242,19 @@ fn enemy_retreat_reported_for_battle(
 fn battle_outcome_sentence(
     events: &MaintenanceEvents,
     battle_event: &nc_data::FleetBattleEvent,
-) -> &'static str {
+) -> String {
     if battle_event.held_field {
         if enemy_retreat_reported_for_battle(events, battle_event) {
-            "The enemy fled the field."
+            "The enemy fled the field.".to_string()
+        } else if battle_event.enemy_initial == battle_event.enemy_losses
+            && battle_event.enemy_initial_starbases == battle_event.enemy_starbases_destroyed
+        {
+            "The aliens were completely destroyed.".to_string()
         } else {
-            "We held the field."
+            "We held the field.".to_string()
         }
     } else {
-        "We were forced to disengage."
+        "We were forced to disengage.".to_string()
     }
 }
 
@@ -841,7 +845,7 @@ fn assault_defense_opening(event: &nc_data::AssaultReportEvent) -> String {
         " The world was undefended at the start of the assault.".to_string()
     } else {
         format!(
-            " The defending world initially contained {}.",
+            " The defending world had {}.",
             planet_defense_summary(
                 event.defender_batteries_initial,
                 event.defender_armies_initial
@@ -1267,7 +1271,7 @@ fn generate_report_entries(
             false,
         );
         let body = format!(
-            " Our world has been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies.{}",
+            " Our world has been bombarded by {}. The attacking fleet appeared to contain {}. Our defenses had {}. We lost {} ground batteries and {} armies.{}",
             attacker,
             fleet_force_summary(event.attacker_initial, 0),
             planet_defense_summary(
@@ -1392,30 +1396,34 @@ fn generate_report_entries(
         };
         let header = report_header(&source, event.stardate_week, year);
         let defended_force_text = if starbase_only_defender {
-            format!("Our defenses contained {friendly_initial}.")
+            format!("Our defenses had {friendly_initial}.")
         } else {
-            format!("Our force contained {friendly_initial}.")
+            format!("We had {friendly_initial}.")
         };
+        let outcome_text = battle_outcome_sentence(events, event);
+        let friendly_losses_text =
+            combined_friendly_losses_sentence(event.friendly_losses, event.friendly_starbases_lost);
+        let enemy_losses_text = (!outcome_text.contains("completely destroyed")).then(|| {
+            combined_enemy_losses_sentence(event.enemy_losses, event.enemy_starbases_destroyed)
+        });
         let body = if matches!(event.perspective, FleetBattlePerspective::Intercepted) {
-            format!(
-                "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {} {} {}",
-                battle_outcome_sentence(events, event),
-                combined_friendly_losses_sentence(
-                    event.friendly_losses,
-                    event.friendly_starbases_lost,
+            match &enemy_losses_text {
+                Some(enemy_losses_text) => format!(
+                    "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {outcome_text} {friendly_losses_text} {enemy_losses_text}",
                 ),
-                combined_enemy_losses_sentence(event.enemy_losses, event.enemy_starbases_destroyed,),
-            )
+                None => format!(
+                    "{prefix} We successfully intercepted {enemy}. We had {friendly_initial}. Alien force contained {enemy_initial}. {outcome_text} {friendly_losses_text}",
+                ),
+            }
         } else {
-            format!(
-                "{prefix} We were attacked by {enemy} in System({x},{y}). {defended_force_text} Alien force contained {enemy_initial}. {} {} {}",
-                battle_outcome_sentence(events, event),
-                combined_friendly_losses_sentence(
-                    event.friendly_losses,
-                    event.friendly_starbases_lost,
+            match &enemy_losses_text {
+                Some(enemy_losses_text) => format!(
+                    "{prefix} We were attacked by {enemy} in System({x},{y}). {defended_force_text} Alien force contained {enemy_initial}. {outcome_text} {friendly_losses_text} {enemy_losses_text}",
                 ),
-                combined_enemy_losses_sentence(event.enemy_losses, event.enemy_starbases_destroyed,),
-            )
+                None => format!(
+                    "{prefix} We were attacked by {enemy} in System({x},{y}). {defended_force_text} Alien force contained {enemy_initial}. {outcome_text} {friendly_losses_text}",
+                ),
+            }
         };
         entries.push(ReportEntry {
             text: format!("{header}{body}"),
@@ -1614,7 +1622,7 @@ fn generate_report_entries(
         let header = report_header(&source, event.stardate_week, year);
         let body = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
-                " Invasion mission report: Our armies have captured planet \"{}\". Our assault force initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: Our armies have captured planet \"{}\". We attacked with {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 planet.planet_name(),
                 attacker_force,
                 defense_opening,
@@ -1624,7 +1632,7 @@ fn generate_report_entries(
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
-                " Invasion mission report: The landing was repulsed. Our assault force initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: The landing was repulsed. We attacked with {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 attacker_force,
                 defense_opening,
                 ship_losses,
@@ -1633,7 +1641,7 @@ fn generate_report_entries(
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
-                " Invasion mission report: Enemy ground batteries prevented a landing. Our assault force initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                " Invasion mission report: Enemy ground batteries prevented a landing. We attacked with {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 attacker_force,
                 defense_opening,
                 ship_losses,
@@ -1642,7 +1650,7 @@ fn generate_report_entries(
                 event.defender_army_losses,
             ),
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
-                " Blitz mission report: We have seized planet \"{}\" in a fast assault. Our assault force initially contained {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                " Blitz mission report: We have seized planet \"{}\" in a fast assault. We attacked with {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 planet.planet_name(),
                 attacker_force,
                 defense_opening,
@@ -1654,7 +1662,7 @@ fn generate_report_entries(
                 transport_note,
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
-                " Blitz mission report: The blitz attack failed. Our assault force initially contained {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                " Blitz mission report: The blitz attack failed. We attacked with {}.{}{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 attacker_force,
                 defense_opening,
                 blitz_cover_note,
@@ -1855,7 +1863,7 @@ fn generate_report_entries(
                 && assault.outcome == MissionOutcome::Succeeded
         }) {
             format!(
-                " We have been invaded and captured by {}. The attacking force initially contained {}. Our defenses initially contained {}. We lost {} ground batteries and {} armies. Enemy losses: {}.",
+                " We have been invaded and captured by {}. The attacking force appeared to contain {}. Our defenses had {}. We lost {} ground batteries and {} armies. Enemy losses: {}.",
                 classic_empire_clause(game_data, event.new_owner_empire_raw),
                 fleet_force_summary(assault.attacker_initial, 0),
                 planet_defense_summary(

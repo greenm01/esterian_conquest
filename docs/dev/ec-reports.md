@@ -470,7 +470,7 @@ Bombardment mission report: We were attacked by the <fleet_ordinal> Fleet of "<e
 Bombardment result:
 
 ```text
-Bombardment mission report: We have just concluded a bombing run against planet "<planet>", currently owned by "<empire>", (Empire #<empire_no>). The target world was defended by <army_count> armies. We managed to destroy <destroyed_armies> armies, <factory_damage>% of the factories, <goods_damage>% of the stored goods (production points), and all of the ship(s) in stardock including <stardock_losses>. Our force initially contained <ship_summary>. <friendly_losses>. We are holding our position and are awaiting new orders.
+Bombardment mission report: We have just concluded a bombing run against planet "<planet>", currently owned by "<empire>", (Empire #<empire_no>). The target world was defended by <army_count> armies. We managed to destroy <destroyed_armies> armies, <factory_damage>% of the factories, <goods_damage>% of the stored goods (production points), and all of the ship(s) in stardock including <stardock_losses>. We attacked with <ship_summary>. <friendly_losses>. We are holding our position and are awaiting new orders.
 ```
 
 Invasion arrival:
@@ -482,19 +482,19 @@ Invasion mission report: We have arrived at our target world and are preparing t
 Invasion success:
 
 ```text
-Invasion mission report: We have successfully invaded and taken planet "<planet>" from "<empire>", (Empire #<empire_no>). The target world was defended by <defense_summary>. In the attack, we managed to capture <goods_points> production point(s) worth of goods. Our force initially contained <ship_summary> carrying <army_count> armies. In the raid, we lost <friendly_loss_summary>. After the smoke cleared, we had <remaining_armies> armies enforcing control on the planet. We are holding our position and are awaiting new orders.
+Invasion mission report: Our armies have captured planet "<planet>". We attacked with <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>.
 ```
 
 Invasion defeated:
 
 ```text
-Invasion mission report: Our invasion attempt was defeated. We failed to capture planet "<planet>" from "<empire>", (Empire #<empire_no>). The target world was defended by <defense_summary>. <loss_summary>.
+Invasion mission report: The landing was repulsed. We attacked with <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>.
 ```
 
 Blitz success:
 
 ```text
-Blitz mission report: We have successfully blitzed and taken planet "<planet>" from "<empire>", (Empire #<empire_no>). The target world was defended by <defense_summary>. In the attack, we managed to capture <capture_summary>. Our force initially contained <ship_summary> carrying <army_count> armies. In the raid, we lost <friendly_loss_summary>. After the smoke cleared, we had <remaining_armies> armies enforcing control on the planet. We are holding our position and are awaiting new orders.
+Blitz mission report: We have seized planet "<planet>" in a fast assault. We attacked with <ship_summary> carrying <army_count> armies. The defending world had <defense_summary>. Friendly losses: <friendly_loss_summary>. Enemy losses: <enemy_loss_summary>. <landing_note>
 ```
 
 Salvage start:
@@ -513,6 +513,68 @@ Fleet Command Center loss summary:
 
 ```text
 We lost all contact with the <fleet_ordinal> Fleet shortly after it <hostile_clause>. Records show the <fleet_ordinal> Fleet was composed of <ship_summary> and carried <army_count> armies. According to a burnt flight recorder we recovered, the alien force initially contained <enemy_ship_summary>. The flight recorder recorded alien ship casualties of <enemy_losses>.
+```
+
+## Current Rust Combat Wording Anchors
+
+These worked examples are the current style anchors for Rust-maintained
+fleet-combat reports. Use them when tightening wording or resolving report
+composition regressions.
+
+Style rules reflected below:
+
+- report the starting force and losses; do not append a survivor recap
+- winner-side reports should say `The enemy fled the field.` when the opponent
+  retreats
+- winner-side reports should say `The aliens were completely destroyed.` when
+  the opposing fleet is wiped out
+- loser-side ROE language belongs only in the loser report, not the winner's
+
+### Retreating Side
+
+```text
+-> From your 8th Fleet, located in System(9,5):           Stardate: 02/3025
+   -> Patrol mission report: We engaged the 3rd Fleet of "Player2", (Empire #2).
+   -> We had 1 battleship, 5 cruisers and 3 destroyers. The alien force contained
+   -> 2 battleships, 4 cruisers and 6 destroyers. In accordance with our ROE, we
+   -> withdrew toward System(7,5). We lost 2 cruisers and 1 destroyer. We inflicted
+   -> losses of 1 cruiser and 2 destroyers.
+   -> <end of transmission>
+```
+
+### Victorious Side After Enemy Retreat
+
+```text
+-> From your 3rd Fleet, located in System(9,5):           Stardate: 02/3025
+   -> Guard/Blockade World mission report: We successfully intercepted the 8th Fleet
+   -> of "Player1", (Empire #1). We had 2 battleships, 4 cruisers and 6 destroyers.
+   -> The alien force contained 1 battleship, 5 cruisers and 3 destroyers. The enemy
+   -> fled the field. We lost 1 cruiser and 2 destroyers. We inflicted losses of
+   -> 2 cruisers and 1 destroyer.
+   -> <end of transmission>
+```
+
+### Victorious Side After Total Enemy Destruction
+
+```text
+-> From your 6th Fleet, located in System(11,4):          Stardate: 03/3025
+   -> Bombardment mission report: We successfully intercepted the 9th Fleet of
+   -> "Player2", (Empire #2). We had 2 battleships, 6 cruisers and 4 destroyers.
+   -> The alien force contained 1 battleship, 3 cruisers and 2 troop transport ships
+   -> carrying 2 armies. The aliens were completely destroyed. We lost 1 cruiser.
+   -> <end of transmission>
+```
+
+### Destroyed Side Telemetry Report
+
+```text
+-> From your Fleet Command Center:                        Stardate: 03/3025
+   -> We lost all contact with the 9th Fleet shortly after it was attacked by the
+   -> 6th Fleet of "Player1", (Empire #1) in System(11,4). It was composed of
+   -> 1 battleship, 3 cruisers and 2 troop transport ships carrying 2 armies.
+   -> Recovered telemetry indicates the alien force contained 2 battleships,
+   -> 6 cruisers and 4 destroyers and suffered casualties of 1 cruiser.
+   -> <end of transmission>
 ```
 
 Starbase mutiny loss summary:

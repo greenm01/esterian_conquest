@@ -296,11 +296,7 @@ fn bombardment_defender_report_uses_first_person_loss_wording() {
     });
 
     let rows = build_results_report_blocks(&game_data, &events);
-    let texts = viewer_report_texts(1, &rows);
-    let bombard = texts
-        .iter()
-        .find(|text| text.contains("bombarded"))
-        .expect("bombard report should exist");
+    let bombard = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(bombard.contains("Our world has been bombarded by"));
     assert!(bombard.contains("We lost"));
@@ -349,8 +345,8 @@ fn blitz_report_distinguishes_total_army_losses_from_transport_losses() {
     let blitz = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(
-        blitz.contains("Our assault force initially contained 1 cruiser carrying 3 armies.")
-            || blitz.contains("Our assault force initially contained 1 cruiser.")
+        blitz.contains("We attacked with 1 cruiser carrying 3 armies.")
+            || blitz.contains("We attacked with 1 cruiser.")
     );
     assert!(blitz.contains("Friendly losses: no ship losses and 3 armies."));
     assert!(blitz.contains("No troops were lost in"));
@@ -398,7 +394,10 @@ fn blitz_report_for_undefended_world_includes_attacker_force_and_no_battery_text
     assert!(
         blitz.contains("Blitz mission report: We have seized planet \"dog\" in a fast assault.")
     );
-    assert!(blitz.contains("Our assault force initially contained 2 cruisers and 2 troop transport ships carrying 2 armies."));
+    assert!(
+        blitz
+            .contains("We attacked with 2 cruisers and 2 troop transport ships carrying 2 armies.")
+    );
     assert!(blitz.contains("The world was undefended at the start of the assault."));
     assert!(!blitz.contains("failed to suppress the defending batteries"));
     assert!(!blitz.contains("suppressed 0 ground batteries"));
@@ -442,7 +441,11 @@ fn invasion_report_includes_attacker_force_and_undefended_world_wording() {
     let invasion = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
 
     assert!(invasion.contains("Invasion mission report: Our armies have captured planet \"dog\"."));
-    assert!(invasion.contains("Our assault force initially contained 1 battleship and 2 troop transport ships carrying 2 armies."));
+    assert!(
+        invasion.contains(
+            "We attacked with 1 battleship and 2 troop transport ships carrying 2 armies."
+        )
+    );
     assert!(invasion.contains("The world was undefended at the start of the assault."));
 }
 
@@ -495,11 +498,8 @@ fn ownership_change_report_uses_assault_context_for_defender() {
     let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
     assert!(text.contains("We have been invaded and captured by"));
     assert!(!text.contains("captured by \"Player1\", (Empire #1) from"));
-    assert!(text.contains("The attacking force initially"));
-    assert!(text.contains("contained 1 cruiser."));
-    assert!(
-        text.contains("Our defenses initially contained 2 ground battery(ies) and 5 army(ies).")
-    );
+    assert!(text.contains("The attacking force appeared to contain 1 cruiser."));
+    assert!(text.contains("Our defenses had 2 ground battery(ies) and 5 army(ies)."));
     assert!(text.contains("We lost 2 ground batteries and 5 armies."));
     assert!(text.contains("Enemy losses: no ship losses."));
 }
@@ -681,7 +681,7 @@ fn starbase_only_defender_report_uses_command_center_source() {
     let rows = build_results_report_blocks(&game_data, &events);
     let text = viewer_report_texts(2, &rows).join(" ").replace('\n', " ");
     assert!(text.contains("From your Fleet Command Center:"));
-    assert!(text.contains("Our defenses contained 1 starbase."));
+    assert!(text.contains("Our defenses had 1 starbase."));
     assert!(!text.contains("From your fleet"));
     assert!(!text.contains("Our force contained no ships."));
 }
@@ -725,7 +725,7 @@ fn attacker_report_mentions_destroyed_lone_starbase() {
     let rows = build_results_report_blocks(&game_data, &events);
     let text = viewer_report_texts(1, &rows).join(" ").replace('\n', " ");
     assert!(text.contains("Alien force contained 1 starbase."));
-    assert!(text.contains("We inflicted losses of 1 starbase."));
+    assert!(text.contains("The aliens were completely destroyed."));
     assert!(!text.contains("We were unable to inflict any losses."));
 }
 
@@ -796,6 +796,66 @@ fn victorious_fleet_report_says_enemy_fled_without_roe_leak() {
     assert!(text.contains("The enemy fled the field."));
     assert!(!text.contains("We held the field."));
     assert!(!text.contains("In accordance with our ROE"));
+}
+
+#[test]
+fn victorious_fleet_report_uses_total_destruction_phrase() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3025)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.fleet_battle_events.push(FleetBattleEvent {
+        reporting_empire_raw: 1,
+        reporting_fleet_number: Some(6),
+        reporting_mission: Some(Mission::BombardWorld),
+        perspective: FleetBattlePerspective::Intercepted,
+        coords: [11, 4],
+        enemy_empires_raw: vec![2],
+        primary_enemy_fleet_number: Some(9),
+        held_field: true,
+        friendly_initial: ShipLosses {
+            battleships: 2,
+            cruisers: 6,
+            destroyers: 4,
+            ..ShipLosses::default()
+        },
+        friendly_initial_starbases: 0,
+        friendly_loaded_armies_initial: 0,
+        friendly_losses: ShipLosses {
+            cruisers: 1,
+            ..ShipLosses::default()
+        },
+        friendly_starbases_lost: 0,
+        enemy_initial: ShipLosses {
+            battleships: 1,
+            cruisers: 3,
+            transports: 2,
+            ..ShipLosses::default()
+        },
+        enemy_initial_starbases: 0,
+        enemy_loaded_armies_initial: 2,
+        enemy_losses: ShipLosses {
+            battleships: 1,
+            cruisers: 3,
+            transports: 2,
+            ..ShipLosses::default()
+        },
+        enemy_starbases_destroyed: 0,
+        stardate_week: Some(3),
+    });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("The aliens were completely destroyed."));
+    assert!(
+        !text.contains(
+            "We inflicted losses of 1 battleship, 3 cruisers and 2 troop transport ships."
+        )
+    );
 }
 
 #[test]
@@ -970,7 +1030,11 @@ fn results_reports_starbase_contact_before_destroyed_starbase_notice() {
         });
 
     let texts = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events));
-    assert_eq!(texts.len(), 2, "expected contact and destroyed-starbase reports: {texts:?}");
+    assert_eq!(
+        texts.len(),
+        2,
+        "expected contact and destroyed-starbase reports: {texts:?}"
+    );
     assert!(texts[0].contains("We have located and identified an alien fleet"));
     assert!(texts[1].contains("We lost all contact with Starbase 5"));
 }
