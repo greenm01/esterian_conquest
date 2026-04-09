@@ -1,6 +1,7 @@
 use nc_data::{
-    AssaultReportEvent, BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent,
-    GameStateBuilder, MaintenanceEvents, Mission, MissionOutcome, PlanetOwnershipChangeEvent,
+    AssaultReportEvent, BombardEvent, ContactReportSource, EncounterDispositionEvent,
+    EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent, GameStateBuilder,
+    MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetOwnershipChangeEvent,
     PlanetRecord, ScoutContactEvent, ShipLosses,
 };
 use nc_engine::{
@@ -552,6 +553,66 @@ fn results_report_invalid_capability_loss_as_aborted_seek_home_mission() {
     assert!(texts.iter().any(|text| {
         text.contains("colonize world mission") && text.contains("lacks the required ETAC")
     }));
+}
+
+#[test]
+fn results_merge_roe_retreat_into_invasion_abort_report() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3016)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let mut events = MaintenanceEvents::default();
+    events.mission_events.push(MissionEvent {
+        fleet_idx: 0,
+        owner_empire_raw: 1,
+        kind: Mission::InvadeWorld,
+        outcome: MissionOutcome::Aborted,
+        planet_idx: Some(0),
+        location_coords: Some([15, 13]),
+        target_coords: Some([15, 13]),
+        stardate_week: Some(2),
+    });
+    events
+        .encounter_disposition_events
+        .push(EncounterDispositionEvent::Retreated {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            mission: Some(Mission::InvadeWorld),
+            coords: [15, 13],
+            target_empire_raw: 2,
+            target_fleet_number: Some(4),
+            enemy_initial: ShipLosses {
+                cruisers: 2,
+                transports: 3,
+                ..ShipLosses::default()
+            },
+            retreat_target_coords: [16, 13],
+            losses_sustained: ShipLosses {
+                destroyers: 1,
+                ..ShipLosses::default()
+            },
+            enemy_losses_inflicted: ShipLosses::default(),
+            reason: EncounterDispositionReason::RoeWithdrawal,
+            stardate_week: Some(2),
+        });
+
+    let rows = build_results_report_blocks(&game_data, &events);
+    let texts = viewer_report_texts(1, &rows);
+    let joined = texts.join(" ").replace('\n', " ");
+
+    assert_eq!(
+        texts.iter()
+            .filter(|text| text.contains("Invasion mission report"))
+            .count(),
+        1,
+        "expected one merged invasion abort report: {texts:?}"
+    );
+    assert!(joined.contains("In accordance with our ROE, we withdrew"));
+    assert!(joined.contains("This forced us to abort the invasion before the landing could begin."));
+    assert!(joined.contains("The alien force contained 2 cruisers and 3 troop transport ships."));
+    assert!(!joined.contains("Hostile action stripped us of our invasion capability"));
 }
 
 #[test]

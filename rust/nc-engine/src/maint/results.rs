@@ -569,6 +569,43 @@ fn mission_event_has_fleet_destroyed(
     })
 }
 
+fn matching_roe_abort_disposition_index(
+    events: &MaintenanceEvents,
+    event: &nc_data::MissionEvent,
+) -> Option<usize> {
+    if event.outcome != MissionOutcome::Aborted {
+        return None;
+    }
+    let coords = event.location_coords?;
+    events
+        .encounter_disposition_events
+        .iter()
+        .position(|disposition| match disposition {
+            nc_data::EncounterDispositionEvent::Retreated {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Some(mission),
+                coords: disposition_coords,
+                reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
+                ..
+            }
+            | nc_data::EncounterDispositionEvent::PursuitFire {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Some(mission),
+                coords: disposition_coords,
+                reason: nc_data::EncounterDispositionReason::RoeWithdrawal,
+                ..
+            } => {
+                *fleet_idx == event.fleet_idx
+                    && *owner_empire_raw == event.owner_empire_raw
+                    && *mission == event.kind
+                    && *disposition_coords == coords
+            }
+            _ => false,
+        })
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum AbortDisposition {
     Retreating,
@@ -587,6 +624,84 @@ fn fleet_abort_disposition_text(disposition: AbortDisposition) -> &'static str {
     match disposition {
         AbortDisposition::Retreating => "withdrawing toward safety",
         AbortDisposition::Holding => "holding position and awaiting orders",
+    }
+}
+
+fn roe_abort_outcome_text(kind: Mission) -> &'static str {
+    match kind {
+        Mission::BombardWorld => {
+            "This forced us to break off the bombardment mission and leave the target world."
+        }
+        Mission::InvadeWorld => {
+            "This forced us to abort the invasion before the landing could begin."
+        }
+        Mission::BlitzWorld => {
+            "This forced us to abort the assault before the landing could begin."
+        }
+        Mission::ColonizeWorld => {
+            "This forced us to abandon our colony attempt before it could proceed."
+        }
+        Mission::ViewWorld => {
+            "This forced us to abandon the viewing mission before it could be completed."
+        }
+        Mission::ScoutSector | Mission::ScoutSolarSystem => {
+            "This forced us to abandon our scouting assignment."
+        }
+        Mission::GuardStarbase => {
+            "This forced us to abandon our starbase guard assignment."
+        }
+        Mission::GuardBlockadeWorld => {
+            "This forced us to abandon our guarding/blockading assignment."
+        }
+        Mission::PatrolSector => "This forced us to abandon our patrol assignment.",
+        Mission::MoveOnly => "This forced us to abandon our move mission.",
+        Mission::Salvage => "This forced us to abandon salvage operations.",
+        Mission::JoinAnotherFleet => "This forced us to abandon our join mission.",
+        Mission::RendezvousSector => "This forced us to abandon our rendezvous assignment.",
+        _ => "This forced us to abandon our mission.",
+    }
+}
+
+fn merged_roe_abort_report_body(
+    game_data: &CoreGameData,
+    event: &nc_data::MissionEvent,
+    disposition: &nc_data::EncounterDispositionEvent,
+) -> String {
+    let prefix = mission_report_prefix(event.kind);
+    match disposition {
+        nc_data::EncounterDispositionEvent::Retreated {
+            target_empire_raw,
+            target_fleet_number,
+            enemy_initial,
+            retreat_target_coords,
+            losses_sustained,
+            enemy_losses_inflicted,
+            ..
+        } => format!(
+            "{prefix} We engaged {}. The alien force contained {}. In accordance with our ROE, we withdrew toward {} after suffering losses of {}. {} {}",
+            classic_enemy_reference(game_data, *target_fleet_number, *target_empire_raw),
+            fleet_force_summary(*enemy_initial, 0),
+            nearest_owned_destination_text(game_data, event.owner_empire_raw, *retreat_target_coords),
+            ship_loss_summary(*losses_sustained),
+            enemy_losses_sentence(*enemy_losses_inflicted),
+            roe_abort_outcome_text(event.kind),
+        ),
+        nc_data::EncounterDispositionEvent::PursuitFire {
+            target_empire_raw,
+            target_fleet_number,
+            retreat_target_coords,
+            losses_sustained,
+            enemy_losses_inflicted,
+            ..
+        } => format!(
+            "{prefix} We attempted to disengage from {} in accordance with our ROE, but suffered pursuit fire while withdrawing toward {} after suffering losses of {}. {} {}",
+            classic_enemy_reference(game_data, *target_fleet_number, *target_empire_raw),
+            nearest_owned_destination_text(game_data, event.owner_empire_raw, *retreat_target_coords),
+            ship_loss_summary(*losses_sustained),
+            enemy_losses_sentence(*enemy_losses_inflicted),
+            roe_abort_outcome_text(event.kind),
+        ),
+        _ => unreachable!("only ROE retreat dispositions should reach merged abort text"),
     }
 }
 
@@ -1910,6 +2025,7 @@ fn generate_report_entries(
     // Grouping key: (owner_empire_raw, coords, AbortDisposition)
     // Within a group, fleets are listed as "Fleet N (ShortLabel)".
     let mut batched_abort_indices: BTreeSet<usize> = BTreeSet::new();
+    let mut consumed_roe_disposition_indices: BTreeSet<usize> = BTreeSet::new();
     {
         // Collect qualifying aborted events by group key.
         // Value: Vec of (event_index, fleet_id, mission_short_label, stardate_week)
@@ -1929,6 +2045,9 @@ fn generate_report_entries(
             // Suppression 2: assault report covers this (existing rule).
             if mission_event_has_assault_report(events, event) {
                 batched_abort_indices.insert(ev_idx);
+                continue;
+            }
+            if matching_roe_abort_disposition_index(events, event).is_some() {
                 continue;
             }
             let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
@@ -2010,7 +2129,36 @@ fn generate_report_entries(
         let mission_location = mission_location_phrase(event.kind, coords);
         let source_clause =
             owned_fleet_source_clause_from_idx(game_data, event.fleet_idx, &mission_location);
-        let (kind, tail, source, body) = match (event.kind, event.outcome) {
+        let merged_roe_abort_disposition = matching_roe_abort_disposition_index(events, event)
+            .and_then(|idx| events.encounter_disposition_events.get(idx).map(|disp| (idx, disp)));
+        let (kind, tail, source, body) = if let Some((disposition_idx, disposition)) =
+            merged_roe_abort_disposition
+        {
+            consumed_roe_disposition_indices.insert(disposition_idx);
+            let tail = match event.kind {
+                Mission::BombardWorld => RESULTS_TAIL_BOMBARD,
+                Mission::InvadeWorld | Mission::BlitzWorld => RESULTS_TAIL_INVASION,
+                Mission::ColonizeWorld => RESULTS_TAIL_COLONIZATION,
+                Mission::ViewWorld | Mission::ScoutSector | Mission::ScoutSolarSystem => {
+                    RESULTS_TAIL_SCOUTING
+                }
+                _ => RESULTS_TAIL_FLEET,
+            };
+            let kind = match event.kind {
+                Mission::BombardWorld => 0x08,
+                Mission::InvadeWorld | Mission::BlitzWorld => 0x0c,
+                Mission::ColonizeWorld => 0x09,
+                Mission::ViewWorld | Mission::ScoutSector | Mission::ScoutSolarSystem => 0x07,
+                _ => 0x05,
+            };
+            (
+                kind,
+                tail,
+                source_clause.clone(),
+                merged_roe_abort_report_body(game_data, event, disposition),
+            )
+        } else {
+            match (event.kind, event.outcome) {
             (Mission::MoveOnly, MissionOutcome::Succeeded) => (
                 0x05u8,
                 RESULTS_TAIL_FLEET,
@@ -2358,6 +2506,7 @@ fn generate_report_entries(
                 )
             }
             _ => continue,
+        }
         };
         let header = report_header(&source, event.stardate_week, year);
         entries.push(ReportEntry {
@@ -2474,7 +2623,10 @@ fn generate_report_entries(
     // Deduplicate NoEngagement: one avoidance report per enemy per location per turn.
     let mut seen_avoidance: std::collections::HashSet<(u8, u8, [u8; 2])> =
         std::collections::HashSet::new();
-    for event in &events.encounter_disposition_events {
+    for (disposition_idx, event) in events.encounter_disposition_events.iter().enumerate() {
+        if consumed_roe_disposition_indices.contains(&disposition_idx) {
+            continue;
+        }
         let (owner_empire_raw, event_week, source, body) = match *event {
             nc_data::EncounterDispositionEvent::NoEngagement {
                 fleet_idx,
