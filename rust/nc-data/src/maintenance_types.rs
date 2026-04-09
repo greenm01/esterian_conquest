@@ -333,6 +333,8 @@ pub enum JoinMissionHostEvent {
 pub enum MissionRetargetEvent {
     Retargeted {
         fleet_idx: usize,
+        /// Player-visible fleet number captured when the event was created.
+        reporting_fleet_number: Option<u8>,
         owner_empire_raw: u8,
         mission: Mission,
         current_coords: [u8; 2],
@@ -341,6 +343,8 @@ pub enum MissionRetargetEvent {
     },
     Abandoned {
         fleet_idx: usize,
+        /// Player-visible fleet number captured when the event was created.
+        reporting_fleet_number: Option<u8>,
         owner_empire_raw: u8,
         mission: Mission,
         previous_target_coords: [u8; 2],

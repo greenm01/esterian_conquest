@@ -188,6 +188,7 @@ fn retarget_report_source_uses_current_location_not_new_target() {
         .mission_retarget_events
         .push(MissionRetargetEvent::Retargeted {
             fleet_idx: 0,
+            reporting_fleet_number: Some(11),
             owner_empire_raw: 1,
             mission: Mission::JoinAnotherFleet,
             current_coords: [6, 6],
@@ -201,6 +202,31 @@ fn retarget_report_source_uses_current_location_not_new_target() {
     assert!(text.contains("From your 11th Fleet, located in Sector(6,6):"));
     assert!(text.contains("continuing pursuit to Sector(8,8)"));
     assert!(!text.contains("located in Sector(8,8):"));
+}
+
+#[test]
+fn retarget_report_source_uses_stored_reporting_fleet_number() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 99, [6, 6]);
+
+    let mut events = MaintenanceEvents::default();
+    events
+        .mission_retarget_events
+        .push(MissionRetargetEvent::Retargeted {
+            fleet_idx: 0,
+            reporting_fleet_number: Some(11),
+            owner_empire_raw: 1,
+            mission: Mission::JoinAnotherFleet,
+            current_coords: [6, 6],
+            previous_target_coords: [4, 4],
+            new_target_coords: [8, 8],
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("From your 11th Fleet, located in Sector(6,6):"));
+    assert!(!text.contains("From your 99th Fleet"));
 }
 
 #[test]

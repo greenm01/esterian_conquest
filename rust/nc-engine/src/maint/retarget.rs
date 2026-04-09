@@ -16,6 +16,7 @@ pub(super) fn refresh_seek_home_targets(game_data: &mut CoreGameData) -> Vec<Mis
         let previous_target_coords = fleet.standing_order_target_coords_raw();
         let current_coords = fleet.current_location_coords_raw();
         let owner_empire_raw = fleet.owner_empire_raw();
+        let reporting_fleet_number = Some(fleet.local_slot_word_raw() as u8);
         let Some(new_target_coords) =
             nearest_owned_planet_target_from_list(&owned_planets, owner_empire_raw, current_coords)
         else {
@@ -24,6 +25,7 @@ pub(super) fn refresh_seek_home_targets(game_data: &mut CoreGameData) -> Vec<Mis
             fleet.set_standing_order_target_coords_raw(current_coords);
             events.push(MissionRetargetEvent::Abandoned {
                 fleet_idx,
+                reporting_fleet_number,
                 owner_empire_raw,
                 mission: Mission::SeekHome,
                 previous_target_coords,
@@ -35,6 +37,7 @@ pub(super) fn refresh_seek_home_targets(game_data: &mut CoreGameData) -> Vec<Mis
             fleet.set_standing_order_target_coords_raw(new_target_coords);
             events.push(MissionRetargetEvent::Retargeted {
                 fleet_idx,
+                reporting_fleet_number,
                 owner_empire_raw,
                 mission: Mission::SeekHome,
                 current_coords,
@@ -91,9 +94,11 @@ pub(super) fn refresh_join_host_targets(game_data: &mut CoreGameData) -> Vec<Mis
             let previous_target_coords = fleet.standing_order_target_coords_raw();
             if coords != previous_target_coords {
                 let current_coords = fleet.current_location_coords_raw();
+                let reporting_fleet_number = Some(fleet.local_slot_word_raw() as u8);
                 fleet.set_standing_order_target_coords_raw(coords);
                 events.push(MissionRetargetEvent::Retargeted {
                     fleet_idx,
+                    reporting_fleet_number,
                     owner_empire_raw: fleet.owner_empire_raw(),
                     mission: Mission::JoinAnotherFleet,
                     current_coords,
@@ -136,6 +141,7 @@ pub(super) fn refresh_guard_starbase_targets(
         let previous_target_coords = fleet.standing_order_target_coords_raw();
         let current_coords = fleet.current_location_coords_raw();
         let owner_empire_raw = fleet.owner_empire_raw();
+        let reporting_fleet_number = Some(fleet.local_slot_word_raw() as u8);
         let base_id = fleet.guard_starbase_index_raw();
         if fleet.guard_starbase_enable_raw() == 0 {
             fleet.set_standing_order_kind(Order::HoldPosition);
@@ -143,6 +149,7 @@ pub(super) fn refresh_guard_starbase_targets(
             fleet.set_standing_order_target_coords_raw(current_coords);
             events.push(MissionRetargetEvent::Abandoned {
                 fleet_idx,
+                reporting_fleet_number,
                 owner_empire_raw,
                 mission: Mission::GuardStarbase,
                 previous_target_coords,
@@ -164,6 +171,7 @@ pub(super) fn refresh_guard_starbase_targets(
             fleet.set_standing_order_target_coords_raw(current_coords);
             events.push(MissionRetargetEvent::Abandoned {
                 fleet_idx,
+                reporting_fleet_number,
                 owner_empire_raw,
                 mission: Mission::GuardStarbase,
                 previous_target_coords,
@@ -175,6 +183,7 @@ pub(super) fn refresh_guard_starbase_targets(
             fleet.set_standing_order_target_coords_raw(new_target_coords);
             events.push(MissionRetargetEvent::Retargeted {
                 fleet_idx,
+                reporting_fleet_number,
                 owner_empire_raw,
                 mission: Mission::GuardStarbase,
                 current_coords,

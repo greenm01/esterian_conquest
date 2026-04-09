@@ -799,12 +799,14 @@ fn test_seek_home_retargets_to_next_owned_planet_when_target_is_lost() {
             event,
             MissionRetargetEvent::Retargeted {
                 fleet_idx,
+                reporting_fleet_number,
                 mission,
                 current_coords,
                 previous_target_coords,
                 new_target_coords,
                 ..
             } if *fleet_idx == 1
+                && *reporting_fleet_number == Some(game_data.fleets.records[1].local_slot_word_raw() as u8)
                 && *mission == Mission::SeekHome
                 && *current_coords == [9, 9]
                 && *previous_target_coords == original_target
@@ -843,12 +845,14 @@ fn test_guard_starbase_retargets_to_live_base_coords() {
             event,
             MissionRetargetEvent::Retargeted {
                 fleet_idx,
+                reporting_fleet_number,
                 mission,
                 current_coords,
                 previous_target_coords,
                 new_target_coords,
                 ..
             } if *fleet_idx == 1
+                && *reporting_fleet_number == Some(game_data.fleets.records[1].local_slot_word_raw() as u8)
                 && *mission == Mission::GuardStarbase
                 && *current_coords == [4, 8]
                 && *previous_target_coords == [9, 8]
@@ -885,10 +889,12 @@ fn test_guard_starbase_abandons_when_linked_base_is_missing() {
             event,
             MissionRetargetEvent::Abandoned {
                 fleet_idx,
+                reporting_fleet_number,
                 mission,
                 previous_target_coords,
                 ..
             } if *fleet_idx == 1
+                && *reporting_fleet_number == Some(game_data.fleets.records[1].local_slot_word_raw() as u8)
                 && *mission == Mission::GuardStarbase
                 && *previous_target_coords == [9, 8]
         )
@@ -1011,10 +1017,12 @@ fn test_guard_starbase_with_zero_index_abandons_when_target_base_is_missing() {
             event,
             MissionRetargetEvent::Abandoned {
                 fleet_idx,
+                reporting_fleet_number,
                 mission,
                 previous_target_coords,
                 ..
             } if *fleet_idx == 1
+                && *reporting_fleet_number == Some(game_data.fleets.records[1].local_slot_word_raw() as u8)
                 && *mission == Mission::GuardStarbase
                 && *previous_target_coords == [11, 8]
         )

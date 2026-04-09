@@ -1,6 +1,4 @@
-use nc_data::CoreGameData;
-
-use super::{fleet_label, owned_fleet_source_clause_from_idx};
+use super::{fleet_label, owned_fleet_source_clause};
 
 pub(super) fn join_host_retarget_text(
     previous_host_fleet_number: Option<u8>,
@@ -43,13 +41,11 @@ pub(super) fn join_host_destroyed_text(
 }
 
 pub(super) fn mission_retarget_source(
-    game_data: &CoreGameData,
-    fleet_idx: usize,
+    reporting_fleet_number: Option<u8>,
     current_coords: [u8; 2],
 ) -> String {
-    owned_fleet_source_clause_from_idx(
-        game_data,
-        fleet_idx,
+    owned_fleet_source_clause(
+        reporting_fleet_number,
         &format!("Sector({},{})", current_coords[0], current_coords[1]),
     )
 }

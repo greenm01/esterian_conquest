@@ -76,6 +76,19 @@ fn logical_result_reports(records: &[&[u8]]) -> Vec<(u8, Vec<String>)> {
     reports
 }
 
+fn ordinal_number(value: usize) -> String {
+    let suffix = match value % 100 {
+        11..=13 => "th",
+        _ => match value % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        },
+    };
+    format!("{value}{suffix}")
+}
+
 fn zero_all_fleets(game_data: &mut CoreGameData) {
     for fleet in &mut game_data.fleets.records {
         let current = fleet.current_location_coords_raw();
@@ -2966,6 +2979,7 @@ fn maint_rust_join_retarget_report_uses_current_location_in_source() {
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.player.records[0].raw[0x00] = 0xff;
     let host_id = game_data.fleets.records[0].fleet_id();
+    let joiner_fleet_number = game_data.fleets.records[1].local_slot_word_raw() as usize;
     let joiner = &mut game_data.fleets.records[1];
     joiner.set_current_location_coords_raw([3, 9]);
     joiner.set_standing_order_kind(Order::JoinAnotherFleet);
@@ -2981,6 +2995,11 @@ fn maint_rust_join_retarget_report_uses_current_location_in_source() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
+    assert!(text.contains(&format!(
+        "From your {} Fleet, located in Sector(3,9):",
+        ordinal_number(joiner_fleet_number)
+    )));
+    assert!(!text.contains("From your fleet, located in Sector(3,9):"));
     assert!(text.contains("located in Sector(3,9):"));
     assert!(text.contains("Join mission report: Our host fleet moved."));
     assert!(text.contains("continuing pursuit to"));

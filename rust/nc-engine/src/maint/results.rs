@@ -3114,15 +3114,16 @@ fn generate_report_entries(
     for event in &events.mission_retarget_events {
         let source = match *event {
             nc_data::MissionRetargetEvent::Retargeted {
-                fleet_idx,
+                reporting_fleet_number,
                 current_coords,
                 ..
-            } => mission_retarget_source(game_data, fleet_idx, current_coords),
+            } => mission_retarget_source(reporting_fleet_number, current_coords),
             nc_data::MissionRetargetEvent::Abandoned {
-                fleet_idx, coords, ..
-            } => owned_fleet_source_clause_from_idx(
-                game_data,
-                fleet_idx,
+                reporting_fleet_number,
+                coords,
+                ..
+            } => owned_fleet_source_clause(
+                reporting_fleet_number,
                 &format!("Sector({},{})", coords[0], coords[1]),
             ),
         };
