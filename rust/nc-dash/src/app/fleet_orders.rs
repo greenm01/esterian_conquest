@@ -1074,6 +1074,7 @@ impl DashApp {
     }
 
     fn reselect_fleet_overlay_row(&mut self, key: FleetOverlayRowKey) {
+        self.enforce_valid_fleet_filter();
         if let Some(index) = fleet_list::table_rows(self)
             .iter()
             .position(|row| row.key == key)

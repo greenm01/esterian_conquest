@@ -480,7 +480,18 @@ impl App {
         ) && self.fleet.menu_prompt_mode.is_some()
     }
 
+    pub(crate) fn enforce_valid_fleet_filter(&mut self) {
+        if self.fleet.list_filter != FleetListFilter::All {
+            if self.fleet_list_rows().is_empty() && !self.fleet_rows().is_empty() {
+                self.fleet.list_filter = FleetListFilter::All;
+                self.fleet.cursor = 0;
+                self.fleet.scroll_offset = 0;
+            }
+        }
+    }
+
     pub fn open_fleet_list(&mut self) {
+        self.enforce_valid_fleet_filter();
         if self.fleet_list_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
@@ -497,6 +508,7 @@ impl App {
     }
 
     pub fn open_fleet_list_filter_prompt(&mut self) {
+        self.enforce_valid_fleet_filter();
         if self.fleet_list_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
@@ -507,6 +519,7 @@ impl App {
     }
 
     pub fn open_fleet_list_sort_prompt(&mut self) {
+        self.enforce_valid_fleet_filter();
         if self.fleet_list_rows().is_empty() {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;

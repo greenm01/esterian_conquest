@@ -258,6 +258,7 @@ impl DashApp {
     }
 
     fn reselect_planet_overlay_row(&mut self, planet_record_index_1_based: usize) {
+        self.enforce_valid_planet_filter();
         if let Some(index) = planet_list::table_rows(self)
             .iter()
             .position(|row| row.planet_record_index_1_based == planet_record_index_1_based)

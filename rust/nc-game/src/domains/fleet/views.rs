@@ -2,6 +2,7 @@ use crate::app::state::App;
 use crate::screen::{PlayfieldBuffer, ScreenFrame, ScreenId, format_sector_coords};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    app.enforce_valid_fleet_filter();
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,
@@ -46,40 +47,46 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
         ),
-        ScreenId::FleetList => app.fleet_list.render(
-            frame.geometry,
-            &app.fleet_list_rows(),
-            app.fleet.list_sort,
-            app.fleet.list_sort_direction,
-            app.fleet.list_filter,
-            app.fleet.scroll_offset,
-            app.fleet.cursor,
-            &app.fleet.list_input,
-            app.fleet.list_status.as_deref(),
-            app.fleet.list_dismiss_message.as_deref(),
-            app.fleet_menu_prompt_label().as_deref(),
-            &app.fleet.menu_prompt_default_value,
-            &app.fleet.menu_prompt_input,
-            app.fleet.menu_prompt_status.as_ref(),
-        ),
-        ScreenId::FleetListFilterPrompt => app.fleet_list.render_filter_prompt(
-            frame.geometry,
-            &app.fleet_list_rows(),
-            app.fleet.list_sort,
-            app.fleet.list_sort_direction,
-            app.fleet.list_filter,
-            app.fleet.scroll_offset,
-            app.fleet.cursor,
-        ),
-        ScreenId::FleetListSortPrompt => app.fleet_list.render_sort_prompt(
-            frame.geometry,
-            &app.fleet_list_rows(),
-            app.fleet.list_sort,
-            app.fleet.list_sort_direction,
-            app.fleet.list_filter,
-            app.fleet.scroll_offset,
-            app.fleet.cursor,
-        ),
+        ScreenId::FleetList => {
+            app.fleet_list.render(
+                frame.geometry,
+                &app.fleet_list_rows(),
+                app.fleet.list_sort,
+                app.fleet.list_sort_direction,
+                app.fleet.list_filter,
+                app.fleet.scroll_offset,
+                app.fleet.cursor,
+                &app.fleet.list_input,
+                app.fleet.list_status.as_deref(),
+                app.fleet.list_dismiss_message.as_deref(),
+                app.fleet_menu_prompt_label().as_deref(),
+                &app.fleet.menu_prompt_default_value,
+                &app.fleet.menu_prompt_input,
+                app.fleet.menu_prompt_status.as_ref(),
+            )
+        }
+        ScreenId::FleetListFilterPrompt => {
+            app.fleet_list.render_filter_prompt(
+                frame.geometry,
+                &app.fleet_list_rows(),
+                app.fleet.list_sort,
+                app.fleet.list_sort_direction,
+                app.fleet.list_filter,
+                app.fleet.scroll_offset,
+                app.fleet.cursor,
+            )
+        }
+        ScreenId::FleetListSortPrompt => {
+            app.fleet_list.render_sort_prompt(
+                frame.geometry,
+                &app.fleet_list_rows(),
+                app.fleet.list_sort,
+                app.fleet.list_sort_direction,
+                app.fleet.list_filter,
+                app.fleet.scroll_offset,
+                app.fleet.cursor,
+            )
+        }
         ScreenId::FleetReview => {
             let rows = if app.fleet.review_return_to_list {
                 app.fleet_list_rows()

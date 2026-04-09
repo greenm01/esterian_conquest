@@ -204,7 +204,40 @@ impl App {
         let _ = self.open_planet_info_detail_at_coords(coords, Some(ScreenId::PlanetDatabaseList));
     }
 
+    pub(crate) fn enforce_valid_planet_list_filter(&mut self) {
+        if self.planet.list_filter != PlanetListFilter::All {
+            if self
+                .planet_list_rows(PlanetListMode::Brief, self.planet.list_sort)
+                .is_empty()
+                && !self
+                    .game_data
+                    .empire_planet_economy_rows(self.player.record_index_1_based)
+                    .is_empty()
+            {
+                self.planet.list_filter = PlanetListFilter::All;
+                self.planet.brief_cursor = 0;
+                self.planet.brief_scroll_offset = 0;
+            }
+        }
+    }
+
+    pub(crate) fn enforce_valid_planet_database_filter(&mut self) {
+        if self.planet.database_filter != PlanetDatabaseFilter::All {
+            if self.planet_database_rows().is_empty() {
+                let previous = self.planet.database_filter;
+                self.planet.database_filter = PlanetDatabaseFilter::All;
+                if self.planet_database_rows().is_empty() {
+                    self.planet.database_filter = previous;
+                } else {
+                    self.planet.database_cursor = 0;
+                    self.planet.database_scroll_offset = 0;
+                }
+            }
+        }
+    }
+
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
+        self.enforce_valid_planet_list_filter();
         if self
             .planet_list_rows(mode, PlanetListSort::Location)
             .is_empty()
@@ -221,6 +254,7 @@ impl App {
     }
 
     pub fn open_planet_list_filter_prompt(&mut self, mode: PlanetListMode) {
+        self.enforce_valid_planet_list_filter();
         if self
             .planet_list_rows(mode, self.planet.list_sort)
             .is_empty()

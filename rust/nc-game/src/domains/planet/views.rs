@@ -5,6 +5,8 @@ use crate::screen::{
 };
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    app.enforce_valid_planet_list_filter();
+    app.enforce_valid_planet_database_filter();
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,

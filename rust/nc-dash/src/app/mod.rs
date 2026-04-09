@@ -1476,6 +1476,14 @@ impl DashApp {
         );
     }
 
+    fn enforce_valid_planet_filter(&mut self) {
+        if self.planet_overlay.filter != crate::app::state::PlanetOverlayFilter::All
+            && crate::overlays::planet_list::table_rows(self).is_empty()
+        {
+            self.planet_overlay.filter = crate::app::state::PlanetOverlayFilter::All;
+        }
+    }
+
     fn apply_planet_overlay_filter(&mut self, filter: PlanetOverlayFilter) {
         let selected_record = planet_list::table_rows(self)
             .get(self.planet_overlay.selected)
@@ -1520,6 +1528,12 @@ impl DashApp {
             self.fleet_overlay.selected,
             1_000,
         );
+    }
+
+    fn enforce_valid_fleet_filter(&mut self) {
+        if self.fleet_overlay.filter != FleetOverlayFilter::All && fleet_list::table_rows(self).is_empty() {
+            self.fleet_overlay.filter = FleetOverlayFilter::All;
+        }
     }
 
     fn apply_fleet_overlay_filter(&mut self, filter: FleetOverlayFilter) {
