@@ -8,20 +8,20 @@ pub(super) fn join_host_retarget_text(
 ) -> String {
     match (previous_host_fleet_number, new_host_fleet_number) {
         (Some(previous), Some(new)) => format!(
-            " Join mission report: Our intended host fleet ({}) has moved. We are now joining the {} instead.",
+            " Join mission report: Our intended host fleet ({}) merged into the {}. We are now joining that surviving fleet instead.",
             fleet_label(previous),
             fleet_label(new),
         ),
         (Some(previous), None) => format!(
-            " Join mission report: Our intended host fleet ({}) has moved. We are now joining a new host fleet instead.",
+            " Join mission report: Our intended host fleet ({}) merged into another surviving host fleet. We are now joining that surviving fleet instead.",
             fleet_label(previous),
         ),
         (None, Some(new)) => format!(
-            " Join mission report: Our intended host fleet has moved. We are now joining the {} instead.",
+            " Join mission report: Our intended host fleet merged into the {}. We are now joining that surviving fleet instead.",
             fleet_label(new),
         ),
         (None, None) => {
-            " Join mission report: Our intended host fleet has moved. We are now joining a new host fleet instead.".to_string()
+            " Join mission report: Our intended host fleet merged into another surviving host fleet. We are now joining that surviving fleet instead.".to_string()
         }
     }
 }

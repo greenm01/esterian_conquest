@@ -301,3 +301,27 @@ fn fleet_contact_report_includes_reporting_fleet_composition() {
     assert!(text.contains("We had 1 scout ship."));
     assert!(text.contains("Their fleet contains"));
 }
+
+#[test]
+fn join_host_retarget_report_describes_host_merge_not_movement() {
+    let mut game_data = seeded_game_data();
+    configure_fleet(&mut game_data, 0, 1, 12, [2, 7]);
+
+    let mut events = MaintenanceEvents::default();
+    events
+        .join_host_events
+        .push(JoinMissionHostEvent::Retargeted {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            previous_host_fleet_number: Some(14),
+            new_host_fleet_number: Some(2),
+            coords: [2, 7],
+        });
+
+    let text = viewer_report_texts(1, &build_results_report_blocks(&game_data, &events))
+        .join(" ")
+        .replace('\n', " ");
+    assert!(text.contains("Our intended host fleet (14th Fleet) merged into the 2nd Fleet."));
+    assert!(text.contains("joining that surviving fleet instead"));
+    assert!(!text.contains("has moved"));
+}
